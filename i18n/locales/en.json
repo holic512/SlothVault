@@ -1,0 +1,136 @@
+{
+  "ThemeToggle": {
+    "aria": {
+      "openThemeSettings": "Open Theme Settings"
+    },
+    "section": {
+      "mode": "Mode",
+      "language": "Language",
+      "color": "Color"
+    },
+    "mode": {
+      "light": "Light",
+      "dark": "Dark",
+      "light_title": "Light Mode",
+      "dark_title": "Dark Mode"
+    },
+    "language": {
+      "zh": "Chinese",
+      "en": "English"
+    },
+    "palette": {
+      "purple": "Purple",
+      "cyan": "Cyan",
+      "emerald": "Emerald",
+      "rose": "Rose"
+    }
+  },
+  "IndexPage": {
+    "hero": {
+      "badge": "Powered by Nuxt 4 + PostgreSQL",
+      "title_line1": "For a single administrator",
+      "title_line2": "Private Document Universe",
+      "desc": "Unified display and management. Clear hierarchy, dual content engines, vector semantic search, deeply integrated with Solana ETF copyright and wallet permissions.",
+      "actions": {
+        "build": "Get Started",
+        "console": "Open Console"
+      }
+    },
+    "features": {
+      "title": "Full-stack Features",
+      "subtitle": "Complete solution from storage to frontend",
+      "project": {
+        "title": "Custom Project",
+        "desc": "Single-user management, project-level isolation and routes."
+      },
+      "category": {
+        "title": "Category in Project",
+        "desc": "Flexible hierarchy with sorting and organization."
+      },
+      "page": {
+        "title": "Page Organization",
+        "desc": "Pages under categories with clear routing."
+      },
+      "htmlmd": {
+        "title": "HTML / Markdown",
+        "desc": "Dual content types for rich text and docs."
+      },
+      "search": {
+        "title": "Vector Semantic Search",
+        "desc": "Embedding-based retrieval to locate content fast."
+      },
+      "fs": {
+        "title": "Built-in File System",
+        "desc": "Unified storage and access control."
+      }
+    },
+    "models": {
+      "title": "Core Data Models",
+      "subtitle": "PostgreSQL schema preview"
+    },
+    "model": {
+      "Project": "Project",
+      "Category": "Category",
+      "Page": "Page"
+    },
+    "highlight": {
+      "title": "On-chain Copyright & Permission Binding",
+      "desc": "Integrates Solana ETF issuance; wallet-bound reading permissions for compliant distribution. Decentralized identity via Web3 signatures.",
+      "tags": {
+        "walletSign": "🔐 Wallet Signature",
+        "onChainCert": "📜 On-chain Credential",
+        "permissionCheck": "👁️ Permission Check"
+      }
+    },
+    "cta": {
+      "title": "Ready to build your knowledge base?",
+      "desc": "Organize by projects, precise search and secure distribution.",
+      "buttons": {
+        "create": "Create First Project",
+        "docs": "Read Docs"
+      }
+    }
+  },
+  "aria": {
+    "openThemeSettings": "Open Theme Settings"
+  },
+  "section": {
+    "mode": "Mode",
+    "language": "Language",
+    "color": "Color"
+  },
+  "mode": {
+    "light": "Light",
+    "dark": "Dark",
+    "light_title": "Light Mode",
+    "dark_title": "Dark Mode"
+  },
+  "language": {
+    "zh": "Chinese",
+    "en": "English"
+  },
+  "palette": {
+    "purple": "Purple",
+    "cyan": "Cyan",
+    "emerald": "Emerald",
+    "rose": "Rose"
+  },
+  "AdminLogin": {
+    "hero": {
+      "badge": "Admin Console",
+      "title": "Admin Login",
+      "desc": "Enter admin credentials to access the console"
+    },
+    "form": {
+      "username": "Username or Email",
+      "password": "Password",
+      "remember": "Remember me",
+      "submit": "Sign In",
+      "submitting": "Signing in…"
+    },
+    "status": {
+      "required": "Please fill in all required fields",
+      "error": "Invalid username or password"
+    }
+  }
+}

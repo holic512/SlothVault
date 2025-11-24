@@ -1,0 +1,369 @@
+/* =========================================
+   1. 核心变量定义 (Variables)
+   ========================================= */
+:root {
+    /* --- 你的基础定义 (Light) --- */
+    --sloth-bg: #f8f9fb;
+    --sloth-bg-hover: #eef0f4;
+
+    /* 稍微调整 Card 为半透明以支持毛玻璃 */
+    --sloth-card: rgba(255, 255, 255, 0.8);
+    --sloth-card-border: rgba(0, 0, 0, 0.08);
+
+    --sloth-text: #111111;
+    --sloth-text-subtle: #6b7280; /* 稍微冷一点的灰 */
+    --sloth-text-inverse: #ffffff;
+
+    --sloth-primary: #7c3aed;
+    --sloth-primary-hover: #8b5cf6;
+    /* 添加 Primary 的淡色背景，用于 Badge 或 hover */
+    --sloth-primary-dim: rgba(124, 58, 237, 0.1);
+
+    --sloth-accent: #06b6d4;
+    --sloth-danger: #ef4444;
+
+    --sloth-radius: 16px; /* Web3 通常更圆润 */
+    --sloth-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
+    --sloth-shadow-hover: 0 15px 35px rgba(0, 0, 0, 0.1);
+
+    /* --- Web3 扩展变量 --- */
+    --sloth-font-sans: 'Public Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --sloth-font-mono: 'Public Sans', 'Space Mono', 'Roboto Mono', monospace; /* 适合显示 Hash */
+
+    --sloth-gradient-primary: linear-gradient(135deg, #7c3aed 0%, #c026d3 100%);
+    --sloth-gradient-text: linear-gradient(90deg, #7c3aed 0%, #06b6d4 100%);
+
+    --sloth-blur: 12px;
+    --sloth-transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* --- 暗黑模式 (Dark) --- */
+.dark {
+    --sloth-bg: #050505;
+    --sloth-bg-hover: #111111;
+
+    /* 深色模式下的毛玻璃基底 */
+    --sloth-card: rgba(20, 20, 20, 0.65);
+    --sloth-card-border: rgba(255, 255, 255, 0.08);
+
+    --sloth-text: #f3f4f6;
+    --sloth-text-subtle: #9ca3af;
+    --sloth-text-inverse: #ffffff;
+
+    --sloth-primary: #a78bfa;
+    --sloth-primary-hover: #c4b5fd;
+    --sloth-primary-dim: rgba(167, 139, 250, 0.15);
+
+    --sloth-accent: #22d3ee;
+    --sloth-danger: #f87171;
+
+    --sloth-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    --sloth-shadow-hover: 0 15px 40px rgba(0, 0, 0, 0.7);
+
+    --sloth-gradient-primary: linear-gradient(135deg, #a78bfa 0%, #e879f9 100%);
+}
+
+/* 主题配色：紫色 */
+.theme-purple {
+    --sloth-primary: #7c3aed;
+    --sloth-primary-hover: #8b5cf6;
+    --sloth-primary-dim: rgba(124, 58, 237, 0.1);
+    --sloth-accent: #06b6d4;
+    --sloth-gradient-primary: linear-gradient(135deg, #7c3aed 0%, #c026d3 100%);
+    --sloth-gradient-text: linear-gradient(90deg, #7c3aed 0%, #06b6d4 100%);
+}
+
+.dark.theme-purple {
+    --sloth-primary: #a78bfa;
+    --sloth-primary-hover: #c4b5fd;
+    --sloth-primary-dim: rgba(167, 139, 250, 0.15);
+    --sloth-gradient-primary: linear-gradient(135deg, #a78bfa 0%, #e879f9 100%);
+}
+
+/* 主题配色：青色 */
+.theme-cyan {
+    --sloth-primary: #06b6d4;
+    --sloth-primary-hover: #22d3ee;
+    --sloth-primary-dim: rgba(6, 182, 212, 0.1);
+    --sloth-accent: #7c3aed;
+    --sloth-gradient-primary: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+    --sloth-gradient-text: linear-gradient(90deg, #06b6d4 0%, #3b82f6 100%);
+}
+
+.dark.theme-cyan {
+    --sloth-primary: #22d3ee;
+    --sloth-primary-hover: #67e8f9;
+    --sloth-primary-dim: rgba(34, 211, 238, 0.15);
+    --sloth-gradient-primary: linear-gradient(135deg, #22d3ee 0%, #60a5fa 100%);
+}
+
+/* 主题配色：翠绿 */
+.theme-emerald {
+    --sloth-primary: #10b981;
+    --sloth-primary-hover: #34d399;
+    --sloth-primary-dim: rgba(16, 185, 129, 0.1);
+    --sloth-accent: #06b6d4;
+    --sloth-gradient-primary: linear-gradient(135deg, #10b981 0%, #22c55e 100%);
+    --sloth-gradient-text: linear-gradient(90deg, #10b981 0%, #22c55e 100%);
+}
+
+.dark.theme-emerald {
+    --sloth-primary: #34d399;
+    --sloth-primary-hover: #6ee7b7;
+    --sloth-primary-dim: rgba(52, 211, 153, 0.15);
+    --sloth-gradient-primary: linear-gradient(135deg, #34d399 0%, #4ade80 100%);
+}
+
+/* 主题配色：玫红 */
+.theme-rose {
+    --sloth-primary: #f43f5e;
+    --sloth-primary-hover: #fb7185;
+    --sloth-primary-dim: rgba(244, 63, 94, 0.12);
+    --sloth-accent: #7c3aed;
+    --sloth-gradient-primary: linear-gradient(135deg, #f43f5e 0%, #e879f9 100%);
+    --sloth-gradient-text: linear-gradient(90deg, #f43f5e 0%, #e879f9 100%);
+}
+
+.dark.theme-rose {
+    --sloth-primary: #fb7185;
+    --sloth-primary-hover: #fda4af;
+    --sloth-primary-dim: rgba(251, 113, 133, 0.15);
+    --sloth-gradient-primary: linear-gradient(135deg, #fb7185 0%, #f472b6 100%);
+}
+
+/* =========================================
+   2. 全局重置与基础排版 (Reset & Base)
+   ========================================= */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--sloth-font-sans);
+    background-color: var(--sloth-bg);
+    color: var(--sloth-text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    min-height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-gutter: stable both-edges;
+
+    /* 可选：添加背景网格纹理，更有科技感 */
+    background-image: radial-gradient(var(--sloth-card-border) 1px, transparent 1px);
+    background-size: 32px 32px;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 0.5em;
+    letter-spacing: -0.02em; /* 紧凑的标题更有现代感 */
+}
+
+a {
+    color: var(--sloth-primary);
+    text-decoration: none;
+    transition: var(--sloth-transition);
+}
+
+a:hover {
+    color: var(--sloth-primary-hover);
+}
+
+/* =========================================
+   3. 核心组件 (Components)
+   ========================================= */
+
+/* --- Web3 卡片 (Glassmorphism) --- */
+.sloth-card {
+    background: var(--sloth-card);
+    border: 1px solid var(--sloth-card-border);
+    border-radius: var(--sloth-radius);
+    padding: 24px;
+
+    /* 毛玻璃核心属性 */
+    backdrop-filter: blur(var(--sloth-blur));
+    -webkit-backdrop-filter: blur(var(--sloth-blur));
+
+    box-shadow: var(--sloth-shadow);
+    transition: var(--sloth-transition);
+}
+
+.sloth-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--sloth-shadow-hover);
+    border-color: var(--sloth-primary-hover); /* hover 时边框微亮 */
+}
+
+/* --- 按钮 (Buttons) --- */
+.sloth-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 20px;
+    border-radius: var(--sloth-radius);
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: var(--sloth-transition);
+    border: none;
+    gap: 8px;
+}
+
+/* 主要按钮：渐变风格 */
+.sloth-btn-primary {
+    background: var(--sloth-gradient-primary);
+    color: var(--sloth-text-inverse);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.sloth-btn-primary:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(124, 58, 237, 0.4); /* 紫色光晕 */
+}
+
+/* 次要按钮：幽灵风格 */
+.sloth-btn-secondary {
+    background: transparent;
+    border: 1px solid var(--sloth-card-border);
+    color: var(--sloth-text);
+}
+
+.sloth-btn-secondary:hover {
+    background: var(--sloth-bg-hover);
+    border-color: var(--sloth-text-subtle);
+}
+
+/* 幽灵/文本按钮 */
+.sloth-btn-ghost {
+    background: transparent;
+    color: var(--sloth-text-subtle);
+}
+
+.sloth-btn-ghost:hover {
+    color: var(--sloth-text);
+    background: var(--sloth-bg-hover);
+}
+
+/* --- 输入框 (Inputs) --- */
+.sloth-input {
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: var(--sloth-radius);
+    border: 1px solid var(--sloth-card-border);
+    background: var(--sloth-bg);
+    color: var(--sloth-text);
+    font-family: var(--sloth-font-sans);
+    font-size: 1rem;
+    transition: var(--sloth-transition);
+    outline: none;
+}
+
+/* 聚焦时产生光晕 */
+.sloth-input:focus {
+    border-color: var(--sloth-primary);
+    box-shadow: 0 0 0 3px var(--sloth-primary-dim);
+}
+
+/* =========================================
+   4. Web3 特色元素 (Web3 Specialties)
+   ========================================= */
+
+/* --- 渐变文字 (Gradient Text) --- */
+.sloth-text-gradient {
+    background: var(--sloth-gradient-text);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+    font-weight: 800;
+}
+
+/* --- 钱包/Hash 地址胶囊 (Address Badge) --- */
+.sloth-badge-hash {
+    font-family: var(--sloth-font-mono);
+    font-size: 0.85rem;
+    padding: 4px 10px;
+    background: var(--sloth-bg-hover);
+    color: var(--sloth-text-subtle);
+    border-radius: 99px; /* 胶囊状 */
+    border: 1px solid var(--sloth-card-border);
+    display: inline-block;
+    cursor: pointer;
+    user-select: all;
+}
+
+.sloth-badge-hash:hover {
+    color: var(--sloth-primary);
+    border-color: var(--sloth-primary);
+    background: var(--sloth-primary-dim);
+}
+
+/* --- 统计数据展示 (Stats) --- */
+.sloth-stat-label {
+    font-size: 0.875rem;
+    color: var(--sloth-text-subtle);
+    margin-bottom: 4px;
+}
+
+.sloth-stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--sloth-text);
+}
+
+/* --- 加载骨架屏动画 (Skeleton Loading) --- */
+@keyframes sloth-shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+.sloth-skeleton {
+    background: linear-gradient(
+            90deg,
+            var(--sloth-bg-hover) 25%,
+            var(--sloth-card-border) 50%,
+            var(--sloth-bg-hover) 75%
+    );
+    background-size: 200% 100%;
+    animation: sloth-shimmer 1.5s infinite;
+    border-radius: 6px;
+}
+
+/* =========================================
+   5. 辅助工具类 (Utilities)
+   ========================================= */
+.sloth-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.sloth-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+}
+
+.sloth-flex-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.mt-4 {
+    margin-top: 1rem;
+}
+
+.mb-4 {
+    margin-bottom: 1rem;
+}
