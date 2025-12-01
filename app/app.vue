@@ -1,8 +1,8 @@
 <script lang="ts" setup>
-import { useTheme } from '~/stores/useTheme'
-import { useLocaleStore } from '~/stores/locale'
+import {useTheme} from '~/stores/useTheme'
+import {useLocaleStore} from '~/stores/locale'
 
-const { setLocale } = useI18n()
+const {setLocale} = useI18n()
 const themeStore = useTheme()
 const localeStore = useLocaleStore()
 onMounted(() => {

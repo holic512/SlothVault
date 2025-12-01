@@ -1,11 +1,11 @@
 <script setup>
-import {useTheme} from '~/stores/useTheme.ts'
-const { t } = useI18n()
+
+const {t} = useI18n()
 
 import {
   RectangleStackIcon, FolderIcon, DocumentTextIcon, LinkIcon,
-  CodeBracketIcon, MagnifyingGlassIcon, ServerIcon, WalletIcon,
-  CpuChipIcon, CubeIcon
+  MagnifyingGlassIcon, ServerIcon, WalletIcon,
+  CpuChipIcon
 } from '@heroicons/vue/24/outline'
 
 const features = [
@@ -24,7 +24,6 @@ const categoryModel = ['id', 'project_id', 'name', 'order', 'created_at']
 const pageModel = ['id', 'category_id', 'title', 'content_type', 'content', 'route']
 
 
-
 </script>
 
 <template>
@@ -37,7 +36,7 @@ const pageModel = ['id', 'category_id', 'title', 'content_type', 'content', 'rou
     <div class="sloth-container sloth-flex-between" style="height: 100%;">
       <!--      logo    -->
       <div class="brand">
-        <img src="/logo.png" class="brand-icon"/>
+        <img src="/logo.png" class="brand-icon" alt="Logo"/>
         <span class="brand-text">Sloth<span class="sloth-text-gradient">Vault</span></span>
       </div>
 
@@ -75,7 +74,7 @@ const pageModel = ['id', 'category_id', 'title', 'content_type', 'content', 'rou
               <polyline points="12 5 19 12 12 19"></polyline>
             </svg>
           </button>
-          <button class="sloth-btn sloth-btn-secondary">{{ t('IndexPage.hero.actions.console') }}</button>
+          <button class="sloth-btn sloth-btn-secondary" @click="navigateTo('/admin')">{{ t('IndexPage.hero.actions.console') }}</button>
         </div>
       </div>
     </div>
@@ -355,7 +354,7 @@ const pageModel = ['id', 'category_id', 'title', 'content_type', 'content', 'rou
 
 .model-fields {
   padding: 16px 20px;
-  font-family: var(--sloth-font-mono);
+  font-family: var(--sloth-font-mono), serif;
   font-size: 0.9rem;
   display: flex;
   flex-direction: column;

@@ -14,7 +14,13 @@ export default defineNuxtConfig({
     css: ['~/assets/css/main.css', '~/assets/css/theme.css'],
 
 
-    modules: ['@nuxtjs/i18n','@pinia/nuxt','pinia-plugin-persistedstate/nuxt',],
+    modules: [
+        '@nuxtjs/i18n',
+        '@pinia/nuxt',
+        'pinia-plugin-persistedstate/nuxt',
+
+
+    ],
 
     i18n: {
         strategy: 'no_prefix',

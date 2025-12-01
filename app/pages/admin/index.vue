@@ -27,7 +27,7 @@ async function onSubmit() {
       },
     })
     if (res?.token) {
-      router.push('/admin')
+      await router.push('/admin')
     } else {
       errorText.value = t('AdminLogin.status.error')
     }
