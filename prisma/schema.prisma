@@ -1,0 +1,14 @@
+// ---------------------------
+// 数据源
+// ---------------------------
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------
+// Prisma Client 生成器
+// ---------------------------
+generator client {
+  provider = "prisma-client"
+}
