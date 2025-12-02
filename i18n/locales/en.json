@@ -132,5 +132,21 @@
       "required": "Please fill in all required fields",
       "error": "Invalid username or password"
     }
+  },
+  "AdminInit": {
+    "hero": {
+      "badge": "Admin Setup",
+      "title": "Initialize Admin",
+      "desc": "Set up your admin account to get started"
+    },
+    "form": {
+      "username": "Admin Username",
+      "password": "Password",
+      "submit": "Initialize Account"
+    },
+    "status": {
+      "required": "Please fill in all required fields",
+      "error": "Initialization failed, please try again"
+    }
   }
 }

@@ -1,9 +1,12 @@
 // ---------------------------
-// 数据源
+// 配置数据库源
+// 数据库连接地址获取
+// 如果是 postgresql 所涵盖的 权限
 // ---------------------------
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  schemas  = ["public", "auth", "docs", "collections"]
 }
 
 // ---------------------------
@@ -11,4 +14,20 @@ datasource db {
 // ---------------------------
 generator client {
   provider = "prisma-client"
+  engineType = "client"
+}
+
+// =====================================================
+// 分组 1：用户与权限（auth）
+// =====================================================
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@schema("auth")
 }
