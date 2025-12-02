@@ -24,11 +24,10 @@ async function onSubmit() {
         password: form.password
       },
     })
-    if (res?.success) {
-      // 初始化成功后跳转到登录页
+    if (res?.code === 0) {
       await router.push('/admin/auth/login')
     } else {
-      errorText.value = t('AdminInit.status.error')
+      errorText.value = res?.message || t('AdminInit.status.error')
     }
   } catch (e) {
     errorText.value = t('AdminInit.status.error')

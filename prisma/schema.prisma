@@ -1,33 +1,39 @@
-// ---------------------------
-// 配置数据库源
-// 数据库连接地址获取
-// 如果是 postgresql 所涵盖的 权限
-// ---------------------------
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  schemas  = ["public", "auth", "docs", "collections"]
-}
-
-// ---------------------------
-// Prisma Client 生成器
-// ---------------------------
 generator client {
   provider = "prisma-client"
-  engineType = "client"
+  output   = "../generated/prisma"
 }
 
-// =====================================================
-// 分组 1：用户与权限（auth）
-// =====================================================
+datasource db {
+  provider = "postgresql"
+  schemas  = ["auth", "collections", "docs", "public"]
+}
 
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model Session {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    Int
+  tokenHash String    @unique
+  createdAt DateTime  @default(now()) @db.Timestamp(6)
+  expiresAt DateTime  @db.Timestamp(6)
+  revokedAt DateTime? @db.Timestamp(6)
+  ip        String?   @db.VarChar(255)
+  userAgent String?
+  User      User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_session_user")
+
+  @@index([expiresAt], map: "idx_session_expiresat")
+  @@index([userId], map: "idx_session_userid")
+  @@schema("auth")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model User {
-  id        Int      @id @default(autoincrement())
-  username  String   @unique
-  password  String
-  email     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        Int       @id @default(autoincrement())
+  username  String    @unique @db.VarChar(255)
+  password  String    @db.VarChar(255)
+  email     String?   @db.VarChar(255)
+  createdAt DateTime  @default(now()) @db.Timestamp(6)
+  updatedAt DateTime  @default(now()) @db.Timestamp(6)
+  Session   Session[]
 
   @@schema("auth")
 }

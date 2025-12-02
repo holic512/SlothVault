@@ -5,5 +5,5 @@ definePageMeta({
 </script>
 
 <template>
-  <div>Redirecting to login...</div>
+
 </template>

@@ -1,6 +1,7 @@
 <script setup>
 const {t} = useI18n()
 const router = useRouter()
+const userStore = useUserStore()
 
 const form = reactive({
   username: '',
@@ -40,9 +41,9 @@ async function onSubmit() {
         remember: form.remember
       },
     })
-    if (res?.token) {
-      // 登录成功后跳转
-      await router.push('/admin')
+    if (res?.code === 0) {
+      userStore.setUsername(res.data.username)
+      await router.push('/admin/mm')
     } else {
       errorText.value = t('AdminLogin.status.error')
     }
