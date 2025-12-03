@@ -15,7 +15,7 @@
     "@nuxtjs/i18n": "^10.2.1",
     "@pinia/nuxt": "^0.11.3",
     "@prisma/adapter-pg": "^7.0.1",
-    "@prisma/client": "^7.0.1",
+    "@prisma/client": "^7.1.0",
     "argon2": "^0.44.0",
     "dayjs": "^1.11.19",
     "dotenv": "^17.2.3",
@@ -30,7 +30,7 @@
   "devDependencies": {
     "@types/node": "^24.10.1",
     "@types/pg": "^8.15.6",
-    "prisma": "^7.0.1",
+    "prisma": "^7.1.0",
     "unplugin-auto-import": "^20.2.0",
     "unplugin-vue-components": "^30.0.0"
   }

@@ -10,4 +10,10 @@
  */
 export type * from './models/Session.js'
 export type * from './models/User.js'
+export type * from './models/Project.js'
+export type * from './models/ProjectVersion.js'
+export type * from './models/Category.js'
+export type * from './models/NoteInfo.js'
+export type * from './models/NoteContent.js'
+export type * from './models/NoteAttachment.js'
 export type * from './commonInputTypes.js'

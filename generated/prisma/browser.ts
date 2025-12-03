@@ -19,11 +19,41 @@ export * as $Enums from './enums.js'
 export * from './enums.js';
 /**
  * Model Session
- * This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+ * 会话表：存储用户会话令牌、过期时间、撤销时间等（schema: auth）
  */
 export type Session = Prisma.SessionModel
 /**
  * Model User
- * This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+ * 用户表：存储用户名、密码、邮箱等基础信息（schema: auth）
  */
 export type User = Prisma.UserModel
+/**
+ * Model Project
+ * 项目表：包含项目名称、权重、状态、是否验证权限、时间戳与软删除（schema: collections）
+ */
+export type Project = Prisma.ProjectModel
+/**
+ * Model ProjectVersion
+ * 项目版本表：关联项目，包含版本号、简介、权重、状态、时间戳与软删除（schema: collections）
+ */
+export type ProjectVersion = Prisma.ProjectVersionModel
+/**
+ * Model Category
+ * 分类表：关联项目版本，包含分类名称、权重、状态、时间戳与软删除（schema: collections）
+ */
+export type Category = Prisma.CategoryModel
+/**
+ * Model NoteInfo
+ * 笔记信息表：关联分类，包含笔记标题、权重、状态、时间戳与软删除（schema: docs）
+ */
+export type NoteInfo = Prisma.NoteInfoModel
+/**
+ * Model NoteContent
+ * 笔记内容表：一对多多版本，包含正文内容、类型、版本备注、主显示标记、状态、时间戳与软删除（schema: docs）
+ */
+export type NoteContent = Prisma.NoteContentModel
+/**
+ * Model NoteAttachment
+ * 笔记内容附件表：关联笔记内容，包含附件名称、简介与多来源下载链接、状态、时间戳与软删除（schema: docs）
+ */
+export type NoteAttachment = Prisma.NoteAttachmentModel

@@ -148,5 +148,19 @@
       "required": "Please fill in all required fields",
       "error": "Initialization failed, please try again"
     }
+  },
+  "AdminMM": {
+    "title": "SlothVault Admin",
+    "menu": {
+      "dashboard": "Dashboard",
+      "users": "User Management",
+      "sessions": "Session Status"
+    },
+    "users": {
+      "title": "User Management"
+    },
+    "sessions": {
+      "title": "Session Status Management"
+    }
   }
 }

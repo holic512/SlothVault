@@ -8,7 +8,7 @@ datasource db {
   schemas  = ["auth", "collections", "docs", "public"]
 }
 
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// 会话表：存储用户会话令牌、过期时间、撤销时间等（schema: auth）
 model Session {
   id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId    Int
@@ -25,7 +25,7 @@ model Session {
   @@schema("auth")
 }
 
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// 用户表：存储用户名、密码、邮箱等基础信息（schema: auth）
 model User {
   id        Int       @id @default(autoincrement())
   username  String    @unique @db.VarChar(255)
@@ -36,4 +36,117 @@ model User {
   Session   Session[]
 
   @@schema("auth")
+}
+
+/// 项目表：包含项目名称、权重、状态、是否验证权限、时间戳与软删除（schema: collections）
+model Project {
+  id          BigInt   @id @default(autoincrement()) @db.BigInt
+  projectName String   @db.VarChar(128)
+  weight      Int
+  status      Int      @db.SmallInt
+  requireAuth Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @db.Timestamptz(6)
+  isDeleted   Boolean  @default(false)
+
+  versions ProjectVersion[]
+
+  @@schema("collections")
+}
+
+/// 项目版本表：关联项目，包含版本号、简介、权重、状态、时间戳与软删除（schema: collections）
+model ProjectVersion {
+  id          BigInt   @id @default(autoincrement()) @db.BigInt
+  projectId   BigInt   @db.BigInt
+  version     String   @db.VarChar(64)
+  description String?  @db.Text
+  weight      Int
+  status      Int      @db.SmallInt
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @db.Timestamptz(6)
+  isDeleted   Boolean  @default(false)
+
+  project    Project    @relation(fields: [projectId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_project_version_project")
+  categories Category[]
+
+  @@index([projectId], map: "idx_project_version_projectid")
+  @@schema("collections")
+}
+
+/// 分类表：关联项目版本，包含分类名称、权重、状态、时间戳与软删除（schema: collections）
+model Category {
+  id               BigInt   @id @default(autoincrement()) @db.BigInt
+  projectVersionId BigInt   @db.BigInt
+  categoryName     String   @db.VarChar(64)
+  weight           Int
+  status           Int      @db.SmallInt
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @db.Timestamptz(6)
+  isDeleted        Boolean  @default(false)
+
+  projectVersion ProjectVersion @relation(fields: [projectVersionId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_category_project_version")
+  noteInfos      NoteInfo[]
+
+  @@index([projectVersionId], map: "idx_category_projectversionid")
+  @@schema("collections")
+}
+
+/// 笔记信息表：关联分类，包含笔记标题、权重、状态、时间戳与软删除（schema: docs）
+model NoteInfo {
+  id         BigInt   @id @default(autoincrement()) @db.BigInt
+  categoryId BigInt   @db.BigInt
+  noteTitle  String   @db.VarChar(255)
+  weight     Int
+  status     Int      @db.SmallInt
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @db.Timestamptz(6)
+  isDeleted  Boolean  @default(false)
+
+  category Category      @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_noteinfo_category")
+  contents NoteContent[]
+
+  @@index([categoryId], map: "idx_noteinfo_categoryid")
+  @@schema("docs")
+}
+
+/// 笔记内容表：一对多多版本，包含正文内容、类型、版本备注、主显示标记、状态、时间戳与软删除（schema: docs）
+model NoteContent {
+  id          BigInt   @id @default(autoincrement()) @db.BigInt
+  noteInfoId  BigInt   @db.BigInt
+  content     String   @db.Text
+  contentType String   @db.VarChar(16)
+  versionNote String?  @db.VarChar(255)
+  isPrimary   Boolean  @default(false)
+  status      Int      @db.SmallInt
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @db.Timestamptz(6)
+  isDeleted   Boolean  @default(false)
+
+  noteInfo    NoteInfo         @relation(fields: [noteInfoId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_notecontent_noteinfo")
+  attachments NoteAttachment[]
+
+  @@index([noteInfoId], map: "idx_notecontent_noteinfoid")
+  @@schema("docs")
+}
+
+/// 笔记内容附件表：关联笔记内容，包含附件名称、简介与多来源下载链接、状态、时间戳与软删除（schema: docs）
+model NoteAttachment {
+  id             BigInt   @id @default(autoincrement()) @db.BigInt
+  noteContentId  BigInt   @db.BigInt
+  attachmentName String   @db.VarChar(255)
+  attachmentDesc String?  @db.VarChar(1024)
+  localUrl       String?  @db.VarChar(2048)
+  lanzouUrl      String?  @db.VarChar(2048)
+  baiduUrl       String?  @db.VarChar(2048)
+  pan123Url      String?  @db.VarChar(2048)
+  quarkUrl       String?  @db.VarChar(2048)
+  status         Int      @db.SmallInt
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @db.Timestamptz(6)
+  isDeleted      Boolean  @default(false)
+
+  noteContent NoteContent @relation(fields: [noteContentId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_noteattachment_notecontent")
+
+  @@index([noteContentId], map: "idx_noteattachment_notecontentid")
+  @@schema("docs")
 }

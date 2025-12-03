@@ -43,5 +43,16 @@ export default defineNuxtConfig({
                 resolvers: [ElementPlusResolver()],
             }),
         ],
+        optimizeDeps: {
+            include: [
+                'dayjs',
+                'dayjs/plugin/customParseFormat',
+                'dayjs/plugin/advancedFormat',
+                'dayjs/plugin/weekOfYear',
+                'dayjs/plugin/isoWeek',
+                'dayjs/plugin/localeData',
+                'element-plus/es',
+            ],
+        },
     },
 })

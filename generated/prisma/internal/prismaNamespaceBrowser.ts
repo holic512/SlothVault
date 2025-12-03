@@ -52,7 +52,13 @@ export const AnyNull = runtime.AnyNull
 
 export const ModelName = {
   Session: 'Session',
-  User: 'User'
+  User: 'User',
+  Project: 'Project',
+  ProjectVersion: 'ProjectVersion',
+  Category: 'Category',
+  NoteInfo: 'NoteInfo',
+  NoteContent: 'NoteContent',
+  NoteAttachment: 'NoteAttachment'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -95,6 +101,98 @@ export const UserScalarFieldEnum = {
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
+
+
+export const ProjectScalarFieldEnum = {
+  id: 'id',
+  projectName: 'projectName',
+  weight: 'weight',
+  status: 'status',
+  requireAuth: 'requireAuth',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  isDeleted: 'isDeleted'
+} as const
+
+export type ProjectScalarFieldEnum = (typeof ProjectScalarFieldEnum)[keyof typeof ProjectScalarFieldEnum]
+
+
+export const ProjectVersionScalarFieldEnum = {
+  id: 'id',
+  projectId: 'projectId',
+  version: 'version',
+  description: 'description',
+  weight: 'weight',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  isDeleted: 'isDeleted'
+} as const
+
+export type ProjectVersionScalarFieldEnum = (typeof ProjectVersionScalarFieldEnum)[keyof typeof ProjectVersionScalarFieldEnum]
+
+
+export const CategoryScalarFieldEnum = {
+  id: 'id',
+  projectVersionId: 'projectVersionId',
+  categoryName: 'categoryName',
+  weight: 'weight',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  isDeleted: 'isDeleted'
+} as const
+
+export type CategoryScalarFieldEnum = (typeof CategoryScalarFieldEnum)[keyof typeof CategoryScalarFieldEnum]
+
+
+export const NoteInfoScalarFieldEnum = {
+  id: 'id',
+  categoryId: 'categoryId',
+  noteTitle: 'noteTitle',
+  weight: 'weight',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  isDeleted: 'isDeleted'
+} as const
+
+export type NoteInfoScalarFieldEnum = (typeof NoteInfoScalarFieldEnum)[keyof typeof NoteInfoScalarFieldEnum]
+
+
+export const NoteContentScalarFieldEnum = {
+  id: 'id',
+  noteInfoId: 'noteInfoId',
+  content: 'content',
+  contentType: 'contentType',
+  versionNote: 'versionNote',
+  isPrimary: 'isPrimary',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  isDeleted: 'isDeleted'
+} as const
+
+export type NoteContentScalarFieldEnum = (typeof NoteContentScalarFieldEnum)[keyof typeof NoteContentScalarFieldEnum]
+
+
+export const NoteAttachmentScalarFieldEnum = {
+  id: 'id',
+  noteContentId: 'noteContentId',
+  attachmentName: 'attachmentName',
+  attachmentDesc: 'attachmentDesc',
+  localUrl: 'localUrl',
+  lanzouUrl: 'lanzouUrl',
+  baiduUrl: 'baiduUrl',
+  pan123Url: 'pan123Url',
+  quarkUrl: 'quarkUrl',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  isDeleted: 'isDeleted'
+} as const
+
+export type NoteAttachmentScalarFieldEnum = (typeof NoteAttachmentScalarFieldEnum)[keyof typeof NoteAttachmentScalarFieldEnum]
 
 
 export const SortOrder = {

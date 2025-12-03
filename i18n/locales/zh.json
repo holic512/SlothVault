@@ -148,5 +148,19 @@
       "required": "请填写所有必填项",
       "error": "初始化失败，请重试"
     }
+  },
+  "AdminMM": {
+    "title": "SlothVault 管理后台",
+    "menu": {
+      "dashboard": "仪表盘",
+      "users": "用户管理",
+      "sessions": "会话状态管理"
+    },
+    "users": {
+      "title": "用户管理"
+    },
+    "sessions": {
+      "title": "会话状态管理"
+    }
   }
 }
