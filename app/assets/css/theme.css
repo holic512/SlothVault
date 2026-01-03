@@ -185,7 +185,9 @@ body {
     scrollbar-gutter: stable both-edges;
 
     /* 可选：添加背景网格纹理，更有科技感 */
-    background-image: radial-gradient(var(--sloth-card-border) 1px, transparent 1px);
+    background-image: 
+        linear-gradient(var(--sloth-card-border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--sloth-card-border) 1px, transparent 1px);
     background-size: 32px 32px;
 }
 

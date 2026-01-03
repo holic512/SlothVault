@@ -19,10 +19,6 @@ const features = [
 
 const techs = ['Nuxt 4', 'PostgreSQL', 'Vector Search', 'Markdown', 'Solana', 'HTML']
 
-const projectModel = ['id', 'name', 'slug', 'description', 'created_at']
-const categoryModel = ['id', 'project_id', 'name', 'order', 'created_at']
-const pageModel = ['id', 'category_id', 'title', 'content_type', 'content', 'route']
-
 
 </script>
 
@@ -95,62 +91,6 @@ const pageModel = ['id', 'category_id', 'title', 'content_type', 'content', 'rou
           </div>
           <h3 class="feature-title">{{ f.title }}</h3>
           <p class="feature-desc">{{ f.desc }}</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- 核心数据模型 -->
-  <section class="section-spacing">
-    <div class="sloth-container">
-      <div class="sloth-flex-between mb-4 align-end-mobile">
-        <div>
-          <h2>{{ t('IndexPage.models.title') }}</h2>
-          <p class="sloth-text-subtle mt-2">{{ t('IndexPage.models.subtitle') }}</p>
-        </div>
-        <div class="tech-tags">
-          <span v-for="t in techs" :key="t" class="sloth-badge-hash">{{ t }}</span>
-        </div>
-      </div>
-
-      <div class="sloth-grid three-cols">
-        <!-- Project Model -->
-        <div class="sloth-card model-card">
-          <div class="model-header">
-            <RectangleStackIcon class="w-5 h-5"/>
-            <h3>{{ t('IndexPage.model.Project') }}</h3>
-          </div>
-          <div class="model-fields">
-            <div v-for="f in projectModel" :key="f" class="model-field">
-              <span class="field-dot"></span>{{ f }}
-            </div>
-          </div>
-        </div>
-
-        <!-- Category Model -->
-        <div class="sloth-card model-card">
-          <div class="model-header">
-            <FolderIcon class="w-5 h-5"/>
-            <h3>{{ t('IndexPage.model.Category') }}</h3>
-          </div>
-          <div class="model-fields">
-            <div v-for="f in categoryModel" :key="f" class="model-field">
-              <span class="field-dot"></span>{{ f }}
-            </div>
-          </div>
-        </div>
-
-        <!-- Page Model -->
-        <div class="sloth-card model-card">
-          <div class="model-header">
-            <LinkIcon class="w-5 h-5"/>
-            <h3>{{ t('IndexPage.model.Page') }}</h3>
-          </div>
-          <div class="model-fields">
-            <div v-for="f in pageModel" :key="f" class="model-field">
-              <span class="field-dot"></span>{{ f }}
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -230,21 +170,22 @@ const pageModel = ['id', 'category_id', 'title', 'content_type', 'content', 'rou
 
 /* 2. Hero 区域 */
 .hero-section {
-  padding: 80px 0 60px;
+  padding: 40px 0 30px;
   position: relative;
 }
 
 .hero-card {
   text-align: center;
   padding: 60px 24px;
-  /* 让 Hero 卡片稍微透明一点，透出背景光 */
-  background: rgba(255, 255, 255, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .dark .hero-card {
-  background: rgba(20, 20, 20, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .hero-badge {
@@ -280,7 +221,7 @@ const pageModel = ['id', 'category_id', 'title', 'content_type', 'content', 'rou
 }
 
 .section-header {
-  margin-bottom: 32px;
+  margin-bottom: 12px;
 }
 
 .subtitle {
@@ -330,56 +271,7 @@ const pageModel = ['id', 'category_id', 'title', 'content_type', 'content', 'rou
   line-height: 1.5;
 }
 
-/* 4. 数据模型 */
-.tech-tags {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.model-card {
-  padding: 0; /* 重置 padding 用于内部布局 */
-  overflow: hidden;
-}
-
-.model-header {
-  padding: 16px 20px;
-  background: var(--sloth-bg-hover);
-  border-bottom: 1px solid var(--sloth-card-border);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 600;
-}
-
-.model-fields {
-  padding: 16px 20px;
-  font-family: var(--sloth-font-mono), serif;
-  font-size: 0.9rem;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.model-field {
-  display: flex;
-  align-items: center;
-  color: var(--sloth-text-subtle);
-}
-
-.field-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--sloth-card-border);
-  margin-right: 10px;
-}
-
-.model-card:hover .field-dot {
-  background: var(--sloth-accent);
-}
-
-/* 5. Highlight Card (Solana) */
+/* 4. Highlight Card (Solana) */
 .highlight-card {
   border: 1px solid var(--sloth-primary-dim);
   position: relative;

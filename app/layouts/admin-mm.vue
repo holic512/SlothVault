@@ -115,13 +115,13 @@ const toggleSidebar = () => {
 .admin-layout {
   display: flex;
   min-height: 100vh;
-  background-color: var(--sloth-bg);
+  background: transparent;
   color: var(--sloth-text);
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: color 0.3s ease;
 }
 
 .admin-sidebar {
-  width: 240px;
+  width: 200px;
   background-color: var(--sloth-card);
   border-right: 1px solid var(--sloth-card-border);
   display: flex;
@@ -130,6 +130,7 @@ const toggleSidebar = () => {
   flex-shrink: 0;
   z-index: 10;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
 }
 
 .admin-sidebar.is-collapsed {
@@ -137,13 +138,13 @@ const toggleSidebar = () => {
 }
 
 .logo-area {
-  height: 64px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
-  font-weight: 700;
-  font-size: 18px;
+  padding: 0 12px;
+  font-weight: 600;
+  font-size: 15px;
   color: var(--sloth-primary);
   border-bottom: 1px solid var(--sloth-card-border);
   overflow: hidden;
@@ -151,7 +152,7 @@ const toggleSidebar = () => {
 
 .admin-sidebar.is-collapsed .logo-area {
   justify-content: center;
-  padding: 0;
+  padding: 0 8px;
 }
 
 .logo-text {
@@ -163,8 +164,8 @@ const toggleSidebar = () => {
   border: none;
   color: var(--sloth-text-secondary, inherit);
   cursor: pointer;
-  padding: 6px;
-  border-radius: 6px;
+  padding: 4px;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -177,15 +178,15 @@ const toggleSidebar = () => {
 }
 
 .icon-size {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 .admin-menu {
   border-right: none;
   background: transparent;
   flex: 1;
-  padding-top: 10px;
+  padding-top: 6px;
   overflow-x: hidden;
 }
 
@@ -197,16 +198,26 @@ const toggleSidebar = () => {
 
 :deep(.el-menu-item) {
   color: var(--sloth-text);
-  margin: 4px 10px;
-  border-radius: 8px;
-  height: 48px;
-  line-height: 48px;
+  margin: 2px 8px;
+  border-radius: 6px;
+  height: 36px;
+  line-height: 36px;
+  font-size: 13px;
 }
 
 .admin-sidebar.is-collapsed :deep(.el-menu-item) {
-  margin: 4px 0;
-  border-radius: 0;
+  margin: 2px 8px;
+  border-radius: 4px;
   justify-content: center;
+  padding: 0 !important;
+}
+
+.admin-sidebar.is-collapsed :deep(.el-menu) {
+  width: 100% !important;
+}
+
+.admin-sidebar.is-collapsed :deep(.el-menu--collapse) {
+  width: 100% !important;
 }
 
 :deep(.el-menu-item:hover), :deep(.el-menu-item:focus) {
@@ -221,7 +232,7 @@ const toggleSidebar = () => {
 }
 
 :deep(.el-icon) {
-  font-size: 18px;
+  font-size: 16px;
 }
 
 /* Transition for logo text */
@@ -245,11 +256,11 @@ const toggleSidebar = () => {
 }
 
 .admin-header {
-  height: 64px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
+  padding: 0 16px;
   background-color: var(--sloth-card);
   border-bottom: 1px solid var(--sloth-card-border);
   backdrop-filter: blur(var(--sloth-blur));
@@ -260,8 +271,9 @@ const toggleSidebar = () => {
 
 .admin-content {
   flex: 1;
-  padding: 24px;
+  padding: 16px;
   overflow-y: auto;
+  background: transparent;
 }
 
 /* Breadcrumb Styles */
@@ -276,20 +288,20 @@ const toggleSidebar = () => {
 .breadcrumb-item {
   display: flex;
   align-items: center;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--sloth-text-secondary);
 }
 
 .breadcrumb-separator {
-  margin: 0 8px;
+  margin: 0 6px;
   display: flex;
   align-items: center;
   color: var(--sloth-text-tertiary, #9ca3af);
 }
 
 .separator-icon {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
 }
 
 .breadcrumb-link {

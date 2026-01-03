@@ -21,26 +21,24 @@ onMounted(() => {
 <style>
 html {
   scrollbar-width: thin;
-  scrollbar-color: var(--sloth-primary) var(--sloth-bg-hover);
+  scrollbar-color: #c4c4c4 transparent;
 }
 
 *::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 6px;
+  height: 6px;
 }
 
 *::-webkit-scrollbar-track {
-  background: var(--sloth-bg-hover);
+  background: transparent;
 }
 
 *::-webkit-scrollbar-thumb {
-  background: var(--sloth-gradient-primary);
+  background: #c4c4c4;
   border-radius: 99px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  filter: brightness(1.1);
+  background: #a3a3a3;
 }
 </style>

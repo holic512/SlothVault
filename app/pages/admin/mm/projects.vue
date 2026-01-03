@@ -310,11 +310,7 @@ onMounted(() => {
 
 <template>
   <div class="page-container">
-    <div class="page-header">
-      <h1>{{ t('AdminMM.projects.title') }}</h1>
-    </div>
-
-    <div class="sloth-card toolbar">
+    <div class="toolbar">
       <div class="filters">
         <el-input
             v-model="filters.keyword"
@@ -355,7 +351,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <div class="sloth-card table-card">
+    <div class="table-card">
       <el-table
           :data="list"
           row-key="id"
@@ -449,21 +445,27 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.page-header {
-  margin-bottom: 16px;
+.page-container {
+  --sloth-radius: 4px;
 }
 
+/* 工具栏卡片 */
 .toolbar {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 12px;
+  background: var(--sloth-card);
+  border: 1px solid var(--sloth-card-border);
+  border-radius: var(--sloth-radius);
+  backdrop-filter: blur(var(--sloth-blur));
 }
 
 .filters {
   display: grid;
-  grid-template-columns: 1fr 160px 160px 220px;
-  gap: 12px;
+  grid-template-columns: 1fr 130px 130px 180px;
+  gap: 8px;
 }
 
 .filter-item {
@@ -473,33 +475,250 @@ onMounted(() => {
 .switch-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .switch-label {
   color: var(--sloth-text-subtle);
-  font-size: 14px;
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 6px;
 }
 
+/* 表格卡片 */
 .table-card {
-  padding: 16px;
+  padding: 12px;
+  background: var(--sloth-card);
+  border: 1px solid var(--sloth-card-border);
+  border-radius: var(--sloth-radius);
+  backdrop-filter: blur(var(--sloth-blur));
 }
 
 .pagination {
   display: flex;
   justify-content: flex-end;
-  margin-top: 14px;
+  margin-top: 10px;
+}
+
+/* Element Plus 主题适配 */
+:deep(.el-input__wrapper) {
+  padding: 0 8px;
+  background-color: var(--sloth-bg);
+  box-shadow: 0 0 0 1px var(--sloth-card-border) inset;
+}
+
+:deep(.el-input__wrapper:hover) {
+  box-shadow: 0 0 0 1px var(--sloth-primary) inset;
+}
+
+:deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px var(--sloth-primary) inset;
+}
+
+:deep(.el-input__inner) {
+  height: 30px;
+  line-height: 30px;
+  font-size: 13px;
+  color: var(--sloth-text);
+}
+
+:deep(.el-input__inner::placeholder) {
+  color: var(--sloth-text-subtle);
+}
+
+:deep(.el-select) {
+  --el-select-input-font-size: 13px;
+}
+
+:deep(.el-select .el-select__wrapper) {
+  background-color: var(--sloth-bg);
+  box-shadow: 0 0 0 1px var(--sloth-card-border) inset;
+}
+
+:deep(.el-select .el-select__wrapper:hover) {
+  box-shadow: 0 0 0 1px var(--sloth-primary) inset;
+}
+
+:deep(.el-switch.is-checked .el-switch__core) {
+  background-color: var(--sloth-primary);
+  border-color: var(--sloth-primary);
+}
+
+/* 按钮主题适配 */
+:deep(.el-button) {
+  padding: 6px 12px;
+  font-size: 13px;
+  height: 30px;
+}
+
+:deep(.el-button--primary) {
+  --el-button-bg-color: var(--sloth-primary);
+  --el-button-border-color: var(--sloth-primary);
+  --el-button-hover-bg-color: var(--sloth-primary-hover);
+  --el-button-hover-border-color: var(--sloth-primary-hover);
+}
+
+:deep(.el-button--primary.is-plain) {
+  --el-button-bg-color: var(--sloth-primary-dim);
+  --el-button-text-color: var(--sloth-primary);
+  --el-button-border-color: var(--sloth-primary);
+  --el-button-hover-bg-color: var(--sloth-primary);
+  --el-button-hover-text-color: #fff;
+}
+
+:deep(.el-button--default) {
+  --el-button-bg-color: var(--sloth-bg);
+  --el-button-text-color: var(--sloth-text);
+  --el-button-border-color: var(--sloth-card-border);
+  --el-button-hover-bg-color: var(--sloth-bg-hover);
+  --el-button-hover-text-color: var(--sloth-primary);
+  --el-button-hover-border-color: var(--sloth-primary);
+}
+
+:deep(.el-button--default.is-plain) {
+  --el-button-bg-color: transparent;
+  --el-button-text-color: var(--sloth-text);
+  --el-button-border-color: var(--sloth-card-border);
+  --el-button-hover-bg-color: var(--sloth-bg-hover);
+  --el-button-hover-text-color: var(--sloth-primary);
+  --el-button-hover-border-color: var(--sloth-primary);
+}
+
+:deep(.el-button--small) {
+  padding: 4px 8px;
+  font-size: 12px;
+  height: 26px;
+}
+
+/* 表格主题适配 */
+:deep(.el-table) {
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: var(--sloth-bg-hover);
+  --el-table-header-text-color: var(--sloth-text);
+  --el-table-text-color: var(--sloth-text);
+  --el-table-border-color: var(--sloth-card-border);
+  --el-table-row-hover-bg-color: var(--sloth-bg-hover);
+  font-size: 13px;
+}
+
+:deep(.el-table th.el-table__cell) {
+  padding: 8px 0;
+  font-size: 13px;
+  font-weight: 600;
+  background-color: var(--sloth-bg-hover);
+}
+
+:deep(.el-table td.el-table__cell) {
+  padding: 6px 0;
+}
+
+:deep(.el-table--enable-row-hover .el-table__body tr:hover > td.el-table__cell) {
+  background-color: var(--sloth-bg-hover);
+}
+
+:deep(.el-table .el-table__cell.is-right) {
+  background-color: var(--sloth-card);
+}
+
+/* Tag 主题适配 */
+:deep(.el-tag) {
+  padding: 0 6px;
+  height: 22px;
+  line-height: 22px;
+  font-size: 12px;
+}
+
+:deep(.el-tag--success) {
+  --el-tag-bg-color: rgba(16, 185, 129, 0.1);
+  --el-tag-border-color: rgba(16, 185, 129, 0.2);
+  --el-tag-text-color: #10b981;
+}
+
+:deep(.el-tag--warning) {
+  --el-tag-bg-color: rgba(245, 158, 11, 0.1);
+  --el-tag-border-color: rgba(245, 158, 11, 0.2);
+  --el-tag-text-color: #f59e0b;
+}
+
+:deep(.el-tag--info) {
+  --el-tag-bg-color: var(--sloth-bg-hover);
+  --el-tag-border-color: var(--sloth-card-border);
+  --el-tag-text-color: var(--sloth-text-subtle);
+}
+
+/* 分页主题适配 */
+:deep(.el-pagination) {
+  --el-pagination-font-size: 13px;
+  --el-pagination-button-height: 28px;
+  --el-pagination-bg-color: var(--sloth-bg);
+  --el-pagination-text-color: var(--sloth-text);
+  --el-pagination-button-color: var(--sloth-text);
+  --el-pagination-hover-color: var(--sloth-primary);
+}
+
+:deep(.el-pagination .el-input__wrapper) {
+  background-color: var(--sloth-bg);
+}
+
+/* Dialog 主题适配 */
+:deep(.el-dialog) {
+  --el-dialog-bg-color: var(--sloth-card);
+  --el-dialog-padding-primary: 16px;
+  border: 1px solid var(--sloth-card-border);
+  backdrop-filter: blur(var(--sloth-blur));
+}
+
+:deep(.el-dialog__header) {
+  padding: 12px 16px;
+  margin-right: 0;
+  border-bottom: 1px solid var(--sloth-card-border);
+}
+
+:deep(.el-dialog__title) {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--sloth-text);
+}
+
+:deep(.el-dialog__body) {
+  padding: 16px;
+}
+
+:deep(.el-dialog__footer) {
+  padding: 10px 16px;
+  border-top: 1px solid var(--sloth-card-border);
+}
+
+:deep(.el-form-item) {
+  margin-bottom: 14px;
+}
+
+:deep(.el-form-item__label) {
+  font-size: 13px;
+  padding-right: 8px;
+  color: var(--sloth-text);
+}
+
+/* Loading 适配 */
+:deep(.el-loading-mask) {
+  background-color: rgba(var(--sloth-primary-rgb), 0.05);
 }
 
 @media (max-width: 960px) {
   .filters {
     grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .filters {
+    grid-template-columns: 1fr;
   }
 }
 </style>
