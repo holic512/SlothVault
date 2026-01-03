@@ -54,11 +54,12 @@ export const ModelName = {
   Session: 'Session',
   User: 'User',
   Project: 'Project',
+  ProjectMenu: 'ProjectMenu',
+  ProjectHome: 'ProjectHome',
   ProjectVersion: 'ProjectVersion',
   Category: 'Category',
   NoteInfo: 'NoteInfo',
   NoteContent: 'NoteContent',
-  NoteAttachment: 'NoteAttachment',
   FileManagement: 'FileManagement'
 } as const
 
@@ -119,6 +120,36 @@ export const ProjectScalarFieldEnum = {
 export type ProjectScalarFieldEnum = (typeof ProjectScalarFieldEnum)[keyof typeof ProjectScalarFieldEnum]
 
 
+export const ProjectMenuScalarFieldEnum = {
+  id: 'id',
+  projectId: 'projectId',
+  parentId: 'parentId',
+  label: 'label',
+  url: 'url',
+  isExternal: 'isExternal',
+  weight: 'weight',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  isDeleted: 'isDeleted'
+} as const
+
+export type ProjectMenuScalarFieldEnum = (typeof ProjectMenuScalarFieldEnum)[keyof typeof ProjectMenuScalarFieldEnum]
+
+
+export const ProjectHomeScalarFieldEnum = {
+  id: 'id',
+  projectId: 'projectId',
+  content: 'content',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  isDeleted: 'isDeleted'
+} as const
+
+export type ProjectHomeScalarFieldEnum = (typeof ProjectHomeScalarFieldEnum)[keyof typeof ProjectHomeScalarFieldEnum]
+
+
 export const ProjectVersionScalarFieldEnum = {
   id: 'id',
   projectId: 'projectId',
@@ -175,25 +206,6 @@ export const NoteContentScalarFieldEnum = {
 } as const
 
 export type NoteContentScalarFieldEnum = (typeof NoteContentScalarFieldEnum)[keyof typeof NoteContentScalarFieldEnum]
-
-
-export const NoteAttachmentScalarFieldEnum = {
-  id: 'id',
-  noteContentId: 'noteContentId',
-  attachmentName: 'attachmentName',
-  attachmentDesc: 'attachmentDesc',
-  localUrl: 'localUrl',
-  lanzouUrl: 'lanzouUrl',
-  baiduUrl: 'baiduUrl',
-  pan123Url: 'pan123Url',
-  quarkUrl: 'quarkUrl',
-  status: 'status',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt',
-  isDeleted: 'isDeleted'
-} as const
-
-export type NoteAttachmentScalarFieldEnum = (typeof NoteAttachmentScalarFieldEnum)[keyof typeof NoteAttachmentScalarFieldEnum]
 
 
 export const FileManagementScalarFieldEnum = {

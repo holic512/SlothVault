@@ -650,25 +650,47 @@ onMounted(() => {
 }
 
 :deep(.el-table) {
-  --el-table-bg-color: transparent;
-  --el-table-tr-bg-color: transparent;
-  --el-table-header-bg-color: var(--sloth-bg-hover);
+  --el-table-bg-color: var(--sloth-card, #ffffff);
+  --el-table-tr-bg-color: var(--sloth-card, #ffffff);
+  --el-table-header-bg-color: var(--sloth-bg-hover, #f3f4f6);
   --el-table-header-text-color: var(--sloth-text);
   --el-table-text-color: var(--sloth-text);
   --el-table-border-color: var(--sloth-card-border);
-  --el-table-row-hover-bg-color: var(--sloth-bg-hover);
+  --el-table-row-hover-bg-color: var(--sloth-bg-hover, #f3f4f6);
   font-size: 13px;
+  background-color: var(--sloth-card, #ffffff);
+}
+
+:deep(.el-table__inner-wrapper) {
+  background-color: var(--sloth-card, #ffffff);
 }
 
 :deep(.el-table th.el-table__cell) {
   padding: 8px 0;
   font-size: 13px;
   font-weight: 600;
-  background-color: var(--sloth-bg-hover);
+  background-color: var(--sloth-bg-hover, #f3f4f6);
 }
 
 :deep(.el-table td.el-table__cell) {
   padding: 6px 0;
+  background-color: var(--sloth-card, #ffffff);
+}
+
+:deep(.el-table--enable-row-hover .el-table__body tr:hover > td.el-table__cell) {
+  background-color: var(--sloth-bg-hover, #f3f4f6);
+}
+
+:deep(.el-table__fixed-right) {
+  background-color: var(--sloth-card, #ffffff);
+}
+
+:deep(.el-table__fixed-right .el-table__cell) {
+  background-color: var(--sloth-card, #ffffff);
+}
+
+:deep(.el-table__fixed-right-patch) {
+  background-color: var(--sloth-bg-hover, #f3f4f6);
 }
 
 :deep(.el-tag) {

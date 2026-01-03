@@ -1,10 +1,113 @@
-@import "@fontsource/public-sans/300.css";
-@import "@fontsource/public-sans/400.css";
-@import "@fontsource/public-sans/500.css";
-@import "@fontsource/public-sans/600.css";
-@import "@fontsource/public-sans/700.css";
-@import "@fontsource/public-sans/800.css";
+@import "@fontsource/source-sans-pro/300.css";
+@import "@fontsource/source-sans-pro/400.css";
+@import "@fontsource/source-sans-pro/600.css";
+@import "@fontsource/source-sans-pro/700.css";
 
 body {
-  font-family: "Public Sans", sans-serif;
+  font-family: "Source Sans Pro", sans-serif;
+}
+
+/* Element Plus MessageBox 层级修复 - 确保在 Dialog 之上 */
+.el-overlay.is-message-box {
+  z-index: 9999 !important;
+}
+
+.el-message-box {
+  z-index: 9999 !important;
+}
+
+/* md-editor-v3 标题移除下划线 */
+.md-editor-preview h1,
+.md-editor-preview h2,
+.md-editor-preview h3,
+.md-editor-preview h4,
+.md-editor-preview h5,
+.md-editor-preview h6 {
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
+}
+
+/* md-editor-v3 使用 Source Sans Pro 字体 */
+.md-editor,
+.md-editor-preview,
+.md-editor-preview p,
+.md-editor-preview li,
+.md-editor-preview blockquote,
+.md-editor-preview table,
+.md-editor-preview td,
+.md-editor-preview th,
+.md-editor-preview h1,
+.md-editor-preview h2,
+.md-editor-preview h3,
+.md-editor-preview h4,
+.md-editor-preview h5,
+.md-editor-preview h6 {
+  font-family: "Source Sans Pro", sans-serif !important;
+}
+
+/* md-editor-v3 暗黑模式文字颜色适配 */
+.dark .md-editor-preview,
+.dark .md-editor-preview p,
+.dark .md-editor-preview li,
+.dark .md-editor-preview blockquote,
+.dark .md-editor-preview td,
+.dark .md-editor-preview th {
+  color: var(--sloth-text, #f3f4f6) !important;
+}
+
+.dark .md-editor-preview h1,
+.dark .md-editor-preview h2,
+.dark .md-editor-preview h3,
+.dark .md-editor-preview h4,
+.dark .md-editor-preview h5,
+.dark .md-editor-preview h6 {
+  color: var(--sloth-text, #f3f4f6) !important;
+}
+
+.dark .md-editor-preview a {
+  color: var(--sloth-primary, #a78bfa) !important;
+}
+
+.dark .md-editor-preview code {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: var(--sloth-text, #f3f4f6) !important;
+}
+
+.dark .md-editor-preview pre {
+  background: rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark .md-editor-preview blockquote {
+  border-left-color: var(--sloth-primary, #a78bfa) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.dark .md-editor-preview table {
+  border-color: var(--sloth-card-border, rgba(255, 255, 255, 0.08)) !important;
+}
+
+.dark .md-editor-preview th,
+.dark .md-editor-preview td {
+  border-color: var(--sloth-card-border, rgba(255, 255, 255, 0.08)) !important;
+}
+
+.dark .md-editor-preview th {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.dark .md-editor-preview hr {
+  background: var(--sloth-card-border, rgba(255, 255, 255, 0.08)) !important;
+}
+
+/* md-editor-v3 图片保持透明背景 */
+.md-editor-preview img {
+  background: transparent !important;
+}
+
+.md-editor-preview figure {
+  background: transparent !important;
+}
+
+.md-editor-preview p img {
+  background: transparent !important;
 }

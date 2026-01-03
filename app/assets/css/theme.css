@@ -31,8 +31,8 @@
     --sloth-shadow-hover: 0 15px 35px rgba(0, 0, 0, 0.1);
 
     /* --- Web3 扩展变量 --- */
-    --sloth-font-sans: 'Public Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    --sloth-font-mono: 'Public Sans', 'Space Mono', 'Roboto Mono', monospace; /* 适合显示 Hash */
+    --sloth-font-sans: 'Source Sans Pro', -apple-system, BlinkMacSystemFont, sans-serif;
+    --sloth-font-mono: 'Source Code Pro', 'Roboto Mono', monospace;
 
     --sloth-gradient-primary: linear-gradient(135deg, #7c3aed 0%, #c026d3 100%);
     --sloth-gradient-text: linear-gradient(90deg, #7c3aed 0%, #06b6d4 100%);

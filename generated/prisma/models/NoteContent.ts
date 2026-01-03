@@ -257,7 +257,6 @@ export type NoteContentWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<"NoteContent"> | Date | string
   isDeleted?: Prisma.BoolFilter<"NoteContent"> | boolean
   noteInfo?: Prisma.XOR<Prisma.NoteInfoScalarRelationFilter, Prisma.NoteInfoWhereInput>
-  attachments?: Prisma.NoteAttachmentListRelationFilter
 }
 
 export type NoteContentOrderByWithRelationInput = {
@@ -271,7 +270,6 @@ export type NoteContentOrderByWithRelationInput = {
   updatedAt?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
   noteInfo?: Prisma.NoteInfoOrderByWithRelationInput
-  attachments?: Prisma.NoteAttachmentOrderByRelationAggregateInput
 }
 
 export type NoteContentWhereUniqueInput = Prisma.AtLeast<{
@@ -288,7 +286,6 @@ export type NoteContentWhereUniqueInput = Prisma.AtLeast<{
   updatedAt?: Prisma.DateTimeFilter<"NoteContent"> | Date | string
   isDeleted?: Prisma.BoolFilter<"NoteContent"> | boolean
   noteInfo?: Prisma.XOR<Prisma.NoteInfoScalarRelationFilter, Prisma.NoteInfoWhereInput>
-  attachments?: Prisma.NoteAttachmentListRelationFilter
 }, "id">
 
 export type NoteContentOrderByWithAggregationInput = {
@@ -333,7 +330,6 @@ export type NoteContentCreateInput = {
   updatedAt?: Date | string
   isDeleted?: boolean
   noteInfo: Prisma.NoteInfoCreateNestedOneWithoutContentsInput
-  attachments?: Prisma.NoteAttachmentCreateNestedManyWithoutNoteContentInput
 }
 
 export type NoteContentUncheckedCreateInput = {
@@ -346,7 +342,6 @@ export type NoteContentUncheckedCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   isDeleted?: boolean
-  attachments?: Prisma.NoteAttachmentUncheckedCreateNestedManyWithoutNoteContentInput
 }
 
 export type NoteContentUpdateInput = {
@@ -359,7 +354,6 @@ export type NoteContentUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   noteInfo?: Prisma.NoteInfoUpdateOneRequiredWithoutContentsNestedInput
-  attachments?: Prisma.NoteAttachmentUpdateManyWithoutNoteContentNestedInput
 }
 
 export type NoteContentUncheckedUpdateInput = {
@@ -372,7 +366,6 @@ export type NoteContentUncheckedUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  attachments?: Prisma.NoteAttachmentUncheckedUpdateManyWithoutNoteContentNestedInput
 }
 
 export type NoteContentCreateManyInput = {
@@ -468,11 +461,6 @@ export type NoteContentSumOrderByAggregateInput = {
   status?: Prisma.SortOrder
 }
 
-export type NoteContentScalarRelationFilter = {
-  is?: Prisma.NoteContentWhereInput
-  isNot?: Prisma.NoteContentWhereInput
-}
-
 export type NoteContentCreateNestedManyWithoutNoteInfoInput = {
   create?: Prisma.XOR<Prisma.NoteContentCreateWithoutNoteInfoInput, Prisma.NoteContentUncheckedCreateWithoutNoteInfoInput> | Prisma.NoteContentCreateWithoutNoteInfoInput[] | Prisma.NoteContentUncheckedCreateWithoutNoteInfoInput[]
   connectOrCreate?: Prisma.NoteContentCreateOrConnectWithoutNoteInfoInput | Prisma.NoteContentCreateOrConnectWithoutNoteInfoInput[]
@@ -515,20 +503,6 @@ export type NoteContentUncheckedUpdateManyWithoutNoteInfoNestedInput = {
   deleteMany?: Prisma.NoteContentScalarWhereInput | Prisma.NoteContentScalarWhereInput[]
 }
 
-export type NoteContentCreateNestedOneWithoutAttachmentsInput = {
-  create?: Prisma.XOR<Prisma.NoteContentCreateWithoutAttachmentsInput, Prisma.NoteContentUncheckedCreateWithoutAttachmentsInput>
-  connectOrCreate?: Prisma.NoteContentCreateOrConnectWithoutAttachmentsInput
-  connect?: Prisma.NoteContentWhereUniqueInput
-}
-
-export type NoteContentUpdateOneRequiredWithoutAttachmentsNestedInput = {
-  create?: Prisma.XOR<Prisma.NoteContentCreateWithoutAttachmentsInput, Prisma.NoteContentUncheckedCreateWithoutAttachmentsInput>
-  connectOrCreate?: Prisma.NoteContentCreateOrConnectWithoutAttachmentsInput
-  upsert?: Prisma.NoteContentUpsertWithoutAttachmentsInput
-  connect?: Prisma.NoteContentWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.NoteContentUpdateToOneWithWhereWithoutAttachmentsInput, Prisma.NoteContentUpdateWithoutAttachmentsInput>, Prisma.NoteContentUncheckedUpdateWithoutAttachmentsInput>
-}
-
 export type NoteContentCreateWithoutNoteInfoInput = {
   id?: bigint | number
   content: string
@@ -538,7 +512,6 @@ export type NoteContentCreateWithoutNoteInfoInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   isDeleted?: boolean
-  attachments?: Prisma.NoteAttachmentCreateNestedManyWithoutNoteContentInput
 }
 
 export type NoteContentUncheckedCreateWithoutNoteInfoInput = {
@@ -550,7 +523,6 @@ export type NoteContentUncheckedCreateWithoutNoteInfoInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   isDeleted?: boolean
-  attachments?: Prisma.NoteAttachmentUncheckedCreateNestedManyWithoutNoteContentInput
 }
 
 export type NoteContentCreateOrConnectWithoutNoteInfoInput = {
@@ -594,70 +566,6 @@ export type NoteContentScalarWhereInput = {
   isDeleted?: Prisma.BoolFilter<"NoteContent"> | boolean
 }
 
-export type NoteContentCreateWithoutAttachmentsInput = {
-  id?: bigint | number
-  content: string
-  versionNote?: string | null
-  isPrimary?: boolean
-  status: number
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  isDeleted?: boolean
-  noteInfo: Prisma.NoteInfoCreateNestedOneWithoutContentsInput
-}
-
-export type NoteContentUncheckedCreateWithoutAttachmentsInput = {
-  id?: bigint | number
-  noteInfoId: bigint | number
-  content: string
-  versionNote?: string | null
-  isPrimary?: boolean
-  status: number
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  isDeleted?: boolean
-}
-
-export type NoteContentCreateOrConnectWithoutAttachmentsInput = {
-  where: Prisma.NoteContentWhereUniqueInput
-  create: Prisma.XOR<Prisma.NoteContentCreateWithoutAttachmentsInput, Prisma.NoteContentUncheckedCreateWithoutAttachmentsInput>
-}
-
-export type NoteContentUpsertWithoutAttachmentsInput = {
-  update: Prisma.XOR<Prisma.NoteContentUpdateWithoutAttachmentsInput, Prisma.NoteContentUncheckedUpdateWithoutAttachmentsInput>
-  create: Prisma.XOR<Prisma.NoteContentCreateWithoutAttachmentsInput, Prisma.NoteContentUncheckedCreateWithoutAttachmentsInput>
-  where?: Prisma.NoteContentWhereInput
-}
-
-export type NoteContentUpdateToOneWithWhereWithoutAttachmentsInput = {
-  where?: Prisma.NoteContentWhereInput
-  data: Prisma.XOR<Prisma.NoteContentUpdateWithoutAttachmentsInput, Prisma.NoteContentUncheckedUpdateWithoutAttachmentsInput>
-}
-
-export type NoteContentUpdateWithoutAttachmentsInput = {
-  id?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
-  content?: Prisma.StringFieldUpdateOperationsInput | string
-  versionNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  status?: Prisma.IntFieldUpdateOperationsInput | number
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  noteInfo?: Prisma.NoteInfoUpdateOneRequiredWithoutContentsNestedInput
-}
-
-export type NoteContentUncheckedUpdateWithoutAttachmentsInput = {
-  id?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
-  noteInfoId?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
-  content?: Prisma.StringFieldUpdateOperationsInput | string
-  versionNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  status?: Prisma.IntFieldUpdateOperationsInput | number
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-}
-
 export type NoteContentCreateManyNoteInfoInput = {
   id?: bigint | number
   content: string
@@ -678,7 +586,6 @@ export type NoteContentUpdateWithoutNoteInfoInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  attachments?: Prisma.NoteAttachmentUpdateManyWithoutNoteContentNestedInput
 }
 
 export type NoteContentUncheckedUpdateWithoutNoteInfoInput = {
@@ -690,7 +597,6 @@ export type NoteContentUncheckedUpdateWithoutNoteInfoInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  attachments?: Prisma.NoteAttachmentUncheckedUpdateManyWithoutNoteContentNestedInput
 }
 
 export type NoteContentUncheckedUpdateManyWithoutNoteInfoInput = {
@@ -705,35 +611,6 @@ export type NoteContentUncheckedUpdateManyWithoutNoteInfoInput = {
 }
 
 
-/**
- * Count Type NoteContentCountOutputType
- */
-
-export type NoteContentCountOutputType = {
-  attachments: number
-}
-
-export type NoteContentCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  attachments?: boolean | NoteContentCountOutputTypeCountAttachmentsArgs
-}
-
-/**
- * NoteContentCountOutputType without action
- */
-export type NoteContentCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the NoteContentCountOutputType
-   */
-  select?: Prisma.NoteContentCountOutputTypeSelect<ExtArgs> | null
-}
-
-/**
- * NoteContentCountOutputType without action
- */
-export type NoteContentCountOutputTypeCountAttachmentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.NoteAttachmentWhereInput
-}
-
 
 export type NoteContentSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -746,8 +623,6 @@ export type NoteContentSelect<ExtArgs extends runtime.Types.Extensions.InternalA
   updatedAt?: boolean
   isDeleted?: boolean
   noteInfo?: boolean | Prisma.NoteInfoDefaultArgs<ExtArgs>
-  attachments?: boolean | Prisma.NoteContent$attachmentsArgs<ExtArgs>
-  _count?: boolean | Prisma.NoteContentCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["noteContent"]>
 
 export type NoteContentSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -791,8 +666,6 @@ export type NoteContentSelectScalar = {
 export type NoteContentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "noteInfoId" | "content" | "versionNote" | "isPrimary" | "status" | "createdAt" | "updatedAt" | "isDeleted", ExtArgs["result"]["noteContent"]>
 export type NoteContentInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   noteInfo?: boolean | Prisma.NoteInfoDefaultArgs<ExtArgs>
-  attachments?: boolean | Prisma.NoteContent$attachmentsArgs<ExtArgs>
-  _count?: boolean | Prisma.NoteContentCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type NoteContentIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   noteInfo?: boolean | Prisma.NoteInfoDefaultArgs<ExtArgs>
@@ -805,7 +678,6 @@ export type $NoteContentPayload<ExtArgs extends runtime.Types.Extensions.Interna
   name: "NoteContent"
   objects: {
     noteInfo: Prisma.$NoteInfoPayload<ExtArgs>
-    attachments: Prisma.$NoteAttachmentPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: bigint
@@ -1212,7 +1084,6 @@ readonly fields: NoteContentFieldRefs;
 export interface Prisma__NoteContentClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   noteInfo<T extends Prisma.NoteInfoDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.NoteInfoDefaultArgs<ExtArgs>>): Prisma.Prisma__NoteInfoClient<runtime.Types.Result.GetResult<Prisma.$NoteInfoPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
-  attachments<T extends Prisma.NoteContent$attachmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.NoteContent$attachmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$NoteAttachmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1644,30 +1515,6 @@ export type NoteContentDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.I
    * Limit how many NoteContents to delete.
    */
   limit?: number
-}
-
-/**
- * NoteContent.attachments
- */
-export type NoteContent$attachmentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the NoteAttachment
-   */
-  select?: Prisma.NoteAttachmentSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the NoteAttachment
-   */
-  omit?: Prisma.NoteAttachmentOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.NoteAttachmentInclude<ExtArgs> | null
-  where?: Prisma.NoteAttachmentWhereInput
-  orderBy?: Prisma.NoteAttachmentOrderByWithRelationInput | Prisma.NoteAttachmentOrderByWithRelationInput[]
-  cursor?: Prisma.NoteAttachmentWhereUniqueInput
-  take?: number
-  skip?: number
-  distinct?: Prisma.NoteAttachmentScalarFieldEnum | Prisma.NoteAttachmentScalarFieldEnum[]
 }
 
 /**

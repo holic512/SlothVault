@@ -28,6 +28,10 @@ function categoryToDto(cat: any) {
             id: cat.projectVersion.id.toString(),
             version: cat.projectVersion.version,
             projectId: cat.projectVersion.projectId.toString(),
+            project: cat.projectVersion.project ? {
+                id: cat.projectVersion.project.id.toString(),
+                projectName: cat.projectVersion.project.projectName,
+            } : null,
         } : null,
     }
 }
@@ -50,6 +54,7 @@ export default defineEventHandler(async (event) => {
 
     const status = query.status !== undefined ? toInt(query.status, Number.NaN) : undefined
     const projectVersionId = query.projectVersionId !== undefined ? query.projectVersionId : undefined
+    const projectId = query.projectId !== undefined ? query.projectId : undefined
 
     const orderByField = typeof query.orderBy === 'string' ? query.orderBy : 'weight'
     const order = typeof query.order === 'string' && query.order.toLowerCase() === 'asc' ? 'asc' : 'desc'
@@ -79,6 +84,19 @@ export default defineEventHandler(async (event) => {
         }
     }
 
+    // 按项目ID过滤
+    if (projectId !== undefined) {
+        try {
+            where.projectVersion = {
+                ...where.projectVersion,
+                projectId: BigInt(String(projectId)),
+            }
+        } catch {
+            setResponseStatus(event, 400)
+            return fail('Invalid projectId', 400)
+        }
+    }
+
     const allowedOrderBy = new Set(['id', 'categoryName', 'weight', 'status', 'createdAt', 'updatedAt'])
     const safeOrderBy = allowedOrderBy.has(orderByField) ? orderByField : 'weight'
 
@@ -92,7 +110,13 @@ export default defineEventHandler(async (event) => {
                 skip,
                 take: pageSize,
                 orderBy: {[safeOrderBy]: order},
-                include: includeProjectVersion ? {projectVersion: true} : undefined,
+                include: includeProjectVersion ? {
+                    projectVersion: {
+                        include: {
+                            project: true,
+                        },
+                    },
+                } : undefined,
             }),
         ])
 
@@ -103,6 +127,7 @@ export default defineEventHandler(async (event) => {
             total,
         })
     } catch (err) {
+        console.error('Category list error:', err)
         setResponseStatus(event, 500)
         return fail('Internal Server Error', 500)
     }

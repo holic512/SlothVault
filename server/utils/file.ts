@@ -1,7 +1,7 @@
 import { H3Event, readMultipartFormData } from 'h3'
 import { randomUUID } from 'crypto'
 import { join, extname } from 'path'
-import { writeFile, unlink, stat, readFile, mkdir, readdir } from 'fs/promises'
+import { writeFile, unlink, stat, readFile, mkdir } from 'fs/promises'
 import { existsSync } from 'fs'
 import { prisma } from './prisma'
 
@@ -13,6 +13,7 @@ export type BusinessType =
   | 'UserAvatar'       // 用户头像
   | 'NoteAttachment'   // 笔记附件
   | 'HomeworkFile'     // 作业文件
+  | 'Markdown'         // Markdown 图片
   | 'TempFile'         // 临时文件
   | 'Other'            // 其他
 
@@ -22,6 +23,7 @@ export const BusinessTypeConfig: Record<BusinessType, { label: string; dir: stri
   UserAvatar: { label: '用户头像', dir: 'user-avatar' },
   NoteAttachment: { label: '笔记附件', dir: 'note-attachment' },
   HomeworkFile: { label: '作业文件', dir: 'homework' },
+  Markdown: { label: 'Markdown图片', dir: 'markdown' },
   TempFile: { label: '临时文件', dir: 'temp' },
   Other: { label: '其他', dir: 'other' },
 }

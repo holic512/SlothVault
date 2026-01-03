@@ -55,6 +55,16 @@ export type User = Prisma.UserModel
  */
 export type Project = Prisma.ProjectModel
 /**
+ * Model ProjectMenu
+ * 项目菜单表：项目顶部导航菜单，支持二级层级结构（schema: collections）
+ */
+export type ProjectMenu = Prisma.ProjectMenuModel
+/**
+ * Model ProjectHome
+ * 项目首页表：存储项目首页的 Markdown 内容（schema: collections）
+ */
+export type ProjectHome = Prisma.ProjectHomeModel
+/**
  * Model ProjectVersion
  * 项目版本表：关联项目，包含版本号、简介、权重、状态、时间戳与软删除（schema: collections）
  */
@@ -74,11 +84,6 @@ export type NoteInfo = Prisma.NoteInfoModel
  * 笔记内容表：一对多多版本，包含正文内容、类型、版本备注、主显示标记、状态、时间戳与软删除（schema: docs）
  */
 export type NoteContent = Prisma.NoteContentModel
-/**
- * Model NoteAttachment
- * 笔记内容附件表：关联笔记内容，包含附件名称、简介与多来源下载链接、状态、时间戳与软删除（schema: docs）
- */
-export type NoteAttachment = Prisma.NoteAttachmentModel
 /**
  * Model FileManagement
  * 文件管理表：存储上传文件的原始信息、服务器落盘信息与业务类型（schema: public）

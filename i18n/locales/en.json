@@ -140,7 +140,8 @@
     "form": {
       "username": "Username or Email",
       "password": "Password",
-      "remember": "Remember me",
+      "rememberUsername": "Remember username",
+      "stayLoggedIn": "Stay logged in for 7 days",
       "submit": "Sign In",
       "submitting": "Signing in…"
     },
@@ -171,6 +172,7 @@
       "dashboard": "Dashboard",
       "projects": "Project Management",
       "categories": "Category Management",
+      "notes": "Note Management",
       "files": "File Management"
     },
     "projects": {

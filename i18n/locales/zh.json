@@ -140,7 +140,8 @@
     "form": {
       "username": "用户名或邮箱",
       "password": "密码",
-      "remember": "记住我",
+      "rememberUsername": "记住账号",
+      "stayLoggedIn": "七天免登录",
       "submit": "登录",
       "submitting": "登录中…"
     },
@@ -171,6 +172,7 @@
       "dashboard": "仪表盘",
       "projects": "项目管理",
       "categories": "分类管理",
+      "notes": "笔记管理",
       "files": "文件管理"
     },
     "projects": {

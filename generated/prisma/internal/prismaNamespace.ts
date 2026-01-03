@@ -387,11 +387,12 @@ export const ModelName = {
   Session: 'Session',
   User: 'User',
   Project: 'Project',
+  ProjectMenu: 'ProjectMenu',
+  ProjectHome: 'ProjectHome',
   ProjectVersion: 'ProjectVersion',
   Category: 'Category',
   NoteInfo: 'NoteInfo',
   NoteContent: 'NoteContent',
-  NoteAttachment: 'NoteAttachment',
   FileManagement: 'FileManagement'
 } as const
 
@@ -408,7 +409,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "session" | "user" | "project" | "projectVersion" | "category" | "noteInfo" | "noteContent" | "noteAttachment" | "fileManagement"
+    modelProps: "session" | "user" | "project" | "projectMenu" | "projectHome" | "projectVersion" | "category" | "noteInfo" | "noteContent" | "fileManagement"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -631,6 +632,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.ProjectCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.ProjectCountAggregateOutputType> | number
+        }
+      }
+    }
+    ProjectMenu: {
+      payload: Prisma.$ProjectMenuPayload<ExtArgs>
+      fields: Prisma.ProjectMenuFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ProjectMenuFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectMenuPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ProjectMenuFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectMenuPayload>
+        }
+        findFirst: {
+          args: Prisma.ProjectMenuFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectMenuPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ProjectMenuFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectMenuPayload>
+        }
+        findMany: {
+          args: Prisma.ProjectMenuFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectMenuPayload>[]
+        }
+        create: {
+          args: Prisma.ProjectMenuCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectMenuPayload>
+        }
+        createMany: {
+          args: Prisma.ProjectMenuCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ProjectMenuCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectMenuPayload>[]
+        }
+        delete: {
+          args: Prisma.ProjectMenuDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectMenuPayload>
+        }
+        update: {
+          args: Prisma.ProjectMenuUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectMenuPayload>
+        }
+        deleteMany: {
+          args: Prisma.ProjectMenuDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ProjectMenuUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ProjectMenuUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectMenuPayload>[]
+        }
+        upsert: {
+          args: Prisma.ProjectMenuUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectMenuPayload>
+        }
+        aggregate: {
+          args: Prisma.ProjectMenuAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateProjectMenu>
+        }
+        groupBy: {
+          args: Prisma.ProjectMenuGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ProjectMenuGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ProjectMenuCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ProjectMenuCountAggregateOutputType> | number
+        }
+      }
+    }
+    ProjectHome: {
+      payload: Prisma.$ProjectHomePayload<ExtArgs>
+      fields: Prisma.ProjectHomeFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ProjectHomeFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectHomePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ProjectHomeFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectHomePayload>
+        }
+        findFirst: {
+          args: Prisma.ProjectHomeFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectHomePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ProjectHomeFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectHomePayload>
+        }
+        findMany: {
+          args: Prisma.ProjectHomeFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectHomePayload>[]
+        }
+        create: {
+          args: Prisma.ProjectHomeCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectHomePayload>
+        }
+        createMany: {
+          args: Prisma.ProjectHomeCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ProjectHomeCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectHomePayload>[]
+        }
+        delete: {
+          args: Prisma.ProjectHomeDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectHomePayload>
+        }
+        update: {
+          args: Prisma.ProjectHomeUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectHomePayload>
+        }
+        deleteMany: {
+          args: Prisma.ProjectHomeDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ProjectHomeUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ProjectHomeUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectHomePayload>[]
+        }
+        upsert: {
+          args: Prisma.ProjectHomeUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectHomePayload>
+        }
+        aggregate: {
+          args: Prisma.ProjectHomeAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateProjectHome>
+        }
+        groupBy: {
+          args: Prisma.ProjectHomeGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ProjectHomeGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ProjectHomeCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ProjectHomeCountAggregateOutputType> | number
         }
       }
     }
@@ -930,80 +1079,6 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
-    NoteAttachment: {
-      payload: Prisma.$NoteAttachmentPayload<ExtArgs>
-      fields: Prisma.NoteAttachmentFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.NoteAttachmentFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$NoteAttachmentPayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.NoteAttachmentFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$NoteAttachmentPayload>
-        }
-        findFirst: {
-          args: Prisma.NoteAttachmentFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$NoteAttachmentPayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.NoteAttachmentFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$NoteAttachmentPayload>
-        }
-        findMany: {
-          args: Prisma.NoteAttachmentFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$NoteAttachmentPayload>[]
-        }
-        create: {
-          args: Prisma.NoteAttachmentCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$NoteAttachmentPayload>
-        }
-        createMany: {
-          args: Prisma.NoteAttachmentCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.NoteAttachmentCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$NoteAttachmentPayload>[]
-        }
-        delete: {
-          args: Prisma.NoteAttachmentDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$NoteAttachmentPayload>
-        }
-        update: {
-          args: Prisma.NoteAttachmentUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$NoteAttachmentPayload>
-        }
-        deleteMany: {
-          args: Prisma.NoteAttachmentDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.NoteAttachmentUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.NoteAttachmentUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$NoteAttachmentPayload>[]
-        }
-        upsert: {
-          args: Prisma.NoteAttachmentUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$NoteAttachmentPayload>
-        }
-        aggregate: {
-          args: Prisma.NoteAttachmentAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateNoteAttachment>
-        }
-        groupBy: {
-          args: Prisma.NoteAttachmentGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.NoteAttachmentGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.NoteAttachmentCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.NoteAttachmentCountAggregateOutputType> | number
-        }
-      }
-    }
     FileManagement: {
       payload: Prisma.$FileManagementPayload<ExtArgs>
       fields: Prisma.FileManagementFieldRefs
@@ -1158,6 +1233,36 @@ export const ProjectScalarFieldEnum = {
 export type ProjectScalarFieldEnum = (typeof ProjectScalarFieldEnum)[keyof typeof ProjectScalarFieldEnum]
 
 
+export const ProjectMenuScalarFieldEnum = {
+  id: 'id',
+  projectId: 'projectId',
+  parentId: 'parentId',
+  label: 'label',
+  url: 'url',
+  isExternal: 'isExternal',
+  weight: 'weight',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  isDeleted: 'isDeleted'
+} as const
+
+export type ProjectMenuScalarFieldEnum = (typeof ProjectMenuScalarFieldEnum)[keyof typeof ProjectMenuScalarFieldEnum]
+
+
+export const ProjectHomeScalarFieldEnum = {
+  id: 'id',
+  projectId: 'projectId',
+  content: 'content',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  isDeleted: 'isDeleted'
+} as const
+
+export type ProjectHomeScalarFieldEnum = (typeof ProjectHomeScalarFieldEnum)[keyof typeof ProjectHomeScalarFieldEnum]
+
+
 export const ProjectVersionScalarFieldEnum = {
   id: 'id',
   projectId: 'projectId',
@@ -1214,25 +1319,6 @@ export const NoteContentScalarFieldEnum = {
 } as const
 
 export type NoteContentScalarFieldEnum = (typeof NoteContentScalarFieldEnum)[keyof typeof NoteContentScalarFieldEnum]
-
-
-export const NoteAttachmentScalarFieldEnum = {
-  id: 'id',
-  noteContentId: 'noteContentId',
-  attachmentName: 'attachmentName',
-  attachmentDesc: 'attachmentDesc',
-  localUrl: 'localUrl',
-  lanzouUrl: 'lanzouUrl',
-  baiduUrl: 'baiduUrl',
-  pan123Url: 'pan123Url',
-  quarkUrl: 'quarkUrl',
-  status: 'status',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt',
-  isDeleted: 'isDeleted'
-} as const
-
-export type NoteAttachmentScalarFieldEnum = (typeof NoteAttachmentScalarFieldEnum)[keyof typeof NoteAttachmentScalarFieldEnum]
 
 
 export const FileManagementScalarFieldEnum = {
@@ -1453,11 +1539,12 @@ export type GlobalOmitConfig = {
   session?: Prisma.SessionOmit
   user?: Prisma.UserOmit
   project?: Prisma.ProjectOmit
+  projectMenu?: Prisma.ProjectMenuOmit
+  projectHome?: Prisma.ProjectHomeOmit
   projectVersion?: Prisma.ProjectVersionOmit
   category?: Prisma.CategoryOmit
   noteInfo?: Prisma.NoteInfoOmit
   noteContent?: Prisma.NoteContentOmit
-  noteAttachment?: Prisma.NoteAttachmentOmit
   fileManagement?: Prisma.FileManagementOmit
 }
 

@@ -81,7 +81,72 @@ model Project {
 
   // 项目版本列表
   versions ProjectVersion[]
+  // 项目菜单列表
+  menus    ProjectMenu[]
+  // 项目首页（一对一）
+  home     ProjectHome?
 
+  @@schema("collections")
+}
+
+/// 项目菜单表：项目顶部导航菜单，支持二级层级结构（schema: collections）
+model ProjectMenu {
+  // 菜单ID
+  id         BigInt   @id @default(autoincrement()) @db.BigInt
+  // 项目ID（外键）
+  projectId  BigInt   @db.BigInt
+  // 父级菜单ID（NULL表示一级菜单）
+  parentId   BigInt?  @db.BigInt
+  // 菜单文本
+  label      String   @db.VarChar(64)
+  // 跳转链接（支持站内/站外）
+  url        String?  @db.VarChar(2048)
+  // 是否外链（true=新窗口打开）
+  isExternal Boolean  @default(false)
+  // 权重/排序（数值越大越靠前）
+  weight     Int      @default(0)
+  // 状态（1=启用，0=禁用）
+  status     Int      @db.SmallInt @default(1)
+  // 创建时间
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  // 更新时间
+  updatedAt  DateTime @default(now()) @db.Timestamptz(6)
+  // 软删除标记
+  isDeleted  Boolean  @default(false)
+
+  // 关联项目
+  project  Project       @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_project_menu_project")
+  // 父级菜单（自引用）
+  parent   ProjectMenu?  @relation("MenuHierarchy", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_project_menu_parent")
+  // 子级菜单列表
+  children ProjectMenu[] @relation("MenuHierarchy")
+
+  @@index([projectId], map: "idx_project_menu_projectid")
+  @@index([parentId], map: "idx_project_menu_parentid")
+  @@schema("collections")
+}
+
+/// 项目首页表：存储项目首页的 Markdown 内容（schema: collections）
+model ProjectHome {
+  // 首页ID
+  id        BigInt   @id @default(autoincrement()) @db.BigInt
+  // 项目ID（外键，唯一约束保证一对一）
+  projectId BigInt   @unique @db.BigInt
+  // Markdown 内容
+  content   String   @db.Text
+  // 状态（1=启用，0=禁用）
+  status    Int      @default(1) @db.SmallInt
+  // 创建时间
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  // 更新时间
+  updatedAt DateTime @default(now()) @db.Timestamptz(6)
+  // 软删除标记
+  isDeleted Boolean  @default(false)
+
+  // 关联项目
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_project_home_project")
+
+  @@index([projectId], map: "idx_project_home_projectid")
   @@schema("collections")
 }
 
@@ -194,46 +259,8 @@ model NoteContent {
 
   // 关联笔记信息
   noteInfo    NoteInfo         @relation(fields: [noteInfoId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_notecontent_noteinfo")
-  // 附件列表
-  attachments NoteAttachment[]
 
   @@index([noteInfoId], map: "idx_notecontent_noteinfoid")
-  @@schema("docs")
-}
-
-/// 笔记内容附件表：关联笔记内容，包含附件名称、简介与多来源下载链接、状态、时间戳与软删除（schema: docs）
-model NoteAttachment {
-  // 附件ID
-  id             BigInt   @id @default(autoincrement()) @db.BigInt
-  // 笔记内容ID
-  noteContentId  BigInt   @db.BigInt
-  // 附件名称
-  attachmentName String   @db.VarChar(255)
-  // 附件简介
-  attachmentDesc String?  @db.VarChar(1024)
-  // 本地/直链下载地址
-  localUrl       String?  @db.VarChar(2048)
-  // 蓝奏云链接
-  lanzouUrl      String?  @db.VarChar(2048)
-  // 百度网盘链接
-  baiduUrl       String?  @db.VarChar(2048)
-  // 123网盘链接
-  pan123Url      String?  @db.VarChar(2048)
-  // 夸克网盘链接
-  quarkUrl       String?  @db.VarChar(2048)
-  // 状态
-  status         Int      @db.SmallInt
-  // 创建时间
-  createdAt      DateTime @default(now()) @db.Timestamptz(6)
-  // 更新时间
-  updatedAt      DateTime @default(now()) @db.Timestamptz(6)
-  // 软删除标记
-  isDeleted      Boolean  @default(false)
-
-  // 关联笔记内容
-  noteContent NoteContent @relation(fields: [noteContentId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_noteattachment_notecontent")
-
-  @@index([noteContentId], map: "idx_noteattachment_notecontentid")
   @@schema("docs")
 }
 
@@ -251,7 +278,7 @@ model FileManagement {
   // 文件大小(byte)
   fileSize     BigInt @db.BigInt @map("file_size")
 
-  // avatar/homework/attachment
+  //  avatar/homework/attachment
   businessType String @db.VarChar(50) @map("business_type")
 
   // 1正常 0删除

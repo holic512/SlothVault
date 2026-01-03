@@ -3,25 +3,33 @@ const {t} = useI18n()
 const router = useRouter()
 const userStore = useUserStore()
 
+const STORAGE_KEY = 'admin_remembered_username'
+
 const form = reactive({
   username: '',
   password: '',
-  remember: false
+  rememberUsername: false,
+  stayLoggedIn: false
 })
 const loading = ref(false)
 const errorText = ref('')
 
-// 检查管理员是否存在
+// 检查管理员是否存在 & 读取记住的用户名
 onMounted(async () => {
+  // 读取记住的用户名
+  const savedUsername = localStorage.getItem(STORAGE_KEY)
+  if (savedUsername) {
+    form.username = savedUsername
+    form.rememberUsername = true
+  }
+
   try {
     const res = await $fetch('/api/admin/auth/check')
     if (!res?.data?.exists) {
-      // 如果管理员不存在，跳转到初始化页面
       await router.push('/admin/auth/init')
     }
   } catch (e) {
     console.error('Failed to check admin status', e)
-    // 如果检查失败，可能需要处理错误，这里暂时保持不动或显示错误
   }
 })
 
@@ -38,10 +46,16 @@ async function onSubmit() {
       body: {
         username: form.username,
         password: form.password,
-        remember: form.remember
+        stayLoggedIn: form.stayLoggedIn
       },
     })
     if (res?.code === 0) {
+      // 处理记住账号
+      if (form.rememberUsername) {
+        localStorage.setItem(STORAGE_KEY, form.username)
+      } else {
+        localStorage.removeItem(STORAGE_KEY)
+      }
       userStore.setUsername(res.data.username)
       await router.push('/admin/mm')
     } else {
@@ -110,8 +124,12 @@ async function onSubmit() {
 
           <div class="form-extras">
             <label class="remember-me">
-              <input type="checkbox" v-model="form.remember" class="custom-checkbox"/>
-              <span>{{ t('AdminLogin.form.remember') }}</span>
+              <input type="checkbox" v-model="form.rememberUsername" class="custom-checkbox"/>
+              <span>{{ t('AdminLogin.form.rememberUsername') }}</span>
+            </label>
+            <label class="remember-me">
+              <input type="checkbox" v-model="form.stayLoggedIn" class="custom-checkbox"/>
+              <span>{{ t('AdminLogin.form.stayLoggedIn') }}</span>
             </label>
           </div>
 

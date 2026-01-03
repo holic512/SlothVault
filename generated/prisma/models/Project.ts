@@ -257,6 +257,8 @@ export type ProjectWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<"Project"> | Date | string
   isDeleted?: Prisma.BoolFilter<"Project"> | boolean
   versions?: Prisma.ProjectVersionListRelationFilter
+  menus?: Prisma.ProjectMenuListRelationFilter
+  home?: Prisma.XOR<Prisma.ProjectHomeNullableScalarRelationFilter, Prisma.ProjectHomeWhereInput> | null
 }
 
 export type ProjectOrderByWithRelationInput = {
@@ -270,6 +272,8 @@ export type ProjectOrderByWithRelationInput = {
   updatedAt?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
   versions?: Prisma.ProjectVersionOrderByRelationAggregateInput
+  menus?: Prisma.ProjectMenuOrderByRelationAggregateInput
+  home?: Prisma.ProjectHomeOrderByWithRelationInput
 }
 
 export type ProjectWhereUniqueInput = Prisma.AtLeast<{
@@ -286,6 +290,8 @@ export type ProjectWhereUniqueInput = Prisma.AtLeast<{
   updatedAt?: Prisma.DateTimeFilter<"Project"> | Date | string
   isDeleted?: Prisma.BoolFilter<"Project"> | boolean
   versions?: Prisma.ProjectVersionListRelationFilter
+  menus?: Prisma.ProjectMenuListRelationFilter
+  home?: Prisma.XOR<Prisma.ProjectHomeNullableScalarRelationFilter, Prisma.ProjectHomeWhereInput> | null
 }, "id">
 
 export type ProjectOrderByWithAggregationInput = {
@@ -331,6 +337,8 @@ export type ProjectCreateInput = {
   updatedAt?: Date | string
   isDeleted?: boolean
   versions?: Prisma.ProjectVersionCreateNestedManyWithoutProjectInput
+  menus?: Prisma.ProjectMenuCreateNestedManyWithoutProjectInput
+  home?: Prisma.ProjectHomeCreateNestedOneWithoutProjectInput
 }
 
 export type ProjectUncheckedCreateInput = {
@@ -344,6 +352,8 @@ export type ProjectUncheckedCreateInput = {
   updatedAt?: Date | string
   isDeleted?: boolean
   versions?: Prisma.ProjectVersionUncheckedCreateNestedManyWithoutProjectInput
+  menus?: Prisma.ProjectMenuUncheckedCreateNestedManyWithoutProjectInput
+  home?: Prisma.ProjectHomeUncheckedCreateNestedOneWithoutProjectInput
 }
 
 export type ProjectUpdateInput = {
@@ -357,6 +367,8 @@ export type ProjectUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   versions?: Prisma.ProjectVersionUpdateManyWithoutProjectNestedInput
+  menus?: Prisma.ProjectMenuUpdateManyWithoutProjectNestedInput
+  home?: Prisma.ProjectHomeUpdateOneWithoutProjectNestedInput
 }
 
 export type ProjectUncheckedUpdateInput = {
@@ -370,6 +382,8 @@ export type ProjectUncheckedUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   versions?: Prisma.ProjectVersionUncheckedUpdateManyWithoutProjectNestedInput
+  menus?: Prisma.ProjectMenuUncheckedUpdateManyWithoutProjectNestedInput
+  home?: Prisma.ProjectHomeUncheckedUpdateOneWithoutProjectNestedInput
 }
 
 export type ProjectCreateManyInput = {
@@ -473,6 +487,34 @@ export type BoolFieldUpdateOperationsInput = {
   set?: boolean
 }
 
+export type ProjectCreateNestedOneWithoutMenusInput = {
+  create?: Prisma.XOR<Prisma.ProjectCreateWithoutMenusInput, Prisma.ProjectUncheckedCreateWithoutMenusInput>
+  connectOrCreate?: Prisma.ProjectCreateOrConnectWithoutMenusInput
+  connect?: Prisma.ProjectWhereUniqueInput
+}
+
+export type ProjectUpdateOneRequiredWithoutMenusNestedInput = {
+  create?: Prisma.XOR<Prisma.ProjectCreateWithoutMenusInput, Prisma.ProjectUncheckedCreateWithoutMenusInput>
+  connectOrCreate?: Prisma.ProjectCreateOrConnectWithoutMenusInput
+  upsert?: Prisma.ProjectUpsertWithoutMenusInput
+  connect?: Prisma.ProjectWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.ProjectUpdateToOneWithWhereWithoutMenusInput, Prisma.ProjectUpdateWithoutMenusInput>, Prisma.ProjectUncheckedUpdateWithoutMenusInput>
+}
+
+export type ProjectCreateNestedOneWithoutHomeInput = {
+  create?: Prisma.XOR<Prisma.ProjectCreateWithoutHomeInput, Prisma.ProjectUncheckedCreateWithoutHomeInput>
+  connectOrCreate?: Prisma.ProjectCreateOrConnectWithoutHomeInput
+  connect?: Prisma.ProjectWhereUniqueInput
+}
+
+export type ProjectUpdateOneRequiredWithoutHomeNestedInput = {
+  create?: Prisma.XOR<Prisma.ProjectCreateWithoutHomeInput, Prisma.ProjectUncheckedCreateWithoutHomeInput>
+  connectOrCreate?: Prisma.ProjectCreateOrConnectWithoutHomeInput
+  upsert?: Prisma.ProjectUpsertWithoutHomeInput
+  connect?: Prisma.ProjectWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.ProjectUpdateToOneWithWhereWithoutHomeInput, Prisma.ProjectUpdateWithoutHomeInput>, Prisma.ProjectUncheckedUpdateWithoutHomeInput>
+}
+
 export type ProjectCreateNestedOneWithoutVersionsInput = {
   create?: Prisma.XOR<Prisma.ProjectCreateWithoutVersionsInput, Prisma.ProjectUncheckedCreateWithoutVersionsInput>
   connectOrCreate?: Prisma.ProjectCreateOrConnectWithoutVersionsInput
@@ -487,6 +529,150 @@ export type ProjectUpdateOneRequiredWithoutVersionsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.ProjectUpdateToOneWithWhereWithoutVersionsInput, Prisma.ProjectUpdateWithoutVersionsInput>, Prisma.ProjectUncheckedUpdateWithoutVersionsInput>
 }
 
+export type ProjectCreateWithoutMenusInput = {
+  id?: bigint | number
+  projectName: string
+  avatar?: string | null
+  weight: number
+  status: number
+  requireAuth?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  isDeleted?: boolean
+  versions?: Prisma.ProjectVersionCreateNestedManyWithoutProjectInput
+  home?: Prisma.ProjectHomeCreateNestedOneWithoutProjectInput
+}
+
+export type ProjectUncheckedCreateWithoutMenusInput = {
+  id?: bigint | number
+  projectName: string
+  avatar?: string | null
+  weight: number
+  status: number
+  requireAuth?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  isDeleted?: boolean
+  versions?: Prisma.ProjectVersionUncheckedCreateNestedManyWithoutProjectInput
+  home?: Prisma.ProjectHomeUncheckedCreateNestedOneWithoutProjectInput
+}
+
+export type ProjectCreateOrConnectWithoutMenusInput = {
+  where: Prisma.ProjectWhereUniqueInput
+  create: Prisma.XOR<Prisma.ProjectCreateWithoutMenusInput, Prisma.ProjectUncheckedCreateWithoutMenusInput>
+}
+
+export type ProjectUpsertWithoutMenusInput = {
+  update: Prisma.XOR<Prisma.ProjectUpdateWithoutMenusInput, Prisma.ProjectUncheckedUpdateWithoutMenusInput>
+  create: Prisma.XOR<Prisma.ProjectCreateWithoutMenusInput, Prisma.ProjectUncheckedCreateWithoutMenusInput>
+  where?: Prisma.ProjectWhereInput
+}
+
+export type ProjectUpdateToOneWithWhereWithoutMenusInput = {
+  where?: Prisma.ProjectWhereInput
+  data: Prisma.XOR<Prisma.ProjectUpdateWithoutMenusInput, Prisma.ProjectUncheckedUpdateWithoutMenusInput>
+}
+
+export type ProjectUpdateWithoutMenusInput = {
+  id?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
+  projectName?: Prisma.StringFieldUpdateOperationsInput | string
+  avatar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  weight?: Prisma.IntFieldUpdateOperationsInput | number
+  status?: Prisma.IntFieldUpdateOperationsInput | number
+  requireAuth?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  versions?: Prisma.ProjectVersionUpdateManyWithoutProjectNestedInput
+  home?: Prisma.ProjectHomeUpdateOneWithoutProjectNestedInput
+}
+
+export type ProjectUncheckedUpdateWithoutMenusInput = {
+  id?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
+  projectName?: Prisma.StringFieldUpdateOperationsInput | string
+  avatar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  weight?: Prisma.IntFieldUpdateOperationsInput | number
+  status?: Prisma.IntFieldUpdateOperationsInput | number
+  requireAuth?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  versions?: Prisma.ProjectVersionUncheckedUpdateManyWithoutProjectNestedInput
+  home?: Prisma.ProjectHomeUncheckedUpdateOneWithoutProjectNestedInput
+}
+
+export type ProjectCreateWithoutHomeInput = {
+  id?: bigint | number
+  projectName: string
+  avatar?: string | null
+  weight: number
+  status: number
+  requireAuth?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  isDeleted?: boolean
+  versions?: Prisma.ProjectVersionCreateNestedManyWithoutProjectInput
+  menus?: Prisma.ProjectMenuCreateNestedManyWithoutProjectInput
+}
+
+export type ProjectUncheckedCreateWithoutHomeInput = {
+  id?: bigint | number
+  projectName: string
+  avatar?: string | null
+  weight: number
+  status: number
+  requireAuth?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  isDeleted?: boolean
+  versions?: Prisma.ProjectVersionUncheckedCreateNestedManyWithoutProjectInput
+  menus?: Prisma.ProjectMenuUncheckedCreateNestedManyWithoutProjectInput
+}
+
+export type ProjectCreateOrConnectWithoutHomeInput = {
+  where: Prisma.ProjectWhereUniqueInput
+  create: Prisma.XOR<Prisma.ProjectCreateWithoutHomeInput, Prisma.ProjectUncheckedCreateWithoutHomeInput>
+}
+
+export type ProjectUpsertWithoutHomeInput = {
+  update: Prisma.XOR<Prisma.ProjectUpdateWithoutHomeInput, Prisma.ProjectUncheckedUpdateWithoutHomeInput>
+  create: Prisma.XOR<Prisma.ProjectCreateWithoutHomeInput, Prisma.ProjectUncheckedCreateWithoutHomeInput>
+  where?: Prisma.ProjectWhereInput
+}
+
+export type ProjectUpdateToOneWithWhereWithoutHomeInput = {
+  where?: Prisma.ProjectWhereInput
+  data: Prisma.XOR<Prisma.ProjectUpdateWithoutHomeInput, Prisma.ProjectUncheckedUpdateWithoutHomeInput>
+}
+
+export type ProjectUpdateWithoutHomeInput = {
+  id?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
+  projectName?: Prisma.StringFieldUpdateOperationsInput | string
+  avatar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  weight?: Prisma.IntFieldUpdateOperationsInput | number
+  status?: Prisma.IntFieldUpdateOperationsInput | number
+  requireAuth?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  versions?: Prisma.ProjectVersionUpdateManyWithoutProjectNestedInput
+  menus?: Prisma.ProjectMenuUpdateManyWithoutProjectNestedInput
+}
+
+export type ProjectUncheckedUpdateWithoutHomeInput = {
+  id?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
+  projectName?: Prisma.StringFieldUpdateOperationsInput | string
+  avatar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  weight?: Prisma.IntFieldUpdateOperationsInput | number
+  status?: Prisma.IntFieldUpdateOperationsInput | number
+  requireAuth?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  versions?: Prisma.ProjectVersionUncheckedUpdateManyWithoutProjectNestedInput
+  menus?: Prisma.ProjectMenuUncheckedUpdateManyWithoutProjectNestedInput
+}
+
 export type ProjectCreateWithoutVersionsInput = {
   id?: bigint | number
   projectName: string
@@ -497,6 +683,8 @@ export type ProjectCreateWithoutVersionsInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   isDeleted?: boolean
+  menus?: Prisma.ProjectMenuCreateNestedManyWithoutProjectInput
+  home?: Prisma.ProjectHomeCreateNestedOneWithoutProjectInput
 }
 
 export type ProjectUncheckedCreateWithoutVersionsInput = {
@@ -509,6 +697,8 @@ export type ProjectUncheckedCreateWithoutVersionsInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   isDeleted?: boolean
+  menus?: Prisma.ProjectMenuUncheckedCreateNestedManyWithoutProjectInput
+  home?: Prisma.ProjectHomeUncheckedCreateNestedOneWithoutProjectInput
 }
 
 export type ProjectCreateOrConnectWithoutVersionsInput = {
@@ -537,6 +727,8 @@ export type ProjectUpdateWithoutVersionsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  menus?: Prisma.ProjectMenuUpdateManyWithoutProjectNestedInput
+  home?: Prisma.ProjectHomeUpdateOneWithoutProjectNestedInput
 }
 
 export type ProjectUncheckedUpdateWithoutVersionsInput = {
@@ -549,6 +741,8 @@ export type ProjectUncheckedUpdateWithoutVersionsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  menus?: Prisma.ProjectMenuUncheckedUpdateManyWithoutProjectNestedInput
+  home?: Prisma.ProjectHomeUncheckedUpdateOneWithoutProjectNestedInput
 }
 
 
@@ -558,10 +752,12 @@ export type ProjectUncheckedUpdateWithoutVersionsInput = {
 
 export type ProjectCountOutputType = {
   versions: number
+  menus: number
 }
 
 export type ProjectCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   versions?: boolean | ProjectCountOutputTypeCountVersionsArgs
+  menus?: boolean | ProjectCountOutputTypeCountMenusArgs
 }
 
 /**
@@ -581,6 +777,13 @@ export type ProjectCountOutputTypeCountVersionsArgs<ExtArgs extends runtime.Type
   where?: Prisma.ProjectVersionWhereInput
 }
 
+/**
+ * ProjectCountOutputType without action
+ */
+export type ProjectCountOutputTypeCountMenusArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ProjectMenuWhereInput
+}
+
 
 export type ProjectSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -593,6 +796,8 @@ export type ProjectSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   updatedAt?: boolean
   isDeleted?: boolean
   versions?: boolean | Prisma.Project$versionsArgs<ExtArgs>
+  menus?: boolean | Prisma.Project$menusArgs<ExtArgs>
+  home?: boolean | Prisma.Project$homeArgs<ExtArgs>
   _count?: boolean | Prisma.ProjectCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["project"]>
 
@@ -635,6 +840,8 @@ export type ProjectSelectScalar = {
 export type ProjectOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "projectName" | "avatar" | "weight" | "status" | "requireAuth" | "createdAt" | "updatedAt" | "isDeleted", ExtArgs["result"]["project"]>
 export type ProjectInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   versions?: boolean | Prisma.Project$versionsArgs<ExtArgs>
+  menus?: boolean | Prisma.Project$menusArgs<ExtArgs>
+  home?: boolean | Prisma.Project$homeArgs<ExtArgs>
   _count?: boolean | Prisma.ProjectCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type ProjectIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -644,6 +851,8 @@ export type $ProjectPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
   name: "Project"
   objects: {
     versions: Prisma.$ProjectVersionPayload<ExtArgs>[]
+    menus: Prisma.$ProjectMenuPayload<ExtArgs>[]
+    home: Prisma.$ProjectHomePayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: bigint
@@ -1050,6 +1259,8 @@ readonly fields: ProjectFieldRefs;
 export interface Prisma__ProjectClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   versions<T extends Prisma.Project$versionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Project$versionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ProjectVersionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  menus<T extends Prisma.Project$menusArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Project$menusArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ProjectMenuPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  home<T extends Prisma.Project$homeArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Project$homeArgs<ExtArgs>>): Prisma.Prisma__ProjectHomeClient<runtime.Types.Result.GetResult<Prisma.$ProjectHomePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1497,6 +1708,49 @@ export type Project$versionsArgs<ExtArgs extends runtime.Types.Extensions.Intern
   take?: number
   skip?: number
   distinct?: Prisma.ProjectVersionScalarFieldEnum | Prisma.ProjectVersionScalarFieldEnum[]
+}
+
+/**
+ * Project.menus
+ */
+export type Project$menusArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ProjectMenu
+   */
+  select?: Prisma.ProjectMenuSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ProjectMenu
+   */
+  omit?: Prisma.ProjectMenuOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ProjectMenuInclude<ExtArgs> | null
+  where?: Prisma.ProjectMenuWhereInput
+  orderBy?: Prisma.ProjectMenuOrderByWithRelationInput | Prisma.ProjectMenuOrderByWithRelationInput[]
+  cursor?: Prisma.ProjectMenuWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ProjectMenuScalarFieldEnum | Prisma.ProjectMenuScalarFieldEnum[]
+}
+
+/**
+ * Project.home
+ */
+export type Project$homeArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ProjectHome
+   */
+  select?: Prisma.ProjectHomeSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ProjectHome
+   */
+  omit?: Prisma.ProjectHomeOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ProjectHomeInclude<ExtArgs> | null
+  where?: Prisma.ProjectHomeWhereInput
 }
 
 /**

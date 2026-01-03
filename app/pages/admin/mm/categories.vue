@@ -42,6 +42,10 @@ type CategoryDto = {
     id: string
     version: string
     projectId: string
+    project?: {
+      id: string
+      projectName: string
+    } | null
   } | null
 }
 
@@ -164,23 +168,30 @@ async function fetchVersions(projectId: string) {
 
 async function fetchList() {
   const versionId = selectedVersionId.value || projectVersionId.value
-  if (!versionId) {
-    list.value = []
-    total.value = 0
-    return
-  }
 
   loading.value = true
   try {
-    const data = await apiFetch<CategoryListData>(`/api/admin/mm/category/byProjectVersion/${versionId}`, {
+    const query: any = {
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      keyword: filters.keyword || undefined,
+      status: filters.status || undefined,
+      includeDeleted: filters.includeDeleted ? '1' : undefined,
+      includeProjectVersion: '1',
+    }
+
+    // 如果选择了版本，使用版本过滤接口；否则查询全部
+    let url = '/api/admin/mm/category'
+    if (versionId) {
+      url = `/api/admin/mm/category/byProjectVersion/${versionId}`
+    } else if (selectedProjectId.value) {
+      // 如果只选择了项目，按项目过滤
+      query.projectId = selectedProjectId.value
+    }
+
+    const data = await apiFetch<CategoryListData>(url, {
       method: 'GET',
-      query: {
-        page: pagination.page,
-        pageSize: pagination.pageSize,
-        keyword: filters.keyword || undefined,
-        status: filters.status || undefined,
-        includeDeleted: filters.includeDeleted ? '1' : undefined,
-      },
+      query,
     })
     list.value = data.list
     total.value = data.total
@@ -303,6 +314,11 @@ async function restoreOne(row: CategoryDto) {
   }
 }
 
+// 跳转到笔记管理页面
+function goToNotes(row: CategoryDto) {
+  router.push(`/admin/mm/notes?categoryId=${row.id}`)
+}
+
 // 监听项目选择变化
 watch(selectedProjectId, async (newVal, oldVal) => {
   // 只有用户手动切换项目时才清空版本
@@ -314,14 +330,15 @@ watch(selectedProjectId, async (newVal, oldVal) => {
   } else {
     versions.value = []
   }
+  // 项目变化时重新查询
+  pagination.page = 1
+  fetchList()
 })
 
 // 监听版本选择变化
 watch(selectedVersionId, (newVal) => {
-  if (newVal) {
-    pagination.page = 1
-    fetchList()
-  }
+  pagination.page = 1
+  fetchList()
 })
 
 // 根据 versionId 初始化项目和版本选择器
@@ -366,6 +383,9 @@ onMounted(async () => {
   // 如果URL有versionId参数，初始化选择器并加载数据
   if (projectVersionId.value) {
     await initFromVersionId(projectVersionId.value)
+  } else {
+    // 没有参数时，直接加载全部分类
+    await fetchList()
   }
 })
 </script>
@@ -441,7 +461,18 @@ onMounted(async () => {
       >
         <el-table-column type="selection" width="50"/>
         <el-table-column prop="id" label="ID" width="100"/>
-        <el-table-column prop="categoryName" label="分类名称" min-width="200"/>
+        <el-table-column prop="categoryName" label="分类名称" min-width="180"/>
+        <el-table-column label="所属项目" min-width="150">
+          <template #default="{ row }">
+            <span>{{ row.projectVersion?.project?.projectName || '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="版本" width="100">
+          <template #default="{ row }">
+            <el-tag v-if="row.projectVersion?.version" type="primary" size="small">{{ row.projectVersion.version }}</el-tag>
+            <span v-else class="text-subtle">-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="weight" label="权重" width="90" align="center"/>
 
         <el-table-column label="状态" width="100">
@@ -460,8 +491,9 @@ onMounted(async () => {
           <template #default="{ row }">{{ formatTime(row.updatedAt) }}</template>
         </el-table-column>
 
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
+            <el-button size="small" @click="goToNotes(row)" :disabled="row.isDeleted">笔记管理</el-button>
             <el-button size="small" @click="openEdit(row)" :disabled="row.isDeleted">编辑</el-button>
             <el-button size="small" type="danger" @click="deleteOne(row)" :disabled="row.isDeleted">删除</el-button>
             <el-button size="small" @click="restoreOne(row)" v-if="row.isDeleted">恢复</el-button>
@@ -573,6 +605,10 @@ onMounted(async () => {
   margin-top: 10px;
 }
 
+.text-subtle {
+  color: var(--sloth-text-subtle);
+}
+
 :deep(.el-input__wrapper) {
   padding: 0 8px;
   background-color: var(--sloth-bg);
@@ -653,25 +689,47 @@ onMounted(async () => {
 }
 
 :deep(.el-table) {
-  --el-table-bg-color: transparent;
-  --el-table-tr-bg-color: transparent;
-  --el-table-header-bg-color: var(--sloth-bg-hover);
+  --el-table-bg-color: var(--sloth-card, #ffffff);
+  --el-table-tr-bg-color: var(--sloth-card, #ffffff);
+  --el-table-header-bg-color: var(--sloth-bg-hover, #f3f4f6);
   --el-table-header-text-color: var(--sloth-text);
   --el-table-text-color: var(--sloth-text);
   --el-table-border-color: var(--sloth-card-border);
-  --el-table-row-hover-bg-color: var(--sloth-bg-hover);
+  --el-table-row-hover-bg-color: var(--sloth-bg-hover, #f3f4f6);
   font-size: 13px;
+  background-color: var(--sloth-card, #ffffff);
+}
+
+:deep(.el-table__inner-wrapper) {
+  background-color: var(--sloth-card, #ffffff);
 }
 
 :deep(.el-table th.el-table__cell) {
   padding: 8px 0;
   font-size: 13px;
   font-weight: 600;
-  background-color: var(--sloth-bg-hover);
+  background-color: var(--sloth-bg-hover, #f3f4f6);
 }
 
 :deep(.el-table td.el-table__cell) {
   padding: 6px 0;
+  background-color: var(--sloth-card, #ffffff);
+}
+
+:deep(.el-table--enable-row-hover .el-table__body tr:hover > td.el-table__cell) {
+  background-color: var(--sloth-bg-hover, #f3f4f6);
+}
+
+:deep(.el-table__fixed-right) {
+  background-color: var(--sloth-card, #ffffff);
+}
+
+:deep(.el-table__fixed-right .el-table__cell) {
+  background-color: var(--sloth-card, #ffffff);
+}
+
+:deep(.el-table__fixed-right-patch) {
+  background-color: var(--sloth-bg-hover, #f3f4f6);
 }
 
 :deep(.el-tag) {

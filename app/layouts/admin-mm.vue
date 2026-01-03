@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import ThemeToggle from '~/components/ThemeToggle.vue'
-import { HomeIcon, RectangleStackIcon, Bars3Icon, ChevronRightIcon, FolderIcon, DocumentIcon } from '@heroicons/vue/24/outline'
+import { HomeIcon, RectangleStackIcon, ChevronRightIcon, ChevronLeftIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon, FolderIcon, DocumentIcon, DocumentTextIcon } from '@heroicons/vue/24/outline'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -15,6 +15,7 @@ const breadcrumbMap: Record<string, string> = {
   '/admin/mm': 'AdminMM.menu.dashboard',
   '/admin/mm/projects': 'AdminMM.menu.projects',
   '/admin/mm/categories': 'AdminMM.menu.categories',
+  '/admin/mm/notes': 'AdminMM.menu.notes',
   '/admin/mm/files': 'AdminMM.menu.files'
 }
 
@@ -25,6 +26,22 @@ const breadcrumbs = computed(() => {
   const items = [
     { name: t('AdminMM.title'), path: '/admin/mm', disabled: true } // 根节点
   ]
+  
+  // 检查是否是项目首页编辑页面
+  const homeEditMatch = path.match(/^\/admin\/mm\/projects\/(\d+)\/home$/)
+  if (homeEditMatch) {
+    items.push({ name: t('AdminMM.menu.projects'), path: '/admin/mm/projects', disabled: false })
+    items.push({ name: '首页编辑', path, disabled: true })
+    return items
+  }
+
+  // 检查是否是笔记内容编辑页面
+  const noteContentMatch = path.match(/^\/admin\/mm\/notes\/(\d+)\/content$/)
+  if (noteContentMatch) {
+    items.push({ name: t('AdminMM.menu.notes'), path: '/admin/mm/notes', disabled: false })
+    items.push({ name: '内容编辑', path, disabled: true })
+    return items
+  }
   
   if (currentKey) {
     // 简单匹配：如果是仪表盘，就不需要重复显示了，或者作为第二级
@@ -56,10 +73,8 @@ const toggleSidebar = () => {
       <div class="logo-area">
         <transition name="fade">
           <span v-if="!isCollapse" class="logo-text">{{ t('AdminMM.title') }}</span>
+          <span v-else class="logo-icon">MM</span>
         </transition>
-        <button class="collapse-btn" @click="toggleSidebar" :title="isCollapse ? 'Expand' : 'Collapse'">
-          <Bars3Icon class="icon-size" />
-        </button>
       </div>
       
       <el-menu
@@ -83,6 +98,11 @@ const toggleSidebar = () => {
           <span>{{ t('AdminMM.menu.categories') }}</span>
         </el-menu-item>
 
+        <el-menu-item index="/admin/mm/notes">
+          <el-icon><DocumentTextIcon /></el-icon>
+          <span>{{ t('AdminMM.menu.notes') }}</span>
+        </el-menu-item>
+
         <el-menu-item index="/admin/mm/files">
           <el-icon><DocumentIcon /></el-icon>
           <span>{{ t('AdminMM.menu.files') }}</span>
@@ -94,19 +114,31 @@ const toggleSidebar = () => {
     <div class="main-wrapper">
       <header class="admin-header">
         <div class="header-left">
+          <button class="collapse-btn" @click="toggleSidebar" :title="isCollapse ? '展开侧边栏' : '收起侧边栏'">
+            <ChevronDoubleRightIcon v-if="isCollapse" class="icon-size" />
+            <ChevronDoubleLeftIcon v-else class="icon-size" />
+          </button>
           <nav class="breadcrumb-nav" aria-label="Breadcrumb">
             <ol class="breadcrumb-list">
               <li v-for="(item, index) in breadcrumbs" :key="item.path" class="breadcrumb-item">
                 <span v-if="index > 0" class="breadcrumb-separator">
                   <ChevronRightIcon class="separator-icon" />
                 </span>
-                <span 
-                  class="breadcrumb-link" 
-                  :class="{ 'is-current': index === breadcrumbs.length - 1 }"
-                  :aria-current="index === breadcrumbs.length - 1 ? 'page' : undefined"
-                >
-                  {{ item.name }}
-                </span>
+                <NuxtLink 
+                v-if="!item.disabled"
+                :to="item.path"
+                class="breadcrumb-link"
+              >
+                {{ item.name }}
+              </NuxtLink>
+              <span 
+                v-else
+                class="breadcrumb-link" 
+                :class="{ 'is-current': index === breadcrumbs.length - 1 }"
+                :aria-current="index === breadcrumbs.length - 1 ? 'page' : undefined"
+              >
+                {{ item.name }}
+              </span>
               </li>
             </ol>
           </nav>
@@ -156,7 +188,7 @@ const toggleSidebar = () => {
   height: 48px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   padding: 0 12px;
   font-weight: 600;
   font-size: 15px;
@@ -166,7 +198,6 @@ const toggleSidebar = () => {
 }
 
 .admin-sidebar.is-collapsed .logo-area {
-  justify-content: center;
   padding: 0 8px;
 }
 
@@ -174,17 +205,23 @@ const toggleSidebar = () => {
   white-space: nowrap;
 }
 
+.logo-icon {
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .collapse-btn {
   background: transparent;
   border: none;
   color: var(--sloth-text-secondary, inherit);
   cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
+  padding: 6px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
+  margin-right: 8px;
 }
 
 .collapse-btn:hover {
@@ -292,6 +329,19 @@ const toggleSidebar = () => {
 }
 
 /* Breadcrumb Styles */
+.header-left {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.breadcrumb-nav {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
 .breadcrumb-list {
   display: flex;
   align-items: center;
@@ -322,6 +372,12 @@ const toggleSidebar = () => {
 .breadcrumb-link {
   transition: color 0.2s;
   font-weight: 500;
+  text-decoration: none;
+  color: var(--sloth-text-secondary);
+}
+
+.breadcrumb-link:hover:not(.is-current) {
+  color: var(--sloth-primary);
 }
 
 .breadcrumb-link.is-current {
