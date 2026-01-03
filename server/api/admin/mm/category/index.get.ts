@@ -14,24 +14,21 @@ function toBool(value: unknown) {
     return value === '1' || value.toLowerCase() === 'true'
 }
 
-function projectToDto(project: any) {
-    // 获取最新版本（按 weight 降序取第一个未删除的）
-    const latestVersion = project.versions?.find((v: any) => !v.isDeleted)
-    // 计算最新版本的分类数
-    const categoryCount = latestVersion?._count?.categories ?? 0
+function categoryToDto(cat: any) {
     return {
-        id: project.id.toString(),
-        projectName: project.projectName,
-        avatar: project.avatar,
-        weight: project.weight,
-        status: project.status,
-        requireAuth: project.requireAuth,
-        createdAt: project.createdAt,
-        updatedAt: project.updatedAt,
-        isDeleted: project.isDeleted,
-        latestVersion: latestVersion?.version || null,
-        latestVersionId: latestVersion?.id?.toString() || null,
-        categoryCount,
+        id: cat.id.toString(),
+        projectVersionId: cat.projectVersionId.toString(),
+        categoryName: cat.categoryName,
+        weight: cat.weight,
+        status: cat.status,
+        createdAt: cat.createdAt,
+        updatedAt: cat.updatedAt,
+        isDeleted: cat.isDeleted,
+        projectVersion: cat.projectVersion ? {
+            id: cat.projectVersion.id.toString(),
+            version: cat.projectVersion.version,
+            projectId: cat.projectVersion.projectId.toString(),
+        } : null,
     }
 }
 
@@ -49,9 +46,10 @@ export default defineEventHandler(async (event) => {
     const keyword = typeof query.keyword === 'string' ? query.keyword.trim() : ''
     const includeDeleted = toBool(query.includeDeleted)
     const onlyDeleted = toBool(query.onlyDeleted)
+    const includeProjectVersion = toBool(query.includeProjectVersion)
 
     const status = query.status !== undefined ? toInt(query.status, Number.NaN) : undefined
-    const requireAuth = query.requireAuth !== undefined ? toBool(query.requireAuth) : undefined
+    const projectVersionId = query.projectVersionId !== undefined ? query.projectVersionId : undefined
 
     const orderByField = typeof query.orderBy === 'string' ? query.orderBy : 'weight'
     const order = typeof query.order === 'string' && query.order.toLowerCase() === 'asc' ? 'asc' : 'desc'
@@ -65,47 +63,41 @@ export default defineEventHandler(async (event) => {
     }
 
     if (keyword) {
-        where.projectName = {contains: keyword, mode: 'insensitive'}
+        where.categoryName = {contains: keyword, mode: 'insensitive'}
     }
 
     if (Number.isFinite(status)) {
         where.status = status
     }
 
-    if (typeof requireAuth === 'boolean') {
-        where.requireAuth = requireAuth
+    if (projectVersionId !== undefined) {
+        try {
+            where.projectVersionId = BigInt(String(projectVersionId))
+        } catch {
+            setResponseStatus(event, 400)
+            return fail('Invalid projectVersionId', 400)
+        }
     }
 
-    const allowedOrderBy = new Set(['id', 'projectName', 'weight', 'status', 'requireAuth', 'createdAt', 'updatedAt'])
+    const allowedOrderBy = new Set(['id', 'categoryName', 'weight', 'status', 'createdAt', 'updatedAt'])
     const safeOrderBy = allowedOrderBy.has(orderByField) ? orderByField : 'weight'
 
     const skip = (page - 1) * pageSize
 
     try {
         const [total, list] = await Promise.all([
-            prisma.project.count({where}),
-            prisma.project.findMany({
+            prisma.category.count({where}),
+            prisma.category.findMany({
                 where,
                 skip,
                 take: pageSize,
                 orderBy: {[safeOrderBy]: order},
-                include: {
-                    versions: {
-                        where: {isDeleted: false, status: 1},
-                        orderBy: {weight: 'desc'},
-                        take: 1,
-                        include: {
-                            _count: {
-                                select: {categories: {where: {isDeleted: false}}},
-                            },
-                        },
-                    },
-                },
+                include: includeProjectVersion ? {projectVersion: true} : undefined,
             }),
         ])
 
         return ok({
-            list: list.map(projectToDto),
+            list: list.map(categoryToDto),
             page,
             pageSize,
             total,

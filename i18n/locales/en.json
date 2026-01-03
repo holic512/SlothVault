@@ -1,4 +1,20 @@
 {
+  "Nav": {
+    "home": "Home",
+    "projects": "Projects",
+    "community": "Community",
+    "discord": "Discord",
+    "github": "GitHub"
+  },
+  "ProjectsPage": {
+    "title": "Projects",
+    "desc": "Browse all public projects and explore the knowledge universe",
+    "loading": "Loading...",
+    "error": "Failed to load, please try again later",
+    "empty": "No public projects yet",
+    "categories": "categories",
+    "requireAuth": "Auth"
+  },
   "ThemeToggle": {
     "aria": {
       "openThemeSettings": "Open Theme Settings"
@@ -153,7 +169,9 @@
     "title": "SVAdmin",
     "menu": {
       "dashboard": "Dashboard",
-      "projects": "Project Management"
+      "projects": "Project Management",
+      "categories": "Category Management",
+      "files": "File Management"
     },
     "projects": {
       "title": "Project Management"

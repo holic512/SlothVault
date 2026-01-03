@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import ThemeToggle from '~/components/ThemeToggle.vue'
-import { HomeIcon, RectangleStackIcon, Bars3Icon, ChevronRightIcon } from '@heroicons/vue/24/outline'
+import { HomeIcon, RectangleStackIcon, Bars3Icon, ChevronRightIcon, FolderIcon, DocumentIcon } from '@heroicons/vue/24/outline'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -13,7 +13,9 @@ const activeMenu = computed(() => route.path)
 // 面包屑映射逻辑
 const breadcrumbMap: Record<string, string> = {
   '/admin/mm': 'AdminMM.menu.dashboard',
-  '/admin/mm/projects': 'AdminMM.menu.projects'
+  '/admin/mm/projects': 'AdminMM.menu.projects',
+  '/admin/mm/categories': 'AdminMM.menu.categories',
+  '/admin/mm/files': 'AdminMM.menu.files'
 }
 
 const breadcrumbs = computed(() => {
@@ -75,6 +77,16 @@ const toggleSidebar = () => {
           <el-icon><RectangleStackIcon /></el-icon>
           <span>{{ t('AdminMM.menu.projects') }}</span>
         </el-menu-item>
+
+        <el-menu-item index="/admin/mm/categories">
+          <el-icon><FolderIcon /></el-icon>
+          <span>{{ t('AdminMM.menu.categories') }}</span>
+        </el-menu-item>
+
+        <el-menu-item index="/admin/mm/files">
+          <el-icon><DocumentIcon /></el-icon>
+          <span>{{ t('AdminMM.menu.files') }}</span>
+        </el-menu-item>
       </el-menu>
     </aside>
 
@@ -100,6 +112,9 @@ const toggleSidebar = () => {
           </nav>
         </div>
         <div class="header-right">
+          <NuxtLink to="/" class="home-link" title="返回主页">
+            <HomeIcon class="home-icon" />
+          </NuxtLink>
           <ThemeToggle />
         </div>
       </header>
@@ -312,5 +327,32 @@ const toggleSidebar = () => {
 .breadcrumb-link.is-current {
   color: var(--sloth-text);
   font-weight: 600;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.home-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  color: var(--sloth-text-secondary);
+  transition: all 0.2s;
+}
+
+.home-link:hover {
+  background-color: var(--sloth-bg-hover);
+  color: var(--sloth-primary);
+}
+
+.home-icon {
+  width: 18px;
+  height: 18px;
 }
 </style>

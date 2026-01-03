@@ -1,4 +1,20 @@
 {
+  "Nav": {
+    "home": "首页",
+    "projects": "项目",
+    "community": "加入交流群",
+    "discord": "Discord",
+    "github": "GitHub"
+  },
+  "ProjectsPage": {
+    "title": "项目列表",
+    "desc": "浏览所有公开项目，探索知识宇宙",
+    "loading": "加载中...",
+    "error": "加载失败，请稍后重试",
+    "empty": "暂无公开项目",
+    "categories": "个分类",
+    "requireAuth": "需鉴权"
+  },
   "ThemeToggle": {
     "aria": {
       "openThemeSettings": "打开主题设置"
@@ -153,7 +169,9 @@
     "title": "SV管理后台",
     "menu": {
       "dashboard": "仪表盘",
-      "projects": "项目管理"
+      "projects": "项目管理",
+      "categories": "分类管理",
+      "files": "文件管理"
     },
     "projects": {
       "title": "项目管理"

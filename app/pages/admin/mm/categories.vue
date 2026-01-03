@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, reactive, ref} from 'vue'
+import {computed, onMounted, reactive, ref, watch} from 'vue'
 import dayjs from 'dayjs'
 import {
   ElButton,
@@ -29,39 +29,64 @@ type ApiResponse<T> = {
   data: T
 }
 
-type ProjectDto = {
+type CategoryDto = {
   id: string
-  projectName: string
-  avatar: string | null
+  projectVersionId: string
+  categoryName: string
   weight: number
   status: number
-  requireAuth: boolean
   createdAt: string | Date
   updatedAt: string | Date
   isDeleted: boolean
-  latestVersion: string | null
-  latestVersionId: string | null
-  categoryCount: number
+  projectVersion?: {
+    id: string
+    version: string
+    projectId: string
+  } | null
 }
 
-type ProjectListData = {
-  list: ProjectDto[]
+type ProjectVersionDto = {
+  id: string
+  projectId: string
+  version: string
+  description: string | null
+  weight: number
+  status: number
+}
+
+type ProjectDto = {
+  id: string
+  projectName: string
+}
+
+type CategoryListData = {
+  list: CategoryDto[]
   page: number
   pageSize: number
   total: number
+  projectVersion?: ProjectVersionDto
 }
 
 const {t} = useI18n()
 const router = useRouter()
+const route = useRoute()
 
 const loading = ref(false)
-const list = ref<ProjectDto[]>([])
+const list = ref<CategoryDto[]>([])
 const total = ref(0)
+
+// 从路由获取项目版本ID
+const projectVersionId = computed(() => route.query.versionId as string || '')
+
+// 项目和版本选择
+const projects = ref<ProjectDto[]>([])
+const versions = ref<ProjectVersionDto[]>([])
+const selectedProjectId = ref('')
+const selectedVersionId = ref('')
 
 const filters = reactive({
   keyword: '',
   status: '' as '' | '1' | '0',
-  requireAuth: '' as '' | 'true' | 'false',
   includeDeleted: false,
 })
 
@@ -70,7 +95,7 @@ const pagination = reactive({
   pageSize: 10,
 })
 
-const selectedRows = ref<ProjectDto[]>([])
+const selectedRows = ref<CategoryDto[]>([])
 const selectedIds = computed(() => selectedRows.value.map((r) => r.id))
 
 const dialogOpen = ref(false)
@@ -80,20 +105,14 @@ const dialogSubmitting = ref(false)
 const formRef = ref<InstanceType<typeof ElForm> | null>(null)
 const form = reactive({
   id: '' as string,
-  projectName: '' as string,
-  avatar: null as string | null,
+  categoryName: '' as string,
   weight: 0 as number,
   status: 1 as number,
-  requireAuth: false as boolean,
 })
 
 const formRules = {
-  projectName: [{required: true, message: '请输入项目名称', trigger: 'blur'}],
+  categoryName: [{required: true, message: '请输入分类名称', trigger: 'blur'}],
 }
-
-// 版本管理弹窗状态
-const versionDialogOpen = ref(false)
-const currentProject = ref<ProjectDto | null>(null)
 
 function formatTime(value: string | Date) {
   const d = typeof value === 'string' ? new Date(value) : value
@@ -111,17 +130,55 @@ async function apiFetch<T>(url: string, options?: any): Promise<T> {
   throw new Error(res?.message || '请求失败')
 }
 
+async function fetchProjects() {
+  try {
+    const data = await apiFetch<{list: ProjectDto[]}>('/api/admin/mm/project', {
+      method: 'GET',
+      query: {pageSize: 100},
+    })
+    projects.value = data.list
+  } catch (e: any) {
+    if (e?.message !== 'Unauthorized') {
+      ElMessage.error('加载项目列表失败')
+    }
+  }
+}
+
+async function fetchVersions(projectId: string) {
+  if (!projectId) {
+    versions.value = []
+    return
+  }
+  try {
+    const data = await apiFetch<{list: ProjectVersionDto[]}>(`/api/admin/mm/projectVersion/byProject/${projectId}`, {
+      method: 'GET',
+      query: {pageSize: 100},
+    })
+    versions.value = data.list
+  } catch (e: any) {
+    if (e?.message !== 'Unauthorized') {
+      ElMessage.error('加载版本列表失败')
+    }
+  }
+}
+
 async function fetchList() {
+  const versionId = selectedVersionId.value || projectVersionId.value
+  if (!versionId) {
+    list.value = []
+    total.value = 0
+    return
+  }
+
   loading.value = true
   try {
-    const data = await apiFetch<ProjectListData>('/api/admin/mm/project', {
+    const data = await apiFetch<CategoryListData>(`/api/admin/mm/category/byProjectVersion/${versionId}`, {
       method: 'GET',
       query: {
         page: pagination.page,
         pageSize: pagination.pageSize,
         keyword: filters.keyword || undefined,
         status: filters.status || undefined,
-        requireAuth: filters.requireAuth || undefined,
         includeDeleted: filters.includeDeleted ? '1' : undefined,
       },
     })
@@ -139,31 +196,30 @@ async function fetchList() {
 function resetFilters() {
   filters.keyword = ''
   filters.status = ''
-  filters.requireAuth = ''
   filters.includeDeleted = false
   pagination.page = 1
   fetchList()
 }
 
 function openCreate() {
+  if (!selectedVersionId.value && !projectVersionId.value) {
+    ElMessage.warning('请先选择项目版本')
+    return
+  }
   dialogMode.value = 'create'
   form.id = ''
-  form.projectName = ''
-  form.avatar = null
+  form.categoryName = ''
   form.weight = 0
   form.status = 1
-  form.requireAuth = false
   dialogOpen.value = true
 }
 
-function openEdit(row: ProjectDto) {
+function openEdit(row: CategoryDto) {
   dialogMode.value = 'edit'
   form.id = row.id
-  form.projectName = row.projectName
-  form.avatar = row.avatar
+  form.categoryName = row.categoryName
   form.weight = row.weight
   form.status = row.status
-  form.requireAuth = row.requireAuth
   dialogOpen.value = true
 }
 
@@ -171,32 +227,35 @@ async function submitForm() {
   const elForm = formRef.value
   if (!elForm) return
 
+  const versionId = selectedVersionId.value || projectVersionId.value
+  if (!versionId) {
+    ElMessage.warning('请先选择项目版本')
+    return
+  }
+
   try {
     const valid = await elForm.validate().catch(() => false)
     if (!valid) return
 
     dialogSubmitting.value = true
     if (dialogMode.value === 'create') {
-      await apiFetch<ProjectDto>('/api/admin/mm/project', {
+      await apiFetch<CategoryDto>('/api/admin/mm/category', {
         method: 'POST',
         body: {
-          projectName: form.projectName,
-          avatar: form.avatar,
+          projectVersionId: versionId,
+          categoryName: form.categoryName,
           weight: form.weight,
           status: form.status,
-          requireAuth: form.requireAuth,
         },
       })
       ElMessage.success('创建成功')
     } else {
-      await apiFetch<ProjectDto>(`/api/admin/mm/project/${form.id}`, {
+      await apiFetch<CategoryDto>(`/api/admin/mm/category/${form.id}`, {
         method: 'PUT',
         body: {
-          projectName: form.projectName,
-          avatar: form.avatar,
+          categoryName: form.categoryName,
           weight: form.weight,
           status: form.status,
-          requireAuth: form.requireAuth,
         },
       })
       ElMessage.success('保存成功')
@@ -212,14 +271,14 @@ async function submitForm() {
   }
 }
 
-async function deleteOne(row: ProjectDto) {
+async function deleteOne(row: CategoryDto) {
   try {
-    await ElMessageBox.confirm(`确认删除项目「${row.projectName}」？`, '提示', {
+    await ElMessageBox.confirm(`确认删除分类「${row.categoryName}」？`, '提示', {
       confirmButtonText: '删除',
       cancelButtonText: '取消',
       type: 'warning',
     })
-    await apiFetch<ProjectDto>(`/api/admin/mm/project/${row.id}`, {method: 'DELETE'})
+    await apiFetch<CategoryDto>(`/api/admin/mm/category/${row.id}`, {method: 'DELETE'})
     ElMessage.success('已删除')
     fetchList()
   } catch (e: any) {
@@ -229,136 +288,134 @@ async function deleteOne(row: ProjectDto) {
   }
 }
 
-async function restoreOne(row: ProjectDto) {
-  await batchRestore([row.id])
-}
-
-async function batchDelete(ids: string[] = selectedIds.value) {
-  if (ids.length === 0) {
-    ElMessage.warning('请先选择要操作的项目')
-    return
-  }
+async function restoreOne(row: CategoryDto) {
   try {
-    await ElMessageBox.confirm(`确认批量删除所选 ${ids.length} 项？`, '提示', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-      type: 'warning',
+    await apiFetch<CategoryDto>(`/api/admin/mm/category/${row.id}`, {
+      method: 'PUT',
+      body: {isDeleted: false},
     })
-    const data = await apiFetch<{ count: number }>('/api/admin/mm/project/batch', {
-      method: 'POST',
-      body: {action: 'delete', ids},
-    })
-    ElMessage.success(`已删除 ${data.count} 项`)
-    fetchList()
-  } catch (e: any) {
-    if (e?.message && e.message !== 'cancel' && e.message !== 'close' && e.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '批量删除失败')
-    }
-  }
-}
-
-async function batchRestore(ids: string[] = selectedIds.value) {
-  if (ids.length === 0) {
-    ElMessage.warning('请先选择要操作的项目')
-    return
-  }
-  try {
-    const data = await apiFetch<{ count: number }>('/api/admin/mm/project/batch', {
-      method: 'POST',
-      body: {action: 'restore', ids},
-    })
-    ElMessage.success(`已恢复 ${data.count} 项`)
+    ElMessage.success('已恢复')
     fetchList()
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '批量恢复失败')
+      ElMessage.error(e?.message || '恢复失败')
     }
   }
 }
 
-async function batchSetStatus(status: number) {
-  const ids = selectedIds.value
-  if (ids.length === 0) {
-    ElMessage.warning('请先选择要操作的项目')
-    return
+// 监听项目选择变化
+watch(selectedProjectId, async (newVal, oldVal) => {
+  // 只有用户手动切换项目时才清空版本
+  if (oldVal) {
+    selectedVersionId.value = ''
   }
-  try {
-    const data = await apiFetch<{ count: number }>('/api/admin/mm/project/batch', {
-      method: 'POST',
-      body: {action: 'setStatus', ids, status},
-    })
-    ElMessage.success(`已更新 ${data.count} 项`)
-    fetchList()
-  } catch (e: any) {
-    if (e?.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '批量更新失败')
-    }
+  if (newVal) {
+    await fetchVersions(newVal)
+  } else {
+    versions.value = []
   }
-}
-
-async function batchSetRequireAuth(requireAuth: boolean) {
-  const ids = selectedIds.value
-  if (ids.length === 0) {
-    ElMessage.warning('请先选择要操作的项目')
-    return
-  }
-  try {
-    const data = await apiFetch<{ count: number }>('/api/admin/mm/project/batch', {
-      method: 'POST',
-      body: {action: 'setRequireAuth', ids, requireAuth},
-    })
-    ElMessage.success(`已更新 ${data.count} 项`)
-    fetchList()
-  } catch (e: any) {
-    if (e?.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '批量更新失败')
-    }
-  }
-}
-
-onMounted(() => {
-  fetchList()
 })
 
-// 跳转到分类管理页面
-function goToCategories(row: ProjectDto) {
-  if (row.latestVersionId) {
-    router.push(`/admin/mm/categories?versionId=${row.latestVersionId}`)
+// 监听版本选择变化
+watch(selectedVersionId, (newVal) => {
+  if (newVal) {
+    pagination.page = 1
+    fetchList()
+  }
+})
+
+// 根据 versionId 初始化项目和版本选择器
+async function initFromVersionId(versionId: string) {
+  if (!versionId) return
+  
+  loading.value = true
+  try {
+    // 先获取分类列表，同时获取版本信息
+    const data = await apiFetch<CategoryListData>(`/api/admin/mm/category/byProjectVersion/${versionId}`, {
+      method: 'GET',
+      query: {
+        page: 1,
+        pageSize: pagination.pageSize,
+        includeProjectVersionInfo: '1',
+      },
+    })
+    
+    if (data.projectVersion) {
+      const pv = data.projectVersion
+      // 设置项目ID并加载版本列表
+      selectedProjectId.value = pv.projectId
+      await fetchVersions(pv.projectId)
+      // 设置版本ID
+      selectedVersionId.value = pv.id
+      
+      list.value = data.list
+      total.value = data.total
+    }
+  } catch (e: any) {
+    if (e?.message !== 'Unauthorized') {
+      ElMessage.error(e?.message || '加载失败')
+    }
+  } finally {
+    loading.value = false
   }
 }
 
-// 打开版本管理弹窗
-function openVersionDialog(row: ProjectDto) {
-  currentProject.value = row
-  versionDialogOpen.value = true
-}
-
-// 版本更新后刷新列表
-function onVersionUpdated() {
-  fetchList()
-}
+onMounted(async () => {
+  await fetchProjects()
+  
+  // 如果URL有versionId参数，初始化选择器并加载数据
+  if (projectVersionId.value) {
+    await initFromVersionId(projectVersionId.value)
+  }
+})
 </script>
 
 <template>
   <div class="page-container">
     <div class="toolbar">
       <div class="filters">
+        <el-select 
+          v-model="selectedProjectId" 
+          placeholder="选择项目" 
+          clearable 
+          filterable
+          class="filter-item"
+        >
+          <el-option 
+            v-for="p in projects" 
+            :key="p.id" 
+            :label="p.projectName" 
+            :value="p.id"
+          />
+        </el-select>
+
+        <el-select 
+          v-model="selectedVersionId" 
+          placeholder="选择版本" 
+          clearable 
+          filterable
+          class="filter-item"
+          :disabled="!selectedProjectId && !projectVersionId"
+        >
+          <el-option 
+            v-for="v in versions" 
+            :key="v.id" 
+            :label="v.version" 
+            :value="v.id"
+          />
+        </el-select>
+
         <el-input
-            v-model="filters.keyword"
-            placeholder="按项目名模糊搜索"
-            clearable
-            class="filter-item"
-            @keyup.enter="pagination.page = 1; fetchList()"
+          v-model="filters.keyword"
+          placeholder="按分类名模糊搜索"
+          clearable
+          class="filter-item"
+          @keyup.enter="pagination.page = 1; fetchList()"
         />
 
         <el-select v-model="filters.status" placeholder="状态" clearable class="filter-item">
           <el-option label="启用(1)" value="1"/>
           <el-option label="停用(0)" value="0"/>
-        </el-select>
-
-        <el-select v-model="filters.requireAuth" placeholder="鉴权" clearable class="filter-item">
-          <el-option label="需要鉴权" value="true"/>
-          <el-option label="无需鉴权" value="false"/>
         </el-select>
 
         <div class="filter-item switch-item">
@@ -370,45 +427,24 @@ function onVersionUpdated() {
       <div class="actions">
         <el-button type="primary" @click="pagination.page = 1; fetchList()">查询</el-button>
         <el-button @click="resetFilters">重置</el-button>
-        <el-button type="primary" plain @click="openCreate">新增项目</el-button>
-        <el-button type="danger" plain :disabled="selectedIds.length === 0" @click="batchDelete()">批量删除</el-button>
-        <el-button plain :disabled="selectedIds.length === 0" @click="batchRestore()">批量恢复</el-button>
-        <el-button plain :disabled="selectedIds.length === 0" @click="batchSetStatus(1)">批量启用</el-button>
-        <el-button plain :disabled="selectedIds.length === 0" @click="batchSetStatus(0)">批量停用</el-button>
-        <el-button plain :disabled="selectedIds.length === 0" @click="batchSetRequireAuth(true)">批量开启鉴权
-        </el-button>
-        <el-button plain :disabled="selectedIds.length === 0" @click="batchSetRequireAuth(false)">批量关闭鉴权
-        </el-button>
+        <el-button type="primary" plain @click="openCreate">新增分类</el-button>
       </div>
     </div>
 
     <div class="table-card">
       <el-table
-          :data="list"
-          row-key="id"
-          style="width: 100%"
-          v-loading="loading"
-          @selection-change="(rows: ProjectDto[]) => (selectedRows = rows)"
+        :data="list"
+        row-key="id"
+        style="width: 100%"
+        v-loading="loading"
+        @selection-change="(rows: CategoryDto[]) => (selectedRows = rows)"
       >
         <el-table-column type="selection" width="50"/>
-        <el-table-column prop="id" label="ID" width="120"/>
-        <el-table-column label="头像" width="80" align="center">
-          <template #default="{ row }">
-            <img
-              v-if="row.avatar"
-              :src="row.avatar"
-              class="project-avatar"
-              alt="项目头像"
-            />
-            <div v-else class="avatar-placeholder-small">
-              <span>{{ row.projectName?.charAt(0) || '?' }}</span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="projectName" label="项目名称" min-width="220"/>
+        <el-table-column prop="id" label="ID" width="100"/>
+        <el-table-column prop="categoryName" label="分类名称" min-width="200"/>
         <el-table-column prop="weight" label="权重" width="90" align="center"/>
 
-        <el-table-column label="状态" width="110">
+        <el-table-column label="状态" width="100">
           <template #default="{ row }">
             <el-tag v-if="row.isDeleted" type="info">已删除</el-tag>
             <el-tag v-else-if="row.status === 1" type="success">启用</el-tag>
@@ -416,39 +452,16 @@ function onVersionUpdated() {
           </template>
         </el-table-column>
 
-        <el-table-column label="最新版本" width="120">
-          <template #default="{ row }">
-            <el-tag v-if="row.latestVersion" type="primary">{{ row.latestVersion }}</el-tag>
-            <span v-else class="text-subtle">-</span>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="分类数" width="90" align="center">
-          <template #default="{ row }">
-            <span v-if="row.latestVersionId">{{ row.categoryCount }}</span>
-            <span v-else class="text-subtle">-</span>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="鉴权" width="110">
-          <template #default="{ row }">
-            <el-tag v-if="row.requireAuth" type="warning">需要</el-tag>
-            <el-tag v-else type="info">无需</el-tag>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="创建时间" width="180">
+        <el-table-column label="创建时间" width="170">
           <template #default="{ row }">{{ formatTime(row.createdAt) }}</template>
         </el-table-column>
 
-        <el-table-column label="更新时间" width="180">
+        <el-table-column label="更新时间" width="170">
           <template #default="{ row }">{{ formatTime(row.updatedAt) }}</template>
         </el-table-column>
 
-        <el-table-column label="操作" width="360" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="openVersionDialog(row)">版本管理</el-button>
-            <el-button size="small" @click="goToCategories(row)" :disabled="!row.latestVersionId">分类管理</el-button>
             <el-button size="small" @click="openEdit(row)" :disabled="row.isDeleted">编辑</el-button>
             <el-button size="small" type="danger" @click="deleteOne(row)" :disabled="row.isDeleted">删除</el-button>
             <el-button size="small" @click="restoreOne(row)" v-if="row.isDeleted">恢复</el-button>
@@ -458,30 +471,26 @@ function onVersionUpdated() {
 
       <div class="pagination">
         <el-pagination
-            v-model:current-page="pagination.page"
-            v-model:page-size="pagination.pageSize"
-            :page-sizes="[10, 20, 50, 100]"
-            layout="total, sizes, prev, pager, next, jumper"
-            :total="total"
-            @size-change="() => { pagination.page = 1; fetchList() }"
-            @current-change="() => fetchList()"
+          v-model:current-page="pagination.page"
+          v-model:page-size="pagination.pageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next, jumper"
+          :total="total"
+          @size-change="() => { pagination.page = 1; fetchList() }"
+          @current-change="() => fetchList()"
         />
       </div>
     </div>
 
     <el-dialog
-        v-model="dialogOpen"
-        :title="dialogMode === 'create' ? '新增项目' : '编辑项目'"
-        width="520px"
-        :close-on-click-modal="false"
+      v-model="dialogOpen"
+      :title="dialogMode === 'create' ? '新增分类' : '编辑分类'"
+      width="480px"
+      :close-on-click-modal="false"
     >
-      <el-form ref="formRef" :model="form" :rules="formRules" label-width="100px">
-        <el-form-item label="项目头像">
-          <AvatarUploader v-model="form.avatar" :size="80" />
-        </el-form-item>
-
-        <el-form-item label="项目名称" prop="projectName">
-          <el-input v-model="form.projectName" maxlength="128" show-word-limit/>
+      <el-form ref="formRef" :model="form" :rules="formRules" label-width="90px">
+        <el-form-item label="分类名称" prop="categoryName">
+          <el-input v-model="form.categoryName" maxlength="64" show-word-limit/>
         </el-form-item>
 
         <el-form-item label="权重" prop="weight">
@@ -494,10 +503,6 @@ function onVersionUpdated() {
             <el-option label="停用(0)" :value="0"/>
           </el-select>
         </el-form-item>
-
-        <el-form-item label="需要鉴权" prop="requireAuth">
-          <el-switch v-model="form.requireAuth"/>
-        </el-form-item>
       </el-form>
 
       <template #footer>
@@ -505,23 +510,15 @@ function onVersionUpdated() {
         <el-button type="primary" :loading="dialogSubmitting" @click="submitForm">保存</el-button>
       </template>
     </el-dialog>
-
-    <!-- 版本管理弹窗组件 -->
-    <AdminMmProjectVersionDialog
-      v-model="versionDialogOpen"
-      :project-id="currentProject?.id || null"
-      :project-name="currentProject?.projectName || ''"
-      @updated="onVersionUpdated"
-    />
   </div>
 </template>
+
 
 <style scoped>
 .page-container {
   --sloth-radius: 4px;
 }
 
-/* 工具栏卡片 */
 .toolbar {
   display: flex;
   flex-direction: column;
@@ -536,7 +533,7 @@ function onVersionUpdated() {
 
 .filters {
   display: grid;
-  grid-template-columns: 1fr 130px 130px 180px;
+  grid-template-columns: 1fr 1fr 1fr 130px 180px;
   gap: 8px;
 }
 
@@ -562,7 +559,6 @@ function onVersionUpdated() {
   gap: 6px;
 }
 
-/* 表格卡片 */
 .table-card {
   padding: 12px;
   background: var(--sloth-card);
@@ -577,7 +573,6 @@ function onVersionUpdated() {
   margin-top: 10px;
 }
 
-/* Element Plus 主题适配 */
 :deep(.el-input__wrapper) {
   padding: 0 8px;
   background-color: var(--sloth-bg);
@@ -621,7 +616,6 @@ function onVersionUpdated() {
   border-color: var(--sloth-primary);
 }
 
-/* 按钮主题适配 */
 :deep(.el-button) {
   padding: 6px 12px;
   font-size: 13px;
@@ -652,67 +646,34 @@ function onVersionUpdated() {
   --el-button-hover-border-color: var(--sloth-primary);
 }
 
-:deep(.el-button--default.is-plain) {
-  --el-button-bg-color: transparent;
-  --el-button-text-color: var(--sloth-text);
-  --el-button-border-color: var(--sloth-card-border);
-  --el-button-hover-bg-color: var(--sloth-bg-hover);
-  --el-button-hover-text-color: var(--sloth-primary);
-  --el-button-hover-border-color: var(--sloth-primary);
-}
-
 :deep(.el-button--small) {
   padding: 4px 8px;
   font-size: 12px;
   height: 26px;
 }
 
-/* 表格主题适配 */
 :deep(.el-table) {
-  --el-table-bg-color: var(--sloth-card, #ffffff);
-  --el-table-tr-bg-color: var(--sloth-card, #ffffff);
-  --el-table-header-bg-color: var(--sloth-bg-hover, #f3f4f6);
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: var(--sloth-bg-hover);
   --el-table-header-text-color: var(--sloth-text);
   --el-table-text-color: var(--sloth-text);
   --el-table-border-color: var(--sloth-card-border);
-  --el-table-row-hover-bg-color: var(--sloth-bg-hover, #f3f4f6);
+  --el-table-row-hover-bg-color: var(--sloth-bg-hover);
   font-size: 13px;
-  background-color: var(--sloth-card, #ffffff);
-}
-
-:deep(.el-table__inner-wrapper) {
-  background-color: var(--sloth-card, #ffffff);
 }
 
 :deep(.el-table th.el-table__cell) {
   padding: 8px 0;
   font-size: 13px;
   font-weight: 600;
-  background-color: var(--sloth-bg-hover, #f3f4f6);
+  background-color: var(--sloth-bg-hover);
 }
 
 :deep(.el-table td.el-table__cell) {
   padding: 6px 0;
-  background-color: var(--sloth-card, #ffffff);
 }
 
-:deep(.el-table--enable-row-hover .el-table__body tr:hover > td.el-table__cell) {
-  background-color: var(--sloth-bg-hover, #f3f4f6);
-}
-
-:deep(.el-table__fixed-right) {
-  background-color: var(--sloth-card, #ffffff);
-}
-
-:deep(.el-table__fixed-right .el-table__cell) {
-  background-color: var(--sloth-card, #ffffff);
-}
-
-:deep(.el-table__fixed-right-patch) {
-  background-color: var(--sloth-bg-hover, #f3f4f6);
-}
-
-/* Tag 主题适配 */
 :deep(.el-tag) {
   padding: 0 6px;
   height: 22px;
@@ -738,7 +699,12 @@ function onVersionUpdated() {
   --el-tag-text-color: var(--sloth-text-subtle);
 }
 
-/* 分页主题适配 */
+:deep(.el-tag--primary) {
+  --el-tag-bg-color: rgba(59, 130, 246, 0.1);
+  --el-tag-border-color: rgba(59, 130, 246, 0.2);
+  --el-tag-text-color: #3b82f6;
+}
+
 :deep(.el-pagination) {
   --el-pagination-font-size: 13px;
   --el-pagination-button-height: 28px;
@@ -748,11 +714,6 @@ function onVersionUpdated() {
   --el-pagination-hover-color: var(--sloth-primary);
 }
 
-:deep(.el-pagination .el-input__wrapper) {
-  background-color: var(--sloth-bg);
-}
-
-/* Dialog 主题适配 */
 :deep(.el-dialog) {
   --el-dialog-bg-color: var(--sloth-card);
   --el-dialog-padding-primary: 16px;
@@ -791,53 +752,21 @@ function onVersionUpdated() {
   color: var(--sloth-text);
 }
 
-/* Loading 适配 */
-:deep(.el-loading-mask) {
-  background-color: rgba(var(--sloth-primary-rgb), 0.05);
+@media (max-width: 1100px) {
+  .filters {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
 }
 
-@media (max-width: 960px) {
+@media (max-width: 768px) {
   .filters {
     grid-template-columns: 1fr 1fr;
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 480px) {
   .filters {
     grid-template-columns: 1fr;
   }
-}
-
-.text-subtle {
-  color: var(--sloth-text-subtle);
-}
-
-:deep(.el-tag--primary) {
-  --el-tag-bg-color: rgba(59, 130, 246, 0.1);
-  --el-tag-border-color: rgba(59, 130, 246, 0.2);
-  --el-tag-text-color: #3b82f6;
-}
-
-/* 项目头像样式 */
-.project-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid var(--sloth-card-border);
-}
-
-.avatar-placeholder-small {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--sloth-primary-dim, rgba(59, 130, 246, 0.1));
-  color: var(--sloth-primary, #3b82f6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  font-weight: 600;
-  margin: 0 auto;
 }
 </style>

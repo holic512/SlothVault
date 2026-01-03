@@ -12,6 +12,7 @@ function projectToDto(project: any) {
     return {
         id: project.id.toString(),
         projectName: project.projectName,
+        avatar: project.avatar,
         weight: project.weight,
         status: project.status,
         requireAuth: project.requireAuth,
@@ -30,6 +31,7 @@ export default defineEventHandler(async (event) => {
 
     const body = await readBody<{
         projectName?: string
+        avatar?: string | null
         weight?: number
         status?: number
         requireAuth?: boolean
@@ -41,13 +43,14 @@ export default defineEventHandler(async (event) => {
         return fail('Missing projectName', 400)
     }
 
+    const avatar = typeof body?.avatar === 'string' ? body.avatar : null
     const weight = toInt(body?.weight, 0)
     const status = toInt(body?.status, 1)
     const requireAuth = typeof body?.requireAuth === 'boolean' ? body.requireAuth : false
 
     try {
         const project = await prisma.project.create({
-            data: {projectName, weight, status, requireAuth},
+            data: {projectName, avatar, weight, status, requireAuth},
         })
         setResponseStatus(event, 201)
         return ok(projectToDto(project), 'created')

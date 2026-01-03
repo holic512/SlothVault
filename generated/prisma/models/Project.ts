@@ -41,6 +41,7 @@ export type ProjectSumAggregateOutputType = {
 export type ProjectMinAggregateOutputType = {
   id: bigint | null
   projectName: string | null
+  avatar: string | null
   weight: number | null
   status: number | null
   requireAuth: boolean | null
@@ -52,6 +53,7 @@ export type ProjectMinAggregateOutputType = {
 export type ProjectMaxAggregateOutputType = {
   id: bigint | null
   projectName: string | null
+  avatar: string | null
   weight: number | null
   status: number | null
   requireAuth: boolean | null
@@ -63,6 +65,7 @@ export type ProjectMaxAggregateOutputType = {
 export type ProjectCountAggregateOutputType = {
   id: number
   projectName: number
+  avatar: number
   weight: number
   status: number
   requireAuth: number
@@ -88,6 +91,7 @@ export type ProjectSumAggregateInputType = {
 export type ProjectMinAggregateInputType = {
   id?: true
   projectName?: true
+  avatar?: true
   weight?: true
   status?: true
   requireAuth?: true
@@ -99,6 +103,7 @@ export type ProjectMinAggregateInputType = {
 export type ProjectMaxAggregateInputType = {
   id?: true
   projectName?: true
+  avatar?: true
   weight?: true
   status?: true
   requireAuth?: true
@@ -110,6 +115,7 @@ export type ProjectMaxAggregateInputType = {
 export type ProjectCountAggregateInputType = {
   id?: true
   projectName?: true
+  avatar?: true
   weight?: true
   status?: true
   requireAuth?: true
@@ -208,6 +214,7 @@ export type ProjectGroupByArgs<ExtArgs extends runtime.Types.Extensions.Internal
 export type ProjectGroupByOutputType = {
   id: bigint
   projectName: string
+  avatar: string | null
   weight: number
   status: number
   requireAuth: boolean
@@ -242,6 +249,7 @@ export type ProjectWhereInput = {
   NOT?: Prisma.ProjectWhereInput | Prisma.ProjectWhereInput[]
   id?: Prisma.BigIntFilter<"Project"> | bigint | number
   projectName?: Prisma.StringFilter<"Project"> | string
+  avatar?: Prisma.StringNullableFilter<"Project"> | string | null
   weight?: Prisma.IntFilter<"Project"> | number
   status?: Prisma.IntFilter<"Project"> | number
   requireAuth?: Prisma.BoolFilter<"Project"> | boolean
@@ -254,6 +262,7 @@ export type ProjectWhereInput = {
 export type ProjectOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   projectName?: Prisma.SortOrder
+  avatar?: Prisma.SortOrderInput | Prisma.SortOrder
   weight?: Prisma.SortOrder
   status?: Prisma.SortOrder
   requireAuth?: Prisma.SortOrder
@@ -269,6 +278,7 @@ export type ProjectWhereUniqueInput = Prisma.AtLeast<{
   OR?: Prisma.ProjectWhereInput[]
   NOT?: Prisma.ProjectWhereInput | Prisma.ProjectWhereInput[]
   projectName?: Prisma.StringFilter<"Project"> | string
+  avatar?: Prisma.StringNullableFilter<"Project"> | string | null
   weight?: Prisma.IntFilter<"Project"> | number
   status?: Prisma.IntFilter<"Project"> | number
   requireAuth?: Prisma.BoolFilter<"Project"> | boolean
@@ -281,6 +291,7 @@ export type ProjectWhereUniqueInput = Prisma.AtLeast<{
 export type ProjectOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   projectName?: Prisma.SortOrder
+  avatar?: Prisma.SortOrderInput | Prisma.SortOrder
   weight?: Prisma.SortOrder
   status?: Prisma.SortOrder
   requireAuth?: Prisma.SortOrder
@@ -300,6 +311,7 @@ export type ProjectScalarWhereWithAggregatesInput = {
   NOT?: Prisma.ProjectScalarWhereWithAggregatesInput | Prisma.ProjectScalarWhereWithAggregatesInput[]
   id?: Prisma.BigIntWithAggregatesFilter<"Project"> | bigint | number
   projectName?: Prisma.StringWithAggregatesFilter<"Project"> | string
+  avatar?: Prisma.StringNullableWithAggregatesFilter<"Project"> | string | null
   weight?: Prisma.IntWithAggregatesFilter<"Project"> | number
   status?: Prisma.IntWithAggregatesFilter<"Project"> | number
   requireAuth?: Prisma.BoolWithAggregatesFilter<"Project"> | boolean
@@ -311,6 +323,7 @@ export type ProjectScalarWhereWithAggregatesInput = {
 export type ProjectCreateInput = {
   id?: bigint | number
   projectName: string
+  avatar?: string | null
   weight: number
   status: number
   requireAuth?: boolean
@@ -323,6 +336,7 @@ export type ProjectCreateInput = {
 export type ProjectUncheckedCreateInput = {
   id?: bigint | number
   projectName: string
+  avatar?: string | null
   weight: number
   status: number
   requireAuth?: boolean
@@ -335,6 +349,7 @@ export type ProjectUncheckedCreateInput = {
 export type ProjectUpdateInput = {
   id?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   projectName?: Prisma.StringFieldUpdateOperationsInput | string
+  avatar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   weight?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.IntFieldUpdateOperationsInput | number
   requireAuth?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -347,6 +362,7 @@ export type ProjectUpdateInput = {
 export type ProjectUncheckedUpdateInput = {
   id?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   projectName?: Prisma.StringFieldUpdateOperationsInput | string
+  avatar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   weight?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.IntFieldUpdateOperationsInput | number
   requireAuth?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -359,6 +375,7 @@ export type ProjectUncheckedUpdateInput = {
 export type ProjectCreateManyInput = {
   id?: bigint | number
   projectName: string
+  avatar?: string | null
   weight: number
   status: number
   requireAuth?: boolean
@@ -370,6 +387,7 @@ export type ProjectCreateManyInput = {
 export type ProjectUpdateManyMutationInput = {
   id?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   projectName?: Prisma.StringFieldUpdateOperationsInput | string
+  avatar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   weight?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.IntFieldUpdateOperationsInput | number
   requireAuth?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -381,6 +399,7 @@ export type ProjectUpdateManyMutationInput = {
 export type ProjectUncheckedUpdateManyInput = {
   id?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   projectName?: Prisma.StringFieldUpdateOperationsInput | string
+  avatar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   weight?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.IntFieldUpdateOperationsInput | number
   requireAuth?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -392,6 +411,7 @@ export type ProjectUncheckedUpdateManyInput = {
 export type ProjectCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   projectName?: Prisma.SortOrder
+  avatar?: Prisma.SortOrder
   weight?: Prisma.SortOrder
   status?: Prisma.SortOrder
   requireAuth?: Prisma.SortOrder
@@ -409,6 +429,7 @@ export type ProjectAvgOrderByAggregateInput = {
 export type ProjectMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   projectName?: Prisma.SortOrder
+  avatar?: Prisma.SortOrder
   weight?: Prisma.SortOrder
   status?: Prisma.SortOrder
   requireAuth?: Prisma.SortOrder
@@ -420,6 +441,7 @@ export type ProjectMaxOrderByAggregateInput = {
 export type ProjectMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   projectName?: Prisma.SortOrder
+  avatar?: Prisma.SortOrder
   weight?: Prisma.SortOrder
   status?: Prisma.SortOrder
   requireAuth?: Prisma.SortOrder
@@ -468,6 +490,7 @@ export type ProjectUpdateOneRequiredWithoutVersionsNestedInput = {
 export type ProjectCreateWithoutVersionsInput = {
   id?: bigint | number
   projectName: string
+  avatar?: string | null
   weight: number
   status: number
   requireAuth?: boolean
@@ -479,6 +502,7 @@ export type ProjectCreateWithoutVersionsInput = {
 export type ProjectUncheckedCreateWithoutVersionsInput = {
   id?: bigint | number
   projectName: string
+  avatar?: string | null
   weight: number
   status: number
   requireAuth?: boolean
@@ -506,6 +530,7 @@ export type ProjectUpdateToOneWithWhereWithoutVersionsInput = {
 export type ProjectUpdateWithoutVersionsInput = {
   id?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   projectName?: Prisma.StringFieldUpdateOperationsInput | string
+  avatar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   weight?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.IntFieldUpdateOperationsInput | number
   requireAuth?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -517,6 +542,7 @@ export type ProjectUpdateWithoutVersionsInput = {
 export type ProjectUncheckedUpdateWithoutVersionsInput = {
   id?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   projectName?: Prisma.StringFieldUpdateOperationsInput | string
+  avatar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   weight?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.IntFieldUpdateOperationsInput | number
   requireAuth?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -559,6 +585,7 @@ export type ProjectCountOutputTypeCountVersionsArgs<ExtArgs extends runtime.Type
 export type ProjectSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   projectName?: boolean
+  avatar?: boolean
   weight?: boolean
   status?: boolean
   requireAuth?: boolean
@@ -572,6 +599,7 @@ export type ProjectSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
 export type ProjectSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   projectName?: boolean
+  avatar?: boolean
   weight?: boolean
   status?: boolean
   requireAuth?: boolean
@@ -583,6 +611,7 @@ export type ProjectSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
 export type ProjectSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   projectName?: boolean
+  avatar?: boolean
   weight?: boolean
   status?: boolean
   requireAuth?: boolean
@@ -594,6 +623,7 @@ export type ProjectSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
 export type ProjectSelectScalar = {
   id?: boolean
   projectName?: boolean
+  avatar?: boolean
   weight?: boolean
   status?: boolean
   requireAuth?: boolean
@@ -602,7 +632,7 @@ export type ProjectSelectScalar = {
   isDeleted?: boolean
 }
 
-export type ProjectOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "projectName" | "weight" | "status" | "requireAuth" | "createdAt" | "updatedAt" | "isDeleted", ExtArgs["result"]["project"]>
+export type ProjectOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "projectName" | "avatar" | "weight" | "status" | "requireAuth" | "createdAt" | "updatedAt" | "isDeleted", ExtArgs["result"]["project"]>
 export type ProjectInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   versions?: boolean | Prisma.Project$versionsArgs<ExtArgs>
   _count?: boolean | Prisma.ProjectCountOutputTypeDefaultArgs<ExtArgs>
@@ -618,6 +648,7 @@ export type $ProjectPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: bigint
     projectName: string
+    avatar: string | null
     weight: number
     status: number
     requireAuth: boolean
@@ -1050,6 +1081,7 @@ export interface Prisma__ProjectClient<T, Null = never, ExtArgs extends runtime.
 export interface ProjectFieldRefs {
   readonly id: Prisma.FieldRef<"Project", 'BigInt'>
   readonly projectName: Prisma.FieldRef<"Project", 'String'>
+  readonly avatar: Prisma.FieldRef<"Project", 'String'>
   readonly weight: Prisma.FieldRef<"Project", 'Int'>
   readonly status: Prisma.FieldRef<"Project", 'Int'>
   readonly requireAuth: Prisma.FieldRef<"Project", 'Boolean'>

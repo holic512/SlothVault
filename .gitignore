@@ -24,3 +24,6 @@ logs
 !.env.example
 
 /app/generated/prisma
+
+# Uploaded files
+public/uploads

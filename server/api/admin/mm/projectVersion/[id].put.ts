@@ -8,17 +8,21 @@ function toInt(value: unknown) {
     return Number.isFinite(n) ? Math.trunc(n) : null
 }
 
-function projectToDto(project: any) {
+function projectVersionToDto(pv: any) {
     return {
-        id: project.id.toString(),
-        projectName: project.projectName,
-        avatar: project.avatar,
-        weight: project.weight,
-        status: project.status,
-        requireAuth: project.requireAuth,
-        createdAt: project.createdAt,
-        updatedAt: project.updatedAt,
-        isDeleted: project.isDeleted,
+        id: pv.id.toString(),
+        projectId: pv.projectId.toString(),
+        version: pv.version,
+        description: pv.description,
+        weight: pv.weight,
+        status: pv.status,
+        createdAt: pv.createdAt,
+        updatedAt: pv.updatedAt,
+        isDeleted: pv.isDeleted,
+        project: pv.project ? {
+            id: pv.project.id.toString(),
+            projectName: pv.project.projectName,
+        } : null,
     }
 }
 
@@ -44,27 +48,45 @@ export default defineEventHandler(async (event) => {
     }
 
     const body = await readBody<{
-        projectName?: string
-        avatar?: string | null
+        projectId?: string | number
+        version?: string
+        description?: string
         weight?: number
         status?: number
-        requireAuth?: boolean
     }>(event)
 
     const data: any = {updatedAt: new Date()}
 
-    if (typeof body?.projectName === 'string') {
-        const name = body.projectName.trim()
-        if (!name) {
+    // 处理 projectId 更新
+    if (body?.projectId !== undefined) {
+        try {
+            const newProjectId = BigInt(String(body.projectId))
+            // 检查新项目是否存在
+            const project = await prisma.project.findUnique({
+                where: {id: newProjectId, isDeleted: false},
+            })
+            if (!project) {
+                setResponseStatus(event, 404)
+                return fail('Project not found', 404)
+            }
+            data.projectId = newProjectId
+        } catch {
             setResponseStatus(event, 400)
-            return fail('Invalid projectName', 400)
+            return fail('Invalid projectId', 400)
         }
-        data.projectName = name
     }
 
-    // 支持头像更新（可以设置为 null 清除头像）
-    if (body?.avatar !== undefined) {
-        data.avatar = body.avatar
+    if (typeof body?.version === 'string') {
+        const ver = body.version.trim()
+        if (!ver) {
+            setResponseStatus(event, 400)
+            return fail('Invalid version', 400)
+        }
+        data.version = ver
+    }
+
+    if (typeof body?.description === 'string') {
+        data.description = body.description.trim() || null
     }
 
     const weight = toInt(body?.weight)
@@ -73,21 +95,18 @@ export default defineEventHandler(async (event) => {
     const status = toInt(body?.status)
     if (status !== null) data.status = status
 
-    if (typeof body?.requireAuth === 'boolean') {
-        data.requireAuth = body.requireAuth
-    }
-
     if (Object.keys(data).length === 1) {
         setResponseStatus(event, 400)
         return fail('No fields to update', 400)
     }
 
     try {
-        const project = await prisma.project.update({
+        const pv = await prisma.projectVersion.update({
             where: {id},
             data,
+            include: {project: true},
         })
-        return ok(projectToDto(project))
+        return ok(projectVersionToDto(pv))
     } catch (err: any) {
         if (err?.code === 'P2025') {
             setResponseStatus(event, 404)
@@ -97,4 +116,3 @@ export default defineEventHandler(async (event) => {
         return fail('Internal Server Error', 500)
     }
 })
-

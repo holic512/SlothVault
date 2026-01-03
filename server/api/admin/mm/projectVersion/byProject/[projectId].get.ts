@@ -1,7 +1,7 @@
 import {prisma} from '~~/server/utils/prisma'
 import {ok, fail} from '~~/server/utils/response'
 import {readSession} from '~~/server/utils/session'
-import {getQuery, setResponseStatus} from 'h3'
+import {getRouterParam, getQuery, setResponseStatus} from 'h3'
 
 function toInt(value: unknown, fallback: number) {
     const n = typeof value === 'string' ? Number(value) : typeof value === 'number' ? value : NaN
@@ -14,24 +14,30 @@ function toBool(value: unknown) {
     return value === '1' || value.toLowerCase() === 'true'
 }
 
+function projectVersionToDto(pv: any) {
+    return {
+        id: pv.id.toString(),
+        projectId: pv.projectId.toString(),
+        version: pv.version,
+        description: pv.description,
+        weight: pv.weight,
+        status: pv.status,
+        createdAt: pv.createdAt,
+        updatedAt: pv.updatedAt,
+        isDeleted: pv.isDeleted,
+    }
+}
+
 function projectToDto(project: any) {
-    // 获取最新版本（按 weight 降序取第一个未删除的）
-    const latestVersion = project.versions?.find((v: any) => !v.isDeleted)
-    // 计算最新版本的分类数
-    const categoryCount = latestVersion?._count?.categories ?? 0
     return {
         id: project.id.toString(),
         projectName: project.projectName,
-        avatar: project.avatar,
         weight: project.weight,
         status: project.status,
         requireAuth: project.requireAuth,
         createdAt: project.createdAt,
         updatedAt: project.updatedAt,
         isDeleted: project.isDeleted,
-        latestVersion: latestVersion?.version || null,
-        latestVersionId: latestVersion?.id?.toString() || null,
-        categoryCount,
     }
 }
 
@@ -42,21 +48,31 @@ export default defineEventHandler(async (event) => {
         return fail('Unauthorized', 401)
     }
 
+    const projectIdRaw = getRouterParam(event, 'projectId')
+    if (!projectIdRaw) {
+        setResponseStatus(event, 400)
+        return fail('Missing projectId', 400)
+    }
+
+    let projectId: bigint
+    try {
+        projectId = BigInt(projectIdRaw)
+    } catch {
+        setResponseStatus(event, 400)
+        return fail('Invalid projectId', 400)
+    }
+
     const query = getQuery(event)
     const page = Math.max(1, toInt(query.page, 1))
     const pageSize = Math.min(100, Math.max(1, toInt(query.pageSize, 10)))
-
-    const keyword = typeof query.keyword === 'string' ? query.keyword.trim() : ''
     const includeDeleted = toBool(query.includeDeleted)
     const onlyDeleted = toBool(query.onlyDeleted)
-
-    const status = query.status !== undefined ? toInt(query.status, Number.NaN) : undefined
-    const requireAuth = query.requireAuth !== undefined ? toBool(query.requireAuth) : undefined
+    const includeProjectInfo = toBool(query.includeProjectInfo)
 
     const orderByField = typeof query.orderBy === 'string' ? query.orderBy : 'weight'
     const order = typeof query.order === 'string' && query.order.toLowerCase() === 'asc' ? 'asc' : 'desc'
 
-    const where: any = {}
+    const where: any = {projectId}
 
     if (onlyDeleted) {
         where.isDeleted = true
@@ -64,52 +80,43 @@ export default defineEventHandler(async (event) => {
         where.isDeleted = false
     }
 
-    if (keyword) {
-        where.projectName = {contains: keyword, mode: 'insensitive'}
-    }
-
-    if (Number.isFinite(status)) {
-        where.status = status
-    }
-
-    if (typeof requireAuth === 'boolean') {
-        where.requireAuth = requireAuth
-    }
-
-    const allowedOrderBy = new Set(['id', 'projectName', 'weight', 'status', 'requireAuth', 'createdAt', 'updatedAt'])
+    const allowedOrderBy = new Set(['id', 'version', 'weight', 'status', 'createdAt', 'updatedAt'])
     const safeOrderBy = allowedOrderBy.has(orderByField) ? orderByField : 'weight'
 
     const skip = (page - 1) * pageSize
 
     try {
+        // 检查项目是否存在
+        const project = await prisma.project.findUnique({
+            where: {id: projectId},
+        })
+        if (!project) {
+            setResponseStatus(event, 404)
+            return fail('Project not found', 404)
+        }
+
         const [total, list] = await Promise.all([
-            prisma.project.count({where}),
-            prisma.project.findMany({
+            prisma.projectVersion.count({where}),
+            prisma.projectVersion.findMany({
                 where,
                 skip,
                 take: pageSize,
                 orderBy: {[safeOrderBy]: order},
-                include: {
-                    versions: {
-                        where: {isDeleted: false, status: 1},
-                        orderBy: {weight: 'desc'},
-                        take: 1,
-                        include: {
-                            _count: {
-                                select: {categories: {where: {isDeleted: false}}},
-                            },
-                        },
-                    },
-                },
             }),
         ])
 
-        return ok({
-            list: list.map(projectToDto),
+        const result: any = {
+            list: list.map(projectVersionToDto),
             page,
             pageSize,
             total,
-        })
+        }
+
+        if (includeProjectInfo) {
+            result.project = projectToDto(project)
+        }
+
+        return ok(result)
     } catch (err) {
         setResponseStatus(event, 500)
         return fail('Internal Server Error', 500)

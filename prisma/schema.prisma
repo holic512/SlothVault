@@ -64,6 +64,8 @@ model Project {
   id          BigInt   @id @default(autoincrement()) @db.BigInt
   // 项目名称
   projectName String   @db.VarChar(128)
+  // 项目头像（存储相对路径或URL）
+  avatar      String?  @db.VarChar(500)
   // 权重/排序
   weight      Int
   // 状态
@@ -251,6 +253,7 @@ model FileManagement {
 
   // avatar/homework/attachment
   businessType String @db.VarChar(50) @map("business_type")
+
   // 1正常 0删除
   status       Int    @default(1) @db.SmallInt
   createTime   DateTime @default(now()) @db.Timestamp(6) @map("create_time")

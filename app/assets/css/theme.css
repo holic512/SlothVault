@@ -7,8 +7,8 @@
     --sloth-bg-hover: #eef0f4;
     --sloth-bg-active: #ffffff;
 
-    /* 稍微调整 Card 为半透明以支持毛玻璃 */
-    --sloth-card: rgba(255, 255, 255, 0.8);
+    /* 稍微调整 Card 为实色以避免内容穿透 */
+    --sloth-card: #ffffff;
     --sloth-card-border: rgba(0, 0, 0, 0.08);
 
     --sloth-text: #111111;
@@ -47,8 +47,8 @@
     --sloth-bg-hover: #111111;
     --sloth-bg-active: #1a1a1a;
 
-    /* 深色模式下的毛玻璃基底 */
-    --sloth-card: rgba(20, 20, 20, 0.65);
+    /* 深色模式下使用实色背景 */
+    --sloth-card: #141414;
     --sloth-card-border: rgba(255, 255, 255, 0.08);
 
     --sloth-text: #f3f4f6;
