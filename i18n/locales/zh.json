@@ -150,17 +150,13 @@
     }
   },
   "AdminMM": {
-    "title": "SlothVault 管理后台",
+    "title": "SV管理后台",
     "menu": {
       "dashboard": "仪表盘",
-      "users": "用户管理",
-      "sessions": "会话状态管理"
+      "projects": "项目管理"
     },
-    "users": {
-      "title": "用户管理"
-    },
-    "sessions": {
-      "title": "会话状态管理"
+    "projects": {
+      "title": "项目管理"
     }
   }
 }

@@ -58,7 +58,8 @@ export const ModelName = {
   Category: 'Category',
   NoteInfo: 'NoteInfo',
   NoteContent: 'NoteContent',
-  NoteAttachment: 'NoteAttachment'
+  NoteAttachment: 'NoteAttachment',
+  FileManagement: 'FileManagement'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -164,7 +165,6 @@ export const NoteContentScalarFieldEnum = {
   id: 'id',
   noteInfoId: 'noteInfoId',
   content: 'content',
-  contentType: 'contentType',
   versionNote: 'versionNote',
   isPrimary: 'isPrimary',
   status: 'status',
@@ -193,6 +193,20 @@ export const NoteAttachmentScalarFieldEnum = {
 } as const
 
 export type NoteAttachmentScalarFieldEnum = (typeof NoteAttachmentScalarFieldEnum)[keyof typeof NoteAttachmentScalarFieldEnum]
+
+
+export const FileManagementScalarFieldEnum = {
+  id: 'id',
+  originalName: 'originalName',
+  fileName: 'fileName',
+  filePath: 'filePath',
+  fileSize: 'fileSize',
+  businessType: 'businessType',
+  status: 'status',
+  createTime: 'createTime'
+} as const
+
+export type FileManagementScalarFieldEnum = (typeof FileManagementScalarFieldEnum)[keyof typeof FileManagementScalarFieldEnum]
 
 
 export const SortOrder = {

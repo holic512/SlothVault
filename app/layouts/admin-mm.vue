@@ -2,13 +2,45 @@
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import ThemeToggle from '~/components/ThemeToggle.vue'
-import { HomeIcon, UserIcon, ComputerDesktopIcon, Bars3Icon } from '@heroicons/vue/24/outline'
+import { HomeIcon, RectangleStackIcon, Bars3Icon, ChevronRightIcon } from '@heroicons/vue/24/outline'
 
 const { t } = useI18n()
 const route = useRoute()
 
 const isCollapse = ref(false)
 const activeMenu = computed(() => route.path)
+
+// 面包屑映射逻辑
+const breadcrumbMap: Record<string, string> = {
+  '/admin/mm': 'AdminMM.menu.dashboard',
+  '/admin/mm/projects': 'AdminMM.menu.projects'
+}
+
+const breadcrumbs = computed(() => {
+  const path = route.path
+  const currentKey = breadcrumbMap[path]
+  
+  const items = [
+    { name: t('AdminMM.title'), path: '/admin/mm', disabled: true } // 根节点
+  ]
+  
+  if (currentKey) {
+    // 简单匹配：如果是仪表盘，就不需要重复显示了，或者作为第二级
+    if (path !== '/admin/mm') {
+       items.push({ name: t(currentKey), path, disabled: true })
+    } else {
+       items.push({ name: t('AdminMM.menu.dashboard'), path, disabled: true })
+    }
+  } else {
+    // Fallback: 如果不在 map 里，简单展示路径最后一截 (首字母大写)
+    const segments = path.split('/').filter(Boolean)
+    const last = segments[segments.length - 1]
+    if (last) {
+       items.push({ name: last.charAt(0).toUpperCase() + last.slice(1), path, disabled: true })
+    }
+  }
+  return items
+})
 
 const toggleSidebar = () => {
   isCollapse.value = !isCollapse.value
@@ -39,14 +71,9 @@ const toggleSidebar = () => {
           <span>{{ t('AdminMM.menu.dashboard') }}</span>
         </el-menu-item>
         
-        <el-menu-item index="/admin/mm/page/users">
-          <el-icon><UserIcon /></el-icon>
-          <span>{{ t('AdminMM.menu.users') }}</span>
-        </el-menu-item>
-        
-        <el-menu-item index="/admin/mm/page/sessions">
-          <el-icon><ComputerDesktopIcon /></el-icon>
-          <span>{{ t('AdminMM.menu.sessions') }}</span>
+        <el-menu-item index="/admin/mm/projects">
+          <el-icon><RectangleStackIcon /></el-icon>
+          <span>{{ t('AdminMM.menu.projects') }}</span>
         </el-menu-item>
       </el-menu>
     </aside>
@@ -55,7 +82,22 @@ const toggleSidebar = () => {
     <div class="main-wrapper">
       <header class="admin-header">
         <div class="header-left">
-          <!-- Breadcrumbs could go here -->
+          <nav class="breadcrumb-nav" aria-label="Breadcrumb">
+            <ol class="breadcrumb-list">
+              <li v-for="(item, index) in breadcrumbs" :key="item.path" class="breadcrumb-item">
+                <span v-if="index > 0" class="breadcrumb-separator">
+                  <ChevronRightIcon class="separator-icon" />
+                </span>
+                <span 
+                  class="breadcrumb-link" 
+                  :class="{ 'is-current': index === breadcrumbs.length - 1 }"
+                  :aria-current="index === breadcrumbs.length - 1 ? 'page' : undefined"
+                >
+                  {{ item.name }}
+                </span>
+              </li>
+            </ol>
+          </nav>
         </div>
         <div class="header-right">
           <ThemeToggle />
@@ -220,5 +262,43 @@ const toggleSidebar = () => {
   flex: 1;
   padding: 24px;
   overflow-y: auto;
+}
+
+/* Breadcrumb Styles */
+.breadcrumb-list {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  color: var(--sloth-text-secondary);
+}
+
+.breadcrumb-separator {
+  margin: 0 8px;
+  display: flex;
+  align-items: center;
+  color: var(--sloth-text-tertiary, #9ca3af);
+}
+
+.separator-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.breadcrumb-link {
+  transition: color 0.2s;
+  font-weight: 500;
+}
+
+.breadcrumb-link.is-current {
+  color: var(--sloth-text);
+  font-weight: 600;
 }
 </style>

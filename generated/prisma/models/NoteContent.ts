@@ -42,7 +42,6 @@ export type NoteContentMinAggregateOutputType = {
   id: bigint | null
   noteInfoId: bigint | null
   content: string | null
-  contentType: string | null
   versionNote: string | null
   isPrimary: boolean | null
   status: number | null
@@ -55,7 +54,6 @@ export type NoteContentMaxAggregateOutputType = {
   id: bigint | null
   noteInfoId: bigint | null
   content: string | null
-  contentType: string | null
   versionNote: string | null
   isPrimary: boolean | null
   status: number | null
@@ -68,7 +66,6 @@ export type NoteContentCountAggregateOutputType = {
   id: number
   noteInfoId: number
   content: number
-  contentType: number
   versionNote: number
   isPrimary: number
   status: number
@@ -95,7 +92,6 @@ export type NoteContentMinAggregateInputType = {
   id?: true
   noteInfoId?: true
   content?: true
-  contentType?: true
   versionNote?: true
   isPrimary?: true
   status?: true
@@ -108,7 +104,6 @@ export type NoteContentMaxAggregateInputType = {
   id?: true
   noteInfoId?: true
   content?: true
-  contentType?: true
   versionNote?: true
   isPrimary?: true
   status?: true
@@ -121,7 +116,6 @@ export type NoteContentCountAggregateInputType = {
   id?: true
   noteInfoId?: true
   content?: true
-  contentType?: true
   versionNote?: true
   isPrimary?: true
   status?: true
@@ -221,7 +215,6 @@ export type NoteContentGroupByOutputType = {
   id: bigint
   noteInfoId: bigint
   content: string
-  contentType: string
   versionNote: string | null
   isPrimary: boolean
   status: number
@@ -257,7 +250,6 @@ export type NoteContentWhereInput = {
   id?: Prisma.BigIntFilter<"NoteContent"> | bigint | number
   noteInfoId?: Prisma.BigIntFilter<"NoteContent"> | bigint | number
   content?: Prisma.StringFilter<"NoteContent"> | string
-  contentType?: Prisma.StringFilter<"NoteContent"> | string
   versionNote?: Prisma.StringNullableFilter<"NoteContent"> | string | null
   isPrimary?: Prisma.BoolFilter<"NoteContent"> | boolean
   status?: Prisma.IntFilter<"NoteContent"> | number
@@ -272,7 +264,6 @@ export type NoteContentOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   noteInfoId?: Prisma.SortOrder
   content?: Prisma.SortOrder
-  contentType?: Prisma.SortOrder
   versionNote?: Prisma.SortOrderInput | Prisma.SortOrder
   isPrimary?: Prisma.SortOrder
   status?: Prisma.SortOrder
@@ -290,7 +281,6 @@ export type NoteContentWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.NoteContentWhereInput | Prisma.NoteContentWhereInput[]
   noteInfoId?: Prisma.BigIntFilter<"NoteContent"> | bigint | number
   content?: Prisma.StringFilter<"NoteContent"> | string
-  contentType?: Prisma.StringFilter<"NoteContent"> | string
   versionNote?: Prisma.StringNullableFilter<"NoteContent"> | string | null
   isPrimary?: Prisma.BoolFilter<"NoteContent"> | boolean
   status?: Prisma.IntFilter<"NoteContent"> | number
@@ -305,7 +295,6 @@ export type NoteContentOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   noteInfoId?: Prisma.SortOrder
   content?: Prisma.SortOrder
-  contentType?: Prisma.SortOrder
   versionNote?: Prisma.SortOrderInput | Prisma.SortOrder
   isPrimary?: Prisma.SortOrder
   status?: Prisma.SortOrder
@@ -326,7 +315,6 @@ export type NoteContentScalarWhereWithAggregatesInput = {
   id?: Prisma.BigIntWithAggregatesFilter<"NoteContent"> | bigint | number
   noteInfoId?: Prisma.BigIntWithAggregatesFilter<"NoteContent"> | bigint | number
   content?: Prisma.StringWithAggregatesFilter<"NoteContent"> | string
-  contentType?: Prisma.StringWithAggregatesFilter<"NoteContent"> | string
   versionNote?: Prisma.StringNullableWithAggregatesFilter<"NoteContent"> | string | null
   isPrimary?: Prisma.BoolWithAggregatesFilter<"NoteContent"> | boolean
   status?: Prisma.IntWithAggregatesFilter<"NoteContent"> | number
@@ -338,7 +326,6 @@ export type NoteContentScalarWhereWithAggregatesInput = {
 export type NoteContentCreateInput = {
   id?: bigint | number
   content: string
-  contentType: string
   versionNote?: string | null
   isPrimary?: boolean
   status: number
@@ -353,7 +340,6 @@ export type NoteContentUncheckedCreateInput = {
   id?: bigint | number
   noteInfoId: bigint | number
   content: string
-  contentType: string
   versionNote?: string | null
   isPrimary?: boolean
   status: number
@@ -366,7 +352,6 @@ export type NoteContentUncheckedCreateInput = {
 export type NoteContentUpdateInput = {
   id?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   content?: Prisma.StringFieldUpdateOperationsInput | string
-  contentType?: Prisma.StringFieldUpdateOperationsInput | string
   versionNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
   status?: Prisma.IntFieldUpdateOperationsInput | number
@@ -381,7 +366,6 @@ export type NoteContentUncheckedUpdateInput = {
   id?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   noteInfoId?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   content?: Prisma.StringFieldUpdateOperationsInput | string
-  contentType?: Prisma.StringFieldUpdateOperationsInput | string
   versionNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
   status?: Prisma.IntFieldUpdateOperationsInput | number
@@ -395,7 +379,6 @@ export type NoteContentCreateManyInput = {
   id?: bigint | number
   noteInfoId: bigint | number
   content: string
-  contentType: string
   versionNote?: string | null
   isPrimary?: boolean
   status: number
@@ -407,7 +390,6 @@ export type NoteContentCreateManyInput = {
 export type NoteContentUpdateManyMutationInput = {
   id?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   content?: Prisma.StringFieldUpdateOperationsInput | string
-  contentType?: Prisma.StringFieldUpdateOperationsInput | string
   versionNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
   status?: Prisma.IntFieldUpdateOperationsInput | number
@@ -420,7 +402,6 @@ export type NoteContentUncheckedUpdateManyInput = {
   id?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   noteInfoId?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   content?: Prisma.StringFieldUpdateOperationsInput | string
-  contentType?: Prisma.StringFieldUpdateOperationsInput | string
   versionNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
   status?: Prisma.IntFieldUpdateOperationsInput | number
@@ -443,7 +424,6 @@ export type NoteContentCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   noteInfoId?: Prisma.SortOrder
   content?: Prisma.SortOrder
-  contentType?: Prisma.SortOrder
   versionNote?: Prisma.SortOrder
   isPrimary?: Prisma.SortOrder
   status?: Prisma.SortOrder
@@ -462,7 +442,6 @@ export type NoteContentMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   noteInfoId?: Prisma.SortOrder
   content?: Prisma.SortOrder
-  contentType?: Prisma.SortOrder
   versionNote?: Prisma.SortOrder
   isPrimary?: Prisma.SortOrder
   status?: Prisma.SortOrder
@@ -475,7 +454,6 @@ export type NoteContentMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   noteInfoId?: Prisma.SortOrder
   content?: Prisma.SortOrder
-  contentType?: Prisma.SortOrder
   versionNote?: Prisma.SortOrder
   isPrimary?: Prisma.SortOrder
   status?: Prisma.SortOrder
@@ -554,7 +532,6 @@ export type NoteContentUpdateOneRequiredWithoutAttachmentsNestedInput = {
 export type NoteContentCreateWithoutNoteInfoInput = {
   id?: bigint | number
   content: string
-  contentType: string
   versionNote?: string | null
   isPrimary?: boolean
   status: number
@@ -567,7 +544,6 @@ export type NoteContentCreateWithoutNoteInfoInput = {
 export type NoteContentUncheckedCreateWithoutNoteInfoInput = {
   id?: bigint | number
   content: string
-  contentType: string
   versionNote?: string | null
   isPrimary?: boolean
   status: number
@@ -610,7 +586,6 @@ export type NoteContentScalarWhereInput = {
   id?: Prisma.BigIntFilter<"NoteContent"> | bigint | number
   noteInfoId?: Prisma.BigIntFilter<"NoteContent"> | bigint | number
   content?: Prisma.StringFilter<"NoteContent"> | string
-  contentType?: Prisma.StringFilter<"NoteContent"> | string
   versionNote?: Prisma.StringNullableFilter<"NoteContent"> | string | null
   isPrimary?: Prisma.BoolFilter<"NoteContent"> | boolean
   status?: Prisma.IntFilter<"NoteContent"> | number
@@ -622,7 +597,6 @@ export type NoteContentScalarWhereInput = {
 export type NoteContentCreateWithoutAttachmentsInput = {
   id?: bigint | number
   content: string
-  contentType: string
   versionNote?: string | null
   isPrimary?: boolean
   status: number
@@ -636,7 +610,6 @@ export type NoteContentUncheckedCreateWithoutAttachmentsInput = {
   id?: bigint | number
   noteInfoId: bigint | number
   content: string
-  contentType: string
   versionNote?: string | null
   isPrimary?: boolean
   status: number
@@ -664,7 +637,6 @@ export type NoteContentUpdateToOneWithWhereWithoutAttachmentsInput = {
 export type NoteContentUpdateWithoutAttachmentsInput = {
   id?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   content?: Prisma.StringFieldUpdateOperationsInput | string
-  contentType?: Prisma.StringFieldUpdateOperationsInput | string
   versionNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
   status?: Prisma.IntFieldUpdateOperationsInput | number
@@ -678,7 +650,6 @@ export type NoteContentUncheckedUpdateWithoutAttachmentsInput = {
   id?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   noteInfoId?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   content?: Prisma.StringFieldUpdateOperationsInput | string
-  contentType?: Prisma.StringFieldUpdateOperationsInput | string
   versionNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
   status?: Prisma.IntFieldUpdateOperationsInput | number
@@ -690,7 +661,6 @@ export type NoteContentUncheckedUpdateWithoutAttachmentsInput = {
 export type NoteContentCreateManyNoteInfoInput = {
   id?: bigint | number
   content: string
-  contentType: string
   versionNote?: string | null
   isPrimary?: boolean
   status: number
@@ -702,7 +672,6 @@ export type NoteContentCreateManyNoteInfoInput = {
 export type NoteContentUpdateWithoutNoteInfoInput = {
   id?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   content?: Prisma.StringFieldUpdateOperationsInput | string
-  contentType?: Prisma.StringFieldUpdateOperationsInput | string
   versionNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
   status?: Prisma.IntFieldUpdateOperationsInput | number
@@ -715,7 +684,6 @@ export type NoteContentUpdateWithoutNoteInfoInput = {
 export type NoteContentUncheckedUpdateWithoutNoteInfoInput = {
   id?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   content?: Prisma.StringFieldUpdateOperationsInput | string
-  contentType?: Prisma.StringFieldUpdateOperationsInput | string
   versionNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
   status?: Prisma.IntFieldUpdateOperationsInput | number
@@ -728,7 +696,6 @@ export type NoteContentUncheckedUpdateWithoutNoteInfoInput = {
 export type NoteContentUncheckedUpdateManyWithoutNoteInfoInput = {
   id?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   content?: Prisma.StringFieldUpdateOperationsInput | string
-  contentType?: Prisma.StringFieldUpdateOperationsInput | string
   versionNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
   status?: Prisma.IntFieldUpdateOperationsInput | number
@@ -772,7 +739,6 @@ export type NoteContentSelect<ExtArgs extends runtime.Types.Extensions.InternalA
   id?: boolean
   noteInfoId?: boolean
   content?: boolean
-  contentType?: boolean
   versionNote?: boolean
   isPrimary?: boolean
   status?: boolean
@@ -788,7 +754,6 @@ export type NoteContentSelectCreateManyAndReturn<ExtArgs extends runtime.Types.E
   id?: boolean
   noteInfoId?: boolean
   content?: boolean
-  contentType?: boolean
   versionNote?: boolean
   isPrimary?: boolean
   status?: boolean
@@ -802,7 +767,6 @@ export type NoteContentSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.E
   id?: boolean
   noteInfoId?: boolean
   content?: boolean
-  contentType?: boolean
   versionNote?: boolean
   isPrimary?: boolean
   status?: boolean
@@ -816,7 +780,6 @@ export type NoteContentSelectScalar = {
   id?: boolean
   noteInfoId?: boolean
   content?: boolean
-  contentType?: boolean
   versionNote?: boolean
   isPrimary?: boolean
   status?: boolean
@@ -825,7 +788,7 @@ export type NoteContentSelectScalar = {
   isDeleted?: boolean
 }
 
-export type NoteContentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "noteInfoId" | "content" | "contentType" | "versionNote" | "isPrimary" | "status" | "createdAt" | "updatedAt" | "isDeleted", ExtArgs["result"]["noteContent"]>
+export type NoteContentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "noteInfoId" | "content" | "versionNote" | "isPrimary" | "status" | "createdAt" | "updatedAt" | "isDeleted", ExtArgs["result"]["noteContent"]>
 export type NoteContentInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   noteInfo?: boolean | Prisma.NoteInfoDefaultArgs<ExtArgs>
   attachments?: boolean | Prisma.NoteContent$attachmentsArgs<ExtArgs>
@@ -848,7 +811,6 @@ export type $NoteContentPayload<ExtArgs extends runtime.Types.Extensions.Interna
     id: bigint
     noteInfoId: bigint
     content: string
-    contentType: string
     versionNote: string | null
     isPrimary: boolean
     status: number
@@ -1283,7 +1245,6 @@ export interface NoteContentFieldRefs {
   readonly id: Prisma.FieldRef<"NoteContent", 'BigInt'>
   readonly noteInfoId: Prisma.FieldRef<"NoteContent", 'BigInt'>
   readonly content: Prisma.FieldRef<"NoteContent", 'String'>
-  readonly contentType: Prisma.FieldRef<"NoteContent", 'String'>
   readonly versionNote: Prisma.FieldRef<"NoteContent", 'String'>
   readonly isPrimary: Prisma.FieldRef<"NoteContent", 'Boolean'>
   readonly status: Prisma.FieldRef<"NoteContent", 'Int'>

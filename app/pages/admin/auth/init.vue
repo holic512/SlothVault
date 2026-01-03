@@ -17,7 +17,7 @@ async function onSubmit() {
   loading.value = true
   errorText.value = ''
   try {
-    const res = await $fetch('/api/admin/init', {
+    const res = await $fetch('/api/admin/auth/init', {
       method: 'POST',
       body: {
         username: form.username,

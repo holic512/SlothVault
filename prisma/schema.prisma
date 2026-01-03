@@ -1,23 +1,36 @@
 generator client {
+  // Prisma Client 生成器提供者
   provider = "prisma-client"
+  // 生成的客户端输出目录
   output   = "../generated/prisma"
 }
 
 datasource db {
+  // 数据库类型
   provider = "postgresql"
+  // 使用的数据库 schema 列表
   schemas  = ["auth", "collections", "docs", "public"]
 }
 
 /// 会话表：存储用户会话令牌、过期时间、撤销时间等（schema: auth）
 model Session {
+  // 会话ID（UUID）
   id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  // 用户ID
   userId    Int
+  // 会话令牌哈希
   tokenHash String    @unique
+  // 创建时间
   createdAt DateTime  @default(now()) @db.Timestamp(6)
+  // 过期时间
   expiresAt DateTime  @db.Timestamp(6)
+  // 撤销时间
   revokedAt DateTime? @db.Timestamp(6)
+  // 登录IP
   ip        String?   @db.VarChar(255)
+  // 用户代理（User-Agent）
   userAgent String?
+  // 关联用户
   User      User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_session_user")
 
   @@index([expiresAt], map: "idx_session_expiresat")
@@ -27,12 +40,19 @@ model Session {
 
 /// 用户表：存储用户名、密码、邮箱等基础信息（schema: auth）
 model User {
+  // 用户ID
   id        Int       @id @default(autoincrement())
+  // 用户名
   username  String    @unique @db.VarChar(255)
+  // 密码（建议存储哈希值）
   password  String    @db.VarChar(255)
+  // 邮箱
   email     String?   @db.VarChar(255)
+  // 创建时间
   createdAt DateTime  @default(now()) @db.Timestamp(6)
+  // 更新时间
   updatedAt DateTime  @default(now()) @db.Timestamp(6)
+  // 关联会话列表
   Session   Session[]
 
   @@schema("auth")
@@ -40,15 +60,24 @@ model User {
 
 /// 项目表：包含项目名称、权重、状态、是否验证权限、时间戳与软删除（schema: collections）
 model Project {
+  // 项目ID
   id          BigInt   @id @default(autoincrement()) @db.BigInt
+  // 项目名称
   projectName String   @db.VarChar(128)
+  // 权重/排序
   weight      Int
+  // 状态
   status      Int      @db.SmallInt
+  // 是否需要鉴权
   requireAuth Boolean  @default(false)
+  // 创建时间
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  // 更新时间
   updatedAt   DateTime @default(now()) @db.Timestamptz(6)
+  // 软删除标记
   isDeleted   Boolean  @default(false)
 
+  // 项目版本列表
   versions ProjectVersion[]
 
   @@schema("collections")
@@ -56,17 +85,28 @@ model Project {
 
 /// 项目版本表：关联项目，包含版本号、简介、权重、状态、时间戳与软删除（schema: collections）
 model ProjectVersion {
+  // 项目版本ID
   id          BigInt   @id @default(autoincrement()) @db.BigInt
+  // 项目ID
   projectId   BigInt   @db.BigInt
+  // 版本号
   version     String   @db.VarChar(64)
+  // 版本简介
   description String?  @db.Text
+  // 权重/排序
   weight      Int
+  // 状态
   status      Int      @db.SmallInt
+  // 创建时间
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  // 更新时间
   updatedAt   DateTime @default(now()) @db.Timestamptz(6)
+  // 软删除标记
   isDeleted   Boolean  @default(false)
 
+  // 关联项目
   project    Project    @relation(fields: [projectId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_project_version_project")
+  // 分类列表
   categories Category[]
 
   @@index([projectId], map: "idx_project_version_projectid")
@@ -75,16 +115,26 @@ model ProjectVersion {
 
 /// 分类表：关联项目版本，包含分类名称、权重、状态、时间戳与软删除（schema: collections）
 model Category {
+  // 分类ID
   id               BigInt   @id @default(autoincrement()) @db.BigInt
+  // 项目版本ID
   projectVersionId BigInt   @db.BigInt
+  // 分类名称
   categoryName     String   @db.VarChar(64)
+  // 权重/排序
   weight           Int
+  // 状态
   status           Int      @db.SmallInt
+  // 创建时间
   createdAt        DateTime @default(now()) @db.Timestamptz(6)
+  // 更新时间
   updatedAt        DateTime @default(now()) @db.Timestamptz(6)
+  // 软删除标记
   isDeleted        Boolean  @default(false)
 
+  // 关联项目版本
   projectVersion ProjectVersion @relation(fields: [projectVersionId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_category_project_version")
+  // 笔记信息列表
   noteInfos      NoteInfo[]
 
   @@index([projectVersionId], map: "idx_category_projectversionid")
@@ -93,16 +143,26 @@ model Category {
 
 /// 笔记信息表：关联分类，包含笔记标题、权重、状态、时间戳与软删除（schema: docs）
 model NoteInfo {
+  // 笔记信息ID
   id         BigInt   @id @default(autoincrement()) @db.BigInt
+  // 分类ID
   categoryId BigInt   @db.BigInt
+  // 笔记标题
   noteTitle  String   @db.VarChar(255)
+  // 权重/排序
   weight     Int
+  // 状态
   status     Int      @db.SmallInt
+  // 创建时间
   createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  // 更新时间
   updatedAt  DateTime @default(now()) @db.Timestamptz(6)
+  // 软删除标记
   isDeleted  Boolean  @default(false)
 
+  // 关联分类
   category Category      @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_noteinfo_category")
+  // 内容版本列表
   contents NoteContent[]
 
   @@index([categoryId], map: "idx_noteinfo_categoryid")
@@ -111,18 +171,28 @@ model NoteInfo {
 
 /// 笔记内容表：一对多多版本，包含正文内容、类型、版本备注、主显示标记、状态、时间戳与软删除（schema: docs）
 model NoteContent {
+  // 笔记内容ID
   id          BigInt   @id @default(autoincrement()) @db.BigInt
-  noteInfoId  BigInt   @db.BigInt
+  // 笔记信息ID
+  noteInfoId  BigInt   @db.BigInt 
+  // 正文内容
   content     String   @db.Text
-  contentType String   @db.VarChar(16)
+  // 版本备注
   versionNote String?  @db.VarChar(255)
+  // 是否主显示版本
   isPrimary   Boolean  @default(false)
+  // 状态
   status      Int      @db.SmallInt
+  // 创建时间
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  // 更新时间
   updatedAt   DateTime @default(now()) @db.Timestamptz(6)
+  // 软删除标记
   isDeleted   Boolean  @default(false)
 
+  // 关联笔记信息
   noteInfo    NoteInfo         @relation(fields: [noteInfoId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_notecontent_noteinfo")
+  // 附件列表
   attachments NoteAttachment[]
 
   @@index([noteInfoId], map: "idx_notecontent_noteinfoid")
@@ -131,22 +201,60 @@ model NoteContent {
 
 /// 笔记内容附件表：关联笔记内容，包含附件名称、简介与多来源下载链接、状态、时间戳与软删除（schema: docs）
 model NoteAttachment {
+  // 附件ID
   id             BigInt   @id @default(autoincrement()) @db.BigInt
+  // 笔记内容ID
   noteContentId  BigInt   @db.BigInt
+  // 附件名称
   attachmentName String   @db.VarChar(255)
+  // 附件简介
   attachmentDesc String?  @db.VarChar(1024)
+  // 本地/直链下载地址
   localUrl       String?  @db.VarChar(2048)
+  // 蓝奏云链接
   lanzouUrl      String?  @db.VarChar(2048)
+  // 百度网盘链接
   baiduUrl       String?  @db.VarChar(2048)
+  // 123网盘链接
   pan123Url      String?  @db.VarChar(2048)
+  // 夸克网盘链接
   quarkUrl       String?  @db.VarChar(2048)
+  // 状态
   status         Int      @db.SmallInt
+  // 创建时间
   createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  // 更新时间
   updatedAt      DateTime @default(now()) @db.Timestamptz(6)
+  // 软删除标记
   isDeleted      Boolean  @default(false)
 
+  // 关联笔记内容
   noteContent NoteContent @relation(fields: [noteContentId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_noteattachment_notecontent")
 
   @@index([noteContentId], map: "idx_noteattachment_notecontentid")
   @@schema("docs")
+}
+
+/// 文件管理表：存储上传文件的原始信息、服务器落盘信息与业务类型（schema: public）
+model FileManagement {
+  // 文件ID
+  id BigInt @id @default(autoincrement()) @db.BigInt
+
+  // 原始文件名
+  originalName String @db.VarChar(255) @map("original_name")
+  // 服务器文件名
+  fileName     String @db.VarChar(255) @map("file_name")
+  // 相对路径
+  filePath     String @db.VarChar(500) @map("file_path")
+  // 文件大小(byte)
+  fileSize     BigInt @db.BigInt @map("file_size")
+
+  // avatar/homework/attachment
+  businessType String @db.VarChar(50) @map("business_type")
+  // 1正常 0删除
+  status       Int    @default(1) @db.SmallInt
+  createTime   DateTime @default(now()) @db.Timestamp(6) @map("create_time")
+
+  @@map("file_management")
+  @@schema("public")
 }

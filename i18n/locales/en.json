@@ -150,17 +150,13 @@
     }
   },
   "AdminMM": {
-    "title": "SlothVault Admin",
+    "title": "SVAdmin",
     "menu": {
       "dashboard": "Dashboard",
-      "users": "User Management",
-      "sessions": "Session Status"
+      "projects": "Project Management"
     },
-    "users": {
-      "title": "User Management"
-    },
-    "sessions": {
-      "title": "Session Status Management"
+    "projects": {
+      "title": "Project Management"
     }
   }
 }

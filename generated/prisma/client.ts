@@ -33,7 +33,7 @@ export * from "./enums.js"
  * const sessions = await prisma.session.findMany()
  * ```
  * 
- * Read more in our [docs](https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-client).
+ * Read more in our [docs](https://pris.ly/d/client).
  */
 export const PrismaClient = $Class.getPrismaClientClass()
 export type PrismaClient<LogOpts extends Prisma.LogLevel = never, OmitOpts extends Prisma.PrismaClientOptions["omit"] = Prisma.PrismaClientOptions["omit"], ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = $Class.PrismaClient<LogOpts, OmitOpts, ExtArgs>
@@ -79,3 +79,8 @@ export type NoteContent = Prisma.NoteContentModel
  * 笔记内容附件表：关联笔记内容，包含附件名称、简介与多来源下载链接、状态、时间戳与软删除（schema: docs）
  */
 export type NoteAttachment = Prisma.NoteAttachmentModel
+/**
+ * Model FileManagement
+ * 文件管理表：存储上传文件的原始信息、服务器落盘信息与业务类型（schema: public）
+ */
+export type FileManagement = Prisma.FileManagementModel

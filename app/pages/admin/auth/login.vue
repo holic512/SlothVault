@@ -14,7 +14,7 @@ const errorText = ref('')
 // 检查管理员是否存在
 onMounted(async () => {
   try {
-    const res = await $fetch('/api/admin/check')
+    const res = await $fetch('/api/admin/auth/check')
     if (!res?.data?.exists) {
       // 如果管理员不存在，跳转到初始化页面
       await router.push('/admin/auth/init')
@@ -33,7 +33,7 @@ async function onSubmit() {
   loading.value = true
   errorText.value = ''
   try {
-    const res = await $fetch('/api/admin/login', {
+    const res = await $fetch('/api/admin/auth/login', {
       method: 'POST',
       body: {
         username: form.username,

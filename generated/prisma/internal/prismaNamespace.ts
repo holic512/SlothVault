@@ -80,12 +80,12 @@ export type PrismaVersion = {
 }
 
 /**
- * Prisma Client JS version: 7.0.1
- * Query Engine version: f09f2815f091dbba658cdcd2264306d88bb5bda6
+ * Prisma Client JS version: 7.1.0
+ * Query Engine version: ab635e6b9d606fa5c8fb8b1a7f909c3c3c1c98ba
  */
 export const prismaVersion: PrismaVersion = {
-  client: "7.0.1",
-  engine: "f09f2815f091dbba658cdcd2264306d88bb5bda6"
+  client: "7.1.0",
+  engine: "ab635e6b9d606fa5c8fb8b1a7f909c3c3c1c98ba"
 }
 
 /**
@@ -391,7 +391,8 @@ export const ModelName = {
   Category: 'Category',
   NoteInfo: 'NoteInfo',
   NoteContent: 'NoteContent',
-  NoteAttachment: 'NoteAttachment'
+  NoteAttachment: 'NoteAttachment',
+  FileManagement: 'FileManagement'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -407,7 +408,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "session" | "user" | "project" | "projectVersion" | "category" | "noteInfo" | "noteContent" | "noteAttachment"
+    modelProps: "session" | "user" | "project" | "projectVersion" | "category" | "noteInfo" | "noteContent" | "noteAttachment" | "fileManagement"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1003,6 +1004,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    FileManagement: {
+      payload: Prisma.$FileManagementPayload<ExtArgs>
+      fields: Prisma.FileManagementFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.FileManagementFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FileManagementPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.FileManagementFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FileManagementPayload>
+        }
+        findFirst: {
+          args: Prisma.FileManagementFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FileManagementPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.FileManagementFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FileManagementPayload>
+        }
+        findMany: {
+          args: Prisma.FileManagementFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FileManagementPayload>[]
+        }
+        create: {
+          args: Prisma.FileManagementCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FileManagementPayload>
+        }
+        createMany: {
+          args: Prisma.FileManagementCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.FileManagementCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FileManagementPayload>[]
+        }
+        delete: {
+          args: Prisma.FileManagementDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FileManagementPayload>
+        }
+        update: {
+          args: Prisma.FileManagementUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FileManagementPayload>
+        }
+        deleteMany: {
+          args: Prisma.FileManagementDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.FileManagementUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.FileManagementUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FileManagementPayload>[]
+        }
+        upsert: {
+          args: Prisma.FileManagementUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FileManagementPayload>
+        }
+        aggregate: {
+          args: Prisma.FileManagementAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateFileManagement>
+        }
+        groupBy: {
+          args: Prisma.FileManagementGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.FileManagementGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.FileManagementCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.FileManagementCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -1129,7 +1204,6 @@ export const NoteContentScalarFieldEnum = {
   id: 'id',
   noteInfoId: 'noteInfoId',
   content: 'content',
-  contentType: 'contentType',
   versionNote: 'versionNote',
   isPrimary: 'isPrimary',
   status: 'status',
@@ -1158,6 +1232,20 @@ export const NoteAttachmentScalarFieldEnum = {
 } as const
 
 export type NoteAttachmentScalarFieldEnum = (typeof NoteAttachmentScalarFieldEnum)[keyof typeof NoteAttachmentScalarFieldEnum]
+
+
+export const FileManagementScalarFieldEnum = {
+  id: 'id',
+  originalName: 'originalName',
+  fileName: 'fileName',
+  filePath: 'filePath',
+  fileSize: 'fileSize',
+  businessType: 'businessType',
+  status: 'status',
+  createTime: 'createTime'
+} as const
+
+export type FileManagementScalarFieldEnum = (typeof FileManagementScalarFieldEnum)[keyof typeof FileManagementScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -1315,7 +1403,7 @@ export type PrismaClientOptions = ({
    *  { emit: 'stdout', level: 'error' }
    * 
    * ```
-   * Read more in our [docs](https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-client/logging#the-log-option).
+   * Read more in our [docs](https://pris.ly/d/logging).
    */
   log?: (LogLevel | LogDefinition)[]
   /**
@@ -1343,6 +1431,22 @@ export type PrismaClientOptions = ({
    * ```
    */
   omit?: GlobalOmitConfig
+  /**
+   * SQL commenter plugins that add metadata to SQL queries as comments.
+   * Comments follow the sqlcommenter format: https://google.github.io/sqlcommenter/
+   * 
+   * @example
+   * ```
+   * const prisma = new PrismaClient({
+   *   adapter,
+   *   comments: [
+   *     traceContext(),
+   *     queryInsights(),
+   *   ],
+   * })
+   * ```
+   */
+  comments?: runtime.SqlCommenterPlugin[]
 }
 export type GlobalOmitConfig = {
   session?: Prisma.SessionOmit
@@ -1353,6 +1457,7 @@ export type GlobalOmitConfig = {
   noteInfo?: Prisma.NoteInfoOmit
   noteContent?: Prisma.NoteContentOmit
   noteAttachment?: Prisma.NoteAttachmentOmit
+  fileManagement?: Prisma.FileManagementOmit
 }
 
 /* Types for Logging */
