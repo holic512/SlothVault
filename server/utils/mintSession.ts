@@ -1,12 +1,14 @@
 /**
- * 树创建会话管理模块
- * 
- * 用于临时存储树创建过程中的会话数据，包括：
- * - 树 Keypair（用于后续签名）
- * - 加密后的私钥
- * - 树配置参数
- * 
+ * 铸造会话管理模块
+ *
+ * 用于临时存储 cNFT 铸造过程中的会话数据，包括：
+ * - 树权限 Keypair（用于交易签名）
+ * - Merkle Tree 信息
+ * - cNFT 记录信息
+ *
  * 会话在 5 分钟后自动过期，防止内存泄漏
+ *
+ * Requirements: 3.5, 5.1
  */
 
 import { randomBytes } from 'node:crypto'
@@ -19,29 +21,23 @@ const SESSION_EXPIRY_MS = 5 * 60 * 1000
 const CLEANUP_INTERVAL_MS = 60 * 1000
 
 /**
- * 树创建会话数据结构
+ * 铸造会话数据结构
  */
-export interface TreeSession {
-  /** 树 Keypair（包含公钥和私钥） */
-  treeKeypair: Keypair
-  /** 树权限 Keypair（用于铸造签名） */
+export interface MintSession {
+  /** 树权限 Keypair（从数据库解密） */
   treeAuthorityKeypair: Keypair
-  /** 加密后的 treeAuthority 私钥（用于持久化存储） */
-  encryptedKey: string
-  /** 树名称 */
-  name: string
-  /** 树的最大深度 */
-  maxDepth: number
-  /** 最大缓冲区大小 */
-  maxBufferSize: number
-  /** 树冠深度 */
-  canopyDepth: number
-  /** 网络类型 */
-  network: string
+  /** Merkle Tree ID */
+  merkleTreeId: bigint
+  /** Merkle Tree 地址 */
+  merkleTreeAddress: string
+  /** 预创建的 cNFT 记录 ID */
+  cnftId: bigint
+  /** 叶子索引 */
+  leafIndex: number
   /** 支付者地址 */
   payerAddress: string
-  /** 租金（lamports） */
-  rentLamports: number
+  /** 网络类型 */
+  network: string
   /** 会话创建时间戳 */
   createdAt: number
   /** 会话过期时间戳 */
@@ -51,10 +47,10 @@ export interface TreeSession {
 /**
  * 创建会话时的输入数据（不包含时间戳）
  */
-export type CreateSessionInput = Omit<TreeSession, 'createdAt' | 'expiresAt'>
+export type CreateMintSessionInput = Omit<MintSession, 'createdAt' | 'expiresAt'>
 
 // 内存会话存储
-const sessionStore = new Map<string, TreeSession>()
+const sessionStore = new Map<string, MintSession>()
 
 // 清理定时器引用
 let cleanupTimer: ReturnType<typeof setInterval> | null = null
@@ -68,16 +64,16 @@ function generateSessionId(): string {
 }
 
 /**
- * 创建新会话
- * 
+ * 创建新的铸造会话
+ *
  * @param data - 会话数据（不包含时间戳）
  * @returns 会话 ID
  */
-export function createTreeSession(data: CreateSessionInput): string {
+export function createMintSession(data: CreateMintSessionInput): string {
   const sessionId = generateSessionId()
   const now = Date.now()
 
-  const session: TreeSession = {
+  const session: MintSession = {
     ...data,
     createdAt: now,
     expiresAt: now + SESSION_EXPIRY_MS,
@@ -92,12 +88,12 @@ export function createTreeSession(data: CreateSessionInput): string {
 }
 
 /**
- * 获取会话
- * 
+ * 获取铸造会话
+ *
  * @param sessionId - 会话 ID
  * @returns 会话数据，如果不存在或已过期则返回 null
  */
-export function getTreeSession(sessionId: string): TreeSession | null {
+export function getMintSession(sessionId: string): MintSession | null {
   const session = sessionStore.get(sessionId)
 
   if (!session) {
@@ -115,20 +111,20 @@ export function getTreeSession(sessionId: string): TreeSession | null {
 }
 
 /**
- * 删除会话
- * 
+ * 删除铸造会话
+ *
  * @param sessionId - 会话 ID
  */
-export function deleteTreeSession(sessionId: string): void {
+export function deleteMintSession(sessionId: string): void {
   sessionStore.delete(sessionId)
 }
 
 /**
  * 清理所有过期会话
- * 
+ *
  * @returns 清理的会话数量
  */
-export function cleanExpiredSessions(): number {
+export function cleanExpiredMintSessions(): number {
   const now = Date.now()
   let cleanedCount = 0
 
@@ -145,14 +141,14 @@ export function cleanExpiredSessions(): number {
 /**
  * 获取当前会话数量（用于调试/监控）
  */
-export function getSessionCount(): number {
+export function getMintSessionCount(): number {
   return sessionStore.size
 }
 
 /**
  * 清除所有会话（用于测试）
  */
-export function clearAllSessions(): void {
+export function clearAllMintSessions(): void {
   sessionStore.clear()
 }
 
@@ -162,7 +158,7 @@ export function clearAllSessions(): void {
 function ensureCleanupTimer(): void {
   if (cleanupTimer === null) {
     cleanupTimer = setInterval(() => {
-      cleanExpiredSessions()
+      cleanExpiredMintSessions()
 
       // 如果没有会话了，停止定时器
       if (sessionStore.size === 0 && cleanupTimer !== null) {
@@ -181,9 +177,16 @@ function ensureCleanupTimer(): void {
 /**
  * 停止清理定时器（用于测试清理）
  */
-export function stopCleanupTimer(): void {
+export function stopMintCleanupTimer(): void {
   if (cleanupTimer !== null) {
     clearInterval(cleanupTimer)
     cleanupTimer = null
   }
+}
+
+/**
+ * 获取会话过期时间（毫秒）- 用于测试
+ */
+export function getSessionExpiryMs(): number {
+  return SESSION_EXPIRY_MS
 }

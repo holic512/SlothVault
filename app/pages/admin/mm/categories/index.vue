@@ -114,9 +114,9 @@ const form = reactive({
   status: 1 as number,
 })
 
-const formRules = {
-  categoryName: [{required: true, message: '请输入分类名称', trigger: 'blur'}],
-}
+const formRules = computed(() => ({
+  categoryName: [{required: true, message: t('AdminMM.categories.validation.categoryNameRequired'), trigger: 'blur'}],
+}))
 
 function formatTime(value: string | Date) {
   const d = typeof value === 'string' ? new Date(value) : value
@@ -143,7 +143,7 @@ async function fetchProjects() {
     projects.value = data.list
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
-      ElMessage.error('加载项目列表失败')
+      ElMessage.error(t('AdminMM.categories.messages.loadProjectsFailed'))
     }
   }
 }
@@ -161,7 +161,7 @@ async function fetchVersions(projectId: string) {
     versions.value = data.list
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
-      ElMessage.error('加载版本列表失败')
+      ElMessage.error(t('AdminMM.categories.messages.loadVersionsFailed'))
     }
   }
 }
@@ -197,7 +197,7 @@ async function fetchList() {
     total.value = data.total
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '加载失败')
+      ElMessage.error(e?.message || t('AdminMM.categories.messages.loadFailed'))
     }
   } finally {
     loading.value = false
@@ -214,7 +214,7 @@ function resetFilters() {
 
 function openCreate() {
   if (!selectedVersionId.value && !projectVersionId.value) {
-    ElMessage.warning('请先选择项目版本')
+    ElMessage.warning(t('AdminMM.categories.messages.selectVersionFirst'))
     return
   }
   dialogMode.value = 'create'
@@ -240,7 +240,7 @@ async function submitForm() {
 
   const versionId = selectedVersionId.value || projectVersionId.value
   if (!versionId) {
-    ElMessage.warning('请先选择项目版本')
+    ElMessage.warning(t('AdminMM.categories.messages.selectVersionFirst'))
     return
   }
 
@@ -259,7 +259,7 @@ async function submitForm() {
           status: form.status,
         },
       })
-      ElMessage.success('创建成功')
+      ElMessage.success(t('AdminMM.categories.messages.createSuccess'))
     } else {
       await apiFetch<CategoryDto>(`/api/admin/mm/category/${form.id}`, {
         method: 'PUT',
@@ -269,13 +269,13 @@ async function submitForm() {
           status: form.status,
         },
       })
-      ElMessage.success('保存成功')
+      ElMessage.success(t('AdminMM.categories.messages.saveSuccess'))
     }
     dialogOpen.value = false
     fetchList()
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '提交失败')
+      ElMessage.error(e?.message || t('AdminMM.categories.messages.submitFailed'))
     }
   } finally {
     dialogSubmitting.value = false
@@ -284,17 +284,17 @@ async function submitForm() {
 
 async function deleteOne(row: CategoryDto) {
   try {
-    await ElMessageBox.confirm(`确认删除分类「${row.categoryName}」？`, '提示', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('AdminMM.categories.messages.deleteConfirm', {name: row.categoryName}), t('AdminMM.categories.messages.deleteConfirmTitle'), {
+      confirmButtonText: t('AdminMM.categories.messages.deleteButton'),
+      cancelButtonText: t('AdminMM.categories.messages.cancelButton'),
       type: 'warning',
     })
     await apiFetch<CategoryDto>(`/api/admin/mm/category/${row.id}`, {method: 'DELETE'})
-    ElMessage.success('已删除')
+    ElMessage.success(t('AdminMM.categories.messages.deleted'))
     fetchList()
   } catch (e: any) {
     if (e?.message && e.message !== 'cancel' && e.message !== 'close' && e.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '删除失败')
+      ElMessage.error(e?.message || t('AdminMM.categories.messages.deleteFailed'))
     }
   }
 }
@@ -305,11 +305,11 @@ async function restoreOne(row: CategoryDto) {
       method: 'PUT',
       body: {isDeleted: false},
     })
-    ElMessage.success('已恢复')
+    ElMessage.success(t('AdminMM.categories.messages.restored'))
     fetchList()
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '恢复失败')
+      ElMessage.error(e?.message || t('AdminMM.categories.messages.restoreFailed'))
     }
   }
 }
@@ -344,7 +344,7 @@ watch(selectedVersionId, (newVal) => {
 // 根据 versionId 初始化项目和版本选择器
 async function initFromVersionId(versionId: string) {
   if (!versionId) return
-  
+
   loading.value = true
   try {
     // 先获取分类列表，同时获取版本信息
@@ -356,7 +356,7 @@ async function initFromVersionId(versionId: string) {
         includeProjectVersionInfo: '1',
       },
     })
-    
+
     if (data.projectVersion) {
       const pv = data.projectVersion
       // 设置项目ID并加载版本列表
@@ -364,13 +364,13 @@ async function initFromVersionId(versionId: string) {
       await fetchVersions(pv.projectId)
       // 设置版本ID
       selectedVersionId.value = pv.id
-      
+
       list.value = data.list
       total.value = data.total
     }
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '加载失败')
+      ElMessage.error(e?.message || t('AdminMM.categories.messages.loadFailed'))
     }
   } finally {
     loading.value = false
@@ -379,7 +379,7 @@ async function initFromVersionId(versionId: string) {
 
 onMounted(async () => {
   await fetchProjects()
-  
+
   // 如果URL有versionId参数，初始化选择器并加载数据
   if (projectVersionId.value) {
     await initFromVersionId(projectVersionId.value)
@@ -392,154 +392,162 @@ onMounted(async () => {
 
 <template>
   <div class="page-container">
+    <!-- 页面头部 -->
+    <div class="page-header">
+      <div class="header-left">
+        <h1 class="page-title">{{ $t('AdminMM.categories.title') }}</h1>
+        <p class="page-desc">{{ $t('AdminMM.categories.desc') }}</p>
+      </div>
+    </div>
+
     <div class="toolbar">
       <div class="filters">
-        <el-select 
-          v-model="selectedProjectId" 
-          placeholder="选择项目" 
-          clearable 
-          filterable
-          class="filter-item"
+        <el-select
+            v-model="selectedProjectId"
+            :placeholder="$t('AdminMM.categories.filters.selectProject')"
+            clearable
+            filterable
+            class="filter-item"
         >
-          <el-option 
-            v-for="p in projects" 
-            :key="p.id" 
-            :label="p.projectName" 
-            :value="p.id"
+          <el-option
+              v-for="p in projects"
+              :key="p.id"
+              :label="p.projectName"
+              :value="p.id"
           />
         </el-select>
 
-        <el-select 
-          v-model="selectedVersionId" 
-          placeholder="选择版本" 
-          clearable 
-          filterable
-          class="filter-item"
-          :disabled="!selectedProjectId && !projectVersionId"
+        <el-select
+            v-model="selectedVersionId"
+            :placeholder="$t('AdminMM.categories.filters.selectVersion')"
+            clearable
+            filterable
+            class="filter-item"
+            :disabled="!selectedProjectId && !projectVersionId"
         >
-          <el-option 
-            v-for="v in versions" 
-            :key="v.id" 
-            :label="v.version" 
-            :value="v.id"
+          <el-option
+              v-for="v in versions"
+              :key="v.id"
+              :label="v.version"
+              :value="v.id"
           />
         </el-select>
 
         <el-input
-          v-model="filters.keyword"
-          placeholder="按分类名模糊搜索"
-          clearable
-          class="filter-item"
-          @keyup.enter="pagination.page = 1; fetchList()"
+            v-model="filters.keyword"
+            :placeholder="$t('AdminMM.categories.filters.keyword')"
+            clearable
+            class="filter-item"
+            @keyup.enter="pagination.page = 1; fetchList()"
         />
 
-        <el-select v-model="filters.status" placeholder="状态" clearable class="filter-item">
-          <el-option label="启用(1)" value="1"/>
-          <el-option label="停用(0)" value="0"/>
+        <el-select v-model="filters.status" :placeholder="$t('AdminMM.categories.filters.status')" clearable class="filter-item">
+          <el-option :label="$t('AdminMM.categories.status.enabled')" value="1"/>
+          <el-option :label="$t('AdminMM.categories.status.disabled')" value="0"/>
         </el-select>
 
         <div class="filter-item switch-item">
-          <span class="switch-label">包含已删除</span>
+          <span class="switch-label">{{ $t('AdminMM.categories.filters.includeDeleted') }}</span>
           <el-switch v-model="filters.includeDeleted" @change="pagination.page = 1; fetchList()"/>
         </div>
       </div>
 
       <div class="actions">
-        <el-button type="primary" @click="pagination.page = 1; fetchList()">查询</el-button>
-        <el-button @click="resetFilters">重置</el-button>
-        <el-button type="primary" plain @click="openCreate">新增分类</el-button>
+        <el-button type="primary" @click="pagination.page = 1; fetchList()">{{ $t('AdminMM.categories.actions.search') }}</el-button>
+        <el-button @click="resetFilters">{{ $t('AdminMM.categories.actions.reset') }}</el-button>
+        <el-button type="primary" plain @click="openCreate">{{ $t('AdminMM.categories.actions.create') }}</el-button>
       </div>
     </div>
 
     <div class="table-card">
       <el-table
-        :data="list"
-        row-key="id"
-        style="width: 100%"
-        v-loading="loading"
-        @selection-change="(rows: CategoryDto[]) => (selectedRows = rows)"
+          :data="list"
+          row-key="id"
+          style="width: 100%"
+          v-loading="loading"
+          @selection-change="(rows: CategoryDto[]) => (selectedRows = rows)"
       >
         <el-table-column type="selection" width="50"/>
-        <el-table-column prop="id" label="ID" width="100"/>
-        <el-table-column prop="categoryName" label="分类名称" min-width="180"/>
-        <el-table-column label="所属项目" min-width="150">
+        <el-table-column prop="id" :label="$t('AdminMM.categories.table.id')" width="100"/>
+        <el-table-column prop="categoryName" :label="$t('AdminMM.categories.table.categoryName')" min-width="180"/>
+        <el-table-column :label="$t('AdminMM.categories.table.project')" min-width="150">
           <template #default="{ row }">
             <span>{{ row.projectVersion?.project?.projectName || '-' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="版本" width="100">
+        <el-table-column :label="$t('AdminMM.categories.table.version')" width="100">
           <template #default="{ row }">
             <el-tag v-if="row.projectVersion?.version" type="primary" size="small">{{ row.projectVersion.version }}</el-tag>
             <span v-else class="text-subtle">-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="weight" label="权重" width="90" align="center"/>
+        <el-table-column prop="weight" :label="$t('AdminMM.categories.table.weight')" width="90" align="center"/>
 
-        <el-table-column label="状态" width="100">
+        <el-table-column :label="$t('AdminMM.categories.table.status')" width="100">
           <template #default="{ row }">
-            <el-tag v-if="row.isDeleted" type="info">已删除</el-tag>
-            <el-tag v-else-if="row.status === 1" type="success">启用</el-tag>
-            <el-tag v-else type="warning">停用</el-tag>
+            <el-tag v-if="row.isDeleted" type="info">{{ $t('AdminMM.categories.statusTag.deleted') }}</el-tag>
+            <el-tag v-else-if="row.status === 1" type="success">{{ $t('AdminMM.categories.statusTag.enabled') }}</el-tag>
+            <el-tag v-else type="warning">{{ $t('AdminMM.categories.statusTag.disabled') }}</el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column label="创建时间" width="170">
+        <el-table-column :label="$t('AdminMM.categories.table.createdAt')" width="170">
           <template #default="{ row }">{{ formatTime(row.createdAt) }}</template>
         </el-table-column>
 
-        <el-table-column label="更新时间" width="170">
+        <el-table-column :label="$t('AdminMM.categories.table.updatedAt')" width="170">
           <template #default="{ row }">{{ formatTime(row.updatedAt) }}</template>
         </el-table-column>
 
-        <el-table-column label="操作" width="260" fixed="right">
+        <el-table-column :label="$t('AdminMM.categories.table.operations')" width="260" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="goToNotes(row)" :disabled="row.isDeleted">笔记管理</el-button>
-            <el-button size="small" @click="openEdit(row)" :disabled="row.isDeleted">编辑</el-button>
-            <el-button size="small" type="danger" @click="deleteOne(row)" :disabled="row.isDeleted">删除</el-button>
-            <el-button size="small" @click="restoreOne(row)" v-if="row.isDeleted">恢复</el-button>
+            <el-button size="small" @click="goToNotes(row)" :disabled="row.isDeleted">{{ $t('AdminMM.categories.operations.noteManage') }}</el-button>
+            <el-button size="small" @click="openEdit(row)" :disabled="row.isDeleted">{{ $t('AdminMM.categories.operations.edit') }}</el-button>
+            <el-button size="small" type="danger" @click="deleteOne(row)" :disabled="row.isDeleted">{{ $t('AdminMM.categories.operations.delete') }}</el-button>
+            <el-button size="small" @click="restoreOne(row)" v-if="row.isDeleted">{{ $t('AdminMM.categories.operations.restore') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
 
       <div class="pagination">
         <el-pagination
-          v-model:current-page="pagination.page"
-          v-model:page-size="pagination.pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next, jumper"
-          :total="total"
-          @size-change="() => { pagination.page = 1; fetchList() }"
-          @current-change="() => fetchList()"
+            v-model:current-page="pagination.page"
+            v-model:page-size="pagination.pageSize"
+            :page-sizes="[10, 20, 50, 100]"
+            layout="total, sizes, prev, pager, next, jumper"
+            :total="total"
+            @size-change="() => { pagination.page = 1; fetchList() }"
+            @current-change="() => fetchList()"
         />
       </div>
     </div>
 
     <el-dialog
-      v-model="dialogOpen"
-      :title="dialogMode === 'create' ? '新增分类' : '编辑分类'"
-      width="480px"
-      :close-on-click-modal="false"
+        v-model="dialogOpen"
+        :title="dialogMode === 'create' ? $t('AdminMM.categories.dialog.createTitle') : $t('AdminMM.categories.dialog.editTitle')"
+        width="480px"
+        :close-on-click-modal="false"
     >
       <el-form ref="formRef" :model="form" :rules="formRules" label-width="90px">
-        <el-form-item label="分类名称" prop="categoryName">
+        <el-form-item :label="$t('AdminMM.categories.dialog.categoryName')" prop="categoryName">
           <el-input v-model="form.categoryName" maxlength="64" show-word-limit/>
         </el-form-item>
 
-        <el-form-item label="权重" prop="weight">
+        <el-form-item :label="$t('AdminMM.categories.dialog.weight')" prop="weight">
           <el-input-number v-model="form.weight" :min="0" :max="999999" style="width: 100%"/>
         </el-form-item>
 
-        <el-form-item label="状态" prop="status">
+        <el-form-item :label="$t('AdminMM.categories.dialog.status')" prop="status">
           <el-select v-model="form.status" style="width: 100%">
-            <el-option label="启用(1)" :value="1"/>
-            <el-option label="停用(0)" :value="0"/>
+            <el-option :label="$t('AdminMM.categories.status.enabled')" :value="1"/>
+            <el-option :label="$t('AdminMM.categories.status.disabled')" :value="0"/>
           </el-select>
         </el-form-item>
       </el-form>
 
       <template #footer>
-        <el-button @click="dialogOpen = false">取消</el-button>
-        <el-button type="primary" :loading="dialogSubmitting" @click="submitForm">保存</el-button>
+        <el-button @click="dialogOpen = false">{{ $t('AdminMM.categories.dialog.cancel') }}</el-button>
+        <el-button type="primary" :loading="dialogSubmitting" @click="submitForm">{{ $t('AdminMM.categories.dialog.save') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -549,6 +557,32 @@ onMounted(async () => {
 <style scoped>
 .page-container {
   --sloth-radius: 4px;
+}
+
+/* 页面头部卡片 */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  padding: 12px;
+  background: var(--sloth-card);
+  border: 1px solid var(--sloth-card-border);
+  border-radius: var(--sloth-radius);
+  backdrop-filter: blur(var(--sloth-blur));
+}
+
+.page-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--sloth-text);
+  margin: 0 0 4px;
+}
+
+.page-desc {
+  font-size: 13px;
+  color: var(--sloth-text-subtle);
+  margin: 0;
 }
 
 .toolbar {

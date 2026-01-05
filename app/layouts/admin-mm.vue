@@ -2,7 +2,8 @@
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import ThemeToggle from '~/components/ThemeToggle.vue'
-import { HomeIcon, RectangleStackIcon, ChevronRightIcon, ChevronLeftIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon, FolderIcon, DocumentIcon, DocumentTextIcon, CubeTransparentIcon } from '@heroicons/vue/24/outline'
+import { HomeIcon, RectangleStackIcon, ChevronRightIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon, FolderIcon, DocumentIcon, DocumentTextIcon, CubeTransparentIcon } from '@heroicons/vue/24/outline'
+import HomeButton from '~/components/admin/mm/layout/HomeButton.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -151,9 +152,7 @@ const toggleSidebar = () => {
         </div>
         <div class="header-right">
           <WalletConnector />
-          <NuxtLink to="/" class="home-link" :title="t('AdminMM.header.backHome')">
-            <HomeIcon class="home-icon" />
-          </NuxtLink>
+          <HomeButton />
           <ThemeToggle />
         </div>
       </header>
@@ -166,7 +165,13 @@ const toggleSidebar = () => {
 </template>
 
 <style scoped>
+/* CSS 变量统一管理侧边栏尺寸 */
 .admin-layout {
+  --sidebar-width: 180px;
+  --sidebar-collapsed-width: 56px;
+  --menu-item-height: 38px;
+  --menu-icon-size: 18px;
+  
   display: flex;
   min-height: 100vh;
   background: transparent;
@@ -175,7 +180,8 @@ const toggleSidebar = () => {
 }
 
 .admin-sidebar {
-  width: 200px;
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-collapsed-width);
   background-color: var(--sloth-card);
   border-right: 1px solid var(--sloth-card-border);
   display: flex;
@@ -188,7 +194,7 @@ const toggleSidebar = () => {
 }
 
 .admin-sidebar.is-collapsed {
-  width: 64px;
+  width: var(--sidebar-collapsed-width);
 }
 
 .logo-area {
@@ -196,24 +202,28 @@ const toggleSidebar = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 12px;
+  padding: 0 16px;
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
   color: var(--sloth-primary);
   border-bottom: 1px solid var(--sloth-card-border);
   overflow: hidden;
+  white-space: nowrap;
 }
 
 .admin-sidebar.is-collapsed .logo-area {
-  padding: 0 8px;
+  padding: 0;
 }
 
 .logo-text {
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .logo-icon {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -229,6 +239,7 @@ const toggleSidebar = () => {
   justify-content: center;
   transition: all 0.2s;
   margin-right: 8px;
+  flex-shrink: 0;
 }
 
 .collapse-btn:hover {
@@ -245,8 +256,9 @@ const toggleSidebar = () => {
   border-right: none;
   background: transparent;
   flex: 1;
-  padding-top: 6px;
+  padding: 6px 0;
   overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* Element Plus Menu Overrides for Theme */
@@ -257,18 +269,35 @@ const toggleSidebar = () => {
 
 :deep(.el-menu-item) {
   color: var(--sloth-text);
-  margin: 2px 8px;
+  margin: 2px 6px;
   border-radius: 6px;
-  height: 36px;
-  line-height: 36px;
+  height: var(--menu-item-height);
+  line-height: var(--menu-item-height);
   font-size: 13px;
+  padding: 0 12px !important;
+  transition: all 0.2s ease;
 }
 
+/* 菜单项文字溢出处理 */
+:deep(.el-menu-item span) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+/* 折叠状态下的菜单项 */
 .admin-sidebar.is-collapsed :deep(.el-menu-item) {
-  margin: 2px 8px;
-  border-radius: 4px;
+  margin: 2px 6px;
+  border-radius: 6px;
   justify-content: center;
   padding: 0 !important;
+  width: calc(var(--sidebar-collapsed-width) - 12px);
+}
+
+.admin-sidebar.is-collapsed :deep(.el-menu-item span) {
+  display: none;
 }
 
 .admin-sidebar.is-collapsed :deep(.el-menu) {
@@ -277,6 +306,19 @@ const toggleSidebar = () => {
 
 .admin-sidebar.is-collapsed :deep(.el-menu--collapse) {
   width: 100% !important;
+}
+
+/* 图标样式优化 */
+:deep(.el-menu-item .el-icon) {
+  font-size: var(--menu-icon-size);
+  width: var(--menu-icon-size);
+  height: var(--menu-icon-size);
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.admin-sidebar.is-collapsed :deep(.el-menu-item .el-icon) {
+  margin-right: 0;
 }
 
 :deep(.el-menu-item:hover), :deep(.el-menu-item:focus) {
@@ -288,10 +330,6 @@ const toggleSidebar = () => {
   background-color: var(--sloth-primary-dim);
   color: var(--sloth-primary);
   font-weight: 600;
-}
-
-:deep(.el-icon) {
-  font-size: 16px;
 }
 
 /* Transition for logo text */
@@ -396,26 +434,5 @@ const toggleSidebar = () => {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.home-link {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  color: var(--sloth-text-secondary);
-  transition: all 0.2s;
-}
-
-.home-link:hover {
-  background-color: var(--sloth-bg-hover);
-  color: var(--sloth-primary);
-}
-
-.home-icon {
-  width: 18px;
-  height: 18px;
 }
 </style>

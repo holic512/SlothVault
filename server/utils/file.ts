@@ -178,7 +178,8 @@ export async function uploadFiles(
     // 生成文件名并写入磁盘
     const fileName = generateFileName(originalName)
     const filePath = join(uploadDir, fileName)
-    const relativePath = `${UPLOAD_ROOT}/${businessType}/${fileName}`
+    const dir = BusinessTypeConfig[businessType]?.dir || 'other'
+    const relativePath = `${UPLOAD_ROOT}/${dir}/${fileName}`
 
     await writeFile(filePath, fileBuffer)
 

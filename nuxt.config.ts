@@ -3,16 +3,17 @@
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import {ElementPlusResolver} from 'unplugin-vue-components/resolvers'
+import { Buffer } from 'buffer'
 
 export default defineNuxtConfig({
 
-    // 路由配置
+    // 路由配置 - 管理员不使用 ssr
     routeRules: {
         '/admin/**': { ssr: false }
     },
 
     compatibilityDate: '2025-07-15',
-    devtools: {enabled: true},
+    devtools: {enabled: false},
 
     // 让 Nuxt 使用 app/ 作为根目录
     srcDir: 'app',
@@ -51,8 +52,14 @@ export default defineNuxtConfig({
     },
 
     vite: {
+        define: {
+            // 为浏览器环境提供 Buffer 全局变量
+            'global': 'globalThis',
+        },
         resolve: {
             alias: {
+                // Buffer polyfill for browser
+                'buffer': 'buffer/',
                 'dayjs/plugin/advancedFormat': 'dayjs/esm/plugin/advancedFormat',
                 'dayjs/plugin/advancedFormat.js': 'dayjs/esm/plugin/advancedFormat/index.js',
                 'dayjs/plugin/customParseFormat': 'dayjs/esm/plugin/customParseFormat',
@@ -79,6 +86,7 @@ export default defineNuxtConfig({
         ],
         optimizeDeps: {
             include: [
+                'buffer',
                 'dayjs',
                 'dayjs/plugin/customParseFormat',
                 'dayjs/plugin/customParseFormat.js',

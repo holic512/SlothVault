@@ -114,6 +114,7 @@ export default defineEventHandler(async (event) => {
   let transaction
   let rentLamports: number
   let spaceBytes: number
+  let treeAuthorityKeypair: Keypair
   let connection
 
   try {
@@ -131,6 +132,7 @@ export default defineEventHandler(async (event) => {
     transaction = result.transaction
     rentLamports = result.rentLamports
     spaceBytes = result.spaceBytes
+    treeAuthorityKeypair = result.treeAuthorityKeypair
   } catch (err: any) {
     console.error('[Solana] 构建交易失败:', err)
     
@@ -175,9 +177,10 @@ export default defineEventHandler(async (event) => {
     console.warn('[Solana] 余额检查失败，继续执行:', err.message)
   }
 
-  // 5. 使用树 Keypair 对交易进行部分签名
+  // 5. 使用树 Keypair 和 treeAuthority Keypair 对交易进行部分签名
   try {
     transaction.partialSign(treeKeypair)
+    transaction.partialSign(treeAuthorityKeypair)
   } catch (err: any) {
     console.error('[Solana] 部分签名失败:', err)
     throw createSolanaHttpError(
@@ -185,8 +188,8 @@ export default defineEventHandler(async (event) => {
     )
   }
 
-  // 6. 加密私钥 (Requirement 10.3 - 加密失败处理)
-  const secretKeyBase64 = secretKeyToString(treeKeypair.secretKey)
+  // 6. 加密 treeAuthority 私钥（用于后续铸造）
+  const secretKeyBase64 = secretKeyToString(treeAuthorityKeypair.secretKey)
   let encryptedKey: string
 
   try {
@@ -201,6 +204,7 @@ export default defineEventHandler(async (event) => {
   // 7. 创建会话存储
   const sessionId = createTreeSession({
     treeKeypair,
+    treeAuthorityKeypair,
     encryptedKey,
     name: name.trim(),
     maxDepth,

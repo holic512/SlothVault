@@ -319,7 +319,7 @@ model MerkleTree {
   treeAddress      String   @unique @db.VarChar(64) @map("tree_address")
   // 树权限地址（公钥）
   treeAuthority    String   @db.VarChar(64) @map("tree_authority")
-  // 加密后的树权限私钥（AES-256-GCM 加密）
+  // 加密后的树权限私钥（AES-256-GCM 加密）用于解密铸造
   encryptedKey     String   @db.Text @map("encrypted_key")
   // 创建者钱包地址
   creatorAddress   String   @db.VarChar(64) @map("creator_address")
@@ -375,8 +375,16 @@ model CompressedNft {
   name            String   @db.VarChar(128)
   // NFT 符号
   symbol          String?  @db.VarChar(32)
-  // 元数据 URI
+  // NFT 描述
+  description     String?  @db.Text
+  // 元数据 URI（ipfs://CID 格式）
   metadataUri     String?  @db.VarChar(500) @map("metadata_uri")
+  // 图片 IPFS CID
+  imageCid        String?  @db.VarChar(128) @map("image_cid")
+  // 元数据 IPFS CID
+  metadataCid     String?  @db.VarChar(128) @map("metadata_cid")
+  // 原始图片文件 ID（关联 FileManagement）
+  originalImageId BigInt?  @db.BigInt @map("original_image_id")
   // 当前持有者地址
   ownerAddress    String   @db.VarChar(64) @map("owner_address")
   // 铸造交易签名

@@ -10,6 +10,7 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.962.0",
     "@fontsource/public-sans": "^5.2.7",
     "@fontsource/source-sans-pro": "^5.2.5",
     "@heroicons/vue": "^2.2.0",
@@ -20,6 +21,7 @@
     "@solana/spl-account-compression": "^0.1.10",
     "@solana/web3.js": "^1.98.4",
     "argon2": "^0.44.0",
+    "buffer": "^6.0.3",
     "dayjs": "^1.11.19",
     "dotenv": "^17.2.3",
     "element-plus": "^2.11.8",
@@ -28,14 +30,18 @@
     "pg": "^8.16.3",
     "pinia": "^3.0.4",
     "pinia-plugin-persistedstate": "^4.7.1",
+    "sharp": "^0.34.5",
     "vue": "^3.5.24",
     "vue-router": "^4.6.3"
   },
   "devDependencies": {
-    "@types/node": "^24.10.1",
+    "@types/node": "^24.10.4",
     "@types/pg": "^8.15.6",
+    "@types/sharp": "^0.31.1",
+    "fast-check": "^4.5.3",
     "prisma": "^7.1.0",
     "unplugin-auto-import": "^20.2.0",
-    "unplugin-vue-components": "^30.0.0"
+    "unplugin-vue-components": "^30.0.0",
+    "vitest": "^4.0.16"
   }
 }

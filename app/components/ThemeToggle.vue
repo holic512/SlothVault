@@ -74,7 +74,7 @@
                 :key="p"
                 :class="['color-swatch', 'swatch-' + p, { active: palette === p }]"
                 :style="{ '--delay': index * 50 + 'ms' }"
-                @click="setPalette(p)"
+                @click="handlePaletteChange(p, $event)"
                 :title="t('ThemeToggle.palette.' + p)"
             >
               <span class="swatch-ring"></span>
@@ -102,8 +102,32 @@ const {t, setLocale} = useI18n()
 
 const themeStore = useTheme()
 const {theme, palette} = storeToRefs(themeStore)
-const {setTheme, setPalette} = themeStore
+const {setTheme, setPalette: setStorePalette} = themeStore
 const palettes = ['purple', 'cyan', 'emerald', 'rose']
+
+// 颜色配置映射
+const paletteColors = {
+  purple: {
+    gradient: 'linear-gradient(180deg, #7c3aed 0%, #a855f7 100%)',
+    shadow: 'rgba(124, 58, 237, 0.5)',
+    ripple: 'radial-gradient(circle, rgba(124,58,237,0.9) 0%, rgba(168,85,247,0.8) 50%, transparent 70%)'
+  },
+  cyan: {
+    gradient: 'linear-gradient(180deg, #06b6d4 0%, #0ea5e9 100%)',
+    shadow: 'rgba(6, 182, 212, 0.5)',
+    ripple: 'radial-gradient(circle, rgba(6,182,212,0.9) 0%, rgba(14,165,233,0.8) 50%, transparent 70%)'
+  },
+  emerald: {
+    gradient: 'linear-gradient(180deg, #10b981 0%, #34d399 100%)',
+    shadow: 'rgba(16, 185, 129, 0.5)',
+    ripple: 'radial-gradient(circle, rgba(16,185,129,0.9) 0%, rgba(52,211,153,0.8) 50%, transparent 70%)'
+  },
+  rose: {
+    gradient: 'linear-gradient(180deg, #f43f5e 0%, #fb7185 100%)',
+    shadow: 'rgba(244, 63, 94, 0.5)',
+    ripple: 'radial-gradient(circle, rgba(244,63,94,0.9) 0%, rgba(251,113,133,0.8) 50%, transparent 70%)'
+  }
+}
 
 const localeStore = useLocaleStore()
 const isOpen = ref(false)
@@ -118,39 +142,159 @@ const applyLocale = (l) => {
   setLocale(l)
 }
 
-const handleThemeChange = async (mode, event) => {
+// 通用水滴动画函数
+const playDropletAnimation = async (event, colors, applyChange) => {
   if (!document.startViewTransition) {
-    setTheme(mode)
+    applyChange()
     return
   }
 
-  const x = event.clientX
-  const y = event.clientY
+  const btnRect = event.currentTarget.getBoundingClientRect()
+  const startX = btnRect.left + btnRect.width / 2
+  const startY = btnRect.top + btnRect.height / 2
+  
+  // 水滴落点位置（屏幕底部 99vh）
+  const dropY = window.innerHeight * 0.99
   const endRadius = Math.hypot(
-      Math.max(x, innerWidth - x),
-      Math.max(y, innerHeight - y)
-  )
+    Math.max(startX, innerWidth - startX),
+    Math.max(dropY, innerHeight - dropY)
+  ) * 1.5
 
+  // 创建水滴元素
+  const droplet = document.createElement('div')
+  droplet.className = 'theme-droplet'
+  droplet.style.cssText = `
+    position: fixed;
+    left: ${startX}px;
+    top: ${startY}px;
+    width: 16px;
+    height: 20px;
+    background: ${colors.gradient};
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    z-index: 2147483647;
+    pointer-events: none;
+    filter: drop-shadow(0 2px 8px ${colors.shadow});
+    transform: translateX(-50%) translateY(-50%);
+  `
+  document.body.appendChild(droplet)
+
+  // 水滴下落动画
+  const fallDuration = 800
+  const fallAnimation = droplet.animate([
+    { 
+      top: `${startY}px`, 
+      transform: 'translateX(-50%) translateY(-50%) scale(1)',
+      opacity: 1 
+    },
+    { 
+      top: `${dropY * 0.3}px`, 
+      transform: 'translateX(-50%) translateY(-50%) scale(1.1) rotate(5deg)',
+      opacity: 1,
+      offset: 0.3
+    },
+    { 
+      top: `${dropY * 0.7}px`, 
+      transform: 'translateX(-50%) translateY(-50%) scale(1.2) rotate(-3deg)',
+      opacity: 1,
+      offset: 0.7
+    },
+    { 
+      top: `${dropY}px`, 
+      transform: 'translateX(-50%) translateY(-50%) scale(0.8)',
+      opacity: 1 
+    }
+  ], {
+    duration: fallDuration,
+    easing: 'cubic-bezier(0.55, 0, 1, 0.45)',
+    fill: 'forwards'
+  })
+
+  // 等待水滴落下
+  await fallAnimation.finished
+
+  // 创建涟漪晕染效果
+  const ripple = document.createElement('div')
+  ripple.className = 'theme-ripple'
+  ripple.style.cssText = `
+    position: fixed;
+    left: ${startX}px;
+    top: ${dropY}px;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: ${colors.ripple};
+    z-index: 2147483646;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+  `
+  document.body.appendChild(ripple)
+
+  // 涟漪扩散动画
+  ripple.animate([
+    { width: '0px', height: '0px', opacity: 1 },
+    { width: '100px', height: '60px', opacity: 0.8, offset: 0.1 },
+    { width: '300px', height: '180px', opacity: 0.6, offset: 0.3 },
+    { width: `${endRadius * 2}px`, height: `${endRadius * 2}px`, opacity: 0 }
+  ], {
+    duration: 600,
+    easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+    fill: 'forwards'
+  })
+
+  // 移除水滴
+  droplet.remove()
+
+  // 使用 View Transition 完成切换
   const transition = document.startViewTransition(async () => {
-    setTheme(mode)
+    applyChange()
     await nextTick()
   })
 
   transition.ready.then(() => {
-    const clipPath = [
-      `circle(0px at ${x}px ${y}px)`,
-      `circle(${endRadius}px at ${x}px ${y}px)`,
-    ]
-
     document.documentElement.animate(
-        { clipPath },
-        {
-          duration: 500,
-          easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
-          pseudoElement: '::view-transition-new(root)',
-        }
+      {
+        clipPath: [
+          `circle(0px at ${startX}px ${dropY}px)`,
+          `circle(${endRadius}px at ${startX}px ${dropY}px)`
+        ]
+      },
+      {
+        duration: 600,
+        easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+        pseudoElement: '::view-transition-new(root)'
+      }
     )
   })
+
+  // 清理涟漪元素
+  transition.finished.then(() => {
+    ripple.remove()
+  })
+}
+
+// 主题明暗切换
+const handleThemeChange = async (mode, event) => {
+  const colors = mode === 'dark' 
+    ? {
+        gradient: 'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)',
+        shadow: 'rgba(0,0,0,0.5)',
+        ripple: 'radial-gradient(circle, rgba(26,26,46,0.9) 0%, rgba(22,33,62,0.8) 50%, transparent 70%)'
+      }
+    : {
+        gradient: 'linear-gradient(180deg, #ffecd2 0%, #fcb69f 100%)',
+        shadow: 'rgba(252,182,159,0.5)',
+        ripple: 'radial-gradient(circle, rgba(255,236,210,0.9) 0%, rgba(252,182,159,0.8) 50%, transparent 70%)'
+      }
+  
+  await playDropletAnimation(event, colors, () => setTheme(mode))
+}
+
+// 颜色切换
+const handlePaletteChange = async (p, event) => {
+  if (palette.value === p) return
+  
+  const colors = paletteColors[p]
+  await playDropletAnimation(event, colors, () => setStorePalette(p))
 }
 
 const handleClickOutside = (event) => {
@@ -463,5 +607,51 @@ onUnmounted(() => {
 
 ::view-transition-new(root) {
   z-index: 2147483646;
+}
+
+/* 水滴下落时的拖尾效果 */
+.theme-droplet::after {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 12px;
+  background: inherit;
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  opacity: 0.5;
+  filter: blur(2px);
+}
+
+/* 涟漪波纹效果 */
+.theme-ripple::before,
+.theme-ripple::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  opacity: 0.3;
+  animation: rippleWave 0.8s ease-out forwards;
+}
+
+.theme-ripple::after {
+  animation-delay: 0.15s;
+}
+
+@keyframes rippleWave {
+  0% {
+    width: 0;
+    height: 0;
+    opacity: 0.5;
+  }
+  100% {
+    width: 200px;
+    height: 120px;
+    opacity: 0;
+  }
 }
 </style>

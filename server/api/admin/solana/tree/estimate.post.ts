@@ -1,14 +1,22 @@
 import { LAMPORTS_PER_SOL } from '@solana/web3.js'
 import { calculateTreeSpace, getConnection, type SolanaNetwork } from '~~/server/utils/solana'
-import { isRpcConnectionError } from '~~/server/utils/solanaErrors'
 
-// Merkle Tree 配置预设
-// 注意：Solana 账户最大约 10MB，超大型树需要合理配置 canopyDepth
+// cNFT (压缩 NFT) Merkle Tree 配置预设
+// 
+// 重要：Solana SPL Account Compression 程序只支持特定的 (maxDepth, maxBufferSize) 组合
+// 支持的组合参考：https://github.com/solana-labs/solana-program-library/blob/master/account-compression/programs/account-compression/src/state/concurrent_merkle_tree_header.rs
+// 
+// 常用支持组合：
+// maxDepth=14: maxBufferSize=64, 256, 1024, 2048
+// maxDepth=20: maxBufferSize=64, 256, 1024, 2048
+// maxDepth=24: maxBufferSize=64, 256, 512, 1024, 2048
+// maxDepth=30: 理论支持但账户空间约1.6GB，超出Solana 10MB限制，实际无法创建
+//
+// 容量计算：2^maxDepth = 最大可存储的 cNFT 数量
 const TREE_PRESETS = [
-  { label: '小型 (1K)', maxDepth: 10, maxBufferSize: 8, canopyDepth: 0 },
-  { label: '中型 (16K)', maxDepth: 14, maxBufferSize: 64, canopyDepth: 0 },
-  { label: '大型 (1M)', maxDepth: 20, maxBufferSize: 256, canopyDepth: 10 },
-  { label: '超大型 (1B)', maxDepth: 30, maxBufferSize: 512, canopyDepth: 0 }, // canopyDepth=0 避免账户过大
+  { label: '小型', maxDepth: 14, maxBufferSize: 64, canopyDepth: 0 },       // 容量: 16K cNFTs，约 0.16 SOL
+  { label: '中型', maxDepth: 20, maxBufferSize: 64, canopyDepth: 0 },       // 容量: 1M cNFTs，约 1.13 SOL
+  { label: '大型', maxDepth: 24, maxBufferSize: 64, canopyDepth: 0 },       // 容量: 16M cNFTs，约 1.86 SOL
 ]
 
 /**

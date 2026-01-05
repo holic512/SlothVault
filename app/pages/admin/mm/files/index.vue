@@ -82,14 +82,14 @@ const previewDialogOpen = ref(false)
 const previewUrl = ref('')
 
 // 业务类型选项（与后端 BusinessTypeConfig 保持一致）
-const businessTypeOptions = [
-  { label: '项目头像', value: 'ProjectAvatar' },
-  { label: '用户头像', value: 'UserAvatar' },
-  { label: '笔记附件', value: 'NoteAttachment' },
-  { label: '作业文件', value: 'HomeworkFile' },
-  { label: '临时文件', value: 'TempFile' },
-  { label: '其他', value: 'Other' },
-]
+const businessTypeOptions = computed(() => [
+  { label: t('AdminMM.files.businessType.ProjectAvatar'), value: 'ProjectAvatar' },
+  { label: t('AdminMM.files.businessType.UserAvatar'), value: 'UserAvatar' },
+  { label: t('AdminMM.files.businessType.NoteAttachment'), value: 'NoteAttachment' },
+  { label: t('AdminMM.files.businessType.HomeworkFile'), value: 'HomeworkFile' },
+  { label: t('AdminMM.files.businessType.TempFile'), value: 'TempFile' },
+  { label: t('AdminMM.files.businessType.Other'), value: 'Other' },
+])
 
 function formatTime(value: string | Date) {
   const d = typeof value === 'string' ? new Date(value) : value
@@ -105,7 +105,7 @@ function formatFileSize(bytes: string | number) {
 }
 
 function getBusinessTypeLabel(type: string) {
-  const option = businessTypeOptions.find((o) => o.value === type)
+  const option = businessTypeOptions.value.find((o) => o.value === type)
   return option?.label || type
 }
 
@@ -153,7 +153,7 @@ async function fetchList() {
     total.value = data.total
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '加载失败')
+      ElMessage.error(e?.message || t('AdminMM.files.messages.loadFailed'))
     }
   } finally {
     loading.value = false
@@ -184,7 +184,7 @@ const handleUploadRemove: UploadProps['onRemove'] = (file, fileList) => {
 
 async function submitUpload() {
   if (uploadFileList.value.length === 0) {
-    ElMessage.warning('请选择要上传的文件')
+    ElMessage.warning(t('AdminMM.files.messages.selectFileFirst'))
     return
   }
 
@@ -203,16 +203,16 @@ async function submitUpload() {
     })
 
     if (res?.code === 0) {
-      ElMessage.success('上传成功')
+      ElMessage.success(t('AdminMM.files.messages.uploadSuccess'))
       uploadDialogOpen.value = false
       fetchList()
     } else if (res?.code === 401) {
       await router.push('/admin/auth/login')
     } else {
-      ElMessage.error(res?.message || '上传失败')
+      ElMessage.error(res?.message || t('AdminMM.files.messages.uploadFailed'))
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || '上传失败')
+    ElMessage.error(e?.message || t('AdminMM.files.messages.uploadFailed'))
   } finally {
     uploading.value = false
   }
@@ -229,59 +229,59 @@ function previewFile(row: FileDto) {
 
 async function deleteOne(row: FileDto) {
   try {
-    await ElMessageBox.confirm(`确认删除文件「${row.originalName}」？`, '提示', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('AdminMM.files.messages.deleteConfirm', {name: row.originalName}), t('AdminMM.files.messages.deleteConfirmTitle'), {
+      confirmButtonText: t('AdminMM.files.messages.deleteButton'),
+      cancelButtonText: t('AdminMM.files.messages.cancelButton'),
       type: 'warning',
     })
     await apiFetch<any>(`/api/admin/mm/file/${row.id}`, { method: 'DELETE' })
-    ElMessage.success('已删除')
+    ElMessage.success(t('AdminMM.files.messages.deleted'))
     fetchList()
   } catch (e: any) {
     if (e?.message && e.message !== 'cancel' && e.message !== 'close' && e.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '删除失败')
+      ElMessage.error(e?.message || t('AdminMM.files.messages.deleteFailed'))
     }
   }
 }
 
 async function hardDeleteOne(row: FileDto) {
   try {
-    await ElMessageBox.confirm(`确认彻底删除文件「${row.originalName}」？此操作将删除磁盘文件，不可恢复！`, '警告', {
-      confirmButtonText: '彻底删除',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('AdminMM.files.messages.hardDeleteConfirm', {name: row.originalName}), t('AdminMM.files.messages.hardDeleteConfirmTitle'), {
+      confirmButtonText: t('AdminMM.files.messages.hardDeleteButton'),
+      cancelButtonText: t('AdminMM.files.messages.cancelButton'),
       type: 'error',
     })
     await apiFetch<any>(`/api/admin/mm/file/${row.id}?hard=1`, { method: 'DELETE' })
-    ElMessage.success('已彻底删除')
+    ElMessage.success(t('AdminMM.files.messages.hardDeleted'))
     fetchList()
   } catch (e: any) {
     if (e?.message && e.message !== 'cancel' && e.message !== 'close' && e.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '删除失败')
+      ElMessage.error(e?.message || t('AdminMM.files.messages.hardDeleteFailed'))
     }
   }
 }
 
 async function batchDelete() {
   if (selectedIds.value.length === 0) {
-    ElMessage.warning('请选择要删除的文件')
+    ElMessage.warning(t('AdminMM.files.messages.selectFirst'))
     return
   }
   try {
-    await ElMessageBox.confirm(`确认删除选中的 ${selectedIds.value.length} 个文件？`, '提示', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('AdminMM.files.messages.batchDeleteConfirm', {count: selectedIds.value.length}), t('AdminMM.files.messages.deleteConfirmTitle'), {
+      confirmButtonText: t('AdminMM.files.messages.deleteButton'),
+      cancelButtonText: t('AdminMM.files.messages.cancelButton'),
       type: 'warning',
     })
     await apiFetch<any>('/api/admin/mm/file/batch', {
       method: 'POST',
       body: { action: 'delete', ids: selectedIds.value },
     })
-    ElMessage.success('批量删除成功')
+    ElMessage.success(t('AdminMM.files.messages.batchDeleteSuccess'))
     selectedRows.value = []
     fetchList()
   } catch (e: any) {
     if (e?.message && e.message !== 'cancel' && e.message !== 'close' && e.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '批量删除失败')
+      ElMessage.error(e?.message || t('AdminMM.files.messages.batchDeleteFailed'))
     }
   }
 }
@@ -293,68 +293,76 @@ onMounted(() => {
 
 <template>
   <div class="page-container">
+    <!-- 页面头部 -->
+    <div class="page-header">
+      <div class="header-left">
+        <h1 class="page-title">{{ $t('AdminMM.files.title') }}</h1>
+        <p class="page-desc">{{ $t('AdminMM.files.desc') }}</p>
+      </div>
+    </div>
+
     <div class="toolbar">
       <div class="filters">
         <el-input
-          v-model="filters.keyword"
-          placeholder="按文件名模糊搜索"
-          clearable
-          class="filter-item"
-          @keyup.enter="pagination.page = 1; fetchList()"
+            v-model="filters.keyword"
+            :placeholder="$t('AdminMM.files.filters.keyword')"
+            clearable
+            class="filter-item"
+            @keyup.enter="pagination.page = 1; fetchList()"
         />
 
-        <el-select v-model="filters.businessType" placeholder="业务类型" clearable class="filter-item">
+        <el-select v-model="filters.businessType" :placeholder="$t('AdminMM.files.filters.businessType')" clearable class="filter-item">
           <el-option v-for="opt in businessTypeOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
         </el-select>
 
         <div class="filter-item switch-item">
-          <span class="switch-label">包含已删除</span>
+          <span class="switch-label">{{ $t('AdminMM.files.filters.includeDeleted') }}</span>
           <el-switch v-model="filters.includeDeleted" @change="pagination.page = 1; fetchList()" />
         </div>
       </div>
 
       <div class="actions">
-        <el-button type="primary" @click="pagination.page = 1; fetchList()">查询</el-button>
-        <el-button @click="resetFilters">重置</el-button>
-        <el-button type="primary" plain @click="openUploadDialog">上传文件</el-button>
+        <el-button type="primary" @click="pagination.page = 1; fetchList()">{{ $t('AdminMM.files.actions.search') }}</el-button>
+        <el-button @click="resetFilters">{{ $t('AdminMM.files.actions.reset') }}</el-button>
+        <el-button type="primary" plain @click="openUploadDialog">{{ $t('AdminMM.files.actions.upload') }}</el-button>
         <el-button type="danger" plain @click="batchDelete" :disabled="selectedIds.length === 0">
-          批量删除 ({{ selectedIds.length }})
+          {{ $t('AdminMM.files.actions.batchDelete') }} ({{ selectedIds.length }})
         </el-button>
       </div>
     </div>
 
     <div class="table-card">
       <el-table
-        :data="list"
-        row-key="id"
-        style="width: 100%"
-        v-loading="loading"
-        @selection-change="(rows: FileDto[]) => (selectedRows = rows)"
+          :data="list"
+          row-key="id"
+          style="width: 100%"
+          v-loading="loading"
+          @selection-change="(rows: FileDto[]) => (selectedRows = rows)"
       >
         <el-table-column type="selection" width="50" />
-        <el-table-column prop="id" label="ID" width="80" />
-        
-        <el-table-column label="预览" width="80">
+        <el-table-column prop="id" :label="$t('AdminMM.files.table.id')" width="80" />
+
+        <el-table-column :label="$t('AdminMM.files.table.preview')" width="80">
           <template #default="{ row }">
             <el-image
-              v-if="isImageFile(row)"
-              :src="row.url"
-              :preview-src-list="[row.url]"
-              fit="cover"
-              class="preview-thumb"
-              preview-teleported
+                v-if="isImageFile(row)"
+                :src="row.url"
+                :preview-src-list="[row.url]"
+                fit="cover"
+                class="preview-thumb"
+                preview-teleported
             />
             <span v-else class="file-icon">📄</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="originalName" label="原始文件名" min-width="200" show-overflow-tooltip />
-        
-        <el-table-column label="文件大小" width="100">
+        <el-table-column prop="originalName" :label="$t('AdminMM.files.table.originalName')" min-width="200" show-overflow-tooltip />
+
+        <el-table-column :label="$t('AdminMM.files.table.fileSize')" width="100">
           <template #default="{ row }">{{ formatFileSize(row.fileSize) }}</template>
         </el-table-column>
 
-        <el-table-column label="业务类型" width="110">
+        <el-table-column :label="$t('AdminMM.files.table.businessType')" width="110">
           <template #default="{ row }">
             <el-tag size="small" :type="getBusinessTypeTagType(row.businessType)">
               {{ getBusinessTypeLabel(row.businessType) }}
@@ -362,23 +370,23 @@ onMounted(() => {
           </template>
         </el-table-column>
 
-        <el-table-column label="状态" width="80">
+        <el-table-column :label="$t('AdminMM.files.table.status')" width="80">
           <template #default="{ row }">
-            <el-tag v-if="row.status === 1" type="success" size="small">正常</el-tag>
-            <el-tag v-else type="info" size="small">已删除</el-tag>
+            <el-tag v-if="row.status === 1" type="success" size="small">{{ $t('AdminMM.files.statusTag.normal') }}</el-tag>
+            <el-tag v-else type="info" size="small">{{ $t('AdminMM.files.statusTag.deleted') }}</el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column label="上传时间" width="170">
+        <el-table-column :label="$t('AdminMM.files.table.uploadTime')" width="170">
           <template #default="{ row }">{{ formatTime(row.createTime) }}</template>
         </el-table-column>
 
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column :label="$t('AdminMM.files.table.operations')" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="previewFile(row)">预览</el-button>
-            <el-button size="small" type="danger" @click="deleteOne(row)" :disabled="row.status === 0">删除</el-button>
+            <el-button size="small" @click="previewFile(row)">{{ $t('AdminMM.files.operations.preview') }}</el-button>
+            <el-button size="small" type="danger" @click="deleteOne(row)" :disabled="row.status === 0">{{ $t('AdminMM.files.operations.delete') }}</el-button>
             <el-button size="small" type="danger" plain @click="hardDeleteOne(row)" v-if="row.status === 0">
-              彻底删除
+              {{ $t('AdminMM.files.operations.hardDelete') }}
             </el-button>
           </template>
         </el-table-column>
@@ -386,53 +394,53 @@ onMounted(() => {
 
       <div class="pagination">
         <el-pagination
-          v-model:current-page="pagination.page"
-          v-model:page-size="pagination.pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next, jumper"
-          :total="total"
-          @size-change="() => { pagination.page = 1; fetchList() }"
-          @current-change="() => fetchList()"
+            v-model:current-page="pagination.page"
+            v-model:page-size="pagination.pageSize"
+            :page-sizes="[10, 20, 50, 100]"
+            layout="total, sizes, prev, pager, next, jumper"
+            :total="total"
+            @size-change="() => { pagination.page = 1; fetchList() }"
+            @current-change="() => fetchList()"
         />
       </div>
     </div>
 
     <!-- 上传对话框 -->
-    <el-dialog v-model="uploadDialogOpen" title="上传文件" width="500px" :close-on-click-modal="false">
+    <el-dialog v-model="uploadDialogOpen" :title="$t('AdminMM.files.dialog.uploadTitle')" width="500px" :close-on-click-modal="false">
       <el-form label-width="90px">
-        <el-form-item label="业务类型">
+        <el-form-item :label="$t('AdminMM.files.dialog.businessType')">
           <el-select v-model="uploadBusinessType" style="width: 100%">
             <el-option v-for="opt in businessTypeOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
 
-        <el-form-item label="选择文件">
+        <el-form-item :label="$t('AdminMM.files.dialog.selectFile')">
           <el-upload
-            class="upload-area"
-            drag
-            multiple
-            :auto-upload="false"
-            :file-list="uploadFileList"
-            :on-change="handleUploadChange"
-            :on-remove="handleUploadRemove"
+              class="upload-area"
+              drag
+              multiple
+              :auto-upload="false"
+              :file-list="uploadFileList"
+              :on-change="handleUploadChange"
+              :on-remove="handleUploadRemove"
           >
             <div class="upload-content">
               <span class="upload-icon">📁</span>
-              <div class="upload-text">将文件拖到此处，或点击上传</div>
-              <div class="upload-tip">支持多文件上传，单文件最大 10MB</div>
+              <div class="upload-text">{{ $t('AdminMM.files.dialog.uploadHint') }}</div>
+              <div class="upload-tip">{{ $t('AdminMM.files.dialog.uploadTip') }}</div>
             </div>
           </el-upload>
         </el-form-item>
       </el-form>
 
       <template #footer>
-        <el-button @click="uploadDialogOpen = false">取消</el-button>
-        <el-button type="primary" :loading="uploading" @click="submitUpload">上传</el-button>
+        <el-button @click="uploadDialogOpen = false">{{ $t('AdminMM.files.dialog.cancel') }}</el-button>
+        <el-button type="primary" :loading="uploading" @click="submitUpload">{{ $t('AdminMM.files.dialog.upload') }}</el-button>
       </template>
     </el-dialog>
 
     <!-- 预览对话框 -->
-    <el-dialog v-model="previewDialogOpen" title="文件预览" width="80%" :close-on-click-modal="true">
+    <el-dialog v-model="previewDialogOpen" :title="$t('AdminMM.files.dialog.previewTitle')" width="80%" :close-on-click-modal="true">
       <div class="preview-container">
         <img :src="previewUrl" alt="preview" class="preview-image" />
       </div>
@@ -444,6 +452,32 @@ onMounted(() => {
 <style scoped>
 .page-container {
   --sloth-radius: 4px;
+}
+
+/* 页面头部卡片 */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  padding: 12px;
+  background: var(--sloth-card);
+  border: 1px solid var(--sloth-card-border);
+  border-radius: var(--sloth-radius);
+  backdrop-filter: blur(var(--sloth-blur));
+}
+
+.page-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--sloth-text);
+  margin: 0 0 4px;
+}
+
+.page-desc {
+  font-size: 13px;
+  color: var(--sloth-text-subtle);
+  margin: 0;
 }
 
 .toolbar {

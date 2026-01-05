@@ -177,7 +177,484 @@
       "solana": "链上管理"
     },
     "projects": {
-      "title": "项目管理"
+      "title": "项目管理",
+      "desc": "管理所有项目，支持版本控制、分类管理和菜单配置",
+      "filters": {
+        "keyword": "按项目名模糊搜索",
+        "status": "状态",
+        "requireAuth": "鉴权",
+        "includeDeleted": "包含已删除"
+      },
+      "status": {
+        "enabled": "启用(1)",
+        "disabled": "停用(0)"
+      },
+      "auth": {
+        "required": "需要鉴权",
+        "notRequired": "无需鉴权"
+      },
+      "actions": {
+        "search": "查询",
+        "reset": "重置",
+        "create": "新增项目",
+        "batchDelete": "批量删除",
+        "batchRestore": "批量恢复",
+        "batchEnable": "批量启用",
+        "batchDisable": "批量停用",
+        "batchEnableAuth": "批量开启鉴权",
+        "batchDisableAuth": "批量关闭鉴权"
+      },
+      "table": {
+        "id": "ID",
+        "avatar": "头像",
+        "projectName": "项目名称",
+        "weight": "权重",
+        "status": "状态",
+        "latestVersion": "最新版本",
+        "categoryCount": "分类数",
+        "requireAuth": "鉴权",
+        "createdAt": "创建时间",
+        "updatedAt": "更新时间",
+        "operations": "操作"
+      },
+      "statusTag": {
+        "deleted": "已删除",
+        "enabled": "启用",
+        "disabled": "停用"
+      },
+      "authTag": {
+        "required": "需要",
+        "notRequired": "无需"
+      },
+      "operations": {
+        "homeEdit": "首页编辑",
+        "versionManage": "版本管理",
+        "menuConfig": "菜单配置",
+        "categoryManage": "分类管理",
+        "noteManage": "笔记管理",
+        "edit": "编辑",
+        "delete": "删除",
+        "restore": "恢复"
+      },
+      "dialog": {
+        "createTitle": "新增项目",
+        "editTitle": "编辑项目",
+        "avatar": "项目头像",
+        "projectName": "项目名称",
+        "weight": "权重",
+        "status": "状态",
+        "requireAuth": "需要鉴权",
+        "cancel": "取消",
+        "save": "保存"
+      },
+      "validation": {
+        "projectNameRequired": "请输入项目名称"
+      },
+      "messages": {
+        "createSuccess": "创建成功",
+        "saveSuccess": "保存成功",
+        "submitFailed": "提交失败",
+        "loadFailed": "加载失败",
+        "deleteConfirm": "确认删除项目「{name}」？",
+        "deleteConfirmTitle": "提示",
+        "deleteButton": "删除",
+        "cancelButton": "取消",
+        "deleted": "已删除",
+        "deleteFailed": "删除失败",
+        "batchDeleteConfirm": "确认批量删除所选 {count} 项？",
+        "batchDeleted": "已删除 {count} 项",
+        "batchDeleteFailed": "批量删除失败",
+        "batchRestored": "已恢复 {count} 项",
+        "batchRestoreFailed": "批量恢复失败",
+        "batchUpdated": "已更新 {count} 项",
+        "batchUpdateFailed": "批量更新失败",
+        "selectFirst": "请先选择要操作的项目",
+        "requestFailed": "请求失败"
+      }
+    },
+    "categories": {
+      "title": "分类管理",
+      "desc": "管理项目版本下的分类结构，用于组织笔记内容",
+      "filters": {
+        "selectProject": "选择项目",
+        "selectVersion": "选择版本",
+        "keyword": "按分类名模糊搜索",
+        "status": "状态",
+        "includeDeleted": "包含已删除"
+      },
+      "status": {
+        "enabled": "启用(1)",
+        "disabled": "停用(0)"
+      },
+      "actions": {
+        "search": "查询",
+        "reset": "重置",
+        "create": "新增分类"
+      },
+      "table": {
+        "id": "ID",
+        "categoryName": "分类名称",
+        "project": "所属项目",
+        "version": "版本",
+        "weight": "权重",
+        "status": "状态",
+        "createdAt": "创建时间",
+        "updatedAt": "更新时间",
+        "operations": "操作"
+      },
+      "statusTag": {
+        "deleted": "已删除",
+        "enabled": "启用",
+        "disabled": "停用"
+      },
+      "operations": {
+        "noteManage": "笔记管理",
+        "edit": "编辑",
+        "delete": "删除",
+        "restore": "恢复"
+      },
+      "dialog": {
+        "createTitle": "新增分类",
+        "editTitle": "编辑分类",
+        "categoryName": "分类名称",
+        "weight": "权重",
+        "status": "状态",
+        "cancel": "取消",
+        "save": "保存"
+      },
+      "validation": {
+        "categoryNameRequired": "请输入分类名称"
+      },
+      "messages": {
+        "selectVersionFirst": "请先选择项目版本",
+        "createSuccess": "创建成功",
+        "saveSuccess": "保存成功",
+        "submitFailed": "提交失败",
+        "loadProjectsFailed": "加载项目列表失败",
+        "loadVersionsFailed": "加载版本列表失败",
+        "loadFailed": "加载失败",
+        "deleteConfirm": "确认删除分类「{name}」？",
+        "deleteConfirmTitle": "提示",
+        "deleteButton": "删除",
+        "cancelButton": "取消",
+        "deleted": "已删除",
+        "deleteFailed": "删除失败",
+        "restored": "已恢复",
+        "restoreFailed": "恢复失败"
+      }
+    },
+    "notes": {
+      "title": "笔记管理",
+      "desc": "管理项目分类下的笔记内容，支持多版本内容编辑",
+      "filters": {
+        "selectProject": "选择项目",
+        "selectVersion": "选择版本",
+        "selectCategory": "选择分类",
+        "keyword": "按笔记标题模糊搜索",
+        "status": "状态",
+        "includeDeleted": "包含已删除"
+      },
+      "status": {
+        "enabled": "启用(1)",
+        "disabled": "停用(0)"
+      },
+      "actions": {
+        "search": "查询",
+        "reset": "重置",
+        "create": "新增笔记"
+      },
+      "table": {
+        "id": "ID",
+        "noteTitle": "笔记标题",
+        "path": "所属路径",
+        "weight": "权重",
+        "contentVersion": "内容版本",
+        "status": "状态",
+        "createdAt": "创建时间",
+        "updatedAt": "更新时间",
+        "operations": "操作"
+      },
+      "statusTag": {
+        "deleted": "已删除",
+        "enabled": "启用",
+        "disabled": "停用"
+      },
+      "operations": {
+        "contentEdit": "内容编辑",
+        "edit": "编辑",
+        "delete": "删除",
+        "restore": "恢复"
+      },
+      "dialog": {
+        "createTitle": "新增笔记",
+        "editTitle": "编辑笔记",
+        "noteTitle": "笔记标题",
+        "weight": "权重",
+        "status": "状态",
+        "cancel": "取消",
+        "save": "保存"
+      },
+      "validation": {
+        "noteTitleRequired": "请输入笔记标题"
+      },
+      "messages": {
+        "loadProjectsFailed": "加载项目列表失败",
+        "loadVersionsFailed": "加载版本列表失败",
+        "loadCategoriesFailed": "加载分类列表失败",
+        "loadFailed": "加载失败",
+        "selectCategoryFirst": "请先选择分类",
+        "createSuccess": "创建成功",
+        "saveSuccess": "保存成功",
+        "submitFailed": "提交失败",
+        "deleteConfirm": "确认删除笔记「{name}」？",
+        "deleteConfirmTitle": "提示",
+        "deleteButton": "删除",
+        "cancelButton": "取消",
+        "deleted": "已删除",
+        "deleteFailed": "删除失败",
+        "restored": "已恢复",
+        "restoreFailed": "恢复失败",
+        "requestFailed": "请求失败"
+      },
+      "content": {
+        "sidebarTitle": "内容版本",
+        "newVersion": "新建",
+        "unnamedVersion": "未命名版本",
+        "setPrimary": "设为主版本",
+        "delete": "删除",
+        "emptyTip": "暂无内容版本，点击上方按钮创建",
+        "unsaved": "未保存",
+        "saved": "已保存",
+        "saveHint": "Ctrl+S 保存",
+        "save": "保存",
+        "selectOrCreate": "请从左侧选择或创建一个内容版本",
+        "newVersionDialog": {
+          "title": "新建内容版本",
+          "versionNote": "版本备注",
+          "placeholder": "可选，如：初稿、修订版等",
+          "cancel": "取消",
+          "create": "创建"
+        },
+        "messages": {
+          "fetchNoteFailed": "获取笔记信息失败",
+          "loadFailed": "加载失败",
+          "unsavedConfirm": "当前版本有未保存的更改，是否放弃？",
+          "unsavedConfirmTitle": "提示",
+          "discardButton": "放弃",
+          "noChanges": "内容无变化",
+          "saveSuccess": "保存成功",
+          "saveFailed": "保存失败",
+          "createSuccess": "创建成功",
+          "createFailed": "创建失败",
+          "setPrimarySuccess": "已设为主版本",
+          "operationFailed": "操作失败",
+          "deleteConfirm": "确认删除版本「{name}」？",
+          "deleteConfirmTitle": "提示",
+          "deleteButton": "删除",
+          "cancelButton": "取消",
+          "deleted": "已删除",
+          "deleteFailed": "删除失败",
+          "uploadFailed": "图片上传失败"
+        }
+      }
+    },
+    "files": {
+      "title": "文件管理",
+      "desc": "管理系统上传的文件资源，支持多业务类型分类",
+      "filters": {
+        "keyword": "按文件名模糊搜索",
+        "businessType": "业务类型",
+        "includeDeleted": "包含已删除"
+      },
+      "businessType": {
+        "ProjectAvatar": "项目头像",
+        "UserAvatar": "用户头像",
+        "NoteAttachment": "笔记附件",
+        "HomeworkFile": "作业文件",
+        "TempFile": "临时文件",
+        "Other": "其他"
+      },
+      "actions": {
+        "search": "查询",
+        "reset": "重置",
+        "upload": "上传文件",
+        "batchDelete": "批量删除"
+      },
+      "table": {
+        "id": "ID",
+        "preview": "预览",
+        "originalName": "原始文件名",
+        "fileSize": "文件大小",
+        "businessType": "业务类型",
+        "status": "状态",
+        "uploadTime": "上传时间",
+        "operations": "操作"
+      },
+      "statusTag": {
+        "normal": "正常",
+        "deleted": "已删除"
+      },
+      "operations": {
+        "preview": "预览",
+        "delete": "删除",
+        "hardDelete": "彻底删除"
+      },
+      "dialog": {
+        "uploadTitle": "上传文件",
+        "previewTitle": "文件预览",
+        "businessType": "业务类型",
+        "selectFile": "选择文件",
+        "uploadHint": "将文件拖到此处，或点击上传",
+        "uploadTip": "支持多文件上传，单文件最大 10MB",
+        "cancel": "取消",
+        "upload": "上传"
+      },
+      "messages": {
+        "loadFailed": "加载失败",
+        "selectFileFirst": "请选择要上传的文件",
+        "uploadSuccess": "上传成功",
+        "uploadFailed": "上传失败",
+        "deleteConfirm": "确认删除文件「{name}」？",
+        "deleteConfirmTitle": "提示",
+        "deleteButton": "删除",
+        "cancelButton": "取消",
+        "deleted": "已删除",
+        "deleteFailed": "删除失败",
+        "hardDeleteConfirm": "确认彻底删除文件「{name}」？此操作将删除磁盘文件，不可恢复！",
+        "hardDeleteConfirmTitle": "警告",
+        "hardDeleteButton": "彻底删除",
+        "hardDeleted": "已彻底删除",
+        "hardDeleteFailed": "彻底删除失败",
+        "batchDeleteConfirm": "确认删除选中的 {count} 个文件？",
+        "batchDeleteSuccess": "批量删除成功",
+        "batchDeleteFailed": "批量删除失败",
+        "selectFirst": "请选择要删除的文件"
+      }
+    },
+    "solana": {
+      "title": "链上管理",
+      "desc": "系统级 cNFT Merkle Tree 管理，支持多树冗余",
+      "network": {
+        "label": "当前网络:",
+        "devnet": "测试网",
+        "mainnet": "主网",
+        "switchToMainnet": "切换到主网",
+        "switchWarning": "切换到主网将使用真实 SOL，请确保您了解相关风险。",
+        "confirmSwitch": "确认切换",
+        "cancel": "取消",
+        "switchFailed": "切换失败",
+        "fetchConfigFailed": "获取网络配置失败"
+      },
+      "tabs": {
+        "trees": "Merkle Tree 管理",
+        "cnfts": "cNFT 管理"
+      },
+      "trees": {
+        "stats": {
+          "availableTrees": "可用树",
+          "totalCapacity": "总容量",
+          "minted": "已铸造",
+          "remainingCapacity": "剩余容量",
+          "usageRate": "使用率"
+        },
+        "capacityWarning": "系统容量不足，建议创建新的 Merkle Tree",
+        "actions": {
+          "createNow": "立即创建",
+          "createTree": "创建 Merkle Tree",
+          "refresh": "刷新"
+        },
+        "table": {
+          "name": "名称",
+          "capacityUsage": "容量使用",
+          "config": "配置",
+          "creationCost": "创建成本",
+          "priority": "优先级",
+          "status": "状态",
+          "treeAddress": "树地址",
+          "operations": "操作",
+          "configFormat": "深度: {depth} | 缓冲: {buffer} | 树冠: {canopy}"
+        },
+        "status": {
+          "creating": "创建中",
+          "normal": "正常",
+          "full": "已满",
+          "failed": "失败",
+          "unknown": "未知"
+        },
+        "operations": {
+          "verify": "验证",
+          "delete": "删除",
+          "detail": "详情"
+        },
+        "empty": {
+          "title": "暂无 Merkle Tree，请先创建",
+          "hint": "系统需要至少一个可用的树才能铸造 cNFT",
+          "createFirst": "创建第一个树"
+        },
+        "messages": {
+          "fetchFailed": "获取树列表失败",
+          "verifySuccess": "验证成功",
+          "verifyFailed": "验证失败",
+          "deleteConfirm": "确定要删除树「{name}」吗？\n\n此操作只会删除数据库记录，不会影响链上数据。",
+          "deleteConfirmTitle": "确认删除",
+          "deleteButton": "删除",
+          "cancelButton": "取消",
+          "deleteSuccess": "删除成功",
+          "deleteFailed": "删除失败"
+        }
+      },
+      "cnfts": {
+        "actions": {
+          "mint": "铸造 cNFT",
+          "refresh": "刷新"
+        },
+        "filters": {
+          "byProject": "按项目筛选",
+          "byStatus": "按状态筛选",
+          "searchOwner": "搜索持有者地址",
+          "search": "搜索",
+          "reset": "重置"
+        },
+        "status": {
+          "minting": "铸造中",
+          "normal": "正常",
+          "failed": "失败",
+          "unknown": "未知"
+        },
+        "network": {
+          "mainnet": "主网",
+          "devnet": "测试网"
+        },
+        "table": {
+          "nftInfo": "NFT 信息",
+          "project": "项目",
+          "owner": "持有者",
+          "merkleTree": "Merkle Tree",
+          "leafIndex": "Leaf Index",
+          "status": "状态",
+          "mintTime": "铸造时间",
+          "assetId": "Asset ID",
+          "operations": "操作"
+        },
+        "operations": {
+          "delete": "删除"
+        },
+        "empty": {
+          "title": "暂无 cNFT 记录",
+          "hint": "点击「铸造 cNFT」按钮开始铸造",
+          "mintFirst": "铸造第一个 cNFT"
+        },
+        "messages": {
+          "fetchProjectsFailed": "获取项目列表失败",
+          "fetchCnftsFailed": "获取 cNFT 列表失败",
+          "deleteConfirm": "确定要删除这条{status}的 cNFT 记录吗？\n\n名称：{name}\n持有者：{owner}",
+          "deleteConfirmTitle": "确认删除",
+          "deleteButton": "删除",
+          "cancelButton": "取消",
+          "deleteSuccess": "删除成功",
+          "deleteFailed": "删除失败"
+        }
+      }
     },
     "breadcrumb": {
       "homeEdit": "首页编辑",

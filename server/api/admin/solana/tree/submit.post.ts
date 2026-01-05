@@ -220,8 +220,8 @@ export default defineEventHandler(async (event) => {
       data: {
         name: session.name,
         treeAddress: treeAddress,
-        // treeAuthority 是树的管理权限地址，在 createInitEmptyMerkleTreeIx 中设置为 payer
-        treeAuthority: session.payerAddress,
+        // treeAuthority 是树的管理权限地址（独立生成的 Keypair）
+        treeAuthority: session.treeAuthorityKeypair.publicKey.toBase58(),
         encryptedKey: session.encryptedKey,
         creatorAddress: session.payerAddress,
         maxDepth: session.maxDepth,
@@ -236,7 +236,7 @@ export default defineEventHandler(async (event) => {
         status: status,
       },
     })
-    console.log(`[Solana] 树记录已保存: id=${treeRecord.id}, address=${treeAddress}`)
+    console.log(`[Solana] 树记录已保存: id=${treeRecord.id}, address=${treeAddress}, authority=${session.treeAuthorityKeypair.publicKey.toBase58()}`)
   } catch (err: any) {
     console.error('[Solana] 数据库保存失败:', err)
     

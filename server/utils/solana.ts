@@ -19,9 +19,18 @@ import {
 // 动态导入 spl-account-compression（仅服务端）
 import {
   createAllocTreeIx,
-  createInitEmptyMerkleTreeIx,
   SPL_ACCOUNT_COMPRESSION_PROGRAM_ID,
 } from '@solana/spl-account-compression'
+
+// Bubblegum 程序 ID
+const BUBBLEGUM_PROGRAM_ID = new PublicKey(
+  'BGUMAp9Gq7iTEuizy4pqaxsTyUCBK68MDfK752saRPUY'
+)
+
+// SPL Noop 程序 ID
+const SPL_NOOP_PROGRAM_ID = new PublicKey(
+  'noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV'
+)
 
 export type SolanaNetwork = 'mainnet' | 'devnet'
 
@@ -118,11 +127,93 @@ export function calculateTreeSpace(
 }
 
 /**
- * 构建创建 Merkle Tree 的交易
+ * 获取 TreeConfig PDA
  * 
- * 使用 @solana/spl-account-compression 库构建：
+ * TreeConfig 是 Bubblegum 程序用于存储树配置的 PDA 账户
+ * 派生规则：seeds = [merkle_tree], program = BUBBLEGUM_PROGRAM_ID
+ */
+function getTreeConfigPda(merkleTree: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [merkleTree.toBuffer()],
+    BUBBLEGUM_PROGRAM_ID
+  )
+}
+
+/**
+ * 创建 Bubblegum createTree 指令
+ * 
+ * 这个指令会：
+ * 1. 初始化 Merkle Tree（调用 spl-account-compression）
+ * 2. 创建 TreeConfig PDA 账户
+ * 
+ * @param treeConfig - TreeConfig PDA
+ * @param merkleTree - Merkle Tree 公钥
+ * @param payer - 支付者（也是树的 authority）
+ * @param treeCreator - 树创建者（通常与 payer 相同）
+ * @param maxDepth - 树的最大深度
+ * @param maxBufferSize - 最大缓冲区大小
+ * @param isPublic - 是否公开（允许任何人铸造）
+ */
+function createBubblegumCreateTreeInstruction(
+  treeConfig: PublicKey,
+  merkleTree: PublicKey,
+  payer: PublicKey,
+  treeCreator: PublicKey,
+  maxDepth: number,
+  maxBufferSize: number,
+  isPublic: boolean = false
+): TransactionInstruction {
+  // createTree 指令的 discriminator
+  // 通过 anchor discriminator 计算: sha256("global:create_tree")[0..8]
+  const CREATE_TREE_DISCRIMINATOR = Buffer.from([165, 83, 136, 142, 89, 202, 47, 220])
+
+  // 构建指令数据
+  // maxDepth (u32) + maxBufferSize (u32) + public (Option<bool>)
+  const data = Buffer.alloc(8 + 4 + 4 + 2) // discriminator + maxDepth + maxBufferSize + Option<bool>
+  CREATE_TREE_DISCRIMINATOR.copy(data, 0)
+  data.writeUInt32LE(maxDepth, 8)
+  data.writeUInt32LE(maxBufferSize, 12)
+  // Option<bool>: 1 = Some, then 1/0 for true/false
+  data.writeUInt8(1, 16) // Some
+  data.writeUInt8(isPublic ? 1 : 0, 17)
+
+  // 构建账户列表
+  const keys = [
+    { pubkey: treeConfig, isSigner: false, isWritable: true },
+    { pubkey: merkleTree, isSigner: false, isWritable: true },
+    { pubkey: payer, isSigner: true, isWritable: true },
+    { pubkey: treeCreator, isSigner: true, isWritable: false },
+    { pubkey: SPL_NOOP_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: SPL_ACCOUNT_COMPRESSION_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+  ]
+
+  return new TransactionInstruction({
+    keys,
+    programId: BUBBLEGUM_PROGRAM_ID,
+    data,
+  })
+}
+
+/**
+ * 构建创建 Merkle Tree 的交易结果
+ */
+export interface BuildCreateTreeResult {
+  transaction: Transaction
+  rentLamports: number
+  spaceBytes: number
+  treeAuthorityKeypair: Keypair
+}
+
+/**
+ * 构建创建 Merkle Tree 的交易（使用 Bubblegum）
+ * 
+ * 使用 @solana/spl-account-compression 和 Bubblegum 程序构建：
  * 1. createAllocTreeIx - 分配账户空间
- * 2. createInitEmptyMerkleTreeIx - 初始化空树
+ * 2. Bubblegum createTree - 初始化树并创建 TreeConfig PDA
+ * 
+ * 重要：生成独立的 treeAuthority Keypair 作为树的管理权限，
+ * 这样服务端可以持有私钥用于后续铸造 cNFT。
  * 
  * @param connection - Solana RPC 连接
  * @param payer - 支付者公钥
@@ -130,7 +221,7 @@ export function calculateTreeSpace(
  * @param maxDepth - 树的最大深度
  * @param maxBufferSize - 最大缓冲区大小
  * @param canopyDepth - 树冠深度
- * @returns 交易对象和租金信息
+ * @returns 交易对象、租金信息和 treeAuthority Keypair
  */
 export async function buildCreateTreeTransaction(
   connection: Connection,
@@ -139,14 +230,17 @@ export async function buildCreateTreeTransaction(
   maxDepth: number,
   maxBufferSize: number,
   canopyDepth: number = 0
-): Promise<{ transaction: Transaction; rentLamports: number; spaceBytes: number }> {
+): Promise<BuildCreateTreeResult> {
   // 计算所需空间
   const spaceBytes = calculateTreeSpace(maxDepth, maxBufferSize, canopyDepth)
 
   // 获取租金
   const rentLamports = await connection.getMinimumBalanceForRentExemption(spaceBytes)
 
-  // 使用官方库创建分配账户空间的指令
+  // 生成独立的 treeAuthority Keypair（用于后续铸造签名）
+  const treeAuthorityKeypair = Keypair.generate()
+
+  // 1. 使用官方库创建分配账户空间的指令
   const allocAccountIx = await createAllocTreeIx(
     connection,
     treeKeypair.publicKey,
@@ -155,17 +249,26 @@ export async function buildCreateTreeTransaction(
     canopyDepth
   )
 
-  // 使用官方库创建初始化空 Merkle Tree 的指令
-  const initTreeIx = createInitEmptyMerkleTreeIx(
+  // 2. 获取 TreeConfig PDA
+  const [treeConfigPda] = getTreeConfigPda(treeKeypair.publicKey)
+
+  // 3. 创建 Bubblegum createTree 指令
+  // treeCreator 使用独立生成的 treeAuthorityKeypair，而不是 payer
+  // 这样服务端可以持有 treeAuthority 私钥用于铸造
+  const createTreeIx = createBubblegumCreateTreeInstruction(
+    treeConfigPda,
     treeKeypair.publicKey,
-    payer, // authority
-    { maxDepth, maxBufferSize }
+    payer,
+    treeAuthorityKeypair.publicKey, // 使用独立的 authority
+    maxDepth,
+    maxBufferSize,
+    false // 非公开树，只有 authority 可以铸造
   )
 
   // 构建交易
   const transaction = new Transaction()
   transaction.add(allocAccountIx)
-  transaction.add(initTreeIx)
+  transaction.add(createTreeIx)
 
   // 获取最新的 blockhash
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed')
@@ -177,5 +280,6 @@ export async function buildCreateTreeTransaction(
     transaction,
     rentLamports,
     spaceBytes,
+    treeAuthorityKeypair,
   }
 }

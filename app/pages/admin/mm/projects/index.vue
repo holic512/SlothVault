@@ -87,9 +87,9 @@ const form = reactive({
   requireAuth: false as boolean,
 })
 
-const formRules = {
-  projectName: [{required: true, message: '请输入项目名称', trigger: 'blur'}],
-}
+const formRules = computed(() => ({
+  projectName: [{required: true, message: t('AdminMM.projects.validation.projectNameRequired'), trigger: 'blur'}],
+}))
 
 // 版本管理弹窗状态
 const versionDialogOpen = ref(false)
@@ -112,7 +112,7 @@ async function apiFetch<T>(url: string, options?: any): Promise<T> {
     await router.push('/admin/auth/login')
     throw new Error('Unauthorized')
   }
-  throw new Error(res?.message || '请求失败')
+  throw new Error(res?.message || t('AdminMM.projects.messages.requestFailed'))
 }
 
 async function fetchList() {
@@ -133,7 +133,7 @@ async function fetchList() {
     total.value = data.total
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '加载失败')
+      ElMessage.error(e?.message || t('AdminMM.projects.messages.loadFailed'))
     }
   } finally {
     loading.value = false
@@ -191,7 +191,7 @@ async function submitForm() {
           requireAuth: form.requireAuth,
         },
       })
-      ElMessage.success('创建成功')
+      ElMessage.success(t('AdminMM.projects.messages.createSuccess'))
     } else {
       await apiFetch<ProjectDto>(`/api/admin/mm/project/${form.id}`, {
         method: 'PUT',
@@ -203,13 +203,13 @@ async function submitForm() {
           requireAuth: form.requireAuth,
         },
       })
-      ElMessage.success('保存成功')
+      ElMessage.success(t('AdminMM.projects.messages.saveSuccess'))
     }
     dialogOpen.value = false
     fetchList()
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '提交失败')
+      ElMessage.error(e?.message || t('AdminMM.projects.messages.submitFailed'))
     }
   } finally {
     dialogSubmitting.value = false
@@ -218,17 +218,17 @@ async function submitForm() {
 
 async function deleteOne(row: ProjectDto) {
   try {
-    await ElMessageBox.confirm(`确认删除项目「${row.projectName}」？`, '提示', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('AdminMM.projects.messages.deleteConfirm', {name: row.projectName}), t('AdminMM.projects.messages.deleteConfirmTitle'), {
+      confirmButtonText: t('AdminMM.projects.messages.deleteButton'),
+      cancelButtonText: t('AdminMM.projects.messages.cancelButton'),
       type: 'warning',
     })
     await apiFetch<ProjectDto>(`/api/admin/mm/project/${row.id}`, {method: 'DELETE'})
-    ElMessage.success('已删除')
+    ElMessage.success(t('AdminMM.projects.messages.deleted'))
     fetchList()
   } catch (e: any) {
     if (e?.message && e.message !== 'cancel' && e.message !== 'close' && e.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '删除失败')
+      ElMessage.error(e?.message || t('AdminMM.projects.messages.deleteFailed'))
     }
   }
 }
@@ -239,31 +239,31 @@ async function restoreOne(row: ProjectDto) {
 
 async function batchDelete(ids: string[] = selectedIds.value) {
   if (ids.length === 0) {
-    ElMessage.warning('请先选择要操作的项目')
+    ElMessage.warning(t('AdminMM.projects.messages.selectFirst'))
     return
   }
   try {
-    await ElMessageBox.confirm(`确认批量删除所选 ${ids.length} 项？`, '提示', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('AdminMM.projects.messages.batchDeleteConfirm', {count: ids.length}), t('AdminMM.projects.messages.deleteConfirmTitle'), {
+      confirmButtonText: t('AdminMM.projects.messages.deleteButton'),
+      cancelButtonText: t('AdminMM.projects.messages.cancelButton'),
       type: 'warning',
     })
     const data = await apiFetch<{ count: number }>('/api/admin/mm/project/batch', {
       method: 'POST',
       body: {action: 'delete', ids},
     })
-    ElMessage.success(`已删除 ${data.count} 项`)
+    ElMessage.success(t('AdminMM.projects.messages.batchDeleted', {count: data.count}))
     fetchList()
   } catch (e: any) {
     if (e?.message && e.message !== 'cancel' && e.message !== 'close' && e.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '批量删除失败')
+      ElMessage.error(e?.message || t('AdminMM.projects.messages.batchDeleteFailed'))
     }
   }
 }
 
 async function batchRestore(ids: string[] = selectedIds.value) {
   if (ids.length === 0) {
-    ElMessage.warning('请先选择要操作的项目')
+    ElMessage.warning(t('AdminMM.projects.messages.selectFirst'))
     return
   }
   try {
@@ -271,11 +271,11 @@ async function batchRestore(ids: string[] = selectedIds.value) {
       method: 'POST',
       body: {action: 'restore', ids},
     })
-    ElMessage.success(`已恢复 ${data.count} 项`)
+    ElMessage.success(t('AdminMM.projects.messages.batchRestored', {count: data.count}))
     fetchList()
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '批量恢复失败')
+      ElMessage.error(e?.message || t('AdminMM.projects.messages.batchRestoreFailed'))
     }
   }
 }
@@ -283,7 +283,7 @@ async function batchRestore(ids: string[] = selectedIds.value) {
 async function batchSetStatus(status: number) {
   const ids = selectedIds.value
   if (ids.length === 0) {
-    ElMessage.warning('请先选择要操作的项目')
+    ElMessage.warning(t('AdminMM.projects.messages.selectFirst'))
     return
   }
   try {
@@ -291,11 +291,11 @@ async function batchSetStatus(status: number) {
       method: 'POST',
       body: {action: 'setStatus', ids, status},
     })
-    ElMessage.success(`已更新 ${data.count} 项`)
+    ElMessage.success(t('AdminMM.projects.messages.batchUpdated', {count: data.count}))
     fetchList()
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '批量更新失败')
+      ElMessage.error(e?.message || t('AdminMM.projects.messages.batchUpdateFailed'))
     }
   }
 }
@@ -303,7 +303,7 @@ async function batchSetStatus(status: number) {
 async function batchSetRequireAuth(requireAuth: boolean) {
   const ids = selectedIds.value
   if (ids.length === 0) {
-    ElMessage.warning('请先选择要操作的项目')
+    ElMessage.warning(t('AdminMM.projects.messages.selectFirst'))
     return
   }
   try {
@@ -311,11 +311,11 @@ async function batchSetRequireAuth(requireAuth: boolean) {
       method: 'POST',
       body: {action: 'setRequireAuth', ids, requireAuth},
     })
-    ElMessage.success(`已更新 ${data.count} 项`)
+    ElMessage.success(t('AdminMM.projects.messages.batchUpdated', {count: data.count}))
     fetchList()
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '批量更新失败')
+      ElMessage.error(e?.message || t('AdminMM.projects.messages.batchUpdateFailed'))
     }
   }
 }
@@ -361,44 +361,50 @@ function goToHomeEdit(row: ProjectDto) {
 
 <template>
   <div class="page-container">
+    <!-- 页面头部 -->
+    <div class="page-header">
+      <div class="header-left">
+        <h1 class="page-title">{{ $t('AdminMM.projects.title') }}</h1>
+        <p class="page-desc">{{ $t('AdminMM.projects.desc') }}</p>
+      </div>
+    </div>
+
     <div class="toolbar">
       <div class="filters">
         <el-input
             v-model="filters.keyword"
-            placeholder="按项目名模糊搜索"
+            :placeholder="$t('AdminMM.projects.filters.keyword')"
             clearable
             class="filter-item"
             @keyup.enter="pagination.page = 1; fetchList()"
         />
 
-        <el-select v-model="filters.status" placeholder="状态" clearable class="filter-item">
-          <el-option label="启用(1)" value="1"/>
-          <el-option label="停用(0)" value="0"/>
+        <el-select v-model="filters.status" :placeholder="$t('AdminMM.projects.filters.status')" clearable class="filter-item">
+          <el-option :label="$t('AdminMM.projects.status.enabled')" value="1"/>
+          <el-option :label="$t('AdminMM.projects.status.disabled')" value="0"/>
         </el-select>
 
-        <el-select v-model="filters.requireAuth" placeholder="鉴权" clearable class="filter-item">
-          <el-option label="需要鉴权" value="true"/>
-          <el-option label="无需鉴权" value="false"/>
+        <el-select v-model="filters.requireAuth" :placeholder="$t('AdminMM.projects.filters.requireAuth')" clearable class="filter-item">
+          <el-option :label="$t('AdminMM.projects.auth.required')" value="true"/>
+          <el-option :label="$t('AdminMM.projects.auth.notRequired')" value="false"/>
         </el-select>
 
         <div class="filter-item switch-item">
-          <span class="switch-label">包含已删除</span>
+          <span class="switch-label">{{ $t('AdminMM.projects.filters.includeDeleted') }}</span>
           <el-switch v-model="filters.includeDeleted" @change="pagination.page = 1; fetchList()"/>
         </div>
       </div>
 
       <div class="actions">
-        <el-button type="primary" @click="pagination.page = 1; fetchList()">查询</el-button>
-        <el-button @click="resetFilters">重置</el-button>
-        <el-button type="primary" plain @click="openCreate">新增项目</el-button>
-        <el-button type="danger" plain :disabled="selectedIds.length === 0" @click="batchDelete()">批量删除</el-button>
-        <el-button plain :disabled="selectedIds.length === 0" @click="batchRestore()">批量恢复</el-button>
-        <el-button plain :disabled="selectedIds.length === 0" @click="batchSetStatus(1)">批量启用</el-button>
-        <el-button plain :disabled="selectedIds.length === 0" @click="batchSetStatus(0)">批量停用</el-button>
-        <el-button plain :disabled="selectedIds.length === 0" @click="batchSetRequireAuth(true)">批量开启鉴权
-        </el-button>
-        <el-button plain :disabled="selectedIds.length === 0" @click="batchSetRequireAuth(false)">批量关闭鉴权
-        </el-button>
+        <el-button type="primary" @click="pagination.page = 1; fetchList()">{{ $t('AdminMM.projects.actions.search') }}</el-button>
+        <el-button @click="resetFilters">{{ $t('AdminMM.projects.actions.reset') }}</el-button>
+        <el-button type="primary" plain @click="openCreate">{{ $t('AdminMM.projects.actions.create') }}</el-button>
+        <el-button type="danger" plain :disabled="selectedIds.length === 0" @click="batchDelete()">{{ $t('AdminMM.projects.actions.batchDelete') }}</el-button>
+        <el-button plain :disabled="selectedIds.length === 0" @click="batchRestore()">{{ $t('AdminMM.projects.actions.batchRestore') }}</el-button>
+        <el-button plain :disabled="selectedIds.length === 0" @click="batchSetStatus(1)">{{ $t('AdminMM.projects.actions.batchEnable') }}</el-button>
+        <el-button plain :disabled="selectedIds.length === 0" @click="batchSetStatus(0)">{{ $t('AdminMM.projects.actions.batchDisable') }}</el-button>
+        <el-button plain :disabled="selectedIds.length === 0" @click="batchSetRequireAuth(true)">{{ $t('AdminMM.projects.actions.batchEnableAuth') }}</el-button>
+        <el-button plain :disabled="selectedIds.length === 0" @click="batchSetRequireAuth(false)">{{ $t('AdminMM.projects.actions.batchDisableAuth') }}</el-button>
       </div>
     </div>
 
@@ -411,70 +417,70 @@ function goToHomeEdit(row: ProjectDto) {
           @selection-change="(rows: ProjectDto[]) => (selectedRows = rows)"
       >
         <el-table-column type="selection" width="50"/>
-        <el-table-column prop="id" label="ID" width="120"/>
-        <el-table-column label="头像" width="80" align="center">
+        <el-table-column prop="id" :label="$t('AdminMM.projects.table.id')" width="120"/>
+        <el-table-column :label="$t('AdminMM.projects.table.avatar')" width="80" align="center">
           <template #default="{ row }">
             <img
               v-if="row.avatar"
               :src="row.avatar"
               class="project-avatar"
-              alt="项目头像"
+              :alt="$t('AdminMM.projects.table.avatar')"
             />
             <div v-else class="avatar-placeholder-small">
               <span>{{ row.projectName?.charAt(0) || '?' }}</span>
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="projectName" label="项目名称" min-width="220"/>
-        <el-table-column prop="weight" label="权重" width="90" align="center"/>
+        <el-table-column prop="projectName" :label="$t('AdminMM.projects.table.projectName')" min-width="220"/>
+        <el-table-column prop="weight" :label="$t('AdminMM.projects.table.weight')" width="90" align="center"/>
 
-        <el-table-column label="状态" width="110">
+        <el-table-column :label="$t('AdminMM.projects.table.status')" width="110">
           <template #default="{ row }">
-            <el-tag v-if="row.isDeleted" type="info">已删除</el-tag>
-            <el-tag v-else-if="row.status === 1" type="success">启用</el-tag>
-            <el-tag v-else type="warning">停用</el-tag>
+            <el-tag v-if="row.isDeleted" type="info">{{ $t('AdminMM.projects.statusTag.deleted') }}</el-tag>
+            <el-tag v-else-if="row.status === 1" type="success">{{ $t('AdminMM.projects.statusTag.enabled') }}</el-tag>
+            <el-tag v-else type="warning">{{ $t('AdminMM.projects.statusTag.disabled') }}</el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column label="最新版本" width="120">
+        <el-table-column :label="$t('AdminMM.projects.table.latestVersion')" width="120">
           <template #default="{ row }">
             <el-tag v-if="row.latestVersion" type="primary">{{ row.latestVersion }}</el-tag>
             <span v-else class="text-subtle">-</span>
           </template>
         </el-table-column>
 
-        <el-table-column label="分类数" width="90" align="center">
+        <el-table-column :label="$t('AdminMM.projects.table.categoryCount')" width="90" align="center">
           <template #default="{ row }">
             <span v-if="row.latestVersionId">{{ row.categoryCount }}</span>
             <span v-else class="text-subtle">-</span>
           </template>
         </el-table-column>
 
-        <el-table-column label="鉴权" width="110">
+        <el-table-column :label="$t('AdminMM.projects.table.requireAuth')" width="110">
           <template #default="{ row }">
-            <el-tag v-if="row.requireAuth" type="warning">需要</el-tag>
-            <el-tag v-else type="info">无需</el-tag>
+            <el-tag v-if="row.requireAuth" type="warning">{{ $t('AdminMM.projects.authTag.required') }}</el-tag>
+            <el-tag v-else type="info">{{ $t('AdminMM.projects.authTag.notRequired') }}</el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column label="创建时间" width="180">
+        <el-table-column :label="$t('AdminMM.projects.table.createdAt')" width="180">
           <template #default="{ row }">{{ formatTime(row.createdAt) }}</template>
         </el-table-column>
 
-        <el-table-column label="更新时间" width="180">
+        <el-table-column :label="$t('AdminMM.projects.table.updatedAt')" width="180">
           <template #default="{ row }">{{ formatTime(row.updatedAt) }}</template>
         </el-table-column>
 
-        <el-table-column label="操作" width="560" fixed="right">
+        <el-table-column :label="$t('AdminMM.projects.table.operations')" width="560" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" type="primary" plain @click="goToHomeEdit(row)">首页编辑</el-button>
-            <el-button size="small" @click="openVersionDialog(row)">版本管理</el-button>
-            <el-button size="small" @click="openMenuDialog(row)">菜单配置</el-button>
-            <el-button size="small" @click="goToCategories(row)" :disabled="!row.latestVersionId">分类管理</el-button>
-            <el-button size="small" @click="goToNotes(row)">笔记管理</el-button>
-            <el-button size="small" @click="openEdit(row)" :disabled="row.isDeleted">编辑</el-button>
-            <el-button size="small" type="danger" @click="deleteOne(row)" :disabled="row.isDeleted">删除</el-button>
-            <el-button size="small" @click="restoreOne(row)" v-if="row.isDeleted">恢复</el-button>
+            <el-button size="small" type="primary" plain @click="goToHomeEdit(row)">{{ $t('AdminMM.projects.operations.homeEdit') }}</el-button>
+            <el-button size="small" @click="openVersionDialog(row)">{{ $t('AdminMM.projects.operations.versionManage') }}</el-button>
+            <el-button size="small" @click="openMenuDialog(row)">{{ $t('AdminMM.projects.operations.menuConfig') }}</el-button>
+            <el-button size="small" @click="goToCategories(row)" :disabled="!row.latestVersionId">{{ $t('AdminMM.projects.operations.categoryManage') }}</el-button>
+            <el-button size="small" @click="goToNotes(row)">{{ $t('AdminMM.projects.operations.noteManage') }}</el-button>
+            <el-button size="small" @click="openEdit(row)" :disabled="row.isDeleted">{{ $t('AdminMM.projects.operations.edit') }}</el-button>
+            <el-button size="small" type="danger" @click="deleteOne(row)" :disabled="row.isDeleted">{{ $t('AdminMM.projects.operations.delete') }}</el-button>
+            <el-button size="small" @click="restoreOne(row)" v-if="row.isDeleted">{{ $t('AdminMM.projects.operations.restore') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -494,38 +500,38 @@ function goToHomeEdit(row: ProjectDto) {
 
     <el-dialog
         v-model="dialogOpen"
-        :title="dialogMode === 'create' ? '新增项目' : '编辑项目'"
+        :title="dialogMode === 'create' ? $t('AdminMM.projects.dialog.createTitle') : $t('AdminMM.projects.dialog.editTitle')"
         width="520px"
         :close-on-click-modal="false"
     >
       <el-form ref="formRef" :model="form" :rules="formRules" label-width="100px">
-        <el-form-item label="项目头像">
+        <el-form-item :label="$t('AdminMM.projects.dialog.avatar')">
           <AvatarUploader v-model="form.avatar" :size="80" />
         </el-form-item>
 
-        <el-form-item label="项目名称" prop="projectName">
+        <el-form-item :label="$t('AdminMM.projects.dialog.projectName')" prop="projectName">
           <el-input v-model="form.projectName" maxlength="128" show-word-limit/>
         </el-form-item>
 
-        <el-form-item label="权重" prop="weight">
+        <el-form-item :label="$t('AdminMM.projects.dialog.weight')" prop="weight">
           <el-input-number v-model="form.weight" :min="0" :max="999999" style="width: 100%"/>
         </el-form-item>
 
-        <el-form-item label="状态" prop="status">
+        <el-form-item :label="$t('AdminMM.projects.dialog.status')" prop="status">
           <el-select v-model="form.status" style="width: 100%">
-            <el-option label="启用(1)" :value="1"/>
-            <el-option label="停用(0)" :value="0"/>
+            <el-option :label="$t('AdminMM.projects.status.enabled')" :value="1"/>
+            <el-option :label="$t('AdminMM.projects.status.disabled')" :value="0"/>
           </el-select>
         </el-form-item>
 
-        <el-form-item label="需要鉴权" prop="requireAuth">
+        <el-form-item :label="$t('AdminMM.projects.dialog.requireAuth')" prop="requireAuth">
           <el-switch v-model="form.requireAuth"/>
         </el-form-item>
       </el-form>
 
       <template #footer>
-        <el-button @click="dialogOpen = false">取消</el-button>
-        <el-button type="primary" :loading="dialogSubmitting" @click="submitForm">保存</el-button>
+        <el-button @click="dialogOpen = false">{{ $t('AdminMM.projects.dialog.cancel') }}</el-button>
+        <el-button type="primary" :loading="dialogSubmitting" @click="submitForm">{{ $t('AdminMM.projects.dialog.save') }}</el-button>
       </template>
     </el-dialog>
 
@@ -549,6 +555,32 @@ function goToHomeEdit(row: ProjectDto) {
 <style scoped>
 .page-container {
   --sloth-radius: 4px;
+}
+
+/* 页面头部卡片 */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  padding: 12px;
+  background: var(--sloth-card);
+  border: 1px solid var(--sloth-card-border);
+  border-radius: var(--sloth-radius);
+  backdrop-filter: blur(var(--sloth-blur));
+}
+
+.page-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--sloth-text);
+  margin: 0 0 4px;
+}
+
+.page-desc {
+  font-size: 13px;
+  color: var(--sloth-text-subtle);
+  margin: 0;
 }
 
 /* 工具栏卡片 */

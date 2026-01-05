@@ -177,7 +177,484 @@
       "solana": "On-chain Management"
     },
     "projects": {
-      "title": "Project Management"
+      "title": "Project Management",
+      "desc": "Manage all projects with version control, categories and menu configuration",
+      "filters": {
+        "keyword": "Search by project name",
+        "status": "Status",
+        "requireAuth": "Auth",
+        "includeDeleted": "Include Deleted"
+      },
+      "status": {
+        "enabled": "Enabled(1)",
+        "disabled": "Disabled(0)"
+      },
+      "auth": {
+        "required": "Auth Required",
+        "notRequired": "No Auth"
+      },
+      "actions": {
+        "search": "Search",
+        "reset": "Reset",
+        "create": "New Project",
+        "batchDelete": "Batch Delete",
+        "batchRestore": "Batch Restore",
+        "batchEnable": "Batch Enable",
+        "batchDisable": "Batch Disable",
+        "batchEnableAuth": "Batch Enable Auth",
+        "batchDisableAuth": "Batch Disable Auth"
+      },
+      "table": {
+        "id": "ID",
+        "avatar": "Avatar",
+        "projectName": "Project Name",
+        "weight": "Weight",
+        "status": "Status",
+        "latestVersion": "Latest Version",
+        "categoryCount": "Categories",
+        "requireAuth": "Auth",
+        "createdAt": "Created At",
+        "updatedAt": "Updated At",
+        "operations": "Operations"
+      },
+      "statusTag": {
+        "deleted": "Deleted",
+        "enabled": "Enabled",
+        "disabled": "Disabled"
+      },
+      "authTag": {
+        "required": "Required",
+        "notRequired": "Not Required"
+      },
+      "operations": {
+        "homeEdit": "Home Edit",
+        "versionManage": "Versions",
+        "menuConfig": "Menu Config",
+        "categoryManage": "Categories",
+        "noteManage": "Notes",
+        "edit": "Edit",
+        "delete": "Delete",
+        "restore": "Restore"
+      },
+      "dialog": {
+        "createTitle": "New Project",
+        "editTitle": "Edit Project",
+        "avatar": "Project Avatar",
+        "projectName": "Project Name",
+        "weight": "Weight",
+        "status": "Status",
+        "requireAuth": "Require Auth",
+        "cancel": "Cancel",
+        "save": "Save"
+      },
+      "validation": {
+        "projectNameRequired": "Please enter project name"
+      },
+      "messages": {
+        "createSuccess": "Created successfully",
+        "saveSuccess": "Saved successfully",
+        "submitFailed": "Submit failed",
+        "loadFailed": "Load failed",
+        "deleteConfirm": "Confirm delete project \"{name}\"?",
+        "deleteConfirmTitle": "Confirm",
+        "deleteButton": "Delete",
+        "cancelButton": "Cancel",
+        "deleted": "Deleted",
+        "deleteFailed": "Delete failed",
+        "batchDeleteConfirm": "Confirm batch delete {count} selected items?",
+        "batchDeleted": "Deleted {count} items",
+        "batchDeleteFailed": "Batch delete failed",
+        "batchRestored": "Restored {count} items",
+        "batchRestoreFailed": "Batch restore failed",
+        "batchUpdated": "Updated {count} items",
+        "batchUpdateFailed": "Batch update failed",
+        "selectFirst": "Please select items first",
+        "requestFailed": "Request failed"
+      }
+    },
+    "categories": {
+      "title": "Category Management",
+      "desc": "Manage category structure under project versions for organizing notes",
+      "filters": {
+        "selectProject": "Select Project",
+        "selectVersion": "Select Version",
+        "keyword": "Search by category name",
+        "status": "Status",
+        "includeDeleted": "Include Deleted"
+      },
+      "status": {
+        "enabled": "Enabled(1)",
+        "disabled": "Disabled(0)"
+      },
+      "actions": {
+        "search": "Search",
+        "reset": "Reset",
+        "create": "New Category"
+      },
+      "table": {
+        "id": "ID",
+        "categoryName": "Category Name",
+        "project": "Project",
+        "version": "Version",
+        "weight": "Weight",
+        "status": "Status",
+        "createdAt": "Created At",
+        "updatedAt": "Updated At",
+        "operations": "Operations"
+      },
+      "statusTag": {
+        "deleted": "Deleted",
+        "enabled": "Enabled",
+        "disabled": "Disabled"
+      },
+      "operations": {
+        "noteManage": "Notes",
+        "edit": "Edit",
+        "delete": "Delete",
+        "restore": "Restore"
+      },
+      "dialog": {
+        "createTitle": "New Category",
+        "editTitle": "Edit Category",
+        "categoryName": "Category Name",
+        "weight": "Weight",
+        "status": "Status",
+        "cancel": "Cancel",
+        "save": "Save"
+      },
+      "validation": {
+        "categoryNameRequired": "Please enter category name"
+      },
+      "messages": {
+        "selectVersionFirst": "Please select a project version first",
+        "createSuccess": "Created successfully",
+        "saveSuccess": "Saved successfully",
+        "submitFailed": "Submit failed",
+        "loadProjectsFailed": "Failed to load projects",
+        "loadVersionsFailed": "Failed to load versions",
+        "loadFailed": "Load failed",
+        "deleteConfirm": "Confirm delete category \"{name}\"?",
+        "deleteConfirmTitle": "Confirm",
+        "deleteButton": "Delete",
+        "cancelButton": "Cancel",
+        "deleted": "Deleted",
+        "deleteFailed": "Delete failed",
+        "restored": "Restored",
+        "restoreFailed": "Restore failed"
+      }
+    },
+    "notes": {
+      "title": "Note Management",
+      "desc": "Manage notes under project categories with multi-version content editing",
+      "filters": {
+        "selectProject": "Select Project",
+        "selectVersion": "Select Version",
+        "selectCategory": "Select Category",
+        "keyword": "Search by note title",
+        "status": "Status",
+        "includeDeleted": "Include Deleted"
+      },
+      "status": {
+        "enabled": "Enabled(1)",
+        "disabled": "Disabled(0)"
+      },
+      "actions": {
+        "search": "Search",
+        "reset": "Reset",
+        "create": "New Note"
+      },
+      "table": {
+        "id": "ID",
+        "noteTitle": "Note Title",
+        "path": "Path",
+        "weight": "Weight",
+        "contentVersion": "Content Versions",
+        "status": "Status",
+        "createdAt": "Created At",
+        "updatedAt": "Updated At",
+        "operations": "Operations"
+      },
+      "statusTag": {
+        "deleted": "Deleted",
+        "enabled": "Enabled",
+        "disabled": "Disabled"
+      },
+      "operations": {
+        "contentEdit": "Edit Content",
+        "edit": "Edit",
+        "delete": "Delete",
+        "restore": "Restore"
+      },
+      "dialog": {
+        "createTitle": "New Note",
+        "editTitle": "Edit Note",
+        "noteTitle": "Note Title",
+        "weight": "Weight",
+        "status": "Status",
+        "cancel": "Cancel",
+        "save": "Save"
+      },
+      "validation": {
+        "noteTitleRequired": "Please enter note title"
+      },
+      "messages": {
+        "loadProjectsFailed": "Failed to load projects",
+        "loadVersionsFailed": "Failed to load versions",
+        "loadCategoriesFailed": "Failed to load categories",
+        "loadFailed": "Load failed",
+        "selectCategoryFirst": "Please select a category first",
+        "createSuccess": "Created successfully",
+        "saveSuccess": "Saved successfully",
+        "submitFailed": "Submit failed",
+        "deleteConfirm": "Confirm delete note \"{name}\"?",
+        "deleteConfirmTitle": "Confirm",
+        "deleteButton": "Delete",
+        "cancelButton": "Cancel",
+        "deleted": "Deleted",
+        "deleteFailed": "Delete failed",
+        "restored": "Restored",
+        "restoreFailed": "Restore failed",
+        "requestFailed": "Request failed"
+      },
+      "content": {
+        "sidebarTitle": "Content Versions",
+        "newVersion": "New",
+        "unnamedVersion": "Unnamed Version",
+        "setPrimary": "Set as Primary",
+        "delete": "Delete",
+        "emptyTip": "No content versions yet, click button above to create",
+        "unsaved": "Unsaved",
+        "saved": "Saved",
+        "saveHint": "Ctrl+S to save",
+        "save": "Save",
+        "selectOrCreate": "Please select or create a content version from the left",
+        "newVersionDialog": {
+          "title": "New Content Version",
+          "versionNote": "Version Note",
+          "placeholder": "Optional, e.g.: Draft, Revision, etc.",
+          "cancel": "Cancel",
+          "create": "Create"
+        },
+        "messages": {
+          "fetchNoteFailed": "Failed to fetch note info",
+          "loadFailed": "Load failed",
+          "unsavedConfirm": "Current version has unsaved changes, discard?",
+          "unsavedConfirmTitle": "Confirm",
+          "discardButton": "Discard",
+          "noChanges": "No changes",
+          "saveSuccess": "Saved successfully",
+          "saveFailed": "Save failed",
+          "createSuccess": "Created successfully",
+          "createFailed": "Create failed",
+          "setPrimarySuccess": "Set as primary version",
+          "operationFailed": "Operation failed",
+          "deleteConfirm": "Confirm delete version \"{name}\"?",
+          "deleteConfirmTitle": "Confirm",
+          "deleteButton": "Delete",
+          "cancelButton": "Cancel",
+          "deleted": "Deleted",
+          "deleteFailed": "Delete failed",
+          "uploadFailed": "Image upload failed"
+        }
+      }
+    },
+    "files": {
+      "title": "File Management",
+      "desc": "Manage uploaded file resources with multiple business type classification",
+      "filters": {
+        "keyword": "Search by file name",
+        "businessType": "Business Type",
+        "includeDeleted": "Include Deleted"
+      },
+      "businessType": {
+        "ProjectAvatar": "Project Avatar",
+        "UserAvatar": "User Avatar",
+        "NoteAttachment": "Note Attachment",
+        "HomeworkFile": "Homework File",
+        "TempFile": "Temp File",
+        "Other": "Other"
+      },
+      "actions": {
+        "search": "Search",
+        "reset": "Reset",
+        "upload": "Upload File",
+        "batchDelete": "Batch Delete"
+      },
+      "table": {
+        "id": "ID",
+        "preview": "Preview",
+        "originalName": "Original Name",
+        "fileSize": "File Size",
+        "businessType": "Business Type",
+        "status": "Status",
+        "uploadTime": "Upload Time",
+        "operations": "Operations"
+      },
+      "statusTag": {
+        "normal": "Normal",
+        "deleted": "Deleted"
+      },
+      "operations": {
+        "preview": "Preview",
+        "delete": "Delete",
+        "hardDelete": "Hard Delete"
+      },
+      "dialog": {
+        "uploadTitle": "Upload File",
+        "previewTitle": "File Preview",
+        "businessType": "Business Type",
+        "selectFile": "Select File",
+        "uploadHint": "Drop file here or click to upload",
+        "uploadTip": "Multiple files supported, max 10MB per file",
+        "cancel": "Cancel",
+        "upload": "Upload"
+      },
+      "messages": {
+        "loadFailed": "Load failed",
+        "selectFileFirst": "Please select files to upload",
+        "uploadSuccess": "Upload successful",
+        "uploadFailed": "Upload failed",
+        "deleteConfirm": "Confirm delete file \"{name}\"?",
+        "deleteConfirmTitle": "Confirm",
+        "deleteButton": "Delete",
+        "cancelButton": "Cancel",
+        "deleted": "Deleted",
+        "deleteFailed": "Delete failed",
+        "hardDeleteConfirm": "Confirm permanently delete file \"{name}\"? This will delete the disk file and cannot be recovered!",
+        "hardDeleteConfirmTitle": "Warning",
+        "hardDeleteButton": "Hard Delete",
+        "hardDeleted": "Permanently deleted",
+        "hardDeleteFailed": "Hard delete failed",
+        "batchDeleteConfirm": "Confirm delete {count} selected files?",
+        "batchDeleteSuccess": "Batch delete successful",
+        "batchDeleteFailed": "Batch delete failed",
+        "selectFirst": "Please select files to delete"
+      }
+    },
+    "solana": {
+      "title": "On-chain Management",
+      "desc": "System-level cNFT Merkle Tree management with multi-tree redundancy",
+      "network": {
+        "label": "Current Network:",
+        "devnet": "Devnet",
+        "mainnet": "Mainnet",
+        "switchToMainnet": "Switch to Mainnet",
+        "switchWarning": "Switching to mainnet will use real SOL, please ensure you understand the risks.",
+        "confirmSwitch": "Confirm Switch",
+        "cancel": "Cancel",
+        "switchFailed": "Switch failed",
+        "fetchConfigFailed": "Failed to fetch network config"
+      },
+      "tabs": {
+        "trees": "Merkle Tree Management",
+        "cnfts": "cNFT Management"
+      },
+      "trees": {
+        "stats": {
+          "availableTrees": "Available Trees",
+          "totalCapacity": "Total Capacity",
+          "minted": "Minted",
+          "remainingCapacity": "Remaining",
+          "usageRate": "Usage Rate"
+        },
+        "capacityWarning": "System capacity is low, consider creating a new Merkle Tree",
+        "actions": {
+          "createNow": "Create Now",
+          "createTree": "Create Merkle Tree",
+          "refresh": "Refresh"
+        },
+        "table": {
+          "name": "Name",
+          "capacityUsage": "Capacity Usage",
+          "config": "Config",
+          "creationCost": "Creation Cost",
+          "priority": "Priority",
+          "status": "Status",
+          "treeAddress": "Tree Address",
+          "operations": "Operations",
+          "configFormat": "Depth: {depth} | Buffer: {buffer} | Canopy: {canopy}"
+        },
+        "status": {
+          "creating": "Creating",
+          "normal": "Normal",
+          "full": "Full",
+          "failed": "Failed",
+          "unknown": "Unknown"
+        },
+        "operations": {
+          "verify": "Verify",
+          "delete": "Delete",
+          "detail": "Details"
+        },
+        "empty": {
+          "title": "No Merkle Tree yet, please create one",
+          "hint": "System needs at least one available tree to mint cNFT",
+          "createFirst": "Create First Tree"
+        },
+        "messages": {
+          "fetchFailed": "Failed to fetch tree list",
+          "verifySuccess": "Verification successful",
+          "verifyFailed": "Verification failed",
+          "deleteConfirm": "Are you sure to delete tree \"{name}\"?\n\nThis will only delete the database record, not affect on-chain data.",
+          "deleteConfirmTitle": "Confirm Delete",
+          "deleteButton": "Delete",
+          "cancelButton": "Cancel",
+          "deleteSuccess": "Deleted successfully",
+          "deleteFailed": "Delete failed"
+        }
+      },
+      "cnfts": {
+        "actions": {
+          "mint": "Mint cNFT",
+          "refresh": "Refresh"
+        },
+        "filters": {
+          "byProject": "Filter by project",
+          "byStatus": "Filter by status",
+          "searchOwner": "Search owner address",
+          "search": "Search",
+          "reset": "Reset"
+        },
+        "status": {
+          "minting": "Minting",
+          "normal": "Normal",
+          "failed": "Failed",
+          "unknown": "Unknown"
+        },
+        "network": {
+          "mainnet": "Mainnet",
+          "devnet": "Devnet"
+        },
+        "table": {
+          "nftInfo": "NFT Info",
+          "project": "Project",
+          "owner": "Owner",
+          "merkleTree": "Merkle Tree",
+          "leafIndex": "Leaf Index",
+          "status": "Status",
+          "mintTime": "Mint Time",
+          "assetId": "Asset ID",
+          "operations": "Operations"
+        },
+        "operations": {
+          "delete": "Delete"
+        },
+        "empty": {
+          "title": "No cNFT records yet",
+          "hint": "Click \"Mint cNFT\" button to start minting",
+          "mintFirst": "Mint First cNFT"
+        },
+        "messages": {
+          "fetchProjectsFailed": "Failed to fetch project list",
+          "fetchCnftsFailed": "Failed to fetch cNFT list",
+          "deleteConfirm": "Are you sure to delete this {status} cNFT record?\n\nName: {name}\nOwner: {owner}",
+          "deleteConfirmTitle": "Confirm Delete",
+          "deleteButton": "Delete",
+          "cancelButton": "Cancel",
+          "deleteSuccess": "Deleted successfully",
+          "deleteFailed": "Delete failed"
+        }
+      }
     },
     "breadcrumb": {
       "homeEdit": "Home Edit",

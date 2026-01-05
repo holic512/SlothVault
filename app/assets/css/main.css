@@ -111,3 +111,302 @@ body {
 .md-editor-preview p img {
   background: transparent !important;
 }
+
+
+/* =========================================
+   Element Plus 全局暗黑模式适配
+   ========================================= */
+
+/* Select 下拉面板 */
+.dark .el-select-dropdown {
+  background-color: var(--sloth-card, #141414) !important;
+  border-color: var(--sloth-card-border, rgba(255, 255, 255, 0.08)) !important;
+}
+
+.dark .el-select-dropdown__item {
+  color: var(--sloth-text, #f3f4f6) !important;
+}
+
+.dark .el-select-dropdown__item:hover,
+.dark .el-select-dropdown__item.hover {
+  background-color: var(--sloth-bg-hover, #111111) !important;
+}
+
+.dark .el-select-dropdown__item.is-selected {
+  color: var(--sloth-primary, #a78bfa) !important;
+}
+
+/* Pagination 下拉 */
+.dark .el-pagination .el-select .el-input__wrapper {
+  background-color: var(--sloth-bg, #050505) !important;
+  box-shadow: 0 0 0 1px var(--sloth-card-border, rgba(255, 255, 255, 0.08)) inset !important;
+}
+
+.dark .el-pagination .el-input__inner {
+  color: var(--sloth-text, #f3f4f6) !important;
+}
+
+/* MessageBox 暗黑模式 */
+.dark .el-message-box {
+  background-color: var(--sloth-card, #141414) !important;
+  border-color: var(--sloth-card-border, rgba(255, 255, 255, 0.08)) !important;
+}
+
+.dark .el-message-box__title {
+  color: var(--sloth-text, #f3f4f6) !important;
+}
+
+.dark .el-message-box__message {
+  color: var(--sloth-text-subtle, #9ca3af) !important;
+}
+
+.dark .el-message-box__headerbtn .el-message-box__close {
+  color: var(--sloth-text-subtle, #9ca3af) !important;
+}
+
+.dark .el-message-box__headerbtn:hover .el-message-box__close {
+  color: var(--sloth-primary, #a78bfa) !important;
+}
+
+/* Dialog 暗黑模式 */
+.dark .el-dialog {
+  background-color: var(--sloth-card, #141414) !important;
+  border-color: var(--sloth-card-border, rgba(255, 255, 255, 0.08)) !important;
+}
+
+.dark .el-dialog__title {
+  color: var(--sloth-text, #f3f4f6) !important;
+}
+
+.dark .el-dialog__headerbtn .el-dialog__close {
+  color: var(--sloth-text-subtle, #9ca3af) !important;
+}
+
+.dark .el-dialog__headerbtn:hover .el-dialog__close {
+  color: var(--sloth-primary, #a78bfa) !important;
+}
+
+/* Form 暗黑模式 */
+.dark .el-form-item__label {
+  color: var(--sloth-text, #f3f4f6) !important;
+}
+
+.dark .el-form-item__error {
+  color: var(--sloth-danger, #f87171) !important;
+}
+
+/* Input 暗黑模式 */
+.dark .el-input__wrapper {
+  background-color: var(--sloth-bg, #050505) !important;
+  box-shadow: 0 0 0 1px var(--sloth-card-border, rgba(255, 255, 255, 0.08)) inset !important;
+}
+
+.dark .el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px var(--sloth-primary, #a78bfa) inset !important;
+}
+
+.dark .el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 1px var(--sloth-primary, #a78bfa) inset !important;
+}
+
+.dark .el-input__inner {
+  color: var(--sloth-text, #f3f4f6) !important;
+}
+
+.dark .el-input__inner::placeholder {
+  color: var(--sloth-text-subtle, #9ca3af) !important;
+}
+
+.dark .el-input-group__append,
+.dark .el-input-group__prepend {
+  background-color: var(--sloth-bg-hover, #111111) !important;
+  border-color: var(--sloth-card-border, rgba(255, 255, 255, 0.08)) !important;
+  color: var(--sloth-text, #f3f4f6) !important;
+}
+
+/* Textarea 暗黑模式 */
+.dark .el-textarea__inner {
+  background-color: var(--sloth-bg, #050505) !important;
+  border-color: var(--sloth-card-border, rgba(255, 255, 255, 0.08)) !important;
+  color: var(--sloth-text, #f3f4f6) !important;
+}
+
+.dark .el-textarea__inner:hover {
+  border-color: var(--sloth-primary, #a78bfa) !important;
+}
+
+.dark .el-textarea__inner:focus {
+  border-color: var(--sloth-primary, #a78bfa) !important;
+}
+
+/* Tooltip 暗黑模式 */
+.dark .el-tooltip__popper.is-dark {
+  background-color: var(--sloth-card, #141414) !important;
+  border-color: var(--sloth-card-border, rgba(255, 255, 255, 0.08)) !important;
+  color: var(--sloth-text, #f3f4f6) !important;
+}
+
+/* Popover 暗黑模式 */
+.dark .el-popover.el-popper {
+  background-color: var(--sloth-card, #141414) !important;
+  border-color: var(--sloth-card-border, rgba(255, 255, 255, 0.08)) !important;
+}
+
+.dark .el-popover__title {
+  color: var(--sloth-text, #f3f4f6) !important;
+}
+
+/* Dropdown 暗黑模式 */
+.dark .el-dropdown-menu {
+  background-color: var(--sloth-card, #141414) !important;
+  border-color: var(--sloth-card-border, rgba(255, 255, 255, 0.08)) !important;
+}
+
+.dark .el-dropdown-menu__item {
+  color: var(--sloth-text, #f3f4f6) !important;
+}
+
+.dark .el-dropdown-menu__item:hover,
+.dark .el-dropdown-menu__item:focus {
+  background-color: var(--sloth-bg-hover, #111111) !important;
+  color: var(--sloth-primary, #a78bfa) !important;
+}
+
+/* Message 暗黑模式 */
+.dark .el-message {
+  background-color: var(--sloth-card, #141414) !important;
+  border-color: var(--sloth-card-border, rgba(255, 255, 255, 0.08)) !important;
+}
+
+.dark .el-message__content {
+  color: var(--sloth-text, #f3f4f6) !important;
+}
+
+/* Notification 暗黑模式 */
+.dark .el-notification {
+  background-color: var(--sloth-card, #141414) !important;
+  border-color: var(--sloth-card-border, rgba(255, 255, 255, 0.08)) !important;
+}
+
+.dark .el-notification__title {
+  color: var(--sloth-text, #f3f4f6) !important;
+}
+
+.dark .el-notification__content {
+  color: var(--sloth-text-subtle, #9ca3af) !important;
+}
+
+/* Radio/Checkbox 暗黑模式 */
+.dark .el-radio__label,
+.dark .el-checkbox__label {
+  color: var(--sloth-text, #f3f4f6) !important;
+}
+
+.dark .el-radio__inner,
+.dark .el-checkbox__inner {
+  background-color: var(--sloth-bg, #050505) !important;
+  border-color: var(--sloth-card-border, rgba(255, 255, 255, 0.08)) !important;
+}
+
+/* Switch 暗黑模式 */
+.dark .el-switch__label {
+  color: var(--sloth-text-subtle, #9ca3af) !important;
+}
+
+.dark .el-switch__label.is-active {
+  color: var(--sloth-text, #f3f4f6) !important;
+}
+
+/* Slider 暗黑模式 */
+.dark .el-slider__runway {
+  background-color: var(--sloth-bg-hover, #111111) !important;
+}
+
+/* DatePicker 暗黑模式 */
+.dark .el-date-editor .el-input__wrapper {
+  background-color: var(--sloth-bg, #050505) !important;
+}
+
+.dark .el-picker-panel {
+  background-color: var(--sloth-card, #141414) !important;
+  border-color: var(--sloth-card-border, rgba(255, 255, 255, 0.08)) !important;
+}
+
+.dark .el-picker-panel__content {
+  color: var(--sloth-text, #f3f4f6) !important;
+}
+
+.dark .el-date-table th {
+  color: var(--sloth-text-subtle, #9ca3af) !important;
+}
+
+.dark .el-date-table td.available:hover {
+  background-color: var(--sloth-bg-hover, #111111) !important;
+}
+
+/* Tabs 暗黑模式 */
+.dark .el-tabs__item {
+  color: var(--sloth-text-subtle, #9ca3af) !important;
+}
+
+.dark .el-tabs__item:hover {
+  color: var(--sloth-text, #f3f4f6) !important;
+}
+
+.dark .el-tabs__item.is-active {
+  color: var(--sloth-primary, #a78bfa) !important;
+}
+
+.dark .el-tabs__nav-wrap::after {
+  background-color: var(--sloth-card-border, rgba(255, 255, 255, 0.08)) !important;
+}
+
+/* Card 暗黑模式 */
+.dark .el-card {
+  background-color: var(--sloth-card, #141414) !important;
+  border-color: var(--sloth-card-border, rgba(255, 255, 255, 0.08)) !important;
+}
+
+.dark .el-card__header {
+  border-bottom-color: var(--sloth-card-border, rgba(255, 255, 255, 0.08)) !important;
+}
+
+/* Divider 暗黑模式 */
+.dark .el-divider {
+  border-color: var(--sloth-card-border, rgba(255, 255, 255, 0.08)) !important;
+}
+
+.dark .el-divider__text {
+  background-color: var(--sloth-card, #141414) !important;
+  color: var(--sloth-text-subtle, #9ca3af) !important;
+}
+
+/* Empty 暗黑模式 */
+.dark .el-empty__description {
+  color: var(--sloth-text-subtle, #9ca3af) !important;
+}
+
+/* Descriptions 暗黑模式 */
+.dark .el-descriptions__label {
+  color: var(--sloth-text-subtle, #9ca3af) !important;
+}
+
+.dark .el-descriptions__content {
+  color: var(--sloth-text, #f3f4f6) !important;
+}
+
+/* Collapse 暗黑模式 */
+.dark .el-collapse-item__header {
+  background-color: var(--sloth-card, #141414) !important;
+  border-color: var(--sloth-card-border, rgba(255, 255, 255, 0.08)) !important;
+  color: var(--sloth-text, #f3f4f6) !important;
+}
+
+.dark .el-collapse-item__wrap {
+  background-color: var(--sloth-card, #141414) !important;
+  border-color: var(--sloth-card-border, rgba(255, 255, 255, 0.08)) !important;
+}
+
+.dark .el-collapse-item__content {
+  color: var(--sloth-text, #f3f4f6) !important;
+}

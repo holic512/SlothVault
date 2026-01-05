@@ -8,6 +8,8 @@ definePageMeta({
   layout: 'admin-mm',
 })
 
+const { t } = useI18n()
+
 type ApiResponse<T> = {
   code: number
   message: string
@@ -93,7 +95,7 @@ async function apiFetch<T>(url: string, options?: any): Promise<T> {
     await router.push('/admin/auth/login')
     throw new Error('Unauthorized')
   }
-  throw new Error(res?.message || '请求失败')
+  throw new Error(res?.message || t('AdminMM.notes.messages.requestFailed'))
 }
 
 // 获取笔记信息
@@ -112,7 +114,7 @@ async function fetchNoteInfo() {
     }
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
-      ElMessage.error('获取笔记信息失败')
+      ElMessage.error(t('AdminMM.notes.content.messages.fetchNoteFailed'))
     }
   }
 }
@@ -142,7 +144,7 @@ async function fetchContentList() {
     }
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '加载失败')
+      ElMessage.error(e?.message || t('AdminMM.notes.content.messages.loadFailed'))
     }
   } finally {
     loading.value = false
@@ -153,9 +155,9 @@ async function fetchContentList() {
 function selectContent(item: NoteContentDto) {
   // 如果有未保存的更改，提示用户
   if (hasUnsavedChanges.value && selectedContentId.value) {
-    ElMessageBox.confirm('当前版本有未保存的更改，是否放弃？', '提示', {
-      confirmButtonText: '放弃',
-      cancelButtonText: '取消',
+    ElMessageBox.confirm(t('AdminMM.notes.content.messages.unsavedConfirm'), t('AdminMM.notes.content.messages.unsavedConfirmTitle'), {
+      confirmButtonText: t('AdminMM.notes.content.messages.discardButton'),
+      cancelButtonText: t('AdminMM.notes.content.messages.cancelButton'),
       type: 'warning',
     }).then(() => {
       doSelectContent(item)
@@ -176,7 +178,7 @@ function doSelectContent(item: NoteContentDto) {
 async function saveContent(silent = false) {
   if (saving.value || !selectedContentId.value) return
   if (!hasUnsavedChanges.value) {
-    if (!silent) ElMessage.info('内容无变化')
+    if (!silent) ElMessage.info(t('AdminMM.notes.content.messages.noChanges'))
     return
   }
   
@@ -195,10 +197,10 @@ async function saveContent(silent = false) {
     
     savedContent.value = content.value
     lastSaveTime.value = new Date()
-    if (!silent) ElMessage.success('保存成功')
+    if (!silent) ElMessage.success(t('AdminMM.notes.content.messages.saveSuccess'))
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '保存失败')
+      ElMessage.error(e?.message || t('AdminMM.notes.content.messages.saveFailed'))
     }
   } finally {
     saving.value = false
@@ -251,10 +253,10 @@ async function createNewVersion() {
     newVersionDialogOpen.value = false
     await fetchContentList()
     selectContent(data)
-    ElMessage.success('创建成功')
+    ElMessage.success(t('AdminMM.notes.content.messages.createSuccess'))
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '创建失败')
+      ElMessage.error(e?.message || t('AdminMM.notes.content.messages.createFailed'))
     }
   } finally {
     newVersionSubmitting.value = false
@@ -271,10 +273,10 @@ async function setPrimary(item: NoteContentDto) {
       body: { isPrimary: true },
     })
     await fetchContentList()
-    ElMessage.success('已设为主版本')
+    ElMessage.success(t('AdminMM.notes.content.messages.setPrimarySuccess'))
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '操作失败')
+      ElMessage.error(e?.message || t('AdminMM.notes.content.messages.operationFailed'))
     }
   }
 }
@@ -283,9 +285,13 @@ async function setPrimary(item: NoteContentDto) {
 async function deleteVersion(item: NoteContentDto) {
   try {
     await ElMessageBox.confirm(
-      `确认删除版本「${item.versionNote || '未命名'}」？`,
-      '提示',
-      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }
+      t('AdminMM.notes.content.messages.deleteConfirm', { name: item.versionNote || t('AdminMM.notes.content.unnamedVersion') }),
+      t('AdminMM.notes.content.messages.deleteConfirmTitle'),
+      { 
+        confirmButtonText: t('AdminMM.notes.content.messages.deleteButton'), 
+        cancelButtonText: t('AdminMM.notes.content.messages.cancelButton'), 
+        type: 'warning' 
+      }
     )
     
     await apiFetch(`/api/admin/mm/noteContent/${item.id}`, { method: 'DELETE' })
@@ -298,10 +304,10 @@ async function deleteVersion(item: NoteContentDto) {
     }
     
     await fetchContentList()
-    ElMessage.success('已删除')
+    ElMessage.success(t('AdminMM.notes.content.messages.deleted'))
   } catch (e: any) {
     if (e?.message && e.message !== 'cancel' && e.message !== 'close' && e.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '删除失败')
+      ElMessage.error(e?.message || t('AdminMM.notes.content.messages.deleteFailed'))
     }
   }
 }
@@ -325,7 +331,7 @@ async function handleUploadImg(files: File[], callback: (urls: string[]) => void
     }
     callback(urls)
   } catch (e: any) {
-    ElMessage.error('图片上传失败')
+    ElMessage.error(t('AdminMM.notes.content.messages.uploadFailed'))
     callback([])
   }
 }
@@ -364,10 +370,10 @@ onUnmounted(() => {
     <!-- 左侧版本列表 -->
     <aside class="version-sidebar">
       <div class="sidebar-header">
-        <h3 class="sidebar-title">内容版本</h3>
+        <h3 class="sidebar-title">{{ $t('AdminMM.notes.content.sidebarTitle') }}</h3>
         <el-button type="primary" size="small" @click="openNewVersionDialog">
           <PlusIcon class="btn-icon" />
-          新建
+          {{ $t('AdminMM.notes.content.newVersion') }}
         </el-button>
       </div>
       
@@ -382,7 +388,7 @@ onUnmounted(() => {
           <div class="version-info">
             <div class="version-name">
               <StarIconSolid v-if="item.isPrimary" class="primary-icon" />
-              <span>{{ item.versionNote || '未命名版本' }}</span>
+              <span>{{ item.versionNote || $t('AdminMM.notes.content.unnamedVersion') }}</span>
             </div>
             <div class="version-time">{{ formatTime(item.updatedAt) }}</div>
           </div>
@@ -390,14 +396,14 @@ onUnmounted(() => {
             <button 
               v-if="!item.isPrimary" 
               class="action-btn" 
-              title="设为主版本"
+              :title="$t('AdminMM.notes.content.setPrimary')"
               @click="setPrimary(item)"
             >
               <StarIcon class="action-icon" />
             </button>
             <button 
               class="action-btn action-delete" 
-              title="删除"
+              :title="$t('AdminMM.notes.content.delete')"
               @click="deleteVersion(item)"
             >
               <TrashIcon class="action-icon" />
@@ -406,7 +412,7 @@ onUnmounted(() => {
         </div>
         
         <div v-if="contentList.length === 0 && !loading" class="empty-tip">
-          暂无内容版本，点击上方按钮创建
+          {{ $t('AdminMM.notes.content.emptyTip') }}
         </div>
       </div>
     </aside>
@@ -418,15 +424,15 @@ onUnmounted(() => {
         <div class="toolbar-left">
           <span v-if="noteInfo" class="note-title">{{ noteInfo.noteTitle }}</span>
           <span v-if="notePath" class="note-path">{{ notePath }}</span>
-          <el-tag v-if="hasUnsavedChanges" type="warning" size="small">未保存</el-tag>
+          <el-tag v-if="hasUnsavedChanges" type="warning" size="small">{{ $t('AdminMM.notes.content.unsaved') }}</el-tag>
           <el-tag v-else-if="lastSaveTime" type="success" size="small">
-            已保存 {{ formatSaveTime(lastSaveTime) }}
+            {{ $t('AdminMM.notes.content.saved') }} {{ formatSaveTime(lastSaveTime) }}
           </el-tag>
         </div>
         <div class="toolbar-right">
-          <span class="save-hint">Ctrl+S 保存</span>
+          <span class="save-hint">{{ $t('AdminMM.notes.content.saveHint') }}</span>
           <el-button type="primary" :loading="saving" :disabled="!selectedContentId" @click="saveContent(false)">
-            保存
+            {{ $t('AdminMM.notes.content.save') }}
           </el-button>
         </div>
       </div>
@@ -442,7 +448,7 @@ onUnmounted(() => {
           />
         </template>
         <div v-else class="no-content">
-          <p>请从左侧选择或创建一个内容版本</p>
+          <p>{{ $t('AdminMM.notes.content.selectOrCreate') }}</p>
         </div>
       </div>
     </main>
@@ -450,23 +456,23 @@ onUnmounted(() => {
     <!-- 新建版本弹窗 -->
     <el-dialog
       v-model="newVersionDialogOpen"
-      title="新建内容版本"
+      :title="$t('AdminMM.notes.content.newVersionDialog.title')"
       width="400px"
       :close-on-click-modal="false"
     >
       <el-form label-width="80px">
-        <el-form-item label="版本备注">
+        <el-form-item :label="$t('AdminMM.notes.content.newVersionDialog.versionNote')">
           <el-input 
             v-model="newVersionNote" 
-            placeholder="可选，如：初稿、修订版等"
+            :placeholder="$t('AdminMM.notes.content.newVersionDialog.placeholder')"
             maxlength="255"
             show-word-limit
           />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="newVersionDialogOpen = false">取消</el-button>
-        <el-button type="primary" :loading="newVersionSubmitting" @click="createNewVersion">创建</el-button>
+        <el-button @click="newVersionDialogOpen = false">{{ $t('AdminMM.notes.content.newVersionDialog.cancel') }}</el-button>
+        <el-button type="primary" :loading="newVersionSubmitting" @click="createNewVersion">{{ $t('AdminMM.notes.content.newVersionDialog.create') }}</el-button>
       </template>
     </el-dialog>
   </div>

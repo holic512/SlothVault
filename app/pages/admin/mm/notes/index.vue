@@ -126,9 +126,9 @@ const form = reactive({
   status: 1 as number,
 })
 
-const formRules = {
-  noteTitle: [{required: true, message: '请输入笔记标题', trigger: 'blur'}],
-}
+const formRules = computed(() => ({
+  noteTitle: [{required: true, message: t('AdminMM.notes.validation.noteTitleRequired'), trigger: 'blur'}],
+}))
 
 function formatTime(value: string | Date) {
   const d = typeof value === 'string' ? new Date(value) : value
@@ -143,7 +143,7 @@ async function apiFetch<T>(url: string, options?: any): Promise<T> {
     await router.push('/admin/auth/login')
     throw new Error('Unauthorized')
   }
-  throw new Error(res?.message || '请求失败')
+  throw new Error(res?.message || t('AdminMM.notes.messages.requestFailed'))
 }
 
 async function fetchProjects() {
@@ -155,7 +155,7 @@ async function fetchProjects() {
     projects.value = data.list
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
-      ElMessage.error('加载项目列表失败')
+      ElMessage.error(t('AdminMM.notes.messages.loadProjectsFailed'))
     }
   }
 }
@@ -173,7 +173,7 @@ async function fetchVersions(projectId: string) {
     versions.value = data.list
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
-      ElMessage.error('加载版本列表失败')
+      ElMessage.error(t('AdminMM.notes.messages.loadVersionsFailed'))
     }
   }
 }
@@ -191,7 +191,7 @@ async function fetchCategories(versionId: string) {
     categories.value = data.list
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
-      ElMessage.error('加载分类列表失败')
+      ElMessage.error(t('AdminMM.notes.messages.loadCategoriesFailed'))
     }
   }
 }
@@ -234,7 +234,7 @@ async function fetchList() {
     total.value = data.total
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '加载失败')
+      ElMessage.error(e?.message || t('AdminMM.notes.messages.loadFailed'))
     }
   } finally {
     loading.value = false
@@ -256,7 +256,7 @@ function resetFilters() {
 
 function openCreate() {
   if (!selectedCategoryId.value && !routeCategoryId.value) {
-    ElMessage.warning('请先选择分类')
+    ElMessage.warning(t('AdminMM.notes.messages.selectCategoryFirst'))
     return
   }
   dialogMode.value = 'create'
@@ -282,7 +282,7 @@ async function submitForm() {
 
   const categoryId = selectedCategoryId.value || routeCategoryId.value
   if (!categoryId && dialogMode.value === 'create') {
-    ElMessage.warning('请先选择分类')
+    ElMessage.warning(t('AdminMM.notes.messages.selectCategoryFirst'))
     return
   }
 
@@ -301,7 +301,7 @@ async function submitForm() {
           status: form.status,
         },
       })
-      ElMessage.success('创建成功')
+      ElMessage.success(t('AdminMM.notes.messages.createSuccess'))
     } else {
       await apiFetch<NoteDto>(`/api/admin/mm/note/${form.id}`, {
         method: 'PUT',
@@ -311,13 +311,13 @@ async function submitForm() {
           status: form.status,
         },
       })
-      ElMessage.success('保存成功')
+      ElMessage.success(t('AdminMM.notes.messages.saveSuccess'))
     }
     dialogOpen.value = false
     fetchList()
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '提交失败')
+      ElMessage.error(e?.message || t('AdminMM.notes.messages.submitFailed'))
     }
   } finally {
     dialogSubmitting.value = false
@@ -326,17 +326,17 @@ async function submitForm() {
 
 async function deleteOne(row: NoteDto) {
   try {
-    await ElMessageBox.confirm(`确认删除笔记「${row.noteTitle}」？`, '提示', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('AdminMM.notes.messages.deleteConfirm', {name: row.noteTitle}), t('AdminMM.notes.messages.deleteConfirmTitle'), {
+      confirmButtonText: t('AdminMM.notes.messages.deleteButton'),
+      cancelButtonText: t('AdminMM.notes.messages.cancelButton'),
       type: 'warning',
     })
     await apiFetch<NoteDto>(`/api/admin/mm/note/${row.id}`, {method: 'DELETE'})
-    ElMessage.success('已删除')
+    ElMessage.success(t('AdminMM.notes.messages.deleted'))
     fetchList()
   } catch (e: any) {
     if (e?.message && e.message !== 'cancel' && e.message !== 'close' && e.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '删除失败')
+      ElMessage.error(e?.message || t('AdminMM.notes.messages.deleteFailed'))
     }
   }
 }
@@ -347,11 +347,11 @@ async function restoreOne(row: NoteDto) {
       method: 'PUT',
       body: {isDeleted: false},
     })
-    ElMessage.success('已恢复')
+    ElMessage.success(t('AdminMM.notes.messages.restored'))
     fetchList()
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
-      ElMessage.error(e?.message || '恢复失败')
+      ElMessage.error(e?.message || t('AdminMM.notes.messages.restoreFailed'))
     }
   }
 }
@@ -463,11 +463,19 @@ onMounted(() => {
 
 <template>
   <div class="page-container">
+    <!-- 页面头部 -->
+    <div class="page-header">
+      <div class="header-left">
+        <h1 class="page-title">{{ $t('AdminMM.notes.title') }}</h1>
+        <p class="page-desc">{{ $t('AdminMM.notes.desc') }}</p>
+      </div>
+    </div>
+
     <div class="toolbar">
       <div class="filters">
         <el-select 
           v-model="selectedProjectId" 
-          placeholder="选择项目" 
+          :placeholder="$t('AdminMM.notes.filters.selectProject')" 
           clearable 
           filterable
           class="filter-item"
@@ -482,7 +490,7 @@ onMounted(() => {
 
         <el-select 
           v-model="selectedVersionId" 
-          placeholder="选择版本" 
+          :placeholder="$t('AdminMM.notes.filters.selectVersion')" 
           clearable 
           filterable
           class="filter-item"
@@ -498,7 +506,7 @@ onMounted(() => {
 
         <el-select 
           v-model="selectedCategoryId" 
-          placeholder="选择分类" 
+          :placeholder="$t('AdminMM.notes.filters.selectCategory')" 
           clearable 
           filterable
           class="filter-item"
@@ -514,27 +522,27 @@ onMounted(() => {
 
         <el-input
           v-model="filters.keyword"
-          placeholder="按笔记标题模糊搜索"
+          :placeholder="$t('AdminMM.notes.filters.keyword')"
           clearable
           class="filter-item"
           @keyup.enter="pagination.page = 1; fetchList()"
         />
 
-        <el-select v-model="filters.status" placeholder="状态" clearable class="filter-item filter-status">
-          <el-option label="启用(1)" value="1"/>
-          <el-option label="停用(0)" value="0"/>
+        <el-select v-model="filters.status" :placeholder="$t('AdminMM.notes.filters.status')" clearable class="filter-item filter-status">
+          <el-option :label="$t('AdminMM.notes.status.enabled')" value="1"/>
+          <el-option :label="$t('AdminMM.notes.status.disabled')" value="0"/>
         </el-select>
 
         <div class="filter-item switch-item">
-          <span class="switch-label">包含已删除</span>
+          <span class="switch-label">{{ $t('AdminMM.notes.filters.includeDeleted') }}</span>
           <el-switch v-model="filters.includeDeleted" @change="pagination.page = 1; fetchList()"/>
         </div>
       </div>
 
       <div class="actions">
-        <el-button type="primary" @click="pagination.page = 1; fetchList()">查询</el-button>
-        <el-button @click="resetFilters">重置</el-button>
-        <el-button type="primary" plain @click="openCreate">新增笔记</el-button>
+        <el-button type="primary" @click="pagination.page = 1; fetchList()">{{ $t('AdminMM.notes.actions.search') }}</el-button>
+        <el-button @click="resetFilters">{{ $t('AdminMM.notes.actions.reset') }}</el-button>
+        <el-button type="primary" plain @click="openCreate">{{ $t('AdminMM.notes.actions.create') }}</el-button>
       </div>
     </div>
 
@@ -547,44 +555,44 @@ onMounted(() => {
         @selection-change="(rows: NoteDto[]) => (selectedRows = rows)"
       >
         <el-table-column type="selection" width="50"/>
-        <el-table-column prop="id" label="ID" width="100"/>
-        <el-table-column prop="noteTitle" label="笔记标题" min-width="200"/>
-        <el-table-column label="所属路径" min-width="280">
+        <el-table-column prop="id" :label="$t('AdminMM.notes.table.id')" width="100"/>
+        <el-table-column prop="noteTitle" :label="$t('AdminMM.notes.table.noteTitle')" min-width="200"/>
+        <el-table-column :label="$t('AdminMM.notes.table.path')" min-width="280">
           <template #default="{ row }">
             <span class="path-text">{{ getFullPath(row) }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="weight" label="权重" width="80" align="center"/>
+        <el-table-column prop="weight" :label="$t('AdminMM.notes.table.weight')" width="80" align="center"/>
 
-        <el-table-column label="内容版本" width="100" align="center">
+        <el-table-column :label="$t('AdminMM.notes.table.contentVersion')" width="100" align="center">
           <template #default="{ row }">
             <el-tag v-if="row.contentCount > 0" type="primary">{{ row.contentCount }}</el-tag>
             <span v-else class="text-subtle">0</span>
           </template>
         </el-table-column>
 
-        <el-table-column label="状态" width="100">
+        <el-table-column :label="$t('AdminMM.notes.table.status')" width="100">
           <template #default="{ row }">
-            <el-tag v-if="row.isDeleted" type="info">已删除</el-tag>
-            <el-tag v-else-if="row.status === 1" type="success">启用</el-tag>
-            <el-tag v-else type="warning">停用</el-tag>
+            <el-tag v-if="row.isDeleted" type="info">{{ $t('AdminMM.notes.statusTag.deleted') }}</el-tag>
+            <el-tag v-else-if="row.status === 1" type="success">{{ $t('AdminMM.notes.statusTag.enabled') }}</el-tag>
+            <el-tag v-else type="warning">{{ $t('AdminMM.notes.statusTag.disabled') }}</el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column label="创建时间" width="170">
+        <el-table-column :label="$t('AdminMM.notes.table.createdAt')" width="170">
           <template #default="{ row }">{{ formatTime(row.createdAt) }}</template>
         </el-table-column>
 
-        <el-table-column label="更新时间" width="170">
+        <el-table-column :label="$t('AdminMM.notes.table.updatedAt')" width="170">
           <template #default="{ row }">{{ formatTime(row.updatedAt) }}</template>
         </el-table-column>
 
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column :label="$t('AdminMM.notes.table.operations')" width="280" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" type="primary" plain @click="goToContent(row)" :disabled="row.isDeleted">内容编辑</el-button>
-            <el-button size="small" @click="openEdit(row)" :disabled="row.isDeleted">编辑</el-button>
-            <el-button size="small" type="danger" @click="deleteOne(row)" :disabled="row.isDeleted">删除</el-button>
-            <el-button size="small" @click="restoreOne(row)" v-if="row.isDeleted">恢复</el-button>
+            <el-button size="small" type="primary" plain @click="goToContent(row)" :disabled="row.isDeleted">{{ $t('AdminMM.notes.operations.contentEdit') }}</el-button>
+            <el-button size="small" @click="openEdit(row)" :disabled="row.isDeleted">{{ $t('AdminMM.notes.operations.edit') }}</el-button>
+            <el-button size="small" type="danger" @click="deleteOne(row)" :disabled="row.isDeleted">{{ $t('AdminMM.notes.operations.delete') }}</el-button>
+            <el-button size="small" @click="restoreOne(row)" v-if="row.isDeleted">{{ $t('AdminMM.notes.operations.restore') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -604,30 +612,30 @@ onMounted(() => {
 
     <el-dialog
       v-model="dialogOpen"
-      :title="dialogMode === 'create' ? '新增笔记' : '编辑笔记'"
+      :title="dialogMode === 'create' ? $t('AdminMM.notes.dialog.createTitle') : $t('AdminMM.notes.dialog.editTitle')"
       width="480px"
       :close-on-click-modal="false"
     >
       <el-form ref="formRef" :model="form" :rules="formRules" label-width="90px">
-        <el-form-item label="笔记标题" prop="noteTitle">
+        <el-form-item :label="$t('AdminMM.notes.dialog.noteTitle')" prop="noteTitle">
           <el-input v-model="form.noteTitle" maxlength="255" show-word-limit/>
         </el-form-item>
 
-        <el-form-item label="权重" prop="weight">
+        <el-form-item :label="$t('AdminMM.notes.dialog.weight')" prop="weight">
           <el-input-number v-model="form.weight" :min="0" :max="999999" style="width: 100%"/>
         </el-form-item>
 
-        <el-form-item label="状态" prop="status">
+        <el-form-item :label="$t('AdminMM.notes.dialog.status')" prop="status">
           <el-select v-model="form.status" style="width: 100%">
-            <el-option label="启用(1)" :value="1"/>
-            <el-option label="停用(0)" :value="0"/>
+            <el-option :label="$t('AdminMM.notes.status.enabled')" :value="1"/>
+            <el-option :label="$t('AdminMM.notes.status.disabled')" :value="0"/>
           </el-select>
         </el-form-item>
       </el-form>
 
       <template #footer>
-        <el-button @click="dialogOpen = false">取消</el-button>
-        <el-button type="primary" :loading="dialogSubmitting" @click="submitForm">保存</el-button>
+        <el-button @click="dialogOpen = false">{{ $t('AdminMM.notes.dialog.cancel') }}</el-button>
+        <el-button type="primary" :loading="dialogSubmitting" @click="submitForm">{{ $t('AdminMM.notes.dialog.save') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -637,6 +645,32 @@ onMounted(() => {
 <style scoped>
 .page-container {
   --sloth-radius: 4px;
+}
+
+/* 页面头部卡片 */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  padding: 12px;
+  background: var(--sloth-card);
+  border: 1px solid var(--sloth-card-border);
+  border-radius: var(--sloth-radius);
+  backdrop-filter: blur(var(--sloth-blur));
+}
+
+.page-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--sloth-text);
+  margin: 0 0 4px;
+}
+
+.page-desc {
+  font-size: 13px;
+  color: var(--sloth-text-subtle);
+  margin: 0;
 }
 
 .toolbar {
