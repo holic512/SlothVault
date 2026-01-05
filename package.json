@@ -17,6 +17,8 @@
     "@pinia/nuxt": "^0.11.3",
     "@prisma/adapter-pg": "^7.0.1",
     "@prisma/client": "^7.1.0",
+    "@solana/spl-account-compression": "^0.1.10",
+    "@solana/web3.js": "^1.98.4",
     "argon2": "^0.44.0",
     "dayjs": "^1.11.19",
     "dotenv": "^17.2.3",

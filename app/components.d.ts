@@ -12,11 +12,21 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    ElButton: typeof import('element-plus/es')['ElButton']
+    ElDialog: typeof import('element-plus/es')['ElDialog']
     ElEmpty: typeof import('element-plus/es')['ElEmpty']
+    ElForm: typeof import('element-plus/es')['ElForm']
+    ElFormItem: typeof import('element-plus/es')['ElFormItem']
     ElIcon: typeof import('element-plus/es')['ElIcon']
     ElInput: typeof import('element-plus/es')['ElInput']
     ElMenu: typeof import('element-plus/es')['ElMenu']
     ElMenuItem: typeof import('element-plus/es')['ElMenuItem']
+    ElProgress: typeof import('element-plus/es')['ElProgress']
+    ElRadioButton: typeof import('element-plus/es')['ElRadioButton']
+    ElRadioGroup: typeof import('element-plus/es')['ElRadioGroup']
+    ElTable: typeof import('element-plus/es')['ElTable']
+    ElTableColumn: typeof import('element-plus/es')['ElTableColumn']
+    ElTag: typeof import('element-plus/es')['ElTag']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
   }
@@ -27,11 +37,21 @@ declare module 'vue' {
 
 // For TSX support
 declare global {
+  const ElButton: typeof import('element-plus/es')['ElButton']
+  const ElDialog: typeof import('element-plus/es')['ElDialog']
   const ElEmpty: typeof import('element-plus/es')['ElEmpty']
+  const ElForm: typeof import('element-plus/es')['ElForm']
+  const ElFormItem: typeof import('element-plus/es')['ElFormItem']
   const ElIcon: typeof import('element-plus/es')['ElIcon']
   const ElInput: typeof import('element-plus/es')['ElInput']
   const ElMenu: typeof import('element-plus/es')['ElMenu']
   const ElMenuItem: typeof import('element-plus/es')['ElMenuItem']
+  const ElProgress: typeof import('element-plus/es')['ElProgress']
+  const ElRadioButton: typeof import('element-plus/es')['ElRadioButton']
+  const ElRadioGroup: typeof import('element-plus/es')['ElRadioGroup']
+  const ElTable: typeof import('element-plus/es')['ElTable']
+  const ElTableColumn: typeof import('element-plus/es')['ElTableColumn']
+  const ElTag: typeof import('element-plus/es')['ElTag']
   const RouterLink: typeof import('vue-router')['RouterLink']
   const RouterView: typeof import('vue-router')['RouterView']
 }

@@ -67,3 +67,18 @@ export type NoteContent = Prisma.NoteContentModel
  * 文件管理表：存储上传文件的原始信息、服务器落盘信息与业务类型（schema: public）
  */
 export type FileManagement = Prisma.FileManagementModel
+/**
+ * Model SystemConfig
+ * 系统配置表：存储系统级配置项（schema: public）
+ */
+export type SystemConfig = Prisma.SystemConfigModel
+/**
+ * Model MerkleTree
+ * Merkle Tree 表：存储系统级 cNFT Merkle Tree 信息（schema: public）
+ */
+export type MerkleTree = Prisma.MerkleTreeModel
+/**
+ * Model CompressedNft
+ * 压缩 NFT 表：存储 cNFT 元数据，关联项目用于鉴权（schema: public）
+ */
+export type CompressedNft = Prisma.CompressedNftModel

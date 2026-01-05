@@ -288,3 +288,113 @@ model FileManagement {
   @@map("file_management")
   @@schema("public")
 }
+
+
+/// 系统配置表：存储系统级配置项（schema: public）
+model SystemConfig {
+  // 配置ID
+  id          BigInt   @id @default(autoincrement()) @db.BigInt
+  // 配置键（唯一）
+  configKey   String   @unique @db.VarChar(100) @map("config_key")
+  // 配置值
+  configValue String   @db.VarChar(500) @map("config_value")
+  // 配置描述
+  description String?  @db.VarChar(255)
+  // 创建时间
+  createdAt   DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+  // 更新时间
+  updatedAt   DateTime @default(now()) @db.Timestamptz(6) @map("updated_at")
+
+  @@map("system_config")
+  @@schema("public")
+}
+
+/// Merkle Tree 表：存储系统级 cNFT Merkle Tree 信息（schema: public）
+model MerkleTree {
+  // 树ID
+  id               BigInt   @id @default(autoincrement()) @db.BigInt
+  // 树名称
+  name             String   @db.VarChar(128)
+  // 链上树地址
+  treeAddress      String   @unique @db.VarChar(64) @map("tree_address")
+  // 树权限地址（公钥）
+  treeAuthority    String   @db.VarChar(64) @map("tree_authority")
+  // 加密后的树权限私钥（AES-256-GCM 加密）
+  encryptedKey     String   @db.Text @map("encrypted_key")
+  // 创建者钱包地址
+  creatorAddress   String   @db.VarChar(64) @map("creator_address")
+  // 最大深度（决定容量：2^maxDepth）
+  maxDepth         Int      @db.SmallInt @map("max_depth")
+  // 最大缓冲区大小
+  maxBufferSize    Int      @db.SmallInt @map("max_buffer_size")
+  // 树冠深度（减少证明大小）
+  canopyDepth      Int      @db.SmallInt @map("canopy_depth")
+  // 网络类型：mainnet / devnet
+  network          String   @db.VarChar(20) @default("devnet")
+  // 已铸造数量
+  totalMinted      Int      @default(0) @map("total_minted")
+  // 最大容量
+  maxCapacity      BigInt   @db.BigInt @map("max_capacity")
+  // 创建成本（lamports）
+  creationCost     BigInt   @db.BigInt @map("creation_cost")
+  // 创建交易签名
+  txSignature      String?  @db.VarChar(128) @map("tx_signature")
+  // 优先级（数值越大越优先使用，用于多树冗余）
+  priority         Int      @default(0)
+  // 状态：0=创建中 1=正常 2=已满 -1=失败
+  status           Int      @default(0) @db.SmallInt
+  // 创建时间
+  createdAt        DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+  // 更新时间
+  updatedAt        DateTime @default(now()) @db.Timestamptz(6) @map("updated_at")
+  // 软删除标记
+  isDeleted        Boolean  @default(false) @map("is_deleted")
+
+  // 关联的 cNFT 列表
+  cnfts CompressedNft[]
+
+  @@index([network, status], map: "idx_merkle_tree_network_status")
+  @@index([creatorAddress], map: "idx_merkle_tree_creator")
+  @@map("merkle_tree")
+  @@schema("public")
+}
+
+/// 压缩 NFT 表：存储 cNFT 元数据，关联项目用于鉴权（schema: public）
+model CompressedNft {
+  // cNFT ID
+  id              BigInt   @id @default(autoincrement()) @db.BigInt
+  // 所属 Merkle Tree ID
+  merkleTreeId    BigInt   @db.BigInt @map("merkle_tree_id")
+  // 关联项目 ID（用于鉴权，哪个项目的访问权限）
+  projectId       BigInt   @db.BigInt @map("project_id")
+  // 资产 ID（链上唯一标识）
+  assetId         String   @unique @db.VarChar(64) @map("asset_id")
+  // 叶子索引
+  leafIndex       Int      @map("leaf_index")
+  // NFT 名称
+  name            String   @db.VarChar(128)
+  // NFT 符号
+  symbol          String?  @db.VarChar(32)
+  // 元数据 URI
+  metadataUri     String?  @db.VarChar(500) @map("metadata_uri")
+  // 当前持有者地址
+  ownerAddress    String   @db.VarChar(64) @map("owner_address")
+  // 铸造交易签名
+  mintTxSignature String?  @db.VarChar(128) @map("mint_tx_signature")
+  // 状态：0=铸造中 1=正常 -1=失败
+  status          Int      @default(0) @db.SmallInt
+  // 创建时间
+  createdAt       DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+  // 更新时间
+  updatedAt       DateTime @default(now()) @db.Timestamptz(6) @map("updated_at")
+
+  // 关联 Merkle Tree
+  merkleTree MerkleTree @relation(fields: [merkleTreeId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_cnft_merkle_tree")
+
+  @@index([merkleTreeId], map: "idx_cnft_merkle_tree_id")
+  @@index([projectId], map: "idx_cnft_project_id")
+  @@index([ownerAddress], map: "idx_cnft_owner")
+  @@index([projectId, ownerAddress], map: "idx_cnft_project_owner")
+  @@map("compressed_nft")
+  @@schema("public")
+}

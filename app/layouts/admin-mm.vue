@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import ThemeToggle from '~/components/ThemeToggle.vue'
-import { HomeIcon, RectangleStackIcon, ChevronRightIcon, ChevronLeftIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon, FolderIcon, DocumentIcon, DocumentTextIcon } from '@heroicons/vue/24/outline'
+import { HomeIcon, RectangleStackIcon, ChevronRightIcon, ChevronLeftIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon, FolderIcon, DocumentIcon, DocumentTextIcon, CubeTransparentIcon } from '@heroicons/vue/24/outline'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -16,7 +16,8 @@ const breadcrumbMap: Record<string, string> = {
   '/admin/mm/projects': 'AdminMM.menu.projects',
   '/admin/mm/categories': 'AdminMM.menu.categories',
   '/admin/mm/notes': 'AdminMM.menu.notes',
-  '/admin/mm/files': 'AdminMM.menu.files'
+  '/admin/mm/files': 'AdminMM.menu.files',
+  '/admin/mm/solana': 'AdminMM.menu.solana'
 }
 
 const breadcrumbs = computed(() => {
@@ -31,7 +32,7 @@ const breadcrumbs = computed(() => {
   const homeEditMatch = path.match(/^\/admin\/mm\/projects\/(\d+)\/home$/)
   if (homeEditMatch) {
     items.push({ name: t('AdminMM.menu.projects'), path: '/admin/mm/projects', disabled: false })
-    items.push({ name: '首页编辑', path, disabled: true })
+    items.push({ name: t('AdminMM.breadcrumb.homeEdit'), path, disabled: true })
     return items
   }
 
@@ -39,7 +40,7 @@ const breadcrumbs = computed(() => {
   const noteContentMatch = path.match(/^\/admin\/mm\/notes\/(\d+)\/content$/)
   if (noteContentMatch) {
     items.push({ name: t('AdminMM.menu.notes'), path: '/admin/mm/notes', disabled: false })
-    items.push({ name: '内容编辑', path, disabled: true })
+    items.push({ name: t('AdminMM.breadcrumb.contentEdit'), path, disabled: true })
     return items
   }
   
@@ -107,6 +108,11 @@ const toggleSidebar = () => {
           <el-icon><DocumentIcon /></el-icon>
           <span>{{ t('AdminMM.menu.files') }}</span>
         </el-menu-item>
+
+        <el-menu-item index="/admin/mm/solana">
+          <el-icon><CubeTransparentIcon /></el-icon>
+          <span>{{ t('AdminMM.menu.solana') }}</span>
+        </el-menu-item>
       </el-menu>
     </aside>
 
@@ -114,7 +120,7 @@ const toggleSidebar = () => {
     <div class="main-wrapper">
       <header class="admin-header">
         <div class="header-left">
-          <button class="collapse-btn" @click="toggleSidebar" :title="isCollapse ? '展开侧边栏' : '收起侧边栏'">
+          <button class="collapse-btn" @click="toggleSidebar" :title="isCollapse ? t('AdminMM.sidebar.expand') : t('AdminMM.sidebar.collapse')">
             <ChevronDoubleRightIcon v-if="isCollapse" class="icon-size" />
             <ChevronDoubleLeftIcon v-else class="icon-size" />
           </button>
@@ -144,7 +150,8 @@ const toggleSidebar = () => {
           </nav>
         </div>
         <div class="header-right">
-          <NuxtLink to="/" class="home-link" title="返回主页">
+          <WalletConnector />
+          <NuxtLink to="/" class="home-link" :title="t('AdminMM.header.backHome')">
             <HomeIcon class="home-icon" />
           </NuxtLink>
           <ThemeToggle />

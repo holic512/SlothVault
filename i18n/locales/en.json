@@ -173,10 +173,22 @@
       "projects": "Project Management",
       "categories": "Category Management",
       "notes": "Note Management",
-      "files": "File Management"
+      "files": "File Management",
+      "solana": "On-chain Management"
     },
     "projects": {
       "title": "Project Management"
+    },
+    "breadcrumb": {
+      "homeEdit": "Home Edit",
+      "contentEdit": "Content Edit"
+    },
+    "sidebar": {
+      "expand": "Expand Sidebar",
+      "collapse": "Collapse Sidebar"
+    },
+    "header": {
+      "backHome": "Back to Home"
     }
   }
 }

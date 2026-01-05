@@ -248,6 +248,7 @@ onUnmounted(() => {
 
         <!-- 右侧：工具按钮 -->
         <div class="navbar-right">
+          <WalletConnector />
           <ProjectListButton />
           <ThemeToggle />
         </div>

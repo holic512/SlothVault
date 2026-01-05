@@ -60,7 +60,10 @@ export const ModelName = {
   Category: 'Category',
   NoteInfo: 'NoteInfo',
   NoteContent: 'NoteContent',
-  FileManagement: 'FileManagement'
+  FileManagement: 'FileManagement',
+  SystemConfig: 'SystemConfig',
+  MerkleTree: 'MerkleTree',
+  CompressedNft: 'CompressedNft'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -220,6 +223,62 @@ export const FileManagementScalarFieldEnum = {
 } as const
 
 export type FileManagementScalarFieldEnum = (typeof FileManagementScalarFieldEnum)[keyof typeof FileManagementScalarFieldEnum]
+
+
+export const SystemConfigScalarFieldEnum = {
+  id: 'id',
+  configKey: 'configKey',
+  configValue: 'configValue',
+  description: 'description',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type SystemConfigScalarFieldEnum = (typeof SystemConfigScalarFieldEnum)[keyof typeof SystemConfigScalarFieldEnum]
+
+
+export const MerkleTreeScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  treeAddress: 'treeAddress',
+  treeAuthority: 'treeAuthority',
+  encryptedKey: 'encryptedKey',
+  creatorAddress: 'creatorAddress',
+  maxDepth: 'maxDepth',
+  maxBufferSize: 'maxBufferSize',
+  canopyDepth: 'canopyDepth',
+  network: 'network',
+  totalMinted: 'totalMinted',
+  maxCapacity: 'maxCapacity',
+  creationCost: 'creationCost',
+  txSignature: 'txSignature',
+  priority: 'priority',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  isDeleted: 'isDeleted'
+} as const
+
+export type MerkleTreeScalarFieldEnum = (typeof MerkleTreeScalarFieldEnum)[keyof typeof MerkleTreeScalarFieldEnum]
+
+
+export const CompressedNftScalarFieldEnum = {
+  id: 'id',
+  merkleTreeId: 'merkleTreeId',
+  projectId: 'projectId',
+  assetId: 'assetId',
+  leafIndex: 'leafIndex',
+  name: 'name',
+  symbol: 'symbol',
+  metadataUri: 'metadataUri',
+  ownerAddress: 'ownerAddress',
+  mintTxSignature: 'mintTxSignature',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CompressedNftScalarFieldEnum = (typeof CompressedNftScalarFieldEnum)[keyof typeof CompressedNftScalarFieldEnum]
 
 
 export const SortOrder = {

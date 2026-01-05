@@ -40,6 +40,16 @@ export default defineNuxtConfig({
         transpile: ['element-plus'],
     },
 
+    // Nitro 服务端配置
+    nitro: {
+        // ESM 兼容性配置
+        esbuild: {
+            options: {
+                target: 'esnext',
+            },
+        },
+    },
+
     vite: {
         resolve: {
             alias: {
@@ -86,6 +96,13 @@ export default defineNuxtConfig({
                 'dayjs/plugin/isSameOrBefore.js',
                 'element-plus/es',
             ],
+            // 排除服务端专用模块
+            exclude: ['@solana/spl-account-compression'],
+        },
+        // SSR 配置 - 将 Solana 相关模块标记为外部依赖
+        ssr: {
+            external: ['@solana/spl-account-compression'],
+            noExternal: [],
         },
     },
 })

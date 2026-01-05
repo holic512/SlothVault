@@ -173,10 +173,22 @@
       "projects": "项目管理",
       "categories": "分类管理",
       "notes": "笔记管理",
-      "files": "文件管理"
+      "files": "文件管理",
+      "solana": "链上管理"
     },
     "projects": {
       "title": "项目管理"
+    },
+    "breadcrumb": {
+      "homeEdit": "首页编辑",
+      "contentEdit": "内容编辑"
+    },
+    "sidebar": {
+      "expand": "展开侧边栏",
+      "collapse": "收起侧边栏"
+    },
+    "header": {
+      "backHome": "返回主页"
     }
   }
 }
