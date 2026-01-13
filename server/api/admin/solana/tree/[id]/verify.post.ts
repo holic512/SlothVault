@@ -36,7 +36,7 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  const connection = getConnection(tree.network as 'mainnet' | 'devnet')
+  const connection = await getConnection(tree.network as 'mainnet' | 'devnet')
 
   // 验证方式1：检查交易签名
   if (tree.txSignature) {

@@ -118,7 +118,7 @@ export default defineEventHandler(async (event) => {
   let connection
 
   try {
-    connection = getConnection(networkType)
+    connection = await getConnection(networkType)
     
     const result = await buildCreateTreeTransaction(
       connection,

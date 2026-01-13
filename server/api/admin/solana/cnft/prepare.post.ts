@@ -278,7 +278,7 @@ export default defineEventHandler(async (event) => {
   let connection
 
   try {
-    connection = getConnection(networkType)
+    connection = await getConnection(networkType)
     const merkleTreePubkey = new PublicKey(availableTree.treeAddress)
     const ownerPubkey = new PublicKey(ownerAddress)
 

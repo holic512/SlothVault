@@ -1,4 +1,5 @@
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js'
+import { getRpcUrl } from '~~/server/utils/solana'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
@@ -22,12 +23,12 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // 从环境变量获取 RPC URL
-  const rpcUrl = process.env.SOLANA_RPC_URL
+  // 从数据库配置获取 RPC URL
+  const rpcUrl = await getRpcUrl('mainnet')
   if (!rpcUrl) {
     throw createError({
       statusCode: 500,
-      message: '未配置 SOLANA_RPC_URL 环境变量，请在 .env 中添加',
+      message: '未配置 Solana RPC URL，请在系统设置中配置',
     })
   }
 
@@ -35,9 +36,9 @@ export default defineEventHandler(async (event) => {
     const connection = new Connection(rpcUrl, {
       commitment: 'confirmed',
     })
-    
+
     const balance = await connection.getBalance(pubKey)
-    
+
     return {
       code: 0,
       data: {

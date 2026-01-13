@@ -1,7 +1,9 @@
 /**
  * Solana 工具函数
  * 用于服务端 Solana 操作
- * 
+ *
+ * 配置来源：数据库 SystemConfig 表（通过 configCache 服务）
+ *
  * 注意：@solana/spl-account-compression 只在服务端使用
  * Nuxt 配置中已将其标记为外部依赖，避免 SSR 问题
  */
@@ -22,6 +24,8 @@ import {
   SPL_ACCOUNT_COMPRESSION_PROGRAM_ID,
 } from '@solana/spl-account-compression'
 
+import { getSolanaRpcUrl, getSolanaDevnetRpcUrl } from './configCache'
+
 // Bubblegum 程序 ID
 const BUBBLEGUM_PROGRAM_ID = new PublicKey(
   'BGUMAp9Gq7iTEuizy4pqaxsTyUCBK68MDfK752saRPUY'
@@ -36,22 +40,23 @@ export type SolanaNetwork = 'mainnet' | 'devnet'
 
 /**
  * 获取 RPC URL
- * 优先使用环境变量配置的 RPC（如 Helius），中国可访问
+ * 从数据库配置获取 RPC URL，如果未配置则使用 Solana 公共 RPC
  */
-export function getRpcUrl(network: SolanaNetwork = 'devnet'): string {
+export async function getRpcUrl(network: SolanaNetwork = 'devnet'): Promise<string> {
   if (network === 'mainnet') {
-    return process.env.SOLANA_RPC_URL || clusterApiUrl('mainnet-beta')
+    const url = await getSolanaRpcUrl()
+    return url || clusterApiUrl('mainnet-beta')
   }
-  // devnet 优先使用 Helius devnet RPC
-  return process.env.SOLANA_DEVNET_RPC_URL || clusterApiUrl('devnet')
+  const url = await getSolanaDevnetRpcUrl()
+  return url || clusterApiUrl('devnet')
 }
 
 /**
  * 获取 Solana RPC 连接
  * 配置较长的超时时间以适应网络环境
  */
-export function getConnection(network: SolanaNetwork = 'devnet'): Connection {
-  const rpcUrl = getRpcUrl(network)
+export async function getConnection(network: SolanaNetwork = 'devnet'): Promise<Connection> {
+  const rpcUrl = await getRpcUrl(network)
 
   return new Connection(rpcUrl, {
     commitment: 'confirmed',

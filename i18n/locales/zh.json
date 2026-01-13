@@ -174,7 +174,8 @@
       "categories": "分类管理",
       "notes": "笔记管理",
       "files": "文件管理",
-      "solana": "链上管理"
+      "solana": "链上管理",
+      "settings": "系统设置"
     },
     "projects": {
       "title": "项目管理",
@@ -654,6 +655,42 @@
           "deleteSuccess": "删除成功",
           "deleteFailed": "删除失败"
         }
+      }
+    },
+    "settings": {
+      "title": "系统设置",
+      "desc": "管理系统配置，包括 Solana RPC 和 Filebase IPFS 存储设置",
+      "tips": {
+        "title": "配置说明",
+        "content": "配置存储在数据库中，并使用内存缓存。修改后点击「保存」持久化更改，然后点击「刷新缓存」可立即生效。"
+      },
+      "groups": {
+        "solana": "Solana 配置",
+        "filebase": "Filebase IPFS 配置"
+      },
+      "configDesc": {
+        "SOLANA_RPC_URL": "Solana 主网 RPC URL（如 Helius）",
+        "SOLANA_DEVNET_RPC_URL": "Solana 测试网 RPC URL",
+        "FILEBASE_ACCESS_KEY": "Filebase IPFS Access Key",
+        "FILEBASE_SECRET_KEY": "Filebase IPFS Secret Key",
+        "FILEBASE_BUCKET": "Filebase Bucket 名称",
+        "FILEBASE_ENDPOINT": "Filebase S3 端点"
+      },
+      "placeholder": "请输入配置值",
+      "unsavedChanges": "有未保存的更改",
+      "empty": "暂无配置项",
+      "actions": {
+        "save": "保存",
+        "refresh": "刷新缓存",
+        "reset": "重置"
+      },
+      "messages": {
+        "loadFailed": "加载配置失败",
+        "saveSuccess": "配置已保存",
+        "saveFailed": "保存配置失败",
+        "refreshSuccess": "缓存已刷新",
+        "refreshFailed": "刷新缓存失败",
+        "requestFailed": "请求失败"
       }
     },
     "breadcrumb": {

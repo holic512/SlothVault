@@ -51,7 +51,7 @@ export default defineEventHandler(async (event) => {
 
     // 尝试从链上获取精确租金（静默失败）
     try {
-      const connection = getConnection(networkType)
+      const connection = await getConnection(networkType)
       rentLamports = await connection.getMinimumBalanceForRentExemption(space)
       isEstimate = false
     } catch {
@@ -84,7 +84,7 @@ export default defineEventHandler(async (event) => {
   let connection = null
   
   try {
-    connection = getConnection(networkType)
+    connection = await getConnection(networkType)
     // 测试连接是否可用
     await connection.getLatestBlockhash()
     isEstimate = false

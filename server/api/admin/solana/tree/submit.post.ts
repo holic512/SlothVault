@@ -94,7 +94,7 @@ export default defineEventHandler(async (event) => {
 
   // 5. 获取 RPC 连接并发送交易
   const network = session.network as SolanaNetwork
-  const connection = getConnection(network)
+  const connection = await getConnection(network)
   
   let txSignature: string
   try {

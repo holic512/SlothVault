@@ -174,7 +174,8 @@
       "categories": "Category Management",
       "notes": "Note Management",
       "files": "File Management",
-      "solana": "On-chain Management"
+      "solana": "On-chain Management",
+      "settings": "System Settings"
     },
     "projects": {
       "title": "Project Management",
@@ -654,6 +655,42 @@
           "deleteSuccess": "Deleted successfully",
           "deleteFailed": "Delete failed"
         }
+      }
+    },
+    "settings": {
+      "title": "System Settings",
+      "desc": "Manage system configuration including Solana RPC and Filebase IPFS settings",
+      "tips": {
+        "title": "Configuration Tips",
+        "content": "Configuration is stored in the database with memory caching. After modifying, click 'Save' to persist changes, then click 'Refresh Cache' to apply immediately."
+      },
+      "groups": {
+        "solana": "Solana Configuration",
+        "filebase": "Filebase IPFS Configuration"
+      },
+      "configDesc": {
+        "SOLANA_RPC_URL": "Solana Mainnet RPC URL (e.g., Helius)",
+        "SOLANA_DEVNET_RPC_URL": "Solana Devnet RPC URL",
+        "FILEBASE_ACCESS_KEY": "Filebase IPFS Access Key",
+        "FILEBASE_SECRET_KEY": "Filebase IPFS Secret Key",
+        "FILEBASE_BUCKET": "Filebase Bucket Name",
+        "FILEBASE_ENDPOINT": "Filebase S3 Endpoint"
+      },
+      "placeholder": "Enter configuration value",
+      "unsavedChanges": "Unsaved changes",
+      "empty": "No configuration items found",
+      "actions": {
+        "save": "Save",
+        "refresh": "Refresh Cache",
+        "reset": "Reset"
+      },
+      "messages": {
+        "loadFailed": "Failed to load configuration",
+        "saveSuccess": "Configuration saved",
+        "saveFailed": "Failed to save configuration",
+        "refreshSuccess": "Cache refreshed",
+        "refreshFailed": "Failed to refresh cache",
+        "requestFailed": "Request failed"
       }
     },
     "breadcrumb": {

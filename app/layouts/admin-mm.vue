@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import ThemeToggle from '~/components/ThemeToggle.vue'
-import { HomeIcon, RectangleStackIcon, ChevronRightIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon, FolderIcon, DocumentIcon, DocumentTextIcon, CubeTransparentIcon } from '@heroicons/vue/24/outline'
+import { HomeIcon, RectangleStackIcon, ChevronRightIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon, FolderIcon, DocumentIcon, DocumentTextIcon, CubeTransparentIcon, Cog6ToothIcon } from '@heroicons/vue/24/outline'
 import HomeButton from '~/components/admin/mm/layout/HomeButton.vue'
 
 const { t } = useI18n()
@@ -18,7 +18,8 @@ const breadcrumbMap: Record<string, string> = {
   '/admin/mm/categories': 'AdminMM.menu.categories',
   '/admin/mm/notes': 'AdminMM.menu.notes',
   '/admin/mm/files': 'AdminMM.menu.files',
-  '/admin/mm/solana': 'AdminMM.menu.solana'
+  '/admin/mm/solana': 'AdminMM.menu.solana',
+  '/admin/mm/settings': 'AdminMM.menu.settings'
 }
 
 const breadcrumbs = computed(() => {
@@ -113,6 +114,11 @@ const toggleSidebar = () => {
         <el-menu-item index="/admin/mm/solana">
           <el-icon><CubeTransparentIcon /></el-icon>
           <span>{{ t('AdminMM.menu.solana') }}</span>
+        </el-menu-item>
+
+        <el-menu-item index="/admin/mm/settings">
+          <el-icon><Cog6ToothIcon /></el-icon>
+          <span>{{ t('AdminMM.menu.settings') }}</span>
         </el-menu-item>
       </el-menu>
     </aside>

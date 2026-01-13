@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref, watch, computed } from 'vue'
+import {computed, reactive, ref, watch} from 'vue'
 import {
   ElButton,
   ElDialog,
@@ -121,7 +121,7 @@ async function fetchMenuList() {
   if (!props.projectId) return
   loading.value = true
   try {
-    const data = await apiFetch<ProjectMenuDto[]>('/api/admin/mm/menu', {
+    list.value = await apiFetch<ProjectMenuDto[]>('/api/admin/mm/menu', {
       method: 'GET',
       query: {
         projectId: props.projectId,
@@ -129,7 +129,6 @@ async function fetchMenuList() {
         includeDeleted: filters.includeDeleted ? '1' : undefined,
       },
     })
-    list.value = data
   } catch (e: any) {
     if (e?.message !== 'Unauthorized') {
       ElMessage.error(e?.message || '加载菜单列表失败')
