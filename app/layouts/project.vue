@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ChevronDownIcon } from '@heroicons/vue/24/outline'
 
-const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 

@@ -30,7 +30,7 @@ const formatDate = (dateStr: string) => {
     <!-- 导航栏 -->
     <nav class="navbar">
       <div class="sloth-container sloth-flex-between" style="height: 100%;">
-        <NuxtLink to="/public" class="brand">
+        <NuxtLink to="/" class="brand">
           <img src="/logo.png" class="brand-icon" alt="Logo"/>
           <span class="brand-text">Sloth<span class="sloth-text-gradient">Vault</span></span>
         </NuxtLink>

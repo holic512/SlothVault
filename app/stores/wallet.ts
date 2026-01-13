@@ -7,7 +7,17 @@ interface WalletState {
   balance: number // lamports
   connecting: boolean
   loadingBalance: boolean
-  wallet: any // Phantom wallet object
+  _manualDisconnect: boolean // 标记是否为手动断开
+}
+
+// 非响应式存储，避免序列化问题
+let _wallet: any = null
+let _boundHandlers: {
+  accountChanged: ((pk: PublicKey | null) => void) | null
+  disconnect: (() => void) | null
+} = {
+  accountChanged: null,
+  disconnect: null,
 }
 
 export const useWalletStore = defineStore('wallet', {
@@ -17,7 +27,7 @@ export const useWalletStore = defineStore('wallet', {
     balance: 0,
     connecting: false,
     loadingBalance: false,
-    wallet: null,
+    _manualDisconnect: false,
   }),
 
   getters: {
@@ -43,18 +53,27 @@ export const useWalletStore = defineStore('wallet', {
       }
 
       this.connecting = true
+      this._manualDisconnect = false
       try {
         const response = await solana.connect()
-        this.wallet = solana
+        _wallet = solana
         this.publicKey = response.publicKey.toString()
         this.connected = true
 
         // 获取余额
         await this.fetchBalance()
 
+        // 绑定事件处理器（保存引用以便后续移除）
+        _boundHandlers.accountChanged = (pk: PublicKey | null) => {
+          this.handleAccountChanged(pk)
+        }
+        _boundHandlers.disconnect = () => {
+          this.handleDisconnect()
+        }
+
         // 监听账户变化
-        solana.on('accountChanged', this.handleAccountChanged)
-        solana.on('disconnect', this.handleDisconnect)
+        solana.on('accountChanged', _boundHandlers.accountChanged)
+        solana.on('disconnect', _boundHandlers.disconnect)
       } finally {
         this.connecting = false
       }
@@ -62,10 +81,34 @@ export const useWalletStore = defineStore('wallet', {
 
     // 断开连接
     async disconnect() {
-      if (this.wallet) {
-        await this.wallet.disconnect()
+      this._manualDisconnect = true
+
+      // 先移除事件监听器
+      this.removeEventListeners()
+
+      if (_wallet) {
+        try {
+          await _wallet.disconnect()
+        } catch (err) {
+          // 忽略断开连接时的错误
+          console.warn('断开钱包时出错:', err)
+        }
       }
       this.reset()
+    },
+
+    // 移除事件监听器
+    removeEventListeners() {
+      if (_wallet) {
+        if (_boundHandlers.accountChanged) {
+          _wallet.off?.('accountChanged', _boundHandlers.accountChanged)
+        }
+        if (_boundHandlers.disconnect) {
+          _wallet.off?.('disconnect', _boundHandlers.disconnect)
+        }
+      }
+      _boundHandlers.accountChanged = null
+      _boundHandlers.disconnect = null
     },
 
     // 通过服务端 API 获取余额（绕过 CORS）
@@ -100,6 +143,7 @@ export const useWalletStore = defineStore('wallet', {
 
     // 处理断开连接
     handleDisconnect() {
+      this.removeEventListeners()
       this.reset()
     },
 
@@ -108,26 +152,41 @@ export const useWalletStore = defineStore('wallet', {
       this.connected = false
       this.publicKey = null
       this.balance = 0
-      this.wallet = null
+      _wallet = null
     },
 
     // 检查是否已连接（页面加载时）
     async checkConnection() {
       if (typeof window === 'undefined') return
 
+      // 如果是手动断开的，不自动重连
+      if (this._manualDisconnect) {
+        return
+      }
+
       const solana = (window as any).solana
-      if (solana?.isPhantom && solana.isConnected) {
-        this.wallet = solana
-        this.publicKey = solana.publicKey?.toString() || null
-        this.connected = !!this.publicKey
-        if (this.connected) {
-          await this.fetchBalance()
+      if (solana?.isPhantom && solana.isConnected && solana.publicKey) {
+        _wallet = solana
+        this.publicKey = solana.publicKey.toString()
+        this.connected = true
+
+        // 绑定事件处理器
+        _boundHandlers.accountChanged = (pk: PublicKey | null) => {
+          this.handleAccountChanged(pk)
         }
+        _boundHandlers.disconnect = () => {
+          this.handleDisconnect()
+        }
+
+        solana.on('accountChanged', _boundHandlers.accountChanged)
+        solana.on('disconnect', _boundHandlers.disconnect)
+
+        await this.fetchBalance()
       }
     },
   },
 
   persist: {
-    pick: ['publicKey'], // 只持久化公钥，连接状态需要重新验证
+    pick: ['_manualDisconnect'], // 持久化手动断开标记
   },
 })
