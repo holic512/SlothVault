@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MdCatalog } from 'md-editor-v3'
+import {MdCatalog} from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 
 definePageMeta({
@@ -40,15 +40,15 @@ const versionId = computed(() => route.params.versionId as string)
 const noteId = computed(() => route.params.noteId as string)
 
 // 获取侧边栏数据
-const { data: sidebarData } = await useFetch<ApiResponse<CategoryDto[]>>(
-  () => `/api/project/${projectId.value}/v/${versionId.value}/sidebar`
+const {data: sidebarData} = await useFetch<ApiResponse<CategoryDto[]>>(
+    () => `/api/project/${projectId.value}/v/${versionId.value}/sidebar`
 )
 const categories = computed(() => sidebarData.value?.data ?? [])
 
 // 获取笔记内容
-const { data: noteData, pending: loading, error: fetchError } = await useFetch<ApiResponse<NoteContentDto>>(
-  () => `/api/project/${projectId.value}/v/${versionId.value}/note/${noteId.value}`,
-  { watch: [noteId] }
+const {data: noteData, pending: loading, error: fetchError} = await useFetch<ApiResponse<NoteContentDto>>(
+    () => `/api/project/${projectId.value}/v/${versionId.value}/note/${noteId.value}`,
+    {watch: [noteId]}
 )
 const noteContent = computed(() => noteData.value?.data)
 const error = computed(() => {
@@ -78,9 +78,9 @@ onMounted(() => {
           <ul class="note-list">
             <li v-for="note in category.notes" :key="note.id">
               <NuxtLink
-                :to="`/project/${projectId}/v/${versionId}/docs/${note.id}`"
-                class="note-link"
-                :class="{ 'is-active': note.id === noteId }"
+                  :to="`/project/${projectId}/v/${versionId}/docs/${note.id}`"
+                  class="note-link"
+                  :class="{ 'is-active': note.id === noteId }"
               >
                 {{ note.noteTitle }}
               </NuxtLink>
@@ -109,10 +109,10 @@ onMounted(() => {
         <div class="article-body">
           <ClientOnly>
             <MdEditorMdPreview
-              :id="mdPreviewId"
-              :model-value="noteContent.content"
-              preview-theme="github"
-              code-theme="github"
+                :id="mdPreviewId"
+                :model-value="noteContent.content"
+                preview-theme="github"
+                code-theme="github"
             />
             <template #fallback>
               <div class="loading-state">
@@ -135,10 +135,10 @@ onMounted(() => {
     <aside class="docs-toc">
       <div class="toc-title">目录</div>
       <MdCatalog
-        v-if="noteContent?.content"
-        :editor-id="mdPreviewId"
-        :scroll-element="scrollElement"
-        class="toc-catalog"
+          v-if="noteContent?.content"
+          :editor-id="mdPreviewId"
+          :scroll-element="scrollElement"
+          class="toc-catalog"
       />
       <div class="toc-divider"></div>
     </aside>
@@ -148,7 +148,7 @@ onMounted(() => {
 <style scoped>
 .docs-page {
   display: flex;
-  min-height: calc(100vh - 60px);
+  min-height: 100vh;
 }
 
 /* 左侧侧边栏 */
@@ -159,8 +159,7 @@ onMounted(() => {
   background: var(--sloth-card);
   overflow-y: auto;
   position: sticky;
-  top: 60px;
-  height: calc(100vh - 60px);
+  height: 100vh;
 }
 
 .sidebar-nav {
@@ -207,7 +206,7 @@ onMounted(() => {
 .docs-content {
   flex: 1;
   min-width: 0;
-  padding: 32px 48px;
+  padding: 80px 48px;
   margin-right: 220px;
 }
 
@@ -231,8 +230,7 @@ onMounted(() => {
   overflow-y: auto;
   position: fixed;
   right: 0;
-  top: 60px;
-  height: calc(100vh - 60px);
+  height: 100vh;
   padding: 20px 16px;
 }
 

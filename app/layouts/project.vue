@@ -125,133 +125,139 @@ onUnmounted(() => {
 
 <template>
   <div class="project-layout">
-    <!-- 顶部导航栏 -->
+    <!-- 背景氛围光斑 -->
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+
+    <!-- 液态玻璃悬浮导航栏 -->
     <nav class="project-navbar">
-      <div class="sloth-container navbar-inner">
-        <!-- 左侧：项目头像和名称 + 版本选择器 -->
-        <div class="navbar-left">
-          <NuxtLink :to="`/project/${projectId}/home`" class="project-brand">
-            <img 
-              v-if="project?.avatar" 
-              :src="project.avatar" 
-              :alt="project?.projectName" 
-              class="project-avatar"
-            />
-            <div v-else class="project-avatar-placeholder">
-              {{ project?.projectName?.charAt(0) ?? 'P' }}
-            </div>
-            <span class="project-name">{{ project?.projectName ?? 'Loading...' }}</span>
-          </NuxtLink>
-
-          <!-- 版本选择器 -->
-          <div 
-            v-if="showVersionSelector && versions.length > 0" 
-            class="version-selector"
-            :class="{ 'is-open': showVersionDropdown }"
-          >
-            <button 
-              class="version-btn"
-              @click.stop="toggleVersionDropdown"
-            >
-              <span class="version-label">{{ selectedVersion?.version ?? '选择版本' }}</span>
-              <ChevronDownIcon class="version-icon" />
-            </button>
-            <div v-show="showVersionDropdown" class="version-dropdown">
-              <button
-                v-for="ver in versions"
-                :key="ver.id"
-                class="version-item"
-                :class="{ 'is-active': ver.id === selectedVersion?.id }"
-                @click="switchVersion(ver.id)"
-              >
-                {{ ver.version }}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 中间：菜单 -->
-        <div class="navbar-center">
-          <div class="nav-menus">
-            <!-- 默认菜单：首页 -->
-            <NuxtLink 
-              :to="`/project/${projectId}/home`"
-              class="nav-link"
-            >
-              首页
-            </NuxtLink>
-            <!-- 默认菜单：文档 -->
-            <NuxtLink 
-              :to="`/project/${projectId}/docs`"
-              class="nav-link"
-            >
-              文档
-            </NuxtLink>
-            <!-- 自定义菜单 -->
-            <template v-for="menu in menus" :key="menu.id">
-              <!-- 有子菜单 -->
-              <div 
-                v-if="menu.children?.length" 
-                class="menu-dropdown"
-                :class="{ 'is-open': openMenuId === menu.id }"
-              >
-                <button 
-                  class="nav-menu-btn"
-                  @click.stop="toggleDropdown(menu.id)"
-                >
-                  {{ menu.label }}
-                  <ChevronDownIcon class="dropdown-icon" />
-                </button>
-                <div v-show="openMenuId === menu.id" class="dropdown-panel">
-                  <template v-for="child in menu.children" :key="child.id">
-                    <a 
-                      v-if="child.isExternal"
-                      href="javascript:void(0)"
-                      class="dropdown-item"
-                      @click="handleExternalLink(child.url, child.label)"
-                    >
-                      {{ child.label }}
-                    </a>
-                    <NuxtLink 
-                      v-else
-                      :to="resolveMenuUrl(child.url)"
-                      class="dropdown-item"
-                      @click="closeDropdown"
-                    >
-                      {{ child.label }}
-                    </NuxtLink>
-                  </template>
-                </div>
+      <LiquidGlassCard :border-radius="18" :blur="16" padding="8px 20px" :bg-opacity="0.7">
+        <div class="navbar-inner">
+          <!-- 左侧：项目头像和名称 + 版本选择器 -->
+          <div class="navbar-left">
+            <NuxtLink :to="`/project/${projectId}/home`" class="project-brand">
+              <img
+                v-if="project?.avatar"
+                :src="project.avatar"
+                :alt="project?.projectName"
+                class="project-avatar"
+              />
+              <div v-else class="project-avatar-placeholder">
+                {{ project?.projectName?.charAt(0) ?? 'P' }}
               </div>
-              <!-- 无子菜单 -->
-              <template v-else>
-                <a 
-                  v-if="menu.isExternal"
-                  href="javascript:void(0)"
-                  class="nav-link"
-                  @click="handleExternalLink(menu.url, menu.label)"
+              <span class="project-name">{{ project?.projectName ?? 'Loading...' }}</span>
+            </NuxtLink>
+
+            <!-- 版本选择器 -->
+            <div
+              v-if="showVersionSelector && versions.length > 0"
+              class="version-selector"
+              :class="{ 'is-open': showVersionDropdown }"
+            >
+              <button
+                class="version-btn"
+                @click.stop="toggleVersionDropdown"
+              >
+                <span class="version-label">{{ selectedVersion?.version ?? '选择版本' }}</span>
+                <ChevronDownIcon class="version-icon" />
+              </button>
+              <div v-show="showVersionDropdown" class="version-dropdown">
+                <button
+                  v-for="ver in versions"
+                  :key="ver.id"
+                  class="version-item"
+                  :class="{ 'is-active': ver.id === selectedVersion?.id }"
+                  @click="switchVersion(ver.id)"
                 >
-                  {{ menu.label }}
-                </a>
-                <NuxtLink 
-                  v-else
-                  :to="resolveMenuUrl(menu.url)"
-                  class="nav-link"
+                  {{ ver.version }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 中间：菜单 -->
+          <div class="navbar-center">
+            <div class="nav-menus">
+              <!-- 默认菜单：首页 -->
+              <NuxtLink
+                :to="`/project/${projectId}/home`"
+                class="nav-link"
+              >
+                首页
+              </NuxtLink>
+              <!-- 默认菜单：文档 -->
+              <NuxtLink
+                :to="`/project/${projectId}/docs`"
+                class="nav-link"
+              >
+                文档
+              </NuxtLink>
+              <!-- 自定义菜单 -->
+              <template v-for="menu in menus" :key="menu.id">
+                <!-- 有子菜单 -->
+                <div
+                  v-if="menu.children?.length"
+                  class="menu-dropdown"
+                  :class="{ 'is-open': openMenuId === menu.id }"
                 >
-                  {{ menu.label }}
-                </NuxtLink>
+                  <button
+                    class="nav-menu-btn"
+                    @click.stop="toggleDropdown(menu.id)"
+                  >
+                    {{ menu.label }}
+                    <ChevronDownIcon class="dropdown-icon" />
+                  </button>
+                  <div v-show="openMenuId === menu.id" class="dropdown-panel">
+                    <template v-for="child in menu.children" :key="child.id">
+                      <a
+                        v-if="child.isExternal"
+                        href="javascript:void(0)"
+                        class="dropdown-item"
+                        @click="handleExternalLink(child.url, child.label)"
+                      >
+                        {{ child.label }}
+                      </a>
+                      <NuxtLink
+                        v-else
+                        :to="resolveMenuUrl(child.url)"
+                        class="dropdown-item"
+                        @click="closeDropdown"
+                      >
+                        {{ child.label }}
+                      </NuxtLink>
+                    </template>
+                  </div>
+                </div>
+                <!-- 无子菜单 -->
+                <template v-else>
+                  <a
+                    v-if="menu.isExternal"
+                    href="javascript:void(0)"
+                    class="nav-link"
+                    @click="handleExternalLink(menu.url, menu.label)"
+                  >
+                    {{ menu.label }}
+                  </a>
+                  <NuxtLink
+                    v-else
+                    :to="resolveMenuUrl(menu.url)"
+                    class="nav-link"
+                  >
+                    {{ menu.label }}
+                  </NuxtLink>
+                </template>
               </template>
-            </template>
+            </div>
+          </div>
+
+          <!-- 右侧：工具按钮 -->
+          <div class="navbar-right">
+            <WalletConnector />
+            <ProjectListButton />
+            <ThemeToggle />
           </div>
         </div>
-
-        <!-- 右侧：工具按钮 -->
-        <div class="navbar-right">
-          <WalletConnector />
-          <ProjectListButton />
-          <ThemeToggle />
-        </div>
-      </div>
+      </LiquidGlassCard>
     </nav>
 
     <!-- 内容区域 -->
@@ -286,26 +292,54 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   background-color: var(--sloth-bg);
-  background-image: none;
+  position: relative;
 }
 
-/* 导航栏 */
+/* 背景氛围光斑 */
+.ambient-glow {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(80px);
+  z-index: -1;
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.glow-1 {
+  width: 400px;
+  height: 400px;
+  background: var(--sloth-primary);
+  top: -100px;
+  left: -100px;
+}
+
+.glow-2 {
+  width: 300px;
+  height: 300px;
+  background: var(--sloth-accent);
+  bottom: 20%;
+  right: -50px;
+  opacity: 0.15;
+}
+
+/* 液态玻璃悬浮导航栏 */
 .project-navbar {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  height: 60px;
-  background: var(--sloth-card);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--sloth-card-border);
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  width: 100%;
+  max-width: 1200px;
+  padding: 0 20px;
+  box-sizing: border-box;
 }
 
 .navbar-inner {
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 100%;
+  width: 100%;
 }
 
 /* 左侧：项目信息 */
@@ -532,18 +566,6 @@ onUnmounted(() => {
   gap: 8px;
 }
 
-.nav-icon {
-  padding: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.tool-icon {
-  width: 20px;
-  height: 20px;
-}
-
 /* 内容区域 */
 .project-content {
   flex: 1;
@@ -556,7 +578,11 @@ onUnmounted(() => {
   }
 
   .project-name {
-    font-size: 1rem;
+    font-size: 0.9rem;
+  }
+
+  .project-content {
+    padding-top: 70px;
   }
 }
 
