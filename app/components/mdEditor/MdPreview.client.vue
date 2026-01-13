@@ -45,6 +45,8 @@ const actualTheme = computed(() => {
 <style>
 .md-preview-transparent {
   background: transparent !important;
+  max-width: 1000px;
+  margin: 0 auto;
 }
 
 .md-preview-transparent .md-editor-preview {

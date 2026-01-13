@@ -410,3 +410,230 @@ body {
 .dark .el-collapse-item__content {
   color: var(--sloth-text, #f3f4f6) !important;
 }
+
+/* =========================================
+   Markdown HTML 动态主题样式类
+   用于在 Markdown 内容中使用，支持主题切换
+   ========================================= */
+
+/* --- 文字颜色 --- */
+.md-editor-preview .sloth-text { color: var(--sloth-text) !important; }
+.md-editor-preview .sloth-text-subtle { color: var(--sloth-text-subtle) !important; }
+.md-editor-preview .sloth-text-primary { color: var(--sloth-primary) !important; }
+.md-editor-preview .sloth-text-accent { color: var(--sloth-accent) !important; }
+.md-editor-preview .sloth-text-danger { color: var(--sloth-danger) !important; }
+.md-editor-preview .sloth-text-inverse { color: var(--sloth-text-inverse) !important; }
+
+/* --- 渐变文字 --- */
+.md-editor-preview .sloth-text-gradient {
+  background: var(--sloth-gradient-text) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  color: transparent !important;
+  font-weight: 800;
+}
+
+/* --- 背景颜色 --- */
+.md-editor-preview .sloth-bg { background-color: var(--sloth-bg) !important; }
+.md-editor-preview .sloth-bg-hover { background-color: var(--sloth-bg-hover) !important; }
+.md-editor-preview .sloth-bg-card { background-color: var(--sloth-card) !important; }
+.md-editor-preview .sloth-bg-primary { background-color: var(--sloth-primary) !important; }
+.md-editor-preview .sloth-bg-primary-dim { background-color: var(--sloth-primary-dim) !important; }
+.md-editor-preview .sloth-bg-gradient { background: var(--sloth-gradient-primary) !important; }
+
+/* --- 边框颜色 --- */
+.md-editor-preview .sloth-border { border-color: var(--sloth-card-border) !important; }
+.md-editor-preview .sloth-border-primary { border-color: var(--sloth-primary) !important; }
+
+/* --- 卡片样式 --- */
+.md-editor-preview .sloth-card {
+  background: var(--sloth-card) !important;
+  border: 1px solid var(--sloth-card-border) !important;
+  border-radius: var(--sloth-radius) !important;
+  padding: 24px !important;
+  box-shadow: var(--sloth-shadow) !important;
+  transition: var(--sloth-transition) !important;
+}
+
+.md-editor-preview .sloth-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sloth-shadow-hover) !important;
+  border-color: var(--sloth-primary-hover) !important;
+}
+
+/* --- 按钮样式 --- */
+.md-editor-preview .sloth-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 10px 20px !important;
+  border-radius: var(--sloth-radius) !important;
+  font-weight: 600 !important;
+  font-size: 0.95rem !important;
+  cursor: pointer !important;
+  transition: var(--sloth-transition) !important;
+  border: none !important;
+  gap: 8px !important;
+  text-decoration: none !important;
+}
+
+.md-editor-preview .sloth-btn-primary {
+  background: var(--sloth-gradient-primary) !important;
+  color: var(--sloth-text-inverse) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15) !important;
+}
+
+.md-editor-preview .sloth-btn-primary:hover {
+  filter: brightness(1.1) !important;
+  transform: translateY(-1px) !important;
+}
+
+.md-editor-preview .sloth-btn-secondary {
+  background: transparent !important;
+  border: 1px solid var(--sloth-card-border) !important;
+  color: var(--sloth-text) !important;
+}
+
+.md-editor-preview .sloth-btn-secondary:hover {
+  background: var(--sloth-bg-hover) !important;
+  border-color: var(--sloth-text-subtle) !important;
+}
+
+/* --- 徽章/标签样式 --- */
+.md-editor-preview .sloth-badge {
+  font-family: var(--sloth-font-mono) !important;
+  font-size: 0.85rem !important;
+  padding: 4px 10px !important;
+  background: var(--sloth-bg-hover) !important;
+  color: var(--sloth-text-subtle) !important;
+  border-radius: 99px !important;
+  border: 1px solid var(--sloth-card-border) !important;
+  display: inline-block !important;
+}
+
+.md-editor-preview .sloth-badge-primary {
+  border-color: var(--sloth-primary) !important;
+  color: var(--sloth-primary) !important;
+  background: var(--sloth-primary-dim) !important;
+}
+
+/* --- 图标盒子 --- */
+.md-editor-preview .sloth-icon-box {
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 12px !important;
+  background: var(--sloth-bg-hover) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: background 0.3s ease !important;
+}
+
+.md-editor-preview .sloth-icon-box-primary {
+  background: var(--sloth-gradient-primary) !important;
+  box-shadow: 0 8px 16px var(--sloth-primary-shadow) !important;
+}
+
+/* --- 网格布局 --- */
+.md-editor-preview .sloth-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+  gap: 24px !important;
+}
+
+/* --- Flex 布局 --- */
+.md-editor-preview .sloth-flex {
+  display: flex !important;
+}
+
+.md-editor-preview .sloth-flex-center {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.md-editor-preview .sloth-flex-between {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+}
+
+.md-editor-preview .sloth-flex-col {
+  flex-direction: column !important;
+}
+
+.md-editor-preview .sloth-gap-2 { gap: 8px !important; }
+.md-editor-preview .sloth-gap-4 { gap: 16px !important; }
+.md-editor-preview .sloth-gap-6 { gap: 24px !important; }
+
+/* --- 间距 --- */
+.md-editor-preview .sloth-p-4 { padding: 16px !important; }
+.md-editor-preview .sloth-p-6 { padding: 24px !important; }
+.md-editor-preview .sloth-py-4 { padding-top: 16px !important; padding-bottom: 16px !important; }
+.md-editor-preview .sloth-px-4 { padding-left: 16px !important; padding-right: 16px !important; }
+.md-editor-preview .sloth-mt-4 { margin-top: 16px !important; }
+.md-editor-preview .sloth-mb-4 { margin-bottom: 16px !important; }
+.md-editor-preview .sloth-my-4 { margin-top: 16px !important; margin-bottom: 16px !important; }
+
+/* --- 文字样式 --- */
+.md-editor-preview .sloth-text-center { text-align: center !important; }
+.md-editor-preview .sloth-text-xl { font-size: 1.25rem !important; }
+.md-editor-preview .sloth-text-2xl { font-size: 1.5rem !important; }
+.md-editor-preview .sloth-text-3xl { font-size: 1.875rem !important; }
+.md-editor-preview .sloth-font-bold { font-weight: 700 !important; }
+.md-editor-preview .sloth-font-semibold { font-weight: 600 !important; }
+
+/* --- 圆角 --- */
+.md-editor-preview .sloth-rounded { border-radius: var(--sloth-radius) !important; }
+.md-editor-preview .sloth-rounded-full { border-radius: 9999px !important; }
+
+/* --- 阴影 --- */
+.md-editor-preview .sloth-shadow { box-shadow: var(--sloth-shadow) !important; }
+.md-editor-preview .sloth-shadow-hover { box-shadow: var(--sloth-shadow-hover) !important; }
+
+/* --- 高亮卡片（带渐变背景） --- */
+.md-editor-preview .sloth-highlight-card {
+  background: var(--sloth-card) !important;
+  border: 1px solid var(--sloth-primary-dim) !important;
+  border-radius: var(--sloth-radius) !important;
+  padding: 24px !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.md-editor-preview .sloth-highlight-card::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: linear-gradient(120deg, var(--sloth-primary-dim) 0%, transparent 40%) !important;
+  opacity: 0.3 !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+}
+
+.md-editor-preview .sloth-highlight-card > * {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* --- 氛围光效（可选） --- */
+.md-editor-preview .sloth-glow {
+  position: relative !important;
+}
+
+.md-editor-preview .sloth-glow::after {
+  content: '' !important;
+  position: absolute !important;
+  width: 200px !important;
+  height: 200px !important;
+  background: var(--sloth-primary) !important;
+  border-radius: 50% !important;
+  filter: blur(80px) !important;
+  opacity: 0.2 !important;
+  z-index: -1 !important;
+  pointer-events: none !important;
+}
