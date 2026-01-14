@@ -6,6 +6,28 @@
     "discord": "Discord",
     "github": "GitHub"
   },
+  "projectAuth": {
+    "verifying": "Verifying access...",
+    "walletConnected": "Wallet connected",
+    "connectFailed": "Connection failed",
+    "connectWallet": {
+      "title": "Connect Wallet to Continue",
+      "desc": "This content requires a valid access credential (cNFT) to view",
+      "step1": "Connect Wallet",
+      "step2": "Verify Credential",
+      "step3": "Access Content",
+      "btn": "Connect Solana Wallet",
+      "hint": "We only verify your wallet address, no signature required"
+    },
+    "noAccess": {
+      "title": "Access Restricted",
+      "desc": "You don't have permission to view this content",
+      "infoTitle": "How to get access?",
+      "infoText": "You need to hold a valid cNFT credential for this project. Please contact the project administrator to obtain one.",
+      "retryBtn": "Retry Verification",
+      "contactHint": "Contact the administrator for access credentials"
+    }
+  },
   "ProjectsPage": {
     "title": "Projects",
     "desc": "Browse all public projects and explore the knowledge universe",
@@ -13,7 +35,8 @@
     "error": "Failed to load, please try again later",
     "empty": "No public projects yet",
     "categories": "categories",
-    "requireAuth": "Auth"
+    "requireAuth": "Auth",
+    "unlocked": "Unlocked"
   },
   "ThemeToggle": {
     "aria": {

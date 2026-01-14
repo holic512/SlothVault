@@ -18,10 +18,23 @@ type VersionDto = {
 
 const route = useRoute()
 const projectId = computed(() => route.params.id as string)
+const walletStore = useWalletStore()
+
+// 使用项目鉴权
+const {
+  isLoading: authLoading,
+  hasAccess,
+  requireAuth,
+  getAuthQuery,
+} = useProjectAuth(projectId)
 
 // 获取版本列表，跳转到第一个版本的文档页面
-const { data: versionsData } = await useFetch<ApiResponse<VersionDto[]>>(
-  () => `/api/project/${projectId.value}/versions`
+const { data: versionsData, error: fetchError } = await useFetch<ApiResponse<VersionDto[]>>(
+  () => `/api/project/${projectId.value}/versions`,
+  {
+    query: computed(() => getAuthQuery()),
+    watch: [() => walletStore.publicKey],
+  }
 )
 
 const firstVersion = computed(() => {
@@ -29,23 +42,41 @@ const firstVersion = computed(() => {
   return versions[0]
 })
 
-// 自动跳转到第一个版本的文档
-if (firstVersion.value) {
-  await navigateTo(
-    `/project/${projectId.value}/v/${firstVersion.value.id}/docs`,
-    { replace: true }
-  )
-}
+// 监听鉴权状态和版本数据变化，自动跳转
+watch(
+  [hasAccess, firstVersion],
+  ([access, version]) => {
+    if (access && version) {
+      navigateTo(
+        `/project/${projectId.value}/v/${version.id}/docs`,
+        { replace: true }
+      )
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
-  <div class="docs-empty">
-    <div class="empty-icon">📄</div>
-    <p>暂无可用版本</p>
+  <div class="docs-page-wrapper">
+    <!-- 鉴权守卫 -->
+    <ProjectAuthGuard
+      :project-id="projectId"
+      :show-loading="true"
+    >
+      <div class="docs-empty">
+        <div class="empty-icon">📄</div>
+        <p>暂无可用版本</p>
+      </div>
+    </ProjectAuthGuard>
   </div>
 </template>
 
 <style scoped>
+.docs-page-wrapper {
+  min-height: calc(100vh - 70px);
+}
+
 .docs-empty {
   display: flex;
   flex-direction: column;

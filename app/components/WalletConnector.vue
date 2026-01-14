@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ElMessage, ElPopover } from 'element-plus'
+import { ElPopover } from 'element-plus'
 
 const walletStore = useWalletStore()
+const message = useMessage()
 
 // 是否显示详情弹出框
 const showPopover = ref(false)
@@ -16,9 +17,9 @@ async function copyAddress() {
     await navigator.clipboard.writeText(walletStore.publicKey)
     copied.value = true
     setTimeout(() => { copied.value = false }, 2000)
-    ElMessage.success('地址已复制')
+    message.success('地址已复制')
   } catch {
-    ElMessage.error('复制失败')
+    message.error('复制失败')
   }
 }
 
@@ -26,9 +27,9 @@ async function copyAddress() {
 async function handleConnect() {
   try {
     await walletStore.connect()
-    ElMessage.success('钱包连接成功')
+    message.success('钱包连接成功')
   } catch (err: any) {
-    ElMessage.error(err.message || '连接失败')
+    message.error(err.message || '连接失败')
   }
 }
 
@@ -36,13 +37,13 @@ async function handleConnect() {
 async function handleDisconnect() {
   await walletStore.disconnect()
   showPopover.value = false
-  ElMessage.info('钱包已断开')
+  message.info('钱包已断开')
 }
 
 // 刷新余额
 async function refreshBalance() {
   await walletStore.fetchBalance()
-  ElMessage.success('余额已刷新')
+  message.success('余额已刷新')
 }
 
 // 页面加载时检查连接状态

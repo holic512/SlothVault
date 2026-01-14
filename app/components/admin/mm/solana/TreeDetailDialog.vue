@@ -4,7 +4,8 @@
  * 展示树的完整信息，包括链上数据和配置
  */
 import { DocumentDuplicateIcon, ArrowTopRightOnSquareIcon } from '@heroicons/vue/24/outline'
-import { ElMessage } from 'element-plus'
+const message = useMessage()
+
 
 interface TreeData {
   id: string
@@ -87,9 +88,9 @@ const usagePercent = computed(() => {
 async function copyToClipboard(text: string, label: string) {
   try {
     await navigator.clipboard.writeText(text)
-    ElMessage.success(`${label}已复制`)
+    message.success(`${label}已复制`)
   } catch {
-    ElMessage.error('复制失败')
+    message.error('复制失败')
   }
 }
 

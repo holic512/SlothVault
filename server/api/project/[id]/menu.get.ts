@@ -1,6 +1,8 @@
 import { prisma } from '~~/server/utils/prisma'
 import { ok, fail } from '~~/server/utils/response'
 import { setResponseStatus, getRouterParam } from 'h3'
+import { verifyProjectAccess } from '~~/server/utils/cnftAuth'
+import { getWalletAddress } from '~~/server/utils/projectAuthMiddleware'
 
 interface MenuDto {
   id: string
@@ -23,7 +25,7 @@ function menuToDto(menu: any): MenuDto {
 }
 
 /**
- * 获取项目菜单（公开接口，树形结构）
+ * 获取项目菜单（支持鉴权，树形结构）
  * GET /api/project/:id/menu
  */
 export default defineEventHandler(async (event) => {
@@ -55,6 +57,19 @@ export default defineEventHandler(async (event) => {
     if (!project) {
       setResponseStatus(event, 404)
       return fail('Project not found', 404)
+    }
+
+    // 鉴权检查
+    if (project.requireAuth) {
+      const walletAddress = getWalletAddress(event)
+      const authResult = await verifyProjectAccess(projectId, walletAddress, {
+        network: 'devnet',
+      })
+
+      if (!authResult.hasAccess) {
+        setResponseStatus(event, 403)
+        return fail(authResult.reason, 403)
+      }
     }
 
     // 获取树形菜单

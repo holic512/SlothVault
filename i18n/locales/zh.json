@@ -6,6 +6,28 @@
     "discord": "Discord",
     "github": "GitHub"
   },
+  "projectAuth": {
+    "verifying": "正在验证访问权限...",
+    "walletConnected": "钱包连接成功",
+    "connectFailed": "连接失败",
+    "connectWallet": {
+      "title": "连接钱包以继续",
+      "desc": "该内容需要持有有效的访问凭证（cNFT）才能查看",
+      "step1": "连接钱包",
+      "step2": "验证凭证",
+      "step3": "访问内容",
+      "btn": "连接 Solana 钱包",
+      "hint": "我们仅验证您的钱包地址，无需签名授权"
+    },
+    "noAccess": {
+      "title": "访问受限",
+      "desc": "您没有权限查看此内容",
+      "infoTitle": "如何获取访问权限？",
+      "infoText": "您需要持有该项目的有效 cNFT 凭证。请联系项目管理员获取访问凭证。",
+      "retryBtn": "重新验证",
+      "contactHint": "联系管理员获取访问凭证"
+    }
+  },
   "ProjectsPage": {
     "title": "项目列表",
     "desc": "浏览所有公开项目，探索知识宇宙",
@@ -13,7 +35,8 @@
     "error": "加载失败，请稍后重试",
     "empty": "暂无公开项目",
     "categories": "个分类",
-    "requireAuth": "需鉴权"
+    "requireAuth": "需鉴权",
+    "unlocked": "已解锁"
   },
   "ThemeToggle": {
     "aria": {

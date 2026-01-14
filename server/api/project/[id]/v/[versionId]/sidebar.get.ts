@@ -1,6 +1,8 @@
 import { prisma } from '~~/server/utils/prisma'
 import { ok, fail } from '~~/server/utils/response'
 import { setResponseStatus, getRouterParam } from 'h3'
+import { verifyProjectAccess } from '~~/server/utils/cnftAuth'
+import { getWalletAddress } from '~~/server/utils/projectAuthMiddleware'
 
 interface NoteDto {
   id: string
@@ -16,7 +18,7 @@ interface CategoryDto {
 }
 
 /**
- * 获取版本下的分类和笔记树（公开接口，用于侧边栏）
+ * 获取版本下的分类和笔记树（支持鉴权，用于侧边栏）
  * GET /api/project/:id/v/:versionId/sidebar
  */
 export default defineEventHandler(async (event) => {
@@ -49,7 +51,7 @@ export default defineEventHandler(async (event) => {
       },
       include: {
         project: {
-          select: { isDeleted: true, status: true },
+          select: { isDeleted: true, status: true, requireAuth: true },
         },
       },
     })
@@ -57,6 +59,19 @@ export default defineEventHandler(async (event) => {
     if (!version || version.project.isDeleted || version.project.status !== 1) {
       setResponseStatus(event, 404)
       return fail('Version not found', 404)
+    }
+
+    // 鉴权检查
+    if (version.project.requireAuth) {
+      const walletAddress = getWalletAddress(event)
+      const authResult = await verifyProjectAccess(projectId, walletAddress, {
+        network: 'devnet',
+      })
+
+      if (!authResult.hasAccess) {
+        setResponseStatus(event, 403)
+        return fail(authResult.reason, 403)
+      }
     }
 
     // 获取分类及其下的笔记

@@ -1,6 +1,8 @@
 import { prisma } from '~~/server/utils/prisma'
 import { ok, fail } from '~~/server/utils/response'
 import { setResponseStatus, getRouterParam } from 'h3'
+import { verifyProjectAccess } from '~~/server/utils/cnftAuth'
+import { getWalletAddress } from '~~/server/utils/projectAuthMiddleware'
 
 interface NoteContentDto {
   id: string
@@ -12,7 +14,7 @@ interface NoteContentDto {
 }
 
 /**
- * 获取笔记内容（公开接口，返回主显示版本）
+ * 获取笔记内容（支持鉴权，返回主显示版本）
  * GET /api/project/:id/v/:versionId/note/:noteId
  */
 export default defineEventHandler(async (event) => {
@@ -38,6 +40,36 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
+    // 先检查项目是否需要鉴权
+    const project = await prisma.project.findFirst({
+      where: {
+        id: projectId,
+        isDeleted: false,
+        status: 1,
+      },
+      select: {
+        requireAuth: true,
+      },
+    })
+
+    if (!project) {
+      setResponseStatus(event, 404)
+      return fail('Project not found', 404)
+    }
+
+    // 鉴权检查
+    if (project.requireAuth) {
+      const walletAddress = getWalletAddress(event)
+      const authResult = await verifyProjectAccess(projectId, walletAddress, {
+        network: 'devnet',
+      })
+
+      if (!authResult.hasAccess) {
+        setResponseStatus(event, 403)
+        return fail(authResult.reason, 403)
+      }
+    }
+
     // 验证笔记存在且属于正确的版本和项目
     const note = await prisma.noteInfo.findFirst({
       where: {

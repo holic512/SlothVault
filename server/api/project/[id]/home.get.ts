@@ -1,6 +1,8 @@
 import { prisma } from '~~/server/utils/prisma'
 import { ok, fail } from '~~/server/utils/response'
 import { setResponseStatus, getRouterParam } from 'h3'
+import { verifyProjectAccess } from '~~/server/utils/cnftAuth'
+import { getWalletAddress } from '~~/server/utils/projectAuthMiddleware'
 
 export default defineEventHandler(async (event) => {
   const idRaw = getRouterParam(event, 'id')
@@ -30,6 +32,19 @@ export default defineEventHandler(async (event) => {
     if (!project) {
       setResponseStatus(event, 404)
       return fail('Project not found', 404)
+    }
+
+    // 鉴权检查
+    if (project.requireAuth) {
+      const walletAddress = getWalletAddress(event)
+      const authResult = await verifyProjectAccess(projectId, walletAddress, {
+        network: 'devnet',
+      })
+
+      if (!authResult.hasAccess) {
+        setResponseStatus(event, 403)
+        return fail(authResult.reason, 403)
+      }
     }
 
     const home = await prisma.projectHome.findUnique({

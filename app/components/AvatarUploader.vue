@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { ElMessage, ElDialog, ElButton, ElSlider, ElIcon } from 'element-plus'
+import { ElDialog, ElButton, ElSlider, ElIcon } from 'element-plus'
 import { Plus, ZoomIn, ZoomOut, RefreshLeft, RefreshRight, Upload, Close } from '@element-plus/icons-vue'
+
+const message = useMessage()
 
 interface Props {
   modelValue?: string | null
@@ -57,12 +59,12 @@ function handleFileSelect(e: Event) {
 
   const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
   if (!allowedTypes.includes(file.type)) {
-    ElMessage.error('仅支持 JPG、PNG、GIF、WebP 格式')
+    message.error('仅支持 JPG、PNG、GIF、WebP 格式')
     return
   }
 
   if (file.size > 10 * 1024 * 1024) {
-    ElMessage.error('图片大小不能超过 10MB')
+    message.error('图片大小不能超过 10MB')
     return
   }
 
@@ -254,10 +256,10 @@ async function cropAndUpload() {
     emit('update:modelValue', url)
     emit('uploaded', { url, id })
 
-    ElMessage.success('头像上传成功')
+    message.success('头像上传成功')
     cropperDialogVisible.value = false
   } catch (err: any) {
-    ElMessage.error(err.message || '上传失败')
+    message.error(err.message || '上传失败')
   } finally {
     uploading.value = false
   }

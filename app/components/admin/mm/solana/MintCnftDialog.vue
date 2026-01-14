@@ -13,7 +13,7 @@
  *
  * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 4.1, 4.2, 4.3, 4.4, 4.5, 7.1, 7.2, 7.3, 7.4, 7.5
  */
-import { ElMessage, ElMessageBox } from 'element-plus'
+import {ElMessage, ElMessageBox} from 'element-plus'
 import {
   CheckCircleIcon,
   ClockIcon,
@@ -21,7 +21,7 @@ import {
   ArrowPathIcon,
   XCircleIcon,
 } from '@heroicons/vue/24/outline'
-import { Transaction } from '@solana/web3.js'
+import {Transaction} from '@solana/web3.js'
 import bs58 from 'bs58'
 
 // ============ 类型定义 ============
@@ -146,12 +146,12 @@ const currentProject = computed(() => {
 // 表单是否有效
 const isFormValid = computed(() => {
   return (
-    form.value.projectId &&
-    form.value.ownerAddress &&
-    form.value.name.trim() &&
-    !formErrors.value.projectId &&
-    !formErrors.value.ownerAddress &&
-    !formErrors.value.name
+      form.value.projectId &&
+      form.value.ownerAddress &&
+      form.value.name.trim() &&
+      !formErrors.value.projectId &&
+      !formErrors.value.ownerAddress &&
+      !formErrors.value.name
   )
 })
 
@@ -326,7 +326,7 @@ async function fetchProjects() {
       code: number
       data: { list: ProjectItem[]; total: number }
     }>('/api/admin/mm/project', {
-      query: { pageSize: 100, status: 1 }, // 只获取启用的项目
+      query: {pageSize: 100, status: 1}, // 只获取启用的项目
     })
     if (res.code === 0) {
       projects.value = res.data.list
@@ -362,7 +362,7 @@ function resetState() {
   mintResult.value = null
   loading.value = false
   retrying.value = false
-  formErrors.value = { projectId: '', ownerAddress: '', name: '' }
+  formErrors.value = {projectId: '', ownerAddress: '', name: ''}
 }
 
 /**
@@ -408,13 +408,13 @@ async function handleMint() {
   // 3. 确认铸造
   try {
     await ElMessageBox.confirm(
-      `即将在 ${props.network === 'mainnet' ? '主网' : '测试网'} 铸造 cNFT。\n\n` +
+        `即将在 ${props.network === 'mainnet' ? '主网' : '测试网'} 铸造 cNFT。\n\n` +
         `项目：${currentProject.value?.projectName}\n` +
         `接收者：${form.value.ownerAddress.slice(0, 8)}...${form.value.ownerAddress.slice(-8)}\n` +
         `名称：${form.value.name}\n\n` +
         `此操作将从您的钱包扣除少量 SOL 作为交易费，请确认。`,
-      '确认铸造 cNFT',
-      { confirmButtonText: '确认铸造', cancelButtonText: '取消', type: 'warning' }
+        '确认铸造 cNFT',
+        {confirmButtonText: '确认铸造', cancelButtonText: '取消', type: 'warning'}
     )
   } catch {
     return
@@ -449,8 +449,8 @@ async function handleMint() {
       throw new Error(prepareRes.message || '准备交易失败')
     }
 
-    const { transactionBase64, sessionId, merkleTree, leafIndex, cnftId } = prepareRes.data
-    sessionData.value = { sessionId, merkleTree, cnftId, leafIndex }
+    const {transactionBase64, sessionId, merkleTree, leafIndex, cnftId} = prepareRes.data
+    sessionData.value = {sessionId, merkleTree, cnftId, leafIndex}
 
     // Step 2: 调用 Phantom 钱包签名 (Requirement 4.2)
     const solana = (window as any).solana
@@ -555,10 +555,11 @@ function handleClose() {
       cancelButtonText: '继续等待',
       type: 'warning',
     })
-      .then(() => {
-        dialogVisible.value = false
-      })
-      .catch(() => {})
+        .then(() => {
+          dialogVisible.value = false
+        })
+        .catch(() => {
+        })
   } else {
     dialogVisible.value = false
   }
@@ -582,34 +583,34 @@ function getRetryButtonText(): string {
 
 <template>
   <el-dialog
-    v-model="dialogVisible"
-    title="铸造 cNFT"
-    width="600px"
-    :close-on-click-modal="false"
-    :before-close="handleClose"
+      v-model="dialogVisible"
+      title="铸造 cNFT"
+      width="600px"
+      :close-on-click-modal="false"
+      :before-close="handleClose"
   >
     <!-- 步骤指示器 (Requirement 7.1) -->
     <div v-if="step !== 'form'" class="mint-steps">
       <div class="step" :class="{ active: step === 'signing', done: ['confirming', 'done'].includes(step) }">
         <div class="step-icon">
-          <CheckCircleIcon v-if="['confirming', 'done'].includes(step)" />
-          <ClockIcon v-else />
+          <CheckCircleIcon v-if="['confirming', 'done'].includes(step)"/>
+          <ClockIcon v-else/>
         </div>
         <span>钱包签名</span>
       </div>
       <div class="step-line" :class="{ active: ['confirming', 'done'].includes(step) }"></div>
       <div class="step" :class="{ active: step === 'confirming', done: step === 'done' }">
         <div class="step-icon">
-          <CheckCircleIcon v-if="step === 'done'" />
-          <ClockIcon v-else />
+          <CheckCircleIcon v-if="step === 'done'"/>
+          <ClockIcon v-else/>
         </div>
         <span>链上确认</span>
       </div>
       <div class="step-line" :class="{ active: step === 'done' }"></div>
       <div class="step" :class="{ active: step === 'done' }">
         <div class="step-icon">
-          <CheckCircleIcon v-if="step === 'done'" />
-          <ClockIcon v-else />
+          <CheckCircleIcon v-if="step === 'done'"/>
+          <ClockIcon v-else/>
         </div>
         <span>完成</span>
       </div>
@@ -618,17 +619,17 @@ function getRetryButtonText(): string {
     <!-- 错误提示 (Requirement 7.5) -->
     <div v-if="errorInfo" class="mint-error">
       <div class="error-header">
-        <XCircleIcon class="error-icon" />
+        <XCircleIcon class="error-icon"/>
         <span class="error-title">{{ errorInfo.message }}</span>
       </div>
       <p v-if="errorInfo.details" class="error-details">{{ errorInfo.details }}</p>
       <div v-if="errorInfo.code" class="error-code">错误码: {{ errorInfo.code }}</div>
       <el-button
-        v-if="errorInfo.canRetry"
-        type="primary"
-        size="small"
-        :loading="retrying"
-        @click="handleRetry"
+          v-if="errorInfo.canRetry"
+          type="primary"
+          size="small"
+          :loading="retrying"
+          @click="handleRetry"
       >
         {{ getRetryButtonText() }}
       </el-button>
@@ -639,21 +640,21 @@ function getRetryButtonText(): string {
       <!-- 项目选择 (Requirement 1.2) -->
       <el-form-item label="项目" required :error="formErrors.projectId">
         <el-select
-          v-model="form.projectId"
-          placeholder="请选择项目"
-          filterable
-          :loading="projectLoading"
-          style="width: 100%"
-          @change="handleProjectChange"
+            v-model="form.projectId"
+            placeholder="请选择项目"
+            filterable
+            :loading="projectLoading"
+            style="width: 100%"
+            @change="handleProjectChange"
         >
           <el-option
-            v-for="project in projects"
-            :key="project.id"
-            :label="project.projectName"
-            :value="project.id"
+              v-for="project in projects"
+              :key="project.id"
+              :label="project.projectName"
+              :value="project.id"
           >
             <div class="project-option">
-              <img v-if="project.avatar" :src="project.avatar" class="project-avatar" />
+              <img v-if="project.avatar" :src="project.avatar" class="project-avatar"/>
               <span>{{ project.projectName }}</span>
             </div>
           </el-option>
@@ -663,36 +664,36 @@ function getRetryButtonText(): string {
       <!-- 接收者地址 (Requirement 1.3) -->
       <el-form-item label="接收者地址" required :error="formErrors.ownerAddress">
         <el-input
-          v-model="form.ownerAddress"
-          placeholder="输入 Solana 钱包地址"
-          @blur="validateOwnerAddress"
+            v-model="form.ownerAddress"
+            placeholder="输入 Solana 钱包地址"
+            @blur="validateOwnerAddress"
         />
       </el-form-item>
 
       <!-- NFT 名称 (Requirement 1.4) -->
       <el-form-item label="NFT 名称" required :error="formErrors.name">
         <el-input
-          v-model="form.name"
-          placeholder="输入 NFT 名称"
-          maxlength="32"
-          show-word-limit
-          @blur="validateName"
+            v-model="form.name"
+            placeholder="输入 NFT 名称"
+            maxlength="32"
+            show-word-limit
+            @blur="validateName"
         />
       </el-form-item>
 
       <!-- NFT 符号 (Requirement 1.5) -->
       <el-form-item label="符号">
         <el-input
-          v-model="form.symbol"
-          placeholder="可选，如 PASS"
-          maxlength="10"
-          show-word-limit
+            v-model="form.symbol"
+            placeholder="可选，如 PASS"
+            maxlength="10"
+            show-word-limit
         />
       </el-form-item>
 
       <!-- 元数据 URI (Requirement 1.6) -->
       <el-form-item label="元数据 URI">
-        <el-input v-model="form.metadataUri" placeholder="可选，NFT 元数据 JSON 的 URL" />
+        <el-input v-model="form.metadataUri" placeholder="可选，NFT 元数据 JSON 的 URL"/>
       </el-form-item>
 
       <!-- 说明 -->
@@ -710,17 +711,23 @@ function getRetryButtonText(): string {
     <!-- 铸造中状态 (Requirements 7.2, 7.3) -->
     <div v-else-if="step !== 'error'" class="minting-status">
       <div v-if="step === 'signing'" class="status-content">
-        <el-icon class="loading-icon"><ArrowPathIcon /></el-icon>
+        <el-icon class="loading-icon">
+          <ArrowPathIcon/>
+        </el-icon>
         <p>请在钱包中确认交易...</p>
         <p class="status-hint">交易需要您的签名授权</p>
       </div>
       <div v-else-if="step === 'confirming'" class="status-content">
-        <el-icon class="loading-icon"><ArrowPathIcon /></el-icon>
+        <el-icon class="loading-icon">
+          <ArrowPathIcon/>
+        </el-icon>
         <p>等待链上确认...</p>
         <p class="status-hint">通常需要 10-30 秒</p>
       </div>
       <div v-else-if="step === 'done'" class="status-content success">
-        <el-icon class="success-icon"><CheckCircleIcon /></el-icon>
+        <el-icon class="success-icon">
+          <CheckCircleIcon/>
+        </el-icon>
         <p>铸造成功！</p>
         <div v-if="mintResult" class="result-info">
           <p class="status-hint">Asset ID: {{ mintResult.assetId.slice(0, 8) }}...{{ mintResult.assetId.slice(-8) }}</p>
@@ -733,7 +740,7 @@ function getRetryButtonText(): string {
       <div class="dialog-footer">
         <!-- 钱包未连接提示 (Requirement 1.7) -->
         <div v-if="!walletStore.connected && (step === 'form' || step === 'error')" class="wallet-hint">
-          <ExclamationTriangleIcon class="hint-icon" />
+          <ExclamationTriangleIcon class="hint-icon"/>
           <span>请先在右上角连接钱包</span>
         </div>
         <div class="footer-actions">
@@ -742,10 +749,10 @@ function getRetryButtonText(): string {
           </el-button>
           <template v-if="step === 'form' || step === 'error'">
             <el-button
-              type="primary"
-              :loading="loading"
-              :disabled="!isFormValid || !walletStore.connected"
-              @click="handleMint"
+                type="primary"
+                :loading="loading"
+                :disabled="!isFormValid || !walletStore.connected"
+                @click="handleMint"
             >
               {{ walletStore.connected ? '铸造 cNFT' : '请先连接钱包' }}
             </el-button>

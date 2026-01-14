@@ -11,7 +11,7 @@
  * Requirements: 7.1, 7.2, 7.4, 7.5, 1.3, 4.1, 4.2, 4.3, 4.4, 4.5
  * Error Handling: 10.5
  */
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessageBox } from 'element-plus'
 import { 
   CheckCircleIcon, 
   ClockIcon, 
@@ -20,6 +20,7 @@ import {
   XCircleIcon,
 } from '@heroicons/vue/24/outline'
 import { Transaction } from '@solana/web3.js'
+const message = useMessage()
 
 // ============ 类型定义 ============
 interface TreePreset {
@@ -265,7 +266,7 @@ async function fetchEstimates() {
     }
   } catch (err: any) {
     const errorParsed = parseApiError(err)
-    ElMessage.error(errorParsed.message)
+    message.error(errorParsed.message)
   } finally {
     estimateLoading.value = false
   }
@@ -315,19 +316,19 @@ watch(dialogVisible, async (val) => {
 async function handleCreate() {
   // 1. 验证钱包连接
   if (!walletStore.connected || !walletStore.publicKey) {
-    ElMessage.warning('请先连接钱包')
+    message.warning('请先连接钱包')
     return
   }
 
   // 2. 验证表单
   if (!form.value.name.trim()) {
-    ElMessage.warning('请输入树名称')
+    message.warning('请输入树名称')
     return
   }
 
   const preset = currentPreset.value
   if (!preset) {
-    ElMessage.warning('请选择配置预设')
+    message.warning('请选择配置预设')
     return
   }
 
@@ -381,7 +382,7 @@ async function handleCreate() {
       throw new Error('请先安装 Phantom 钱包')
     }
 
-    ElMessage.info('请在钱包中确认交易...')
+    message.info('请在钱包中确认交易...')
 
     // 反序列化交易（使用浏览器兼容的 base64 解码）
     const binaryString = atob(transactionBase64)
@@ -405,7 +406,7 @@ async function handleCreate() {
 
     // Step 3: 调用 submit API 提交交易
     step.value = 'confirming'
-    ElMessage.info('交易已签名，等待链上确认...')
+    message.info('交易已签名，等待链上确认...')
 
     // 序列化签名后的交易（使用浏览器兼容的 base64 编码）
     const serializedBytes = signedTransaction.serialize()
@@ -430,7 +431,7 @@ async function handleCreate() {
 
     // Step 4: 创建成功
     step.value = 'done'
-    ElMessage.success('Merkle Tree 创建成功！')
+    message.success('Merkle Tree 创建成功！')
 
     // 通知父组件
     emit('success', submitRes.data)

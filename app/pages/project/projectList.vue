@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const {t} = useI18n()
+const walletStore = useWalletStore()
 
 interface Project {
   id: string
@@ -15,6 +16,30 @@ interface Project {
 const {data, pending, error} = await useFetch<{ code: number; data: Project[] }>('/api/project/list')
 
 const projects = computed(() => data.value?.data || [])
+
+// 使用项目列表鉴权
+const { hasAccess, batchVerify, loading: authLoading } = useProjectListAuth()
+
+// 当项目列表加载完成且钱包已连接时，批量验证需要鉴权的项目
+watch(
+  [() => projects.value, () => walletStore.connected],
+  ([projectList, connected]) => {
+    if (connected && projectList.length > 0) {
+      const authRequiredIds = projectList
+        .filter(p => p.requireAuth)
+        .map(p => p.id)
+      if (authRequiredIds.length > 0) {
+        batchVerify(authRequiredIds)
+      }
+    }
+  },
+  { immediate: true }
+)
+
+// 检查项目是否可访问
+function canAccessProject(project: Project): boolean {
+  return hasAccess(project.id, project.requireAuth)
+}
 
 const formatDate = (dateStr: string) => {
   return new Date(dateStr).toLocaleDateString()
@@ -75,12 +100,12 @@ const formatDate = (dateStr: string) => {
                 <span v-else class="avatar-placeholder">{{ project.projectName?.charAt(0) || '?' }}</span>
               </div>
               <div class="card-badges">
-                <span v-if="project.requireAuth" class="auth-badge">
+                <span v-if="project.requireAuth" class="auth-badge" :class="{ 'is-unlocked': canAccessProject(project) }">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
                     <path d="M7 11V7a5 5 0 0110 0v4"/>
                   </svg>
-                  {{ t('ProjectsPage.requireAuth') }}
+                  {{ canAccessProject(project) ? t('ProjectsPage.unlocked') : t('ProjectsPage.requireAuth') }}
                 </span>
                 <span v-if="project.latestVersion" class="version-badge">
                   {{ project.latestVersion }}
@@ -331,6 +356,12 @@ const formatDate = (dateStr: string) => {
 .auth-badge svg {
   width: 12px;
   height: 12px;
+}
+
+.auth-badge.is-unlocked {
+  background: rgba(25, 251, 155, 0.1);
+  color: #19FB9B;
+  border-color: rgba(25, 251, 155, 0.3);
 }
 
 .project-name {
