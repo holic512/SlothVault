@@ -1,4 +1,7 @@
-import 'dotenv/config'
+// Only load dotenv in development (Docker passes env vars directly)
+if (process.env.NODE_ENV !== 'production') {
+    await import('dotenv/config')
+}
 import { defineConfig, env } from 'prisma/config'
 
 export default defineConfig({
