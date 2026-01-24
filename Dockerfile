@@ -1,5 +1,5 @@
 # Multi-stage build for SlothVault with embedded PostgreSQL
-FROM node:20-alpine AS base
+FROM node:24-alpine AS base
 
 WORKDIR /app
 
@@ -7,8 +7,8 @@ WORKDIR /app
 FROM base AS deps
 # Copy only package files for better layer caching
 COPY package.json package-lock.json ./
-# Install dependencies (npm install works better with lockfileVersion 3)
-RUN npm install --frozen-lockfile
+# Node 24 includes npm 11+ which fully supports lockfileVersion 3
+RUN npm ci
 
 # Build stage
 FROM base AS builder
@@ -22,7 +22,7 @@ ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 RUN npx prisma generate && npm run build
 
 # Production stage with PostgreSQL
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 
 # Install PostgreSQL and required tools in one layer
 RUN apk add --no-cache postgresql postgresql-contrib openssl su-exec
