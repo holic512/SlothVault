@@ -20,6 +20,7 @@ import {
   ElProgress,
   ElDialog,
 } from 'element-plus'
+import type { UploadFile } from 'element-plus'
 import {
   ArrowDownTrayIcon,
   ArrowUpTrayIcon,
@@ -28,7 +29,6 @@ import {
   FolderIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/vue/24/outline'
-import type { UploadFile } from 'element-plus'
 
 definePageMeta({
   layout: 'admin-mm',
@@ -36,6 +36,10 @@ definePageMeta({
 
 const { t } = useI18n()
 const router = useRouter()
+const { setPageTitle } = usePageTitle()
+
+// 设置页面标题
+setPageTitle('adminBackup')
 
 type ApiResponse<T> = {
   code: number

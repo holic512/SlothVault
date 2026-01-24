@@ -6,6 +6,8 @@ definePageMeta({
   layout: 'project',
 })
 
+const { setPageTitle } = usePageTitle()
+
 type ApiResponse<T> = {
   code: number
   message: string
@@ -39,6 +41,10 @@ const projectId = computed(() => route.params.id as string)
 const versionId = computed(() => route.params.versionId as string)
 const noteId = computed(() => route.params.noteId as string)
 const walletStore = useWalletStore()
+
+// 获取项目信息用于设置标题
+const { data: projectData } = await useFetch(() => `/api/project/${projectId.value}`)
+const project = computed(() => projectData.value?.data)
 
 // 使用项目鉴权
 const {
@@ -79,6 +85,16 @@ const error = computed(() => {
   if (noteData.value?.code !== 0) return noteData.value?.message || '加载失败'
   return ''
 })
+
+// 当笔记内容和项目数据加载后设置页面标题
+watch([noteContent, project], ([note, proj]) => {
+  if (note?.noteTitle && proj?.projectName) {
+    setPageTitle('projectNote', {
+      noteTitle: note.noteTitle,
+      projectName: proj.projectName
+    })
+  }
+}, { immediate: true })
 
 // MD 预览 ID（用于目录）
 const mdPreviewId = 'doc-preview'

@@ -2,6 +2,10 @@
 const {t} = useI18n()
 const router = useRouter()
 const userStore = useUserStore()
+const { setPageTitle } = usePageTitle()
+
+// 设置页面标题
+setPageTitle('adminLogin')
 
 const STORAGE_KEY = 'admin_remembered_username'
 

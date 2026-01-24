@@ -189,10 +189,31 @@
       "error": "初始化失败，请重试"
     }
   },
+  "PageTitles": {
+    "home": "首页",
+    "projects": "项目列表",
+    "projectHome": "{projectName}",
+    "projectDocs": "{projectName} - 文档",
+    "projectNote": "{noteTitle} - {projectName}",
+    "adminLogin": "管理员登录",
+    "adminInit": "初始化管理员",
+    "adminDashboard": "管理后台",
+    "adminProjects": "项目管理",
+    "adminCategories": "分类管理",
+    "adminNotes": "笔记管理",
+    "adminNoteContent": "内容编辑",
+    "adminFiles": "文件管理",
+    "adminSolana": "链上管理",
+    "adminBackup": "备份管理",
+    "adminSettings": "系统设置",
+    "adminProjectHome": "首页编辑",
+    "siteName": "SlothVault"
+  },
   "AdminMM": {
     "title": "SV管理后台",
     "menu": {
       "dashboard": "仪表盘",
+      "homepage": "首页管理",
       "projects": "项目管理",
       "categories": "分类管理",
       "notes": "笔记管理",
@@ -775,7 +796,26 @@
     },
     "breadcrumb": {
       "homeEdit": "首页编辑",
-      "contentEdit": "内容编辑"
+      "contentEdit": "内容编辑",
+      "systemHomepage": "系统首页编辑"
+    },
+    "homepage": {
+      "title": "系统首页管理",
+      "desc": "编辑系统首页的 Markdown 内容",
+      "editor": {
+        "label": "首页内容",
+        "placeholder": "请输入 Markdown 格式的首页内容..."
+      },
+      "actions": {
+        "save": "保存",
+        "preview": "预览"
+      },
+      "messages": {
+        "saveSuccess": "保存成功",
+        "saveFailed": "保存失败",
+        "loadFailed": "加载失败",
+        "contentRequired": "内容不能为空"
+      }
     },
     "sidebar": {
       "expand": "展开侧边栏",

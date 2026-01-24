@@ -1,6 +1,10 @@
 <script setup lang="ts">
 const {t} = useI18n()
 const walletStore = useWalletStore()
+const { setPageTitle } = usePageTitle()
+
+// 设置页面标题
+setPageTitle('projects')
 
 interface Project {
   id: string
@@ -48,9 +52,6 @@ const formatDate = (dateStr: string) => {
 
 <template>
   <div class="projects-page">
-    <!-- 背景光效 -->
-    <div class="ambient-glow glow-1"></div>
-    <div class="ambient-glow glow-2"></div>
 
     <!-- 液态玻璃导航栏 -->
     <LiquidNavbar />

@@ -4,6 +4,10 @@ definePageMeta({
 })
 
 const { t } = useI18n()
+const { setPageTitle } = usePageTitle()
+
+// 设置页面标题
+setPageTitle('adminDashboard')
 </script>
 
 <template>

@@ -16,6 +16,10 @@ definePageMeta({
 })
 
 const { t } = useI18n()
+const { setPageTitle } = usePageTitle()
+
+// 设置页面标题
+setPageTitle('adminSolana')
 
 // ============ 状态管理 ============
 // 网络配置

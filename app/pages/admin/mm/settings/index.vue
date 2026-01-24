@@ -17,6 +17,10 @@ definePageMeta({
 
 const { t } = useI18n()
 const router = useRouter()
+const { setPageTitle } = usePageTitle()
+
+// 设置页面标题
+setPageTitle('adminSettings')
 
 type ApiResponse<T> = {
   code: number

@@ -189,10 +189,31 @@
       "error": "Initialization failed, please try again"
     }
   },
+  "PageTitles": {
+    "home": "Home",
+    "projects": "Projects",
+    "projectHome": "{projectName}",
+    "projectDocs": "{projectName} - Docs",
+    "projectNote": "{noteTitle} - {projectName}",
+    "adminLogin": "Admin Login",
+    "adminInit": "Initialize Admin",
+    "adminDashboard": "Admin Dashboard",
+    "adminProjects": "Project Management",
+    "adminCategories": "Category Management",
+    "adminNotes": "Note Management",
+    "adminNoteContent": "Content Editor",
+    "adminFiles": "File Management",
+    "adminSolana": "On-chain Management",
+    "adminBackup": "Backup Management",
+    "adminSettings": "System Settings",
+    "adminProjectHome": "Home Editor",
+    "siteName": "SlothVault"
+  },
   "AdminMM": {
     "title": "SVAdmin",
     "menu": {
       "dashboard": "Dashboard",
+      "homepage": "Homepage Management",
       "projects": "Project Management",
       "categories": "Category Management",
       "notes": "Note Management",
@@ -775,7 +796,26 @@
     },
     "breadcrumb": {
       "homeEdit": "Home Edit",
-      "contentEdit": "Content Edit"
+      "contentEdit": "Content Edit",
+      "systemHomepage": "System Homepage Edit"
+    },
+    "homepage": {
+      "title": "System Homepage Management",
+      "desc": "Edit system homepage Markdown content",
+      "editor": {
+        "label": "Homepage Content",
+        "placeholder": "Enter Markdown content for homepage..."
+      },
+      "actions": {
+        "save": "Save",
+        "preview": "Preview"
+      },
+      "messages": {
+        "saveSuccess": "Saved successfully",
+        "saveFailed": "Save failed",
+        "loadFailed": "Load failed",
+        "contentRequired": "Content is required"
+      }
     },
     "sidebar": {
       "expand": "Expand Sidebar",

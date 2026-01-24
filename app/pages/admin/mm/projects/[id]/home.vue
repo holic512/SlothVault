@@ -6,6 +6,11 @@ definePageMeta({
   layout: 'admin-mm',
 })
 
+const { setPageTitle } = usePageTitle()
+
+// 设置页面标题
+setPageTitle('adminProjectHome')
+
 type ApiResponse<T> = {
   code: number
   message: string

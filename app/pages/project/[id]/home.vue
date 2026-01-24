@@ -5,6 +5,8 @@ definePageMeta({
   layout: 'project',
 })
 
+const { setPageTitle } = usePageTitle()
+
 type ApiResponse<T> = {
   code: number
   message: string
@@ -21,6 +23,17 @@ type ProjectHomeDto = {
 const route = useRoute()
 const projectId = computed(() => route.params.id as string)
 const walletStore = useWalletStore()
+
+// 获取项目信息用于设置标题
+const { data: projectData } = await useFetch(() => `/api/project/${projectId.value}`)
+const project = computed(() => projectData.value?.data)
+
+// 当项目数据加载后设置页面标题
+watch(project, (newProject) => {
+  if (newProject?.projectName) {
+    setPageTitle('projectHome', { projectName: newProject.projectName })
+  }
+}, { immediate: true })
 
 // 使用项目鉴权
 const {
