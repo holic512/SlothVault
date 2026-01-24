@@ -68,14 +68,6 @@ export default defineNuxtConfig({
                 'borsh',
             ],
         },
-        // 配置额外的静态资源目录，让 Nitro 从 public/uploads 提供上传文件
-        publicAssets: [
-            {
-                dir: resolve(__dirname, 'public/uploads'),
-                maxAge: 60 * 60 * 24 * 365, // 1 year
-                baseURL: '/uploads'
-            }
-        ],
     },
 
     vite: {

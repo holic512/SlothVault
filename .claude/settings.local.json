@@ -21,7 +21,9 @@
       "Bash(npm:*)",
       "Bash(timeout 10 node:*)",
       "Bash(grep:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(git rebase:*)",
+      "Bash(docker exec:*)"
     ]
   }
 }

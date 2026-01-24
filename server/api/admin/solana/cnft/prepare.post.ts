@@ -215,11 +215,7 @@ export default defineEventHandler(async (event) => {
       // 6.1 根据项目头像路径读取文件
       // avatar 格式如: /uploads/project-avatar/xxx.png
       const avatarPath = project.avatar!
-      // 使用环境变量判断是否为生产环境（Docker 部署）
-      const isProduction = process.env.NODE_ENV === 'production'
-      const publicDir = isProduction
-        ? join(process.cwd(), '.output', 'public')
-        : join(process.cwd(), 'public')
+      const publicDir = join(process.cwd(), 'public')
       const absolutePath = join(publicDir, avatarPath.startsWith('/') ? avatarPath.slice(1) : avatarPath)
       
       console.log(`[cNFT Prepare] 图片绝对路径: ${absolutePath}`)

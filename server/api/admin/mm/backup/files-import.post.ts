@@ -31,11 +31,7 @@ export default defineEventHandler(async (event) => {
       return fail('Invalid file upload', 400)
     }
 
-    // 使用环境变量判断是否为生产环境（Docker 部署）
-    const isProduction = process.env.NODE_ENV === 'production'
-    const publicDir = isProduction
-      ? join(process.cwd(), '.output', 'public')
-      : join(process.cwd(), 'public')
+    const publicDir = join(process.cwd(), 'public')
     const uploadsDir = join(publicDir, 'uploads')
 
     // 如果是覆盖模式，先清空现有文件
