@@ -198,6 +198,7 @@
       "notes": "笔记管理",
       "files": "文件管理",
       "solana": "链上管理",
+      "backup": "备份管理",
       "settings": "系统设置"
     },
     "projects": {
@@ -714,6 +715,62 @@
         "refreshSuccess": "缓存已刷新",
         "refreshFailed": "刷新缓存失败",
         "requestFailed": "请求失败"
+      }
+    },
+    "backup": {
+      "title": "备份管理",
+      "desc": "数据库和文件系统的备份、恢复与初始化",
+      "warning": {
+        "title": "重要提示",
+        "content": "备份操作会导出所有业务数据（不包含用户认证数据）。恢复操作可能会覆盖现有数据，请谨慎操作。"
+      },
+      "database": {
+        "title": "数据库备份",
+        "desc": "导出/导入所有业务数据（项目、分类、笔记、配置等）",
+        "export": "导出数据库",
+        "import": "导入数据库"
+      },
+      "files": {
+        "title": "文件系统备份",
+        "desc": "导出/导入 uploads 目录下的所有上传文件",
+        "export": "导出文件",
+        "import": "导入文件"
+      },
+      "reset": {
+        "title": "系统初始化",
+        "desc": "清空所有业务数据和文件，将系统恢复到初始状态",
+        "action": "初始化系统",
+        "dialogTitle": "确认系统初始化",
+        "dialogWarning": "此操作将永久删除所有业务数据和文件，且不可恢复！请确保已完成备份。",
+        "clearDatabase": "清空数据库",
+        "clearFiles": "清空文件系统",
+        "confirmTitle": "确认初始化系统",
+        "confirmMessage": "您确定要初始化系统吗？此操作不可撤销！",
+        "confirmButton": "确认初始化",
+        "cancelButton": "取消"
+      },
+      "mode": {
+        "insert": "插入模式",
+        "overwrite": "覆盖模式"
+      },
+      "actions": {
+        "exportDb": "导出数据库",
+        "importDb": "导入数据库",
+        "exportFiles": "导出文件",
+        "importFiles": "导入文件",
+        "reset": "初始化系统"
+      },
+      "messages": {
+        "dbExportSuccess": "数据库导出成功",
+        "dbExportFailed": "数据库导出失败",
+        "dbImportSuccess": "数据库导入成功",
+        "dbImportFailed": "数据库导入失败",
+        "filesExportSuccess": "文件导出成功",
+        "filesExportFailed": "文件导出失败",
+        "filesImportSuccess": "文件导入成功",
+        "filesImportFailed": "文件导入失败",
+        "resetSuccess": "系统初始化成功",
+        "resetFailed": "系统初始化失败"
       }
     },
     "breadcrumb": {

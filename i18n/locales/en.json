@@ -198,6 +198,7 @@
       "notes": "Note Management",
       "files": "File Management",
       "solana": "On-chain Management",
+      "backup": "Backup Management",
       "settings": "System Settings"
     },
     "projects": {
@@ -714,6 +715,62 @@
         "refreshSuccess": "Cache refreshed",
         "refreshFailed": "Failed to refresh cache",
         "requestFailed": "Request failed"
+      }
+    },
+    "backup": {
+      "title": "Backup Management",
+      "desc": "Backup, restore and initialize database and file system",
+      "warning": {
+        "title": "Important Notice",
+        "content": "Backup operations will export all business data (excluding user authentication data). Restore operations may overwrite existing data, please proceed with caution."
+      },
+      "database": {
+        "title": "Database Backup",
+        "desc": "Export/import all business data (projects, categories, notes, configs, etc.)",
+        "export": "Export Database",
+        "import": "Import Database"
+      },
+      "files": {
+        "title": "File System Backup",
+        "desc": "Export/import all uploaded files in the uploads directory",
+        "export": "Export Files",
+        "import": "Import Files"
+      },
+      "reset": {
+        "title": "System Reset",
+        "desc": "Clear all business data and files, restore system to initial state",
+        "action": "Reset System",
+        "dialogTitle": "Confirm System Reset",
+        "dialogWarning": "This operation will permanently delete all business data and files, and cannot be recovered! Please ensure you have completed the backup.",
+        "clearDatabase": "Clear Database",
+        "clearFiles": "Clear File System",
+        "confirmTitle": "Confirm System Reset",
+        "confirmMessage": "Are you sure you want to reset the system? This operation cannot be undone!",
+        "confirmButton": "Confirm Reset",
+        "cancelButton": "Cancel"
+      },
+      "mode": {
+        "insert": "Insert Mode",
+        "overwrite": "Overwrite Mode"
+      },
+      "actions": {
+        "exportDb": "Export Database",
+        "importDb": "Import Database",
+        "exportFiles": "Export Files",
+        "importFiles": "Import Files",
+        "reset": "Reset System"
+      },
+      "messages": {
+        "dbExportSuccess": "Database exported successfully",
+        "dbExportFailed": "Database export failed",
+        "dbImportSuccess": "Database imported successfully",
+        "dbImportFailed": "Database import failed",
+        "filesExportSuccess": "Files exported successfully",
+        "filesExportFailed": "Files export failed",
+        "filesImportSuccess": "Files imported successfully",
+        "filesImportFailed": "Files import failed",
+        "resetSuccess": "System reset successfully",
+        "resetFailed": "System reset failed"
       }
     },
     "breadcrumb": {
