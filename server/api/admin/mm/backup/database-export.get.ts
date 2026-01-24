@@ -22,6 +22,7 @@ export default defineEventHandler(async (event) => {
       noteContents,
       fileManagements,
       systemConfigs,
+      systemHomepages,
       merkleTrees,
       compressedNfts,
     ] = await Promise.all([
@@ -50,6 +51,9 @@ export default defineEventHandler(async (event) => {
         where: { status: 1 },
       }),
       prisma.systemConfig.findMany(),
+      prisma.systemHomepage.findMany({
+        where: { isDeleted: false },
+      }),
       prisma.merkleTree.findMany({
         where: { isDeleted: false },
       }),
@@ -103,6 +107,10 @@ export default defineEventHandler(async (event) => {
         systemConfigs: systemConfigs.map(sc => ({
           ...sc,
           id: sc.id.toString(),
+        })),
+        systemHomepages: systemHomepages.map(sh => ({
+          ...sh,
+          id: sh.id.toString(),
         })),
         merkleTrees: merkleTrees.map(mt => ({
           ...mt,

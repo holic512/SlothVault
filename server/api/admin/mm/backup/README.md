@@ -32,6 +32,7 @@
       "noteContents": [...],
       "fileManagements": [...],
       "systemConfigs": [...],
+      "systemHomepages": [...],
       "merkleTrees": [...],
       "compressedNfts": [...]
     }
@@ -42,7 +43,7 @@
 **导出的数据表**:
 - `collections` schema: Project, ProjectVersion, Category, ProjectMenu, ProjectHome
 - `docs` schema: NoteInfo, NoteContent
-- `public` schema: FileManagement, SystemConfig, MerkleTree, CompressedNft
+- `public` schema: FileManagement, SystemConfig, SystemHomepage, MerkleTree, CompressedNft
 
 **注意**:
 - 只导出未软删除的数据（`isDeleted = false`）
@@ -86,7 +87,15 @@
       "projects": 5,
       "projectVersions": 10,
       "categories": 20,
-      // ... 其他表的导入数量
+      "projectMenus": 20,
+      "projectHomes": 5,
+      "noteInfos": 30,
+      "noteContents": 50,
+      "fileManagements": 100,
+      "systemConfigs": 10,
+      "systemHomepages": 1,
+      "merkleTrees": 2,
+      "compressedNfts": 10
     }
   }
 }
@@ -194,7 +203,8 @@
         "projectHomes": 5,
         "projects": 5,
         "fileManagements": 100,
-        "systemConfigs": 10
+        "systemConfigs": 10,
+        "systemHomepages": 1
       },
       "totalDeleted": 255
     },

@@ -34,6 +34,7 @@ export default defineEventHandler(async (event) => {
         prisma.project.deleteMany({}),
         prisma.fileManagement.deleteMany({}),
         prisma.systemConfig.deleteMany({}),
+        prisma.systemHomepage.deleteMany({}),
       ])
     }
 
@@ -48,6 +49,7 @@ export default defineEventHandler(async (event) => {
       noteContents: {},
       fileManagements: {},
       systemConfigs: {},
+      systemHomepages: {},
       merkleTrees: {},
       compressedNfts: {},
     }
@@ -254,7 +256,22 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // 10. 导入 MerkleTrees
+    // 10. 导入 SystemHomepages
+    if (data.systemHomepages?.length) {
+      for (const item of data.systemHomepages) {
+        const { id, ...rest } = item
+        const created = await prisma.systemHomepage.create({
+          data: {
+            ...rest,
+            createdAt: new Date(rest.createdAt),
+            updatedAt: new Date(rest.updatedAt),
+          },
+        })
+        idMaps.systemHomepages[id] = created.id
+      }
+    }
+
+    // 11. 导入 MerkleTrees
     if (data.merkleTrees?.length) {
       for (const item of data.merkleTrees) {
         const { id, maxCapacity, creationCost, ...rest } = item
@@ -281,7 +298,7 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // 11. 导入 CompressedNfts
+    // 12. 导入 CompressedNfts
     if (data.compressedNfts?.length) {
       for (const item of data.compressedNfts) {
         const { id, merkleTreeId, projectId, originalImageId, ...rest } = item
@@ -325,6 +342,7 @@ export default defineEventHandler(async (event) => {
         noteContents: Object.keys(idMaps.noteContents).length,
         fileManagements: Object.keys(idMaps.fileManagements).length,
         systemConfigs: Object.keys(idMaps.systemConfigs).length,
+        systemHomepages: Object.keys(idMaps.systemHomepages).length,
         merkleTrees: Object.keys(idMaps.merkleTrees).length,
         compressedNfts: Object.keys(idMaps.compressedNfts).length,
       },

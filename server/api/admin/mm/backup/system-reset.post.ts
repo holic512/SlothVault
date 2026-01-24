@@ -43,6 +43,7 @@ export default defineEventHandler(async (event) => {
           prisma.project.deleteMany({}),
           prisma.fileManagement.deleteMany({}),
           prisma.systemConfig.deleteMany({}),
+          prisma.systemHomepage.deleteMany({}),
         ])
 
         result.database = {
@@ -59,6 +60,7 @@ export default defineEventHandler(async (event) => {
             projects: dbResult[8].count,
             fileManagements: dbResult[9].count,
             systemConfigs: dbResult[10].count,
+            systemHomepages: dbResult[11].count,
           },
           totalDeleted: dbResult.reduce((sum, r) => sum + r.count, 0),
         }
