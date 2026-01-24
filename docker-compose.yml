@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  slothvault:
+    image: ${DOCKER_IMAGE:-holic512/slothvault:latest}
+    container_name: slothvault
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    # 可选：取消注释以下行来持久化数据
+    # volumes:
+    #   - slothvault_data:/var/lib/postgresql/data
+    environment:
+      # 可选：自定义加密密钥（默认自动生成）
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      # 可选：自定义数据库密码（默认自动生成）
+      DB_PASSWORD: ${DB_PASSWORD:-}
+
+# 可选：取消注释以下行来启用数据持久化
+# volumes:
+#   slothvault_data:
+#     driver: local
