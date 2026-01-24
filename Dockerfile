@@ -43,8 +43,8 @@ COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Create directories for PostgreSQL and app data
-RUN mkdir -p /var/lib/postgresql/data /app/data && \
-    chown -R postgres:postgres /var/lib/postgresql
+RUN mkdir -p /var/lib/postgresql/data /app/data /run/postgresql && \
+    chown -R postgres:postgres /var/lib/postgresql /run/postgresql
 
 # Expose port
 EXPOSE 3000
