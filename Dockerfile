@@ -7,8 +7,8 @@ WORKDIR /app
 FROM base AS deps
 # Copy only package files for better layer caching
 COPY package.json package-lock.json ./
-# Use npm ci for faster, reproducible installs
-RUN npm ci
+# Install dependencies (npm install works better with lockfileVersion 3)
+RUN npm install --frozen-lockfile
 
 # Build stage
 FROM base AS builder
