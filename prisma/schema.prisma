@@ -8,6 +8,8 @@ generator client {
 datasource db {
   // 数据库类型
   provider = "postgresql"
+  // 数据库连接 URL（从环境变量读取）
+  url      = env("DATABASE_URL")
   // 使用的数据库 schema 列表
   schemas  = ["auth", "collections", "docs", "public"]
 }
