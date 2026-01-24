@@ -6,7 +6,7 @@ COPY package.json package-lock.json ./
 
 # Install dependencies stage
 FROM base AS deps
-RUN npm ci
+RUN npm install
 
 # Build stage
 FROM base AS builder
@@ -27,7 +27,7 @@ WORKDIR /app
 
 # Copy production dependencies
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # Copy built application
 COPY --from=builder /app/.output ./.output
