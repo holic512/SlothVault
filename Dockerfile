@@ -37,7 +37,8 @@ COPY package.json package-lock.json ./
 COPY --from=builder /app/.output ./.output
 COPY --from=builder /app/generated ./generated
 
-# Copy Prisma schema and migrations (required for prisma migrate deploy)
+# Copy Prisma config, schema and migrations (required for prisma migrate deploy in Prisma 7)
+COPY prisma.config.ts ./
 COPY prisma ./prisma
 
 # Copy startup script
