@@ -16,8 +16,8 @@ FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 # Copy source files
 COPY . .
-# Set a dummy DATABASE_URL for prisma generate (not used, just required)
-ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
+# Set a dummy DATABASE_URL for prisma generate (required by schema.prisma but not actually used during generation)
+ENV DATABASE_URL="postgresql://postgres:postgres@localhost:5432/slothvault"
 # Generate Prisma client and build app
 RUN npx prisma generate && npm run build
 
