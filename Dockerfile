@@ -9,7 +9,7 @@ COPY package.json pnpm-lock.yaml* ./
 
 # Install dependencies stage
 FROM base AS deps
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # Build stage
 FROM base AS builder
@@ -31,7 +31,7 @@ WORKDIR /app
 
 # Copy production dependencies
 COPY package.json pnpm-lock.yaml* ./
-RUN pnpm install --prod --frozen-lockfile
+RUN pnpm install --prod --no-frozen-lockfile
 
 # Copy built application
 COPY --from=builder /app/.output ./.output
