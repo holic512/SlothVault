@@ -19,6 +19,11 @@ log_error() {
     echo "${RED}[SlothVault]${NC} $1"
 }
 
+# Ensure /run/postgresql exists with correct ownership
+log_info "Setting up PostgreSQL runtime directory..."
+mkdir -p /run/postgresql
+chown -R postgres:postgres /run/postgresql
+
 # Generate random encryption key if not provided
 if [ -z "$ENCRYPTION_KEY" ]; then
     log_info "Generating random encryption key..."
@@ -33,7 +38,7 @@ if [ -z "$DB_PASSWORD" ]; then
     log_info "Generated database password"
 fi
 
-# Database configuration
+# Database configuration - export for child processes
 export DATABASE_URL="postgresql://postgres:${DB_PASSWORD}@localhost:5432/slothvault"
 
 # Initialize PostgreSQL if not already initialized
@@ -87,9 +92,9 @@ log_info "PostgreSQL is ready"
 # Run Prisma migrations
 log_info "Running database migrations..."
 cd /app
-npx prisma migrate deploy || log_warn "Migration failed or no migrations to apply"
+DATABASE_URL="postgresql://postgres:${DB_PASSWORD}@localhost:5432/slothvault" npx prisma migrate deploy || log_warn "Migration failed or no migrations to apply"
 
-# Start the application
+# Start the application with environment variables
 log_info "Starting SlothVault application on port ${PORT}..."
 log_info "=========================================="
 log_info "SlothVault is ready!"
@@ -97,4 +102,4 @@ log_info "Access at: http://localhost:${PORT}"
 log_info "Admin panel: http://localhost:${PORT}/admin"
 log_info "=========================================="
 
-exec node .output/server/index.mjs
+exec env DATABASE_URL="postgresql://postgres:${DB_PASSWORD}@localhost:5432/slothvault" ENCRYPTION_KEY="$ENCRYPTION_KEY" node .output/server/index.mjs
