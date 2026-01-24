@@ -11,7 +11,17 @@
       "Bash(npm view:*)",
       "Bash(npm install:*)",
       "Bash(npm uninstall:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(pkill:*)",
+      "Bash(git config:*)",
+      "Bash(ssh:*)",
+      "Bash(node --version:*)",
+      "Bash(npm:*)",
+      "Bash(timeout 10 node:*)",
+      "Bash(grep:*)",
+      "Bash(curl:*)"
     ]
   }
 }

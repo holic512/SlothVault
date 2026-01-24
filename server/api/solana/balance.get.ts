@@ -1,4 +1,4 @@
-import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js'
+import { getSolanaCjs } from '~~/server/utils/solanaCjsLoader'
 import { getRpcUrl } from '~~/server/utils/solana'
 
 export default defineEventHandler(async (event) => {
@@ -12,11 +12,11 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  // 加载 Solana CJS 模块
+  const solanaCjs = getSolanaCjs()
+
   // 验证地址格式
-  let pubKey: PublicKey
-  try {
-    pubKey = new PublicKey(address)
-  } catch {
+  if (!solanaCjs.isValidSolanaAddress(address)) {
     throw createError({
       statusCode: 400,
       message: '无效的钱包地址',
@@ -33,18 +33,18 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const connection = new Connection(rpcUrl, {
+    const connection = solanaCjs.createConnection(rpcUrl, {
       commitment: 'confirmed',
     })
 
-    const balance = await connection.getBalance(pubKey)
+    const balance = await solanaCjs.getBalance(connection, address)
 
     return {
       code: 0,
       data: {
         address,
         balance, // lamports
-        sol: balance / LAMPORTS_PER_SOL,
+        sol: solanaCjs.lamportsToSol(balance),
       },
     }
   } catch (err: any) {

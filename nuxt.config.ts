@@ -4,6 +4,11 @@ import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import {ElementPlusResolver} from 'unplugin-vue-components/resolvers'
 import { Buffer } from 'buffer'
+import { fileURLToPath } from 'url'
+import { dirname, resolve } from 'path'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
 export default defineNuxtConfig({
 
@@ -47,6 +52,21 @@ export default defineNuxtConfig({
             options: {
                 target: 'esnext',
             },
+        },
+        // 外部化所有 Solana CJS 依赖，避免 Nitro 打包导致的 require/module 问题
+        externals: {
+            external: [
+                '@solana/web3.js',
+                '@solana/spl-account-compression',
+                'jayson',
+                'bn.js',
+                'buffer',
+                '@noble/curves',
+                '@noble/hashes',
+                'rpc-websockets',
+                'superstruct',
+                'borsh',
+            ],
         },
     },
 

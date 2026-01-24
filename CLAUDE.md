@@ -18,9 +18,9 @@ SlothVault 是一个基于 Nuxt 4 的个人文档管理系统，集成 Solana �
 ## Commands
 
 ```bash
-pnpm dev          # Start dev server
-pnpm build        # Production build
-pnpm preview      # Preview production build
+npm dev          # Start dev server
+npm build        # Production build
+npm preview      # Preview production build
 
 # Database
 npx prisma migrate dev    # Run migrations
