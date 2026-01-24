@@ -2,32 +2,36 @@
 FROM node:20-alpine AS base
 
 WORKDIR /app
-COPY package.json package-lock.json ./
 
 # Install dependencies stage
 FROM base AS deps
-RUN npm install
+# Copy only package files for better layer caching
+COPY package.json package-lock.json ./
+# Use npm ci for faster, reproducible installs
+RUN npm ci
 
 # Build stage
 FROM base AS builder
+# Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
+# Copy source files
 COPY . .
 # Set a dummy DATABASE_URL for prisma generate (not used, just required)
 ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
-RUN npx prisma generate
-RUN npm run build
+# Generate Prisma client and build app
+RUN npx prisma generate && npm run build
 
 # Production stage with PostgreSQL
 FROM node:20-alpine AS runner
 
-# Install PostgreSQL and required tools
+# Install PostgreSQL and required tools in one layer
 RUN apk add --no-cache postgresql postgresql-contrib openssl su-exec
 
 WORKDIR /app
 
-# Copy production dependencies
+# Copy production dependencies from deps stage (reuse existing node_modules)
+COPY --from=deps /app/node_modules ./node_modules
 COPY package.json package-lock.json ./
-RUN npm install --omit=dev
 
 # Copy built application
 COPY --from=builder /app/.output ./.output
@@ -46,10 +50,10 @@ RUN mkdir -p /var/lib/postgresql/data /app/data && \
 EXPOSE 3000
 
 # Set environment variables
-ENV NODE_ENV=production
-ENV HOST=0.0.0.0
-ENV PORT=3000
-ENV PGDATA=/var/lib/postgresql/data
+ENV NODE_ENV=production \
+    HOST=0.0.0.0 \
+    PORT=3000 \
+    PGDATA=/var/lib/postgresql/data
 
 # Use entrypoint script
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
