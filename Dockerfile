@@ -7,8 +7,8 @@ WORKDIR /app
 FROM base AS deps
 # Copy only package files for better layer caching
 COPY package.json package-lock.json ./
-# Node 24 includes npm 11+ which fully supports lockfileVersion 3
-RUN npm ci
+# Use npm install for better compatibility
+RUN npm install
 
 # Build stage
 FROM base AS builder
