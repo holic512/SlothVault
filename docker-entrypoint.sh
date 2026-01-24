@@ -92,7 +92,19 @@ log_info "PostgreSQL is ready"
 # Run Prisma migrations
 log_info "Running database migrations..."
 cd /app
-DATABASE_URL="postgresql://postgres:${DB_PASSWORD}@localhost:5432/slothvault" npx prisma migrate deploy || log_warn "Migration failed or no migrations to apply"
+if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations)" ]; then
+    log_info "Found migrations directory, applying migrations..."
+    DATABASE_URL="postgresql://postgres:${DB_PASSWORD}@localhost:5432/slothvault" npx prisma migrate deploy
+    if [ $? -eq 0 ]; then
+        log_info "Migrations applied successfully"
+    else
+        log_error "Migration failed!"
+        exit 1
+    fi
+else
+    log_warn "No migrations found in prisma/migrations directory"
+    log_warn "Tables will not be created. Please ensure migrations are included in the Docker image."
+fi
 
 # Start the application with environment variables
 log_info "Starting SlothVault application on port ${PORT}..."

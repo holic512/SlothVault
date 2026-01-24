@@ -36,7 +36,9 @@ COPY package.json package-lock.json ./
 # Copy built application
 COPY --from=builder /app/.output ./.output
 COPY --from=builder /app/generated ./generated
-COPY --from=builder /app/prisma ./prisma
+
+# Copy Prisma schema and migrations (required for prisma migrate deploy)
+COPY prisma ./prisma
 
 # Copy startup script
 COPY docker-entrypoint.sh /usr/local/bin/
