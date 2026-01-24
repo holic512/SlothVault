@@ -799,6 +799,55 @@
       "contentEdit": "内容编辑",
       "systemHomepage": "系统首页编辑"
     },
+    "dashboard": {
+      "title": "仪表盘",
+      "desc": "系统概览与数据统计",
+      "actions": {
+        "refresh": "刷新数据"
+      },
+      "stats": {
+        "users": "用户",
+        "activeSessions": "活跃会话",
+        "projects": "项目",
+        "active": "启用",
+        "withAuth": "需鉴权",
+        "categories": "分类",
+        "notes": "笔记",
+        "versions": "版本",
+        "files": "文件",
+        "cnfts": "cNFT",
+        "minted": "已铸造",
+        "pending": "待处理"
+      },
+      "health": {
+        "title": "系统健康度",
+        "projectUtilization": "项目启用率",
+        "noteUtilization": "笔记启用率",
+        "categoryUtilization": "分类启用率",
+        "cnftSuccessRate": "cNFT 成功率",
+        "merkleTreeUtilization": "Merkle Tree 利用率"
+      },
+      "recent": {
+        "projects": "最近创建的项目",
+        "notes": "最近创建的笔记",
+        "sessions": "最近会话活动"
+      },
+      "files": {
+        "typeDistribution": "文件类型分布",
+        "files": "个文件"
+      },
+      "status": {
+        "active": "活跃",
+        "inactive": "停用",
+        "expired": "已过期",
+        "revoked": "已撤销"
+      },
+      "messages": {
+        "loading": "加载中...",
+        "loadFailed": "加载失败",
+        "noData": "暂无数据"
+      }
+    },
     "homepage": {
       "title": "系统首页管理",
       "desc": "编辑系统首页的 Markdown 内容",

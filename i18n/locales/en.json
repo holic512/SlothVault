@@ -799,6 +799,55 @@
       "contentEdit": "Content Edit",
       "systemHomepage": "System Homepage Edit"
     },
+    "dashboard": {
+      "title": "Dashboard",
+      "desc": "System overview and data statistics",
+      "actions": {
+        "refresh": "Refresh Data"
+      },
+      "stats": {
+        "users": "Users",
+        "activeSessions": "Active Sessions",
+        "projects": "Projects",
+        "active": "Active",
+        "withAuth": "Auth Required",
+        "categories": "Categories",
+        "notes": "Notes",
+        "versions": "Versions",
+        "files": "Files",
+        "cnfts": "cNFTs",
+        "minted": "Minted",
+        "pending": "Pending"
+      },
+      "health": {
+        "title": "System Health",
+        "projectUtilization": "Project Utilization",
+        "noteUtilization": "Note Utilization",
+        "categoryUtilization": "Category Utilization",
+        "cnftSuccessRate": "cNFT Success Rate",
+        "merkleTreeUtilization": "Merkle Tree Utilization"
+      },
+      "recent": {
+        "projects": "Recent Projects",
+        "notes": "Recent Notes",
+        "sessions": "Recent Sessions"
+      },
+      "files": {
+        "typeDistribution": "File Type Distribution",
+        "files": "files"
+      },
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive",
+        "expired": "Expired",
+        "revoked": "Revoked"
+      },
+      "messages": {
+        "loading": "Loading...",
+        "loadFailed": "Load failed",
+        "noData": "No data"
+      }
+    },
     "homepage": {
       "title": "System Homepage Management",
       "desc": "Edit system homepage Markdown content",
