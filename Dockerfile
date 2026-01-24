@@ -41,6 +41,9 @@ COPY --from=builder /app/generated ./generated
 COPY prisma.config.ts ./
 COPY prisma ./prisma
 
+# Create public/uploads directory for file uploads (will be served by Nitro publicAssets)
+RUN mkdir -p /app/public/uploads
+
 # Copy startup script
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
