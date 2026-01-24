@@ -88,7 +88,11 @@ const tempFileRegistry = new Map<string, { expireAt: number; filePath: string }>
  * 获取上传目录的绝对路径
  */
 function getUploadDir(businessType: BusinessType): string {
-  const publicDir = join(process.cwd(), 'public')
+  // 使用环境变量判断是否为生产环境（Docker 部署）
+  const isProduction = process.env.NODE_ENV === 'production'
+  const publicDir = isProduction
+    ? join(process.cwd(), '.output', 'public')
+    : join(process.cwd(), 'public')
   const dir = BusinessTypeConfig[businessType]?.dir || 'other'
   return join(publicDir, UPLOAD_ROOT, dir)
 }
@@ -332,7 +336,11 @@ export async function hardDeleteFile(id: bigint) {
   }
 
   // 删除磁盘文件
-  const absolutePath = join(process.cwd(), 'public', file.filePath)
+  const isProduction = process.env.NODE_ENV === 'production'
+  const publicDir = isProduction
+    ? join(process.cwd(), '.output', 'public')
+    : join(process.cwd(), 'public')
+  const absolutePath = join(publicDir, file.filePath)
   if (existsSync(absolutePath)) {
     await unlink(absolutePath)
   }
@@ -395,7 +403,11 @@ export async function readFileContent(id: bigint): Promise<Buffer | null> {
   const file = await getFileById(id)
   if (!file) return null
 
-  const absolutePath = join(process.cwd(), 'public', file.filePath)
+  const isProduction = process.env.NODE_ENV === 'production'
+  const publicDir = isProduction
+    ? join(process.cwd(), '.output', 'public')
+    : join(process.cwd(), 'public')
+  const absolutePath = join(publicDir, file.filePath)
   if (!existsSync(absolutePath)) return null
 
   return readFile(absolutePath)
@@ -408,7 +420,11 @@ export async function getFileStats(id: bigint) {
   const file = await getFileById(id)
   if (!file) return null
 
-  const absolutePath = join(process.cwd(), 'public', file.filePath)
+  const isProduction = process.env.NODE_ENV === 'production'
+  const publicDir = isProduction
+    ? join(process.cwd(), '.output', 'public')
+    : join(process.cwd(), 'public')
+  const absolutePath = join(publicDir, file.filePath)
   if (!existsSync(absolutePath)) return null
 
   const stats = await stat(absolutePath)
@@ -427,6 +443,10 @@ export async function fileExists(id: bigint): Promise<boolean> {
   const file = await getFileById(id)
   if (!file) return false
 
-  const absolutePath = join(process.cwd(), 'public', file.filePath)
+  const isProduction = process.env.NODE_ENV === 'production'
+  const publicDir = isProduction
+    ? join(process.cwd(), '.output', 'public')
+    : join(process.cwd(), 'public')
+  const absolutePath = join(publicDir, file.filePath)
   return existsSync(absolutePath)
 }

@@ -41,6 +41,9 @@ COPY --from=builder /app/generated ./generated
 COPY prisma.config.ts ./
 COPY prisma ./prisma
 
+# Create uploads directory in .output/public for production file storage
+RUN mkdir -p /app/.output/public/uploads
+
 # Copy startup script
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh

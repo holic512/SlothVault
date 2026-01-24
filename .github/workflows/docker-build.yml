@@ -53,6 +53,8 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
+          build-args: |
+            NODE_ENV=production
 
       - name: Generate deployment summary
         run: |
