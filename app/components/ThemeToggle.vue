@@ -1,3 +1,4 @@
+<!--主题切换组建-->
 <template>
   <div class="theme-manager" ref="containerRef">
     <!-- 触发器按钮 -->

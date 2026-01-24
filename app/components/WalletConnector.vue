@@ -1,3 +1,4 @@
+<!--钱包链接组建-->
 <script setup lang="ts">
 import { ElPopover } from 'element-plus'
 
@@ -231,7 +232,14 @@ onMounted(() => {
 
 <style scoped>
 .wallet-connector {
+  position: relative;
   display: inline-block;
+  --pop-bg: var(--sloth-card, rgba(255, 255, 255, 0.9));
+  --pop-border: var(--sloth-card-border, rgba(0, 0, 0, 0.06));
+  --pop-blur: 16px;
+  --primary: var(--sloth-primary, #7c3aed);
+  --text: var(--sloth-text, #333);
+  --text-dim: rgba(120, 120, 120, 0.7);
 }
 
 /* ==================== 连接按钮 ==================== */
@@ -240,17 +248,20 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 40px;
+  height: 38px;
   padding: 0 20px;
   border: none;
   border-radius: 12px;
   cursor: pointer;
   overflow: hidden;
   isolation: isolate;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .connect-btn:disabled {
   cursor: not-allowed;
+  opacity: 0.6;
 }
 
 /* 动态渐变背景 */
@@ -263,7 +274,7 @@ onMounted(() => {
   z-index: -2;
 }
 
-.connect-btn:hover .btn-bg {
+.connect-btn:hover:not(:disabled) .btn-bg {
   animation-duration: 1.5s;
 }
 
@@ -282,8 +293,12 @@ onMounted(() => {
   z-index: -1;
 }
 
-.connect-btn:hover .btn-glow {
+.connect-btn:hover:not(:disabled) .btn-glow {
   opacity: 1;
+}
+
+.connect-btn:active:not(:disabled) {
+  transform: scale(0.95);
 }
 
 /* 按钮内容 */
@@ -300,6 +315,11 @@ onMounted(() => {
 .btn-icon {
   width: 18px;
   height: 18px;
+  transition: transform 0.3s ease;
+}
+
+.connect-btn:hover:not(:disabled) .btn-icon {
+  transform: scale(1.1);
 }
 
 .btn-text {
@@ -331,23 +351,30 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 40px;
+  height: 38px;
   padding: 0 14px;
-  background: var(--sloth-card);
-  border: 1px solid var(--sloth-card-border);
+  background: var(--pop-bg);
+  border: 1px solid var(--pop-border);
   border-radius: 12px;
   cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(var(--pop-blur));
 }
 
 .connected-btn:hover {
-  border-color: rgba(153, 69, 255, 0.5);
-  box-shadow: 0 0 20px rgba(153, 69, 255, 0.15);
+  background: var(--sloth-bg-hover, rgba(0, 0, 0, 0.04));
+  border-color: var(--primary);
+}
+
+.connected-btn:active {
+  transform: scale(0.95);
 }
 
 .connected-btn.is-open {
-  border-color: #9945FF;
-  box-shadow: 0 0 24px rgba(153, 69, 255, 0.2);
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
 }
 
 /* 实时状态指示器 */
@@ -394,32 +421,54 @@ onMounted(() => {
   font-family: var(--sloth-font-mono, 'SF Mono', monospace);
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--sloth-text);
+  color: var(--text);
   letter-spacing: 0.02em;
+  transition: color 0.2s;
+}
+
+.connected-btn.is-open .address-text {
+  color: white;
 }
 
 /* 下拉箭头 */
 .chevron {
   width: 16px;
   height: 16px;
-  color: var(--sloth-text-subtle);
-  transition: transform 0.25s;
+  color: var(--text-dim);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s;
+}
+
+.connected-btn:hover .chevron {
+  color: var(--primary);
 }
 
 .connected-btn.is-open .chevron {
   transform: rotate(180deg);
+  color: white;
 }
 
 /* ==================== 弹出面板 ==================== */
 .wallet-panel {
   padding: 0;
+  animation: fadeSlideIn 0.3s ease forwards;
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* 头部 */
 .panel-header {
   position: relative;
   padding: 20px;
-  border-radius: 12px 12px 0 0;
+  border-radius: 16px 16px 0 0;
   overflow: hidden;
 }
 
@@ -444,6 +493,11 @@ onMounted(() => {
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(83, 75, 177, 0.3);
+  transition: transform 0.3s ease;
+}
+
+.wallet-logo:hover {
+  transform: scale(1.05);
 }
 
 .wallet-logo svg {
@@ -460,7 +514,7 @@ onMounted(() => {
 .wallet-name {
   font-size: 1rem;
   font-weight: 600;
-  color: var(--sloth-text);
+  color: var(--text);
 }
 
 .connection-status {
@@ -477,12 +531,22 @@ onMounted(() => {
   background: #19FB9B;
   border-radius: 50%;
   box-shadow: 0 0 8px rgba(25, 251, 155, 0.6);
+  animation: statusPulse 2s ease-in-out infinite;
+}
+
+@keyframes statusPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 /* 地址区块 */
 .address-section {
   padding: 16px 20px;
-  border-bottom: 1px solid var(--sloth-card-border);
+  border-bottom: 1px solid var(--pop-border);
 }
 
 .section-header {
@@ -493,11 +557,11 @@ onMounted(() => {
 }
 
 .section-title {
-  font-size: 0.7rem;
+  font-size: 10px;
   font-weight: 600;
-  color: var(--sloth-text-subtle);
+  color: var(--text-dim);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 1.2px;
 }
 
 .copy-btn {
@@ -505,25 +569,50 @@ onMounted(() => {
   align-items: center;
   gap: 4px;
   padding: 4px 10px;
-  background: var(--sloth-bg-hover);
-  border: 1px solid var(--sloth-card-border);
+  background: transparent;
+  border: 1px solid var(--pop-border);
   border-radius: 6px;
   font-size: 0.7rem;
   font-weight: 500;
-  color: var(--sloth-text-subtle);
+  color: var(--text-dim);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.copy-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--primary);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.copy-btn:hover::before {
+  opacity: 0.05;
 }
 
 .copy-btn svg {
   width: 12px;
   height: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.copy-btn span {
+  position: relative;
+  z-index: 1;
 }
 
 .copy-btn:hover {
-  background: var(--sloth-primary-dim);
-  border-color: var(--sloth-primary);
-  color: var(--sloth-primary);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.copy-btn:active {
+  transform: scale(0.95);
 }
 
 .copy-btn.is-copied {
@@ -534,20 +623,25 @@ onMounted(() => {
 
 .address-full {
   padding: 10px 12px;
-  background: var(--sloth-bg);
-  border: 1px solid var(--sloth-card-border);
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--pop-border);
   border-radius: 8px;
   font-family: var(--sloth-font-mono, monospace);
   font-size: 0.75rem;
-  color: var(--sloth-text);
+  color: var(--text);
   word-break: break-all;
   line-height: 1.5;
+  transition: background 0.2s;
+}
+
+:global(.dark) .address-full {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 /* 余额区块 */
 .balance-section {
   padding: 16px 20px;
-  border-bottom: 1px solid var(--sloth-card-border);
+  border-bottom: 1px solid var(--pop-border);
 }
 
 .balance-card {
@@ -555,6 +649,12 @@ onMounted(() => {
   background: linear-gradient(135deg, rgba(153, 69, 255, 0.08) 0%, rgba(25, 251, 155, 0.05) 100%);
   border: 1px solid rgba(153, 69, 255, 0.2);
   border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.balance-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(153, 69, 255, 0.15);
 }
 
 .balance-header {
@@ -575,6 +675,11 @@ onMounted(() => {
   height: 32px;
   border-radius: 50%;
   overflow: hidden;
+  transition: transform 0.3s ease;
+}
+
+.token-icon:hover {
+  transform: rotate(15deg) scale(1.1);
 }
 
 .token-icon svg {
@@ -585,7 +690,7 @@ onMounted(() => {
 .token-name {
   font-size: 0.9rem;
   font-weight: 600;
-  color: var(--sloth-text);
+  color: var(--text);
 }
 
 .refresh-btn {
@@ -594,23 +699,48 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--sloth-bg);
-  border: 1px solid var(--sloth-card-border);
+  background: transparent;
+  border: 1px solid var(--pop-border);
   border-radius: 8px;
-  color: var(--sloth-text-subtle);
+  color: var(--text-dim);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.refresh-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--primary);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.refresh-btn:hover:not(:disabled)::before {
+  opacity: 0.05;
 }
 
 .refresh-btn svg {
   width: 16px;
   height: 16px;
+  position: relative;
+  z-index: 1;
+  transition: transform 0.3s ease;
 }
 
 .refresh-btn:hover:not(:disabled) {
-  background: var(--sloth-primary-dim);
-  border-color: var(--sloth-primary);
-  color: var(--sloth-primary);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.refresh-btn:hover:not(:disabled) svg {
+  transform: rotate(180deg);
+}
+
+.refresh-btn:active:not(:disabled) {
+  transform: scale(0.95);
 }
 
 .refresh-btn:disabled {
@@ -632,13 +762,13 @@ onMounted(() => {
   font-family: var(--sloth-font-mono, monospace);
   font-size: 1.75rem;
   font-weight: 700;
-  color: var(--sloth-text);
+  color: var(--text);
   letter-spacing: -0.02em;
 }
 
 .balance-usd {
   font-size: 0.8rem;
-  color: var(--sloth-text-subtle);
+  color: var(--text-dim);
 }
 
 .balance-loading {
@@ -651,7 +781,7 @@ onMounted(() => {
 .loading-dot {
   width: 8px;
   height: 8px;
-  background: var(--sloth-text-subtle);
+  background: var(--text-dim);
   border-radius: 50%;
   animation: loadingBounce 1.4s ease-in-out infinite both;
 }
@@ -689,33 +819,59 @@ onMounted(() => {
   font-weight: 500;
   color: #ef4444;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.disconnect-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #ef4444;
+  opacity: 0;
+  transition: opacity 0.2s;
 }
 
 .disconnect-btn svg {
   width: 18px;
   height: 18px;
+  position: relative;
+  z-index: 1;
+  transition: transform 0.3s ease;
+}
+
+.disconnect-btn span {
+  position: relative;
+  z-index: 1;
 }
 
 .disconnect-btn:hover {
   background: rgba(239, 68, 68, 0.15);
   border-color: rgba(239, 68, 68, 0.4);
 }
+
+.disconnect-btn:hover svg {
+  transform: translateX(3px);
+}
+
+.disconnect-btn:active {
+  transform: scale(0.98);
+}
 </style>
 
 <style>
-/* 全局样式 - Web3 风格弹出框 */
+/* 全局样式 - 统一弹出框风格 */
 .wallet-popover-web3 {
   padding: 0 !important;
   border-radius: 16px !important;
   border: 1px solid var(--sloth-card-border) !important;
-  background: var(--sloth-card) !important;
-  box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 20px 40px -4px rgba(0, 0, 0, 0.2),
-    0 0 0 1px rgba(255, 255, 255, 0.05) inset !important;
-  backdrop-filter: blur(20px) !important;
+  background: var(--sloth-card, rgba(255, 255, 255, 0.9)) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
   overflow: hidden !important;
+  transform-origin: top right;
 }
 
 .wallet-popover-web3 .el-popover__title {
@@ -723,7 +879,7 @@ onMounted(() => {
 }
 
 /* 暗黑模式增强 */
-.dark .wallet-popover-web3 {
+:global(.dark) .wallet-popover-web3 {
   box-shadow:
     0 4px 6px -1px rgba(0, 0, 0, 0.3),
     0 20px 40px -4px rgba(0, 0, 0, 0.5),
@@ -731,7 +887,11 @@ onMounted(() => {
     0 0 0 1px rgba(255, 255, 255, 0.05) inset !important;
 }
 
-.dark .balance-card {
+:global(.dark) .balance-card {
   background: linear-gradient(135deg, rgba(153, 69, 255, 0.12) 0%, rgba(25, 251, 155, 0.08) 100%);
+}
+
+:global(.dark) .mode-switch {
+  background: rgba(255, 255, 255, 0.06);
 }
 </style>

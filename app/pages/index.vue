@@ -20,7 +20,7 @@ const features = [
 </script>
 
 <template>
-  <!-- 背景氛围光斑 (Web3 必备) -->
+  <!-- 背景氛围光斑  -->
   <div class="ambient-glow glow-1"></div>
   <div class="ambient-glow glow-2"></div>
 
