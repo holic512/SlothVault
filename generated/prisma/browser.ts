@@ -73,6 +73,11 @@ export type FileManagement = Prisma.FileManagementModel
  */
 export type SystemConfig = Prisma.SystemConfigModel
 /**
+ * Model SystemHomepage
+ * 系统首页表：存储系统首页的 Markdown 内容（schema: public）
+ */
+export type SystemHomepage = Prisma.SystemHomepageModel
+/**
  * Model MerkleTree
  * Merkle Tree 表：存储系统级 cNFT Merkle Tree 信息（schema: public）
  */

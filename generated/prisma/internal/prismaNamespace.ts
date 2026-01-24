@@ -80,12 +80,12 @@ export type PrismaVersion = {
 }
 
 /**
- * Prisma Client JS version: 7.1.0
- * Query Engine version: ab635e6b9d606fa5c8fb8b1a7f909c3c3c1c98ba
+ * Prisma Client JS version: 7.3.0
+ * Query Engine version: 9d6ad21cbbceab97458517b147a6a09ff43aa735
  */
 export const prismaVersion: PrismaVersion = {
-  client: "7.1.0",
-  engine: "ab635e6b9d606fa5c8fb8b1a7f909c3c3c1c98ba"
+  client: "7.3.0",
+  engine: "9d6ad21cbbceab97458517b147a6a09ff43aa735"
 }
 
 /**
@@ -395,6 +395,7 @@ export const ModelName = {
   NoteContent: 'NoteContent',
   FileManagement: 'FileManagement',
   SystemConfig: 'SystemConfig',
+  SystemHomepage: 'SystemHomepage',
   MerkleTree: 'MerkleTree',
   CompressedNft: 'CompressedNft'
 } as const
@@ -412,7 +413,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "session" | "user" | "project" | "projectMenu" | "projectHome" | "projectVersion" | "category" | "noteInfo" | "noteContent" | "fileManagement" | "systemConfig" | "merkleTree" | "compressedNft"
+    modelProps: "session" | "user" | "project" | "projectMenu" | "projectHome" | "projectVersion" | "category" | "noteInfo" | "noteContent" | "fileManagement" | "systemConfig" | "systemHomepage" | "merkleTree" | "compressedNft"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1230,6 +1231,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    SystemHomepage: {
+      payload: Prisma.$SystemHomepagePayload<ExtArgs>
+      fields: Prisma.SystemHomepageFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.SystemHomepageFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SystemHomepagePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.SystemHomepageFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SystemHomepagePayload>
+        }
+        findFirst: {
+          args: Prisma.SystemHomepageFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SystemHomepagePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.SystemHomepageFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SystemHomepagePayload>
+        }
+        findMany: {
+          args: Prisma.SystemHomepageFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SystemHomepagePayload>[]
+        }
+        create: {
+          args: Prisma.SystemHomepageCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SystemHomepagePayload>
+        }
+        createMany: {
+          args: Prisma.SystemHomepageCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.SystemHomepageCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SystemHomepagePayload>[]
+        }
+        delete: {
+          args: Prisma.SystemHomepageDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SystemHomepagePayload>
+        }
+        update: {
+          args: Prisma.SystemHomepageUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SystemHomepagePayload>
+        }
+        deleteMany: {
+          args: Prisma.SystemHomepageDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.SystemHomepageUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.SystemHomepageUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SystemHomepagePayload>[]
+        }
+        upsert: {
+          args: Prisma.SystemHomepageUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SystemHomepagePayload>
+        }
+        aggregate: {
+          args: Prisma.SystemHomepageAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSystemHomepage>
+        }
+        groupBy: {
+          args: Prisma.SystemHomepageGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SystemHomepageGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.SystemHomepageCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SystemHomepageCountAggregateOutputType> | number
+        }
+      }
+    }
     MerkleTree: {
       payload: Prisma.$MerkleTreePayload<ExtArgs>
       fields: Prisma.MerkleTreeFieldRefs
@@ -1572,6 +1647,18 @@ export const SystemConfigScalarFieldEnum = {
 export type SystemConfigScalarFieldEnum = (typeof SystemConfigScalarFieldEnum)[keyof typeof SystemConfigScalarFieldEnum]
 
 
+export const SystemHomepageScalarFieldEnum = {
+  id: 'id',
+  content: 'content',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  isDeleted: 'isDeleted'
+} as const
+
+export type SystemHomepageScalarFieldEnum = (typeof SystemHomepageScalarFieldEnum)[keyof typeof SystemHomepageScalarFieldEnum]
+
+
 export const MerkleTreeScalarFieldEnum = {
   id: 'id',
   name: 'name',
@@ -1832,6 +1919,7 @@ export type GlobalOmitConfig = {
   noteContent?: Prisma.NoteContentOmit
   fileManagement?: Prisma.FileManagementOmit
   systemConfig?: Prisma.SystemConfigOmit
+  systemHomepage?: Prisma.SystemHomepageOmit
   merkleTree?: Prisma.MerkleTreeOmit
   compressedNft?: Prisma.CompressedNftOmit
 }

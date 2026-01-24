@@ -53,10 +53,16 @@ onMounted(() => {
         <p>{{ t('ProjectsPage.error') }}</p>
       </div>
 
-      <!-- Markdown 内容展示 -->
-      <div v-else class="homepage-content">
-        <MdPreview :model-value="homepageContent" />
-      </div>
+      <!-- Markdown 内容展示 - 使用 ClientOnly 包裹 -->
+      <ClientOnly v-else>
+        <MdEditorMdPreview :model-value="homepageContent" />
+        <template #fallback>
+          <div class="loading-state">
+            <div class="loading-spinner"></div>
+            <p>{{ t('ProjectsPage.loading') }}</p>
+          </div>
+        </template>
+      </ClientOnly>
     </div>
   </div>
 </template>
@@ -94,23 +100,10 @@ onMounted(() => {
   color: var(--sloth-error, #ef4444);
 }
 
-.homepage-content {
-  background: var(--sloth-card);
-  border: 1px solid var(--sloth-card-border);
-  border-radius: 12px;
-  padding: 40px;
-  box-shadow: var(--sloth-shadow-sm);
-}
-
 /* 响应式适配 */
 @media (max-width: 768px) {
   .homepage-wrapper {
     padding: 80px 0 40px;
-  }
-
-  .homepage-content {
-    padding: 24px;
-    border-radius: 8px;
   }
 }
 </style>

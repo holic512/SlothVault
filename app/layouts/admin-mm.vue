@@ -14,6 +14,7 @@ const activeMenu = computed(() => route.path)
 // 面包屑映射逻辑
 const breadcrumbMap: Record<string, string> = {
   '/admin/mm': 'AdminMM.menu.dashboard',
+  '/admin/mm/homepage': 'AdminMM.menu.homepage',
   '/admin/mm/projects': 'AdminMM.menu.projects',
   '/admin/mm/categories': 'AdminMM.menu.categories',
   '/admin/mm/notes': 'AdminMM.menu.notes',
@@ -91,7 +92,12 @@ const toggleSidebar = () => {
           <el-icon><HomeIcon /></el-icon>
           <span>{{ t('AdminMM.menu.dashboard') }}</span>
         </el-menu-item>
-        
+
+        <el-menu-item index="/admin/mm/homepage">
+          <el-icon><DocumentTextIcon /></el-icon>
+          <span>{{ t('AdminMM.menu.homepage') }}</span>
+        </el-menu-item>
+
         <el-menu-item index="/admin/mm/projects">
           <el-icon><RectangleStackIcon /></el-icon>
           <span>{{ t('AdminMM.menu.projects') }}</span>

@@ -62,6 +62,7 @@ export const ModelName = {
   NoteContent: 'NoteContent',
   FileManagement: 'FileManagement',
   SystemConfig: 'SystemConfig',
+  SystemHomepage: 'SystemHomepage',
   MerkleTree: 'MerkleTree',
   CompressedNft: 'CompressedNft'
 } as const
@@ -72,12 +73,12 @@ export type ModelName = (typeof ModelName)[keyof typeof ModelName]
  * Enums
  */
 
-export const TransactionIsolationLevel = {
+export const TransactionIsolationLevel = runtime.makeStrictEnum({
   ReadUncommitted: 'ReadUncommitted',
   ReadCommitted: 'ReadCommitted',
   RepeatableRead: 'RepeatableRead',
   Serializable: 'Serializable'
-} as const
+} as const)
 
 export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof typeof TransactionIsolationLevel]
 
@@ -235,6 +236,18 @@ export const SystemConfigScalarFieldEnum = {
 } as const
 
 export type SystemConfigScalarFieldEnum = (typeof SystemConfigScalarFieldEnum)[keyof typeof SystemConfigScalarFieldEnum]
+
+
+export const SystemHomepageScalarFieldEnum = {
+  id: 'id',
+  content: 'content',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  isDeleted: 'isDeleted'
+} as const
+
+export type SystemHomepageScalarFieldEnum = (typeof SystemHomepageScalarFieldEnum)[keyof typeof SystemHomepageScalarFieldEnum]
 
 
 export const MerkleTreeScalarFieldEnum = {

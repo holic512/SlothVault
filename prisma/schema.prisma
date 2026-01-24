@@ -309,6 +309,25 @@ model SystemConfig {
   @@schema("public")
 }
 
+/// 系统首页表：存储系统首页的 Markdown 内容（schema: public）
+model SystemHomepage {
+  // 首页ID
+  id        BigInt   @id @default(autoincrement()) @db.BigInt
+  // Markdown 内容
+  content   String   @db.Text
+  // 状态（1=启用，0=禁用）
+  status    Int      @default(1) @db.SmallInt
+  // 创建时间
+  createdAt DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+  // 更新时间
+  updatedAt DateTime @default(now()) @db.Timestamptz(6) @map("updated_at")
+  // 软删除标记
+  isDeleted Boolean  @default(false) @map("is_deleted")
+
+  @@map("system_homepage")
+  @@schema("public")
+}
+
 /// Merkle Tree 表：存储系统级 cNFT Merkle Tree 信息（schema: public）
 model MerkleTree {
   // 树ID

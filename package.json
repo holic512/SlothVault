@@ -17,7 +17,7 @@
     "@nuxtjs/i18n": "^10.2.1",
     "@pinia/nuxt": "^0.11.3",
     "@prisma/adapter-pg": "^7.0.1",
-    "@prisma/client": "^7.1.0",
+    "@prisma/client": "^7.3.0",
     "@solana/spl-account-compression": "^0.1.10",
     "@solana/web3.js": "^1.98.4",
     "archiver": "^7.0.1",
@@ -44,7 +44,7 @@
     "@types/unzipper": "^0.10.11",
     "baseline-browser-mapping": "^2.9.17",
     "fast-check": "^4.5.3",
-    "prisma": "^7.1.0",
+    "prisma": "^7.3.0",
     "unplugin-auto-import": "^20.2.0",
     "unplugin-vue-components": "^30.0.0",
     "vitest": "^4.0.16"
