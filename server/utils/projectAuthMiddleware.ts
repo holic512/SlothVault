@@ -6,7 +6,7 @@
  */
 
 import { H3Event, getQuery, getRouterParam, setResponseStatus } from 'h3'
-import { verifyProjectAccess, createAuthError, isValidSolanaAddress } from './cnftAuth'
+import { verifyProjectAccess, createAuthError } from './cnftAuth'
 import { prisma } from './prisma'
 import { fail } from './response'
 

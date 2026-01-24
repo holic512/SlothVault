@@ -15,9 +15,6 @@ import { prisma } from './prisma'
 import { getSolanaRpcUrl, getSolanaDevnetRpcUrl } from './configCache'
 import { isValidSolanaAddress } from './bubblegum'
 
-// 重新导出以便其他模块使用
-export { isValidSolanaAddress }
-
 /**
  * 验证结果
  */

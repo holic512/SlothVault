@@ -7,7 +7,8 @@
  * 支持链上验证和本地缓存验证
  */
 
-import { verifyProjectAccess, isValidSolanaAddress } from '~~/server/utils/cnftAuth'
+import { verifyProjectAccess } from '~~/server/utils/cnftAuth'
+import { isValidSolanaAddress } from '~~/server/utils/bubblegum'
 import { ok, fail } from '~~/server/utils/response'
 import { setResponseStatus, getRouterParam, readBody } from 'h3'
 
