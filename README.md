@@ -220,7 +220,7 @@ SlothVault 使用 Solana 的 **压缩 NFT (cNFT)** 技术实现文档访问权�
 
 - Node.js 20+
 - PostgreSQL 14+
-- pnpm 8+
+- npm 9+
 
 ### 安装步骤
 
@@ -234,7 +234,7 @@ cd slothvault
 2. **安装依赖**
 
 ```bash
-pnpm install
+npm install
 ```
 
 3. **配置环境变量**
@@ -270,7 +270,7 @@ npx prisma generate
 5. **启动开发服务器**
 
 ```bash
-pnpm dev
+npm run dev
 ```
 
 访问 `http://localhost:3000`
@@ -392,7 +392,7 @@ docker run -d \
 2. 克隆代码并安装依赖
 3. 配置环境变量
 4. 运行数据库迁移
-5. 构建生产版本：`pnpm build`
+5. 构建生产版本：`npm run build`
 6. 启动服务：`node .output/server/index.mjs`
 
 ### 反向代理配置

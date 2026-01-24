@@ -1,37 +1,33 @@
 # Multi-stage build for SlothVault with embedded PostgreSQL
 FROM node:20-alpine AS base
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
 WORKDIR /app
-COPY package.json pnpm-lock.yaml* ./
+COPY package.json package-lock.json ./
 
 # Install dependencies stage
 FROM base AS deps
-RUN pnpm install --no-frozen-lockfile
+RUN npm ci
 
 # Build stage
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Set a dummy DATABASE_URL for prisma generate (not used, just required)
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 RUN npx prisma generate
-RUN pnpm build
+RUN npm run build
 
 # Production stage with PostgreSQL
 FROM node:20-alpine AS runner
 
 # Install PostgreSQL and required tools
-RUN apk add --no-cache postgresql postgresql-contrib openssl
-
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN apk add --no-cache postgresql postgresql-contrib openssl su-exec
 
 WORKDIR /app
 
 # Copy production dependencies
-COPY package.json pnpm-lock.yaml* ./
-RUN pnpm install --prod --no-frozen-lockfile
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
 
 # Copy built application
 COPY --from=builder /app/.output ./.output
