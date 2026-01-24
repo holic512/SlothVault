@@ -8,7 +8,7 @@
  */
 
 import { verifyProjectAccess } from '~~/server/utils/cnftAuth'
-import { isValidSolanaAddress } from '~~/server/utils/bubblegum'
+import { isValidSolanaAddress } from '~~/server/utils/solana'
 import { ok, fail } from '~~/server/utils/response'
 import { setResponseStatus, getRouterParam, readBody } from 'h3'
 

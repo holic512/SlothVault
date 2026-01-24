@@ -11,10 +11,6 @@ import type { Connection, PublicKey, Transaction, Keypair } from '@solana/web3.j
 // 获取 CJS 模块实例
 const solanaCjs = getSolanaCjs()
 
-// 重新导出常量
-export const BUBBLEGUM_PROGRAM_ID = solanaCjs.BUBBLEGUM_PROGRAM_ID
-export const SPL_NOOP_PROGRAM_ID = solanaCjs.SPL_NOOP_PROGRAM_ID
-
 /**
  * Creator 结构
  */
@@ -47,24 +43,10 @@ export interface CnftMetadata {
 }
 
 /**
- * 获取 TreeConfig PDA
- */
-export function getTreeConfigPda(merkleTree: PublicKey): [PublicKey, number] {
-  return solanaCjs.getTreeConfigPda(merkleTree)
-}
-
-/**
  * 获取 Asset ID
  */
 export function getAssetId(merkleTree: PublicKey, leafIndex: number): [PublicKey, number] {
   return solanaCjs.getAssetId(merkleTree, leafIndex)
-}
-
-/**
- * 验证 Solana 地址格式
- */
-export function isValidSolanaAddress(address: string): boolean {
-  return solanaCjs.isValidSolanaAddress(address)
 }
 
 /**

@@ -17,13 +17,12 @@
 
 import { Keypair, PublicKey } from '@solana/web3.js'
 import { prisma } from '~~/server/utils/prisma'
-import { getConnection, type SolanaNetwork } from '~~/server/utils/solana'
+import { getConnection, type SolanaNetwork, isValidSolanaAddress } from '~~/server/utils/solana'
 import { decryptPrivateKey, stringToSecretKey } from '~~/server/utils/crypto'
 import { selectAvailableTree } from '~~/server/utils/treeSelector'
 import {
   buildMintCnftTransaction,
   createDefaultCnftMetadata,
-  isValidSolanaAddress,
 } from '~~/server/utils/bubblegum'
 import { createMintSession } from '~~/server/utils/mintSession'
 import {

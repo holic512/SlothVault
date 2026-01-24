@@ -23,7 +23,8 @@
       "Bash(grep:*)",
       "Bash(curl:*)",
       "Bash(git rebase:*)",
-      "Bash(docker exec:*)"
+      "Bash(docker exec:*)",
+      "Bash(npx prisma db execute:*)"
     ]
   }
 }

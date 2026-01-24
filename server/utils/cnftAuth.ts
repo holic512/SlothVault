@@ -13,7 +13,7 @@
 
 import { prisma } from './prisma'
 import { getSolanaRpcUrl, getSolanaDevnetRpcUrl } from './configCache'
-import { isValidSolanaAddress } from './bubblegum'
+import { isValidSolanaAddress } from './solana'
 
 /**
  * 验证结果
