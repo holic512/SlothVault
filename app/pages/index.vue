@@ -71,23 +71,42 @@ onMounted(() => {
 .homepage-wrapper {
   padding: 100px 0 60px;
   min-height: 100vh;
+  background: linear-gradient(to bottom, #fafafa 0%, #ffffff 100%);
+}
+
+.dark .homepage-wrapper {
+  background: linear-gradient(to bottom, #000000 0%, #0a0a0a 100%);
 }
 
 .loading-state,
 .error-state {
   text-align: center;
-  padding: 60px 24px;
-  color: var(--sloth-text-subtle);
+  padding: 80px 24px;
+  color: #86868b;
+}
+
+.loading-state p,
+.error-state p {
+  font-size: 15px;
+  line-height: 1.52941;
+  font-weight: 400;
+  letter-spacing: -0.022em;
+  margin: 0;
 }
 
 .loading-spinner {
-  width: 40px;
-  height: 40px;
-  margin: 0 auto 16px;
-  border: 3px solid var(--sloth-card-border);
-  border-top-color: var(--sloth-primary);
+  width: 32px;
+  height: 32px;
+  margin: 0 auto 20px;
+  border: 2.5px solid rgba(0, 0, 0, 0.08);
+  border-top-color: #0071e3;
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  animation: spin 0.7s linear infinite;
+}
+
+.dark .loading-spinner {
+  border-color: rgba(255, 255, 255, 0.1);
+  border-top-color: #0a84ff;
 }
 
 @keyframes spin {
@@ -97,13 +116,27 @@ onMounted(() => {
 }
 
 .error-state p {
-  color: var(--sloth-error, #ef4444);
+  color: #d70015;
+}
+
+.dark .error-state p {
+  color: #ff453a;
 }
 
 /* 响应式适配 */
 @media (max-width: 768px) {
   .homepage-wrapper {
     padding: 80px 0 40px;
+  }
+
+  .loading-state,
+  .error-state {
+    padding: 60px 20px;
+  }
+
+  .loading-spinner {
+    width: 28px;
+    height: 28px;
   }
 }
 </style>

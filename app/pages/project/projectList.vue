@@ -152,33 +152,11 @@ const formatDate = (dateStr: string) => {
 .projects-page {
   min-height: 100vh;
   position: relative;
+  background: linear-gradient(to bottom, #fafafa 0%, #ffffff 100%);
 }
 
-/* 背景光效 */
-.ambient-glow {
-  position: fixed;
-  border-radius: 50%;
-  filter: blur(80px);
-  z-index: -1;
-  opacity: 0.3;
-  pointer-events: none;
-}
-
-.glow-1 {
-  width: 400px;
-  height: 400px;
-  background: var(--sloth-primary);
-  top: -100px;
-  left: -100px;
-}
-
-.glow-2 {
-  width: 300px;
-  height: 300px;
-  background: var(--sloth-accent);
-  bottom: 20%;
-  right: -50px;
-  opacity: 0.15;
+.dark .projects-page {
+  background: linear-gradient(to bottom, #000000 0%, #0a0a0a 100%);
 }
 
 /* 页面头部 */
@@ -188,15 +166,28 @@ const formatDate = (dateStr: string) => {
 }
 
 .page-title {
-  font-size: 2.5rem;
+  font-size: 40px;
   font-weight: 700;
   margin-bottom: 12px;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.022em;
+  background: linear-gradient(135deg, #1d1d1f 0%, #4a4a4a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.dark .page-title {
+  background: linear-gradient(135deg, #ffffff 0%, #a0a0a0 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .page-desc {
-  color: var(--sloth-text-subtle);
-  font-size: 1.1rem;
+  color: #86868b;
+  font-size: 17px;
+  line-height: 1.52941;
+  letter-spacing: -0.022em;
 }
 
 /* 项目区域 */
@@ -210,17 +201,32 @@ const formatDate = (dateStr: string) => {
 .empty-state {
   text-align: center;
   padding: 80px 20px;
-  color: var(--sloth-text-subtle);
+  color: #86868b;
+}
+
+.loading-state p,
+.error-state p,
+.empty-state p {
+  font-size: 15px;
+  line-height: 1.52941;
+  font-weight: 400;
+  letter-spacing: -0.022em;
+  margin: 0;
 }
 
 .loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid var(--sloth-card-border);
-  border-top-color: var(--sloth-primary);
+  width: 32px;
+  height: 32px;
+  border: 2.5px solid rgba(0, 0, 0, 0.08);
+  border-top-color: #0071e3;
   border-radius: 50%;
-  margin: 0 auto 16px;
-  animation: spin 0.8s linear infinite;
+  margin: 0 auto 20px;
+  animation: spin 0.7s linear infinite;
+}
+
+.dark .loading-spinner {
+  border-color: rgba(255, 255, 255, 0.1);
+  border-top-color: #0a84ff;
 }
 
 @keyframes spin {
@@ -230,34 +236,51 @@ const formatDate = (dateStr: string) => {
 }
 
 .empty-icon {
-  width: 64px;
-  height: 64px;
-  margin-bottom: 16px;
-  opacity: 0.5;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 20px;
+  opacity: 0.3;
+  color: #86868b;
+}
+
+.error-state p {
+  color: #d70015;
+}
+
+.dark .error-state p {
+  color: #ff453a;
 }
 
 /* 项目网格 */
 .projects-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 24px;
+  gap: 20px;
 }
 
 /* 项目卡片 */
 .project-card {
   position: relative;
-  background: var(--sloth-card);
-  border: 1px solid var(--sloth-card-border);
-  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
   padding: 24px;
   text-decoration: none;
-  color: var(--sloth-text);
+  color: var(--sloth-text, #1d1d1f);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  animation: cardFadeIn 0.4s ease forwards;
+  animation: cardFadeIn 0.5s ease forwards;
   animation-delay: var(--delay);
   opacity: 0;
-  transform: translateY(20px);
+  transform: translateY(16px);
   overflow: hidden;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.dark .project-card {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f5f5f7;
 }
 
 @keyframes cardFadeIn {
@@ -267,22 +290,15 @@ const formatDate = (dateStr: string) => {
   }
 }
 
-.project-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, var(--sloth-primary-dim) 0%, transparent 50%);
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
 .project-card:hover {
-  border-color: var(--sloth-primary);
+  border-color: #0071e3;
   transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
-.project-card:hover::before {
-  opacity: 0.5;
+.dark .project-card:hover {
+  border-color: #0a84ff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 .card-header {
@@ -297,13 +313,17 @@ const formatDate = (dateStr: string) => {
 .project-icon {
   width: 48px;
   height: 48px;
-  background: var(--sloth-bg-hover);
-  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   flex-shrink: 0;
+}
+
+.dark .project-icon {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .project-avatar {
@@ -313,69 +333,93 @@ const formatDate = (dateStr: string) => {
 }
 
 .avatar-placeholder {
-  font-size: 1.25rem;
+  font-size: 20px;
   font-weight: 600;
-  color: var(--sloth-primary);
+  color: #0071e3;
   text-transform: uppercase;
 }
 
-.project-icon svg {
-  width: 24px;
-  height: 24px;
-  color: var(--sloth-text-subtle);
-}
-
-.version-badge {
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 4px 10px;
-  background: var(--sloth-primary-dim);
-  color: var(--sloth-primary);
-  border-radius: 20px;
-  border: 1px solid var(--sloth-primary);
+.dark .avatar-placeholder {
+  color: #0a84ff;
 }
 
 .card-badges {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .auth-badge {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.7rem;
+  font-size: 11px;
   font-weight: 500;
   padding: 4px 8px;
-  background: rgba(251, 146, 60, 0.1);
-  color: #f97316;
-  border-radius: 20px;
-  border: 1px solid rgba(251, 146, 60, 0.3);
+  background: rgba(255, 149, 0, 0.1);
+  color: #ff9500;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 149, 0, 0.2);
+  letter-spacing: -0.016em;
+}
+
+.dark .auth-badge {
+  background: rgba(255, 159, 10, 0.15);
+  color: #ff9f0a;
+  border-color: rgba(255, 159, 10, 0.3);
 }
 
 .auth-badge svg {
-  width: 12px;
-  height: 12px;
+  width: 11px;
+  height: 11px;
 }
 
 .auth-badge.is-unlocked {
-  background: rgba(25, 251, 155, 0.1);
-  color: #19FB9B;
-  border-color: rgba(25, 251, 155, 0.3);
+  background: rgba(52, 199, 89, 0.1);
+  color: #34c759;
+  border-color: rgba(52, 199, 89, 0.2);
+}
+
+.dark .auth-badge.is-unlocked {
+  background: rgba(48, 209, 88, 0.15);
+  color: #30d158;
+  border-color: rgba(48, 209, 88, 0.3);
+}
+
+.version-badge {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 8px;
+  background: rgba(0, 113, 227, 0.1);
+  color: #0071e3;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 113, 227, 0.2);
+  letter-spacing: -0.016em;
+}
+
+.dark .version-badge {
+  background: rgba(10, 132, 255, 0.15);
+  color: #0a84ff;
+  border-color: rgba(10, 132, 255, 0.3);
 }
 
 .project-name {
-  font-size: 1.25rem;
+  font-size: 20px;
   font-weight: 600;
   margin-bottom: 8px;
   position: relative;
   z-index: 1;
+  letter-spacing: -0.022em;
+  color: var(--sloth-text, #1d1d1f);
+}
+
+.dark .project-name {
+  color: #f5f5f7;
 }
 
 .project-desc {
-  font-size: 0.9rem;
-  color: var(--sloth-text-subtle);
+  font-size: 14px;
+  color: #86868b;
   line-height: 1.5;
   margin-bottom: 16px;
   display: -webkit-box;
@@ -384,6 +428,7 @@ const formatDate = (dateStr: string) => {
   overflow: hidden;
   position: relative;
   z-index: 1;
+  letter-spacing: -0.016em;
 }
 
 .card-footer {
@@ -397,33 +442,39 @@ const formatDate = (dateStr: string) => {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.8rem;
-  color: var(--sloth-text-subtle);
+  font-size: 13px;
+  color: #86868b;
+  letter-spacing: -0.016em;
 }
 
 .meta-item svg {
   width: 14px;
   height: 14px;
+  opacity: 0.6;
 }
 
 .card-arrow {
   position: absolute;
   right: 20px;
   bottom: 20px;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transform: translateX(-10px);
-  transition: all 0.3s;
+  transform: translateX(-8px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .card-arrow svg {
-  width: 20px;
-  height: 20px;
-  color: var(--sloth-primary);
+  width: 18px;
+  height: 18px;
+  color: #0071e3;
+}
+
+.dark .card-arrow svg {
+  color: #0a84ff;
 }
 
 .project-card:hover .card-arrow {
@@ -438,12 +489,35 @@ const formatDate = (dateStr: string) => {
   }
 
   .page-title {
-    font-size: 1.8rem;
+    font-size: 32px;
+  }
+
+  .page-desc {
+    font-size: 15px;
   }
 
   .projects-grid {
     grid-template-columns: 1fr;
     gap: 16px;
+  }
+
+  .project-card {
+    padding: 20px;
+  }
+
+  .loading-spinner {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 28px;
+  }
+
+  .project-name {
+    font-size: 18px;
   }
 }
 </style>

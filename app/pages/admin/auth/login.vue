@@ -74,81 +74,70 @@ async function onSubmit() {
 </script>
 
 <template>
-  <div class="ambient-glow glow-1"></div>
-  <div class="ambient-glow glow-2"></div>
-
   <div class="page-wrapper">
     <nav class="navbar">
-      <div class="sloth-container navbar-inner">
+      <div class="navbar-inner">
         <div class="brand">
           <img src="/logo.png" class="brand-icon" alt="Logo"/>
-          <span class="brand-text">Sloth<span class="sloth-text-gradient">Vault</span></span>
+          <span class="brand-text">SlothVault</span>
         </div>
         <ThemeToggle/>
       </div>
     </nav>
 
     <main class="login-container">
-      <div class="sloth-card login-card animate-entry">
-
+      <div class="login-card">
         <header class="login-header">
-          <div class="sloth-badge-hash hero-badge">{{ t('AdminLogin.hero.badge') }}</div>
           <h1 class="login-title">{{ t('AdminLogin.hero.title') }}</h1>
-          <p class="login-desc">{{ t('AdminLogin.hero.desc') }}</p>
+          <p class="login-subtitle">{{ t('AdminLogin.hero.desc') }}</p>
         </header>
 
         <form @submit.prevent="onSubmit" class="login-form">
-          <div class="form-group">
-            <label class="form-label" for="username">{{ t('AdminLogin.form.username') }}</label>
-            <div class="input-wrapper">
-              <input
-                  id="username"
-                  v-model="form.username"
-                  type="text"
-                  class="form-input"
-                  :placeholder="t('AdminLogin.form.username')"
-                  autocomplete="username"
-              />
+          <transition name="error-slide">
+            <div class="error-message" v-if="errorText">
+              {{ errorText }}
             </div>
-          </div>
+          </transition>
 
           <div class="form-group">
-            <label class="form-label" for="password">{{ t('AdminLogin.form.password') }}</label>
-            <div class="input-wrapper">
-              <input
-                  id="password"
-                  v-model="form.password"
-                  type="password"
-                  class="form-input"
-                  :placeholder="t('AdminLogin.form.password')"
-                  autocomplete="current-password"
-              />
-            </div>
+            <input
+                id="username"
+                v-model="form.username"
+                type="text"
+                class="form-input"
+                :placeholder="t('AdminLogin.form.username')"
+                autocomplete="username"
+                required
+            />
           </div>
 
-          <div class="form-extras">
-            <label class="remember-me">
-              <input type="checkbox" v-model="form.rememberUsername" class="custom-checkbox"/>
-              <span>{{ t('AdminLogin.form.rememberUsername') }}</span>
+          <div class="form-group">
+            <input
+                id="password"
+                v-model="form.password"
+                type="password"
+                class="form-input"
+                :placeholder="t('AdminLogin.form.password')"
+                autocomplete="current-password"
+                required
+            />
+          </div>
+
+          <div class="form-options">
+            <label class="checkbox-label">
+              <input type="checkbox" v-model="form.rememberUsername" class="checkbox-input"/>
+              <span class="checkbox-text">{{ t('AdminLogin.form.rememberUsername') }}</span>
             </label>
-            <label class="remember-me">
-              <input type="checkbox" v-model="form.stayLoggedIn" class="custom-checkbox"/>
-              <span>{{ t('AdminLogin.form.stayLoggedIn') }}</span>
+            <label class="checkbox-label">
+              <input type="checkbox" v-model="form.stayLoggedIn" class="checkbox-input"/>
+              <span class="checkbox-text">{{ t('AdminLogin.form.stayLoggedIn') }}</span>
             </label>
           </div>
 
-          <div class="form-actions">
-            <transition name="fade">
-              <div class="error-message" v-if="errorText">
-                {{ errorText }}
-              </div>
-            </transition>
-
-            <button class="sloth-btn sloth-btn-primary full-width" type="submit" :disabled="loading">
-              <span v-if="loading" class="spinner"></span>
-              <span v-else>{{ t('AdminLogin.form.submit') }}</span>
-            </button>
-          </div>
+          <button class="submit-btn" type="submit" :disabled="loading">
+            <span v-if="loading" class="loading-spinner"></span>
+            <span v-else>{{ t('AdminLogin.form.submit') }}</span>
+          </button>
         </form>
       </div>
     </main>
@@ -156,263 +145,91 @@ async function onSubmit() {
 </template>
 
 <style scoped>
-/* 布局容器 */
+/* Apple-inspired minimalist design */
 .page-wrapper {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background: linear-gradient(to bottom, #fafafa 0%, #ffffff 100%);
 }
 
+.dark .page-wrapper {
+  background: linear-gradient(to bottom, #000000 0%, #0a0a0a 100%);
+}
+
+/* Navbar - Transparent */
 .navbar {
-  height: 64px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 52px;
   background: transparent;
-  z-index: 50;
+  z-index: 100;
 }
 
 .navbar-inner {
+  max-width: 1200px;
+  margin: 0 auto;
   display: flex;
   justify-content: space-between;
   align-items: center;
   height: 100%;
-  padding: 0 24px;
+  padding: 0 32px;
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-weight: 700;
-  font-size: 1.25rem;
-  letter-spacing: -0.02em;
+  font-weight: 600;
+  font-size: 19px;
+  letter-spacing: -0.024em;
+  color: var(--sloth-text, #1d1d1f);
+  transition: opacity 0.2s ease;
+}
+
+.brand:hover {
+  opacity: 0.7;
+}
+
+.dark .brand {
+  color: #f5f5f7;
 }
 
 .brand-icon {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* 登录主容器 */
+.brand:hover .brand-icon {
+  transform: scale(1.05) rotate(-5deg);
+}
+
+.brand-text {
+  font-weight: 600;
+}
+
+/* Login Container */
 .login-container {
   flex: 1;
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 20px;
-  position: relative;
-  z-index: 10;
+  padding: 80px 20px 60px;
 }
 
 .login-card {
   width: 100%;
-  max-width: 480px;
-  padding: 48px 40px;
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: 24px;
-  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.05),
-  0 0 0 1px rgba(255, 255, 255, 0.3) inset;
-}
-
-.dark .login-card {
-  background: rgba(30, 30, 30, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.3);
-}
-
-.login-header {
-  text-align: center;
-  margin-bottom: 32px;
-}
-
-.hero-badge {
-  display: inline-block;
-  margin-bottom: 16px;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--sloth-primary);
-  background: var(--sloth-primary-bg, rgba(var(--sloth-primary-rgb), 0.1));
-  border: 1px solid var(--sloth-primary);
-}
-
-.login-title {
-  font-size: 1.75rem;
-  font-weight: 800;
-  margin-bottom: 8px;
-  background: linear-gradient(135deg, var(--sloth-text) 0%, var(--sloth-text-subtle) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-.dark .login-title {
-  color: var(--sloth-text);
-}
-
-.login-desc {
-  color: var(--sloth-text-subtle);
-  font-size: 0.95rem;
-  line-height: 1.5;
-}
-
-.form-group {
-  margin-bottom: 20px;
-}
-
-.form-label {
-  display: block;
-  font-size: 0.9rem;
-  font-weight: 600;
-  margin-bottom: 8px;
-  color: var(--sloth-text);
-}
-
-.form-input {
-  width: 100%;
-  padding: 12px 16px;
-  font-size: 1rem;
-  background: var(--sloth-bg);
-  border: 1px solid var(--sloth-card-border);
-  border-radius: 12px;
-  transition: all 0.2s ease;
-  color: var(--sloth-text);
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: var(--sloth-primary);
-  box-shadow: 0 0 0 3px var(--sloth-primary-dim, rgba(59, 130, 246, 0.15));
-  background: var(--sloth-bg-active, #fff);
-}
-
-.dark .form-input:focus {
-  background: var(--sloth-bg);
-}
-
-.form-extras {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 24px;
-}
-
-.remember-me {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  color: var(--sloth-text-subtle);
-  user-select: none;
-}
-
-.custom-checkbox {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--sloth-primary);
-  cursor: pointer;
-}
-
-.form-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.sloth-btn {
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  font-size: 1rem;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: transform 0.1s, opacity 0.2s;
-  border: none;
-}
-
-.full-width {
-  width: 100%;
-}
-
-.sloth-btn-primary {
-  background: var(--sloth-primary);
-  color: #fff;
-  box-shadow: 0 4px 12px var(--sloth-primary-shadow, rgba(0, 0, 0, 0.2));
-}
-
-.sloth-btn-primary:hover:not(:disabled) {
-  background: var(--sloth-primary-hover, var(--sloth-primary));
-  filter: brightness(1.1);
-}
-
-.sloth-btn-primary:active:not(:disabled) {
-  transform: scale(0.98);
-}
-
-.sloth-btn-primary:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.error-message {
-  color: var(--sloth-accent, #ef4444);
-  font-size: 0.875rem;
-  text-align: center;
-  background: rgba(239, 68, 68, 0.1);
-  padding: 8px;
-  border-radius: 8px;
-}
-
-.ambient-glow {
-  position: fixed;
-  border-radius: 50%;
-  filter: blur(100px);
-  z-index: -1;
-  opacity: 0.5;
-  pointer-events: none;
-}
-
-.glow-1 {
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, var(--sloth-primary) 0%, transparent 70%);
-  top: -200px;
-  left: -200px;
-}
-
-.glow-2 {
-  width: 500px;
-  height: 500px;
-  background: radial-gradient(circle, var(--sloth-accent) 0%, transparent 70%);
-  bottom: -100px;
-  right: -100px;
-  opacity: 0.3;
-}
-
-.spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-.animate-entry {
-  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  max-width: 340px;
+  animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(24px);
   }
   to {
     opacity: 1;
@@ -420,17 +237,316 @@ async function onSubmit() {
   }
 }
 
+/* Header */
+.login-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.login-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+  color: var(--sloth-text, #1d1d1f);
+  margin: 0 0 8px 0;
+  background: linear-gradient(135deg, #1d1d1f 0%, #4a4a4a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.dark .login-title {
+  background: linear-gradient(135deg, #ffffff 0%, #a0a0a0 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.login-subtitle {
+  font-size: 15px;
+  line-height: 1.52941;
+  font-weight: 400;
+  letter-spacing: -0.022em;
+  color: #86868b;
+  margin: 0;
+}
+
+.dark .login-subtitle {
+  color: #86868b;
+}
+
+/* Form */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.error-message {
+  padding: 10px 14px;
+  background: rgba(255, 59, 48, 0.08);
+  border: 1px solid rgba(255, 59, 48, 0.2);
+  border-radius: 8px;
+  color: #d70015;
+  font-size: 13px;
+  line-height: 1.46667;
+  letter-spacing: -0.016em;
+  text-align: center;
+  font-weight: 500;
+}
+
+.dark .error-message {
+  background: rgba(255, 69, 58, 0.12);
+  border-color: rgba(255, 69, 58, 0.3);
+  color: #ff453a;
+}
+
+.form-group {
+  position: relative;
+}
+
+.form-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  font-size: 15px;
+  line-height: 1.23536;
+  letter-spacing: -0.022em;
+  font-weight: 400;
+  color: var(--sloth-text, #1d1d1f);
+  background: rgba(0, 0, 0, 0.03);
+  border: 1.5px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.dark .form-input {
+  color: #f5f5f7;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.form-input::placeholder {
+  color: #86868b;
+  font-weight: 400;
+}
+
+.dark .form-input::placeholder {
+  color: #6e6e73;
+}
+
+.form-input:hover {
+  border-color: rgba(0, 0, 0, 0.24);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.dark .form-input:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.form-input:focus {
+  background: #ffffff;
+  border-color: #0071e3;
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.12);
+  transform: translateY(-1px);
+}
+
+.dark .form-input:focus {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #0a84ff;
+  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.18);
+}
+
+/* Checkboxes */
+.form-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.2s ease;
+}
+
+.checkbox-label:hover {
+  opacity: 0.7;
+}
+
+.checkbox-input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: #0071e3;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.checkbox-input:hover {
+  transform: scale(1.1);
+}
+
+.dark .checkbox-input {
+  accent-color: #0a84ff;
+}
+
+.checkbox-text {
+  font-size: 13px;
+  line-height: 1.46667;
+  letter-spacing: -0.016em;
+  font-weight: 400;
+  color: var(--sloth-text, #1d1d1f);
+}
+
+.dark .checkbox-text {
+  color: #f5f5f7;
+}
+
+/* Submit Button */
+.submit-btn {
+  width: 100%;
+  height: 44px;
+  margin-top: 8px;
+  padding: 0 14px;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.23536;
+  letter-spacing: -0.022em;
+  color: #ffffff;
+  background: linear-gradient(180deg, #0077ed 0%, #0071e3 100%);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 113, 227, 0.25),
+              0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.dark .submit-btn {
+  background: linear-gradient(180deg, #409cff 0%, #0a84ff 100%);
+  box-shadow: 0 2px 8px rgba(10, 132, 255, 0.3),
+              0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #0080ff 0%, #0077ed 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 113, 227, 0.35),
+              0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.dark .submit-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #5eb0ff 0%, #409cff 100%);
+  box-shadow: 0 4px 12px rgba(10, 132, 255, 0.4),
+              0 2px 4px rgba(0, 0, 0, 0.25);
+}
+
+.submit-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 1px 4px rgba(0, 113, 227, 0.2),
+              0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 1px 4px rgba(0, 113, 227, 0.15);
+}
+
+/* Loading Spinner */
+.loading-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Error Slide Animation */
+.error-slide-enter-active,
+.error-slide-leave-active {
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.error-slide-enter-from {
+  opacity: 0;
+  transform: translateY(-12px) scale(0.95);
+}
+
+.error-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.98);
+}
+
+/* Responsive */
 @media (max-width: 640px) {
+  .navbar-inner {
+    padding: 0 20px;
+  }
+
+  .login-container {
+    padding: 72px 20px 40px;
+  }
+
   .login-card {
-    padding: 32px 24px;
+    max-width: 100%;
   }
 
   .login-title {
-    font-size: 1.5rem;
+    font-size: 26px;
   }
 
-  .glow-1, .glow-2 {
-    opacity: 0.3;
+  .login-subtitle {
+    font-size: 14px;
+  }
+
+  .form-input {
+    height: 42px;
+    font-size: 15px;
+  }
+
+  .submit-btn {
+    height: 42px;
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 374px) {
+  .login-title {
+    font-size: 24px;
+  }
+
+  .checkbox-text {
+    font-size: 12px;
+  }
+
+  .brand {
+    font-size: 17px;
   }
 }
 </style>

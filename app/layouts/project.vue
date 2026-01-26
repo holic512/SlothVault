@@ -47,6 +47,25 @@ const showVersionSelector = computed(() => {
   return route.path.includes('/v/') || route.name === 'project-id-docs'
 })
 
+// 导航栏收缩状态
+const navbarCollapsed = ref(false)
+
+// 检测是否在文档详情页面（需要自动收缩导航栏）
+const isDocDetailPage = computed(() => {
+  // 匹配类似 /project/1/v/1/docs/1 的路由
+  const pathPattern = /^\/project\/[^/]+\/v\/[^/]+\/docs\/[^/]+$/
+  return pathPattern.test(route.path)
+})
+
+// 监听路由变化，但不自动收缩，只在点击外部时收缩
+watch(() => route.path, (newPath) => {
+  // 如果从文档详情页离开，自动展开导航栏
+  if (!isDocDetailPage.value && navbarCollapsed.value) {
+    navbarCollapsed.value = false
+  }
+  // 注意：进入文档详情页时不自动收缩，保持当前状态
+}, { immediate: true })
+
 // 处理站内链接，将相对路径转换为项目路径
 function resolveMenuUrl(url: string | undefined): string {
   if (!url) return '#'
@@ -106,11 +125,27 @@ function cancelExternalLink() {
 // 点击外部关闭下拉
 function handleClickOutside(e: MouseEvent) {
   const target = e.target as HTMLElement
+
+  // 检查是否点击了 Popover 内容（Element Plus 的 Popover 会添加特定的 class）
+  const isClickingPopover = target.closest('.el-popover') ||
+                            target.closest('.theme-popover-custom') ||
+                            target.closest('.wallet-popover-web3')
+
   if (!target.closest('.menu-dropdown')) {
     closeDropdown()
   }
   if (!target.closest('.version-selector')) {
     closeVersionDropdown()
+  }
+
+  // 如果点击的不是导航栏，且在文档详情页，且导航栏已展开，则收缩导航栏
+  // 但如果点击的是收缩按钮本身或 Popover 内容，不要触发收缩
+  if (!target.closest('.project-navbar') &&
+      !target.closest('.liquid-glass-card__collapsed-btn') &&
+      !isClickingPopover &&
+      isDocDetailPage.value &&
+      !navbarCollapsed.value) {
+    navbarCollapsed.value = true
   }
 }
 
@@ -125,13 +160,16 @@ onUnmounted(() => {
 
 <template>
   <div class="project-layout">
-    <!-- 背景氛围光斑 -->
-    <div class="ambient-glow glow-1"></div>
-    <div class="ambient-glow glow-2"></div>
-
     <!-- 液态玻璃悬浮导航栏 -->
     <nav class="project-navbar">
-      <LiquidGlassCard :border-radius="18" :blur="16" padding="8px 20px" :bg-opacity="0.7">
+      <LiquidGlassCard
+        :border-radius="18"
+        :blur="16"
+        padding="8px 20px"
+        :bg-opacity="0.7"
+        :collapsible="isDocDetailPage"
+        v-model:collapsed="navbarCollapsed"
+      >
         <div class="navbar-inner">
           <!-- 左侧：项目头像和名称 + 版本选择器 -->
           <div class="navbar-left">
@@ -329,10 +367,21 @@ onUnmounted(() => {
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
-  width: 100%;
+  width: calc(100% - 40px); /* 左右各留 20px 边距 */
   max-width: 1200px;
-  padding: 0 20px;
   box-sizing: border-box;
+  /* 明确指定过渡属性，避免布局跳动 */
+  transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), max-width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* 保持居中对齐，防止跳动 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* 导航栏收缩时的样式 */
+.project-navbar:has(.liquid-glass-card--collapsed) {
+  width: 48px;
+  max-width: 48px;
 }
 
 .navbar-inner {
@@ -340,12 +389,16 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   width: 100%;
+  min-width: 0; /* 允许 flex 子元素收缩 */
+  gap: 16px; /* 添加间距防止元素挤压 */
 }
 
 /* 左侧：项目信息 */
 .navbar-left {
   display: flex;
   align-items: center;
+  flex-shrink: 0; /* 防止左侧被压缩 */
+  min-width: 0; /* 允许内部元素收缩 */
 }
 
 .project-brand {
@@ -384,6 +437,10 @@ onUnmounted(() => {
 .project-name {
   font-weight: 500;
   font-size: 1rem;
+  white-space: nowrap; /* 防止项目名换行 */
+  overflow: hidden;
+  text-overflow: ellipsis; /* 过长时显示省略号 */
+  max-width: 200px; /* 限制最大宽度 */
 }
 
 /* 版本选择器 */
@@ -469,12 +526,15 @@ onUnmounted(() => {
   transform: translateX(-50%);
   display: flex;
   align-items: center;
+  max-width: 50%; /* 限制中间菜单最大宽度，防止与左右重叠 */
 }
 
 .nav-menus {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex-wrap: nowrap; /* 防止菜单换行 */
+  overflow: hidden; /* 超出部分隐藏 */
 }
 
 .nav-link {
@@ -485,6 +545,8 @@ onUnmounted(() => {
   text-decoration: none;
   border-radius: 8px;
   transition: all 0.2s ease;
+  white-space: nowrap; /* 防止文字换行 */
+  flex-shrink: 0; /* 防止链接被压缩 */
 }
 
 .nav-link:hover {
@@ -564,6 +626,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0; /* 防止右侧被压缩 */
 }
 
 /* 内容区域 */

@@ -1,22 +1,30 @@
-<!--主题切换组建-->
+<!--主题切换组件-->
 <template>
   <div class="theme-manager" ref="containerRef">
-    <!-- 触发器按钮 -->
-    <button
-        class="main-trigger"
-        @click="toggleMenu"
-        :class="{ 'is-open': isOpen }"
-        :aria-label="t('ThemeToggle.aria.openThemeSettings')"
+    <el-popover
+      v-model:visible="isOpen"
+      placement="bottom-end"
+      :width="220"
+      trigger="click"
+      popper-class="theme-popover-custom"
+      :show-arrow="false"
     >
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-           stroke-linecap="round" stroke-linejoin="round" class="trigger-icon">
-        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
-      </svg>
-    </button>
+      <template #reference>
+        <!-- 触发器按钮 -->
+        <button
+            class="main-trigger"
+            :class="{ 'is-open': isOpen }"
+            :aria-label="t('ThemeToggle.aria.openThemeSettings')"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" class="trigger-icon">
+            <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
+          </svg>
+        </button>
+      </template>
 
-    <!-- 弹出框 -->
-    <transition name="pop-slide">
-      <div v-show="isOpen" class="theme-popover">
+      <!-- 弹出框内容 -->
+      <div class="theme-popover-content">
 
         <div class="section-group">
           <div class="section-title">{{ t('ThemeToggle.section.mode') }}</div>
@@ -89,231 +97,96 @@
         </div>
 
       </div>
-    </transition>
+    </el-popover>
   </div>
 </template>
 
 <script setup>
-import {ref, onMounted, onUnmounted, nextTick} from 'vue'
-import {storeToRefs} from 'pinia'
-import {useTheme} from '~/stores/useTheme'
-import {useLocaleStore} from '~/stores/locale'
+import { ref, nextTick } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useTheme } from '~/stores/useTheme'
+import { useLocaleStore } from '~/stores/locale'
+import { ElPopover } from 'element-plus'
 
-const {t, setLocale} = useI18n()
+// 假设你有全局 auto-import 或请自行引入 useI18n
+const { t, setLocale } = useI18n()
 
 const themeStore = useTheme()
-const {theme, palette} = storeToRefs(themeStore)
-const {setTheme, setPalette: setStorePalette} = themeStore
+const { theme, palette } = storeToRefs(themeStore)
+const { setTheme, setPalette: setStorePalette } = themeStore
 const palettes = ['purple', 'cyan', 'emerald', 'rose']
-
-// 颜色配置映射
-const paletteColors = {
-  purple: {
-    gradient: 'linear-gradient(180deg, #7c3aed 0%, #a855f7 100%)',
-    shadow: 'rgba(124, 58, 237, 0.5)',
-    ripple: 'radial-gradient(circle, rgba(124,58,237,0.9) 0%, rgba(168,85,247,0.8) 50%, transparent 70%)'
-  },
-  cyan: {
-    gradient: 'linear-gradient(180deg, #06b6d4 0%, #0ea5e9 100%)',
-    shadow: 'rgba(6, 182, 212, 0.5)',
-    ripple: 'radial-gradient(circle, rgba(6,182,212,0.9) 0%, rgba(14,165,233,0.8) 50%, transparent 70%)'
-  },
-  emerald: {
-    gradient: 'linear-gradient(180deg, #10b981 0%, #34d399 100%)',
-    shadow: 'rgba(16, 185, 129, 0.5)',
-    ripple: 'radial-gradient(circle, rgba(16,185,129,0.9) 0%, rgba(52,211,153,0.8) 50%, transparent 70%)'
-  },
-  rose: {
-    gradient: 'linear-gradient(180deg, #f43f5e 0%, #fb7185 100%)',
-    shadow: 'rgba(244, 63, 94, 0.5)',
-    ripple: 'radial-gradient(circle, rgba(244,63,94,0.9) 0%, rgba(251,113,133,0.8) 50%, transparent 70%)'
-  }
-}
 
 const localeStore = useLocaleStore()
 const isOpen = ref(false)
-const containerRef = ref(null)
-
-const toggleMenu = () => {
-  isOpen.value = !isOpen.value
-}
 
 const applyLocale = (l) => {
   localeStore.setLocale(l)
   setLocale(l)
 }
 
-// 通用水滴动画函数
-const playDropletAnimation = async (event, colors, applyChange) => {
+/**
+ * 核心优化：高性能圆扩动画通用函数
+ * 使用 View Transition API，不操作 DOM 节点，完全无卡顿
+ */
+const performTransition = async (event, callback) => {
+  // 1. 如果浏览器不支持 View Transition，直接降级执行
   if (!document.startViewTransition) {
-    applyChange()
+    callback()
     return
   }
 
-  const btnRect = event.currentTarget.getBoundingClientRect()
-  const startX = btnRect.left + btnRect.width / 2
-  const startY = btnRect.top + btnRect.height / 2
-  
-  // 水滴落点位置（屏幕底部 99vh）
-  const dropY = window.innerHeight * 0.99
+  // 2. 获取点击坐标
+  const x = event.clientX
+  const y = event.clientY
+
+  // 3. 计算从点击点到屏幕最远角的距离（即圆的最大半径）
   const endRadius = Math.hypot(
-    Math.max(startX, innerWidth - startX),
-    Math.max(dropY, innerHeight - dropY)
-  ) * 1.5
+      Math.max(x, window.innerWidth - x),
+      Math.max(y, window.innerHeight - y)
+  )
 
-  // 创建水滴元素
-  const droplet = document.createElement('div')
-  droplet.className = 'theme-droplet'
-  droplet.style.cssText = `
-    position: fixed;
-    left: ${startX}px;
-    top: ${startY}px;
-    width: 16px;
-    height: 20px;
-    background: ${colors.gradient};
-    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-    z-index: 2147483647;
-    pointer-events: none;
-    filter: drop-shadow(0 2px 8px ${colors.shadow});
-    transform: translateX(-50%) translateY(-50%);
-  `
-  document.body.appendChild(droplet)
-
-  // 水滴下落动画
-  const fallDuration = 800
-  const fallAnimation = droplet.animate([
-    { 
-      top: `${startY}px`, 
-      transform: 'translateX(-50%) translateY(-50%) scale(1)',
-      opacity: 1 
-    },
-    { 
-      top: `${dropY * 0.3}px`, 
-      transform: 'translateX(-50%) translateY(-50%) scale(1.1) rotate(5deg)',
-      opacity: 1,
-      offset: 0.3
-    },
-    { 
-      top: `${dropY * 0.7}px`, 
-      transform: 'translateX(-50%) translateY(-50%) scale(1.2) rotate(-3deg)',
-      opacity: 1,
-      offset: 0.7
-    },
-    { 
-      top: `${dropY}px`, 
-      transform: 'translateX(-50%) translateY(-50%) scale(0.8)',
-      opacity: 1 
-    }
-  ], {
-    duration: fallDuration,
-    easing: 'cubic-bezier(0.55, 0, 1, 0.45)',
-    fill: 'forwards'
-  })
-
-  // 等待水滴落下
-  await fallAnimation.finished
-
-  // 创建涟漪晕染效果
-  const ripple = document.createElement('div')
-  ripple.className = 'theme-ripple'
-  ripple.style.cssText = `
-    position: fixed;
-    left: ${startX}px;
-    top: ${dropY}px;
-    width: 0;
-    height: 0;
-    border-radius: 50%;
-    background: ${colors.ripple};
-    z-index: 2147483646;
-    pointer-events: none;
-    transform: translate(-50%, -50%);
-  `
-  document.body.appendChild(ripple)
-
-  // 涟漪扩散动画
-  ripple.animate([
-    { width: '0px', height: '0px', opacity: 1 },
-    { width: '100px', height: '60px', opacity: 0.8, offset: 0.1 },
-    { width: '300px', height: '180px', opacity: 0.6, offset: 0.3 },
-    { width: `${endRadius * 2}px`, height: `${endRadius * 2}px`, opacity: 0 }
-  ], {
-    duration: 600,
-    easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-    fill: 'forwards'
-  })
-
-  // 移除水滴
-  droplet.remove()
-
-  // 使用 View Transition 完成切换
+  // 4. 开启视图过渡
+  // 浏览器会先截图当前状态(old)，执行 callback 变色，再截图新状态(new)
   const transition = document.startViewTransition(async () => {
-    applyChange()
-    await nextTick()
+    callback()
+    await nextTick() // 等待 DOM 更新完毕
   })
 
+  // 5. 自定义扩散动画
   transition.ready.then(() => {
+    // 这是一个原生动画，运行在 compositor 线程，不会阻塞 JS 主线程
     document.documentElement.animate(
-      {
-        clipPath: [
-          `circle(0px at ${startX}px ${dropY}px)`,
-          `circle(${endRadius}px at ${startX}px ${dropY}px)`
-        ]
-      },
-      {
-        duration: 600,
-        easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-        pseudoElement: '::view-transition-new(root)'
-      }
+        {
+          clipPath: [
+            `circle(0px at ${x}px ${y}px)`,
+            `circle(${endRadius}px at ${x}px ${y}px)`
+          ]
+        },
+        {
+          duration: 500, // 500ms 丝滑过渡
+          easing: 'ease-in',
+          // 指定动画作用于“新视图”的伪元素上
+          pseudoElement: '::view-transition-new(root)'
+        }
     )
-  })
-
-  // 清理涟漪元素
-  transition.finished.then(() => {
-    ripple.remove()
   })
 }
 
-// 主题明暗切换
-const handleThemeChange = async (mode, event) => {
-  const colors = mode === 'dark' 
-    ? {
-        gradient: 'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)',
-        shadow: 'rgba(0,0,0,0.5)',
-        ripple: 'radial-gradient(circle, rgba(26,26,46,0.9) 0%, rgba(22,33,62,0.8) 50%, transparent 70%)'
-      }
-    : {
-        gradient: 'linear-gradient(180deg, #ffecd2 0%, #fcb69f 100%)',
-        shadow: 'rgba(252,182,159,0.5)',
-        ripple: 'radial-gradient(circle, rgba(255,236,210,0.9) 0%, rgba(252,182,159,0.8) 50%, transparent 70%)'
-      }
-  
-  await playDropletAnimation(event, colors, () => setTheme(mode))
+// 主题切换
+const handleThemeChange = (mode, event) => {
+  if (theme.value === mode) return
+  performTransition(event, () => setTheme(mode))
 }
 
 // 颜色切换
-const handlePaletteChange = async (p, event) => {
+const handlePaletteChange = (p, event) => {
   if (palette.value === p) return
-  
-  const colors = paletteColors[p]
-  await playDropletAnimation(event, colors, () => setStorePalette(p))
+  performTransition(event, () => setStorePalette(p))
 }
-
-const handleClickOutside = (event) => {
-  if (containerRef.value && !containerRef.value.contains(event.target)) {
-    isOpen.value = false
-  }
-}
-
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
-})
 </script>
 
 <style scoped>
+/* =========== UI 样式保持不变 =========== */
 .theme-manager {
   position: relative;
   display: inline-block;
@@ -372,21 +245,10 @@ onUnmounted(() => {
   transform: rotate(180deg);
 }
 
-/* 弹出面板 */
-.theme-popover {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  width: 220px;
-  background: var(--pop-bg);
-  backdrop-filter: blur(var(--pop-blur));
-  -webkit-backdrop-filter: blur(var(--pop-blur));
-  border: 1px solid var(--pop-border);
-  border-radius: 16px;
-  padding: 14px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  z-index: 100;
-  transform-origin: top right;
+/* 弹出面板内容 */
+.theme-popover-content {
+  padding: 0;
+  animation: fadeSlideIn 0.3s ease forwards;
 }
 
 /* 区域样式 */
@@ -554,32 +416,11 @@ onUnmounted(() => {
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2));
 }
 
-/* 颜色定义 */
 .swatch-purple { background: linear-gradient(135deg, #7c3aed, #a855f7); }
 .swatch-cyan { background: linear-gradient(135deg, #06b6d4, #0ea5e9); }
 .swatch-emerald { background: linear-gradient(135deg, #10b981, #34d399); }
 .swatch-rose { background: linear-gradient(135deg, #f43f5e, #fb7185); }
 
-/* 弹出动画 */
-.pop-slide-enter-active {
-  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.pop-slide-leave-active {
-  transition: all 0.2s cubic-bezier(0.4, 0, 1, 1);
-}
-
-.pop-slide-enter-from {
-  opacity: 0;
-  transform: translateY(-12px) scale(0.9);
-}
-
-.pop-slide-leave-to {
-  opacity: 0;
-  transform: translateY(-8px) scale(0.95);
-}
-
-/* 勾选动画 */
 .check-pop-enter-active {
   transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -599,60 +440,54 @@ onUnmounted(() => {
 }
 </style>
 
+<!--
+  全局样式：必须放在非 scoped 中
+  控制 View Transition 的层级和混合模式
+-->
 <style>
+/* 全局样式 - 统一弹出框风格 */
+.theme-popover-custom {
+  padding: 14px !important;
+  border-radius: 16px !important;
+  border: 1px solid var(--sloth-card-border) !important;
+  background: var(--sloth-card, rgba(255, 255, 255, 0.9)) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+  overflow: hidden !important;
+  transform-origin: top right;
+}
+
+.theme-popover-custom .el-popover__title {
+  display: none !important;
+}
+
+/* 暗黑模式增强 */
+:global(.dark) .theme-popover-custom {
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.3),
+    0 20px 40px -4px rgba(0, 0, 0, 0.5),
+    0 0 60px -10px rgba(124, 58, 237, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset !important;
+}
+
 ::view-transition-old(root),
 ::view-transition-new(root) {
+  /* 关闭默认的淡入淡出，只由我们手动控制 clip-path */
   animation: none;
   mix-blend-mode: normal;
 }
 
 ::view-transition-new(root) {
+  /* 确保新视图在最顶层，不会被旧视图遮挡 */
   z-index: 2147483646;
 }
 
-/* 水滴下落时的拖尾效果 */
-.theme-droplet::after {
-  content: '';
-  position: absolute;
-  top: -8px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 8px;
-  height: 12px;
-  background: inherit;
-  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-  opacity: 0.5;
-  filter: blur(2px);
+/* 兼容深色模式下的层级问题 */
+.dark::view-transition-old(root) {
+  z-index: 1;
 }
-
-/* 涟漪波纹效果 */
-.theme-ripple::before,
-.theme-ripple::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  border: 2px solid currentColor;
-  opacity: 0.3;
-  animation: rippleWave 0.8s ease-out forwards;
-}
-
-.theme-ripple::after {
-  animation-delay: 0.15s;
-}
-
-@keyframes rippleWave {
-  0% {
-    width: 0;
-    height: 0;
-    opacity: 0.5;
-  }
-  100% {
-    width: 200px;
-    height: 120px;
-    opacity: 0;
-  }
+.dark::view-transition-new(root) {
+  z-index: 2147483646;
 }
 </style>

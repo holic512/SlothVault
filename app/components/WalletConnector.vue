@@ -1,4 +1,4 @@
-<!--钱包链接组建-->
+<!--钱包链接组件-->
 <script setup lang="ts">
 import { ElPopover } from 'element-plus'
 
@@ -57,11 +57,11 @@ onMounted(() => {
   <div class="wallet-connector">
     <!-- 未连接状态 -->
     <button
-      v-if="!walletStore.connected"
-      class="connect-btn"
-      :class="{ 'is-connecting': walletStore.connecting }"
-      :disabled="walletStore.connecting"
-      @click="handleConnect"
+        v-if="!walletStore.connected"
+        class="connect-btn"
+        :class="{ 'is-connecting': walletStore.connecting }"
+        :disabled="walletStore.connecting"
+        @click="handleConnect"
     >
       <!-- 动态背景 -->
       <span class="btn-bg"></span>
@@ -80,13 +80,13 @@ onMounted(() => {
 
     <!-- 已连接状态 -->
     <el-popover
-      v-else
-      v-model:visible="showPopover"
-      placement="bottom-end"
-      :width="320"
-      trigger="click"
-      popper-class="wallet-popover-web3"
-      :show-arrow="false"
+        v-else
+        v-model:visible="showPopover"
+        placement="bottom-end"
+        :width="280"
+        trigger="click"
+        popper-class="wallet-popover-web3"
+        :show-arrow="false"
     >
       <template #reference>
         <button class="connected-btn" :class="{ 'is-open': showPopover }">
@@ -134,7 +134,7 @@ onMounted(() => {
               <span class="wallet-name">Phantom</span>
               <span class="connection-status">
                 <span class="status-dot"></span>
-                已连接到 Solana
+                已连接
               </span>
             </div>
           </div>
@@ -145,9 +145,9 @@ onMounted(() => {
           <div class="section-header">
             <span class="section-title">钱包地址</span>
             <button
-              class="copy-btn"
-              :class="{ 'is-copied': copied }"
-              @click="copyAddress"
+                class="copy-btn"
+                :class="{ 'is-copied': copied }"
+                @click="copyAddress"
             >
               <svg v-if="!copied" viewBox="0 0 24 24" fill="none">
                 <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="1.5"/>
@@ -167,7 +167,8 @@ onMounted(() => {
         <!-- 余额区块 -->
         <div class="balance-section">
           <div class="balance-card">
-            <div class="balance-header">
+            <!-- 上半部分：Icon + Name + Refresh -->
+            <div class="balance-top-row">
               <div class="token-info">
                 <div class="token-icon">
                   <svg viewBox="0 0 128 128" fill="none">
@@ -183,13 +184,15 @@ onMounted(() => {
                     </defs>
                   </svg>
                 </div>
-                <span class="token-name">SOL</span>
+                <span class="token-name">Solana</span>
               </div>
+
               <button
-                class="refresh-btn"
-                :class="{ 'is-loading': walletStore.loadingBalance }"
-                :disabled="walletStore.loadingBalance"
-                @click="refreshBalance"
+                  class="refresh-btn"
+                  :class="{ 'is-loading': walletStore.loadingBalance }"
+                  :disabled="walletStore.loadingBalance"
+                  @click="refreshBalance"
+                  title="刷新余额"
               >
                 <svg viewBox="0 0 24 24" fill="none">
                   <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -199,6 +202,8 @@ onMounted(() => {
                 </svg>
               </button>
             </div>
+
+            <!-- 下半部分：纯数字余额 -->
             <div class="balance-display">
               <span v-if="walletStore.loadingBalance" class="balance-loading">
                 <span class="loading-dot"></span>
@@ -206,8 +211,7 @@ onMounted(() => {
                 <span class="loading-dot"></span>
               </span>
               <template v-else>
-                <span class="balance-value">{{ walletStore.solBalance }}</span>
-                <span class="balance-usd">≈ $--</span>
+                <span class="balance-value">{{ walletStore.solBalance }} SOL</span>
               </template>
             </div>
           </div>
@@ -229,7 +233,6 @@ onMounted(() => {
   </div>
 </template>
 
-
 <style scoped>
 .wallet-connector {
   position: relative;
@@ -248,10 +251,10 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 38px;
-  padding: 0 20px;
+  height: 36px; /* 减小高度 */
+  padding: 0 18px;
   border: none;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
   overflow: hidden;
   isolation: isolate;
@@ -308,13 +311,13 @@ onMounted(() => {
   gap: 8px;
   color: white;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 .btn-icon {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   transition: transform 0.3s ease;
 }
 
@@ -328,8 +331,8 @@ onMounted(() => {
 
 /* 加载动画 */
 .loading-spinner {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border: 2px solid rgba(255,255,255,0.3);
   border-top-color: white;
   border-radius: 50%;
@@ -350,12 +353,12 @@ onMounted(() => {
 .connected-btn {
   display: flex;
   align-items: center;
-  gap: 10px;
-  height: 38px;
-  padding: 0 14px;
+  gap: 8px;
+  height: 36px; /* 减小高度 */
+  padding: 0 12px;
   background: var(--pop-bg);
   border: 1px solid var(--pop-border);
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -368,7 +371,7 @@ onMounted(() => {
 }
 
 .connected-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.96);
 }
 
 .connected-btn.is-open {
@@ -380,13 +383,13 @@ onMounted(() => {
 /* 实时状态指示器 */
 .live-indicator {
   position: relative;
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 .live-dot {
   position: absolute;
-  inset: 2px;
+  inset: 1px;
   background: #19FB9B;
   border-radius: 50%;
   z-index: 1;
@@ -395,7 +398,7 @@ onMounted(() => {
 .live-ring {
   position: absolute;
   inset: 0;
-  border: 2px solid #19FB9B;
+  border: 1.5px solid #19FB9B;
   border-radius: 50%;
   animation: ringPulse 2s ease-out infinite;
 }
@@ -419,10 +422,10 @@ onMounted(() => {
 
 .address-display .address-text {
   font-family: var(--sloth-font-mono, 'SF Mono', monospace);
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   font-weight: 500;
   color: var(--text);
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   transition: color 0.2s;
 }
 
@@ -432,8 +435,8 @@ onMounted(() => {
 
 /* 下拉箭头 */
 .chevron {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   color: var(--text-dim);
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s;
 }
@@ -467,7 +470,7 @@ onMounted(() => {
 /* 头部 */
 .panel-header {
   position: relative;
-  padding: 20px;
+  padding: 16px; /* 减小内边距 */
   border-radius: 16px 16px 0 0;
   overflow: hidden;
 }
@@ -475,7 +478,7 @@ onMounted(() => {
 .header-bg {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(153, 69, 255, 0.15) 0%, rgba(25, 251, 155, 0.1) 100%);
+  background: linear-gradient(135deg, rgba(153, 69, 255, 0.12) 0%, rgba(25, 251, 155, 0.08) 100%);
   z-index: 0;
 }
 
@@ -483,16 +486,16 @@ onMounted(() => {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   z-index: 1;
 }
 
 .wallet-logo {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 40px; /* 减小尺寸 */
+  height: 40px;
+  border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(83, 75, 177, 0.3);
+  box-shadow: 0 4px 12px rgba(83, 75, 177, 0.2);
   transition: transform 0.3s ease;
 }
 
@@ -508,11 +511,11 @@ onMounted(() => {
 .wallet-meta {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .wallet-name {
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: var(--text);
 }
@@ -521,31 +524,28 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: #19FB9B;
+  font-weight: 500;
 }
 
 .connection-status .status-dot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   background: #19FB9B;
   border-radius: 50%;
-  box-shadow: 0 0 8px rgba(25, 251, 155, 0.6);
+  box-shadow: 0 0 6px rgba(25, 251, 155, 0.6);
   animation: statusPulse 2s ease-in-out infinite;
 }
 
 @keyframes statusPulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 /* 地址区块 */
 .address-section {
-  padding: 16px 20px;
+  padding: 12px 16px; /* 紧凑间距 */
   border-bottom: 1px solid var(--pop-border);
 }
 
@@ -553,26 +553,26 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .section-title {
-  font-size: 10px;
+  font-size: 0.7rem;
   font-weight: 600;
   color: var(--text-dim);
   text-transform: uppercase;
-  letter-spacing: 1.2px;
+  letter-spacing: 0.5px;
 }
 
 .copy-btn {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 10px;
+  padding: 3px 8px;
   background: transparent;
   border: 1px solid var(--pop-border);
   border-radius: 6px;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 500;
   color: var(--text-dim);
   cursor: pointer;
@@ -595,8 +595,8 @@ onMounted(() => {
 }
 
 .copy-btn svg {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   position: relative;
   z-index: 1;
 }
@@ -622,57 +622,57 @@ onMounted(() => {
 }
 
 .address-full {
-  padding: 10px 12px;
-  background: rgba(0, 0, 0, 0.03);
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.02);
   border: 1px solid var(--pop-border);
   border-radius: 8px;
   font-family: var(--sloth-font-mono, monospace);
   font-size: 0.75rem;
   color: var(--text);
   word-break: break-all;
-  line-height: 1.5;
+  line-height: 1.4;
   transition: background 0.2s;
 }
 
 :global(.dark) .address-full {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 /* 余额区块 */
 .balance-section {
-  padding: 16px 20px;
+  padding: 12px 16px; /* 紧凑间距 */
   border-bottom: 1px solid var(--pop-border);
 }
 
 .balance-card {
-  padding: 16px;
-  background: linear-gradient(135deg, rgba(153, 69, 255, 0.08) 0%, rgba(25, 251, 155, 0.05) 100%);
-  border: 1px solid rgba(153, 69, 255, 0.2);
+  padding: 12px;
+  background: linear-gradient(135deg, rgba(153, 69, 255, 0.06) 0%, rgba(25, 251, 155, 0.04) 100%);
+  border: 1px solid rgba(153, 69, 255, 0.15);
   border-radius: 12px;
   transition: all 0.3s ease;
 }
 
 .balance-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(153, 69, 255, 0.15);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(153, 69, 255, 0.1);
 }
 
-.balance-header {
+.balance-top-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 6px;
 }
 
 .token-info {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .token-icon {
-  width: 32px;
-  height: 32px;
+  width: 24px; /* 减小尺寸 */
+  height: 24px;
   border-radius: 50%;
   overflow: hidden;
   transition: transform 0.3s ease;
@@ -688,64 +688,38 @@ onMounted(() => {
 }
 
 .token-name {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-dim);
 }
 
 .refresh-btn {
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: transparent;
-  border: 1px solid var(--pop-border);
-  border-radius: 8px;
+  border: none;
+  border-radius: 6px;
   color: var(--text-dim);
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-}
-
-.refresh-btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--primary);
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.refresh-btn:hover:not(:disabled)::before {
-  opacity: 0.05;
+  transition: all 0.2s;
 }
 
 .refresh-btn svg {
-  width: 16px;
-  height: 16px;
-  position: relative;
-  z-index: 1;
+  width: 14px;
+  height: 14px;
   transition: transform 0.3s ease;
 }
 
 .refresh-btn:hover:not(:disabled) {
-  border-color: var(--primary);
+  background: rgba(0,0,0,0.05);
   color: var(--primary);
 }
 
 .refresh-btn:hover:not(:disabled) svg {
   transform: rotate(180deg);
-}
-
-.refresh-btn:active:not(:disabled) {
-  transform: scale(0.95);
-}
-
-.refresh-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .refresh-btn.is-loading svg {
@@ -754,33 +728,29 @@ onMounted(() => {
 
 .balance-display {
   display: flex;
-  flex-direction: column;
+  align-items: baseline;
   gap: 4px;
 }
 
 .balance-value {
   font-family: var(--sloth-font-mono, monospace);
-  font-size: 1.75rem;
+  font-size: 1.5rem; /* 减小字体，更精细 */
   font-weight: 700;
   color: var(--text);
   letter-spacing: -0.02em;
-}
-
-.balance-usd {
-  font-size: 0.8rem;
-  color: var(--text-dim);
+  line-height: 1.1;
 }
 
 .balance-loading {
   display: flex;
   align-items: center;
   gap: 4px;
-  height: 42px;
+  height: 32px;
 }
 
 .loading-dot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   background: var(--text-dim);
   border-radius: 50%;
   animation: loadingBounce 1.4s ease-in-out infinite both;
@@ -802,7 +772,7 @@ onMounted(() => {
 
 /* 操作区 */
 .actions-section {
-  padding: 16px 20px;
+  padding: 12px 16px; /* 紧凑间距 */
 }
 
 .disconnect-btn {
@@ -811,11 +781,11 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px;
-  background: rgba(239, 68, 68, 0.08);
+  padding: 10px; /* 减小内边距 */
+  background: rgba(239, 68, 68, 0.05);
   border: 1px solid rgba(239, 68, 68, 0.2);
   border-radius: 10px;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   font-weight: 500;
   color: #ef4444;
   cursor: pointer;
@@ -834,8 +804,8 @@ onMounted(() => {
 }
 
 .disconnect-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   position: relative;
   z-index: 1;
   transition: transform 0.3s ease;
@@ -847,7 +817,7 @@ onMounted(() => {
 }
 
 .disconnect-btn:hover {
-  background: rgba(239, 68, 68, 0.15);
+  background: rgba(239, 68, 68, 0.1);
   border-color: rgba(239, 68, 68, 0.4);
 }
 
@@ -866,10 +836,10 @@ onMounted(() => {
   padding: 0 !important;
   border-radius: 16px !important;
   border: 1px solid var(--sloth-card-border) !important;
-  background: var(--sloth-card, rgba(255, 255, 255, 0.9)) !important;
+  background: var(--sloth-card, rgba(255, 255, 255, 0.95)) !important;
   backdrop-filter: blur(16px) !important;
   -webkit-backdrop-filter: blur(16px) !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1) !important;
   overflow: hidden !important;
   transform-origin: top right;
 }
@@ -881,17 +851,12 @@ onMounted(() => {
 /* 暗黑模式增强 */
 :global(.dark) .wallet-popover-web3 {
   box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.3),
-    0 20px 40px -4px rgba(0, 0, 0, 0.5),
-    0 0 60px -10px rgba(153, 69, 255, 0.15),
-    0 0 0 1px rgba(255, 255, 255, 0.05) inset !important;
+      0 4px 6px -1px rgba(0, 0, 0, 0.3),
+      0 20px 40px -4px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.05) inset !important;
 }
 
 :global(.dark) .balance-card {
-  background: linear-gradient(135deg, rgba(153, 69, 255, 0.12) 0%, rgba(25, 251, 155, 0.08) 100%);
-}
-
-:global(.dark) .mode-switch {
-  background: rgba(255, 255, 255, 0.06);
+  background: linear-gradient(135deg, rgba(153, 69, 255, 0.1) 0%, rgba(25, 251, 155, 0.05) 100%);
 }
 </style>
