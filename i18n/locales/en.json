@@ -463,6 +463,25 @@
         "requestFailed": "Request failed"
       },
       "content": {
+        "navTitle": "Categories & Notes",
+        "navSelectVersion": "Select project version",
+        "navSearchPlaceholder": "Search categories/notes",
+        "navEmptyTip": "No categories or notes under this version",
+        "stayTime": "Time on page",
+        "stayTimeTip": "Time spent on this note content editor (resets when switching notes)",
+        "actions": {
+          "refresh": "Refresh",
+          "more": "More",
+          "editNote": "Edit note info",
+          "editCategory": "Edit category info",
+          "createNote": "New note"
+        },
+        "dialogs": {
+          "editNoteTitle": "Edit Note Info",
+          "editCategoryTitle": "Edit Category Info",
+          "createNoteTitle": "New Note",
+          "categoryRequired": "Please select category"
+        },
         "sidebarTitle": "Content Versions",
         "newVersion": "New",
         "unnamedVersion": "Unnamed Version",

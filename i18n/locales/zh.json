@@ -463,6 +463,25 @@
         "requestFailed": "请求失败"
       },
       "content": {
+        "navTitle": "分类笔记",
+        "navSelectVersion": "选择项目版本",
+        "navSearchPlaceholder": "搜索分类/笔记",
+        "navEmptyTip": "该版本下暂无分类或笔记",
+        "stayTime": "停留",
+        "stayTimeTip": "当前笔记内容编辑页停留时长（切换笔记会重新计时）",
+        "actions": {
+          "refresh": "刷新",
+          "more": "更多",
+          "editNote": "编辑笔记信息",
+          "editCategory": "编辑分类信息",
+          "createNote": "新增笔记"
+        },
+        "dialogs": {
+          "editNoteTitle": "编辑笔记信息",
+          "editCategoryTitle": "编辑分类信息",
+          "createNoteTitle": "新增笔记",
+          "categoryRequired": "请选择分类"
+        },
         "sidebarTitle": "内容版本",
         "newVersion": "新建",
         "unnamedVersion": "未命名版本",
