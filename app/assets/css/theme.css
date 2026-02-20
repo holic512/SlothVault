@@ -41,6 +41,18 @@
     --sloth-transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
+/* =========================================
+   Theme switching perf guard
+   - 主题变量切换会触发大量 `transition: all` 级联动画，造成卡顿
+   - 切换瞬间临时禁用过渡/动画，避免整页重绘抖动
+   ========================================= */
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+    transition: none !important;
+    animation: none !important;
+}
+
 /* --- 暗黑模式 (Dark) --- */
 .dark {
     --sloth-bg: #050505;

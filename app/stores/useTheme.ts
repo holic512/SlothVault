@@ -9,26 +9,37 @@ export const useTheme = defineStore('theme', () => {
     const palette = ref<Palette>('purple')
 
     const palettes = ['purple', 'cyan', 'emerald', 'rose']
+    let lastApplied: { mode: Mode; palette: Palette } | null = null
 
     /** 核心：统一更新 DOM 的函数 */
     const applyTheme = () => {
         if (!import.meta.client) return
         const htmlEl = document.documentElement
+
+        if (lastApplied && lastApplied.mode === theme.value && lastApplied.palette === palette.value) {
+            return
+        }
+        lastApplied = {mode: theme.value, palette: palette.value}
+
+        htmlEl.classList.add('theme-switching')
         htmlEl.classList.toggle('dark', theme.value === 'dark')
         palettes.forEach(p => htmlEl.classList.remove(`theme-${p}`))
         htmlEl.classList.add(`theme-${palette.value}`)
+
+        // 让“禁用过渡”覆盖这一帧的样式计算，下一次渲染后再移除
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => htmlEl.classList.remove('theme-switching'))
+        })
     }
 
     /** 切换主题 */
     const setTheme = (mode: Mode) => {
         theme.value = mode
-        applyTheme()
     }
 
     /** 切换调色盘 */
     const setPalette = (p: Palette) => {
         palette.value = p
-        applyTheme()
     }
 
     // 监听主题 & 调色盘

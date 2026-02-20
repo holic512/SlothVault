@@ -3,12 +3,11 @@ import {useTheme} from '~/stores/useTheme'
 import {useLocaleStore} from '~/stores/locale'
 
 const {setLocale} = useI18n()
-const themeStore = useTheme()
+useTheme()
 const localeStore = useLocaleStore()
 onMounted(() => {
   localeStore.setLocale(localeStore.locale)
   setLocale(localeStore.locale)
-  themeStore.applyTheme()
 })
 </script>
 

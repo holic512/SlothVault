@@ -118,6 +118,7 @@ const palettes = ['purple', 'cyan', 'emerald', 'rose']
 
 const localeStore = useLocaleStore()
 const isOpen = ref(false)
+const isTransitioning = ref(false)
 
 const applyLocale = (l) => {
   localeStore.setLocale(l)
@@ -125,51 +126,63 @@ const applyLocale = (l) => {
 }
 
 /**
- * 核心优化：高性能圆扩动画通用函数
- * 使用 View Transition API，不操作 DOM 节点，完全无卡顿
+ * 主题切换过渡
+ * 说明：View Transition 在部分页面/设备上截图成本较高；这里做了降级与并发保护，
+ * 并依赖全局 `html.theme-switching` 禁用级联 transition 来避免切换抖动。
  */
 const performTransition = async (event, callback) => {
-  // 1. 如果浏览器不支持 View Transition，直接降级执行
-  if (!document.startViewTransition) {
-    callback()
-    return
-  }
+  if (isTransitioning.value) return
+  isTransitioning.value = true
+  try {
+    // 如果用户偏好减少动态效果，直接切换
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) {
+      callback()
+      return
+    }
 
-  // 2. 获取点击坐标
-  const x = event.clientX
-  const y = event.clientY
+    // 如果浏览器不支持 View Transition，直接降级执行
+    if (!document.startViewTransition) {
+      callback()
+      return
+    }
 
-  // 3. 计算从点击点到屏幕最远角的距离（即圆的最大半径）
-  const endRadius = Math.hypot(
-      Math.max(x, window.innerWidth - x),
-      Math.max(y, window.innerHeight - y)
-  )
+    // 获取点击坐标（键盘触发/异常事件时回退到屏幕中心）
+    const x = typeof event?.clientX === 'number' ? event.clientX : window.innerWidth / 2
+    const y = typeof event?.clientY === 'number' ? event.clientY : window.innerHeight / 2
 
-  // 4. 开启视图过渡
-  // 浏览器会先截图当前状态(old)，执行 callback 变色，再截图新状态(new)
-  const transition = document.startViewTransition(async () => {
-    callback()
-    await nextTick() // 等待 DOM 更新完毕
-  })
-
-  // 5. 自定义扩散动画
-  transition.ready.then(() => {
-    // 这是一个原生动画，运行在 compositor 线程，不会阻塞 JS 主线程
-    document.documentElement.animate(
-        {
-          clipPath: [
-            `circle(0px at ${x}px ${y}px)`,
-            `circle(${endRadius}px at ${x}px ${y}px)`
-          ]
-        },
-        {
-          duration: 500, // 500ms 丝滑过渡
-          easing: 'ease-in',
-          // 指定动画作用于“新视图”的伪元素上
-          pseudoElement: '::view-transition-new(root)'
-        }
+    // 计算从点击点到屏幕最远角的距离（圆的最大半径）
+    const endRadius = Math.hypot(
+        Math.max(x, window.innerWidth - x),
+        Math.max(y, window.innerHeight - y)
     )
-  })
+
+    // 开启视图过渡：先截图 old，再执行 callback 变色，再截图 new
+    const transition = document.startViewTransition(async () => {
+      callback()
+      await nextTick()
+    })
+
+    // 自定义扩散动画
+    let anim
+    await transition.ready
+    anim = document.documentElement.animate(
+      {
+        clipPath: [
+          `circle(0px at ${x}px ${y}px)`,
+          `circle(${endRadius}px at ${x}px ${y}px)`
+        ]
+      },
+      {
+        duration: 420,
+        easing: 'ease-out',
+        pseudoElement: '::view-transition-new(root)'
+      }
+    )
+
+    await Promise.allSettled([transition.finished, anim?.finished].filter(Boolean))
+  } finally {
+    isTransitioning.value = false
+  }
 }
 
 // 主题切换
