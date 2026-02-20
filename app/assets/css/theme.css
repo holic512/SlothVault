@@ -191,6 +191,27 @@ body {
     background-size: 32px 32px;
 }
 
+/* 管理员后台：去除网格，换成更干净的浅渐变背景 */
+body.admin-mm {
+    background-image: radial-gradient(
+        1100px circle at 18% 0%,
+        rgba(var(--sloth-primary-rgb), 0.08) 0%,
+        transparent 58%
+    );
+    background-size: auto;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+}
+
+.dark body.admin-mm,
+body.dark.admin-mm {
+    background-image: radial-gradient(
+        900px circle at 18% 0%,
+        rgba(var(--sloth-primary-rgb), 0.10) 0%,
+        transparent 62%
+    );
+}
+
 h1, h2, h3, h4, h5, h6 {
     font-weight: 700;
     line-height: 1.2;

@@ -8,6 +8,12 @@ import HomeButton from '~/components/admin/mm/layout/HomeButton.vue'
 const { t } = useI18n()
 const route = useRoute()
 
+useHead({
+  bodyAttrs: {
+    class: 'admin-mm'
+  }
+})
+
 const isCollapse = ref(false)
 const activeMenu = computed(() => route.path)
 
