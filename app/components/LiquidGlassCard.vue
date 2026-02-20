@@ -174,6 +174,18 @@ const borderRadiusValue = computed(() => {
   position: relative;
   /* 关键：防止 margin collapse 或布局偏移 */
   box-sizing: border-box;
+  /* Theme-able shadows/border so dark mode feels softer */
+  --lg-shadow-rest: 0 8px 24px rgba(0, 0, 0, 0.06);
+  --lg-shadow-hover: 0 12px 32px rgba(0, 0, 0, 0.10);
+  --lg-shadow-collapsed: 0 2px 10px rgba(0, 0, 0, 0.08);
+  --lg-shadow-collapsed-hover: 0 6px 18px rgba(0, 0, 0, 0.12);
+  --lg-border-gradient: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0.00) 52%,
+    rgba(255, 255, 255, 0.45) 100%
+  );
+  --lg-border-opacity: 1;
   /* 默认宽度，展开时使用 100%，收缩时由 JS 控制 */
   width: 100%;
   min-width: 48px; /* 保证收缩时最小尺寸 */
@@ -190,6 +202,22 @@ const borderRadiusValue = computed(() => {
   /* 确保收缩时内容不溢出 */
   overflow: hidden;
   padding: var(--lg-padding);
+  box-shadow: var(--lg-shadow-rest);
+}
+
+.dark .liquid-glass-card {
+  /* Dark mode: reduce “hard edge” feeling with softer border + smoother shadow */
+  --lg-shadow-rest: 0 10px 28px rgba(0, 0, 0, 0.32);
+  --lg-shadow-hover: 0 14px 40px rgba(0, 0, 0, 0.40);
+  --lg-shadow-collapsed: 0 4px 14px rgba(0, 0, 0, 0.28);
+  --lg-shadow-collapsed-hover: 0 8px 22px rgba(0, 0, 0, 0.34);
+  --lg-border-gradient: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.20) 0%,
+    rgba(255, 255, 255, 0.02) 55%,
+    rgba(255, 255, 255, 0.14) 100%
+  );
+  --lg-border-opacity: 0.65;
 }
 
 /* --- 收缩状态覆盖 --- */
@@ -198,17 +226,17 @@ const borderRadiusValue = computed(() => {
   padding: 0 !important;
   cursor: pointer;
   /* 性能优化：减少 box-shadow 的模糊半径 */
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  box-shadow: var(--lg-shadow-collapsed);
 }
 
 .liquid-glass-card--collapsed:hover {
   transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  box-shadow: var(--lg-shadow-collapsed-hover);
 }
 
 .liquid-glass-card--hovered {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+  box-shadow: var(--lg-shadow-hover);
 }
 
 /* --- 1. Toggle Layer (按钮层) --- */
@@ -288,7 +316,9 @@ const borderRadiusValue = computed(() => {
 }
 .dark .lg-glass {
   background: rgba(30, 30, 30, calc(var(--lg-bg-opacity) * 0.9));
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 1px 2px 0 rgba(255, 255, 255, 0.06);
 }
 
 .lg-noise {
@@ -309,7 +339,8 @@ const borderRadiusValue = computed(() => {
   position: absolute;
   inset: 0;
   padding: 1px;
-  background: linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0) 50%, rgba(255,255,255,0.6) 100%);
+  background: var(--lg-border-gradient);
+  opacity: var(--lg-border-opacity);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
