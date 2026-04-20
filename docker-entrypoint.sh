@@ -114,4 +114,4 @@ log_info "Access at: http://localhost:${PORT}"
 log_info "Admin panel: http://localhost:${PORT}/admin"
 log_info "=========================================="
 
-exec env DATABASE_URL="postgresql://postgres:${DB_PASSWORD}@localhost:5432/slothvault" ENCRYPTION_KEY="$ENCRYPTION_KEY" node .output/server/index.mjs
+exec env DATABASE_URL="postgresql://postgres:${DB_PASSWORD}@localhost:5432/slothvault" ENCRYPTION_KEY="$ENCRYPTION_KEY" node server.js

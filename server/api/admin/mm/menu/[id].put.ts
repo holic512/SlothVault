@@ -1,7 +1,7 @@
 import { prisma } from '~~/server/utils/prisma'
 import { ok, fail } from '~~/server/utils/response'
 import { readSession } from '~~/server/utils/session'
-import { getRouterParam, readBody, setResponseStatus } from 'h3'
+import { defineEventHandler, getRouterParam, readBody, setResponseStatus } from 'h3'
 
 function menuToDto(menu: any) {
   return {

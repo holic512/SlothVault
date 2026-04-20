@@ -1,6 +1,6 @@
 import {prisma} from '~~/server/utils/prisma'
 import {ok, fail} from '~~/server/utils/response'
-import {setResponseStatus} from 'h3'
+import { defineEventHandler, setResponseStatus } from 'h3'
 
 export default defineEventHandler(async (event) => {
     try {

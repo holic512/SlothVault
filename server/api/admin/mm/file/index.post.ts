@@ -1,7 +1,7 @@
 import { uploadFiles, ValidBusinessTypes, type BusinessType } from '~~/server/utils/file'
 import { ok, fail } from '~~/server/utils/response'
 import { readSession } from '~~/server/utils/session'
-import { getQuery, setResponseStatus } from 'h3'
+import { defineEventHandler, getQuery, setResponseStatus } from 'h3'
 
 function toInt(value: unknown, fallback: number) {
   const n = typeof value === 'string' ? Number(value) : typeof value === 'number' ? value : NaN

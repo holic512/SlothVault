@@ -1,6 +1,6 @@
 import { readSession } from '~~/server/utils/session'
 import { ok, fail } from '~~/server/utils/response'
-import { setResponseStatus } from 'h3'
+import { defineEventHandler, setResponseStatus } from 'h3'
 import archiver from 'archiver'
 import { createReadStream, statSync } from 'fs'
 import { join } from 'path'

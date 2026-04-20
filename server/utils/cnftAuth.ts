@@ -12,6 +12,7 @@
  */
 
 import { prisma } from './prisma'
+import { createError } from 'h3'
 import { getSolanaRpcUrl, getSolanaDevnetRpcUrl } from './configCache'
 import { isValidSolanaAddress } from './solana'
 

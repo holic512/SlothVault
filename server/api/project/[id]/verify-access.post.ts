@@ -10,7 +10,8 @@
 import { verifyProjectAccess } from '~~/server/utils/cnftAuth'
 import { isValidSolanaAddress } from '~~/server/utils/solana'
 import { ok, fail } from '~~/server/utils/response'
-import { setResponseStatus, getRouterParam, readBody } from 'h3'
+import { prisma } from '~~/server/utils/prisma'
+import { defineEventHandler, getRouterParam, readBody, setResponseStatus } from 'h3'
 
 interface VerifyAccessRequest {
   /** 钱包地址 */

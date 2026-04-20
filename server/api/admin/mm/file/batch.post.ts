@@ -1,7 +1,7 @@
 import { batchSoftDelete } from '~~/server/utils/file'
 import { ok, fail } from '~~/server/utils/response'
 import { readSession } from '~~/server/utils/session'
-import { readBody, setResponseStatus } from 'h3'
+import { defineEventHandler, readBody, setResponseStatus } from 'h3'
 
 export default defineEventHandler(async (event) => {
   const session = await readSession(event)

@@ -1,6 +1,6 @@
 import { prisma } from '~~/server/utils/prisma'
 import { ok, fail } from '~~/server/utils/response'
-import { setResponseStatus, getRouterParam } from 'h3'
+import { defineEventHandler, getRouterParam, setResponseStatus } from 'h3'
 import { verifyProjectAccess } from '~~/server/utils/cnftAuth'
 import { getWalletAddress } from '~~/server/utils/projectAuthMiddleware'
 

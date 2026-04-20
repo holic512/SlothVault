@@ -1,6 +1,6 @@
 import { readSession } from '~~/server/utils/session'
 import { ok, fail } from '~~/server/utils/response'
-import { setResponseStatus, readMultipartFormData } from 'h3'
+import { defineEventHandler, readMultipartFormData, setResponseStatus } from 'h3'
 import { createWriteStream, mkdirSync, existsSync, rmSync, readdirSync } from 'fs'
 import { join } from 'path'
 import { pipeline } from 'stream/promises'

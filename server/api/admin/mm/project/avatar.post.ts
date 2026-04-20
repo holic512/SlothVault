@@ -1,7 +1,7 @@
 import { uploadFiles } from '~~/server/utils/file'
 import { ok, fail } from '~~/server/utils/response'
 import { readSession } from '~~/server/utils/session'
-import { setResponseStatus } from 'h3'
+import { defineEventHandler, setResponseStatus } from 'h3'
 
 /**
  * 项目头像上传接口

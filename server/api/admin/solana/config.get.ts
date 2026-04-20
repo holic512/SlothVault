@@ -1,4 +1,5 @@
 import { prisma } from '~~/server/utils/prisma'
+import { defineEventHandler } from 'h3'
 
 export default defineEventHandler(async () => {
   // 获取 Solana 网络配置

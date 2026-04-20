@@ -1,4 +1,5 @@
 import { getSolanaCjs } from '~~/server/utils/solanaCjsLoader'
+import { createError, defineEventHandler, getQuery } from 'h3'
 import { getRpcUrl } from '~~/server/utils/solana'
 
 export default defineEventHandler(async (event) => {

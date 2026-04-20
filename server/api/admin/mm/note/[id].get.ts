@@ -1,7 +1,7 @@
 import {prisma} from '~~/server/utils/prisma'
 import {ok, fail} from '~~/server/utils/response'
 import {readSession} from '~~/server/utils/session'
-import {getRouterParam, setResponseStatus} from 'h3'
+import { defineEventHandler, getRouterParam, setResponseStatus } from 'h3'
 
 function noteToDto(note: any) {
     return {

@@ -1,4 +1,5 @@
 import { readFile, stat } from 'fs/promises'
+import { createError, defineEventHandler, setResponseHeaders } from 'h3'
 import { join } from 'path'
 import { existsSync } from 'fs'
 
