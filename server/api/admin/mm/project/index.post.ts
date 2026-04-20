@@ -1,4 +1,5 @@
 import {prisma} from '~~/server/utils/prisma'
+import { parseSolToLamports, lamportsToSolDisplay } from '~~/server/utils/projectPurchase'
 import {ok, fail} from '~~/server/utils/response'
 import {readSession} from '~~/server/utils/session'
 import { defineEventHandler, readBody, setResponseStatus } from 'h3'
@@ -16,6 +17,9 @@ function projectToDto(project: any) {
         weight: project.weight,
         status: project.status,
         requireAuth: project.requireAuth,
+        accessPriceLamports: project.accessPriceLamports?.toString() ?? null,
+        accessPriceSol: lamportsToSolDisplay(project.accessPriceLamports),
+        purchaseEnabled: project.requireAuth && Boolean(project.accessPriceLamports && project.accessPriceLamports > 0),
         createdAt: project.createdAt,
         updatedAt: project.updatedAt,
         isDeleted: project.isDeleted,
@@ -35,6 +39,7 @@ export default defineEventHandler(async (event) => {
         weight?: number
         status?: number
         requireAuth?: boolean
+        accessPriceSol?: string | number | null
     }>(event)
 
     const projectName = typeof body?.projectName === 'string' ? body.projectName.trim() : ''
@@ -47,10 +52,16 @@ export default defineEventHandler(async (event) => {
     const weight = toInt(body?.weight, 0)
     const status = toInt(body?.status, 1)
     const requireAuth = typeof body?.requireAuth === 'boolean' ? body.requireAuth : false
+    const accessPriceLamports = requireAuth ? parseSolToLamports(body?.accessPriceSol) : null
+
+    if (body?.accessPriceSol !== undefined && body?.accessPriceSol !== null && accessPriceLamports === null && requireAuth) {
+        setResponseStatus(event, 400)
+        return fail('Invalid accessPriceSol', 400)
+    }
 
     try {
         const project = await prisma.project.create({
-            data: {projectName, avatar, weight, status, requireAuth},
+            data: {projectName, avatar, weight, status, requireAuth, accessPriceLamports},
         })
         setResponseStatus(event, 201)
         return ok(projectToDto(project), 'created')
@@ -59,4 +70,3 @@ export default defineEventHandler(async (event) => {
         return fail('Internal Server Error', 500)
     }
 })
-

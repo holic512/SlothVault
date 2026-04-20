@@ -1,10 +1,11 @@
 import { getSolanaCjs } from '~~/server/utils/solanaCjsLoader'
 import { createError, defineEventHandler, getQuery } from 'h3'
-import { getRpcUrl } from '~~/server/utils/solana'
+import { getActiveNetwork, getRpcUrl } from '~~/server/utils/solana'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const address = query.address as string
+  const requestedNetwork = typeof query.network === 'string' ? query.network : null
 
   if (!address) {
     throw createError({
@@ -24,8 +25,13 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  const network =
+    requestedNetwork === 'mainnet' || requestedNetwork === 'devnet'
+      ? requestedNetwork
+      : await getActiveNetwork()
+
   // 从数据库配置获取 RPC URL
-  const rpcUrl = await getRpcUrl('mainnet')
+  const rpcUrl = await getRpcUrl(network)
   if (!rpcUrl) {
     throw createError({
       statusCode: 500,
@@ -44,6 +50,7 @@ export default defineEventHandler(async (event) => {
       code: 0,
       data: {
         address,
+        network,
         balance, // lamports
         sol: solanaCjs.lamportsToSol(balance),
       },

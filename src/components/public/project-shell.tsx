@@ -1,6 +1,6 @@
 'use client'
 
-import { Dropdown, Flex, Layout, MenuProps, Spin } from 'antd'
+import { Dropdown, Flex, Layout, MenuProps, Spin, Tag } from 'antd'
 import Link from 'next/link'
 import { PropsWithChildren, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -34,7 +34,10 @@ export function ProjectShell({ projectId, currentVersionId, children }: Props) {
 
   const projectQuery = useQuery({
     queryKey: ['project', projectId],
-    queryFn: () => apiFetch<{ id: string; projectName: string; avatar: string | null }>(`/api/project/${projectId}`)
+    queryFn: () =>
+      apiFetch<{ id: string; projectName: string; avatar: string | null; accessPriceSol: string | null; purchaseEnabled: boolean }>(
+        `/api/project/${projectId}`
+      )
   })
 
   const versionsQuery = useQuery({
@@ -92,6 +95,7 @@ export function ProjectShell({ projectId, currentVersionId, children }: Props) {
           <Link href={`/project/${projectId}/home`} style={{ fontWeight: 700 }}>
             {project?.projectName || 'Project'}
           </Link>
+          {project?.purchaseEnabled && project.accessPriceSol ? <Tag color="green">{project.accessPriceSol} SOL</Tag> : null}
           <Flex gap={16}>
             <Link href={`/project/${projectId}/home`}>Home</Link>
             <Link href={`/project/${projectId}/docs`}>Docs</Link>

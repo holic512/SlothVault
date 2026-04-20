@@ -12,6 +12,8 @@ import { isValidSolanaAddress } from '~~/server/utils/solana'
 import { ok, fail } from '~~/server/utils/response'
 import { prisma } from '~~/server/utils/prisma'
 import { defineEventHandler, getRouterParam, readBody, setResponseStatus } from 'h3'
+import { getActiveNetwork } from '~~/server/utils/solana'
+import { isPurchaseEnabled, lamportsToSolDisplay } from '~~/server/utils/projectPurchase'
 
 interface VerifyAccessRequest {
   /** 钱包地址 */
@@ -29,6 +31,16 @@ interface VerifyAccessResponse {
   assetId?: string
   /** 项目是否需要鉴权 */
   requireAuth: boolean
+  /** 当前业务网络 */
+  network: 'mainnet' | 'devnet'
+  /** 是否可前台购买 */
+  purchaseEnabled: boolean
+  /** 价格（lamports） */
+  priceLamports?: string
+  /** 价格（SOL） */
+  priceSol?: string
+  /** 币种 */
+  currency?: 'SOL'
 }
 
 export default defineEventHandler(async (event) => {
@@ -73,6 +85,7 @@ export default defineEventHandler(async (event) => {
       },
       select: {
         requireAuth: true,
+        accessPriceLamports: true,
       },
     })
 
@@ -81,17 +94,26 @@ export default defineEventHandler(async (event) => {
       return fail('Project not found', 404)
     }
 
+    const network = await getActiveNetwork()
+
     // 执行验证
     const result = await verifyProjectAccess(projectId, walletAddress, {
       skipChainVerify: !forceChainVerify && !walletAddress,
-      network: 'devnet', // TODO: 从配置读取
+      network,
     })
+
+    const purchaseEnabled = project.requireAuth && isPurchaseEnabled(project.accessPriceLamports)
 
     const response: VerifyAccessResponse = {
       hasAccess: result.hasAccess,
       reason: result.reason,
       assetId: result.assetId,
       requireAuth: project.requireAuth,
+      network,
+      purchaseEnabled,
+      priceLamports: project.accessPriceLamports?.toString(),
+      priceSol: lamportsToSolDisplay(project.accessPriceLamports) ?? undefined,
+      currency: purchaseEnabled ? 'SOL' : undefined,
     }
 
     return ok(response)

@@ -15,6 +15,8 @@ type Project = {
   latestVersionDesc: string | null
   categoryCount: number
   requireAuth: boolean
+  accessPriceSol: string | null
+  purchaseEnabled: boolean
 }
 
 export function ProjectListPage() {
@@ -41,6 +43,7 @@ export function ProjectListPage() {
                     />
                     <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
                       {project.requireAuth ? <Tag color="gold">cNFT</Tag> : <Tag color="blue">Public</Tag>}
+                      {project.purchaseEnabled && project.accessPriceSol ? <Tag color="green">{project.accessPriceSol} SOL</Tag> : null}
                       <Tag>{project.categoryCount} categories</Tag>
                     </div>
                   </Card>

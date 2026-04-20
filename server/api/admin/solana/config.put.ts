@@ -1,5 +1,5 @@
-import { prisma } from '~~/server/utils/prisma'
 import { createError, defineEventHandler, readBody } from 'h3'
+import { CONFIG_KEYS, setConfig } from '~~/server/utils/configCache'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
@@ -12,24 +12,12 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // 更新或创建配置
-  const config = await prisma.systemConfig.upsert({
-    where: { configKey: 'solana_network' },
-    update: {
-      configValue: network,
-      updatedAt: new Date(),
-    },
-    create: {
-      configKey: 'solana_network',
-      configValue: network,
-      description: 'Solana 网络环境配置',
-    },
-  })
+  await setConfig(CONFIG_KEYS.SOLANA_NETWORK, network)
 
   return {
     code: 0,
     data: {
-      network: config.configValue,
+      network,
     },
     message: `已切换到 ${network === 'mainnet' ? '主网' : '测试网'}`,
   }

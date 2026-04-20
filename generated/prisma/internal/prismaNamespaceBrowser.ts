@@ -64,7 +64,8 @@ export const ModelName = {
   SystemConfig: 'SystemConfig',
   SystemHomepage: 'SystemHomepage',
   MerkleTree: 'MerkleTree',
-  CompressedNft: 'CompressedNft'
+  CompressedNft: 'CompressedNft',
+  ProjectPurchaseRecord: 'ProjectPurchaseRecord'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -116,6 +117,7 @@ export const ProjectScalarFieldEnum = {
   weight: 'weight',
   status: 'status',
   requireAuth: 'requireAuth',
+  accessPriceLamports: 'accessPriceLamports',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   isDeleted: 'isDeleted'
@@ -289,6 +291,8 @@ export const CompressedNftScalarFieldEnum = {
   metadataCid: 'metadataCid',
   originalImageId: 'originalImageId',
   ownerAddress: 'ownerAddress',
+  grantSource: 'grantSource',
+  purchaseRecordId: 'purchaseRecordId',
   mintTxSignature: 'mintTxSignature',
   status: 'status',
   createdAt: 'createdAt',
@@ -296,6 +300,26 @@ export const CompressedNftScalarFieldEnum = {
 } as const
 
 export type CompressedNftScalarFieldEnum = (typeof CompressedNftScalarFieldEnum)[keyof typeof CompressedNftScalarFieldEnum]
+
+
+export const ProjectPurchaseRecordScalarFieldEnum = {
+  id: 'id',
+  projectId: 'projectId',
+  buyerWalletAddress: 'buyerWalletAddress',
+  receiverWalletAddress: 'receiverWalletAddress',
+  network: 'network',
+  priceLamports: 'priceLamports',
+  txSignature: 'txSignature',
+  cnftId: 'cnftId',
+  assetId: 'assetId',
+  status: 'status',
+  failureReason: 'failureReason',
+  confirmedAt: 'confirmedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ProjectPurchaseRecordScalarFieldEnum = (typeof ProjectPurchaseRecordScalarFieldEnum)[keyof typeof ProjectPurchaseRecordScalarFieldEnum]
 
 
 export const SortOrder = {

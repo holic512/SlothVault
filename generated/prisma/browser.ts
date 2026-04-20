@@ -87,3 +87,8 @@ export type MerkleTree = Prisma.MerkleTreeModel
  * 压缩 NFT 表：存储 cNFT 元数据，关联项目用于鉴权（schema: public）
  */
 export type CompressedNft = Prisma.CompressedNftModel
+/**
+ * Model ProjectPurchaseRecord
+ * 项目购买记录：记录项目级 SOL 购买与 cNFT 发放流程（schema: public）
+ */
+export type ProjectPurchaseRecord = Prisma.ProjectPurchaseRecordModel

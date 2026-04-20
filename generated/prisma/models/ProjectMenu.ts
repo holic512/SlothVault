@@ -617,14 +617,6 @@ export type ProjectMenuUpdateManyWithoutParentNestedInput = {
   deleteMany?: Prisma.ProjectMenuScalarWhereInput | Prisma.ProjectMenuScalarWhereInput[]
 }
 
-export type NullableBigIntFieldUpdateOperationsInput = {
-  set?: bigint | number | null
-  increment?: bigint | number
-  decrement?: bigint | number
-  multiply?: bigint | number
-  divide?: bigint | number
-}
-
 export type ProjectMenuUncheckedUpdateManyWithoutParentNestedInput = {
   create?: Prisma.XOR<Prisma.ProjectMenuCreateWithoutParentInput, Prisma.ProjectMenuUncheckedCreateWithoutParentInput> | Prisma.ProjectMenuCreateWithoutParentInput[] | Prisma.ProjectMenuUncheckedCreateWithoutParentInput[]
   connectOrCreate?: Prisma.ProjectMenuCreateOrConnectWithoutParentInput | Prisma.ProjectMenuCreateOrConnectWithoutParentInput[]

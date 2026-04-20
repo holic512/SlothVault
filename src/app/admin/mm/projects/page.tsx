@@ -1,6 +1,6 @@
 'use client'
 
-import { App, Button, Form, Input, InputNumber, Modal, Space, Switch, Table } from 'antd'
+import { App, Button, Form, Input, InputNumber, Modal, Space, Switch, Table, Typography } from 'antd'
 import Link from 'next/link'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
@@ -65,6 +65,12 @@ export default function Page() {
         columns={[
           { title: 'Name', dataIndex: 'projectName' },
           { title: 'Latest Version', dataIndex: 'latestVersion' },
+          {
+            title: 'Price',
+            dataIndex: 'accessPriceSol',
+            render: (value: string | null, row: any) =>
+              row.requireAuth ? (value ? `${value} SOL` : 'Manual only') : 'Public'
+          },
           { title: 'Weight', dataIndex: 'weight' },
           { title: 'Status', dataIndex: 'status' },
           { title: 'Auth', dataIndex: 'requireAuth', render: (value) => String(value) },
@@ -119,6 +125,16 @@ export default function Page() {
           <Form.Item name="requireAuth" label="Require Auth" valuePropName="checked" initialValue={false}>
             <Switch />
           </Form.Item>
+          <Form.Item
+            name="accessPriceSol"
+            label="Access Price (SOL)"
+            tooltip="Leave empty or 0 to disable self-service purchase."
+          >
+            <InputNumber stringMode min="0" step="0.0001" style={{ width: '100%' }} />
+          </Form.Item>
+          <Typography.Text type="secondary">
+            Price only applies to auth-protected projects.
+          </Typography.Text>
         </Form>
       </Modal>
     </div>

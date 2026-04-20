@@ -57,6 +57,14 @@ export function solToLamports(sol: number): number {
 }
 
 /**
+ * 获取当前激活网络
+ */
+export async function getActiveNetwork(): Promise<SolanaNetwork> {
+  const { getActiveSolanaNetwork } = await import('./configCache')
+  return getActiveSolanaNetwork()
+}
+
+/**
  * 计算 Merkle Tree 账户所需空间
  */
 export function calculateTreeSpace(

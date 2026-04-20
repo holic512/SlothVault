@@ -1,4 +1,5 @@
 import {prisma} from '~~/server/utils/prisma'
+import { parseSolToLamports, lamportsToSolDisplay } from '~~/server/utils/projectPurchase'
 import {ok, fail} from '~~/server/utils/response'
 import {readSession} from '~~/server/utils/session'
 import { defineEventHandler, getRouterParam, readBody, setResponseStatus } from 'h3'
@@ -16,6 +17,9 @@ function projectToDto(project: any) {
         weight: project.weight,
         status: project.status,
         requireAuth: project.requireAuth,
+        accessPriceLamports: project.accessPriceLamports?.toString() ?? null,
+        accessPriceSol: lamportsToSolDisplay(project.accessPriceLamports),
+        purchaseEnabled: project.requireAuth && Boolean(project.accessPriceLamports && project.accessPriceLamports > 0),
         createdAt: project.createdAt,
         updatedAt: project.updatedAt,
         isDeleted: project.isDeleted,
@@ -49,6 +53,7 @@ export default defineEventHandler(async (event) => {
         weight?: number
         status?: number
         requireAuth?: boolean
+        accessPriceSol?: string | number | null
     }>(event)
 
     const data: any = {updatedAt: new Date()}
@@ -77,6 +82,21 @@ export default defineEventHandler(async (event) => {
         data.requireAuth = body.requireAuth
     }
 
+    if (body?.accessPriceSol !== undefined) {
+        const accessPriceLamports = data.requireAuth === false
+            ? null
+            : parseSolToLamports(body.accessPriceSol)
+
+        if (body.accessPriceSol !== null && body.accessPriceSol !== '' && accessPriceLamports === null && data.requireAuth !== false) {
+            setResponseStatus(event, 400)
+            return fail('Invalid accessPriceSol', 400)
+        }
+
+        data.accessPriceLamports = accessPriceLamports
+    } else if (data.requireAuth === false) {
+        data.accessPriceLamports = null
+    }
+
     if (Object.keys(data).length === 1) {
         setResponseStatus(event, 400)
         return fail('No fields to update', 400)
@@ -97,4 +117,3 @@ export default defineEventHandler(async (event) => {
         return fail('Internal Server Error', 500)
     }
 })
-

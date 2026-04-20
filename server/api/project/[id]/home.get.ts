@@ -3,6 +3,7 @@ import { ok, fail } from '~~/server/utils/response'
 import { defineEventHandler, getRouterParam, setResponseStatus } from 'h3'
 import { verifyProjectAccess } from '~~/server/utils/cnftAuth'
 import { getWalletAddress } from '~~/server/utils/projectAuthMiddleware'
+import { getActiveNetwork } from '~~/server/utils/solana'
 
 export default defineEventHandler(async (event) => {
   const idRaw = getRouterParam(event, 'id')
@@ -37,8 +38,9 @@ export default defineEventHandler(async (event) => {
     // 鉴权检查
     if (project.requireAuth) {
       const walletAddress = getWalletAddress(event)
+      const network = await getActiveNetwork()
       const authResult = await verifyProjectAccess(projectId, walletAddress, {
-        network: 'devnet',
+        network,
       })
 
       if (!authResult.hasAccess) {

@@ -72,6 +72,8 @@ model Project {
   status      Int      @db.SmallInt
   // 是否需要鉴权
   requireAuth Boolean  @default(false)
+  // 项目访问价格（lamports），NULL 或 0 表示不支持前台购买
+  accessPriceLamports BigInt? @db.BigInt
   // 创建时间
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
   // 更新时间
@@ -406,6 +408,10 @@ model CompressedNft {
   originalImageId BigInt?  @db.BigInt @map("original_image_id")
   // 当前持有者地址
   ownerAddress    String   @db.VarChar(64) @map("owner_address")
+  // 授权来源：manual / purchase
+  grantSource     String   @default("manual") @db.VarChar(20) @map("grant_source")
+  // 关联购买记录 ID
+  purchaseRecordId BigInt? @db.BigInt @map("purchase_record_id")
   // 铸造交易签名
   mintTxSignature String?  @db.VarChar(128) @map("mint_tx_signature")
   // 状态：0=铸造中 1=正常 -1=失败
@@ -422,6 +428,46 @@ model CompressedNft {
   @@index([projectId], map: "idx_cnft_project_id")
   @@index([ownerAddress], map: "idx_cnft_owner")
   @@index([projectId, ownerAddress], map: "idx_cnft_project_owner")
+  @@index([purchaseRecordId], map: "idx_cnft_purchase_record_id")
   @@map("compressed_nft")
+  @@schema("public")
+}
+
+/// 项目购买记录：记录项目级 SOL 购买与 cNFT 发放流程（schema: public）
+model ProjectPurchaseRecord {
+  // 购买记录 ID
+  id                   BigInt    @id @default(autoincrement()) @db.BigInt
+  // 项目 ID
+  projectId            BigInt    @db.BigInt @map("project_id")
+  // 买家钱包地址
+  buyerWalletAddress   String    @db.VarChar(64) @map("buyer_wallet_address")
+  // 收款钱包地址
+  receiverWalletAddress String   @db.VarChar(64) @map("receiver_wallet_address")
+  // 网络类型：mainnet / devnet
+  network              String    @db.VarChar(20)
+  // 价格（lamports）
+  priceLamports        BigInt    @db.BigInt @map("price_lamports")
+  // 交易签名
+  txSignature          String?   @db.VarChar(128) @map("tx_signature")
+  // 关联 cNFT ID
+  cnftId               BigInt?   @db.BigInt @map("cnft_id")
+  // 链上资产 ID
+  assetId              String?   @db.VarChar(64) @map("asset_id")
+  // 状态：0=prepared 1=submitted 2=completed -1=failed -2=expired_or_cancelled
+  status               Int       @default(0) @db.SmallInt
+  // 失败原因
+  failureReason        String?   @db.Text @map("failure_reason")
+  // 确认时间
+  confirmedAt          DateTime? @db.Timestamptz(6) @map("confirmed_at")
+  // 创建时间
+  createdAt            DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  // 更新时间
+  updatedAt            DateTime  @default(now()) @db.Timestamptz(6) @map("updated_at")
+
+  @@index([projectId], map: "idx_project_purchase_project_id")
+  @@index([buyerWalletAddress], map: "idx_project_purchase_buyer_wallet")
+  @@index([network, status], map: "idx_project_purchase_network_status")
+  @@index([txSignature], map: "idx_project_purchase_tx_signature")
+  @@map("project_purchase_record")
   @@schema("public")
 }

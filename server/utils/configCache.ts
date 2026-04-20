@@ -12,8 +12,11 @@ import { prisma } from './prisma'
 // 配置键常量
 export const CONFIG_KEYS = {
   // Solana 配置
+  SOLANA_NETWORK: 'solana_network',
   SOLANA_RPC_URL: 'SOLANA_RPC_URL',
   SOLANA_DEVNET_RPC_URL: 'SOLANA_DEVNET_RPC_URL',
+  SOLANA_RECEIVER_MAINNET_ADDRESS: 'SOLANA_RECEIVER_MAINNET_ADDRESS',
+  SOLANA_RECEIVER_DEVNET_ADDRESS: 'SOLANA_RECEIVER_DEVNET_ADDRESS',
   // Filebase IPFS 配置
   FILEBASE_ACCESS_KEY: 'FILEBASE_ACCESS_KEY',
   FILEBASE_SECRET_KEY: 'FILEBASE_SECRET_KEY',
@@ -25,12 +28,24 @@ export type ConfigKey = typeof CONFIG_KEYS[keyof typeof CONFIG_KEYS]
 
 // 配置项描述（用于管理界面）
 export const CONFIG_DESCRIPTIONS: Record<ConfigKey, { description: string; defaultValue: string }> = {
+  [CONFIG_KEYS.SOLANA_NETWORK]: {
+    description: 'Solana 当前业务网络（mainnet / devnet）',
+    defaultValue: 'devnet',
+  },
   [CONFIG_KEYS.SOLANA_RPC_URL]: {
     description: 'Solana 主网 RPC URL (如 Helius)',
     defaultValue: '',
   },
   [CONFIG_KEYS.SOLANA_DEVNET_RPC_URL]: {
     description: 'Solana 测试网 RPC URL',
+    defaultValue: '',
+  },
+  [CONFIG_KEYS.SOLANA_RECEIVER_MAINNET_ADDRESS]: {
+    description: 'Solana 主网管理员收款钱包地址',
+    defaultValue: '',
+  },
+  [CONFIG_KEYS.SOLANA_RECEIVER_DEVNET_ADDRESS]: {
+    description: 'Solana 测试网管理员收款钱包地址',
     defaultValue: '',
   },
   [CONFIG_KEYS.FILEBASE_ACCESS_KEY]: {
@@ -55,7 +70,13 @@ export const CONFIG_DESCRIPTIONS: Record<ConfigKey, { description: string; defau
 export const CONFIG_GROUPS = {
   solana: {
     label: 'Solana 配置',
-    keys: [CONFIG_KEYS.SOLANA_RPC_URL, CONFIG_KEYS.SOLANA_DEVNET_RPC_URL],
+    keys: [
+      CONFIG_KEYS.SOLANA_NETWORK,
+      CONFIG_KEYS.SOLANA_RPC_URL,
+      CONFIG_KEYS.SOLANA_DEVNET_RPC_URL,
+      CONFIG_KEYS.SOLANA_RECEIVER_MAINNET_ADDRESS,
+      CONFIG_KEYS.SOLANA_RECEIVER_DEVNET_ADDRESS,
+    ],
   },
   filebase: {
     label: 'Filebase IPFS 配置',
@@ -257,6 +278,27 @@ export async function getSolanaRpcUrl(): Promise<string> {
  */
 export async function getSolanaDevnetRpcUrl(): Promise<string> {
   return getConfig(CONFIG_KEYS.SOLANA_DEVNET_RPC_URL)
+}
+
+/**
+ * 获取当前激活的 Solana 网络
+ */
+export async function getActiveSolanaNetwork(): Promise<'mainnet' | 'devnet'> {
+  const network = await getConfig(CONFIG_KEYS.SOLANA_NETWORK)
+  return network === 'mainnet' ? 'mainnet' : 'devnet'
+}
+
+/**
+ * 获取指定网络的管理员收款地址
+ */
+export async function getSolanaReceiverAddress(
+  network: 'mainnet' | 'devnet'
+): Promise<string> {
+  return getConfig(
+    network === 'mainnet'
+      ? CONFIG_KEYS.SOLANA_RECEIVER_MAINNET_ADDRESS
+      : CONFIG_KEYS.SOLANA_RECEIVER_DEVNET_ADDRESS
+  )
 }
 
 /**
