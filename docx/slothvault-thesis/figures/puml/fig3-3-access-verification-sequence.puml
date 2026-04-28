@@ -1,0 +1,44 @@
+@startuml
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam responseMessageBelowArrow true
+skinparam sequenceMessageAlign center
+skinparam defaultFontName Helvetica
+skinparam ArrowColor #2563EB
+skinparam ParticipantBorderColor #334155
+skinparam ParticipantBackgroundColor #E2E8F0
+skinparam LifeLineBorderColor #94A3B8
+skinparam LifeLineBackgroundColor #F8FAFC
+
+actor "前台用户" as User
+participant "文档阅读页" as Page
+participant "useProjectAuth" as AuthHook
+participant "verify-access 接口" as VerifyApi
+participant "项目鉴权服务" as AuthSvc
+database "PostgreSQL" as DB
+participant "Solana RPC" as Rpc
+
+User -> Page : 打开受保护项目
+Page -> AuthHook : 读取项目鉴权状态
+AuthHook -> VerifyApi : POST verify-access(walletAddress)
+activate VerifyApi
+VerifyApi -> DB : 查询项目 requireAuth
+DB --> VerifyApi : 项目配置
+VerifyApi -> AuthSvc : verifyProjectAccess(projectId, wallet)
+activate AuthSvc
+AuthSvc -> DB : 查询本地 cNFT 记录
+DB --> AuthSvc : 本地资产结果
+alt 需要链上复核
+  AuthSvc -> Rpc : 查询资产持有状态
+  Rpc --> AuthSvc : 链上验证结果
+end
+AuthSvc --> VerifyApi : hasAccess / reason
+deactivate AuthSvc
+VerifyApi --> AuthHook : 鉴权结果
+deactivate VerifyApi
+alt 通过验证
+  AuthHook -> Page : 允许加载首页/正文
+else 验证失败
+  AuthHook -> Page : 阻止请求并提示
+end
+@enduml

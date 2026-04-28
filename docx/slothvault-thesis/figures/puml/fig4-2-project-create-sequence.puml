@@ -1,0 +1,24 @@
+@startuml
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam responseMessageBelowArrow true
+skinparam sequenceMessageAlign center
+skinparam defaultFontName Helvetica
+skinparam ArrowColor #2563EB
+skinparam ParticipantBorderColor #334155
+skinparam ParticipantBackgroundColor #E2E8F0
+
+actor "管理员" as Admin
+participant "项目管理页面" as Page
+participant "项目接口" as Api
+database "PostgreSQL" as DB
+
+Admin -> Page : 填写项目表单
+Page -> Api : POST /api/admin/mm/project
+activate Api
+Api -> DB : 写入项目记录
+DB --> Api : 返回项目 ID
+Api --> Page : 创建成功结果
+deactivate Api
+Page --> Admin : 刷新列表并展示新项目
+@enduml

@@ -1,0 +1,34 @@
+@startuml
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Helvetica
+skinparam ArrowColor #334155
+skinparam nodeBorderColor #334155
+skinparam nodeBackgroundColor #F8FAFC
+skinparam databaseBorderColor #334155
+skinparam databaseBackgroundColor #EFF6FF
+
+node "用户终端" {
+  node "浏览器" as Browser
+}
+
+node "应用服务器" {
+  node "Nuxt 4 应用" as NuxtApp
+  node "Node.js 运行时" as NodeRuntime
+}
+
+node "数据服务" {
+  database "PostgreSQL" as Postgres
+  folder "上传文件目录" as Uploads
+}
+
+cloud "Solana Devnet / Mainnet RPC" as Rpc
+cloud "Filebase / IPFS" as Filebase
+
+Browser --> NuxtApp : HTTP / HTTPS
+NuxtApp --> NodeRuntime
+NuxtApp --> Postgres : Prisma ORM
+NuxtApp --> Uploads : 本地文件读写
+NuxtApp --> Rpc : web3.js / DAS
+NuxtApp --> Filebase : S3 兼容接口
+@enduml

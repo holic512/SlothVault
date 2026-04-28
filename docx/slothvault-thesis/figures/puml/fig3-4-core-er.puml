@@ -1,0 +1,86 @@
+@startuml
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Helvetica
+skinparam classBorderColor #334155
+skinparam classBackgroundColor #F8FAFC
+skinparam ArrowColor #334155
+
+entity "User" as User {
+  * id : Int
+  --
+  username : String
+  password : String
+  email : String
+}
+
+entity "Session" as Session {
+  * id : UUID
+  --
+  userId : Int
+  tokenHash : String
+  expiresAt : DateTime
+}
+
+entity "Project" as Project {
+  * id : BigInt
+  --
+  projectName : String
+  requireAuth : Boolean
+  status : SmallInt
+}
+
+entity "ProjectVersion" as ProjectVersion {
+  * id : BigInt
+  --
+  projectId : BigInt
+  version : String
+}
+
+entity "Category" as Category {
+  * id : BigInt
+  --
+  projectVersionId : BigInt
+  categoryName : String
+}
+
+entity "NoteInfo" as NoteInfo {
+  * id : BigInt
+  --
+  categoryId : BigInt
+  noteTitle : String
+}
+
+entity "NoteContent" as NoteContent {
+  * id : BigInt
+  --
+  noteInfoId : BigInt
+  isPrimary : Boolean
+  status : SmallInt
+}
+
+entity "MerkleTree" as MerkleTree {
+  * id : BigInt
+  --
+  treeAddress : String
+  network : String
+  totalMinted : Int
+}
+
+entity "CompressedNft" as CNFT {
+  * id : BigInt
+  --
+  merkleTreeId : BigInt
+  projectId : BigInt
+  assetId : String
+  ownerAddress : String
+}
+
+User ||--o{ Session
+Project ||--o{ ProjectVersion
+ProjectVersion ||--o{ Category
+Category ||--o{ NoteInfo
+NoteInfo ||--o{ NoteContent
+MerkleTree ||--o{ CNFT
+Project ||--o{ CNFT
+@enduml

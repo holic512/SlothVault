@@ -1,0 +1,31 @@
+@startuml
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam responseMessageBelowArrow true
+skinparam sequenceMessageAlign center
+skinparam defaultFontName Helvetica
+skinparam ArrowColor #2563EB
+skinparam ParticipantBorderColor #334155
+skinparam ParticipantBackgroundColor #E2E8F0
+
+actor "前台用户" as User
+participant "文档阅读页" as Page
+participant "侧边栏接口" as SidebarApi
+participant "正文接口" as NoteApi
+database "PostgreSQL" as DB
+
+User -> Page : 进入版本文档页
+Page -> SidebarApi : 请求分类与笔记列表
+activate SidebarApi
+SidebarApi -> DB : 查询分类和笔记
+DB --> SidebarApi : 返回结构化目录
+SidebarApi --> Page : 侧边栏数据
+deactivate SidebarApi
+Page -> NoteApi : 请求默认笔记正文
+activate NoteApi
+NoteApi -> DB : 查询主版本内容
+DB --> NoteApi : Markdown 正文
+NoteApi --> Page : 返回正文内容
+deactivate NoteApi
+Page --> User : 渲染正文与目录
+@enduml

@@ -1,0 +1,40 @@
+@startuml
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Helvetica
+skinparam ArrowColor #334155
+skinparam activityBorderColor #334155
+skinparam activityBackgroundColor #F8FAFC
+skinparam diamondBackgroundColor #E2E8F0
+skinparam diamondBorderColor #334155
+
+start
+:读取 sessionId 和签名交易;
+if (参数是否完整?) then (是)
+  :读取本地铸造会话;
+  if (会话是否有效?) then (是)
+    :反序列化交易;
+    if (签名是否完整?) then (是)
+      :发送原始交易到 Solana 网络;
+      :等待确认结果;
+      if (交易成功?) then (是)
+        :计算 assetId;
+        :更新压缩 NFT 记录状态;
+        :清理会话;
+        :返回成功结果;
+      else (否)
+        :记录失败或待定状态;
+        :必要时回滚数量;
+        :返回失败信息;
+      endif
+    else (否)
+      :返回签名无效错误;
+    endif
+  else (否)
+    :返回会话过期错误;
+  endif
+else (否)
+  :返回参数错误;
+endif
+stop
+@enduml

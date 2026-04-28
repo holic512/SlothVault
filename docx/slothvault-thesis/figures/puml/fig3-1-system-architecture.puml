@@ -1,0 +1,55 @@
+@startuml
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+skinparam defaultFontName Helvetica
+skinparam ArrowColor #334155
+skinparam componentBorderColor #334155
+skinparam componentBackgroundColor #F8FAFC
+skinparam databaseBorderColor #334155
+skinparam databaseBackgroundColor #EFF6FF
+
+actor "管理员" as Admin
+actor "前台用户" as User
+
+package "浏览器端" {
+  [后台管理界面] as AdminUI
+  [前台项目首页] as HomeUI
+  [文档阅读页面] as ReaderUI
+  [钱包连接组件] as WalletUI
+}
+
+package "Nuxt 服务端" {
+  [后台管理 API] as AdminAPI
+  [前台访问 API] as PublicAPI
+  [访问鉴权服务] as AuthSvc
+  [Solana 管理服务] as SolanaSvc
+  [文件处理服务] as FileSvc
+}
+
+database "PostgreSQL" as DB
+collections "Filebase / 上传目录" as Storage
+cloud "Solana RPC / Bubblegum" as Solana
+
+Admin --> AdminUI
+User --> HomeUI
+User --> ReaderUI
+User --> WalletUI
+
+AdminUI --> AdminAPI
+HomeUI --> PublicAPI
+ReaderUI --> PublicAPI
+WalletUI --> AuthSvc
+
+AdminAPI --> DB
+AdminAPI --> FileSvc
+AdminAPI --> SolanaSvc
+PublicAPI --> DB
+PublicAPI --> AuthSvc
+AuthSvc --> DB
+AuthSvc --> Solana
+SolanaSvc --> Solana
+SolanaSvc --> DB
+FileSvc --> Storage
+FileSvc --> DB
+@enduml

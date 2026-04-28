@@ -1,0 +1,24 @@
+@startuml
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Helvetica
+skinparam componentStyle rectangle
+skinparam ArrowColor #334155
+skinparam componentBorderColor #334155
+skinparam componentBackgroundColor #F8FAFC
+
+[编辑表单] as Form
+[MdEditor 组件] as Editor
+[预览组件] as Preview
+[图片上传组件] as Uploader
+[笔记内容接口] as Api
+database "PostgreSQL" as DB
+
+Form --> Editor : 绑定正文数据
+Editor --> Preview : 实时预览
+Editor --> Uploader : 插入资源
+Form --> Api : 保存正文版本
+Api --> DB : 写入 NoteContent
+Uploader --> Api : 上传文件
+Api --> DB : 写入 FileManagement
+@enduml
