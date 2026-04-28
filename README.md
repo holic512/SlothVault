@@ -54,56 +54,98 @@
 
 ### Docker 部署（推荐）
 
-#### 一键运行（临时测试）
+SlothVault 镜像现在只包含应用本身，数据库使用独立 PostgreSQL。你可以选择 Docker Compose 一次启动完整环境，或者用 `docker run` / `docker create` 连接已有 PostgreSQL。
 
-```bash
-docker run -d -p 3000:3000 --name slothvault holic512/slothvault:latest
-```
+#### 方式一：Docker Compose（推荐）
 
-访问 `http://localhost:3000` 即可使用
-
-- 🔑 管理后台：`http://localhost:3000/admin`
-- 📝 首次访问会引导创建管理员账号
-- ⚡ 数据库和加密密钥自动生成
-- ⚠️ 容器删除后数据会丢失（适合测试）
-
-#### 持久化数据（生产环境）
-
-```bash
-docker run -d \
-  -p 3000:3000 \
-  -v slothvault_data:/var/lib/postgresql/data \
-  --name slothvault \
-  holic512/slothvault:latest
-```
-
-数据会保存在 `slothvault_data` 卷中，容器删除后数据不会丢失。
-
-#### 使用 Docker Compose
+Compose 会创建两个容器：`postgres` 数据库和 `slothvault` 应用，并把持久化数据映射到本地目录。
 
 ```bash
 # 克隆仓库
 git clone https://github.com/yourusername/slothvault.git
 cd slothvault
 
+# 创建并编辑 Docker 环境变量
+cp .env.docker.example .env.docker
+# 修改 .env.docker 中的 DB_PASSWORD 和 ENCRYPTION_KEY
+
 # 启动服务
-docker-compose up -d
+docker compose --env-file .env.docker up -d
 ```
 
-#### 自定义配置
+访问 `http://localhost:3000` 即可使用：
+
+- 管理后台：`http://localhost:3000/admin`
+- 首次访问会引导创建管理员账号
+- PostgreSQL 数据默认保存在本地 `./docker-data/postgres`
+- Nuxt 上传文件默认保存在容器内 `/app/public/uploads`，并映射到本地 `./docker-data/uploads`
+
+`ENCRYPTION_KEY` 必须长期保存。更换它会导致已加密的 Solana 私钥无法解密。
+
+#### 方式二：连接已有 PostgreSQL
 
 ```bash
+mkdir -p docker-data/uploads
+
 docker run -d \
-  -p 8080:3000 \
-  -e ENCRYPTION_KEY="your-custom-64-char-key" \
-  -v slothvault_data:/var/lib/postgresql/data \
   --name slothvault \
+  -p 3000:3000 \
+  -e ENCRYPTION_KEY="your-stable-random-secret" \
+  -e DB_HOST="your-postgres-host" \
+  -e DB_PORT="5432" \
+  -e DB_NAME="slothvault" \
+  -e DB_USER="slothvault" \
+  -e DB_PASSWORD="your-database-password" \
+  -v "$(pwd)/docker-data/uploads:/app/public/uploads" \
   holic512/slothvault:latest
 ```
 
-**可选环境变量：**
-- `ENCRYPTION_KEY`: 自定义加密密钥（默认自动生成）
-- `DB_PASSWORD`: 数据库密码（默认自动生成）
+如果你的数据库密码包含 URL 特殊字符，建议直接传入完整连接串：
+
+```bash
+mkdir -p docker-data/uploads
+
+docker run -d \
+  --name slothvault \
+  -p 3000:3000 \
+  -e ENCRYPTION_KEY="your-stable-random-secret" \
+  -e DATABASE_URL="postgresql://user:password@host:5432/slothvault" \
+  -v "$(pwd)/docker-data/uploads:/app/public/uploads" \
+  holic512/slothvault:latest
+```
+
+也可以先创建再启动容器：
+
+```bash
+mkdir -p docker-data/uploads
+
+docker create \
+  --name slothvault \
+  -p 3000:3000 \
+  -e ENCRYPTION_KEY="your-stable-random-secret" \
+  -e DB_HOST="your-postgres-host" \
+  -e DB_PORT="5432" \
+  -e DB_NAME="slothvault" \
+  -e DB_USER="slothvault" \
+  -e DB_PASSWORD="your-database-password" \
+  -v "$(pwd)/docker-data/uploads:/app/public/uploads" \
+  holic512/slothvault:latest
+
+docker start slothvault
+```
+
+**Docker 环境变量：**
+
+- `ENCRYPTION_KEY`: 必填，稳定保存的加密密钥
+- `DATABASE_URL`: 可选，完整 PostgreSQL 连接串，优先级最高
+- `DB_HOST`: 未设置 `DATABASE_URL` 时必填，数据库地址
+- `DB_PORT`: 可选，默认 `5432`
+- `DB_NAME`: 可选，默认 `slothvault`
+- `DB_USER`: 可选，默认 `slothvault`
+- `DB_PASSWORD`: 未设置 `DATABASE_URL` 时必填，数据库密码
+- `DB_WAIT_TIMEOUT`: 可选，等待数据库就绪的秒数，默认 `60`
+- `POSTGRES_DATA_DIR`: Compose 使用，本地 PostgreSQL 数据目录，默认 `./docker-data/postgres`
+- `UPLOADS_DIR`: Compose 使用，本地上传文件目录，默认 `./docker-data/uploads`
 
 ---
 
@@ -376,15 +418,16 @@ POST /api/project/[id]/verify-access   # 验证访问权限
 
 ### Docker 部署
 
-推荐使用 Docker 部署，简单快捷：
+推荐使用 Docker Compose 部署，它会同时启动 PostgreSQL 和 SlothVault：
 
 ```bash
-docker run -d \
-  -p 3000:3000 \
-  -v slothvault_data:/var/lib/postgresql/data \
-  --name slothvault \
-  holic512/slothvault:latest
+cp .env.docker.example .env.docker
+docker compose --env-file .env.docker up -d
 ```
+
+默认情况下，数据库文件会保存在本地 `./docker-data/postgres`，Nuxt 上传文件会保存在本地 `./docker-data/uploads`。
+
+如果你已经有 PostgreSQL，可以使用 `docker run` 并传入 `DATABASE_URL` 或 `DB_HOST` / `DB_USER` / `DB_PASSWORD` 等数据库配置。
 
 ### 传统部署
 

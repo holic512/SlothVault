@@ -1,6 +1,10 @@
 name: Build and Push Docker Image
 
 on:
+  pull_request:
+    branches:
+      - master
+      - main
   push:
     branches:
       - master
@@ -10,7 +14,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/slothvault
+  IMAGE_NAME: ${{ vars.DOCKER_IMAGE_NAME || 'holic512/slothvault' }}
 
 jobs:
   build-and-push:
@@ -22,57 +26,80 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Extract metadata (tags, labels)
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
+            type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short,prefix=sha-
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+      - name: Build Docker image
+        uses: docker/build-push-action@v7
         with:
           context: .
-          push: true
-          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=max,ignore-error=true
           provenance: false
-          build-args: |
-            NODE_ENV=production
 
       - name: Generate deployment summary
         run: |
-          echo "## 🚀 Docker Image Built Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "## Docker Image Build" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📦 Image Tags:" >> $GITHUB_STEP_SUMMARY
+          echo "### Mode" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "- Build validation only; image was not pushed." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Built and pushed to Docker Hub." >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Image Tags" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🏗️ Architecture:" >> $GITHUB_STEP_SUMMARY
-          echo "- linux/amd64 (x86_64)" >> $GITHUB_STEP_SUMMARY
+          echo "### Architecture" >> $GITHUB_STEP_SUMMARY
+          echo "- linux/amd64" >> $GITHUB_STEP_SUMMARY
+          echo "- linux/arm64" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 💡 Compatibility:" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Runs on Mac Apple Silicon (M1/M2/M3/M4) via Docker Desktop emulation" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Native on x86_64 Linux servers" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🐳 Quick Start:" >> $GITHUB_STEP_SUMMARY
+          echo "### Docker Compose Install" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "docker run -d -p 3000:3000 -v slothvault_data:/var/lib/postgresql/data ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
+          echo "cp .env.docker.example .env.docker" >> $GITHUB_STEP_SUMMARY
+          echo "docker compose --env-file .env.docker up -d" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### External PostgreSQL Install" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "mkdir -p docker-data/uploads" >> $GITHUB_STEP_SUMMARY
+          echo "docker run -d --name slothvault -p 3000:3000 \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -e ENCRYPTION_KEY=\"your-stable-random-secret\" \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -e DB_HOST=\"your-postgres-host\" \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -e DB_PORT=\"5432\" \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -e DB_NAME=\"slothvault\" \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -e DB_USER=\"slothvault\" \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -e DB_PASSWORD=\"your-database-password\" \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -v \"\$(pwd)/docker-data/uploads:/app/public/uploads\" \\" >> $GITHUB_STEP_SUMMARY
+          echo "  ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY

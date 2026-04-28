@@ -1,22 +1,36 @@
-version: '3.8'
-
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: slothvault-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-slothvault}
+      POSTGRES_USER: ${DB_USER:-slothvault}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in your env file}
+    volumes:
+      - ${POSTGRES_DATA_DIR:-./docker-data/postgres}:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-slothvault} -d ${DB_NAME:-slothvault}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   slothvault:
     image: ${DOCKER_IMAGE:-holic512/slothvault:latest}
     container_name: slothvault
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "${PORT:-3000}:3000"
-    # 可选：取消注释以下行来持久化数据
-    # volumes:
-    #   - slothvault_data:/var/lib/postgresql/data
+    volumes:
+      - ${UPLOADS_DIR:-./docker-data/uploads}:/app/public/uploads
     environment:
-      # 可选：自定义加密密钥（默认自动生成）
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
-      # 可选：自定义数据库密码（默认自动生成）
-      DB_PASSWORD: ${DB_PASSWORD:-}
-
-# 可选：取消注释以下行来启用数据持久化
-# volumes:
-#   slothvault_data:
-#     driver: local
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY in your env file}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-slothvault}
+      DB_USER: ${DB_USER:-slothvault}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in your env file}

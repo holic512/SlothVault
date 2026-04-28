@@ -22,8 +22,12 @@ logs
 .env
 .env.*
 !.env.example
+!.env.docker.example
 
 /app/generated/prisma
 
 # Uploaded files
 public/uploads
+
+# Docker local persistent data
+docker-data/

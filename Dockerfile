@@ -1,4 +1,4 @@
-# Multi-stage build for SlothVault with embedded PostgreSQL
+# Multi-stage build for SlothVault application image
 FROM node:20-alpine AS base
 
 WORKDIR /app
@@ -7,8 +7,7 @@ WORKDIR /app
 FROM base AS deps
 # Copy only package files for better layer caching
 COPY package.json package-lock.json ./
-# Use npm install for Node 20 compatibility
-RUN npm install --frozen-lockfile
+RUN npm install
 
 # Build stage
 FROM base AS builder
@@ -21,11 +20,11 @@ ENV DATABASE_URL="postgresql://postgres:postgres@localhost:5432/slothvault"
 # Generate Prisma client and build app
 RUN npx prisma generate && npm run build
 
-# Production stage with PostgreSQL
+# Production stage
 FROM node:20-alpine AS runner
 
-# Install PostgreSQL and required tools in one layer
-RUN apk add --no-cache postgresql postgresql-contrib openssl su-exec
+# pg_isready is used by the entrypoint to wait for an external PostgreSQL.
+RUN apk add --no-cache postgresql-client
 
 WORKDIR /app
 
@@ -44,16 +43,12 @@ COPY prisma ./prisma
 # Copy public directory for runtime file uploads
 COPY public ./public
 
-# Create uploads directory in public for runtime file storage
-RUN mkdir -p /app/public/uploads
-
 # Copy startup script
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Create directories for PostgreSQL and app data
-RUN mkdir -p /var/lib/postgresql/data /app/data /run/postgresql && \
-    chown -R postgres:postgres /var/lib/postgresql /run/postgresql
+# Create upload directory for runtime file storage
+RUN mkdir -p /app/public/uploads
 
 # Expose port
 EXPOSE 3000
@@ -61,8 +56,7 @@ EXPOSE 3000
 # Set environment variables
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
-    PORT=3000 \
-    PGDATA=/var/lib/postgresql/data
+    PORT=3000
 
 # Use entrypoint script
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
