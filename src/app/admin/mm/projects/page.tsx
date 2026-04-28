@@ -1,15 +1,18 @@
 'use client'
 
-import { App, Button, Form, Input, InputNumber, Modal, Space, Switch, Table, Typography } from 'antd'
+import { App, Button, Form, Input, InputNumber, Modal, Select, Space, Table, Typography } from 'antd'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
+import { AdminStatusSelect, renderAuthTag, renderStatusBadge } from '@/components/admin/admin-status'
 import { apiFetch } from '@/lib/http'
 
 export default function Page() {
-  const { message } = App.useApp()
+  const { message, modal } = App.useApp()
+  const router = useRouter()
   const queryClient = useQueryClient()
   const [form] = Form.useForm()
   const [editing, setEditing] = useState<any | null>(null)
@@ -34,11 +37,14 @@ export default function Page() {
         body: JSON.stringify(values)
       })
     },
-    onSuccess: async () => {
-      message.success('Project saved')
+    onSuccess: async (result: any) => {
+      message.success(editing?.id ? 'Project updated' : 'Project created')
       setEditing(null)
       form.resetFields()
       await queryClient.invalidateQueries({ queryKey: ['projects'] })
+      if (!editing?.id && result?.id) {
+        router.push(`/admin/mm/projects/${result.id}?tab=content&focus=version`)
+      }
     }
   })
 
@@ -72,30 +78,37 @@ export default function Page() {
               row.requireAuth ? (value ? `${value} SOL` : 'Manual only') : 'Public'
           },
           { title: 'Weight', dataIndex: 'weight' },
-          { title: 'Status', dataIndex: 'status' },
-          { title: 'Auth', dataIndex: 'requireAuth', render: (value) => String(value) },
+          { title: 'Status', dataIndex: 'status', render: (value: number) => renderStatusBadge(value) },
+          { title: 'Access', dataIndex: 'requireAuth', render: (value: boolean) => renderAuthTag(value) },
           {
             title: 'Actions',
             render: (_, record: any) => (
               <Space>
-                <Button
-                  onClick={() => {
-                    setEditing(record)
-                    form.setFieldsValue(record)
-                  }}
-                >
+                <Link href={`/admin/mm/projects/${record.id}?tab=content`}>Open Workspace</Link>
+                <Button onClick={() => {
+                  setEditing(record)
+                  form.setFieldsValue(record)
+                }}>
                   Edit
                 </Button>
-                <Link href={`/admin/mm/projects/${record.id}/home`}>Home</Link>
                 <Button
                   danger
                   onClick={async () => {
-                    await apiFetch(`/api/admin/mm/project/${record.id}`, { method: 'DELETE' })
-                    message.success('Project deleted')
-                    await queryClient.invalidateQueries({ queryKey: ['projects'] })
+                    modal.confirm({
+                      title: 'Archive project',
+                      content: `Move ${record.projectName} to archive?`,
+                      okText: 'Archive',
+                      okButtonProps: { danger: true },
+                      cancelText: 'Cancel',
+                      onOk: async () => {
+                        await apiFetch(`/api/admin/mm/project/${record.id}`, { method: 'DELETE' })
+                        message.success('Project moved to archive')
+                        await queryClient.invalidateQueries({ queryKey: ['projects'] })
+                      }
+                    })
                   }}
                 >
-                  Delete
+                  Archive
                 </Button>
               </Space>
             )
@@ -120,10 +133,16 @@ export default function Page() {
             <InputNumber style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="status" label="Status" initialValue={1}>
-            <InputNumber style={{ width: '100%' }} />
+            <AdminStatusSelect style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="requireAuth" label="Require Auth" valuePropName="checked" initialValue={false}>
-            <Switch />
+          <Form.Item name="requireAuth" label="Require Auth" initialValue={false}>
+            <Select
+              style={{ width: '100%' }}
+              options={[
+                { label: 'Public', value: false },
+                { label: 'Protected', value: true }
+              ]}
+            />
           </Form.Item>
           <Form.Item
             name="accessPriceSol"

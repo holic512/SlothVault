@@ -7,7 +7,6 @@ import {
   HomeOutlined,
   SettingOutlined,
   DatabaseOutlined,
-  FolderOpenOutlined,
   ApiOutlined
 } from '@ant-design/icons'
 import { Breadcrumb, Button, Flex, Layout, Menu } from 'antd'
@@ -22,8 +21,6 @@ const items = [
   { key: '/admin/mm', icon: <HomeOutlined />, label: <Link href="/admin/mm">Dashboard</Link> },
   { key: '/admin/mm/homepage', icon: <BookOutlined />, label: <Link href="/admin/mm/homepage">Homepage</Link> },
   { key: '/admin/mm/projects', icon: <AppstoreOutlined />, label: <Link href="/admin/mm/projects">Projects</Link> },
-  { key: '/admin/mm/categories', icon: <FolderOpenOutlined />, label: <Link href="/admin/mm/categories">Categories</Link> },
-  { key: '/admin/mm/notes', icon: <BookOutlined />, label: <Link href="/admin/mm/notes">Notes</Link> },
   { key: '/admin/mm/files', icon: <FileOutlined />, label: <Link href="/admin/mm/files">Files</Link> },
   { key: '/admin/mm/solana', icon: <ApiOutlined />, label: <Link href="/admin/mm/solana">Solana</Link> },
   { key: '/admin/mm/backup', icon: <DatabaseOutlined />, label: <Link href="/admin/mm/backup">Backup</Link> },
