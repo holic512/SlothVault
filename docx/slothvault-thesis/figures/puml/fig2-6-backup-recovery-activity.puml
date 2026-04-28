@@ -1,0 +1,29 @@
+@startuml
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Helvetica
+skinparam ArrowColor #334155
+skinparam activityBorderColor #334155
+skinparam activityBackgroundColor #F8FAFC
+skinparam diamondBackgroundColor #E2E8F0
+skinparam diamondBorderColor #334155
+
+start
+:管理员进入备份页面;
+if (选择数据库导出?) then (是)
+  :读取项目、版本、分类、笔记、正文;
+  :读取配置、Merkle Tree 与 cNFT 数据;
+  :转换 BigInt 字段;
+  :输出 JSON 备份;
+else (否)
+  :选择文件导出或导入恢复;
+endif
+if (执行导入恢复?) then (是)
+  :校验备份文件结构;
+  :按业务对象恢复数据;
+  :恢复文件资源;
+else (否)
+  :结束当前操作;
+endif
+stop
+@enduml

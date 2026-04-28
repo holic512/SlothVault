@@ -1,0 +1,18 @@
+@startuml
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam classBorderColor #334155
+skinparam classBackgroundColor #F8FAFC
+skinparam defaultFontName Helvetica
+
+class "Category" {
+  + id: BigInt
+  + projectVersionId: BigInt
+  + categoryName: String
+  + weight: Int
+  + status: SmallInt
+  + createdAt: DateTime
+  + updatedAt: DateTime
+  + isDeleted: Boolean
+}
+@enduml

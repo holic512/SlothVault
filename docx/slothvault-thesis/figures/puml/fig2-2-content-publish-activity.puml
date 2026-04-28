@@ -1,0 +1,32 @@
+@startuml
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Helvetica
+skinparam ArrowColor #334155
+skinparam activityBorderColor #334155
+skinparam activityBackgroundColor #F8FAFC
+skinparam diamondBackgroundColor #E2E8F0
+skinparam diamondBorderColor #334155
+
+start
+:管理员登录后台;
+:创建或选择项目;
+:维护项目版本;
+:创建分类;
+:创建笔记条目;
+:编辑正文版本;
+if (是否设置为主版本?) then (是)
+  :标记 isPrimary=true;
+else (否)
+  :保留为历史版本;
+endif
+:保存正文内容;
+if (是否需要访问控制?) then (是)
+  :设置项目 requireAuth=true;
+  :关联 cNFT 访问凭证;
+else (否)
+  :保持公开访问;
+endif
+:前台按版本展示文档;
+stop
+@enduml

@@ -1,0 +1,16 @@
+@startuml
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam classBorderColor #334155
+skinparam classBackgroundColor #F8FAFC
+skinparam defaultFontName Helvetica
+
+class "User" {
+  + id: Int
+  + username: String
+  + password: String
+  + email: String?
+  + createdAt: DateTime
+  + updatedAt: DateTime
+}
+@enduml

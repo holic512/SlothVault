@@ -1,0 +1,19 @@
+@startuml
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam classBorderColor #334155
+skinparam classBackgroundColor #F8FAFC
+skinparam defaultFontName Helvetica
+
+class "Project" {
+  + id: BigInt
+  + projectName: String
+  + avatar: String?
+  + weight: Int
+  + status: SmallInt
+  + requireAuth: Boolean
+  + createdAt: DateTime
+  + updatedAt: DateTime
+  + isDeleted: Boolean
+}
+@enduml

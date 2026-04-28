@@ -1,0 +1,121 @@
+items:
+  - figure_id: 图4-5
+    caption: "图4-5 管理员登录页面截图"
+    placeholder: "[此处插入图4-5 管理员登录页面截图]"
+    target: null
+    wait_for: null
+    auth_required: true
+    viewport:
+      width: 1440
+      height: 900
+      deviceScaleFactor: 2
+    full_page: false
+    unresolved: true
+  - figure_id: 图4-6
+    caption: "图4-6 项目管理页面截图"
+    placeholder: "[此处插入图4-6 项目管理页面截图]"
+    target: null
+    wait_for: null
+    auth_required: true
+    viewport:
+      width: 1440
+      height: 900
+      deviceScaleFactor: 2
+    full_page: false
+    unresolved: true
+  - figure_id: 图4-7
+    caption: "图4-7 项目版本配置页面截图"
+    placeholder: "[此处插入图4-7 项目版本配置页面截图]"
+    target: null
+    wait_for: null
+    auth_required: true
+    viewport:
+      width: 1440
+      height: 900
+      deviceScaleFactor: 2
+    full_page: false
+    unresolved: true
+  - figure_id: 图4-8
+    caption: "图4-8 分类与笔记管理页面截图"
+    placeholder: "[此处插入图4-8 分类与笔记管理页面截图]"
+    target: null
+    wait_for: null
+    auth_required: true
+    viewport:
+      width: 1440
+      height: 900
+      deviceScaleFactor: 2
+    full_page: false
+    unresolved: true
+  - figure_id: 图4-9
+    caption: "图4-9 Markdown 内容编辑页面截图"
+    placeholder: "[此处插入图4-9 Markdown 内容编辑页面截图]"
+    target: null
+    wait_for: null
+    auth_required: true
+    viewport:
+      width: 1440
+      height: 900
+      deviceScaleFactor: 2
+    full_page: false
+    unresolved: true
+  - figure_id: 图4-10
+    caption: "图4-10 前台项目首页截图"
+    placeholder: "[此处插入图4-10 前台项目首页截图]"
+    target: null
+    wait_for: null
+    auth_required: true
+    viewport:
+      width: 1440
+      height: 900
+      deviceScaleFactor: 2
+    full_page: false
+    unresolved: true
+  - figure_id: 图4-11
+    caption: "图4-11 前台文档阅读页面截图"
+    placeholder: "[此处插入图4-11 前台文档阅读页面截图]"
+    target: null
+    wait_for: null
+    auth_required: true
+    viewport:
+      width: 1440
+      height: 900
+      deviceScaleFactor: 2
+    full_page: false
+    unresolved: true
+  - figure_id: 图4-12
+    caption: "图4-12 Solana Merkle Tree 管理页面截图"
+    placeholder: "[此处插入图4-12 Solana Merkle Tree 管理页面截图]"
+    target: null
+    wait_for: null
+    auth_required: true
+    viewport:
+      width: 1440
+      height: 900
+      deviceScaleFactor: 2
+    full_page: false
+    unresolved: true
+  - figure_id: 图4-13
+    caption: "图4-13 cNFT 管理页面截图"
+    placeholder: "[此处插入图4-13 cNFT 管理页面截图]"
+    target: null
+    wait_for: null
+    auth_required: true
+    viewport:
+      width: 1440
+      height: 900
+      deviceScaleFactor: 2
+    full_page: false
+    unresolved: true
+  - figure_id: 图4-14
+    caption: "图4-14 数据备份页面截图"
+    placeholder: "[此处插入图4-14 数据备份页面截图]"
+    target: null
+    wait_for: null
+    auth_required: true
+    viewport:
+      width: 1440
+      height: 900
+      deviceScaleFactor: 2
+    full_page: false
+    unresolved: true

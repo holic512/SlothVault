@@ -1,0 +1,40 @@
+@startuml
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Helvetica
+skinparam ArrowColor #334155
+skinparam activityBorderColor #334155
+skinparam activityBackgroundColor #F8FAFC
+skinparam diamondBackgroundColor #E2E8F0
+skinparam diamondBorderColor #334155
+
+start
+:用户进入项目首页或文档页;
+:读取项目 requireAuth 状态;
+if (项目是否启用鉴权?) then (否)
+  :直接返回项目内容;
+  stop
+else (是)
+  :读取钱包地址;
+  if (钱包地址是否存在?) then (否)
+    :提示连接钱包;
+    stop
+  else (是)
+    :调用 verify-access 接口;
+    :查询本地 cNFT 记录;
+    if (本地记录匹配?) then (是)
+      :返回允许访问;
+      stop
+    else (否)
+      :链上验证资产状态;
+      if (链上验证通过?) then (是)
+        :更新本地 ownerAddress;
+        :返回允许访问;
+      else (否)
+        :拒绝访问并提示原因;
+      endif
+    endif
+  endif
+endif
+stop
+@enduml

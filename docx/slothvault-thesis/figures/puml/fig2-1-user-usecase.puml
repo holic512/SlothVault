@@ -1,0 +1,44 @@
+@startuml
+left to right direction
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam actorBorderColor #334155
+skinparam actorBackgroundColor #F8FAFC
+skinparam usecaseBorderColor #334155
+skinparam usecaseBackgroundColor #EFF6FF
+skinparam packageBorderColor #CBD5E1
+skinparam defaultFontName Helvetica
+
+actor "管理员" as Admin
+actor "普通访客" as Visitor
+actor "持证访问用户" as Holder
+
+rectangle "SlothVault 文档管理系统" {
+  usecase "初始化管理员账号" as UC1
+  usecase "登录后台" as UC2
+  usecase "维护项目与版本" as UC3
+  usecase "维护分类与笔记" as UC4
+  usecase "编辑 Markdown 正文" as UC5
+  usecase "管理 Merkle Tree 与 cNFT" as UC6
+  usecase "执行数据备份恢复" as UC7
+  usecase "浏览公开项目首页" as UC8
+  usecase "浏览公开文档" as UC9
+  usecase "连接钱包并验证权限" as UC10
+  usecase "访问受保护项目正文" as UC11
+}
+
+Admin --> UC1
+Admin --> UC2
+Admin --> UC3
+Admin --> UC4
+Admin --> UC5
+Admin --> UC6
+Admin --> UC7
+Visitor --> UC8
+Visitor --> UC9
+Holder --> UC8
+Holder --> UC9
+Holder --> UC10
+Holder --> UC11
+UC11 ..> UC10 : <<include>>
+@enduml

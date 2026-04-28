@@ -1,0 +1,25 @@
+@startuml
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam classBorderColor #334155
+skinparam classBackgroundColor #F8FAFC
+skinparam defaultFontName Helvetica
+
+class "CompressedNft" {
+  + id: BigInt
+  + merkleTreeId: BigInt
+  + projectId: BigInt
+  + assetId: String
+  + leafIndex: Int
+  + name: String
+  + symbol: String?
+  + description: Text?
+  + metadataUri: String?
+  + imageCid: String?
+  + metadataCid: String?
+  + originalImageId: BigInt?
+  + ownerAddress: String
+  + mintTxSignature: String?
+  + status: SmallInt
+}
+@enduml

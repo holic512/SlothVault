@@ -1,0 +1,18 @@
+@startuml
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam classBorderColor #334155
+skinparam classBackgroundColor #F8FAFC
+skinparam defaultFontName Helvetica
+
+class "Session" {
+  + id: UUID
+  + userId: Int
+  + tokenHash: String
+  + createdAt: DateTime
+  + expiresAt: DateTime
+  + revokedAt: DateTime?
+  + ip: String?
+  + userAgent: String?
+}
+@enduml

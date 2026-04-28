@@ -1,0 +1,27 @@
+@startuml
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Helvetica
+skinparam ArrowColor #334155
+skinparam activityBorderColor #334155
+skinparam activityBackgroundColor #F8FAFC
+skinparam diamondBackgroundColor #E2E8F0
+skinparam diamondBorderColor #334155
+
+start
+:访问后台入口;
+if (系统是否已初始化管理员?) then (否)
+  :进入初始化页面;
+  :录入管理员信息;
+  :创建 User 记录;
+endif
+:进入登录页面;
+:提交用户名和密码;
+if (身份校验成功?) then (是)
+  :创建 Session 记录;
+  :返回后台首页;
+else (否)
+  :提示登录失败;
+endif
+stop
+@enduml

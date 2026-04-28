@@ -1,0 +1,26 @@
+@startuml
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam classBorderColor #334155
+skinparam classBackgroundColor #F8FAFC
+skinparam defaultFontName Helvetica
+
+class "MerkleTree" {
+  + id: BigInt
+  + name: String
+  + treeAddress: String
+  + treeAuthority: String
+  + encryptedKey: Text
+  + creatorAddress: String
+  + maxDepth: SmallInt
+  + maxBufferSize: SmallInt
+  + canopyDepth: SmallInt
+  + network: String
+  + totalMinted: Int
+  + maxCapacity: BigInt
+  + creationCost: BigInt
+  + txSignature: String?
+  + priority: Int
+  + status: SmallInt
+}
+@enduml

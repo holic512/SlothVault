@@ -1,0 +1,48 @@
+@startuml
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+skinparam defaultFontName Helvetica
+skinparam ArrowColor #334155
+skinparam packageBorderColor #334155
+skinparam packageBackgroundColor #F8FAFC
+skinparam componentBorderColor #334155
+skinparam componentBackgroundColor #EFF6FF
+
+package "SlothVault 功能结构" {
+  package "后台管理" {
+    [认证管理]
+    [项目管理]
+    [版本管理]
+    [分类管理]
+    [笔记与正文管理]
+    [文件管理]
+    [系统配置]
+  }
+
+  package "前台展示" {
+    [项目列表]
+    [项目首页]
+    [文档阅读页]
+    [目录导航]
+  }
+
+  package "访问控制" {
+    [项目鉴权开关]
+    [钱包地址识别]
+    [访问验证接口]
+  }
+
+  package "区块链资产管理" {
+    [Merkle Tree 管理]
+    [cNFT 准备]
+    [交易提交与状态回写]
+  }
+
+  package "运维保障" {
+    [数据库导出]
+    [文件导出]
+    [数据导入恢复]
+  }
+}
+@enduml

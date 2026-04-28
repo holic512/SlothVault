@@ -1,3 +1,5 @@
+Design and Implementation of a Document Management System Based on Solana Compressed NFTs
+
 # Abstract
 
 With the continuous growth of digital content, document platforms are required to provide stronger support for content organization, version maintenance, and access control. Conventional account-centered permission models can satisfy basic authentication, but they are less effective when the system needs portable access credentials, verifiable ownership, and low-cost asset distribution across different users and projects. To address these issues, this thesis designs and implements a document management system based on Solana compressed NFTs by using the actual project SlothVault as the engineering foundation.

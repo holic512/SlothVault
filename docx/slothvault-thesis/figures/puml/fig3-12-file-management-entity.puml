@@ -1,0 +1,18 @@
+@startuml
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam classBorderColor #334155
+skinparam classBackgroundColor #F8FAFC
+skinparam defaultFontName Helvetica
+
+class "FileManagement" {
+  + id: BigInt
+  + originalName: String
+  + fileName: String
+  + filePath: String
+  + fileSize: BigInt
+  + businessType: String
+  + status: SmallInt
+  + createTime: DateTime
+}
+@enduml

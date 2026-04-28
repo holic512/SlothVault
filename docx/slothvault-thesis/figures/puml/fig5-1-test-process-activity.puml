@@ -1,0 +1,28 @@
+@startuml
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Helvetica
+skinparam ArrowColor #334155
+skinparam activityBorderColor #334155
+skinparam activityBackgroundColor #F8FAFC
+skinparam diamondBackgroundColor #E2E8F0
+skinparam diamondBorderColor #334155
+
+start
+:准备测试环境与数据库;
+:确认系统运行状态;
+:按模块设计测试用例;
+:执行后台认证测试;
+:执行项目与文档管理测试;
+:执行前台访问控制测试;
+:执行区块链资产管理测试;
+:执行备份恢复测试;
+if (出现异常?) then (是)
+  :记录错误现象与返回信息;
+  :分析问题定位范围;
+else (否)
+  :整理通过结果;
+endif
+:汇总测试结论;
+stop
+@enduml

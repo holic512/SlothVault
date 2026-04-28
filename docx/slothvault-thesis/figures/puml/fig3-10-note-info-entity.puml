@@ -1,0 +1,18 @@
+@startuml
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam classBorderColor #334155
+skinparam classBackgroundColor #F8FAFC
+skinparam defaultFontName Helvetica
+
+class "NoteInfo" {
+  + id: BigInt
+  + categoryId: BigInt
+  + noteTitle: String
+  + weight: Int
+  + status: SmallInt
+  + createdAt: DateTime
+  + updatedAt: DateTime
+  + isDeleted: Boolean
+}
+@enduml
