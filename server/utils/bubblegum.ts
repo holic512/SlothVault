@@ -6,8 +6,7 @@
  */
 
 import { getSolanaCjs } from './solanaCjsLoader'
-import { SystemProgram, Transaction } from '@solana/web3.js'
-import type { Connection, PublicKey, Keypair } from '@solana/web3.js'
+import type { Connection, PublicKey, Transaction, Keypair } from '@solana/web3.js'
 
 // 获取 CJS 模块实例
 const solanaCjs = getSolanaCjs()
@@ -80,54 +79,6 @@ export async function buildMintCnftTransaction(
     metadata,
     leafIndex
   )
-}
-
-/**
- * 构建项目购买交易：SOL 转账 + cNFT 铸造
- */
-export async function buildProjectPurchaseTransaction(
-  connection: Connection,
-  buyer: PublicKey,
-  receiver: PublicKey,
-  treeAuthority: Keypair,
-  merkleTree: PublicKey,
-  metadata: CnftMetadata,
-  leafIndex: number,
-  priceLamports: bigint
-): Promise<BuildMintCnftTransactionResult> {
-  const mintResult = await buildMintCnftTransaction(
-    connection,
-    buyer,
-    treeAuthority,
-    merkleTree,
-    buyer,
-    metadata,
-    leafIndex
-  )
-
-  const transaction = new Transaction()
-  transaction.add(
-    SystemProgram.transfer({
-      fromPubkey: buyer,
-      toPubkey: receiver,
-      lamports: Number(priceLamports),
-    })
-  )
-
-  for (const instruction of mintResult.transaction.instructions) {
-    transaction.add(instruction)
-  }
-
-  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed')
-  transaction.recentBlockhash = blockhash
-  transaction.lastValidBlockHeight = lastValidBlockHeight
-  transaction.feePayer = buyer
-
-  return {
-    transaction,
-    leafIndex: mintResult.leafIndex,
-    treeConfigPda: mintResult.treeConfigPda,
-  }
 }
 
 /**

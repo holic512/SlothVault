@@ -16,10 +16,10 @@
  */
 
 import * as runtime from "@prisma/client/runtime/client"
-import type * as Prisma from "../models"
-import { type PrismaClient } from "./class"
+import type * as Prisma from "../models.js"
+import { type PrismaClient } from "./class.js"
 
-export type * from '../models'
+export type * from '../models.js'
 
 export type DMMF = typeof runtime.DMMF
 
@@ -397,8 +397,7 @@ export const ModelName = {
   SystemConfig: 'SystemConfig',
   SystemHomepage: 'SystemHomepage',
   MerkleTree: 'MerkleTree',
-  CompressedNft: 'CompressedNft',
-  ProjectPurchaseRecord: 'ProjectPurchaseRecord'
+  CompressedNft: 'CompressedNft'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -414,7 +413,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "session" | "user" | "project" | "projectMenu" | "projectHome" | "projectVersion" | "category" | "noteInfo" | "noteContent" | "fileManagement" | "systemConfig" | "systemHomepage" | "merkleTree" | "compressedNft" | "projectPurchaseRecord"
+    modelProps: "session" | "user" | "project" | "projectMenu" | "projectHome" | "projectVersion" | "category" | "noteInfo" | "noteContent" | "fileManagement" | "systemConfig" | "systemHomepage" | "merkleTree" | "compressedNft"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1454,80 +1453,6 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
-    ProjectPurchaseRecord: {
-      payload: Prisma.$ProjectPurchaseRecordPayload<ExtArgs>
-      fields: Prisma.ProjectPurchaseRecordFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.ProjectPurchaseRecordFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectPurchaseRecordPayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.ProjectPurchaseRecordFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectPurchaseRecordPayload>
-        }
-        findFirst: {
-          args: Prisma.ProjectPurchaseRecordFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectPurchaseRecordPayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.ProjectPurchaseRecordFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectPurchaseRecordPayload>
-        }
-        findMany: {
-          args: Prisma.ProjectPurchaseRecordFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectPurchaseRecordPayload>[]
-        }
-        create: {
-          args: Prisma.ProjectPurchaseRecordCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectPurchaseRecordPayload>
-        }
-        createMany: {
-          args: Prisma.ProjectPurchaseRecordCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.ProjectPurchaseRecordCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectPurchaseRecordPayload>[]
-        }
-        delete: {
-          args: Prisma.ProjectPurchaseRecordDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectPurchaseRecordPayload>
-        }
-        update: {
-          args: Prisma.ProjectPurchaseRecordUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectPurchaseRecordPayload>
-        }
-        deleteMany: {
-          args: Prisma.ProjectPurchaseRecordDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.ProjectPurchaseRecordUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.ProjectPurchaseRecordUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectPurchaseRecordPayload>[]
-        }
-        upsert: {
-          args: Prisma.ProjectPurchaseRecordUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectPurchaseRecordPayload>
-        }
-        aggregate: {
-          args: Prisma.ProjectPurchaseRecordAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateProjectPurchaseRecord>
-        }
-        groupBy: {
-          args: Prisma.ProjectPurchaseRecordGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.ProjectPurchaseRecordGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.ProjectPurchaseRecordCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.ProjectPurchaseRecordCountAggregateOutputType> | number
-        }
-      }
-    }
   }
 } & {
   other: {
@@ -1600,7 +1525,6 @@ export const ProjectScalarFieldEnum = {
   weight: 'weight',
   status: 'status',
   requireAuth: 'requireAuth',
-  accessPriceLamports: 'accessPriceLamports',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   isDeleted: 'isDeleted'
@@ -1774,8 +1698,6 @@ export const CompressedNftScalarFieldEnum = {
   metadataCid: 'metadataCid',
   originalImageId: 'originalImageId',
   ownerAddress: 'ownerAddress',
-  grantSource: 'grantSource',
-  purchaseRecordId: 'purchaseRecordId',
   mintTxSignature: 'mintTxSignature',
   status: 'status',
   createdAt: 'createdAt',
@@ -1783,26 +1705,6 @@ export const CompressedNftScalarFieldEnum = {
 } as const
 
 export type CompressedNftScalarFieldEnum = (typeof CompressedNftScalarFieldEnum)[keyof typeof CompressedNftScalarFieldEnum]
-
-
-export const ProjectPurchaseRecordScalarFieldEnum = {
-  id: 'id',
-  projectId: 'projectId',
-  buyerWalletAddress: 'buyerWalletAddress',
-  receiverWalletAddress: 'receiverWalletAddress',
-  network: 'network',
-  priceLamports: 'priceLamports',
-  txSignature: 'txSignature',
-  cnftId: 'cnftId',
-  assetId: 'assetId',
-  status: 'status',
-  failureReason: 'failureReason',
-  confirmedAt: 'confirmedAt',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type ProjectPurchaseRecordScalarFieldEnum = (typeof ProjectPurchaseRecordScalarFieldEnum)[keyof typeof ProjectPurchaseRecordScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -2020,7 +1922,6 @@ export type GlobalOmitConfig = {
   systemHomepage?: Prisma.SystemHomepageOmit
   merkleTree?: Prisma.MerkleTreeOmit
   compressedNft?: Prisma.CompressedNftOmit
-  projectPurchaseRecord?: Prisma.ProjectPurchaseRecordOmit
 }
 
 /* Types for Logging */

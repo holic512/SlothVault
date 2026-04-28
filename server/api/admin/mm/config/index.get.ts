@@ -4,7 +4,7 @@
  */
 import { ok, fail } from '~~/server/utils/response'
 import { readSession } from '~~/server/utils/session'
-import { defineEventHandler, setResponseStatus } from 'h3'
+import { setResponseStatus } from 'h3'
 import { getAllConfigs, CONFIG_GROUPS } from '~~/server/utils/configCache'
 
 export default defineEventHandler(async (event) => {
@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
     const groups = Object.entries(CONFIG_GROUPS).map(([groupKey, group]) => ({
       key: groupKey,
       label: group.label,
-      configs: configs.filter((c) => (group.keys as readonly string[]).includes(c.key)),
+      configs: configs.filter((c) => group.keys.includes(c.key as any)),
     }))
 
     return ok({

@@ -1,4 +1,4 @@
-import { H3Event, createError, readMultipartFormData } from 'h3'
+import { H3Event, readMultipartFormData } from 'h3'
 import { randomUUID } from 'crypto'
 import { join, extname } from 'path'
 import { writeFile, unlink, stat, readFile, mkdir } from 'fs/promises'

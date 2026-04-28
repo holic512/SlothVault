@@ -9,8 +9,8 @@
  * 🟢 You can import this file directly.
  */
 import type * as runtime from "@prisma/client/runtime/client"
-import type * as $Enums from "../enums"
-import type * as Prisma from "../internal/prismaNamespace"
+import type * as $Enums from "../enums.js"
+import type * as Prisma from "../internal/prismaNamespace.js"
 
 /**
  * Model CompressedNft
@@ -32,7 +32,6 @@ export type CompressedNftAvgAggregateOutputType = {
   projectId: number | null
   leafIndex: number | null
   originalImageId: number | null
-  purchaseRecordId: number | null
   status: number | null
 }
 
@@ -42,7 +41,6 @@ export type CompressedNftSumAggregateOutputType = {
   projectId: bigint | null
   leafIndex: number | null
   originalImageId: bigint | null
-  purchaseRecordId: bigint | null
   status: number | null
 }
 
@@ -60,8 +58,6 @@ export type CompressedNftMinAggregateOutputType = {
   metadataCid: string | null
   originalImageId: bigint | null
   ownerAddress: string | null
-  grantSource: string | null
-  purchaseRecordId: bigint | null
   mintTxSignature: string | null
   status: number | null
   createdAt: Date | null
@@ -82,8 +78,6 @@ export type CompressedNftMaxAggregateOutputType = {
   metadataCid: string | null
   originalImageId: bigint | null
   ownerAddress: string | null
-  grantSource: string | null
-  purchaseRecordId: bigint | null
   mintTxSignature: string | null
   status: number | null
   createdAt: Date | null
@@ -104,8 +98,6 @@ export type CompressedNftCountAggregateOutputType = {
   metadataCid: number
   originalImageId: number
   ownerAddress: number
-  grantSource: number
-  purchaseRecordId: number
   mintTxSignature: number
   status: number
   createdAt: number
@@ -120,7 +112,6 @@ export type CompressedNftAvgAggregateInputType = {
   projectId?: true
   leafIndex?: true
   originalImageId?: true
-  purchaseRecordId?: true
   status?: true
 }
 
@@ -130,7 +121,6 @@ export type CompressedNftSumAggregateInputType = {
   projectId?: true
   leafIndex?: true
   originalImageId?: true
-  purchaseRecordId?: true
   status?: true
 }
 
@@ -148,8 +138,6 @@ export type CompressedNftMinAggregateInputType = {
   metadataCid?: true
   originalImageId?: true
   ownerAddress?: true
-  grantSource?: true
-  purchaseRecordId?: true
   mintTxSignature?: true
   status?: true
   createdAt?: true
@@ -170,8 +158,6 @@ export type CompressedNftMaxAggregateInputType = {
   metadataCid?: true
   originalImageId?: true
   ownerAddress?: true
-  grantSource?: true
-  purchaseRecordId?: true
   mintTxSignature?: true
   status?: true
   createdAt?: true
@@ -192,8 +178,6 @@ export type CompressedNftCountAggregateInputType = {
   metadataCid?: true
   originalImageId?: true
   ownerAddress?: true
-  grantSource?: true
-  purchaseRecordId?: true
   mintTxSignature?: true
   status?: true
   createdAt?: true
@@ -301,8 +285,6 @@ export type CompressedNftGroupByOutputType = {
   metadataCid: string | null
   originalImageId: bigint | null
   ownerAddress: string
-  grantSource: string
-  purchaseRecordId: bigint | null
   mintTxSignature: string | null
   status: number
   createdAt: Date
@@ -346,8 +328,6 @@ export type CompressedNftWhereInput = {
   metadataCid?: Prisma.StringNullableFilter<"CompressedNft"> | string | null
   originalImageId?: Prisma.BigIntNullableFilter<"CompressedNft"> | bigint | number | null
   ownerAddress?: Prisma.StringFilter<"CompressedNft"> | string
-  grantSource?: Prisma.StringFilter<"CompressedNft"> | string
-  purchaseRecordId?: Prisma.BigIntNullableFilter<"CompressedNft"> | bigint | number | null
   mintTxSignature?: Prisma.StringNullableFilter<"CompressedNft"> | string | null
   status?: Prisma.IntFilter<"CompressedNft"> | number
   createdAt?: Prisma.DateTimeFilter<"CompressedNft"> | Date | string
@@ -369,8 +349,6 @@ export type CompressedNftOrderByWithRelationInput = {
   metadataCid?: Prisma.SortOrderInput | Prisma.SortOrder
   originalImageId?: Prisma.SortOrderInput | Prisma.SortOrder
   ownerAddress?: Prisma.SortOrder
-  grantSource?: Prisma.SortOrder
-  purchaseRecordId?: Prisma.SortOrderInput | Prisma.SortOrder
   mintTxSignature?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -395,8 +373,6 @@ export type CompressedNftWhereUniqueInput = Prisma.AtLeast<{
   metadataCid?: Prisma.StringNullableFilter<"CompressedNft"> | string | null
   originalImageId?: Prisma.BigIntNullableFilter<"CompressedNft"> | bigint | number | null
   ownerAddress?: Prisma.StringFilter<"CompressedNft"> | string
-  grantSource?: Prisma.StringFilter<"CompressedNft"> | string
-  purchaseRecordId?: Prisma.BigIntNullableFilter<"CompressedNft"> | bigint | number | null
   mintTxSignature?: Prisma.StringNullableFilter<"CompressedNft"> | string | null
   status?: Prisma.IntFilter<"CompressedNft"> | number
   createdAt?: Prisma.DateTimeFilter<"CompressedNft"> | Date | string
@@ -418,8 +394,6 @@ export type CompressedNftOrderByWithAggregationInput = {
   metadataCid?: Prisma.SortOrderInput | Prisma.SortOrder
   originalImageId?: Prisma.SortOrderInput | Prisma.SortOrder
   ownerAddress?: Prisma.SortOrder
-  grantSource?: Prisma.SortOrder
-  purchaseRecordId?: Prisma.SortOrderInput | Prisma.SortOrder
   mintTxSignature?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -448,8 +422,6 @@ export type CompressedNftScalarWhereWithAggregatesInput = {
   metadataCid?: Prisma.StringNullableWithAggregatesFilter<"CompressedNft"> | string | null
   originalImageId?: Prisma.BigIntNullableWithAggregatesFilter<"CompressedNft"> | bigint | number | null
   ownerAddress?: Prisma.StringWithAggregatesFilter<"CompressedNft"> | string
-  grantSource?: Prisma.StringWithAggregatesFilter<"CompressedNft"> | string
-  purchaseRecordId?: Prisma.BigIntNullableWithAggregatesFilter<"CompressedNft"> | bigint | number | null
   mintTxSignature?: Prisma.StringNullableWithAggregatesFilter<"CompressedNft"> | string | null
   status?: Prisma.IntWithAggregatesFilter<"CompressedNft"> | number
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"CompressedNft"> | Date | string
@@ -469,8 +441,6 @@ export type CompressedNftCreateInput = {
   metadataCid?: string | null
   originalImageId?: bigint | number | null
   ownerAddress: string
-  grantSource?: string
-  purchaseRecordId?: bigint | number | null
   mintTxSignature?: string | null
   status?: number
   createdAt?: Date | string
@@ -492,8 +462,6 @@ export type CompressedNftUncheckedCreateInput = {
   metadataCid?: string | null
   originalImageId?: bigint | number | null
   ownerAddress: string
-  grantSource?: string
-  purchaseRecordId?: bigint | number | null
   mintTxSignature?: string | null
   status?: number
   createdAt?: Date | string
@@ -513,8 +481,6 @@ export type CompressedNftUpdateInput = {
   metadataCid?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   originalImageId?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   ownerAddress?: Prisma.StringFieldUpdateOperationsInput | string
-  grantSource?: Prisma.StringFieldUpdateOperationsInput | string
-  purchaseRecordId?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   mintTxSignature?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -536,8 +502,6 @@ export type CompressedNftUncheckedUpdateInput = {
   metadataCid?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   originalImageId?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   ownerAddress?: Prisma.StringFieldUpdateOperationsInput | string
-  grantSource?: Prisma.StringFieldUpdateOperationsInput | string
-  purchaseRecordId?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   mintTxSignature?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -558,8 +522,6 @@ export type CompressedNftCreateManyInput = {
   metadataCid?: string | null
   originalImageId?: bigint | number | null
   ownerAddress: string
-  grantSource?: string
-  purchaseRecordId?: bigint | number | null
   mintTxSignature?: string | null
   status?: number
   createdAt?: Date | string
@@ -579,8 +541,6 @@ export type CompressedNftUpdateManyMutationInput = {
   metadataCid?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   originalImageId?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   ownerAddress?: Prisma.StringFieldUpdateOperationsInput | string
-  grantSource?: Prisma.StringFieldUpdateOperationsInput | string
-  purchaseRecordId?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   mintTxSignature?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -601,8 +561,6 @@ export type CompressedNftUncheckedUpdateManyInput = {
   metadataCid?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   originalImageId?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   ownerAddress?: Prisma.StringFieldUpdateOperationsInput | string
-  grantSource?: Prisma.StringFieldUpdateOperationsInput | string
-  purchaseRecordId?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   mintTxSignature?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -633,8 +591,6 @@ export type CompressedNftCountOrderByAggregateInput = {
   metadataCid?: Prisma.SortOrder
   originalImageId?: Prisma.SortOrder
   ownerAddress?: Prisma.SortOrder
-  grantSource?: Prisma.SortOrder
-  purchaseRecordId?: Prisma.SortOrder
   mintTxSignature?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -647,7 +603,6 @@ export type CompressedNftAvgOrderByAggregateInput = {
   projectId?: Prisma.SortOrder
   leafIndex?: Prisma.SortOrder
   originalImageId?: Prisma.SortOrder
-  purchaseRecordId?: Prisma.SortOrder
   status?: Prisma.SortOrder
 }
 
@@ -665,8 +620,6 @@ export type CompressedNftMaxOrderByAggregateInput = {
   metadataCid?: Prisma.SortOrder
   originalImageId?: Prisma.SortOrder
   ownerAddress?: Prisma.SortOrder
-  grantSource?: Prisma.SortOrder
-  purchaseRecordId?: Prisma.SortOrder
   mintTxSignature?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -687,8 +640,6 @@ export type CompressedNftMinOrderByAggregateInput = {
   metadataCid?: Prisma.SortOrder
   originalImageId?: Prisma.SortOrder
   ownerAddress?: Prisma.SortOrder
-  grantSource?: Prisma.SortOrder
-  purchaseRecordId?: Prisma.SortOrder
   mintTxSignature?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -701,7 +652,6 @@ export type CompressedNftSumOrderByAggregateInput = {
   projectId?: Prisma.SortOrder
   leafIndex?: Prisma.SortOrder
   originalImageId?: Prisma.SortOrder
-  purchaseRecordId?: Prisma.SortOrder
   status?: Prisma.SortOrder
 }
 
@@ -760,8 +710,6 @@ export type CompressedNftCreateWithoutMerkleTreeInput = {
   metadataCid?: string | null
   originalImageId?: bigint | number | null
   ownerAddress: string
-  grantSource?: string
-  purchaseRecordId?: bigint | number | null
   mintTxSignature?: string | null
   status?: number
   createdAt?: Date | string
@@ -781,8 +729,6 @@ export type CompressedNftUncheckedCreateWithoutMerkleTreeInput = {
   metadataCid?: string | null
   originalImageId?: bigint | number | null
   ownerAddress: string
-  grantSource?: string
-  purchaseRecordId?: bigint | number | null
   mintTxSignature?: string | null
   status?: number
   createdAt?: Date | string
@@ -832,8 +778,6 @@ export type CompressedNftScalarWhereInput = {
   metadataCid?: Prisma.StringNullableFilter<"CompressedNft"> | string | null
   originalImageId?: Prisma.BigIntNullableFilter<"CompressedNft"> | bigint | number | null
   ownerAddress?: Prisma.StringFilter<"CompressedNft"> | string
-  grantSource?: Prisma.StringFilter<"CompressedNft"> | string
-  purchaseRecordId?: Prisma.BigIntNullableFilter<"CompressedNft"> | bigint | number | null
   mintTxSignature?: Prisma.StringNullableFilter<"CompressedNft"> | string | null
   status?: Prisma.IntFilter<"CompressedNft"> | number
   createdAt?: Prisma.DateTimeFilter<"CompressedNft"> | Date | string
@@ -853,8 +797,6 @@ export type CompressedNftCreateManyMerkleTreeInput = {
   metadataCid?: string | null
   originalImageId?: bigint | number | null
   ownerAddress: string
-  grantSource?: string
-  purchaseRecordId?: bigint | number | null
   mintTxSignature?: string | null
   status?: number
   createdAt?: Date | string
@@ -874,8 +816,6 @@ export type CompressedNftUpdateWithoutMerkleTreeInput = {
   metadataCid?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   originalImageId?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   ownerAddress?: Prisma.StringFieldUpdateOperationsInput | string
-  grantSource?: Prisma.StringFieldUpdateOperationsInput | string
-  purchaseRecordId?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   mintTxSignature?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -895,8 +835,6 @@ export type CompressedNftUncheckedUpdateWithoutMerkleTreeInput = {
   metadataCid?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   originalImageId?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   ownerAddress?: Prisma.StringFieldUpdateOperationsInput | string
-  grantSource?: Prisma.StringFieldUpdateOperationsInput | string
-  purchaseRecordId?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   mintTxSignature?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -916,8 +854,6 @@ export type CompressedNftUncheckedUpdateManyWithoutMerkleTreeInput = {
   metadataCid?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   originalImageId?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   ownerAddress?: Prisma.StringFieldUpdateOperationsInput | string
-  grantSource?: Prisma.StringFieldUpdateOperationsInput | string
-  purchaseRecordId?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   mintTxSignature?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -940,8 +876,6 @@ export type CompressedNftSelect<ExtArgs extends runtime.Types.Extensions.Interna
   metadataCid?: boolean
   originalImageId?: boolean
   ownerAddress?: boolean
-  grantSource?: boolean
-  purchaseRecordId?: boolean
   mintTxSignature?: boolean
   status?: boolean
   createdAt?: boolean
@@ -963,8 +897,6 @@ export type CompressedNftSelectCreateManyAndReturn<ExtArgs extends runtime.Types
   metadataCid?: boolean
   originalImageId?: boolean
   ownerAddress?: boolean
-  grantSource?: boolean
-  purchaseRecordId?: boolean
   mintTxSignature?: boolean
   status?: boolean
   createdAt?: boolean
@@ -986,8 +918,6 @@ export type CompressedNftSelectUpdateManyAndReturn<ExtArgs extends runtime.Types
   metadataCid?: boolean
   originalImageId?: boolean
   ownerAddress?: boolean
-  grantSource?: boolean
-  purchaseRecordId?: boolean
   mintTxSignature?: boolean
   status?: boolean
   createdAt?: boolean
@@ -1009,15 +939,13 @@ export type CompressedNftSelectScalar = {
   metadataCid?: boolean
   originalImageId?: boolean
   ownerAddress?: boolean
-  grantSource?: boolean
-  purchaseRecordId?: boolean
   mintTxSignature?: boolean
   status?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type CompressedNftOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "merkleTreeId" | "projectId" | "assetId" | "leafIndex" | "name" | "symbol" | "description" | "metadataUri" | "imageCid" | "metadataCid" | "originalImageId" | "ownerAddress" | "grantSource" | "purchaseRecordId" | "mintTxSignature" | "status" | "createdAt" | "updatedAt", ExtArgs["result"]["compressedNft"]>
+export type CompressedNftOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "merkleTreeId" | "projectId" | "assetId" | "leafIndex" | "name" | "symbol" | "description" | "metadataUri" | "imageCid" | "metadataCid" | "originalImageId" | "ownerAddress" | "mintTxSignature" | "status" | "createdAt" | "updatedAt", ExtArgs["result"]["compressedNft"]>
 export type CompressedNftInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   merkleTree?: boolean | Prisma.MerkleTreeDefaultArgs<ExtArgs>
 }
@@ -1047,8 +975,6 @@ export type $CompressedNftPayload<ExtArgs extends runtime.Types.Extensions.Inter
     metadataCid: string | null
     originalImageId: bigint | null
     ownerAddress: string
-    grantSource: string
-    purchaseRecordId: bigint | null
     mintTxSignature: string | null
     status: number
     createdAt: Date
@@ -1490,8 +1416,6 @@ export interface CompressedNftFieldRefs {
   readonly metadataCid: Prisma.FieldRef<"CompressedNft", 'String'>
   readonly originalImageId: Prisma.FieldRef<"CompressedNft", 'BigInt'>
   readonly ownerAddress: Prisma.FieldRef<"CompressedNft", 'String'>
-  readonly grantSource: Prisma.FieldRef<"CompressedNft", 'String'>
-  readonly purchaseRecordId: Prisma.FieldRef<"CompressedNft", 'BigInt'>
   readonly mintTxSignature: Prisma.FieldRef<"CompressedNft", 'String'>
   readonly status: Prisma.FieldRef<"CompressedNft", 'Int'>
   readonly createdAt: Prisma.FieldRef<"CompressedNft", 'DateTime'>

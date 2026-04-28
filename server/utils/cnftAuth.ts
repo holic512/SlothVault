@@ -12,7 +12,6 @@
  */
 
 import { prisma } from './prisma'
-import { createError } from 'h3'
 import { getSolanaRpcUrl, getSolanaDevnetRpcUrl } from './configCache'
 import { isValidSolanaAddress } from './solana'
 
@@ -136,8 +135,7 @@ async function fetchAssetsByOwner(
  */
 async function verifyFromDatabase(
   projectId: bigint,
-  walletAddress: string,
-  network: 'mainnet' | 'devnet'
+  walletAddress: string
 ): Promise<AuthResult | null> {
   // 查询该项目下该钱包持有的 cNFT
   const cnft = await prisma.compressedNft.findFirst({
@@ -145,9 +143,6 @@ async function verifyFromDatabase(
       projectId,
       ownerAddress: walletAddress,
       status: 1, // 正常状态
-      merkleTree: {
-        network,
-      },
     },
     select: {
       assetId: true,
@@ -184,9 +179,6 @@ async function verifyFromChain(
       where: {
         projectId,
         status: 1,
-        merkleTree: {
-          network,
-        },
       },
       select: {
         id: true,
@@ -317,7 +309,7 @@ export async function verifyProjectAccess(
   }
 
   // 5. 优先从本地数据库验证
-  const dbResult = await verifyFromDatabase(projectId, walletAddress, network)
+  const dbResult = await verifyFromDatabase(projectId, walletAddress)
   if (dbResult) {
     return dbResult
   }
@@ -342,8 +334,7 @@ export async function verifyProjectAccess(
  */
 export async function batchVerifyProjectAccess(
   projectIds: bigint[],
-  walletAddress?: string | null,
-  network: 'mainnet' | 'devnet' = 'devnet'
+  walletAddress?: string | null
 ): Promise<Map<string, boolean>> {
   const result = new Map<string, boolean>()
 
@@ -375,9 +366,6 @@ export async function batchVerifyProjectAccess(
       projectId: { in: projectIds },
       ownerAddress: walletAddress,
       status: 1,
-      merkleTree: {
-        network,
-      },
     },
     select: {
       projectId: true,

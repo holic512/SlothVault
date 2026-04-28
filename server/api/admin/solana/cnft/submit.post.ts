@@ -15,7 +15,6 @@
  */
 
 import { PublicKey, Transaction } from '@solana/web3.js'
-import { createError, defineEventHandler, readBody } from 'h3'
 import { getMintSession, deleteMintSession } from '~~/server/utils/mintSession'
 import { getConnection, type SolanaNetwork } from '~~/server/utils/solana'
 import { prisma } from '~~/server/utils/prisma'

@@ -1,7 +1,7 @@
 import { prisma } from '~~/server/utils/prisma'
 import { ok, fail } from '~~/server/utils/response'
 import { readSession } from '~~/server/utils/session'
-import { defineEventHandler, readBody, setResponseStatus } from 'h3'
+import { readBody, setResponseStatus } from 'h3'
 
 function homeToDto(home: any) {
   return {

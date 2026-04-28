@@ -1,4 +1,4 @@
-# Multi-stage build for SlothVault Next.js app with embedded PostgreSQL
+# Multi-stage build for SlothVault with embedded PostgreSQL
 FROM node:20-alpine AS base
 
 WORKDIR /app
@@ -7,7 +7,8 @@ WORKDIR /app
 FROM base AS deps
 # Copy only package files for better layer caching
 COPY package.json package-lock.json ./
-RUN npm install
+# Use npm install for Node 20 compatibility
+RUN npm install --frozen-lockfile
 
 # Build stage
 FROM base AS builder
@@ -32,9 +33,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json package-lock.json ./
 
-# Copy built Next.js standalone application
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+# Copy built application
+COPY --from=builder /app/.output ./.output
 COPY --from=builder /app/generated ./generated
 
 # Copy Prisma config, schema and migrations (required for prisma migrate deploy in Prisma 7)

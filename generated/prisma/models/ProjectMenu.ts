@@ -9,8 +9,8 @@
  * 🟢 You can import this file directly.
  */
 import type * as runtime from "@prisma/client/runtime/client"
-import type * as $Enums from "../enums"
-import type * as Prisma from "../internal/prismaNamespace"
+import type * as $Enums from "../enums.js"
+import type * as Prisma from "../internal/prismaNamespace.js"
 
 /**
  * Model ProjectMenu
@@ -615,6 +615,14 @@ export type ProjectMenuUpdateManyWithoutParentNestedInput = {
   update?: Prisma.ProjectMenuUpdateWithWhereUniqueWithoutParentInput | Prisma.ProjectMenuUpdateWithWhereUniqueWithoutParentInput[]
   updateMany?: Prisma.ProjectMenuUpdateManyWithWhereWithoutParentInput | Prisma.ProjectMenuUpdateManyWithWhereWithoutParentInput[]
   deleteMany?: Prisma.ProjectMenuScalarWhereInput | Prisma.ProjectMenuScalarWhereInput[]
+}
+
+export type NullableBigIntFieldUpdateOperationsInput = {
+  set?: bigint | number | null
+  increment?: bigint | number
+  decrement?: bigint | number
+  multiply?: bigint | number
+  divide?: bigint | number
 }
 
 export type ProjectMenuUncheckedUpdateManyWithoutParentNestedInput = {

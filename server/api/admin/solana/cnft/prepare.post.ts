@@ -16,7 +16,6 @@
  */
 
 import { Keypair, PublicKey } from '@solana/web3.js'
-import { createError, defineEventHandler, readBody } from 'h3'
 import { prisma } from '~~/server/utils/prisma'
 import { getConnection, type SolanaNetwork, isValidSolanaAddress } from '~~/server/utils/solana'
 import { decryptPrivateKey, stringToSecretKey } from '~~/server/utils/crypto'

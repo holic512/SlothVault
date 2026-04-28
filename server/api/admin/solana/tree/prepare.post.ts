@@ -13,7 +13,6 @@
  */
 
 import { Keypair, PublicKey } from '@solana/web3.js'
-import { createError, defineEventHandler, readBody } from 'h3'
 import { buildCreateTreeTransaction, getConnection, type SolanaNetwork } from '~~/server/utils/solana'
 import { encryptPrivateKey, secretKeyToString } from '~~/server/utils/crypto'
 import { createTreeSession } from '~~/server/utils/treeSession'

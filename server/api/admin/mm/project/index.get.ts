@@ -1,8 +1,7 @@
 import {prisma} from '~~/server/utils/prisma'
-import { isPurchaseEnabled, lamportsToSolDisplay } from '~~/server/utils/projectPurchase'
 import {ok, fail} from '~~/server/utils/response'
 import {readSession} from '~~/server/utils/session'
-import { defineEventHandler, getQuery, setResponseStatus } from 'h3'
+import {getQuery, setResponseStatus} from 'h3'
 
 function toInt(value: unknown, fallback: number) {
     const n = typeof value === 'string' ? Number(value) : typeof value === 'number' ? value : NaN
@@ -27,9 +26,6 @@ function projectToDto(project: any) {
         weight: project.weight,
         status: project.status,
         requireAuth: project.requireAuth,
-        accessPriceLamports: project.accessPriceLamports?.toString() ?? null,
-        accessPriceSol: lamportsToSolDisplay(project.accessPriceLamports),
-        purchaseEnabled: project.requireAuth && isPurchaseEnabled(project.accessPriceLamports),
         createdAt: project.createdAt,
         updatedAt: project.updatedAt,
         isDeleted: project.isDeleted,

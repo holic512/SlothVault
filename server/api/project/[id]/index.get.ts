@@ -1,16 +1,12 @@
 import { prisma } from '~~/server/utils/prisma'
 import { ok, fail } from '~~/server/utils/response'
-import { defineEventHandler, getRouterParam, setResponseStatus } from 'h3'
-import { isPurchaseEnabled, lamportsToSolDisplay } from '~~/server/utils/projectPurchase'
+import { setResponseStatus, getRouterParam } from 'h3'
 
 interface ProjectDetailDto {
   id: string
   projectName: string
   avatar: string | null
   requireAuth: boolean
-  accessPriceLamports: string | null
-  accessPriceSol: string | null
-  purchaseEnabled: boolean
   status: number
   updatedAt: Date
 }
@@ -21,9 +17,6 @@ function projectToDto(project: any): ProjectDetailDto {
     projectName: project.projectName,
     avatar: project.avatar,
     requireAuth: project.requireAuth,
-    accessPriceLamports: project.accessPriceLamports?.toString() ?? null,
-    accessPriceSol: lamportsToSolDisplay(project.accessPriceLamports),
-    purchaseEnabled: project.requireAuth && isPurchaseEnabled(project.accessPriceLamports),
     status: project.status,
     updatedAt: project.updatedAt,
   }

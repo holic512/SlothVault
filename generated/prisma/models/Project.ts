@@ -9,8 +9,8 @@
  * 🟢 You can import this file directly.
  */
 import type * as runtime from "@prisma/client/runtime/client"
-import type * as $Enums from "../enums"
-import type * as Prisma from "../internal/prismaNamespace"
+import type * as $Enums from "../enums.js"
+import type * as Prisma from "../internal/prismaNamespace.js"
 
 /**
  * Model Project
@@ -30,14 +30,12 @@ export type ProjectAvgAggregateOutputType = {
   id: number | null
   weight: number | null
   status: number | null
-  accessPriceLamports: number | null
 }
 
 export type ProjectSumAggregateOutputType = {
   id: bigint | null
   weight: number | null
   status: number | null
-  accessPriceLamports: bigint | null
 }
 
 export type ProjectMinAggregateOutputType = {
@@ -47,7 +45,6 @@ export type ProjectMinAggregateOutputType = {
   weight: number | null
   status: number | null
   requireAuth: boolean | null
-  accessPriceLamports: bigint | null
   createdAt: Date | null
   updatedAt: Date | null
   isDeleted: boolean | null
@@ -60,7 +57,6 @@ export type ProjectMaxAggregateOutputType = {
   weight: number | null
   status: number | null
   requireAuth: boolean | null
-  accessPriceLamports: bigint | null
   createdAt: Date | null
   updatedAt: Date | null
   isDeleted: boolean | null
@@ -73,7 +69,6 @@ export type ProjectCountAggregateOutputType = {
   weight: number
   status: number
   requireAuth: number
-  accessPriceLamports: number
   createdAt: number
   updatedAt: number
   isDeleted: number
@@ -85,14 +80,12 @@ export type ProjectAvgAggregateInputType = {
   id?: true
   weight?: true
   status?: true
-  accessPriceLamports?: true
 }
 
 export type ProjectSumAggregateInputType = {
   id?: true
   weight?: true
   status?: true
-  accessPriceLamports?: true
 }
 
 export type ProjectMinAggregateInputType = {
@@ -102,7 +95,6 @@ export type ProjectMinAggregateInputType = {
   weight?: true
   status?: true
   requireAuth?: true
-  accessPriceLamports?: true
   createdAt?: true
   updatedAt?: true
   isDeleted?: true
@@ -115,7 +107,6 @@ export type ProjectMaxAggregateInputType = {
   weight?: true
   status?: true
   requireAuth?: true
-  accessPriceLamports?: true
   createdAt?: true
   updatedAt?: true
   isDeleted?: true
@@ -128,7 +119,6 @@ export type ProjectCountAggregateInputType = {
   weight?: true
   status?: true
   requireAuth?: true
-  accessPriceLamports?: true
   createdAt?: true
   updatedAt?: true
   isDeleted?: true
@@ -228,7 +218,6 @@ export type ProjectGroupByOutputType = {
   weight: number
   status: number
   requireAuth: boolean
-  accessPriceLamports: bigint | null
   createdAt: Date
   updatedAt: Date
   isDeleted: boolean
@@ -264,7 +253,6 @@ export type ProjectWhereInput = {
   weight?: Prisma.IntFilter<"Project"> | number
   status?: Prisma.IntFilter<"Project"> | number
   requireAuth?: Prisma.BoolFilter<"Project"> | boolean
-  accessPriceLamports?: Prisma.BigIntNullableFilter<"Project"> | bigint | number | null
   createdAt?: Prisma.DateTimeFilter<"Project"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Project"> | Date | string
   isDeleted?: Prisma.BoolFilter<"Project"> | boolean
@@ -280,7 +268,6 @@ export type ProjectOrderByWithRelationInput = {
   weight?: Prisma.SortOrder
   status?: Prisma.SortOrder
   requireAuth?: Prisma.SortOrder
-  accessPriceLamports?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
@@ -299,7 +286,6 @@ export type ProjectWhereUniqueInput = Prisma.AtLeast<{
   weight?: Prisma.IntFilter<"Project"> | number
   status?: Prisma.IntFilter<"Project"> | number
   requireAuth?: Prisma.BoolFilter<"Project"> | boolean
-  accessPriceLamports?: Prisma.BigIntNullableFilter<"Project"> | bigint | number | null
   createdAt?: Prisma.DateTimeFilter<"Project"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Project"> | Date | string
   isDeleted?: Prisma.BoolFilter<"Project"> | boolean
@@ -315,7 +301,6 @@ export type ProjectOrderByWithAggregationInput = {
   weight?: Prisma.SortOrder
   status?: Prisma.SortOrder
   requireAuth?: Prisma.SortOrder
-  accessPriceLamports?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
@@ -336,7 +321,6 @@ export type ProjectScalarWhereWithAggregatesInput = {
   weight?: Prisma.IntWithAggregatesFilter<"Project"> | number
   status?: Prisma.IntWithAggregatesFilter<"Project"> | number
   requireAuth?: Prisma.BoolWithAggregatesFilter<"Project"> | boolean
-  accessPriceLamports?: Prisma.BigIntNullableWithAggregatesFilter<"Project"> | bigint | number | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Project"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Project"> | Date | string
   isDeleted?: Prisma.BoolWithAggregatesFilter<"Project"> | boolean
@@ -349,7 +333,6 @@ export type ProjectCreateInput = {
   weight: number
   status: number
   requireAuth?: boolean
-  accessPriceLamports?: bigint | number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   isDeleted?: boolean
@@ -365,7 +348,6 @@ export type ProjectUncheckedCreateInput = {
   weight: number
   status: number
   requireAuth?: boolean
-  accessPriceLamports?: bigint | number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   isDeleted?: boolean
@@ -381,7 +363,6 @@ export type ProjectUpdateInput = {
   weight?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.IntFieldUpdateOperationsInput | number
   requireAuth?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  accessPriceLamports?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -397,7 +378,6 @@ export type ProjectUncheckedUpdateInput = {
   weight?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.IntFieldUpdateOperationsInput | number
   requireAuth?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  accessPriceLamports?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -413,7 +393,6 @@ export type ProjectCreateManyInput = {
   weight: number
   status: number
   requireAuth?: boolean
-  accessPriceLamports?: bigint | number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   isDeleted?: boolean
@@ -426,7 +405,6 @@ export type ProjectUpdateManyMutationInput = {
   weight?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.IntFieldUpdateOperationsInput | number
   requireAuth?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  accessPriceLamports?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -439,7 +417,6 @@ export type ProjectUncheckedUpdateManyInput = {
   weight?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.IntFieldUpdateOperationsInput | number
   requireAuth?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  accessPriceLamports?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -452,7 +429,6 @@ export type ProjectCountOrderByAggregateInput = {
   weight?: Prisma.SortOrder
   status?: Prisma.SortOrder
   requireAuth?: Prisma.SortOrder
-  accessPriceLamports?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
@@ -462,7 +438,6 @@ export type ProjectAvgOrderByAggregateInput = {
   id?: Prisma.SortOrder
   weight?: Prisma.SortOrder
   status?: Prisma.SortOrder
-  accessPriceLamports?: Prisma.SortOrder
 }
 
 export type ProjectMaxOrderByAggregateInput = {
@@ -472,7 +447,6 @@ export type ProjectMaxOrderByAggregateInput = {
   weight?: Prisma.SortOrder
   status?: Prisma.SortOrder
   requireAuth?: Prisma.SortOrder
-  accessPriceLamports?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
@@ -485,7 +459,6 @@ export type ProjectMinOrderByAggregateInput = {
   weight?: Prisma.SortOrder
   status?: Prisma.SortOrder
   requireAuth?: Prisma.SortOrder
-  accessPriceLamports?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
@@ -495,7 +468,6 @@ export type ProjectSumOrderByAggregateInput = {
   id?: Prisma.SortOrder
   weight?: Prisma.SortOrder
   status?: Prisma.SortOrder
-  accessPriceLamports?: Prisma.SortOrder
 }
 
 export type ProjectScalarRelationFilter = {
@@ -513,14 +485,6 @@ export type BigIntFieldUpdateOperationsInput = {
 
 export type BoolFieldUpdateOperationsInput = {
   set?: boolean
-}
-
-export type NullableBigIntFieldUpdateOperationsInput = {
-  set?: bigint | number | null
-  increment?: bigint | number
-  decrement?: bigint | number
-  multiply?: bigint | number
-  divide?: bigint | number
 }
 
 export type ProjectCreateNestedOneWithoutMenusInput = {
@@ -572,7 +536,6 @@ export type ProjectCreateWithoutMenusInput = {
   weight: number
   status: number
   requireAuth?: boolean
-  accessPriceLamports?: bigint | number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   isDeleted?: boolean
@@ -587,7 +550,6 @@ export type ProjectUncheckedCreateWithoutMenusInput = {
   weight: number
   status: number
   requireAuth?: boolean
-  accessPriceLamports?: bigint | number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   isDeleted?: boolean
@@ -618,7 +580,6 @@ export type ProjectUpdateWithoutMenusInput = {
   weight?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.IntFieldUpdateOperationsInput | number
   requireAuth?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  accessPriceLamports?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -633,7 +594,6 @@ export type ProjectUncheckedUpdateWithoutMenusInput = {
   weight?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.IntFieldUpdateOperationsInput | number
   requireAuth?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  accessPriceLamports?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -648,7 +608,6 @@ export type ProjectCreateWithoutHomeInput = {
   weight: number
   status: number
   requireAuth?: boolean
-  accessPriceLamports?: bigint | number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   isDeleted?: boolean
@@ -663,7 +622,6 @@ export type ProjectUncheckedCreateWithoutHomeInput = {
   weight: number
   status: number
   requireAuth?: boolean
-  accessPriceLamports?: bigint | number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   isDeleted?: boolean
@@ -694,7 +652,6 @@ export type ProjectUpdateWithoutHomeInput = {
   weight?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.IntFieldUpdateOperationsInput | number
   requireAuth?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  accessPriceLamports?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -709,7 +666,6 @@ export type ProjectUncheckedUpdateWithoutHomeInput = {
   weight?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.IntFieldUpdateOperationsInput | number
   requireAuth?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  accessPriceLamports?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -724,7 +680,6 @@ export type ProjectCreateWithoutVersionsInput = {
   weight: number
   status: number
   requireAuth?: boolean
-  accessPriceLamports?: bigint | number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   isDeleted?: boolean
@@ -739,7 +694,6 @@ export type ProjectUncheckedCreateWithoutVersionsInput = {
   weight: number
   status: number
   requireAuth?: boolean
-  accessPriceLamports?: bigint | number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   isDeleted?: boolean
@@ -770,7 +724,6 @@ export type ProjectUpdateWithoutVersionsInput = {
   weight?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.IntFieldUpdateOperationsInput | number
   requireAuth?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  accessPriceLamports?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -785,7 +738,6 @@ export type ProjectUncheckedUpdateWithoutVersionsInput = {
   weight?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.IntFieldUpdateOperationsInput | number
   requireAuth?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  accessPriceLamports?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -840,7 +792,6 @@ export type ProjectSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   weight?: boolean
   status?: boolean
   requireAuth?: boolean
-  accessPriceLamports?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   isDeleted?: boolean
@@ -857,7 +808,6 @@ export type ProjectSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   weight?: boolean
   status?: boolean
   requireAuth?: boolean
-  accessPriceLamports?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   isDeleted?: boolean
@@ -870,7 +820,6 @@ export type ProjectSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   weight?: boolean
   status?: boolean
   requireAuth?: boolean
-  accessPriceLamports?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   isDeleted?: boolean
@@ -883,13 +832,12 @@ export type ProjectSelectScalar = {
   weight?: boolean
   status?: boolean
   requireAuth?: boolean
-  accessPriceLamports?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   isDeleted?: boolean
 }
 
-export type ProjectOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "projectName" | "avatar" | "weight" | "status" | "requireAuth" | "accessPriceLamports" | "createdAt" | "updatedAt" | "isDeleted", ExtArgs["result"]["project"]>
+export type ProjectOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "projectName" | "avatar" | "weight" | "status" | "requireAuth" | "createdAt" | "updatedAt" | "isDeleted", ExtArgs["result"]["project"]>
 export type ProjectInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   versions?: boolean | Prisma.Project$versionsArgs<ExtArgs>
   menus?: boolean | Prisma.Project$menusArgs<ExtArgs>
@@ -913,7 +861,6 @@ export type $ProjectPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     weight: number
     status: number
     requireAuth: boolean
-    accessPriceLamports: bigint | null
     createdAt: Date
     updatedAt: Date
     isDeleted: boolean
@@ -1349,7 +1296,6 @@ export interface ProjectFieldRefs {
   readonly weight: Prisma.FieldRef<"Project", 'Int'>
   readonly status: Prisma.FieldRef<"Project", 'Int'>
   readonly requireAuth: Prisma.FieldRef<"Project", 'Boolean'>
-  readonly accessPriceLamports: Prisma.FieldRef<"Project", 'BigInt'>
   readonly createdAt: Prisma.FieldRef<"Project", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Project", 'DateTime'>
   readonly isDeleted: Prisma.FieldRef<"Project", 'Boolean'>

@@ -4,7 +4,6 @@
  */
 
 import { prisma } from '~~/server/utils/prisma'
-import { createError, defineEventHandler, getRouterParam } from 'h3'
 import { getConnection } from '~~/server/utils/solana'
 import { PublicKey } from '@solana/web3.js'
 

@@ -1,9 +1,8 @@
 import { prisma } from '~~/server/utils/prisma'
 import { ok, fail } from '~~/server/utils/response'
-import { defineEventHandler, getRouterParam, setResponseStatus } from 'h3'
+import { setResponseStatus, getRouterParam } from 'h3'
 import { verifyProjectAccess } from '~~/server/utils/cnftAuth'
 import { getWalletAddress } from '~~/server/utils/projectAuthMiddleware'
-import { getActiveNetwork } from '~~/server/utils/solana'
 
 interface MenuDto {
   id: string
@@ -63,9 +62,8 @@ export default defineEventHandler(async (event) => {
     // 鉴权检查
     if (project.requireAuth) {
       const walletAddress = getWalletAddress(event)
-      const network = await getActiveNetwork()
       const authResult = await verifyProjectAccess(projectId, walletAddress, {
-        network,
+        network: 'devnet',
       })
 
       if (!authResult.hasAccess) {

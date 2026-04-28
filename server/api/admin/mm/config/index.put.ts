@@ -6,7 +6,7 @@
  */
 import { ok, fail } from '~~/server/utils/response'
 import { readSession } from '~~/server/utils/session'
-import { defineEventHandler, readBody, setResponseStatus } from 'h3'
+import { setResponseStatus, readBody } from 'h3'
 import { setConfigs, CONFIG_KEYS, type ConfigKey } from '~~/server/utils/configCache'
 import { resetFilebaseClient } from '~~/server/utils/filebase'
 

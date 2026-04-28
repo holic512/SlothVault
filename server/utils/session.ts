@@ -1,4 +1,4 @@
-import { deleteCookie, getCookie, setCookie } from 'h3'
+import {setCookie, getCookie, deleteCookie} from 'h3'
 import {prisma} from '~~/server/utils/prisma'
 import {randomBytes, createHash} from 'node:crypto'
 

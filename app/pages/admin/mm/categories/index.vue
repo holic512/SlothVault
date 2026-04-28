@@ -1,0 +1,869 @@
+<script setup lang="ts">
+import {computed, onMounted, reactive, ref, watch} from 'vue'
+import dayjs from 'dayjs'
+import {
+  ElButton,
+  ElDialog,
+  ElForm,
+  ElFormItem,
+  ElInput,
+  ElInputNumber,
+  ElMessage,
+  ElMessageBox,
+  ElOption,
+  ElPagination,
+  ElSelect,
+  ElSwitch,
+  ElTable,
+  ElTableColumn,
+  ElTag,
+} from 'element-plus'
+
+definePageMeta({
+  layout: 'admin-mm',
+})
+
+const { setPageTitle } = usePageTitle()
+
+// 设置页面标题
+setPageTitle('adminCategories')
+
+type ApiResponse<T> = {
+  code: number
+  message: string
+  data: T
+}
+
+type CategoryDto = {
+  id: string
+  projectVersionId: string
+  categoryName: string
+  weight: number
+  status: number
+  createdAt: string | Date
+  updatedAt: string | Date
+  isDeleted: boolean
+  projectVersion?: {
+    id: string
+    version: string
+    projectId: string
+    project?: {
+      id: string
+      projectName: string
+    } | null
+  } | null
+}
+
+type ProjectVersionDto = {
+  id: string
+  projectId: string
+  version: string
+  description: string | null
+  weight: number
+  status: number
+}
+
+type ProjectDto = {
+  id: string
+  projectName: string
+}
+
+type CategoryListData = {
+  list: CategoryDto[]
+  page: number
+  pageSize: number
+  total: number
+  projectVersion?: ProjectVersionDto
+}
+
+const {t} = useI18n()
+const router = useRouter()
+const route = useRoute()
+
+const loading = ref(false)
+const list = ref<CategoryDto[]>([])
+const total = ref(0)
+
+// 从路由获取项目版本ID
+const projectVersionId = computed(() => route.query.versionId as string || '')
+
+// 项目和版本选择
+const projects = ref<ProjectDto[]>([])
+const versions = ref<ProjectVersionDto[]>([])
+const selectedProjectId = ref('')
+const selectedVersionId = ref('')
+
+const filters = reactive({
+  keyword: '',
+  status: '' as '' | '1' | '0',
+  includeDeleted: false,
+})
+
+const pagination = reactive({
+  page: 1,
+  pageSize: 10,
+})
+
+const selectedRows = ref<CategoryDto[]>([])
+const selectedIds = computed(() => selectedRows.value.map((r) => r.id))
+
+const dialogOpen = ref(false)
+const dialogMode = ref<'create' | 'edit'>('create')
+const dialogSubmitting = ref(false)
+
+const formRef = ref<InstanceType<typeof ElForm> | null>(null)
+const form = reactive({
+  id: '' as string,
+  categoryName: '' as string,
+  weight: 0 as number,
+  status: 1 as number,
+})
+
+const formRules = computed(() => ({
+  categoryName: [{required: true, message: t('AdminMM.categories.validation.categoryNameRequired'), trigger: 'blur'}],
+}))
+
+function formatTime(value: string | Date) {
+  const d = typeof value === 'string' ? new Date(value) : value
+  if (Number.isNaN(d.getTime())) return '-'
+  return dayjs(d).format('YYYY-MM-DD HH:mm:ss')
+}
+
+async function apiFetch<T>(url: string, options?: any): Promise<T> {
+  const res = await $fetch<ApiResponse<T>>(url, options)
+  if (res?.code === 0) return res.data
+  if (res?.code === 401) {
+    await router.push('/admin/auth/login')
+    throw new Error('Unauthorized')
+  }
+  throw new Error(res?.message || '请求失败')
+}
+
+async function fetchProjects() {
+  try {
+    const data = await apiFetch<{list: ProjectDto[]}>('/api/admin/mm/project', {
+      method: 'GET',
+      query: {pageSize: 100},
+    })
+    projects.value = data.list
+  } catch (e: any) {
+    if (e?.message !== 'Unauthorized') {
+      ElMessage.error(t('AdminMM.categories.messages.loadProjectsFailed'))
+    }
+  }
+}
+
+async function fetchVersions(projectId: string) {
+  if (!projectId) {
+    versions.value = []
+    return
+  }
+  try {
+    const data = await apiFetch<{list: ProjectVersionDto[]}>(`/api/admin/mm/projectVersion/byProject/${projectId}`, {
+      method: 'GET',
+      query: {pageSize: 100},
+    })
+    versions.value = data.list
+  } catch (e: any) {
+    if (e?.message !== 'Unauthorized') {
+      ElMessage.error(t('AdminMM.categories.messages.loadVersionsFailed'))
+    }
+  }
+}
+
+async function fetchList() {
+  const versionId = selectedVersionId.value || projectVersionId.value
+
+  loading.value = true
+  try {
+    const query: any = {
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      keyword: filters.keyword || undefined,
+      status: filters.status || undefined,
+      includeDeleted: filters.includeDeleted ? '1' : undefined,
+      includeProjectVersion: '1',
+    }
+
+    // 如果选择了版本，使用版本过滤接口；否则查询全部
+    let url = '/api/admin/mm/category'
+    if (versionId) {
+      url = `/api/admin/mm/category/byProjectVersion/${versionId}`
+    } else if (selectedProjectId.value) {
+      // 如果只选择了项目，按项目过滤
+      query.projectId = selectedProjectId.value
+    }
+
+    const data = await apiFetch<CategoryListData>(url, {
+      method: 'GET',
+      query,
+    })
+    list.value = data.list
+    total.value = data.total
+  } catch (e: any) {
+    if (e?.message !== 'Unauthorized') {
+      ElMessage.error(e?.message || t('AdminMM.categories.messages.loadFailed'))
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+function resetFilters() {
+  filters.keyword = ''
+  filters.status = ''
+  filters.includeDeleted = false
+  pagination.page = 1
+  fetchList()
+}
+
+function openCreate() {
+  if (!selectedVersionId.value && !projectVersionId.value) {
+    ElMessage.warning(t('AdminMM.categories.messages.selectVersionFirst'))
+    return
+  }
+  dialogMode.value = 'create'
+  form.id = ''
+  form.categoryName = ''
+  form.weight = 0
+  form.status = 1
+  dialogOpen.value = true
+}
+
+function openEdit(row: CategoryDto) {
+  dialogMode.value = 'edit'
+  form.id = row.id
+  form.categoryName = row.categoryName
+  form.weight = row.weight
+  form.status = row.status
+  dialogOpen.value = true
+}
+
+async function submitForm() {
+  const elForm = formRef.value
+  if (!elForm) return
+
+  const versionId = selectedVersionId.value || projectVersionId.value
+  if (!versionId) {
+    ElMessage.warning(t('AdminMM.categories.messages.selectVersionFirst'))
+    return
+  }
+
+  try {
+    const valid = await elForm.validate().catch(() => false)
+    if (!valid) return
+
+    dialogSubmitting.value = true
+    if (dialogMode.value === 'create') {
+      await apiFetch<CategoryDto>('/api/admin/mm/category', {
+        method: 'POST',
+        body: {
+          projectVersionId: versionId,
+          categoryName: form.categoryName,
+          weight: form.weight,
+          status: form.status,
+        },
+      })
+      ElMessage.success(t('AdminMM.categories.messages.createSuccess'))
+    } else {
+      await apiFetch<CategoryDto>(`/api/admin/mm/category/${form.id}`, {
+        method: 'PUT',
+        body: {
+          categoryName: form.categoryName,
+          weight: form.weight,
+          status: form.status,
+        },
+      })
+      ElMessage.success(t('AdminMM.categories.messages.saveSuccess'))
+    }
+    dialogOpen.value = false
+    fetchList()
+  } catch (e: any) {
+    if (e?.message !== 'Unauthorized') {
+      ElMessage.error(e?.message || t('AdminMM.categories.messages.submitFailed'))
+    }
+  } finally {
+    dialogSubmitting.value = false
+  }
+}
+
+async function deleteOne(row: CategoryDto) {
+  try {
+    await ElMessageBox.confirm(t('AdminMM.categories.messages.deleteConfirm', {name: row.categoryName}), t('AdminMM.categories.messages.deleteConfirmTitle'), {
+      confirmButtonText: t('AdminMM.categories.messages.deleteButton'),
+      cancelButtonText: t('AdminMM.categories.messages.cancelButton'),
+      type: 'warning',
+    })
+    await apiFetch<CategoryDto>(`/api/admin/mm/category/${row.id}`, {method: 'DELETE'})
+    ElMessage.success(t('AdminMM.categories.messages.deleted'))
+    fetchList()
+  } catch (e: any) {
+    if (e?.message && e.message !== 'cancel' && e.message !== 'close' && e.message !== 'Unauthorized') {
+      ElMessage.error(e?.message || t('AdminMM.categories.messages.deleteFailed'))
+    }
+  }
+}
+
+async function restoreOne(row: CategoryDto) {
+  try {
+    await apiFetch<CategoryDto>(`/api/admin/mm/category/${row.id}`, {
+      method: 'PUT',
+      body: {isDeleted: false},
+    })
+    ElMessage.success(t('AdminMM.categories.messages.restored'))
+    fetchList()
+  } catch (e: any) {
+    if (e?.message !== 'Unauthorized') {
+      ElMessage.error(e?.message || t('AdminMM.categories.messages.restoreFailed'))
+    }
+  }
+}
+
+// 跳转到笔记管理页面
+function goToNotes(row: CategoryDto) {
+  router.push(`/admin/mm/notes?categoryId=${row.id}`)
+}
+
+// 监听项目选择变化
+watch(selectedProjectId, async (newVal, oldVal) => {
+  // 只有用户手动切换项目时才清空版本
+  if (oldVal) {
+    selectedVersionId.value = ''
+  }
+  if (newVal) {
+    await fetchVersions(newVal)
+  } else {
+    versions.value = []
+  }
+  // 项目变化时重新查询
+  pagination.page = 1
+  fetchList()
+})
+
+// 监听版本选择变化
+watch(selectedVersionId, (newVal) => {
+  pagination.page = 1
+  fetchList()
+})
+
+// 根据 versionId 初始化项目和版本选择器
+async function initFromVersionId(versionId: string) {
+  if (!versionId) return
+
+  loading.value = true
+  try {
+    // 先获取分类列表，同时获取版本信息
+    const data = await apiFetch<CategoryListData>(`/api/admin/mm/category/byProjectVersion/${versionId}`, {
+      method: 'GET',
+      query: {
+        page: 1,
+        pageSize: pagination.pageSize,
+        includeProjectVersionInfo: '1',
+      },
+    })
+
+    if (data.projectVersion) {
+      const pv = data.projectVersion
+      // 设置项目ID并加载版本列表
+      selectedProjectId.value = pv.projectId
+      await fetchVersions(pv.projectId)
+      // 设置版本ID
+      selectedVersionId.value = pv.id
+
+      list.value = data.list
+      total.value = data.total
+    }
+  } catch (e: any) {
+    if (e?.message !== 'Unauthorized') {
+      ElMessage.error(e?.message || t('AdminMM.categories.messages.loadFailed'))
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(async () => {
+  await fetchProjects()
+
+  // 如果URL有versionId参数，初始化选择器并加载数据
+  if (projectVersionId.value) {
+    await initFromVersionId(projectVersionId.value)
+  } else {
+    // 没有参数时，直接加载全部分类
+    await fetchList()
+  }
+})
+</script>
+
+<template>
+  <div class="page-container">
+    <!-- 页面头部 -->
+    <div class="page-header">
+      <div class="header-left">
+        <h1 class="page-title">{{ $t('AdminMM.categories.title') }}</h1>
+        <p class="page-desc">{{ $t('AdminMM.categories.desc') }}</p>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="filters">
+        <el-select
+            v-model="selectedProjectId"
+            :placeholder="$t('AdminMM.categories.filters.selectProject')"
+            clearable
+            filterable
+            class="filter-item"
+        >
+          <el-option
+              v-for="p in projects"
+              :key="p.id"
+              :label="p.projectName"
+              :value="p.id"
+          />
+        </el-select>
+
+        <el-select
+            v-model="selectedVersionId"
+            :placeholder="$t('AdminMM.categories.filters.selectVersion')"
+            clearable
+            filterable
+            class="filter-item"
+            :disabled="!selectedProjectId && !projectVersionId"
+        >
+          <el-option
+              v-for="v in versions"
+              :key="v.id"
+              :label="v.version"
+              :value="v.id"
+          />
+        </el-select>
+
+        <el-input
+            v-model="filters.keyword"
+            :placeholder="$t('AdminMM.categories.filters.keyword')"
+            clearable
+            class="filter-item"
+            @keyup.enter="pagination.page = 1; fetchList()"
+        />
+
+        <el-select v-model="filters.status" :placeholder="$t('AdminMM.categories.filters.status')" clearable class="filter-item">
+          <el-option :label="$t('AdminMM.categories.status.enabled')" value="1"/>
+          <el-option :label="$t('AdminMM.categories.status.disabled')" value="0"/>
+        </el-select>
+
+        <div class="filter-item switch-item">
+          <span class="switch-label">{{ $t('AdminMM.categories.filters.includeDeleted') }}</span>
+          <el-switch v-model="filters.includeDeleted" @change="pagination.page = 1; fetchList()"/>
+        </div>
+      </div>
+
+      <div class="actions">
+        <el-button type="primary" @click="pagination.page = 1; fetchList()">{{ $t('AdminMM.categories.actions.search') }}</el-button>
+        <el-button @click="resetFilters">{{ $t('AdminMM.categories.actions.reset') }}</el-button>
+        <el-button type="primary" plain @click="openCreate">{{ $t('AdminMM.categories.actions.create') }}</el-button>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <el-table
+          :data="list"
+          row-key="id"
+          style="width: 100%"
+          v-loading="loading"
+          @selection-change="(rows: CategoryDto[]) => (selectedRows = rows)"
+      >
+        <el-table-column type="selection" width="50"/>
+        <el-table-column prop="id" :label="$t('AdminMM.categories.table.id')" width="100"/>
+        <el-table-column prop="categoryName" :label="$t('AdminMM.categories.table.categoryName')" min-width="180"/>
+        <el-table-column :label="$t('AdminMM.categories.table.project')" min-width="150">
+          <template #default="{ row }">
+            <span>{{ row.projectVersion?.project?.projectName || '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column :label="$t('AdminMM.categories.table.version')" width="100">
+          <template #default="{ row }">
+            <el-tag v-if="row.projectVersion?.version" type="primary" size="small">{{ row.projectVersion.version }}</el-tag>
+            <span v-else class="text-subtle">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="weight" :label="$t('AdminMM.categories.table.weight')" width="90" align="center"/>
+
+        <el-table-column :label="$t('AdminMM.categories.table.status')" width="100">
+          <template #default="{ row }">
+            <el-tag v-if="row.isDeleted" type="info">{{ $t('AdminMM.categories.statusTag.deleted') }}</el-tag>
+            <el-tag v-else-if="row.status === 1" type="success">{{ $t('AdminMM.categories.statusTag.enabled') }}</el-tag>
+            <el-tag v-else type="warning">{{ $t('AdminMM.categories.statusTag.disabled') }}</el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column :label="$t('AdminMM.categories.table.createdAt')" width="170">
+          <template #default="{ row }">{{ formatTime(row.createdAt) }}</template>
+        </el-table-column>
+
+        <el-table-column :label="$t('AdminMM.categories.table.updatedAt')" width="170">
+          <template #default="{ row }">{{ formatTime(row.updatedAt) }}</template>
+        </el-table-column>
+
+        <el-table-column :label="$t('AdminMM.categories.table.operations')" width="260" fixed="right">
+          <template #default="{ row }">
+            <el-button size="small" @click="goToNotes(row)" :disabled="row.isDeleted">{{ $t('AdminMM.categories.operations.noteManage') }}</el-button>
+            <el-button size="small" @click="openEdit(row)" :disabled="row.isDeleted">{{ $t('AdminMM.categories.operations.edit') }}</el-button>
+            <el-button size="small" type="danger" @click="deleteOne(row)" :disabled="row.isDeleted">{{ $t('AdminMM.categories.operations.delete') }}</el-button>
+            <el-button size="small" @click="restoreOne(row)" v-if="row.isDeleted">{{ $t('AdminMM.categories.operations.restore') }}</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <div class="pagination">
+        <el-pagination
+            v-model:current-page="pagination.page"
+            v-model:page-size="pagination.pageSize"
+            :page-sizes="[10, 20, 50, 100]"
+            layout="total, sizes, prev, pager, next, jumper"
+            :total="total"
+            @size-change="() => { pagination.page = 1; fetchList() }"
+            @current-change="() => fetchList()"
+        />
+      </div>
+    </div>
+
+    <el-dialog
+        v-model="dialogOpen"
+        :title="dialogMode === 'create' ? $t('AdminMM.categories.dialog.createTitle') : $t('AdminMM.categories.dialog.editTitle')"
+        width="480px"
+        :close-on-click-modal="false"
+    >
+      <el-form ref="formRef" :model="form" :rules="formRules" label-width="90px">
+        <el-form-item :label="$t('AdminMM.categories.dialog.categoryName')" prop="categoryName">
+          <el-input v-model="form.categoryName" maxlength="64" show-word-limit/>
+        </el-form-item>
+
+        <el-form-item :label="$t('AdminMM.categories.dialog.weight')" prop="weight">
+          <el-input-number v-model="form.weight" :min="0" :max="999999" style="width: 100%"/>
+        </el-form-item>
+
+        <el-form-item :label="$t('AdminMM.categories.dialog.status')" prop="status">
+          <el-select v-model="form.status" style="width: 100%">
+            <el-option :label="$t('AdminMM.categories.status.enabled')" :value="1"/>
+            <el-option :label="$t('AdminMM.categories.status.disabled')" :value="0"/>
+          </el-select>
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="dialogOpen = false">{{ $t('AdminMM.categories.dialog.cancel') }}</el-button>
+        <el-button type="primary" :loading="dialogSubmitting" @click="submitForm">{{ $t('AdminMM.categories.dialog.save') }}</el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+
+<style scoped>
+.page-container {
+  --sloth-radius: 4px;
+}
+
+/* 页面头部卡片 */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  padding: 12px;
+  background: var(--sloth-card);
+  border: 1px solid var(--sloth-card-border);
+  border-radius: var(--sloth-radius);
+  backdrop-filter: blur(var(--sloth-blur));
+}
+
+.page-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--sloth-text);
+  margin: 0 0 4px;
+}
+
+.page-desc {
+  font-size: 13px;
+  color: var(--sloth-text-subtle);
+  margin: 0;
+}
+
+.toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 12px;
+  background: var(--sloth-card);
+  border: 1px solid var(--sloth-card-border);
+  border-radius: var(--sloth-radius);
+  backdrop-filter: blur(var(--sloth-blur));
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 130px 180px;
+  gap: 8px;
+}
+
+.filter-item {
+  width: 100%;
+}
+
+.switch-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.switch-label {
+  color: var(--sloth-text-subtle);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.table-card {
+  padding: 12px;
+  background: var(--sloth-card);
+  border: 1px solid var(--sloth-card-border);
+  border-radius: var(--sloth-radius);
+  backdrop-filter: blur(var(--sloth-blur));
+}
+
+.pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.text-subtle {
+  color: var(--sloth-text-subtle);
+}
+
+:deep(.el-input__wrapper) {
+  padding: 0 8px;
+  background-color: var(--sloth-bg);
+  box-shadow: 0 0 0 1px var(--sloth-card-border) inset;
+}
+
+:deep(.el-input__wrapper:hover) {
+  box-shadow: 0 0 0 1px var(--sloth-primary) inset;
+}
+
+:deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px var(--sloth-primary) inset;
+}
+
+:deep(.el-input__inner) {
+  height: 30px;
+  line-height: 30px;
+  font-size: 13px;
+  color: var(--sloth-text);
+}
+
+:deep(.el-input__inner::placeholder) {
+  color: var(--sloth-text-subtle);
+}
+
+:deep(.el-select) {
+  --el-select-input-font-size: 13px;
+}
+
+:deep(.el-select .el-select__wrapper) {
+  background-color: var(--sloth-bg);
+  box-shadow: 0 0 0 1px var(--sloth-card-border) inset;
+}
+
+:deep(.el-select .el-select__wrapper:hover) {
+  box-shadow: 0 0 0 1px var(--sloth-primary) inset;
+}
+
+:deep(.el-switch.is-checked .el-switch__core) {
+  background-color: var(--sloth-primary);
+  border-color: var(--sloth-primary);
+}
+
+:deep(.el-button) {
+  padding: 6px 12px;
+  font-size: 13px;
+  height: 30px;
+}
+
+:deep(.el-button--primary) {
+  --el-button-bg-color: var(--sloth-primary);
+  --el-button-border-color: var(--sloth-primary);
+  --el-button-hover-bg-color: var(--sloth-primary-hover);
+  --el-button-hover-border-color: var(--sloth-primary-hover);
+}
+
+:deep(.el-button--primary.is-plain) {
+  --el-button-bg-color: var(--sloth-primary-dim);
+  --el-button-text-color: var(--sloth-primary);
+  --el-button-border-color: var(--sloth-primary);
+  --el-button-hover-bg-color: var(--sloth-primary);
+  --el-button-hover-text-color: #fff;
+}
+
+:deep(.el-button--default) {
+  --el-button-bg-color: var(--sloth-bg);
+  --el-button-text-color: var(--sloth-text);
+  --el-button-border-color: var(--sloth-card-border);
+  --el-button-hover-bg-color: var(--sloth-bg-hover);
+  --el-button-hover-text-color: var(--sloth-primary);
+  --el-button-hover-border-color: var(--sloth-primary);
+}
+
+:deep(.el-button--small) {
+  padding: 4px 8px;
+  font-size: 12px;
+  height: 26px;
+}
+
+:deep(.el-table) {
+  --el-table-bg-color: var(--sloth-card, #ffffff);
+  --el-table-tr-bg-color: var(--sloth-card, #ffffff);
+  --el-table-header-bg-color: var(--sloth-bg-hover, #f3f4f6);
+  --el-table-header-text-color: var(--sloth-text);
+  --el-table-text-color: var(--sloth-text);
+  --el-table-border-color: var(--sloth-card-border);
+  --el-table-row-hover-bg-color: var(--sloth-bg-hover, #f3f4f6);
+  font-size: 13px;
+  background-color: var(--sloth-card, #ffffff);
+}
+
+:deep(.el-table__inner-wrapper) {
+  background-color: var(--sloth-card, #ffffff);
+}
+
+:deep(.el-table th.el-table__cell) {
+  padding: 8px 0;
+  font-size: 13px;
+  font-weight: 600;
+  background-color: var(--sloth-bg-hover, #f3f4f6);
+}
+
+:deep(.el-table td.el-table__cell) {
+  padding: 6px 0;
+  background-color: var(--sloth-card, #ffffff);
+}
+
+:deep(.el-table--enable-row-hover .el-table__body tr:hover > td.el-table__cell) {
+  background-color: var(--sloth-bg-hover, #f3f4f6);
+}
+
+:deep(.el-table__fixed-right) {
+  background-color: var(--sloth-card, #ffffff);
+}
+
+:deep(.el-table__fixed-right .el-table__cell) {
+  background-color: var(--sloth-card, #ffffff);
+}
+
+:deep(.el-table__fixed-right-patch) {
+  background-color: var(--sloth-bg-hover, #f3f4f6);
+}
+
+:deep(.el-tag) {
+  padding: 0 6px;
+  height: 22px;
+  line-height: 22px;
+  font-size: 12px;
+}
+
+:deep(.el-tag--success) {
+  --el-tag-bg-color: rgba(16, 185, 129, 0.1);
+  --el-tag-border-color: rgba(16, 185, 129, 0.2);
+  --el-tag-text-color: #10b981;
+}
+
+:deep(.el-tag--warning) {
+  --el-tag-bg-color: rgba(245, 158, 11, 0.1);
+  --el-tag-border-color: rgba(245, 158, 11, 0.2);
+  --el-tag-text-color: #f59e0b;
+}
+
+:deep(.el-tag--info) {
+  --el-tag-bg-color: var(--sloth-bg-hover);
+  --el-tag-border-color: var(--sloth-card-border);
+  --el-tag-text-color: var(--sloth-text-subtle);
+}
+
+:deep(.el-tag--primary) {
+  --el-tag-bg-color: rgba(59, 130, 246, 0.1);
+  --el-tag-border-color: rgba(59, 130, 246, 0.2);
+  --el-tag-text-color: #3b82f6;
+}
+
+:deep(.el-pagination) {
+  --el-pagination-font-size: 13px;
+  --el-pagination-button-height: 28px;
+  --el-pagination-bg-color: var(--sloth-bg);
+  --el-pagination-text-color: var(--sloth-text);
+  --el-pagination-button-color: var(--sloth-text);
+  --el-pagination-hover-color: var(--sloth-primary);
+}
+
+:deep(.el-dialog) {
+  --el-dialog-bg-color: var(--sloth-card);
+  --el-dialog-padding-primary: 16px;
+  border: 1px solid var(--sloth-card-border);
+  backdrop-filter: blur(var(--sloth-blur));
+}
+
+:deep(.el-dialog__header) {
+  padding: 12px 16px;
+  margin-right: 0;
+  border-bottom: 1px solid var(--sloth-card-border);
+}
+
+:deep(.el-dialog__title) {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--sloth-text);
+}
+
+:deep(.el-dialog__body) {
+  padding: 16px;
+}
+
+:deep(.el-dialog__footer) {
+  padding: 10px 16px;
+  border-top: 1px solid var(--sloth-card-border);
+}
+
+:deep(.el-form-item) {
+  margin-bottom: 14px;
+}
+
+:deep(.el-form-item__label) {
+  font-size: 13px;
+  padding-right: 8px;
+  color: var(--sloth-text);
+}
+
+@media (max-width: 1100px) {
+  .filters {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .filters {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .filters {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

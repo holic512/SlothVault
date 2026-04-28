@@ -16,12 +16,12 @@ import { fileURLToPath } from 'node:url'
 globalThis['__dirname'] = path.dirname(fileURLToPath(import.meta.url))
 
 import * as runtime from "@prisma/client/runtime/client"
-import * as $Enums from "./enums"
-import * as $Class from "./internal/class"
-import * as Prisma from "./internal/prismaNamespace"
+import * as $Enums from "./enums.js"
+import * as $Class from "./internal/class.js"
+import * as Prisma from "./internal/prismaNamespace.js"
 
-export * as $Enums from './enums'
-export * from "./enums"
+export * as $Enums from './enums.js'
+export * from "./enums.js"
 /**
  * ## Prisma Client
  * 
@@ -109,8 +109,3 @@ export type MerkleTree = Prisma.MerkleTreeModel
  * 压缩 NFT 表：存储 cNFT 元数据，关联项目用于鉴权（schema: public）
  */
 export type CompressedNft = Prisma.CompressedNftModel
-/**
- * Model ProjectPurchaseRecord
- * 项目购买记录：记录项目级 SOL 购买与 cNFT 发放流程（schema: public）
- */
-export type ProjectPurchaseRecord = Prisma.ProjectPurchaseRecordModel

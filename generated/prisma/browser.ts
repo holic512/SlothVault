@@ -13,10 +13,10 @@
  * 🟢 You can import this file directly.
  */
 
-import * as Prisma from './internal/prismaNamespaceBrowser'
+import * as Prisma from './internal/prismaNamespaceBrowser.js'
 export { Prisma }
-export * as $Enums from './enums'
-export * from './enums';
+export * as $Enums from './enums.js'
+export * from './enums.js';
 /**
  * Model Session
  * 会话表：存储用户会话令牌、过期时间、撤销时间等（schema: auth）
@@ -87,8 +87,3 @@ export type MerkleTree = Prisma.MerkleTreeModel
  * 压缩 NFT 表：存储 cNFT 元数据，关联项目用于鉴权（schema: public）
  */
 export type CompressedNft = Prisma.CompressedNftModel
-/**
- * Model ProjectPurchaseRecord
- * 项目购买记录：记录项目级 SOL 购买与 cNFT 发放流程（schema: public）
- */
-export type ProjectPurchaseRecord = Prisma.ProjectPurchaseRecordModel

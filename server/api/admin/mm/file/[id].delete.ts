@@ -1,7 +1,7 @@
 import { softDeleteFile, hardDeleteFile } from '~~/server/utils/file'
 import { ok, fail } from '~~/server/utils/response'
 import { readSession } from '~~/server/utils/session'
-import { defineEventHandler, getQuery, getRouterParam, setResponseStatus } from 'h3'
+import { getRouterParam, getQuery, setResponseStatus } from 'h3'
 
 function toBool(value: unknown) {
   if (typeof value === 'boolean') return value

@@ -1,5 +1,3 @@
-import { createError } from 'h3'
-
 /**
  * Solana 相关错误码和错误处理工具
  * 

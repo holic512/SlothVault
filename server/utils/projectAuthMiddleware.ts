@@ -9,7 +9,6 @@ import { H3Event, getQuery, getRouterParam, setResponseStatus } from 'h3'
 import { verifyProjectAccess, createAuthError } from './cnftAuth'
 import { prisma } from './prisma'
 import { fail } from './response'
-import { getActiveNetwork } from './solana'
 
 /**
  * 从请求中提取钱包地址
@@ -43,11 +42,10 @@ export async function requireProjectAccess(
   projectId: bigint
 ): Promise<{ hasAccess: true; walletAddress: string | null }> {
   const walletAddress = getWalletAddress(event)
-  const network = await getActiveNetwork()
 
   const result = await verifyProjectAccess(projectId, walletAddress, {
     skipChainVerify: false,
-    network,
+    network: 'devnet',
   })
 
   if (!result.hasAccess) {
@@ -110,10 +108,9 @@ export function withProjectAuth<T>(
 
     // 验证访问权限
     const walletAddress = getWalletAddress(event)
-    const network = await getActiveNetwork()
     const result = await verifyProjectAccess(projectId, walletAddress, {
       skipChainVerify: false,
-      network,
+      network: 'devnet',
     })
 
     if (!result.hasAccess) {

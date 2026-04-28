@@ -1,5 +1,4 @@
 import { LAMPORTS_PER_SOL } from '@solana/web3.js'
-import { defineEventHandler, readBody } from 'h3'
 import { calculateTreeSpace, getConnection, type SolanaNetwork } from '~~/server/utils/solana'
 
 // cNFT (压缩 NFT) Merkle Tree 配置预设

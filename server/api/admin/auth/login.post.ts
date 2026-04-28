@@ -2,7 +2,7 @@ import {prisma} from '~~/server/utils/prisma'
 import {ok, fail} from '~~/server/utils/response'
 import {verifyPassword} from '~~/server/utils/password'
 import {createSession} from '~~/server/utils/session'
-import { defineEventHandler, readBody, setResponseStatus } from 'h3'
+import {setResponseStatus, readBody} from 'h3'
 
 export default defineEventHandler(async (event) => {
     const body = await readBody<{ username: string; password: string; remember?: boolean }>(event)
