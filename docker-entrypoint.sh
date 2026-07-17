@@ -48,7 +48,9 @@ else
     log_info "Using DB_HOST/DB_PORT/DB_NAME/DB_USER for PostgreSQL connection"
 fi
 
-mkdir -p /app/public/uploads
+UPLOAD_STORAGE_PATH="${UPLOAD_STORAGE_PATH:-/app/data/uploads}"
+export UPLOAD_STORAGE_PATH
+mkdir -p "$UPLOAD_STORAGE_PATH"
 
 DB_WAIT_TIMEOUT="${DB_WAIT_TIMEOUT:-60}"
 elapsed=0
@@ -68,7 +70,7 @@ log_info "Running database migrations..."
 cd /app
 if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations)" ]; then
     log_info "Found migrations directory, applying migrations..."
-    if npx prisma migrate deploy; then
+    if ./node_modules/.bin/prisma migrate deploy; then
         log_info "Migrations applied successfully"
     else
         log_error "Migration failed!"
@@ -87,4 +89,4 @@ log_info "Access at: http://localhost:${PORT}"
 log_info "Admin panel: http://localhost:${PORT}/admin"
 log_info "=========================================="
 
-exec node .output/server/index.mjs
+exec node server.js

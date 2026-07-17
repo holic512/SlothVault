@@ -6,6 +6,12 @@
 .cache
 dist
 
+# Next.js dev/build outputs
+.next
+out
+coverage
+*.tsbuildinfo
+
 # Node dependencies
 node_modules
 
@@ -28,6 +34,8 @@ logs
 
 # Uploaded files
 public/uploads
+data/uploads
+data/uploads-legacy-nuxt
 
 # Docker local persistent data
 docker-data/

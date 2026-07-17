@@ -1,5 +1,7 @@
 # Solana CJS 依赖问题解决方案
 
+> Legacy only：本文记录 Nuxt/Nitro 时期的历史兼容方案。当前 Next.js 实现直接使用 ESM 依赖，运行入口为 `src/` 与 `server.js`，不再执行 `scripts/postbuild.mjs`，也不依赖 `.output`。请勿把本文步骤重新接入当前构建链。
+
 ## 问题描述
 
 在 Docker 生产环境中运行时出现错误：

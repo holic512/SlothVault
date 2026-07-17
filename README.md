@@ -1,669 +1,231 @@
 <div align="center">
+  <img src="public/logo.png" alt="SlothVault logo" width="150" />
 
-# 🦥 SlothVault
+# SlothVault
 
-**基于区块链的下一代文档管理系统**
+基于 Next.js、PostgreSQL 与 Solana cNFT 的多项目 Markdown 文档系统。
 
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/r/holic512/slothvault)
-[![Nuxt](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt.js&logoColor=white)](https://nuxt.com)
-[![Solana](https://img.shields.io/badge/Solana-Integrated-14F195?logo=solana&logoColor=white)](https://solana.com)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-
-[English](README_EN.md) | 简体中文
+[![Next.js 16](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
+[![React 19](https://img.shields.io/badge/React-19-149ECA?logo=react)](https://react.dev/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Solana](https://img.shields.io/badge/Solana-cNFT-14F195?logo=solana&logoColor=black)](https://solana.com/)
 
 </div>
 
----
+当前运行版本已从 Nuxt/Vue 迁移到 Next.js 16 App Router 与 React 19。系统提供公开文档站、单管理员后台、版本化 Markdown 内容、受控文件存储、备份恢复，以及可选的 Solana cNFT 项目访问凭证。
 
-## 📖 项目简介
+## 快速开始
 
-**SlothVault** 是一个创新的文档管理系统，将传统的内容管理与 Solana 区块链技术深度融合。通过 **压缩 NFT (cNFT)** 技术，实现了低成本、高效率的文档版权保护和访问权限管理。
+### Docker Compose
 
-### 🎯 核心特性
+仓库中的 Compose 配置会构建当前工作区，并启动 PostgreSQL 16 与 Next.js standalone 应用。
 
-#### 📚 强大的文档管理
-- **多项目管理** - 支持创建和管理多个独立项目
-- **版本控制** - 每个项目支持多个版本，灵活管理文档迭代
-- **分类系统** - 树形分类结构，支持无限层级
-- **Markdown 编辑** - 内置强大的 Markdown 编辑器，支持实时预览
-- **自定义主题** - 动态主题系统，支持深色/浅色模式和多种配色方案
-
-#### 🔐 区块链权限管理
-- **cNFT 访问控制** - 基于 Solana 压缩 NFT 的文档访问权限
-- **低成本铸造** - 利用 Merkle Tree 压缩技术，铸造成本低至 0.0001 SOL
-- **自动验证** - 智能合约自动验证用户持有的 cNFT，无需人工审核
-- **链上+链下混合验证** - 本地数据库缓存 + DAS API 链上验证，性能与安全兼顾
-
-#### 🎨 现代化用户体验
-- **响应式设计** - 完美适配桌面、平板和移动设备
-- **国际化支持** - 内置中英文双语，易于扩展更多语言
-- **SSR 渲染** - 前台页面服务端渲染，SEO 友好
-- **实时搜索** - 快速搜索文档、分类和项目
-
-#### 🛠️ 完善的管理后台
-- **项目管理** - 创建、编辑、删除项目，配置访问权限
-- **文档编辑** - 富文本 Markdown 编辑器，支持图片上传
-- **文件管理** - 统一的文件管理系统，支持 IPFS 存储
-- **Solana 管理** - 可视化管理 Merkle Tree 和 cNFT
-- **系统配置** - 灵活的系统配置，支持多网络切换
-- **备份恢复** - 一键备份和恢复所有数据
-
----
-
-## 🚀 快速开始
-
-### Docker 部署（推荐）
-
-SlothVault 镜像现在只包含应用本身，数据库使用独立 PostgreSQL。你可以选择 Docker Compose 一次启动完整环境，或者用 `docker run` / `docker create` 连接已有 PostgreSQL。
-
-#### 方式一：Docker Compose（推荐）
-
-Compose 会创建两个容器：`postgres` 数据库和 `slothvault` 应用，并把持久化数据映射到本地目录。
+复制后编辑 `.env.docker`，至少替换 `DB_PASSWORD` 和 `ENCRYPTION_KEY`：
 
 ```bash
-# 克隆仓库
-git clone https://github.com/yourusername/slothvault.git
-cd slothvault
-
-# 创建并编辑 Docker 环境变量
 cp .env.docker.example .env.docker
-# 修改 .env.docker 中的 DB_PASSWORD 和 ENCRYPTION_KEY
-
-# 启动服务
-docker compose --env-file .env.docker up -d
+docker compose --env-file .env.docker up -d --build
 ```
 
-访问 `http://localhost:3000` 即可使用：
+打开：
 
-- 管理后台：`http://localhost:3000/admin`
-- 首次访问会引导创建管理员账号
-- PostgreSQL 数据默认保存在本地 `./docker-data/postgres`
-- Nuxt 上传文件默认保存在容器内 `/app/public/uploads`，并映射到本地 `./docker-data/uploads`
+- 站点：`http://localhost:3000`
+- 管理入口：`http://localhost:3000/admin`
+- 首次使用：按页面引导创建管理员账号
 
-`ENCRYPTION_KEY` 必须长期保存。更换它会导致已加密的 Solana 私钥无法解密。
+默认持久化目录：
 
-#### 方式二：连接已有 PostgreSQL
+- PostgreSQL：`./docker-data/postgres`
+- 上传文件：`./docker-data/uploads` → 容器 `/app/data/uploads`
 
-```bash
-mkdir -p docker-data/uploads
+`ENCRYPTION_KEY` 必须稳定保存。更换后，数据库中已有的 Solana Tree Authority 私钥将无法解密。
 
-docker run -d \
-  --name slothvault \
-  -p 3000:3000 \
-  -e ENCRYPTION_KEY="your-stable-random-secret" \
-  -e DB_HOST="your-postgres-host" \
-  -e DB_PORT="5432" \
-  -e DB_NAME="slothvault" \
-  -e DB_USER="slothvault" \
-  -e DB_PASSWORD="your-database-password" \
-  -v "$(pwd)/docker-data/uploads:/app/public/uploads" \
-  holic512/slothvault:latest
-```
+### 本地开发
 
-如果你的数据库密码包含 URL 特殊字符，建议直接传入完整连接串：
+要求：Node.js `>=22.12`、npm 11、PostgreSQL。
 
-```bash
-mkdir -p docker-data/uploads
-
-docker run -d \
-  --name slothvault \
-  -p 3000:3000 \
-  -e ENCRYPTION_KEY="your-stable-random-secret" \
-  -e DATABASE_URL="postgresql://user:password@host:5432/slothvault" \
-  -v "$(pwd)/docker-data/uploads:/app/public/uploads" \
-  holic512/slothvault:latest
-```
-
-也可以先创建再启动容器：
-
-```bash
-mkdir -p docker-data/uploads
-
-docker create \
-  --name slothvault \
-  -p 3000:3000 \
-  -e ENCRYPTION_KEY="your-stable-random-secret" \
-  -e DB_HOST="your-postgres-host" \
-  -e DB_PORT="5432" \
-  -e DB_NAME="slothvault" \
-  -e DB_USER="slothvault" \
-  -e DB_PASSWORD="your-database-password" \
-  -v "$(pwd)/docker-data/uploads:/app/public/uploads" \
-  holic512/slothvault:latest
-
-docker start slothvault
-```
-
-**Docker 环境变量：**
-
-- `ENCRYPTION_KEY`: 必填，稳定保存的加密密钥
-- `DATABASE_URL`: 可选，完整 PostgreSQL 连接串，优先级最高
-- `DB_HOST`: 未设置 `DATABASE_URL` 时必填，数据库地址
-- `DB_PORT`: 可选，默认 `5432`
-- `DB_NAME`: 可选，默认 `slothvault`
-- `DB_USER`: 可选，默认 `slothvault`
-- `DB_PASSWORD`: 未设置 `DATABASE_URL` 时必填，数据库密码
-- `DB_WAIT_TIMEOUT`: 可选，等待数据库就绪的秒数，默认 `60`
-- `POSTGRES_DATA_DIR`: Compose 使用，本地 PostgreSQL 数据目录，默认 `./docker-data/postgres`
-- `UPLOADS_DIR`: Compose 使用，本地上传文件目录，默认 `./docker-data/uploads`
-
----
-
-## 💡 使用场景
-
-### 📖 技术文档管理
-- 企业内部技术文档库
-- 开源项目文档站点
-- API 文档和开发指南
-
-### 🎓 在线课程平台
-- 付费课程内容管理
-- 基于 cNFT 的课程访问权限
-- 学员证书 NFT 发放
-
-### 📰 付费内容订阅
-- 会员专属文章
-- 研究报告和白皮书
-- 付费电子书和教程
-
-### 🏢 企业知识库
-- 内部培训资料
-- 产品文档和手册
-- 团队协作文档
-
----
-
-## 🏗️ 技术架构
-
-### 核心技术栈
-
-```
-前端框架：Nuxt 4 + Vue 3 + TypeScript
-UI 组件：Element Plus
-状态管理：Pinia
-数据库：PostgreSQL + Prisma ORM
-区块链：Solana + SPL Account Compression
-存储：Filebase (IPFS)
-国际化：@nuxtjs/i18n
-```
-
-### 系统架构
-
-```
-┌─────────────────────────────────────────────────────┐
-│                   用户界面层                          │
-│  ┌──────────────┐  ┌──────────────┐                 │
-│  │  前台展示页   │  │  管理后台    │                 │
-│  │  (SSR)       │  │  (CSR)       │                 │
-│  └──────────────┘  └──────────────┘                 │
-└─────────────────────────────────────────────────────┘
-                        │
-┌─────────────────────────────────────────────────────┐
-│                   应用服务层                          │
-│  ┌──────────────┐  ┌──────────────┐                 │
-│  │  Nuxt Server │  │  API Routes  │                 │
-│  └──────────────┘  └──────────────┘                 │
-└─────────────────────────────────────────────────────┘
-                        │
-        ┌───────────────┼───────────────┐
-        │               │               │
-┌───────▼──────┐ ┌─────▼──────┐ ┌─────▼──────┐
-│  PostgreSQL  │ │   Solana   │ │  Filebase  │
-│   数据库     │ │   区块链   │ │   IPFS     │
-└──────────────┘ └────────────┘ └────────────┘
-```
-
-### 数据库设计
-
-采用多 Schema 架构，逻辑清晰，易于维护：
-
-- **auth** - 用户认证和会话管理
-- **collections** - 项目、版本、分类管理
-- **docs** - 文档内容存储
-- **public** - 文件、配置、区块链数据
-
----
-
-## 🔐 区块链集成
-
-### Solana cNFT 技术
-
-SlothVault 使用 Solana 的 **压缩 NFT (cNFT)** 技术实现文档访问权限管理：
-
-#### 什么是 cNFT？
-
-压缩 NFT 是 Solana 上的一种创新技术，通过 Merkle Tree 和状态压缩，将 NFT 数据存储成本降低 **1000 倍以上**。
-
-**传统 NFT vs cNFT：**
-- 传统 NFT：每个 NFT 约 0.012 SOL（~$2）
-- cNFT：每个 cNFT 约 0.0001 SOL（~$0.02）
-
-#### 工作原理
-
-1. **创建 Merkle Tree** - 管理员创建一个 Merkle Tree 用于存储 cNFT
-2. **铸造 cNFT** - 为文档项目铸造 cNFT，关联访问权限
-3. **分发 cNFT** - 将 cNFT 转移给用户（购买、赠送等）
-4. **验证访问** - 用户连接钱包，系统自动验证持有的 cNFT
-5. **授予权限** - 验证通过后，用户可访问对应的文档项目
-
-#### 技术优势
-
-- ✅ **低成本** - 铸造成本降低 1000 倍
-- ✅ **高性能** - 支持大规模铸造和验证
-- ✅ **去中心化** - 权限数据存储在区块链上
-- ✅ **可转移** - cNFT 可以自由转移和交易
-- ✅ **可编程** - 支持自定义权限逻辑
-
----
-
-## 📦 本地开发
-
-### 环境要求
-
-- Node.js 20+
-- PostgreSQL 14+
-- npm 9+
-
-### 安装步骤
-
-1. **克隆仓库**
-
-```bash
-git clone https://github.com/yourusername/slothvault.git
-cd slothvault
-```
-
-2. **安装依赖**
-
-```bash
-npm install
-```
-
-3. **配置环境变量**
-
-创建 `.env` 文件：
+先创建 `.env`，因为 `npm ci` 的 `postinstall` 会生成 Prisma Client：
 
 ```env
-# 数据库配置
-DATABASE_URL="postgresql://postgres:password@localhost:5432/slothvault"
-
-# 加密密钥（64+ 字符）
-ENCRYPTION_KEY="your-64-character-encryption-key-here"
-
-# Solana 配置（可选）
-SOLANA_RPC_URL="https://api.mainnet-beta.solana.com"
-SOLANA_DEVNET_RPC_URL="https://api.devnet.solana.com"
-
-# Filebase 配置（可选）
-FILEBASE_ACCESS_KEY="your-filebase-access-key"
-FILEBASE_SECRET_KEY="your-filebase-secret-key"
+DATABASE_URL="postgresql://user:password@127.0.0.1:5432/slothvault"
+ENCRYPTION_KEY="replace-with-a-long-stable-random-secret"
+UPLOAD_STORAGE_PATH="./data/uploads"
 ```
 
-4. **初始化数据库**
+然后执行：
 
 ```bash
-# 运行迁移
-npx prisma migrate dev
-
-# 生成 Prisma Client
-npx prisma generate
-```
-
-5. **启动开发服务器**
-
-```bash
+npm ci
+npx prisma migrate deploy
 npm run dev
 ```
 
-访问 `http://localhost:3000`
-
----
-
-## 🎨 主题定制
-
-SlothVault 提供了强大的主题系统，支持在 Markdown 内容中使用自定义样式类。
-
-### 可用样式类
-
-#### 文字颜色
-- `sloth-text` - 主文字颜色
-- `sloth-text-primary` - 主题色文字
-- `sloth-text-gradient` - 渐变文字
-
-#### 组件样式
-- `sloth-card` - 卡片容器
-- `sloth-btn sloth-btn-primary` - 主要按钮
-- `sloth-badge-primary` - 主题色徽章
-
-#### 布局工具
-- `sloth-grid` - 响应式网格
-- `sloth-flex` - Flex 容器
-- `sloth-gap-4` - 间距
-
-### 示例
-
-```html
-<div class="sloth-card">
-  <h3 class="sloth-text-gradient">标题</h3>
-  <p class="sloth-text-subtle">描述文字</p>
-</div>
-```
-
-完整样式指南请参考文档末尾的 [Markdown 样式指南](#markdown-动态主题样式指南)。
-
----
-
-## 🔧 配置说明
-
-### Solana 配置
-
-在管理后台 **系统设置** 中配置：
-
-- **RPC URL** - Solana RPC 节点地址
-- **网络选择** - Mainnet / Devnet
-- **DAS API** - 用于 cNFT 验证的 API 端点
-
-### Filebase 配置
-
-Filebase 是 S3 兼容的 IPFS 存储服务：
-
-1. 注册 [Filebase](https://filebase.com) 账号
-2. 创建 Access Key 和 Secret Key
-3. 在系统设置中配置密钥
-
----
-
-## 📚 API 文档
-
-### 认证 API
-
-```
-POST /api/admin/auth/login       # 登录
-POST /api/admin/auth/init        # 初始化（创建首个用户）
-GET  /api/admin/auth/check       # 检查认证状态
-```
-
-### 项目管理 API
-
-```
-GET    /api/admin/mm/project           # 项目列表
-POST   /api/admin/mm/project           # 创建项目
-GET    /api/admin/mm/project/[id]      # 项目详情
-PUT    /api/admin/mm/project/[id]      # 更新项目
-DELETE /api/admin/mm/project/[id]      # 删除项目
-```
-
-### Solana API
-
-```
-GET    /api/admin/solana/tree          # Merkle Tree 列表
-POST   /api/admin/solana/tree/prepare  # 准备创建 Tree
-POST   /api/admin/solana/tree/submit   # 提交创建 Tree
-GET    /api/admin/solana/cnft          # cNFT 列表
-POST   /api/admin/solana/cnft/prepare  # 准备铸造 cNFT
-POST   /api/admin/solana/cnft/submit   # 提交铸造 cNFT
-```
-
-### 前台 API
-
-```
-GET  /api/project/list                 # 项目列表
-GET  /api/project/[id]                 # 项目详情
-POST /api/project/[id]/verify-access   # 验证访问权限
-```
-
----
-
-## 🚢 部署指南
-
-### Docker 部署
-
-推荐使用 Docker Compose 部署，它会同时启动 PostgreSQL 和 SlothVault：
+生产构建：
 
 ```bash
-cp .env.docker.example .env.docker
-docker compose --env-file .env.docker up -d
+npm run typecheck
+npm run lint
+npm run build
+npm start
 ```
 
-默认情况下，数据库文件会保存在本地 `./docker-data/postgres`，Nuxt 上传文件会保存在本地 `./docker-data/uploads`。
+## 功能
 
-如果你已经有 PostgreSQL，可以使用 `docker run` 并传入 `DATABASE_URL` 或 `DB_HOST` / `DB_USER` / `DB_PASSWORD` 等数据库配置。
+- 多项目文档：项目、版本、分类、笔记与多内容版本。
+- Markdown：管理端编辑、3 秒自动保存、前台安全渲染与目录导航。
+- 项目展示：首页 Markdown、两级项目菜单、版本切换和响应式阅读页面。
+- 管理后台：项目、版本、分类、笔记、文件、首页、菜单与系统配置管理。
+- 文件存储：文件位于非公开目录，通过受控 `/uploads/[...path]` 路由读取。
+- 主题与语言：浅色/深色主题，中英文界面。
+- 管理会话：HttpOnly Cookie、数据库会话、过期与撤销支持。
+- 项目访问：短期 Ed25519 钱包签名证明，本地 cNFT 记录与可选 DAS 链上复核。
+- Solana 管理：devnet/mainnet、Merkle Tree 估算/创建/验证、cNFT prepare/sign/submit。
+- 备份恢复：数据库 JSON、上传 ZIP、严格导入校验、staging/rollback 与系统重置。
 
-### 传统部署
+## 技术栈
 
-1. 安装 Node.js 20+ 和 PostgreSQL 14+
-2. 克隆代码并安装依赖
-3. 配置环境变量
-4. 运行数据库迁移
-5. 构建生产版本：`npm run build`
-6. 启动服务：`node .output/server/index.mjs`
+| 层 | 实现 |
+| --- | --- |
+| Web | Next.js 16 App Router、React 19、TypeScript 5.9 |
+| UI | Ant Design 6、Lucide React、CSS variables |
+| 数据获取 | TanStack Query 5 |
+| 客户端状态 | Zustand 5、next-themes |
+| 国际化 | next-intl 4 |
+| Markdown | `@uiw/react-md-editor`、react-markdown、remark/rehype |
+| 数据库 | PostgreSQL、Prisma 7、`@prisma/adapter-pg` |
+| 认证 | Argon2、数据库会话、Ed25519 钱包证明 |
+| Solana | `@solana/web3.js` 1.98、SPL Account Compression 0.1.10、Wallet Adapter |
+| 对象存储 | 本地受控上传目录；可选 Filebase S3/IPFS 元数据 |
+| 部署 | Next standalone、Docker、Docker Compose |
 
-### 反向代理配置
+## 架构
 
-使用 Nginx 配置 HTTPS：
-
-```nginx
-server {
-    listen 443 ssl http2;
-    server_name your-domain.com;
-
-    ssl_certificate /path/to/cert.pem;
-    ssl_certificate_key /path/to/key.pem;
-
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
+```mermaid
+flowchart LR
+    Browser["Browser / Wallet"] --> App["Next.js App Router"]
+    App --> Pages["React pages and components"]
+    App --> Routes["Route Handlers"]
+    Routes --> Services["src/server services"]
+    Services --> Prisma["Prisma adapter"]
+    Prisma --> PostgreSQL[(PostgreSQL)]
+    Services --> Uploads[(data/uploads)]
+    Services --> Solana["Solana RPC / DAS"]
+    Services --> Filebase["Filebase S3 / IPFS"]
+    Browser -->|"wallet signatures"| Routes
 ```
 
----
+数据库使用四个 schema：
 
-## 🤝 贡献指南
+- `auth`：管理员与会话
+- `collections`：项目、版本、分类、菜单与项目首页
+- `docs`：笔记及内容版本
+- `public`：文件记录、系统配置、系统首页、Merkle Tree 与 cNFT
 
-欢迎贡献代码、报告问题或提出建议！
+## 配置
 
-### 开发流程
+系统设置页中的 RPC/Filebase 配置优先于同名环境变量；环境变量作为未配置时的 fallback。
 
-1. Fork 本仓库
-2. 创建特性分支：`git checkout -b feature/amazing-feature`
-3. 提交更改：`git commit -m 'Add amazing feature'`
-4. 推送分支：`git push origin feature/amazing-feature`
-5. 提交 Pull Request
+| 变量 | 必需 | 说明 |
+| --- | --- | --- |
+| `DATABASE_URL` | 是 | PostgreSQL 连接串；Docker entrypoint 也可由 `DB_*` 组合生成 |
+| `ENCRYPTION_KEY` | 是 | Tree Authority 私钥与 Solana prepare 令牌的稳定根密钥 |
+| `UPLOAD_STORAGE_PATH` | 否 | 上传根目录；默认 `<cwd>/data/uploads` |
+| `SOLANA_RPC_URL` | 否 | 主网 RPC fallback |
+| `SOLANA_DEVNET_RPC_URL` | 否 | devnet RPC fallback |
+| `NEXT_PUBLIC_SOLANA_RPC_URL` | 否 | 浏览器 Wallet Adapter endpoint；未设置时使用公共 devnet |
+| `FILEBASE_ACCESS_KEY` | 否 | Filebase S3 Access Key fallback |
+| `FILEBASE_SECRET_KEY` | 否 | Filebase S3 Secret Key fallback |
+| `FILEBASE_BUCKET` | 否 | Filebase bucket fallback |
+| `FILEBASE_ENDPOINT` | 否 | 默认 `https://s3.filebase.com` |
 
-### 代码规范
+Docker 还支持：
 
-- 使用 TypeScript
-- 遵循 Vue 3 Composition API 风格
-- 添加必要的注释和文档
+| 变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `DB_HOST` | `postgres` | 未提供 `DATABASE_URL` 时使用 |
+| `DB_PORT` | `5432` | PostgreSQL 端口 |
+| `DB_NAME` | `slothvault` | 数据库名 |
+| `DB_USER` | `slothvault` | 数据库用户 |
+| `DB_PASSWORD` | 无 | 必填密码 |
+| `DB_WAIT_TIMEOUT` | `60` | entrypoint 等待数据库的秒数 |
+| `POSTGRES_DATA_DIR` | `./docker-data/postgres` | Compose 主机数据目录 |
+| `UPLOADS_DIR` | `./docker-data/uploads` | Compose 主机上传目录 |
 
----
+## 上传与备份
 
-## 📄 开源协议
+上传文件不再放在 `public/uploads`。数据库仍保存 `/uploads/...` URL，但文件由 Next Route Handler 在 `UPLOAD_STORAGE_PATH` 下读取，并执行路径 containment、隐藏路径拒绝、MIME 与下载头控制。
 
-本项目采用 [MIT License](LICENSE) 开源协议。
+数据库备份包括系统配置和加密后的 Tree Authority，因此仍应视为敏感文件。恢复流程具有以下限制：
 
----
+- 数据库 JSON 最大请求体 50 MiB、最多 100,000 条业务记录。
+- 上传 ZIP 最大 250 MiB、最多 10,000 个条目。
+- 拒绝 ZIP Slip、符号链接、特殊文件、加密 ZIP、ZIP64 与校验失败条目。
+- 数据库导出在 `REPEATABLE READ` 快照中生成关系闭包，避免有效子记录引用未导出的软删除父记录。
+- overwrite 在 staging 完整校验后提交；失败时尝试恢复旧目录。
+- 单个 Next.js 进程内，读请求可并行，写请求串行；文件导出会持有共享锁直到 ZIP 流关闭，避免与覆盖恢复或上传交错。
+- 系统重置保留 `auth` schema 中的管理员与会话数据。
 
-## 🙏 致谢
+## Solana 安全流程
 
-感谢以下开源项目：
+管理员发起 Tree/cNFT 操作时：
 
-- [Nuxt](https://nuxt.com) - 全栈 Vue 框架
-- [Solana](https://solana.com) - 高性能区块链
-- [Element Plus](https://element-plus.org) - Vue 3 UI 组件库
-- [Prisma](https://www.prisma.io) - 现代化 ORM
-- [Filebase](https://filebase.com) - IPFS 存储服务
+1. 服务端构建交易并用服务端拥有的 Tree/Authority Keypair 部分签名。
+2. 服务端返回交易和 5 分钟加密 HMAC prepare 令牌；令牌不包含明文私钥。
+3. 浏览器钱包补充 fee payer 签名。
+4. submit 校验 prepare 消息哈希、fee payer、程序 ID、树/owner、全部 signer 与密码学签名。
+5. submit 在广播前持久化确定性的 payer 交易签名、令牌到期时间和 `lastValidBlockHeight`，断线后仍可对账。
+6. prepare 只在 PostgreSQL 行锁事务中预留容量；最终 `leafIndex` 与 asset PDA 仅从 confirmed 交易的 SPL Account Compression change-log 事件取得。
+7. 待确认 attempt 会在列表刷新或下次 prepare 时按签名继续对账；只有明确失败/过期的 attempt 可删除，失败不会占用真实 asset ID。
 
----
+链上创建和 mint 会产生真实 SOL 费用。请先在 devnet 验证 RPC、钱包、Tree 参数和 DAS 服务，再切换 mainnet。
+升级既有数据库时必须先执行 `npx prisma migrate deploy`，以增加 cNFT attempt 对账字段和交易签名唯一索引。
 
-## 📞 联系方式
+## API 与迁移状态
 
-- GitHub Issues: [提交问题](https://github.com/yourusername/slothvault/issues)
-- Email: your-email@example.com
-- Twitter: [@yourhandle](https://twitter.com/yourhandle)
+完整页面/API 对应关系、59 个 API URL、83 个 HTTP 方法及安全修正见：
 
----
+- [Nuxt → Next.js 迁移矩阵](docs/NUXT_TO_NEXT_MIGRATION.md)
 
-<div align="center">
+旧实现目前保存在 `legacy-nuxt/` 与根目录旧 `server/` 中，仅用于迁移核对，不参与 Next 构建。外部链上写入和真实 Filebase 验收完成且获得明确清理授权前，不应删除这些参考文件。
 
-**⭐ 如果这个项目对你有帮助，请给一个 Star！**
+## 目录结构
 
-Made with ❤️ by SlothVault Team
+```text
+src/
+├── app/                    # Next pages、layouts、Route Handlers
+├── components/             # React UI 与业务组件
+├── i18n/                   # next-intl 请求配置
+├── lib/                    # API client、钱包消息等共享逻辑
+├── server/                 # 认证、HTTP 边界、Prisma 与业务服务
+└── types/                  # 客户端/服务端共享类型
 
-</div>
-
----
-
-## Markdown 动态主题样式指南
-
-SlothVault 支持在 Markdown 内容中使用 HTML 标签，并且这些 HTML 元素可以跟随系统主题（light/dark）和配色（purple/cyan/emerald/rose）动态切换样式。
-
-### 使用方法
-
-在 Markdown 的 HTML 标签中使用 `sloth-*` 类名，这些样式会自动响应主题变化：
-
-```html
-<p class="sloth-text-primary">这段文字会跟随主题配色变化</p>
-
-<div class="sloth-card">
-  <h3 class="sloth-text-gradient">渐变标题</h3>
-  <p class="sloth-text-subtle">次要说明文字</p>
-</div>
+messages/                   # Next 中英文消息
+prisma/                     # schema 与迁移
+generated/prisma/           # Prisma 生成客户端
+data/uploads/               # 当前运行上传目录（被 git 忽略）
+data/uploads-legacy-nuxt/   # 迁移前上传备份（被 git 忽略）
+legacy-nuxt/                # 保留的 Nuxt 页面与组件
+server/                     # 保留的 Nuxt API 与旧服务
 ```
 
-### 可用样式类
+## 开发检查
 
-#### 文字颜色
-
-| 类名 | 说明 |
-|------|------|
-| `sloth-text` | 主文字颜色 |
-| `sloth-text-subtle` | 次要文字颜色 |
-| `sloth-text-primary` | 主题色文字（跟随配色切换） |
-| `sloth-text-accent` | 强调色文字 |
-| `sloth-text-danger` | 危险/错误色文字 |
-| `sloth-text-inverse` | 反色文字（用于深色背景） |
-| `sloth-text-gradient` | 渐变文字（跟随配色切换） |
-
-#### 背景颜色
-
-| 类名 | 说明 |
-|------|------|
-| `sloth-bg` | 页面背景色 |
-| `sloth-bg-hover` | 悬停背景色 |
-| `sloth-bg-card` | 卡片背景色 |
-| `sloth-bg-primary` | 主题色背景 |
-| `sloth-bg-primary-dim` | 主题色淡背景 |
-| `sloth-bg-gradient` | 渐变背景 |
-
-#### 组件样式
-
-| 类名 | 说明 |
-|------|------|
-| `sloth-card` | 卡片容器（带边框、阴影、悬停效果） |
-| `sloth-highlight-card` | 高亮卡片（带渐变背景装饰） |
-| `sloth-btn sloth-btn-primary` | 主要按钮（渐变背景） |
-| `sloth-btn sloth-btn-secondary` | 次要按钮（边框样式） |
-| `sloth-badge` | 默认徽章/标签 |
-| `sloth-badge-primary` | 主题色徽章 |
-| `sloth-icon-box` | 图标容器 |
-| `sloth-icon-box-primary` | 主题色图标容器（渐变背景） |
-
-#### 布局工具
-
-| 类名 | 说明 |
-|------|------|
-| `sloth-grid` | 响应式网格（自动适配列数） |
-| `sloth-flex` | Flex 容器 |
-| `sloth-flex-center` | 居中 Flex |
-| `sloth-flex-between` | 两端对齐 Flex |
-| `sloth-flex-col` | 纵向 Flex |
-| `sloth-gap-2` / `sloth-gap-4` / `sloth-gap-6` | 间距 8px / 16px / 24px |
-
-#### 间距
-
-| 类名 | 说明 |
-|------|------|
-| `sloth-p-4` / `sloth-p-6` | 内边距 16px / 24px |
-| `sloth-py-4` / `sloth-px-4` | 垂直/水平内边距 16px |
-| `sloth-mt-4` / `sloth-mb-4` / `sloth-my-4` | 上/下/垂直外边距 16px |
-
-#### 其他
-
-| 类名 | 说明 |
-|------|------|
-| `sloth-text-center` | 文字居中 |
-| `sloth-text-xl` / `sloth-text-2xl` / `sloth-text-3xl` | 字号 1.25rem / 1.5rem / 1.875rem |
-| `sloth-font-bold` / `sloth-font-semibold` | 字重 700 / 600 |
-| `sloth-rounded` | 圆角（使用主题圆角变量） |
-| `sloth-rounded-full` | 完全圆角 |
-| `sloth-shadow` | 阴影 |
-| `sloth-border` / `sloth-border-primary` | 边框颜色 |
-
-### 示例：功能卡片网格
-
-```html
-<div class="sloth-grid">
-  <div class="sloth-card">
-    <div class="sloth-icon-box" style="margin-bottom: 16px;">
-      <svg>...</svg>
-    </div>
-    <h4 class="sloth-text sloth-font-semibold">功能标题</h4>
-    <p class="sloth-text-subtle">功能描述文字</p>
-  </div>
-  <!-- 更多卡片... -->
-</div>
+```bash
+npm run typecheck  # TypeScript
+npm run lint       # ESLint
+npm run test       # Vitest 迁移契约与纯本地服务测试
+npm run build      # Prisma generate + Next production build
 ```
 
-### 示例：高亮特性区块
+需要额外验证 S3 协议或 Solana devnet 只读链路时，可显式启用 opt-in 测试：
 
-```html
-<div class="sloth-highlight-card">
-  <div class="sloth-flex sloth-gap-4">
-    <div class="sloth-icon-box-primary">
-      <svg stroke="white">...</svg>
-    </div>
-    <div>
-      <h3 class="sloth-text sloth-font-bold">特性标题</h3>
-      <p class="sloth-text-subtle">特性描述</p>
-      <div class="sloth-flex sloth-gap-2" style="margin-top: 12px;">
-        <span class="sloth-badge-primary">标签1</span>
-        <span class="sloth-badge-primary">标签2</span>
-      </div>
-    </div>
-  </div>
-</div>
+```bash
+RUN_FILEBASE_S3_SMOKE=1 npx vitest run src/server/services/filebase.test.ts
+RUN_SOLANA_DEVNET_SMOKE=1 npx vitest run src/server/services/solana-devnet.integration.test.ts
 ```
 
-### 注意事项
+默认 `npm test` 会跳过这两组测试，以免普通开发环境依赖本地 socket 或外部 RPC。当前迁移已在隔离 PostgreSQL/Docker 环境验证迁移、Session、CRUD、上传/ZIP、overwrite/reset/恢复、双实例并发、行锁和上传挂载跨容器持久化；真实 Filebase 凭据与 Solana devnet 写交易/DAS 仍需在对应环境验收。
 
-1. **避免硬编码颜色**：不要在 HTML 中使用 `color: #333` 这样的硬编码颜色，应使用 `sloth-*` 类或 CSS 变量
-2. **SVG 图标颜色**：将 `stroke` 或 `fill` 设为 `currentColor`，通过父元素的 `sloth-text-*` 类控制颜色
-3. **自定义样式**：如需额外样式，使用内联 `style` 配合 CSS 变量：`style="color: var(--sloth-primary)"`
+## 许可证
 
-### CSS 变量参考
-
-如需在内联样式中使用，以下是可用的 CSS 变量：
-
-```css
---sloth-bg              /* 页面背景 */
---sloth-bg-hover        /* 悬停背景 */
---sloth-card            /* 卡片背景 */
---sloth-card-border     /* 卡片边框 */
---sloth-text            /* 主文字 */
---sloth-text-subtle     /* 次要文字 */
---sloth-primary         /* 主题色 */
---sloth-primary-hover   /* 主题色悬停 */
---sloth-primary-dim     /* 主题色淡 */
---sloth-accent          /* 强调色 */
---sloth-danger          /* 危险色 */
---sloth-radius          /* 圆角 */
---sloth-shadow          /* 阴影 */
---sloth-gradient-primary /* 主题渐变 */
---sloth-gradient-text   /* 文字渐变 */
-```
+当前仓库未包含 `LICENSE` 文件。若计划公开分发，请在发布前明确许可证。

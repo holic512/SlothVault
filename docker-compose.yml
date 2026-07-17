@@ -17,6 +17,9 @@ services:
       start_period: 10s
 
   slothvault:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: ${DOCKER_IMAGE:-holic512/slothvault:latest}
     container_name: slothvault
     restart: unless-stopped
@@ -26,11 +29,13 @@ services:
     ports:
       - "${PORT:-3000}:3000"
     volumes:
-      - ${UPLOADS_DIR:-./docker-data/uploads}:/app/public/uploads
+      - ${UPLOADS_DIR:-./docker-data/uploads}:/app/data/uploads
     environment:
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY in your env file}
+      UPLOAD_STORAGE_PATH: /app/data/uploads
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-slothvault}
       DB_USER: ${DB_USER:-slothvault}
       DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in your env file}
+      DB_WAIT_TIMEOUT: ${DB_WAIT_TIMEOUT:-60}

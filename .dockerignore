@@ -1,7 +1,11 @@
 node_modules
+.next
 .nuxt
 .output
 dist
+legacy-nuxt
+data/uploads
+data/uploads-legacy-nuxt
 .git
 .github
 .vscode
