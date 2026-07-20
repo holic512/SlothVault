@@ -2,8 +2,8 @@
  * @file admin-catalog.ts
  * @project SlothVault
  * @module Admin Catalog
- * @description Owns project, version, and category administration queries together with shared parsing and stable DTO mapping.
- * @logic Normalize legacy request values, build provider-portable filters, validate active parent records, execute catalog mutations, and serialize decimal identifiers without exposing Prisma to route handlers.
+ * @description Owns public collection, version, and category administration queries together with shared parsing and stable DTO mapping.
+ * @logic Normalize request values, force every collection to public reading, validate active parent records, execute administrator-only mutations, and serialize identifiers without exposing Prisma to route handlers.
  * @dependencies server/prisma, server/database/client, server/http/errors, Prisma project catalog models
  * @index_tags admin,project,project-version,category,service,dto,validation
  * @author holic512
@@ -164,7 +164,7 @@ export function projectDto(project: ProjectLike) {
     avatar: project.avatar,
     weight: project.weight,
     status: project.status,
-    requireAuth: project.requireAuth,
+    requireAuth: false,
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
     isDeleted: project.isDeleted,
@@ -177,7 +177,7 @@ export function projectSummaryDto(project: ProjectLike) {
     projectName: project.projectName,
     weight: project.weight,
     status: project.status,
-    requireAuth: project.requireAuth,
+    requireAuth: false,
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
     isDeleted: project.isDeleted,
@@ -271,7 +271,6 @@ type ProjectOrderField =
   | 'projectName'
   | 'weight'
   | 'status'
-  | 'requireAuth'
   | 'createdAt'
   | 'updatedAt'
 
@@ -304,7 +303,6 @@ export type ProjectListQuery = PageQuery<ProjectOrderField> & {
   includeDeleted: boolean
   onlyDeleted: boolean
   status?: number
-  requireAuth?: boolean
 }
 
 export type ProjectVersionListQuery = PageQuery<ProjectVersionOrderField> & {
@@ -346,7 +344,6 @@ export async function listAdminProjects(query: ProjectListQuery) {
   else if (!query.includeDeleted) where.isDeleted = false
   if (query.keyword) where.projectName = databaseTextContains(query.keyword)
   if (Number.isFinite(query.status)) where.status = query.status
-  if (query.requireAuth !== undefined) where.requireAuth = query.requireAuth
 
   const [total, list] = await Promise.all([
     prisma.project.count({ where }),
@@ -383,7 +380,6 @@ export async function createAdminProject(input: {
   avatar?: unknown
   weight?: unknown
   status?: unknown
-  requireAuth?: unknown
 }) {
   const projectName = typeof input.projectName === 'string' ? input.projectName.trim() : ''
   if (!projectName) throw new HttpError('Missing projectName', 400, 400)
@@ -394,7 +390,7 @@ export async function createAdminProject(input: {
       avatar: typeof input.avatar === 'string' ? input.avatar : null,
       weight: integerValue(input.weight, 0),
       status: integerValue(input.status, 1),
-      requireAuth: typeof input.requireAuth === 'boolean' ? input.requireAuth : false,
+      requireAuth: false,
     },
   })
   return projectDto(project)
@@ -413,7 +409,6 @@ export async function updateAdminProject(
     avatar?: unknown
     weight?: unknown
     status?: unknown
-    requireAuth?: unknown
   },
 ) {
   const data: Prisma.ProjectUpdateInput = { updatedAt: new Date() }
@@ -434,7 +429,6 @@ export async function updateAdminProject(
   if (weight !== null) data.weight = weight
   const status = optionalIntegerValue(input.status)
   if (status !== null) data.status = status
-  if (typeof input.requireAuth === 'boolean') data.requireAuth = input.requireAuth
   if (Object.keys(data).length === 1) throw new HttpError('No fields to update', 400, 400)
 
   try {
@@ -462,7 +456,6 @@ export async function applyAdminProjectBatch(input: {
   action?: unknown
   ids?: unknown
   status?: unknown
-  requireAuth?: unknown
 }) {
   const action = typeof input.action === 'string' ? input.action : ''
   const ids = parseJsonDecimalIds(input.ids)
@@ -488,15 +481,6 @@ export async function applyAdminProjectBatch(input: {
     const result = await prisma.project.updateMany({
       where: { id: { in: ids }, isDeleted: false },
       data: { status, updatedAt: new Date() },
-    })
-    return { count: result.count }
-  }
-  if (action === 'setRequireAuth') {
-    const requireAuth = optionalLegacyBoolean(input.requireAuth)
-    if (requireAuth === null) throw new HttpError('Missing requireAuth', 400, 400)
-    const result = await prisma.project.updateMany({
-      where: { id: { in: ids }, isDeleted: false },
-      data: { requireAuth, updatedAt: new Date() },
     })
     return { count: result.count }
   }

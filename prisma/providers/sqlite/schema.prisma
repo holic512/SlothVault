@@ -1,8 +1,8 @@
 // @file prisma/providers/sqlite/schema.prisma
 // @project SlothVault
 // @module SQLite persistence model
-// @description Defines the flat, domain-prefixed SQLite schema used by new single-instance SlothVault installations.
-// @logic Preserve the provider-neutral logical model and rely on SQLite affinity types for portable local deployments.
+// @description Defines the flat, domain-prefixed SQLite schema for publishing, user identity, points, gift cards, and optional copyright credentials.
+// @logic Preserve the provider-neutral logical model for single-instance deployments and keep public reading independent from wallet ownership.
 // @dependencies Prisma ORM 7.3.0, @prisma/adapter-better-sqlite3 7.3.0
 // @index_tags prisma, sqlite, schema, persistence, installation
 // @author holic512
@@ -33,15 +33,79 @@ model Session {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  username  String   @unique(map: "uq_auth_user_username")
-  password  String
-  email     String?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @default(now()) @map("updated_at")
-  Session   Session[]
+  id                     Int                 @id @default(autoincrement())
+  username               String              @unique(map: "uq_auth_user_username")
+  password               String
+  passwordConfigured     Boolean             @default(true) @map("password_configured")
+  email                  String?             @unique(map: "uq_auth_user_email")
+  displayName            String?             @map("display_name")
+  avatar                 String?
+  bio                    String?
+  role                   String              @default("USER")
+  status                 Int                 @default(1)
+  pointsBalance          Int                 @default(0) @map("points_balance")
+  walletAddress          String?             @unique(map: "uq_auth_user_wallet_address") @map("wallet_address")
+  lastLoginAt            DateTime?           @map("last_login_at")
+  createdAt              DateTime            @default(now()) @map("created_at")
+  updatedAt              DateTime            @default(now()) @map("updated_at")
+  Session                Session[]
+  pointTransactions      PointTransaction[]
+  createdGiftCardBatches GiftCardBatch[]     @relation("GiftCardBatchCreator")
+  redeemedGiftCards      GiftCard[]          @relation("GiftCardRedemption")
 
+  @@index([role, status], map: "idx_auth_user_role_status")
   @@map("auth_user")
+}
+
+model PointTransaction {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @map("user_id")
+  amount       Int
+  balanceAfter Int      @map("balance_after")
+  type         String
+  referenceId  String?  @map("reference_id")
+  description  String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId, createdAt], map: "idx_points_transaction_user_created")
+  @@index([type, referenceId], map: "idx_points_transaction_reference")
+  @@map("points_transaction")
+}
+
+model GiftCardBatch {
+  id          Int        @id @default(autoincrement())
+  name        String
+  points      Int
+  quantity    Int
+  expiresAt   DateTime?  @map("expires_at")
+  status      Int        @default(1)
+  createdById Int        @map("created_by_id")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @default(now()) @map("updated_at")
+  createdBy   User       @relation("GiftCardBatchCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  cards       GiftCard[]
+
+  @@index([createdById], map: "idx_gift_card_batch_creator")
+  @@index([status, expiresAt], map: "idx_gift_card_batch_status_expires")
+  @@map("points_gift_card_batch")
+}
+
+model GiftCard {
+  id           Int           @id @default(autoincrement())
+  batchId      Int           @map("batch_id")
+  codeHash     String        @unique(map: "uq_gift_card_code_hash") @map("code_hash")
+  codeHint     String        @map("code_hint")
+  status       Int           @default(1)
+  redeemedById Int?          @map("redeemed_by_id")
+  redeemedAt   DateTime?     @map("redeemed_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  batch        GiftCardBatch @relation(fields: [batchId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  redeemedBy   User?         @relation("GiftCardRedemption", fields: [redeemedById], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([batchId, status], map: "idx_gift_card_batch_status")
+  @@index([redeemedById], map: "idx_gift_card_redeemed_by")
+  @@map("points_gift_card")
 }
 
 model Project {
@@ -132,6 +196,7 @@ model Category {
 model NoteInfo {
   id              Int        @id @default(autoincrement())
   categoryId      Int        @map("category_id")
+  authorId        Int?       @map("author_id")
   noteTitle       String        @map("note_title")
   weight          Int
   status          Int
@@ -143,6 +208,7 @@ model NoteInfo {
   contents        NoteContent[]
 
   @@index([categoryId], map: "idx_docs_note_info_category_id")
+  @@index([authorId], map: "idx_docs_note_info_author_id")
   @@map("docs_note_info")
 }
 
@@ -251,6 +317,8 @@ model CompressedNft {
   id                   Int    @id @default(autoincrement())
   merkleTreeId         Int    @map("merkle_tree_id")
   projectId            Int    @map("project_id")
+  noteInfoId           Int?   @map("note_info_id")
+  copyrightOwnerId     Int?   @map("copyright_owner_id")
   assetId              String    @unique(map: "uq_solana_compressed_nft_asset_id") @map("asset_id")
   leafIndex            Int       @map("leaf_index")
   name                 String
@@ -272,6 +340,8 @@ model CompressedNft {
 
   @@index([merkleTreeId], map: "idx_solana_compressed_nft_merkle_tree_id")
   @@index([projectId], map: "idx_solana_compressed_nft_project_id")
+  @@index([noteInfoId], map: "idx_solana_compressed_nft_note_info_id")
+  @@index([copyrightOwnerId], map: "idx_solana_compressed_nft_copyright_owner_id")
   @@index([ownerAddress], map: "idx_solana_compressed_nft_owner")
   @@index([projectId, ownerAddress], map: "idx_solana_compressed_nft_project_owner")
   @@map("solana_compressed_nft")

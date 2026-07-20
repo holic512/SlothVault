@@ -2,10 +2,10 @@
  * @file admin-backup.ts
  * @project SlothVault
  * @module Admin Backup and Recovery
- * @description Provides relation-closed database snapshots, strict backup validation, atomic business-data restore/reset, and ZIP staging workflows for the configured upload storage.
- * @logic Read active business records from one repeatable snapshot, serialize portable decimal-string IDs, validate complete backups before mutation, import with old-to-new ID maps, normalize note primaries, and commit filesystem changes only after contained staging succeeds with rollback paths available.
- * @dependencies Prisma business models, admin file UPLOAD_ROOT, archiver, unzipper, node filesystem and stream APIs, zod
- * @index_tags admin,backup,restore,transaction,zip,zip-slip,rollback,system-reset
+ * @description Provides relation-closed identity/content/points/copyright snapshots, strict backup validation, atomic restore/reset, and ZIP staging for upload storage.
+ * @logic Read accounts and business records from one repeatable snapshot, serialize portable IDs, validate all relations before mutation, import with old-to-new maps, preserve point/card ledgers and article authorship, and commit filesystem changes only after contained staging succeeds.
+ * @dependencies Prisma identity/business models, admin file UPLOAD_ROOT, archiver, unzipper, node filesystem and stream APIs, zod
+ * @index_tags admin,backup,restore,users,points,gift-cards,transaction,zip,rollback
  * @author holic512
  */
 import 'server-only'
@@ -70,6 +70,10 @@ const STANDARD_RESET_DIRECTORIES = [
 ]
 
 const BACKUP_COLLECTION_KEYS = [
+  'users',
+  'pointTransactions',
+  'giftCardBatches',
+  'giftCards',
   'projects',
   'projectVersions',
   'categories',
@@ -180,6 +184,58 @@ const storedFilePathSchema = limitedString(500).refine((value) => {
   )
 }, 'Invalid managed file path')
 
+const userSchema = z.object({
+  id: idStringSchema,
+  username: nonEmptyString(255),
+  password: nonEmptyString(255),
+  passwordConfigured: z.boolean().optional().default(true),
+  email: nullableString(255),
+  displayName: nullableString(80).optional().default(null),
+  avatar: nullableString(500).optional().default(null),
+  bio: z.string().nullable().optional().default(null),
+  role: z.enum(['ADMIN', 'USER']).optional().default('USER'),
+  status: smallIntSchema.optional().default(1),
+  pointsBalance: intSchema.optional().default(0),
+  walletAddress: nullableString(64).optional().default(null),
+  lastLoginAt: dateStringSchema.nullable().optional().default(null),
+  createdAt: dateStringSchema,
+  updatedAt: dateStringSchema,
+}).strict()
+
+const pointTransactionSchema = z.object({
+  id: idStringSchema,
+  userId: idStringSchema,
+  amount: intSchema,
+  balanceAfter: intSchema,
+  type: nonEmptyString(40),
+  referenceId: nullableString(128),
+  description: nullableString(255),
+  createdAt: dateStringSchema,
+}).strict()
+
+const giftCardBatchSchema = z.object({
+  id: idStringSchema,
+  name: nonEmptyString(128),
+  points: intSchema.positive(),
+  quantity: intSchema.positive(),
+  expiresAt: dateStringSchema.nullable(),
+  status: smallIntSchema,
+  createdById: idStringSchema,
+  createdAt: dateStringSchema,
+  updatedAt: dateStringSchema,
+}).strict()
+
+const giftCardSchema = z.object({
+  id: idStringSchema,
+  batchId: idStringSchema,
+  codeHash: z.string().regex(/^[a-f0-9]{64}$/),
+  codeHint: nonEmptyString(24),
+  status: smallIntSchema,
+  redeemedById: nullableIdStringSchema,
+  redeemedAt: dateStringSchema.nullable(),
+  createdAt: dateStringSchema,
+}).strict()
+
 const projectSchema = z.object({
   id: idStringSchema,
   projectName: limitedString(128),
@@ -242,6 +298,7 @@ const projectHomeSchema = z.object({
 const noteInfoSchema = z.object({
   id: idStringSchema,
   categoryId: idStringSchema,
+  authorId: nullableIdStringSchema.optional(),
   noteTitle: limitedString(255),
   weight: intSchema,
   status: smallIntSchema,
@@ -319,6 +376,8 @@ const compressedNftSchema = z.object({
   id: idStringSchema,
   merkleTreeId: idStringSchema,
   projectId: idStringSchema,
+  noteInfoId: nullableIdStringSchema.optional(),
+  copyrightOwnerId: nullableIdStringSchema.optional(),
   assetId: nonEmptyString(64),
   leafIndex: intSchema,
   name: limitedString(128),
@@ -339,6 +398,10 @@ const compressedNftSchema = z.object({
 }).strict()
 
 const backupDataSchema = z.object({
+  users: z.array(userSchema).max(DATABASE_RECORD_LIMIT).default([]),
+  pointTransactions: z.array(pointTransactionSchema).max(DATABASE_RECORD_LIMIT).default([]),
+  giftCardBatches: z.array(giftCardBatchSchema).max(DATABASE_RECORD_LIMIT).default([]),
+  giftCards: z.array(giftCardSchema).max(DATABASE_RECORD_LIMIT).default([]),
   projects: z.array(projectSchema).max(DATABASE_RECORD_LIMIT),
   projectVersions: z.array(projectVersionSchema).max(DATABASE_RECORD_LIMIT),
   categories: z.array(categorySchema).max(DATABASE_RECORD_LIMIT),
@@ -413,6 +476,10 @@ function validateBackupRelations(data: BackupData) {
     invalidBackup(`record count exceeds ${DATABASE_RECORD_LIMIT}`)
   }
 
+  const users = mapById('user', data.users)
+  const pointTransactions = mapById('pointTransaction', data.pointTransactions)
+  const giftCardBatches = mapById('giftCardBatch', data.giftCardBatches)
+  const giftCards = mapById('giftCard', data.giftCards)
   const projects = mapById('project', data.projects)
   const projectVersions = mapById('projectVersion', data.projectVersions)
   const categories = mapById('category', data.categories)
@@ -425,6 +492,20 @@ function validateBackupRelations(data: BackupData) {
   mapById('systemHomepage', data.systemHomepages)
   const merkleTrees = mapById('merkleTree', data.merkleTrees)
   mapById('compressedNft', data.compressedNfts)
+
+  if (data.users.length > 0 && !data.users.some((user) => user.role === 'ADMIN')) {
+    invalidBackup('user collection does not contain an administrator')
+  }
+  for (const item of pointTransactions.values()) {
+    assertReference(users, item.userId, 'pointTransaction userId')
+  }
+  for (const item of giftCardBatches.values()) {
+    assertReference(users, item.createdById, 'giftCardBatch createdById')
+  }
+  for (const item of giftCards.values()) {
+    assertReference(giftCardBatches, item.batchId, 'giftCard batchId')
+    if (item.redeemedById) assertReference(users, item.redeemedById, 'giftCard redeemedById')
+  }
 
   for (const item of data.projectVersions) {
     assertReference(projects, item.projectId, 'projectId')
@@ -447,6 +528,7 @@ function validateBackupRelations(data: BackupData) {
   }
   for (const item of data.noteInfos) {
     assertReference(categories, item.categoryId, 'categoryId')
+    if (item.authorId && users.size > 0) assertReference(users, item.authorId, 'authorId')
   }
   for (const item of data.noteContents) {
     assertReference(noteInfos, item.noteInfoId, 'noteInfoId')
@@ -455,6 +537,10 @@ function validateBackupRelations(data: BackupData) {
   for (const item of data.compressedNfts) {
     assertReference(merkleTrees, item.merkleTreeId, 'merkleTreeId')
     assertReference(projects, item.projectId, 'projectId')
+    if (item.noteInfoId) assertReference(noteInfos, item.noteInfoId, 'noteInfoId')
+    if (item.copyrightOwnerId && users.size > 0) {
+      assertReference(users, item.copyrightOwnerId, 'copyrightOwnerId')
+    }
     if (item.originalImageId) {
       assertReference(fileManagements, item.originalImageId, 'originalImageId')
     }
@@ -569,6 +655,20 @@ function validateBackupRelations(data: BackupData) {
   }
 
   assertUniqueField('configKey', data.systemConfigs, (item) => item.configKey)
+  assertUniqueField('username', data.users, (item) => item.username)
+  assertUniqueField(
+    'email',
+    data.users.filter((item): item is typeof item & { email: string } => item.email !== null),
+    (item) => item.email,
+  )
+  assertUniqueField(
+    'walletAddress',
+    data.users.filter(
+      (item): item is typeof item & { walletAddress: string } => item.walletAddress !== null,
+    ),
+    (item) => item.walletAddress,
+  )
+  assertUniqueField('giftCard codeHash', data.giftCards, (item) => item.codeHash)
   assertUniqueField('treeAddress', data.merkleTrees, (item) => item.treeAddress)
   assertUniqueField('assetId', data.compressedNfts, (item) => item.assetId)
   assertUniqueField(
@@ -642,6 +742,12 @@ function relationClosedMenus<T extends {
 export async function exportDatabaseBackup() {
   const exportedAt = new Date().toISOString()
   const snapshot = await unitOfWork.execute(async (tx) => {
+    const [users, pointTransactions, giftCardBatches, giftCards] = await Promise.all([
+      tx.user.findMany(),
+      tx.pointTransaction.findMany(),
+      tx.giftCardBatch.findMany(),
+      tx.giftCard.findMany(),
+    ])
     const projects = await tx.project.findMany({ where: { isDeleted: false } })
     const projectIds = projects.map((item) => item.id)
 
@@ -712,6 +818,10 @@ export async function exportDatabaseBackup() {
     )
 
     return {
+      users,
+      pointTransactions,
+      giftCardBatches,
+      giftCards,
       projects,
       projectVersions,
       categories,
@@ -733,6 +843,26 @@ export async function exportDatabaseBackup() {
   })
 
   const portableSnapshot = {
+    users: snapshot.users.map(({ id, ...item }) => ({
+      ...item,
+      id: id.toString(),
+    })),
+    pointTransactions: snapshot.pointTransactions.map(({ id, userId, ...item }) => ({
+      ...item,
+      id: id.toString(),
+      userId: userId.toString(),
+    })),
+    giftCardBatches: snapshot.giftCardBatches.map(({ id, createdById, ...item }) => ({
+      ...item,
+      id: id.toString(),
+      createdById: createdById.toString(),
+    })),
+    giftCards: snapshot.giftCards.map(({ id, batchId, redeemedById, ...item }) => ({
+      ...item,
+      id: id.toString(),
+      batchId: batchId.toString(),
+      redeemedById: redeemedById?.toString() ?? null,
+    })),
     projects: snapshot.projects.map(({ id, ...item }) => ({
       ...item,
       id: id.toString(),
@@ -761,6 +891,7 @@ export async function exportDatabaseBackup() {
     noteInfos: snapshot.noteInfos.map(({
       id,
       categoryId,
+      authorId,
       contentRevision,
       ...item
     }) => {
@@ -769,6 +900,7 @@ export async function exportDatabaseBackup() {
         ...item,
         id: id.toString(),
         categoryId: categoryId.toString(),
+        authorId: authorId?.toString() ?? null,
       }
     }),
     noteContents: snapshot.noteContents.map(({ id, noteInfoId, ...item }) => ({
@@ -796,6 +928,8 @@ export async function exportDatabaseBackup() {
       id,
       merkleTreeId,
       projectId,
+      noteInfoId,
+      copyrightOwnerId,
       originalImageId,
       ...item
     }) => ({
@@ -803,6 +937,8 @@ export async function exportDatabaseBackup() {
       id: id.toString(),
       merkleTreeId: merkleTreeId.toString(),
       projectId: projectId.toString(),
+      noteInfoId: noteInfoId?.toString() ?? null,
+      copyrightOwnerId: copyrightOwnerId?.toString() ?? null,
       originalImageId: originalImageId?.toString() ?? null,
     })),
   }
@@ -817,6 +953,9 @@ export async function exportDatabaseBackup() {
 }
 
 async function deleteBusinessData(tx: Prisma.TransactionClient) {
+  const giftCards = await tx.giftCard.deleteMany({})
+  const giftCardBatches = await tx.giftCardBatch.deleteMany({})
+  const pointTransactions = await tx.pointTransaction.deleteMany({})
   const compressedNfts = await tx.compressedNft.deleteMany({})
   const merkleTrees = await tx.merkleTree.deleteMany({})
   const noteContents = await tx.noteContent.deleteMany({})
@@ -831,6 +970,9 @@ async function deleteBusinessData(tx: Prisma.TransactionClient) {
   const systemHomepages = await tx.systemHomepage.deleteMany({})
 
   const deleted = {
+    giftCards: giftCards.count,
+    giftCardBatches: giftCardBatches.count,
+    pointTransactions: pointTransactions.count,
     compressedNfts: compressedNfts.count,
     merkleTrees: merkleTrees.count,
     noteContents: noteContents.count,
@@ -915,6 +1057,10 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
     if (mode === 'overwrite') await deleteBusinessData(tx)
 
     const ids = {
+      users: new Map<string, number>(),
+      pointTransactions: new Map<string, number>(),
+      giftCardBatches: new Map<string, number>(),
+      giftCards: new Map<string, number>(),
       projects: new Map<string, number>(),
       projectVersions: new Map<string, number>(),
       categories: new Map<string, number>(),
@@ -928,6 +1074,97 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
       merkleTrees: new Map<string, number>(),
       compressedNfts: new Map<string, number>(),
     }
+    const importingAdmin = await tx.user.findFirst({
+      where: { role: 'ADMIN', status: 1 },
+      orderBy: { id: 'asc' },
+      select: { id: true },
+    })
+    if (!importingAdmin) throw new HttpError('Active administrator not found', 409, 409)
+
+    for (const item of data.users) {
+      const user = await tx.user.upsert({
+        where: { username: item.username },
+        update: {
+          password: item.password,
+          passwordConfigured: item.passwordConfigured,
+          email: item.email,
+          displayName: item.displayName,
+          avatar: item.avatar,
+          bio: item.bio,
+          role: item.role,
+          status: item.status,
+          pointsBalance: item.pointsBalance,
+          walletAddress: item.walletAddress,
+          lastLoginAt: item.lastLoginAt ? new Date(item.lastLoginAt) : null,
+          updatedAt: new Date(item.updatedAt),
+        },
+        create: {
+          username: item.username,
+          password: item.password,
+          passwordConfigured: item.passwordConfigured,
+          email: item.email,
+          displayName: item.displayName,
+          avatar: item.avatar,
+          bio: item.bio,
+          role: item.role,
+          status: item.status,
+          pointsBalance: item.pointsBalance,
+          walletAddress: item.walletAddress,
+          lastLoginAt: item.lastLoginAt ? new Date(item.lastLoginAt) : null,
+          createdAt: new Date(item.createdAt),
+          updatedAt: new Date(item.updatedAt),
+        },
+      })
+      ids.users.set(item.id, user.id)
+    }
+
+    for (const item of data.pointTransactions) {
+      const record = await tx.pointTransaction.create({
+        data: {
+          userId: requiredMappedId(ids.users, item.userId, 'pointTransaction userId'),
+          amount: item.amount,
+          balanceAfter: item.balanceAfter,
+          type: item.type,
+          referenceId: item.referenceId,
+          description: item.description,
+          createdAt: new Date(item.createdAt),
+        },
+      })
+      ids.pointTransactions.set(item.id, record.id)
+    }
+
+    for (const item of data.giftCardBatches) {
+      const record = await tx.giftCardBatch.create({
+        data: {
+          name: item.name,
+          points: item.points,
+          quantity: item.quantity,
+          expiresAt: item.expiresAt ? new Date(item.expiresAt) : null,
+          status: item.status,
+          createdById: requiredMappedId(ids.users, item.createdById, 'giftCardBatch createdById'),
+          createdAt: new Date(item.createdAt),
+          updatedAt: new Date(item.updatedAt),
+        },
+      })
+      ids.giftCardBatches.set(item.id, record.id)
+    }
+
+    for (const item of data.giftCards) {
+      const record = await tx.giftCard.create({
+        data: {
+          batchId: requiredMappedId(ids.giftCardBatches, item.batchId, 'giftCard batchId'),
+          codeHash: item.codeHash,
+          codeHint: item.codeHint,
+          status: item.status,
+          redeemedById: item.redeemedById
+            ? requiredMappedId(ids.users, item.redeemedById, 'giftCard redeemedById')
+            : null,
+          redeemedAt: item.redeemedAt ? new Date(item.redeemedAt) : null,
+          createdAt: new Date(item.createdAt),
+        },
+      })
+      ids.giftCards.set(item.id, record.id)
+    }
 
     for (const item of data.projects) {
       const created = await tx.project.create({
@@ -936,7 +1173,7 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
           avatar: item.avatar,
           weight: item.weight,
           status: item.status,
-          requireAuth: item.requireAuth,
+          requireAuth: false,
           createdAt: new Date(item.createdAt),
           updatedAt: new Date(item.updatedAt),
           isDeleted: item.isDeleted,
@@ -1018,6 +1255,9 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
       const created = await tx.noteInfo.create({
         data: {
           categoryId: requiredMappedId(ids.categories, item.categoryId, 'categoryId'),
+          authorId: item.authorId
+            ? ids.users.get(item.authorId) ?? importingAdmin.id
+            : null,
           noteTitle: item.noteTitle,
           weight: item.weight,
           status: item.status,
@@ -1154,6 +1394,12 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
             'merkleTreeId',
           ),
           projectId: requiredMappedId(ids.projects, item.projectId, 'projectId'),
+          noteInfoId: item.noteInfoId
+            ? requiredMappedId(ids.noteInfos, item.noteInfoId, 'noteInfoId')
+            : null,
+          copyrightOwnerId: item.copyrightOwnerId
+            ? ids.users.get(item.copyrightOwnerId) ?? importingAdmin.id
+            : null,
           assetId: item.assetId,
           leafIndex: item.leafIndex,
           name: item.name,
@@ -1194,6 +1440,10 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
       message: 'Database import completed successfully',
       mode,
       imported: {
+        users: ids.users.size,
+        pointTransactions: ids.pointTransactions.size,
+        giftCardBatches: ids.giftCardBatches.size,
+        giftCards: ids.giftCards.size,
         projects: ids.projects.size,
         projectVersions: ids.projectVersions.size,
         categories: ids.categories.size,

@@ -5,7 +5,7 @@ import { getProjectVersions } from '@/server/services/public-projects'
 
 export const dynamic = 'force-dynamic'
 
-export const GET = defineRoute<{ id: string }>(async (request, context) => {
+export const GET = defineRoute<{ id: string }>(async (_request, context) => {
   const { id } = await context.params
-  return apiOk(await getProjectVersions(request, parseBigIntId(id, 'project id')))
+  return apiOk(await getProjectVersions(parseBigIntId(id, 'project id')))
 })

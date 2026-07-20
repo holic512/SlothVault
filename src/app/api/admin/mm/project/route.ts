@@ -29,7 +29,6 @@ const createProjectSchema = z.object({
   avatar: z.unknown().optional(),
   weight: z.unknown().optional(),
   status: z.unknown().optional(),
-  requireAuth: z.unknown().optional(),
 })
 
 const projectOrderFields = [
@@ -37,7 +36,6 @@ const projectOrderFields = [
   'projectName',
   'weight',
   'status',
-  'requireAuth',
   'createdAt',
   'updatedAt',
 ] as const
@@ -54,9 +52,6 @@ export const GET = defineRoute(async (request) => {
   const onlyDeleted = legacyBoolean(searchParams.get('onlyDeleted'))
   const statusRaw = searchParams.get('status')
   const status = statusRaw === null ? undefined : integerValue(statusRaw, Number.NaN)
-  const requireAuthRaw = searchParams.get('requireAuth')
-  const requireAuth =
-    requireAuthRaw === null ? undefined : legacyBoolean(requireAuthRaw)
   const orderByField = safeOrderField(
     searchParams.get('orderBy'),
     projectOrderFields,
@@ -73,7 +68,6 @@ export const GET = defineRoute(async (request) => {
       includeDeleted,
       onlyDeleted,
       status,
-      requireAuth,
       orderByField,
       order,
     }),

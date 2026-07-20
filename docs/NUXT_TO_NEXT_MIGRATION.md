@@ -118,7 +118,8 @@ Next 版本额外提供：
 ## 迁移中完成的行为修正
 
 - 管理 API 统一使用数据库会话守卫，Cookie 仅保存随机令牌，数据库只保存 SHA-256 哈希。
-- 项目钱包访问证明改为短期 Ed25519 签名，不再只接受调用方声明的钱包地址。
+- 项目阅读权限已简化为公开访问；原 `/verify-access` 端点仅保留兼容响应，不再校验钱包或 cNFT。
+- 新增普通用户注册、密码登录、可选钱包地址登录、个人主页、积分流水和卡密兑换；管理员角色是唯一内容发布权限。
 - NoteContent 写入通过递增父记录 revision 获得可移植的事务写边界，再归一化唯一主版本。
 - 上传文件移出 `public/`，服务端执行路径 containment、文件类型/体积和 Sharp 解码校验。
 - 数据库导出按 provider 选择一致性事务并生成关系闭包，恢复在单一事务内完成；ZIP 恢复先完整校验并解压到 staging，再提交或回滚。
@@ -128,7 +129,7 @@ Next 版本额外提供：
 - cNFT pending attempt 可在 session 过期后按签名自动对账；失败保留 `pending_*` 占位 ID，只有终结失败记录允许删除。
 - Filebase 和 Solana 配置每次从当前 provider 数据库读取，避免多进程缓存不一致。
 - 数据库连接改为 AES-256-GCM 加密落盘，启动时不接受 `DATABASE_URL` 绕过 `/install`。
-- 三种 provider 维护等价 schema、独立 Prisma Client 与初始迁移；新 PostgreSQL 安装不再使用旧四-schema 布局。
+- 三种 provider 维护等价 schema、独立 Prisma Client 与版本化迁移；新 PostgreSQL 安装不再使用旧四-schema 布局。
 
 ## 验证状态
 

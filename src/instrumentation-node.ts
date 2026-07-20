@@ -2,10 +2,10 @@
  * @file instrumentation-node.ts
  * @project SlothVault
  * @module Server Bootstrap
- * @description Initializes private application storage and the installed SQLite runtime in the Node.js server process.
- * @logic Persist the master key before serving traffic, tolerate unreadable configuration as maintenance state, and instantiate SQLite early so a competing server process fails before readiness.
- * @dependencies master-key, database/config-store, database/client
- * @index_tags nodejs,startup,master-key,sqlite,single-instance
+ * @description Initializes private storage, applies committed database migrations, and starts the selected database runtime before serving traffic.
+ * @logic Persist the master key, acquire the SQLite single-instance lock when needed, migrate every configured schema before Prisma queries, and fail startup on unsafe version drift.
+ * @dependencies master-key, database/config-store, database/client, database/migrations, sqlite-instance-lock
+ * @index_tags nodejs,startup,migrations,master-key,sqlite,single-instance
  * @author holic512
  */
 import 'server-only'
@@ -16,7 +16,11 @@ import {
   readDatabaseConfiguration,
 } from '@/server/database/config-store'
 import { getDatabaseClient } from '@/server/database/client'
-import { SqliteInstanceLockError } from '@/server/database/sqlite-instance-lock'
+import { upgradeConfiguredDatabaseSchema } from '@/server/database/migrations'
+import {
+  acquireSqliteInstanceLock,
+  SqliteInstanceLockError,
+} from '@/server/database/sqlite-instance-lock'
 
 export async function initializeNodeRuntime() {
   getMasterKey()
@@ -29,11 +33,10 @@ export async function initializeNodeRuntime() {
     throw error
   }
 
-  if (
-    configuration?.provider === 'sqlite' &&
-    configuration.status !== 'CONFIGURING'
-  ) {
+  if (configuration && configuration.status !== 'CONFIGURING') {
     try {
+      if (configuration.provider === 'sqlite') acquireSqliteInstanceLock()
+      await upgradeConfiguredDatabaseSchema(configuration.connection)
       getDatabaseClient()
     } catch (error) {
       if (error instanceof SqliteInstanceLockError) {

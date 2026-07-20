@@ -86,7 +86,7 @@ export const GET = defineRoute(async (request) => {
 })
 
 export const POST = defineRoute(async (request) => {
-  await requireAdminSession(request)
+  const session = await requireAdminSession(request)
   const body = await readJson(request, createNoteSchema)
-  return apiOk(await createAdminNote(body), 'created', 201)
+  return apiOk(await createAdminNote({ ...body, authorId: session.userId }), 'created', 201)
 })

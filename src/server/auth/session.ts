@@ -2,10 +2,10 @@
  * @file session.ts
  * @project SlothVault
  * @module Authentication
- * @description Owns administrator session issuance, lookup, revocation, and secure cookie behavior.
- * @logic Store only SHA-256 token hashes, reject expired/revoked sessions, and expose one guard for all admin APIs.
- * @dependencies node:crypto, next/server, Prisma Session model
- * @index_tags auth,session,cookie,admin
+ * @description Owns shared user session issuance, lookup, revocation, role guards, and secure cookie behavior.
+ * @logic Store only SHA-256 token hashes, reject expired/revoked/disabled identities, and separate user and administrator authorization guards.
+ * @dependencies node:crypto, next/server, Prisma Session/User models, auth/roles
+ * @index_tags auth,session,cookie,user,admin,role
  * @author holic512
  */
 import 'server-only'
@@ -14,6 +14,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto'
 
 import type { NextRequest, NextResponse } from 'next/server'
 
+import { isAdminRole, USER_STATUS } from '@/server/auth/roles'
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
 
@@ -58,6 +59,7 @@ export async function readSessionToken(token: string | undefined) {
   if (!session || session.revokedAt || session.expiresAt.getTime() <= Date.now()) {
     return null
   }
+  if (session.User.status !== USER_STATUS.ACTIVE) return null
 
   return session
 }
@@ -68,9 +70,15 @@ export async function readSession(request: NextRequest) {
 
 export async function requireAdminSession(request: NextRequest) {
   const session = await readSession(request)
-  if (!session) {
+  if (!session || !isAdminRole(session.User.role)) {
     throw new HttpError('Unauthorized', 401, 401)
   }
+  return session
+}
+
+export async function requireUserSession(request: NextRequest) {
+  const session = await readSession(request)
+  if (!session) throw new HttpError('Unauthorized', 401, 401)
   return session
 }
 
@@ -79,6 +87,13 @@ export async function revokeSessionToken(token: string | undefined) {
 
   await prisma.session.updateMany({
     where: { tokenHash: sha256(token), revokedAt: null },
+    data: { revokedAt: new Date() },
+  })
+}
+
+export async function revokeAllUserSessions(userId: number) {
+  await prisma.session.updateMany({
+    where: { userId, revokedAt: null },
     data: { revokedAt: new Date() },
   })
 }

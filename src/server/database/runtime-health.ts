@@ -12,10 +12,9 @@ import 'server-only'
 
 import { getDatabaseClient } from '@/server/database/client'
 import { readInstallationPublicStatus } from '@/server/database/installation-state'
+import { CURRENT_SCHEMA_REVISION, INSTALLATION_ROW_ID } from '@/server/database/schema-version'
 import type { InstallationPublicStatus } from '@/server/database/types'
 
-const INSTALLATION_ROW_ID = 1
-const SCHEMA_REVISION = 1
 const HEALTHY_TTL_MS = 5_000
 const UNAVAILABLE_TTL_MS = 2_000
 
@@ -67,7 +66,7 @@ async function probeInstalledDatabase(
       !marker ||
       marker.provider !== installed.provider ||
       marker.status !== 'INSTALLED' ||
-      marker.schemaRevision !== SCHEMA_REVISION
+      marker.schemaRevision !== CURRENT_SCHEMA_REVISION
     ) {
       return maintenanceStatus(installed, 'Installed database marker is inconsistent')
     }

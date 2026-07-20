@@ -13,6 +13,10 @@ function backupWithReservation(options: {
   cnftStatus?: -1 | 0 | 1
 } = {}): BackupData {
   return {
+    users: [],
+    pointTransactions: [],
+    giftCardBatches: [],
+    giftCards: [],
     projects: [
       {
         id: '1',

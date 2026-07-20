@@ -1,7 +1,7 @@
 {
   "Nav": {
     "home": "Home",
-    "projects": "Projects",
+    "projects": "Articles",
     "community": "Community",
     "discord": "Discord",
     "github": "GitHub"
@@ -29,8 +29,8 @@
     }
   },
   "ProjectsPage": {
-    "title": "Projects",
-    "desc": "Browse all public projects and explore the knowledge universe",
+    "title": "Publications",
+    "desc": "Browse every public article collection. No wallet or token is required to read.",
     "loading": "Loading...",
     "error": "Failed to load, please try again later",
     "empty": "No public projects yet",
@@ -113,12 +113,12 @@
       "Page": "Page"
     },
     "highlight": {
-      "title": "On-chain Copyright & Permission Binding",
-        "desc": "Integrates Solana compressed NFTs for wallet-bound reading permissions and controlled distribution.",
+      "title": "Verifiable Article Copyright",
+        "desc": "Issues optional Solana compressed NFTs as publishing certificates tied to an article and its author, while reading remains public.",
       "tags": {
-        "walletSign": "🔐 Wallet Signature",
-        "onChainCert": "📜 On-chain Credential",
-        "permissionCheck": "👁️ Permission Check"
+        "walletSign": "🔗 Article Binding",
+        "onChainCert": "📜 On-chain Certificate",
+        "permissionCheck": "👁️ Public Reading"
       }
     },
     "cta": {
@@ -355,7 +355,7 @@
     "adminNotes": "Note Management",
     "adminNoteContent": "Content Editor",
     "adminFiles": "File Management",
-    "adminSolana": "On-chain Management",
+    "adminSolana": "Article Copyright Certificates",
     "adminBackup": "Backup Management",
     "adminSettings": "System Settings",
     "adminProjectHome": "Home Editor",
@@ -370,7 +370,9 @@
       "categories": "Category Management",
       "notes": "Note Management",
       "files": "File Management",
-      "solana": "On-chain Management",
+      "users": "User Management",
+      "giftCards": "Gift Cards",
+      "solana": "Copyright Certificates",
       "backup": "Backup Management",
       "settings": "System Settings"
     },
@@ -798,8 +800,8 @@
       }
     },
     "solana": {
-      "title": "On-chain Management",
-      "desc": "System-level cNFT Merkle Tree management with multi-tree redundancy",
+      "title": "Article Copyright Certificates",
+      "desc": "Manage optional cNFT publishing certificates for published articles with multi-tree redundancy",
       "network": {
         "label": "Current Network:",
         "devnet": "Devnet",
@@ -813,7 +815,7 @@
       },
       "tabs": {
         "trees": "Merkle Tree Management",
-        "cnfts": "cNFT Management"
+        "cnfts": "Article cNFT Certificates"
       },
       "trees": {
         "stats": {
@@ -963,7 +965,7 @@
       "desc": "Backup, restore and initialize database and file system",
       "warning": {
         "title": "Important Notice",
-        "content": "Backup operations will export all business data (excluding user authentication data). Restore operations may overwrite existing data, please proceed with caution."
+        "content": "Database backups include user accounts, password hashes, profiles, points, gift cards, articles and copyright records. Login sessions are not imported. Restore operations may overwrite existing data, so proceed with caution."
       },
       "database": {
         "title": "Database Backup",

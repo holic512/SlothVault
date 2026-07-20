@@ -2,10 +2,10 @@
  * @file admin-solana-cnfts.ts
  * @project SlothVault
  * @module Solana cNFT Administration
- * @description Implements portable cNFT capacity reservation, optional Filebase metadata, wallet prepare/submit, chain-event reconciliation, listing, and terminal-failure deletion.
- * @logic Atomically decrement provider-neutral remaining capacity without claiming a final leaf, persist the deterministic payer signature before broadcast, derive the real leaf and asset PDA only from the confirmed account-compression change log, release failed reservations exactly once, and advance each tree's confirmed cursor idempotently.
- * @dependencies Prisma MerkleTree/CompressedNft models, solana-chain, solana-session, Filebase, Sharp, admin file storage
- * @index_tags admin,solana,cnft,attempt,reconciliation,change-log,transaction,filebase
+ * @description Implements article copyright cNFT reservation, optional Filebase metadata, wallet prepare/submit, chain reconciliation, listing, and failure recovery.
+ * @logic Bind every new cNFT to a published article and administrator copyright owner, reserve tree capacity atomically, persist the deterministic payer signature, derive the final asset only from confirmed chain events, and never use ownership as a reading gate.
+ * @dependencies Prisma article/User/MerkleTree/CompressedNft models, solana-chain, solana-session, Filebase, Sharp, admin file storage
+ * @index_tags admin,solana,cnft,copyright,article,reconciliation,transaction,filebase
  * @author holic512
  */
 import 'server-only'
@@ -68,6 +68,8 @@ const PREPARE_RESERVATION_TIMEOUT_MS = 15 * 60 * 1000
 
 type PrepareCnftOptions = {
   projectId: number
+  noteInfoId: number
+  copyrightOwnerId: number
   ownerAddress: string
   name: string
   symbol?: string
@@ -126,6 +128,8 @@ function validateOnChainMetadata(name: string, symbol: string, uri: string) {
 
 async function reserveCnft(options: {
   projectId: number
+  noteInfoId: number
+  copyrightOwnerId: number
   ownerAddress: string
   name: string
   symbol: string
@@ -173,6 +177,8 @@ async function reserveCnft(options: {
       data: {
         merkleTreeId: tree.id,
         projectId: options.projectId,
+        noteInfoId: options.noteInfoId,
+        copyrightOwnerId: options.copyrightOwnerId,
         assetId: `pending_${randomUUID()}`,
         leafIndex: -1,
         name: options.name,
@@ -569,11 +575,42 @@ export async function prepareCnft(options: PrepareCnftOptions) {
   const inputMetadataUri = normalizeMetadataUri(options.metadataUri)
   validateOnChainMetadata(name, symbol, inputMetadataUri)
 
-  const project = await prisma.project.findFirst({
-    where: { id: options.projectId, isDeleted: false },
-    select: { id: true, projectName: true, avatar: true },
+  const article = await prisma.noteInfo.findFirst({
+    where: {
+      id: options.noteInfoId,
+      isDeleted: false,
+      status: 1,
+      category: {
+        isDeleted: false,
+        status: 1,
+        projectVersion: {
+          isDeleted: false,
+          status: 1,
+          project: { id: options.projectId, isDeleted: false, status: 1 },
+        },
+      },
+    },
+    select: {
+      id: true,
+      noteTitle: true,
+      category: {
+        select: {
+          projectVersion: {
+            select: { project: { select: { id: true, projectName: true, avatar: true } } },
+          },
+        },
+      },
+      contents: {
+        where: { isDeleted: false, status: 1 },
+        select: { id: true },
+        take: 1,
+      },
+    },
   })
-  if (!project) throw new HttpError('Project not found', 404, 404)
+  if (!article || article.contents.length === 0) {
+    throw new HttpError('Published article not found', 404, 404)
+  }
+  const project = article.category.projectVersion.project
 
   await reconcilePendingCnfts(options.network)
 
@@ -582,6 +619,8 @@ export async function prepareCnft(options: PrepareCnftOptions) {
   try {
     reserved = await reserveCnft({
       projectId: project.id,
+      noteInfoId: article.id,
+      copyrightOwnerId: options.copyrightOwnerId,
       ownerAddress: owner.toBase58(),
       name,
       symbol,
@@ -614,7 +653,7 @@ export async function prepareCnft(options: PrepareCnftOptions) {
           avatar: project.avatar,
           name,
           symbol,
-          description: description || `${project.projectName} - ${name}`,
+          description: description || `${article.noteTitle} · ${project.projectName}`,
           creatorAddress: treeAuthority.publicKey.toBase58(),
         })
         if (uploaded) {
@@ -671,6 +710,8 @@ export async function prepareCnft(options: PrepareCnftOptions) {
       kind: 'mint',
       merkleTreeId: reserved.tree.id.toString(),
       cnftId: reserved.cnft.id.toString(),
+      noteInfoId: article.id.toString(),
+      copyrightOwnerId: options.copyrightOwnerId.toString(),
       leafIndex: reserved.cnft.leafIndex,
       ownerAddress: owner.toBase58(),
       treeAddress: reserved.tree.treeAddress,
@@ -740,7 +781,14 @@ export async function submitCnft(options: {
   const session = openSolanaSession(options.sessionId, 'mint')
   const cnftId = Number(session.cnftId)
   const treeId = Number(session.merkleTreeId)
-  if (!Number.isSafeInteger(cnftId) || !Number.isSafeInteger(treeId)) {
+  const noteInfoId = Number(session.noteInfoId)
+  const copyrightOwnerId = Number(session.copyrightOwnerId)
+  if (
+    !Number.isSafeInteger(cnftId) ||
+    !Number.isSafeInteger(treeId) ||
+    !Number.isSafeInteger(noteInfoId) ||
+    !Number.isSafeInteger(copyrightOwnerId)
+  ) {
     throw new HttpError('cNFT prepare session contains an invalid database identifier', 400, 400)
   }
   const current = await prisma.compressedNft.findUnique({
@@ -751,7 +799,9 @@ export async function submitCnft(options: {
   if (
     current.merkleTreeId !== treeId ||
     current.merkleTree.treeAddress !== session.treeAddress ||
-    current.ownerAddress !== session.ownerAddress
+    current.ownerAddress !== session.ownerAddress ||
+    current.noteInfoId !== noteInfoId ||
+    current.copyrightOwnerId !== copyrightOwnerId
   ) {
     throw new HttpError('cNFT prepare record does not match the session', 409, 409)
   }
@@ -827,6 +877,7 @@ export async function submitCnft(options: {
 
 export async function listCnfts(options: {
   projectId?: number
+  noteInfoId?: number
   merkleTreeId?: number
   ownerAddress?: string
   status?: number
@@ -837,6 +888,7 @@ export async function listCnfts(options: {
   await reconcilePendingCnfts(options.network)
   const where: Prisma.CompressedNftWhereInput = {
     ...(options.projectId ? { projectId: options.projectId } : {}),
+    ...(options.noteInfoId ? { noteInfoId: options.noteInfoId } : {}),
     ...(options.merkleTreeId ? { merkleTreeId: options.merkleTreeId } : {}),
     ...(options.ownerAddress
       ? { ownerAddress: { contains: options.ownerAddress } }
@@ -863,6 +915,8 @@ export async function listCnfts(options: {
     prisma.compressedNft.count({ where }),
   ])
   const projectIds = [...new Set(cnfts.map((cnft) => cnft.projectId))]
+  const noteInfoIds = [...new Set(cnfts.flatMap((cnft) => cnft.noteInfoId ? [cnft.noteInfoId] : []))]
+  const copyrightOwnerIds = [...new Set(cnfts.flatMap((cnft) => cnft.copyrightOwnerId ? [cnft.copyrightOwnerId] : []))]
   const projects = projectIds.length
     ? await prisma.project.findMany({
         where: { id: { in: projectIds } },
@@ -870,6 +924,24 @@ export async function listCnfts(options: {
       })
     : []
   const projectMap = new Map(projects.map((project) => [project.id.toString(), project]))
+  const [notes, copyrightOwners] = await Promise.all([
+    noteInfoIds.length
+      ? prisma.noteInfo.findMany({
+          where: { id: { in: noteInfoIds } },
+          select: { id: true, noteTitle: true },
+        })
+      : [],
+    copyrightOwnerIds.length
+      ? prisma.user.findMany({
+          where: { id: { in: copyrightOwnerIds } },
+          select: { id: true, username: true, displayName: true },
+        })
+      : [],
+  ])
+  const noteMap = new Map(notes.map((note) => [note.id, note.noteTitle]))
+  const copyrightOwnerMap = new Map(
+    copyrightOwners.map((user) => [user.id, user.displayName || user.username]),
+  )
   return {
     list: cnfts.map((cnft) => {
       const project = projectMap.get(cnft.projectId.toString())
@@ -878,6 +950,12 @@ export async function listCnfts(options: {
         projectId: cnft.projectId.toString(),
         projectName: project?.projectName ?? null,
         projectAvatar: project?.avatar ?? null,
+        noteInfoId: cnft.noteInfoId?.toString() ?? null,
+        noteTitle: cnft.noteInfoId ? noteMap.get(cnft.noteInfoId) ?? null : null,
+        copyrightOwnerId: cnft.copyrightOwnerId?.toString() ?? null,
+        copyrightOwner: cnft.copyrightOwnerId
+          ? copyrightOwnerMap.get(cnft.copyrightOwnerId) ?? null
+          : null,
         assetId: cnft.assetId,
         leafIndex: cnft.leafIndex,
         name: cnft.name,

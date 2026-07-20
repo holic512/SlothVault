@@ -2,7 +2,7 @@
  * @file admin-dashboard.ts
  * @project SlothVault
  * @module Admin Dashboard Service
- * @description Aggregates administration overview counts, utilization health, file statistics, blockchain status, and recent activity.
+ * @description Aggregates administration overview counts, user/point/card metrics, content health, file statistics, optional copyright-chain status, and recent activity.
  * @logic Query independent dashboard metrics concurrently, normalize aggregate values, calculate percentages, and map recent records to the stable API shape.
  * @dependencies Prisma user, content, file, session, and Solana models
  * @index_tags admin,dashboard,metrics,health,recent-activity
@@ -18,9 +18,11 @@ export async function getAdminDashboard() {
   const [
     totalUsers,
     activeSessions,
+    totalPoints,
+    totalGiftCards,
+    redeemedGiftCards,
     totalProjects,
     activeProjects,
-    projectsWithAuth,
     totalVersions,
     activeVersions,
     totalCategories,
@@ -41,9 +43,11 @@ export async function getAdminDashboard() {
   ] = await Promise.all([
     prisma.user.count(),
     prisma.session.count({ where: { expiresAt: { gte: now }, revokedAt: null } }),
+    prisma.user.aggregate({ _sum: { pointsBalance: true } }),
+    prisma.giftCard.count(),
+    prisma.giftCard.count({ where: { status: 2 } }),
     prisma.project.count({ where: { isDeleted: false } }),
     prisma.project.count({ where: { isDeleted: false, status: 1 } }),
-    prisma.project.count({ where: { isDeleted: false, requireAuth: true } }),
     prisma.projectVersion.count({ where: { isDeleted: false } }),
     prisma.projectVersion.count({ where: { isDeleted: false, status: 1 } }),
     prisma.category.count({ where: { isDeleted: false } }),
@@ -71,7 +75,6 @@ export async function getAdminDashboard() {
         id: true,
         projectName: true,
         status: true,
-        requireAuth: true,
         createdAt: true,
         _count: { select: { versions: { where: { isDeleted: false } } } },
       },
@@ -115,8 +118,13 @@ export async function getAdminDashboard() {
 
   return {
     overview: {
-      users: { total: totalUsers, activeSessions },
-      projects: { total: totalProjects, active: activeProjects, withAuth: projectsWithAuth },
+      users: {
+        total: totalUsers,
+        activeSessions,
+        totalPoints: totalPoints._sum.pointsBalance || 0,
+      },
+      giftCards: { total: totalGiftCards, redeemed: redeemedGiftCards },
+      projects: { total: totalProjects, active: activeProjects },
       versions: { total: totalVersions, active: activeVersions },
       categories: { total: totalCategories, active: activeCategories },
       notes: { total: totalNotes, active: activeNotes },
@@ -152,7 +160,6 @@ export async function getAdminDashboard() {
         id: project.id,
         name: project.projectName,
         status: project.status,
-        requireAuth: project.requireAuth,
         versionCount: project._count.versions,
         createdAt: project.createdAt,
       })),

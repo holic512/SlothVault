@@ -1,7 +1,7 @@
 {
   "Nav": {
     "home": "首页",
-    "projects": "项目",
+    "projects": "文章",
     "community": "加入交流群",
     "discord": "Discord",
     "github": "GitHub"
@@ -29,8 +29,8 @@
     }
   },
   "ProjectsPage": {
-    "title": "项目列表",
-    "desc": "浏览所有公开项目，探索知识宇宙",
+    "title": "公开文章库",
+    "desc": "浏览全部公开文章，无需连接钱包或持有任何代币。",
     "loading": "加载中...",
     "error": "加载失败，请稍后重试",
     "empty": "暂无公开项目",
@@ -113,12 +113,12 @@
       "Page": "Page"
     },
     "highlight": {
-      "title": "链上版权与权限绑定",
-        "desc": "集成 Solana 压缩 NFT，为内容提供钱包绑定的阅读权限与可控分发能力。",
+      "title": "可验证的文章版权",
+        "desc": "将可选的 Solana 压缩 NFT 作为与文章及作者绑定的发布凭证，同时保持文章公开阅读。",
       "tags": {
-        "walletSign": "🔐 钱包签名",
+        "walletSign": "🔗 文章绑定",
         "onChainCert": "📜 链上凭证",
-        "permissionCheck": "👁️ 权限校验"
+        "permissionCheck": "👁️ 公开阅读"
       }
     },
     "cta": {
@@ -355,7 +355,7 @@
     "adminNotes": "笔记管理",
     "adminNoteContent": "内容编辑",
     "adminFiles": "文件管理",
-    "adminSolana": "链上管理",
+    "adminSolana": "文章版权凭证",
     "adminBackup": "备份管理",
     "adminSettings": "系统设置",
     "adminProjectHome": "首页编辑",
@@ -370,7 +370,9 @@
       "categories": "分类管理",
       "notes": "笔记管理",
       "files": "文件管理",
-      "solana": "链上管理",
+      "users": "用户管理",
+      "giftCards": "卡密管理",
+      "solana": "版权凭证",
       "backup": "备份管理",
       "settings": "系统设置"
     },
@@ -798,8 +800,8 @@
       }
     },
     "solana": {
-      "title": "链上管理",
-      "desc": "系统级 cNFT Merkle Tree 管理，支持多树冗余",
+      "title": "文章版权凭证",
+      "desc": "管理已发布文章的可选 cNFT 发布凭证，并支持多树冗余",
       "network": {
         "label": "当前网络:",
         "devnet": "测试网",
@@ -813,7 +815,7 @@
       },
       "tabs": {
         "trees": "Merkle Tree 管理",
-        "cnfts": "cNFT 管理"
+        "cnfts": "文章 cNFT 凭证"
       },
       "trees": {
         "stats": {
@@ -963,7 +965,7 @@
       "desc": "数据库和文件系统的备份、恢复与初始化",
       "warning": {
         "title": "重要提示",
-        "content": "备份操作会导出所有业务数据（不包含用户认证数据）。恢复操作可能会覆盖现有数据，请谨慎操作。"
+        "content": "数据库备份包含用户账户、密码哈希、个人资料、积分、卡密、文章和版权记录；登录会话不会导入。恢复操作可能覆盖现有数据，请谨慎操作。"
       },
       "database": {
         "title": "数据库备份",

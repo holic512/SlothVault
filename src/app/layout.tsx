@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     default: 'SlothVault',
     template: '%s · SlothVault',
   },
-  description: 'A private, versioned document vault with optional Solana cNFT access control.',
+  description: 'A public Web2 publishing system with personal profiles, points, gift cards, and optional on-chain copyright certificates.',
   icons: { icon: '/favicon.ico' },
 }
 
@@ -40,7 +40,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const messages = await getMessages()
 
   return (
-    <html lang={locale} className="dark theme-purple" suppressHydrationWarning>
+    <html lang={locale} className="theme-mono" suppressHydrationWarning>
       <body>
         <AntdRegistry>
           <NextIntlClientProvider locale={locale} messages={messages}>

@@ -1,35 +1,25 @@
-import { z } from 'zod'
-
-import { verifyWalletProof } from '@/server/auth/wallet-proof'
+/**
+ * @file route.ts
+ * @project SlothVault
+ * @module Legacy Public Access API
+ * @description Preserves the former wallet-access endpoint while reporting that every published collection is publicly readable.
+ * @logic Validate the project identifier and existence, ignore legacy wallet payloads, and return a stable unconditional public-access decision.
+ * @dependencies HTTP route helpers, public-projects service
+ * @index_tags api,compatibility,public-reading,no-wallet
+ * @author holic512
+ */
 import { defineRoute } from '@/server/http/handler'
-import { parseBigIntId, readJson } from '@/server/http/request'
+import { parseBigIntId } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
-import { verifyProjectAccess } from '@/server/services/project-access'
+import { getPublicProject } from '@/server/services/public-projects'
 
-const bodySchema = z.object({
-  walletAddress: z.string().optional(),
-  signature: z.string().optional(),
-  timestamp: z.number().int().safe().optional(),
-  forceChainVerify: z.boolean().optional().default(false),
-})
-
-export const POST = defineRoute<{ id: string }>(async (request, context) => {
+export const POST = defineRoute<{ id: string }>(async (_request, context) => {
   const { id } = await context.params
   const projectId = parseBigIntId(id, 'project id')
-  const body = await readJson(request, bodySchema)
-
-  const initial = await verifyProjectAccess(projectId, null)
-  if (!initial.requireAuth) return apiOk(initial)
-  if (!body.walletAddress || !body.signature || !body.timestamp) return apiOk(initial)
-
-  const walletAddress = verifyWalletProof(projectId, {
-    address: body.walletAddress,
-    signature: body.signature,
-    timestamp: body.timestamp,
+  await getPublicProject(projectId)
+  return apiOk({
+    hasAccess: true,
+    reason: 'Published content is public',
+    requireAuth: false,
   })
-  return apiOk(
-    await verifyProjectAccess(projectId, walletAddress, {
-      forceChainVerify: body.forceChainVerify,
-    }),
-  )
 })

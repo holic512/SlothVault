@@ -17,14 +17,12 @@ export type SidebarCategory = {
 }
 
 export function VersionDocsRedirect({ versionId }: { versionId: string }) {
-  const { projectId, accessHeaders } = useProjectContext()
+  const { projectId } = useProjectContext()
   const router = useRouter()
   const query = useQuery({
     queryKey: ['project-sidebar', projectId, versionId],
     queryFn: () =>
-      apiFetch<SidebarCategory[]>(`/api/project/${projectId}/v/${versionId}/sidebar`, {
-        headers: accessHeaders,
-      }),
+      apiFetch<SidebarCategory[]>(`/api/project/${projectId}/v/${versionId}/sidebar`),
   })
   const firstNote = query.data?.flatMap((category) => category.notes)[0]
 

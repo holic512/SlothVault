@@ -1,8 +1,8 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { Alert, Card, Empty, Skeleton, Tag, Typography } from 'antd'
-import { ArrowUpRight, CalendarClock, FolderTree, LockKeyhole } from 'lucide-react'
+import { Alert, Card, Empty, Skeleton, Typography } from 'antd'
+import { ArrowUpRight, CalendarClock, FolderTree } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 
@@ -16,7 +16,6 @@ type ProjectListItem = {
   latestVersion: string | null
   latestVersionDesc: string | null
   categoryCount: number
-  requireAuth: boolean
   updatedAt: string
 }
 
@@ -32,7 +31,7 @@ export function ProjectListView() {
       <PublicNavbar />
       <main className="projects-main content-container">
         <div className="projects-heading">
-          <Typography.Text className="projects-kicker">SlothVault / Library</Typography.Text>
+          <Typography.Text className="projects-kicker">Library</Typography.Text>
           <Typography.Title>{t('title')}</Typography.Title>
           <Typography.Paragraph type="secondary">{t('desc')}</Typography.Paragraph>
         </div>
@@ -61,9 +60,8 @@ export function ProjectListView() {
                   <Typography.Paragraph type="secondary" ellipsis={{ rows: 2 }}>
                     {project.latestVersionDesc || 'A versioned SlothVault document collection.'}
                   </Typography.Paragraph>
-                  <div className="project-card-tags">
-                    {project.latestVersion ? <Tag>{project.latestVersion}</Tag> : null}
-                    {project.requireAuth ? <Tag icon={<LockKeyhole size={12} />} color="purple">{t('requireAuth')}</Tag> : null}
+                  <div className="project-card-edition">
+                    {project.latestVersion ? `Edition ${project.latestVersion}` : 'Living collection'}
                   </div>
                   <div className="project-card-meta">
                     <span><FolderTree size={14} />{project.categoryCount} {t('categories')}</span>

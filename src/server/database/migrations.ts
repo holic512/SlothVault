@@ -2,10 +2,10 @@
  * @file migrations.ts
  * @project SlothVault
  * @module Database Bootstrap
- * @description Applies the committed empty-database migration set selected by the installer.
- * @logic Map the validated provider to a fixed schema path, pass credentials only through a child environment, stage private CA material, and wait through graceful/forced timeout termination before releasing installation state.
- * @dependencies node:child_process, Prisma CLI, database/connection-url
- * @index_tags prisma,migrate-deploy,installer,subprocess,tls
+ * @description Applies the committed provider migration set for installation and safe runtime upgrades.
+ * @logic Map the validated provider to a fixed schema path, pass credentials only through a child environment, run migrate deploy, then advance the installation marker only after every committed migration succeeds.
+ * @dependencies node:child_process, Prisma CLI, database/connection-url, database/client, schema-version
+ * @index_tags prisma,migrate-deploy,installer,upgrade,subprocess,tls
  * @author holic512
  */
 import 'server-only'
@@ -16,8 +16,10 @@ import { rmSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import { appConfigPath } from '@/server/config/app-data'
+import { createDatabaseClient, disconnectDatabaseClient } from '@/server/database/client'
 import { databaseConnectionUrl } from '@/server/database/connection-url'
 import type { DatabaseConnectionInput, DatabaseProvider } from '@/server/database/types'
+import { CURRENT_SCHEMA_REVISION, INSTALLATION_ROW_ID } from '@/server/database/schema-version'
 
 const MIGRATION_TIMEOUT_MS = 120_000
 const MIGRATION_TERMINATION_GRACE_MS = 5_000
@@ -149,5 +151,31 @@ export async function deployInitialDatabaseSchema(connection: DatabaseConnection
     }
   } finally {
     if (caPath) rmSync(caPath, { force: true })
+  }
+}
+
+export async function upgradeConfiguredDatabaseSchema(connection: DatabaseConnectionInput) {
+  await deployInitialDatabaseSchema(connection)
+
+  const client = createDatabaseClient(connection)
+  try {
+    const marker = await client.systemInstallation.findUnique({
+      where: { id: INSTALLATION_ROW_ID },
+      select: { provider: true, status: true, schemaRevision: true },
+    })
+    if (!marker || marker.provider !== connection.provider) {
+      throw new DatabaseMigrationError('Installed database marker is inconsistent')
+    }
+    if (marker.schemaRevision > CURRENT_SCHEMA_REVISION) {
+      throw new DatabaseMigrationError('Installed database schema is newer than this application')
+    }
+    if (marker.schemaRevision < CURRENT_SCHEMA_REVISION) {
+      await client.systemInstallation.update({
+        where: { id: INSTALLATION_ROW_ID },
+        data: { schemaRevision: CURRENT_SCHEMA_REVISION, updatedAt: new Date() },
+      })
+    }
+  } finally {
+    await disconnectDatabaseClient(client).catch(() => undefined)
   }
 }

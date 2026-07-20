@@ -5,7 +5,7 @@ import { getProjectMenu } from '@/server/services/public-projects'
 
 export const dynamic = 'force-dynamic'
 
-export const GET = defineRoute<{ id: string }>(async (request, context) => {
+export const GET = defineRoute<{ id: string }>(async (_request, context) => {
   const { id } = await context.params
-  return apiOk(await getProjectMenu(request, parseBigIntId(id, 'project id')))
+  return apiOk(await getProjectMenu(parseBigIntId(id, 'project id')))
 })

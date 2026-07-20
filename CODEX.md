@@ -6,7 +6,7 @@
 
 ## 项目概览
 
-SlothVault 当前运行栈是 Next.js 16 App Router + React 19。系统面向单一管理员，提供公开 Markdown 文档站、管理后台、本地受控文件存储，以及可选的 Solana cNFT 项目访问权限。
+SlothVault 当前运行栈是 Next.js 16 App Router + React 19。系统提供公开 Markdown 文章、普通用户与个人主页、管理员发布后台、积分/卡密、本地受控文件存储，以及可选的 Solana cNFT 文章版权凭证。
 
 ## 当前技术栈
 
@@ -14,7 +14,8 @@ SlothVault 当前运行栈是 Next.js 16 App Router + React 19。系统面向单
 - Frontend: React 19、Ant Design 6、TanStack Query、Zustand
 - Theme/i18n: next-themes、next-intl
 - Markdown: `@uiw/react-md-editor`、react-markdown、remark/rehype
-- Database: PostgreSQL + Prisma 7（auth、collections、docs、public）
+- Database: SQLite / MySQL / PostgreSQL + Prisma 7 provider clients
+- Short-lived state: Redis 7 + node-redis（钱包登录挑战、限流）
 - Blockchain: `@solana/web3.js`、SPL Account Compression、React Wallet Adapter
 - Storage: `data/uploads` 受控路由；可选 Filebase S3/IPFS
 
@@ -38,7 +39,7 @@ import { apiOk } from '@/server/http/response'
 import { prisma } from '@/server/prisma'
 ```
 
-- 管理 API 必须先调用 `requireAdminSession(request)`。
+- 管理 API 必须先调用 `requireAdminSession(request)` 并验证 `User.role === ADMIN`；普通账户接口使用 `requireUserSession(request)`。
 - 使用 `defineRoute` 统一映射 `HttpError`、Zod 和未知错误。
 - 响应使用 `{ code, message, data }` envelope，并让 `apiOk` 处理 BigInt。
 - 业务事务与 DTO 映射优先放在 `src/server/services`，Route Handler 保持薄层。
@@ -48,7 +49,8 @@ import { prisma } from '@/server/prisma'
 - 上传根由 `UPLOAD_STORAGE_PATH` 控制，默认 `data/uploads`；不要重新创建 `public/uploads`。
 - 任何存储路径必须做 containment 与符号链接检查。
 - 敏感配置不回显；数据库备份视为敏感数据。
-- Solana submit 必须绑定 prepare 消息、fee payer、程序、树/owner 和完整签名。
+- 已发布文章必须公开读取，不得重新引入钱包/cNFT 阅读门槛。
+- Solana submit 必须绑定 prepare 消息、fee payer、程序、树/owner 和完整签名；新 cNFT 必须绑定文章和版权管理员。
 - cNFT leaf 分配必须持有 `merkle_tree` 行锁；失败/删除不得回退可能已暴露的索引。
 - `ENCRYPTION_KEY` 格式兼容现有 Tree Authority 密文，不得随意更换 KDF/旧密文格式。
 

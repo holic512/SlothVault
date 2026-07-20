@@ -12,8 +12,9 @@ import { z } from 'zod'
 
 import { setSessionCookie } from '@/server/auth/session'
 import { defineRoute } from '@/server/http/handler'
-import { readJson } from '@/server/http/request'
+import { readJson, requestClientIp } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
+import { enforceRateLimit } from '@/server/redis'
 import { loginAdmin } from '@/server/services/admin-auth'
 
 const loginSchema = z.object({
@@ -23,11 +24,12 @@ const loginSchema = z.object({
 })
 
 export const POST = defineRoute(async (request) => {
+  const ip = requestClientIp(request)
+  await enforceRateLimit({ scope: 'admin-login', identity: ip, limit: 10, windowSeconds: 15 * 60 })
   const body = await readJson(request, loginSchema)
-  const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
   const result = await loginAdmin({
     ...body,
-    ip: forwardedFor || request.headers.get('x-real-ip'),
+    ip,
     userAgent: request.headers.get('user-agent'),
   })
   const response = apiOk(result.user)

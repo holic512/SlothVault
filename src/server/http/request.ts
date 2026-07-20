@@ -1,3 +1,13 @@
+/**
+ * @file request.ts
+ * @project SlothVault
+ * @module Server HTTP Requests
+ * @description Centralizes JSON validation, identifier parsing, query coercion, and privacy-safe client identity extraction.
+ * @logic Parse untrusted request values once and expose a stable client-IP token for Redis-backed abuse controls.
+ * @dependencies next/server, zod, server/http/errors
+ * @index_tags http,request,validation,client-ip,rate-limit
+ * @author holic512
+ */
 import type { NextRequest } from 'next/server'
 import type { ZodType } from 'zod'
 
@@ -34,4 +44,12 @@ export function optionalBoolean(value: string | null): boolean | undefined {
   if (value === 'true' || value === '1') return true
   if (value === 'false' || value === '0') return false
   throw new HttpError('Invalid boolean query value', 400, 400)
+}
+
+export function requestClientIp(request: NextRequest) {
+  return (
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    request.headers.get('x-real-ip')?.trim() ||
+    'unknown'
+  ).slice(0, 255)
 }

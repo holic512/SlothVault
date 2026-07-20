@@ -1,25 +1,32 @@
 'use client'
 
+/**
+ * @file theme-controls.tsx
+ * @project SlothVault
+ * @module Theme and Locale Controls
+ * @description Exposes only light/dark mode and language for the monochrome interface.
+ * @logic Persist the selected theme through next-themes and update the locale cookie without offering bright palette variants.
+ * @dependencies antd, next-themes, next-intl, preferences API
+ * @index_tags theme,locale,monochrome,accessibility
+ * @author holic512
+ */
+
 import { useTransition } from 'react'
 
-import { CheckOutlined } from '@ant-design/icons'
-import { Button, Divider, Popover, Segmented, Space, Typography } from 'antd'
-import { Moon, Palette as PaletteIcon, Sun } from 'lucide-react'
+import { Button, Divider, Popover, Segmented, Typography } from 'antd'
+import { Moon, Sun } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
 
 import { apiFetch } from '@/lib/api-client'
 import { useHydrated } from '@/hooks/use-hydrated'
-import { palettes, usePreferencesStore, type Palette } from '@/stores/preferences'
 
 export function ThemeControls() {
   const t = useTranslations('ThemeToggle')
   const locale = useLocale()
   const router = useRouter()
   const { resolvedTheme, setTheme } = useTheme()
-  const palette = usePreferencesStore((state) => state.palette)
-  const setPalette = usePreferencesStore((state) => state.setPalette)
   const mounted = useHydrated()
   const [changingLocale, startLocaleTransition] = useTransition()
   const light = mounted && resolvedTheme === 'light'
@@ -58,21 +65,6 @@ export function ThemeControls() {
           { label: t('language.zh'), value: 'zh' },
         ]}
       />
-      <Divider />
-      <Typography.Text type="secondary">{t('section.color')}</Typography.Text>
-      <Space wrap className="palette-options">
-        {palettes.map((item) => (
-          <Button
-            key={item}
-            className={`palette-option palette-option--${item}`}
-            type={palette === item ? 'primary' : 'default'}
-            icon={palette === item ? <CheckOutlined /> : undefined}
-            onClick={() => setPalette(item as Palette)}
-          >
-            {t(`palette.${item}`)}
-          </Button>
-        ))}
-      </Space>
     </div>
   )
 
@@ -81,7 +73,7 @@ export function ThemeControls() {
       <Button
         className="icon-action"
         aria-label={t('aria.openThemeSettings')}
-        icon={light ? <Sun size={17} /> : <PaletteIcon size={17} />}
+        icon={light ? <Sun size={17} /> : <Moon size={17} />}
       />
     </Popover>
   )

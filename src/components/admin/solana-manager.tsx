@@ -4,8 +4,8 @@
  * @file solana-manager.tsx
  * @project SlothVault
  * @module Solana Administration
- * @description Replaces the Nuxt Solana pages and dialogs with one authenticated Ant Design tree and cNFT console.
- * @logic Select the configured network, prepare server-partially-signed transactions, request the connected wallet signature, submit opaque sessions, and refresh persisted chain records.
+ * @description Provides the authenticated Solana tree console and optional article copyright cNFT workflow.
+ * @logic Select the configured network, bind a published article and administrator copyright owner, prepare the transaction, request the payer wallet signature, submit the opaque session, and refresh persisted chain records.
  * @dependencies Solana Wallet Adapter, @solana/web3.js, Ant Design, React Query, next-intl, api-client
  * @index_tags admin,solana,merkle-tree,cnft,wallet,transactions
  * @author holic512
@@ -77,6 +77,9 @@ type CnftDto = {
   projectId: string
   projectName: string | null
   projectAvatar: string | null
+  noteInfoId: string | null
+  noteTitle: string | null
+  copyrightOwner: string | null
   assetId: string
   leafIndex: number
   name: string
@@ -90,6 +93,7 @@ type CnftDto = {
   merkleTree: { name: string; treeAddress: string; network: SolanaNetwork }
 }
 type ProjectOption = { id: string; projectName: string }
+type NoteOption = { id: string; noteTitle: string }
 type EstimatePreset = {
   label: string
   maxDepth: number
@@ -549,7 +553,17 @@ function CnftsPanel({ network }: { network: SolanaNetwork }) {
         </Space>
       ),
     },
-    { title: t('table.project'), dataIndex: 'projectName', width: 150, render: (value) => value || '-' },
+    {
+      title: 'Article',
+      width: 190,
+      render: (_value, row) => (
+        <Space orientation="vertical" size={0}>
+          <Typography.Text>{row.noteTitle || row.name}</Typography.Text>
+          <Typography.Text type="secondary">{row.projectName || 'Legacy certificate'}</Typography.Text>
+        </Space>
+      ),
+    },
+    { title: 'Copyright owner', dataIndex: 'copyrightOwner', width: 140, render: (value) => value || '-' },
     {
       title: t('table.owner'),
       dataIndex: 'ownerAddress',
@@ -682,6 +696,7 @@ function MintCnftDialog({
   const { message } = App.useApp()
   const [form] = Form.useForm<{
     projectId: string
+    noteInfoId: string
     ownerAddress: string
     name: string
     symbol?: string
@@ -689,6 +704,14 @@ function MintCnftDialog({
     metadataUri?: string
     useProjectAvatar: boolean
   }>()
+  const selectedProjectId = Form.useWatch('projectId', form)
+  const notesQuery = useQuery({
+    queryKey: ['admin-solana-article-options', selectedProjectId],
+    enabled: open && Boolean(selectedProjectId),
+    queryFn: () => apiFetch<{ list: NoteOption[] }>(
+      `/api/admin/mm/note?pageSize=100&status=1&projectId=${selectedProjectId}`,
+    ),
+  })
   const mutation = useMutation({
     mutationFn: async (values: ReturnType<typeof form.getFieldsValue>) => {
       if (!connected || !publicKey) {
@@ -724,7 +747,7 @@ function MintCnftDialog({
     <Modal
       open={open}
       width={620}
-      title="Mint project access cNFT"
+      title="Mint article copyright cNFT"
       okText="Prepare, sign and submit"
       confirmLoading={mutation.isPending}
       onCancel={onClose}
@@ -737,7 +760,24 @@ function MintCnftDialog({
         onFinish={(values) => mutation.mutate(values)}
       >
         <Form.Item name="projectId" label="Project" rules={[{ required: true }]}>
-          <Select showSearch optionFilterProp="label" options={projects.map((project) => ({ value: project.id, label: project.projectName }))} />
+          <Select
+            showSearch
+            optionFilterProp="label"
+            options={projects.map((project) => ({ value: project.id, label: project.projectName }))}
+            onChange={() => form.setFieldValue('noteInfoId', undefined)}
+          />
+        </Form.Item>
+        <Form.Item name="noteInfoId" label="Published article" rules={[{ required: true }]}>
+          <Select
+            showSearch
+            loading={notesQuery.isLoading}
+            disabled={!selectedProjectId}
+            optionFilterProp="label"
+            options={(notesQuery.data?.list || []).map((note) => ({
+              value: note.id,
+              label: note.noteTitle,
+            }))}
+          />
         </Form.Item>
         <Form.Item name="ownerAddress" label="Owner wallet" rules={[{ required: true }]}>
           <Input addonAfter={<Button type="link" size="small" onClick={openWallet}>Use connected</Button>} />
@@ -750,7 +790,7 @@ function MintCnftDialog({
         </div>
         <Form.Item name="description" label="Description"><Input.TextArea rows={3} /></Form.Item>
         <Form.Item name="metadataUri" label="Metadata URI"><Input placeholder="ipfs://... (optional)" /></Form.Item>
-        <Form.Item name="useProjectAvatar" label="Upload project avatar to Filebase when configured" valuePropName="checked">
+        <Form.Item name="useProjectAvatar" label="Use collection avatar for certificate metadata" valuePropName="checked">
           <Switch />
         </Form.Item>
       </Form>

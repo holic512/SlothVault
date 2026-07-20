@@ -2,8 +2,8 @@
  * @file solana-session.ts
  * @project SlothVault
  * @module Solana Session Security
- * @description Preserves legacy encrypted tree-authority keys and replaces process-local prepare sessions with short-lived encrypted HMAC tokens.
- * @logic Derive purpose-separated keys from ENCRYPTION_KEY, seal validated transaction context for five minutes, authenticate before decrypting, and reject expired or wrong-purpose tokens.
+ * @description Preserves legacy encrypted tree-authority keys and seals tree/article copyright prepare sessions in short-lived encrypted HMAC tokens.
+ * @logic Derive purpose-separated keys from ENCRYPTION_KEY, bind transaction and article/copyright context for five minutes, authenticate before decrypting, and reject expired or mismatched tokens.
  * @dependencies node:crypto, zod, server/http/errors, config/master-key
  * @index_tags solana,session,token,hmac,aes-gcm,encryption
  * @author holic512
@@ -67,6 +67,8 @@ const mintSessionSchema = transactionContextSchema.extend({
   kind: z.literal('mint'),
   merkleTreeId: decimalIdSchema,
   cnftId: decimalIdSchema,
+  noteInfoId: decimalIdSchema,
+  copyrightOwnerId: decimalIdSchema,
   leafIndex: z.number().int().min(-1),
   ownerAddress: publicKeySchema,
   treeAuthority: publicKeySchema,

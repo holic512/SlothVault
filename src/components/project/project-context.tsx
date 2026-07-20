@@ -4,8 +4,8 @@
  * @file project-context.tsx
  * @project SlothVault
  * @module Public Project State
- * @description Shares project metadata, versions, menus, and verified wallet headers across nested reading routes.
- * @logic Keep one project query/access decision in the layout and expose it to home, redirect, and note pages.
+ * @description Shares public project metadata, versions, and menus across nested reading routes.
+ * @logic Keep one public project query in the layout and expose its stable reading context to home, redirect, and note pages.
  * @dependencies React context
  * @index_tags project,context,reader,state-boundary
  * @author holic512
@@ -42,7 +42,6 @@ export type ProjectContextValue = {
   project: PublicProject
   versions: ProjectVersion[]
   menus: ProjectMenu[]
-  accessHeaders: Record<string, string>
 }
 
 const ProjectContext = createContext<ProjectContextValue | null>(null)

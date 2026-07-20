@@ -6,6 +6,9 @@ const providers = ['postgresql', 'mysql', 'sqlite'] as const
 const expectedTables = {
   Session: 'auth_session',
   User: 'auth_user',
+  PointTransaction: 'points_transaction',
+  GiftCardBatch: 'points_gift_card_batch',
+  GiftCard: 'points_gift_card',
   Project: 'collections_project',
   ProjectMenu: 'collections_project_menu',
   ProjectHome: 'collections_project_home',
@@ -29,6 +32,16 @@ function readSchema(provider: (typeof providers)[number]) {
 function readInitialMigration(provider: (typeof providers)[number]) {
   return readFileSync(
     resolve(process.cwd(), `prisma/providers/${provider}/migrations/20260719000000_initial/migration.sql`),
+    'utf8',
+  )
+}
+
+function readWeb2Migration(provider: (typeof providers)[number]) {
+  return readFileSync(
+    resolve(
+      process.cwd(),
+      `prisma/providers/${provider}/migrations/20260721000000_web2_identity_points/migration.sql`,
+    ),
     'utf8',
   )
 }
@@ -69,9 +82,18 @@ describe('provider schema parity', () => {
 
     expect(models.get('Session')).toContain('id String @id userId Int')
     expect(models.get('Session')).not.toContain('id String @id @default')
+    expect(models.get('User')).toContain('role String @default("USER")')
+    expect(models.get('User')).toContain('passwordConfigured Boolean @default(true) @map("password_configured")')
+    expect(models.get('User')).toContain('pointsBalance Int @default(0) @map("points_balance")')
+    expect(models.get('User')).toContain('walletAddress String? @unique')
+    expect(models.get('PointTransaction')).toContain('balanceAfter Int @map("balance_after")')
+    expect(models.get('GiftCard')).toContain('codeHash String @unique')
     expect(models.get('NoteInfo')).toContain('contentRevision Int @default(0) @map("content_revision")')
+    expect(models.get('NoteInfo')).toContain('authorId Int? @map("author_id")')
     expect(models.get('MerkleTree')).toContain('remainingCapacity BigInt @default(0) @map("remaining_capacity")')
     expect(models.get('CompressedNft')).toContain('capacityReserved Boolean @default(false) @map("capacity_reserved")')
+    expect(models.get('CompressedNft')).toContain('noteInfoId Int? @map("note_info_id")')
+    expect(models.get('CompressedNft')).toContain('copyrightOwnerId Int? @map("copyright_owner_id")')
     expect(models.has('SystemInstallation')).toBe(true)
     expect(models.has('RuntimeLock')).toBe(true)
   })
@@ -80,6 +102,9 @@ describe('provider schema parity', () => {
     const models = modelBlocks(readSchema(provider))
     const autoIncrementModels = [
       'User',
+      'PointTransaction',
+      'GiftCardBatch',
+      'GiftCard',
       'Project',
       'ProjectMenu',
       'ProjectHome',
@@ -118,5 +143,17 @@ describe('provider schema parity', () => {
     expect(migration).toContain('solana-tree-priority:mainnet')
     expect(migration).toContain('solana-tree-priority:devnet')
     expect(migrationLock).toContain(`provider = "${provider}"`)
+  })
+
+  it.each(providers)('%s migrates Web2 identity, points, gift cards, and article credentials', (provider) => {
+    const migration = readWeb2Migration(provider)
+
+    expect(migration).toContain('points_transaction')
+    expect(migration).toContain('points_gift_card_batch')
+    expect(migration).toContain('points_gift_card')
+    expect(migration).toContain('wallet_address')
+    expect(migration).toContain('author_id')
+    expect(migration).toContain('note_info_id')
+    expect(migration).toContain('copyright_owner_id')
   })
 })

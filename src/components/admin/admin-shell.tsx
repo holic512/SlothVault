@@ -5,8 +5,8 @@
  * @project SlothVault
  * @module Administrator Shell
  * @description Replaces the Nuxt admin layout with a responsive Ant Design navigation and authenticated header.
- * @logic Map routes to one menu/breadcrumb model, preserve collapse state locally, and expose wallet/theme/logout actions.
- * @dependencies antd, next/navigation, next-intl, wallet-button, theme-controls
+ * @logic Map routes to one menu/breadcrumb model, preserve collapse state locally, and expose home/theme/logout actions while keeping wallet use inside the optional copyright page.
+ * @dependencies antd, next/navigation, next-intl, theme-controls
  * @index_tags admin,layout,navigation,sidebar
  * @author holic512
  */
@@ -26,13 +26,14 @@ import {
   LogOut,
   PanelsTopLeft,
   Settings,
+  TicketCheck,
+  Users,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
 import { ThemeControls } from '@/components/theme/theme-controls'
-import { WalletButton } from '@/components/wallet/wallet-button'
 import { apiFetch } from '@/lib/api-client'
 
 const { Header, Sider, Content } = Layout
@@ -57,6 +58,8 @@ export function AdminShell({
       { key: '/admin/mm/categories', icon: <FolderTree size={17} />, label: t('menu.categories') },
       { key: '/admin/mm/notes', icon: <BookOpenText size={17} />, label: t('menu.notes') },
       { key: '/admin/mm/files', icon: <FileStack size={17} />, label: t('menu.files') },
+      { key: '/admin/mm/users', icon: <Users size={17} />, label: t('menu.users') },
+      { key: '/admin/mm/gift-cards', icon: <TicketCheck size={17} />, label: t('menu.giftCards') },
       { key: '/admin/mm/solana', icon: <ArchiveRestore size={17} />, label: t('menu.solana') },
       { key: '/admin/mm/backup', icon: <ArchiveRestore size={17} />, label: t('menu.backup') },
       { key: '/admin/mm/settings', icon: <Settings size={17} />, label: t('menu.settings') },
@@ -117,7 +120,6 @@ export function AdminShell({
             <Typography.Title level={4}>{currentLabel}</Typography.Title>
           </div>
           <Space size={8} className="admin-header-actions">
-            <WalletButton />
             <Tooltip title="Home">
               <Button icon={<Home size={16} />} href="/" />
             </Tooltip>

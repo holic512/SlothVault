@@ -1,6 +1,6 @@
 # 数据库安装与迁移指南
 
-SlothVault 的发布包同时包含 SQLite、MySQL 和 PostgreSQL 支持，但一个运行实例只使用首次安装时选定的一种数据库。应用可以在没有数据库的情况下启动，数据库连接、空库校验和初始迁移全部由 `/install` 完成。
+SlothVault 的发布包同时包含 SQLite、MySQL 和 PostgreSQL 支持，但一个运行实例只使用首次安装时选定的一种主数据库。Redis 是默认短期状态服务，用于登录挑战与限流；数据库连接、空库校验和首次迁移由 `/install` 完成，后续已提交迁移在服务启动时自动部署。
 
 ## 支持范围
 
@@ -10,7 +10,7 @@ SlothVault 的发布包同时包含 SQLite、MySQL 和 PostgreSQL 支持，但�
 | MySQL | 8.0+、InnoDB | 独立数据库服务 | 数据库必须预先创建且没有任何用户表 |
 | PostgreSQL | 14+ | 独立数据库服务 | 数据库必须预先创建且没有任何用户表 |
 
-三种 provider 使用相同逻辑模型和独立、已提交的初始迁移。安装完成后不能在线切换 provider；需要切换时使用逻辑备份恢复流程。
+三种 provider 使用相同逻辑模型和独立、已提交的迁移集合。安装完成后不能在线切换 provider；需要切换时使用逻辑备份恢复流程。
 
 ## Docker 部署
 
@@ -21,7 +21,7 @@ cp .env.docker.example .env.docker
 docker compose --env-file .env.docker up -d --build
 ```
 
-Compose 默认只启动 `slothvault`。访问 `http://localhost:3000/install` 并选择 SQLite；文件路径由服务端固定为 `/app/data/database/slothvault.db`，页面不能填写任意路径。
+Compose 默认启动 `slothvault` 与 `redis`。访问 `http://localhost:3000/install` 并选择 SQLite；文件路径由服务端固定为 `/app/data/database/slothvault.db`，页面不能填写任意路径。Redis 数据默认保存在 `./docker-data/redis`，主机端口只绑定 `127.0.0.1`。
 
 ### PostgreSQL profile
 
@@ -45,7 +45,20 @@ docker compose --env-file .env.docker ps
 
 数据库健康后，在安装页使用主机 `mysql`、端口 `3306` 和非 root 应用用户。Compose 使用 MySQL 8.0、InnoDB 默认存储引擎以及 `utf8mb4` 字符集。
 
-应用服务没有 `depends_on` 数据库，也不会运行 `pg_isready`、`mysqladmin` 或启动前迁移。数据库尚未就绪时，应用仍可显示安装页，连接测试会返回可恢复的错误。
+应用服务不会等待可选的 PostgreSQL/MySQL profile，但会等待默认 Redis 健康。首次安装前仍可显示安装页；已安装实例启动时会对当前 provider 执行已提交的 `prisma migrate deploy`，全部成功后才更新 schema revision。
+
+## Redis 运行流程
+
+本地 `npm run dev` 先执行 `docker compose up -d --wait --wait-timeout 60 redis`，确认 Redis 健康后再启动 Next.js。仅启动应用可使用 `npm run dev:app`，此时需自行保证 `REDIS_URL` 可用。
+
+| 变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `REDIS_URL` | 本地 `redis://127.0.0.1:6379`；容器 `redis://redis:6379` | Redis 连接地址 |
+| `REDIS_PREFIX` | `slothvault` | 多实例 key 命名空间 |
+| `REDIS_PORT` | `6379` | Compose 主机绑定端口 |
+| `REDIS_DATA_DIR` | `./docker-data/redis` | Compose 持久化目录 |
+
+Redis 不保存用户余额、积分流水、卡密权威状态或 Session 记录。Redis 不可用时，注册、登录、钱包挑战和卡密兑换等安全敏感操作会失败关闭；公开文章读取仍由主数据库提供。
 
 ## 安装状态与接口
 
@@ -134,7 +147,7 @@ Compose 的 `POSTGRES_*` 与 `MYSQL_*` 仅用于启动可选数据库容器，�
 6. 抽查首页、项目、笔记版本、文件、系统设置和 Solana Tree/cNFT 记录。
 7. 验证完成前保留旧数据库、旧上传目录及两份导出文件。
 
-逻辑备份不迁移管理员和 Session，因此新实例必须创建管理员，所有用户会话都会失效。不要复制旧数据库表或尝试在新旧 schema 上混合运行迁移。
+逻辑备份迁移用户、管理员、密码哈希、积分、卡密和业务数据，但不迁移 Session。新实例仍必须先通过安装器创建一个引导管理员才能进入恢复页面；导入后所有旧会话失效，用户使用恢复后的凭据重新登录。不要复制旧数据库表或尝试在新旧 schema 上混合运行迁移。
 
 ## 维护与恢复
 
@@ -146,4 +159,4 @@ Compose 的 `POSTGRES_*` 与 `MYSQL_*` 仅用于启动可选数据库容器，�
 | SQLite 第二实例启动失败 | 保留一个实例；确认没有另一个进程持有同一 `database` 卷 |
 | 初始化中断 | 保留现场并重试状态检查；只有仍为 `CONFIGURING` 且 schema 未创建时才使用 reset |
 
-容器日志用于判断启动与请求状态，但不应输出数据库密码、完整连接串、Cookie、Token 或私钥。自动版本升级迁移不在当前范围内；升级前必须阅读对应发布版本的迁移说明并先备份。
+容器日志用于判断启动与请求状态，但不应输出数据库密码、完整连接串、Cookie、Token 或私钥。自动迁移只执行仓库已提交的 provider migrations；升级前仍应导出数据库 JSON、上传 ZIP 并备份配置/主密钥。

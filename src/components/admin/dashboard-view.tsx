@@ -1,7 +1,7 @@
 'use client'
 
-import { Alert, Button, Card, Col, Progress, Row, Space, Statistic, Table, Tag, Typography } from 'antd'
-import { ArchiveRestore, Blocks, BookOpenText, FileStack, FolderTree, RefreshCw } from 'lucide-react'
+import { Alert, Button, Card, Col, Progress, Row, Space, Statistic, Table, Typography } from 'antd'
+import { ArchiveRestore, Blocks, BookOpenText, Coins, FileStack, FolderTree, RefreshCw, Users } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
 
@@ -9,8 +9,9 @@ import { apiFetch } from '@/lib/api-client'
 
 type DashboardData = {
   overview: {
-    users: { total: number; activeSessions: number }
-    projects: { total: number; active: number; withAuth: number }
+    users: { total: number; activeSessions: number; totalPoints: number }
+    giftCards: { total: number; redeemed: number }
+    projects: { total: number; active: number }
     versions: { total: number; active: number }
     categories: { total: number; active: number }
     notes: { total: number; active: number }
@@ -26,7 +27,6 @@ type DashboardData = {
       id: string
       name: string
       status: number
-      requireAuth: boolean
       versionCount: number
       createdAt: string
     }>
@@ -65,6 +65,8 @@ export function DashboardView() {
   const stats = data
     ? [
         { title: t('stats.projects'), value: data.overview.projects.total, meta: `${data.overview.projects.active} ${t('stats.active')}`, icon: <Blocks /> },
+        { title: 'Users', value: data.overview.users.total, meta: `${data.overview.users.activeSessions} active sessions`, icon: <Users /> },
+        { title: 'Points', value: data.overview.users.totalPoints, meta: `${data.overview.giftCards.redeemed}/${data.overview.giftCards.total} cards redeemed`, icon: <Coins /> },
         { title: t('stats.categories'), value: data.overview.categories.total, meta: `${data.overview.categories.active} ${t('stats.active')}`, icon: <FolderTree /> },
         { title: t('stats.notes'), value: data.overview.notes.total, meta: `${data.overview.notes.active} ${t('stats.active')}`, icon: <BookOpenText /> },
         { title: t('stats.files'), value: data.overview.files.total, meta: `${data.overview.files.totalSizeMB} MB`, icon: <FileStack /> },
@@ -122,12 +124,7 @@ export function DashboardView() {
                 columns={[
                   { title: t('stats.projects'), dataIndex: 'name' },
                   { title: t('stats.versions'), dataIndex: 'versionCount', width: 90 },
-                  {
-                    title: t('stats.withAuth'),
-                    dataIndex: 'requireAuth',
-                    width: 110,
-                    render: (value: boolean) => (value ? <Tag color="purple">cNFT</Tag> : <Tag>Public</Tag>),
-                  },
+                  { title: 'Published', dataIndex: 'createdAt', width: 130, render: (value: string) => new Date(value).toLocaleDateString() },
                 ]}
               />
             </Card>

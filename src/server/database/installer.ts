@@ -13,6 +13,7 @@ import 'server-only'
 import { randomUUID } from 'node:crypto'
 
 import { hashPassword } from '@/server/auth/password'
+import { USER_ROLE, USER_STATUS } from '@/server/auth/roles'
 import {
   createDatabaseClient,
   disconnectDatabaseClient,
@@ -37,12 +38,10 @@ import {
   deployInitialDatabaseSchema,
 } from '@/server/database/migrations'
 import { readRuntimeInstallationPublicStatus } from '@/server/database/runtime-health'
+import { CURRENT_SCHEMA_REVISION, INSTALLATION_ROW_ID } from '@/server/database/schema-version'
 import type { DatabaseConnectionInput } from '@/server/database/types'
 import { unitOfWork } from '@/server/database/unit-of-work'
 import { HttpError } from '@/server/http/errors'
-
-const INSTALLATION_ROW_ID = 1
-const SCHEMA_REVISION = 1
 
 function hasPrismaCode(error: unknown, code: string) {
   return (
@@ -72,13 +71,23 @@ async function writeSchemaReadyMarker(connection: DatabaseConnectionInput) {
       if (!marker) return null
       if (
         marker.provider !== connection.provider ||
-        marker.schemaRevision !== SCHEMA_REVISION
+        marker.schemaRevision > CURRENT_SCHEMA_REVISION
       ) {
         installationStateConflict()
       }
-      if (marker.status === 'SCHEMA_READY') return 'SCHEMA_READY' as const
+      if (marker.status === 'SCHEMA_READY') {
+        if (marker.schemaRevision < CURRENT_SCHEMA_REVISION) {
+          await client.systemInstallation.update({
+            where: { id: INSTALLATION_ROW_ID },
+            data: { schemaRevision: CURRENT_SCHEMA_REVISION, updatedAt: new Date() },
+          })
+        }
+        return 'SCHEMA_READY' as const
+      }
       if (marker.status === 'INSTALLED') {
-        if (await client.user.count() < 1) installationStateConflict()
+        if (await client.user.count({ where: { role: USER_ROLE.ADMIN } }) < 1) {
+          installationStateConflict()
+        }
         return 'INSTALLED' as const
       }
       installationStateConflict()
@@ -94,7 +103,7 @@ async function writeSchemaReadyMarker(connection: DatabaseConnectionInput) {
           installationId: randomUUID(),
           provider: connection.provider,
           status: 'SCHEMA_READY',
-          schemaRevision: SCHEMA_REVISION,
+          schemaRevision: CURRENT_SCHEMA_REVISION,
         },
       })
       return 'SCHEMA_READY' as const
@@ -113,10 +122,6 @@ export async function initializeEmptyDatabase(connection: DatabaseConnectionInpu
     if (existing?.status === 'INSTALLED') {
       throw new HttpError('System is already installed', 409, 409)
     }
-    if (existing?.status === 'SCHEMA_READY') {
-      return { status: 'SCHEMA_READY' as const, provider: existing.provider }
-    }
-
     const selectedConnection = existing?.connection ?? connection
     if (!existing) {
       await testEmptyDatabaseConnection(selectedConnection)
@@ -162,7 +167,7 @@ export async function createFirstAdministrator(input: {
           where: {
             id: INSTALLATION_ROW_ID,
             provider: configuration.provider,
-            schemaRevision: SCHEMA_REVISION,
+            schemaRevision: CURRENT_SCHEMA_REVISION,
             status: { in: ['SCHEMA_READY', 'INSTALLED'] },
           },
           data: { updatedAt: new Date() },
@@ -174,6 +179,7 @@ export async function createFirstAdministrator(input: {
         })
         if (marker?.status === 'INSTALLED') {
           const existingAdmin = await tx.user.findFirst({
+            where: { role: USER_ROLE.ADMIN },
             orderBy: { id: 'asc' },
             select: { id: true, username: true },
           })
@@ -183,11 +189,16 @@ export async function createFirstAdministrator(input: {
 
         if (marker?.status !== 'SCHEMA_READY') installationStateConflict()
 
-        if ((await tx.user.count()) > 0) {
+        if ((await tx.user.count({ where: { role: USER_ROLE.ADMIN } })) > 0) {
           installationStateConflict()
         }
         const user = await tx.user.create({
-          data: { username: input.username, password },
+          data: {
+            username: input.username.trim().toLowerCase(),
+            password,
+            role: USER_ROLE.ADMIN,
+            status: USER_STATUS.ACTIVE,
+          },
           select: { id: true, username: true },
         })
         const now = new Date()
@@ -196,7 +207,7 @@ export async function createFirstAdministrator(input: {
           data: {
             provider: configuration.provider,
             status: 'INSTALLED',
-            schemaRevision: SCHEMA_REVISION,
+            schemaRevision: CURRENT_SCHEMA_REVISION,
             installedAt: now,
             updatedAt: now,
           },
@@ -252,7 +263,7 @@ export async function resolveInstallerStatus() {
     const client = getDatabaseClient()
     const [marker, adminCount] = await Promise.all([
       client.systemInstallation.findUnique({ where: { id: INSTALLATION_ROW_ID } }),
-      client.user.count(),
+      client.user.count({ where: { role: USER_ROLE.ADMIN } }),
     ])
     if (marker?.status === 'INSTALLED' && adminCount > 0) {
       updateDatabaseConfigurationStatus('INSTALLED')

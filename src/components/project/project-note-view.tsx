@@ -19,20 +19,16 @@ type NoteData = {
 }
 
 export function ProjectNoteView({ versionId, noteId }: { versionId: string; noteId: string }) {
-  const { projectId, accessHeaders } = useProjectContext()
+  const { projectId } = useProjectContext()
   const sidebarQuery = useQuery({
     queryKey: ['project-sidebar', projectId, versionId],
     queryFn: () =>
-      apiFetch<SidebarCategory[]>(`/api/project/${projectId}/v/${versionId}/sidebar`, {
-        headers: accessHeaders,
-      }),
+      apiFetch<SidebarCategory[]>(`/api/project/${projectId}/v/${versionId}/sidebar`),
   })
   const noteQuery = useQuery({
     queryKey: ['project-note', projectId, versionId, noteId],
     queryFn: () =>
-      apiFetch<NoteData>(`/api/project/${projectId}/v/${versionId}/note/${noteId}`, {
-        headers: accessHeaders,
-      }),
+      apiFetch<NoteData>(`/api/project/${projectId}/v/${versionId}/note/${noteId}`),
   })
 
   if (sidebarQuery.isError || noteQuery.isError) {

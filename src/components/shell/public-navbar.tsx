@@ -4,20 +4,19 @@
  * @file public-navbar.tsx
  * @project SlothVault
  * @module Public Navigation
- * @description Provides the shared brand, navigation, wallet, locale, and theme controls for public pages.
- * @logic Highlight the current route and keep all browser-only controls inside a responsive glass navigation shell.
- * @dependencies next/link, next-intl, antd, wallet-button, theme-controls
+ * @description Provides the shared brand, article navigation, conventional account, locale, and theme controls for public pages.
+ * @logic Highlight the current route and keep the account/theme actions inside a restrained responsive navigation shell.
+ * @dependencies next/link, next-intl, account-nav, theme-controls
  * @index_tags navbar,public,navigation,responsive
  * @author holic512
  */
-import { Button } from 'antd'
-import { BookOpenText, LayoutDashboard } from 'lucide-react'
+import { BookOpenText } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 import { ThemeControls } from '@/components/theme/theme-controls'
-import { WalletButton } from '@/components/wallet/wallet-button'
+import { AccountNav } from '@/components/auth/account-nav'
 
 export function PublicNavbar() {
   const t = useTranslations('Nav')
@@ -46,10 +45,7 @@ export function PublicNavbar() {
         </div>
 
         <div className="public-nav-actions">
-          <WalletButton />
-          <Button className="console-link" icon={<LayoutDashboard size={16} />} href="/admin">
-            Console
-          </Button>
+          <AccountNav />
           <ThemeControls />
         </div>
       </nav>

@@ -20,7 +20,6 @@ const batchProjectSchema = z.object({
   action: z.unknown().optional(),
   ids: z.unknown().optional(),
   status: z.unknown().optional(),
-  requireAuth: z.unknown().optional(),
 })
 
 export const dynamic = 'force-dynamic'

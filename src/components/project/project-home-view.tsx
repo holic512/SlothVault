@@ -10,10 +10,10 @@ import { apiFetch } from '@/lib/api-client'
 type HomeData = { id: string; projectId: string; content: string; updatedAt: string }
 
 export function ProjectHomeView() {
-  const { projectId, accessHeaders } = useProjectContext()
+  const { projectId } = useProjectContext()
   const query = useQuery({
     queryKey: ['project-home', projectId],
-    queryFn: () => apiFetch<HomeData>(`/api/project/${projectId}/home`, { headers: accessHeaders }),
+    queryFn: () => apiFetch<HomeData>(`/api/project/${projectId}/home`),
   })
 
   return (

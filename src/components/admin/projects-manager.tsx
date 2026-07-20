@@ -4,8 +4,8 @@
  * @file projects-manager.tsx
  * @project SlothVault
  * @module Project Administration
- * @description Replaces the Element Plus project and version dialogs with one Ant Design management workflow.
- * @logic Query filtered projects, run typed create/update/batch mutations, and open scoped version management without leaving the table.
+ * @description Provides administrator-only management for public article collections and their versions.
+ * @logic Query collections, run typed create/update/batch mutations, keep every published collection publicly readable, and open scoped version management without leaving the table.
  * @dependencies Ant Design, React Query, next-intl, api-client
  * @index_tags admin,projects,versions,crud
  * @author holic512
@@ -54,7 +54,7 @@ type ProjectDto = {
 }
 
 type ProjectListData = { list: ProjectDto[]; page: number; pageSize: number; total: number }
-type ProjectForm = Pick<ProjectDto, 'projectName' | 'weight' | 'status' | 'requireAuth'> & { avatar?: string }
+type ProjectForm = Pick<ProjectDto, 'projectName' | 'weight' | 'status'> & { avatar?: string }
 
 export function ProjectsManager() {
   const t = useTranslations('AdminMM.projects')
@@ -66,7 +66,6 @@ export function ProjectsManager() {
   const [pageSize, setPageSize] = useState(20)
   const [keyword, setKeyword] = useState('')
   const [status, setStatus] = useState<string>()
-  const [requireAuth, setRequireAuth] = useState<string>()
   const [includeDeleted, setIncludeDeleted] = useState(false)
   const [selectedIds, setSelectedIds] = useState<React.Key[]>([])
   const [editing, setEditing] = useState<ProjectDto | null>(null)
@@ -76,12 +75,11 @@ export function ProjectsManager() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
 
   const listQuery = useQuery({
-    queryKey: ['admin-projects', page, pageSize, keyword, status, requireAuth, includeDeleted],
+    queryKey: ['admin-projects', page, pageSize, keyword, status, includeDeleted],
     queryFn: () => {
       const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
       if (keyword) params.set('keyword', keyword)
       if (status) params.set('status', status)
-      if (requireAuth) params.set('requireAuth', requireAuth)
       if (includeDeleted) params.set('includeDeleted', '1')
       return apiFetch<ProjectListData>(`/api/admin/mm/project?${params}`)
     },
@@ -105,7 +103,7 @@ export function ProjectsManager() {
   })
 
   const batchMutation = useMutation({
-    mutationFn: (payload: { action: string; ids: string[]; status?: number; requireAuth?: boolean }) =>
+    mutationFn: (payload: { action: string; ids: string[]; status?: number }) =>
       apiFetch<{ count: number }>('/api/admin/mm/project/batch', {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -120,7 +118,7 @@ export function ProjectsManager() {
 
   const openCreate = () => {
     setEditing(null)
-    form.setFieldsValue({ projectName: '', avatar: '', weight: 0, status: 1, requireAuth: false })
+    form.setFieldsValue({ projectName: '', avatar: '', weight: 0, status: 1 })
     setFormOpen(true)
   }
   const openEdit = (project: ProjectDto) => {
@@ -130,7 +128,6 @@ export function ProjectsManager() {
       avatar: project.avatar || '',
       weight: project.weight,
       status: project.status,
-      requireAuth: project.requireAuth,
     })
     setFormOpen(true)
   }
@@ -150,7 +147,7 @@ export function ProjectsManager() {
     })
   }
 
-  const runBatch = (action: string, extra: { status?: number; requireAuth?: boolean } = {}) => {
+  const runBatch = (action: string, extra: { status?: number } = {}) => {
     const ids = selectedIds.map(String)
     if (!ids.length) return message.warning(t('messages.selectFirst'))
     batchMutation.mutate({ action, ids, ...extra })
@@ -204,12 +201,6 @@ export function ProjectsManager() {
         render: (value) => (value ? <Tag color="blue">{value}</Tag> : '-'),
       },
       { title: t('table.categoryCount'), dataIndex: 'categoryCount', width: 92, align: 'center' },
-      {
-        title: t('table.requireAuth'),
-        dataIndex: 'requireAuth',
-        width: 110,
-        render: (value) => (value ? <Tag color="purple">cNFT</Tag> : <Tag>Public</Tag>),
-      },
       {
         title: t('table.updatedAt'),
         dataIndex: 'updatedAt',
@@ -268,7 +259,6 @@ export function ProjectsManager() {
             onSearch={() => setPage(1)}
           />
           <Select allowClear value={status} placeholder={t('filters.status')} onChange={(value) => { setStatus(value); setPage(1) }} options={[{ label: t('status.enabled'), value: '1' }, { label: t('status.disabled'), value: '0' }]} />
-          <Select allowClear value={requireAuth} placeholder={t('filters.requireAuth')} onChange={(value) => { setRequireAuth(value); setPage(1) }} options={[{ label: t('auth.required'), value: 'true' }, { label: t('auth.notRequired'), value: 'false' }]} />
           <label className="admin-switch-label"><Switch checked={includeDeleted} onChange={(value) => { setIncludeDeleted(value); setPage(1) }} />{t('filters.includeDeleted')}</label>
         </div>
         <Space wrap>
@@ -282,7 +272,7 @@ export function ProjectsManager() {
       <div className="admin-table-card">
         <Table
           rowKey="id"
-          scroll={{ x: 1200 }}
+          scroll={{ x: 1080 }}
           loading={listQuery.isLoading}
           dataSource={listQuery.data?.list || []}
           columns={columns}
@@ -332,7 +322,6 @@ export function ProjectsManager() {
             <Form.Item name="weight" label={t('dialog.weight')}><InputNumber min={0} max={999999} className="full-width" /></Form.Item>
             <Form.Item name="status" label={t('dialog.status')}><Select options={[{ label: t('status.enabled'), value: 1 }, { label: t('status.disabled'), value: 0 }]} /></Form.Item>
           </div>
-          <Form.Item name="requireAuth" label={t('dialog.requireAuth')} valuePropName="checked"><Switch /></Form.Item>
         </Form>
       </Modal>
 

@@ -2,109 +2,53 @@
  * @file globals.css
  * @project SlothVault
  * @module Global Visual System
- * @description Defines the shared archival-glass visual language, theme palettes, first-run installer, public shell, and Markdown presentation.
- * @logic Map mode and palette classes to semantic tokens, then style reusable layout and content primitives responsively.
+ * @description Defines the shared monochrome editorial language, first-run installer, public shell, account pages, administration, and Markdown presentation.
+ * @logic Map light/dark mode to a restrained paper-and-ink token set, then style reusable layout and content primitives responsively without bright Web3 palettes.
  * @dependencies Public Sans, Source Sans Pro, Ant Design class contracts, Solana Wallet Adapter classes
  * @index_tags css,theme,design-system,install,markdown,responsive
  * @author holic512
  */
 
 :root {
-  --sv-bg: #f4f5f7;
-  --sv-bg-elevated: rgba(255, 255, 255, 0.84);
-  --sv-bg-solid: #ffffff;
-  --sv-bg-soft: #eceff3;
-  --sv-text: #11151c;
-  --sv-text-muted: #68707d;
-  --sv-border: rgba(15, 23, 42, 0.11);
-  --sv-border-strong: rgba(15, 23, 42, 0.2);
-  --sv-primary: #7c3aed;
-  --sv-primary-rgb: 124, 58, 237;
-  --sv-primary-strong: #6d28d9;
-  --sv-accent: #0891b2;
-  --sv-danger: #dc2626;
-  --sv-shadow: 0 24px 70px rgba(15, 23, 42, 0.09);
-  --sv-shadow-tight: 0 10px 28px rgba(15, 23, 42, 0.08);
-  --sv-radius-sm: 10px;
-  --sv-radius: 16px;
-  --sv-radius-lg: 24px;
+  --sv-bg: #f4f3ef;
+  --sv-bg-elevated: rgba(250, 249, 245, 0.94);
+  --sv-bg-solid: #fbfaf7;
+  --sv-bg-soft: #ebeae5;
+  --sv-text: #151515;
+  --sv-text-muted: #66645f;
+  --sv-border: rgba(20, 20, 20, 0.14);
+  --sv-border-strong: rgba(20, 20, 20, 0.28);
+  --sv-primary: #151515;
+  --sv-primary-rgb: 21, 21, 21;
+  --sv-primary-strong: #000000;
+  --sv-accent: #55534f;
+  --sv-danger: #8f3030;
+  --sv-shadow: 0 22px 70px rgba(20, 20, 20, 0.08);
+  --sv-shadow-tight: 0 10px 28px rgba(20, 20, 20, 0.07);
+  --sv-radius-sm: 7px;
+  --sv-radius: 11px;
+  --sv-radius-lg: 16px;
   --sv-nav-height: 58px;
   color-scheme: light;
 }
 
 .dark {
-  --sv-bg: #07080b;
-  --sv-bg-elevated: rgba(16, 18, 23, 0.82);
-  --sv-bg-solid: #111318;
-  --sv-bg-soft: #171a21;
-  --sv-text: #f3f5f7;
-  --sv-text-muted: #929ba8;
-  --sv-border: rgba(255, 255, 255, 0.1);
-  --sv-border-strong: rgba(255, 255, 255, 0.18);
-  --sv-primary: #a78bfa;
-  --sv-primary-rgb: 167, 139, 250;
-  --sv-primary-strong: #c4b5fd;
-  --sv-accent: #22d3ee;
-  --sv-danger: #fb7185;
+  --sv-bg: #0d0d0d;
+  --sv-bg-elevated: rgba(20, 20, 20, 0.94);
+  --sv-bg-solid: #151515;
+  --sv-bg-soft: #202020;
+  --sv-text: #f1f0ec;
+  --sv-text-muted: #aaa8a1;
+  --sv-border: rgba(255, 255, 255, 0.13);
+  --sv-border-strong: rgba(255, 255, 255, 0.26);
+  --sv-primary: #f1f0ec;
+  --sv-primary-rgb: 241, 240, 236;
+  --sv-primary-strong: #ffffff;
+  --sv-accent: #b8b6af;
+  --sv-danger: #d98b8b;
   --sv-shadow: 0 28px 90px rgba(0, 0, 0, 0.48);
   --sv-shadow-tight: 0 12px 32px rgba(0, 0, 0, 0.35);
   color-scheme: dark;
-}
-
-.theme-purple {
-  --sv-primary: #7c3aed;
-  --sv-primary-rgb: 124, 58, 237;
-  --sv-primary-strong: #6d28d9;
-  --sv-accent: #0891b2;
-}
-
-.dark.theme-purple {
-  --sv-primary: #a78bfa;
-  --sv-primary-rgb: 167, 139, 250;
-  --sv-primary-strong: #c4b5fd;
-  --sv-accent: #22d3ee;
-}
-
-.theme-cyan {
-  --sv-primary: #0891b2;
-  --sv-primary-rgb: 8, 145, 178;
-  --sv-primary-strong: #0e7490;
-  --sv-accent: #2563eb;
-}
-
-.dark.theme-cyan {
-  --sv-primary: #22d3ee;
-  --sv-primary-rgb: 34, 211, 238;
-  --sv-primary-strong: #67e8f9;
-  --sv-accent: #60a5fa;
-}
-
-.theme-emerald {
-  --sv-primary: #059669;
-  --sv-primary-rgb: 5, 150, 105;
-  --sv-primary-strong: #047857;
-  --sv-accent: #0891b2;
-}
-
-.dark.theme-emerald {
-  --sv-primary: #34d399;
-  --sv-primary-rgb: 52, 211, 153;
-  --sv-primary-strong: #6ee7b7;
-  --sv-accent: #22d3ee;
-}
-
-.theme-rose {
-  --sv-primary: #e11d48;
-  --sv-primary-rgb: 225, 29, 72;
-  --sv-primary-strong: #be123c;
-  --sv-accent: #7c3aed;
-}
-
-.dark.theme-rose {
-  --sv-primary: #fb7185;
-  --sv-primary-rgb: 251, 113, 133;
-  --sv-primary-strong: #fda4af;
-  --sv-accent: #c084fc;
 }
 
 *,
@@ -125,14 +69,12 @@ body {
   margin: 0;
   overflow-x: hidden;
   background:
-    radial-gradient(900px circle at 10% -10%, rgba(var(--sv-primary-rgb), 0.14), transparent 56%),
-    radial-gradient(700px circle at 92% 6%, color-mix(in srgb, var(--sv-accent) 10%, transparent), transparent 55%),
-    linear-gradient(var(--sv-border) 1px, transparent 1px),
-    linear-gradient(90deg, var(--sv-border) 1px, transparent 1px),
+    linear-gradient(90deg, transparent 0 49.92%, color-mix(in srgb, var(--sv-border) 34%, transparent) 49.92% 50.08%, transparent 50.08%),
+    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--sv-border) 46%, transparent) 0.7px, transparent 0.8px),
     var(--sv-bg);
-  background-size: auto, auto, 36px 36px, 36px 36px, auto;
+  background-size: 100% 100%, 18px 18px, auto;
   color: var(--sv-text);
-  font-family: "Public Sans", sans-serif;
+  font-family: "Source Sans Pro", "Public Sans", sans-serif;
   font-size: 15px;
   line-height: 1.6;
   text-rendering: optimizeLegibility;
@@ -225,11 +167,11 @@ select {
   width: 27px;
   height: 27px;
   object-fit: contain;
-  filter: drop-shadow(0 5px 10px rgba(var(--sv-primary-rgb), 0.3));
+  filter: grayscale(1) contrast(1.15);
 }
 
 .brand-accent {
-  color: var(--sv-primary);
+  color: var(--sv-text-muted);
 }
 
 .public-nav-links {
@@ -1418,6 +1360,7 @@ select {
 .admin-brand img {
   width: 29px;
   height: 29px;
+  filter: grayscale(1) contrast(1.15);
 }
 
 .admin-brand span {
@@ -1426,6 +1369,9 @@ select {
 
 .admin-menu {
   flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 12px 8px;
   border-inline-end: 0 !important;
   background: transparent !important;
@@ -3102,5 +3048,403 @@ select {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+}
+
+/* Monochrome editorial refinement */
+
+h1,
+h2,
+h3,
+.ant-typography h1,
+.ant-typography h2,
+.ant-typography h3,
+h1.ant-typography,
+h2.ant-typography,
+h3.ant-typography {
+  font-family: ui-serif, Charter, "Bitstream Charter", "Sitka Text", Cambria, serif;
+  font-weight: 600;
+}
+
+.public-nav,
+.project-nav {
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(20, 20, 20, 0.06);
+  backdrop-filter: blur(14px);
+}
+
+.public-nav-links {
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+}
+
+.public-nav-links a {
+  border-radius: 5px;
+  font-weight: 600;
+}
+
+.public-nav-links a:hover,
+.public-nav-links a.is-active {
+  box-shadow: inset 0 0 0 1px var(--sv-border);
+}
+
+.public-nav-links a.is-active svg,
+.projects-kicker,
+.profile-kicker,
+.account-eyebrow,
+.auth-kicker {
+  color: var(--sv-text-muted) !important;
+}
+
+.sloth-wallet-button.wallet-adapter-button {
+  border-color: var(--sv-border-strong);
+  border-radius: 7px;
+  background: var(--sv-bg-solid);
+  color: var(--sv-text);
+}
+
+.sloth-wallet-button.wallet-adapter-button:hover {
+  border-color: var(--sv-text);
+  background: var(--sv-bg-soft);
+}
+
+.homepage-markdown,
+.auth-card,
+.project-library-card,
+.admin-toolbar-card,
+.admin-table-card,
+.account-card,
+.profile-article-card {
+  border-radius: var(--sv-radius) !important;
+  background: var(--sv-bg-solid) !important;
+  box-shadow: 0 12px 34px rgba(20, 20, 20, 0.055);
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+  font-family: ui-serif, Charter, "Bitstream Charter", "Sitka Text", Cambria, serif;
+  font-weight: 600;
+}
+
+.markdown-body blockquote {
+  border-left-color: var(--sv-text);
+  background: var(--sv-bg-soft);
+}
+
+.sloth-hero-markdown::before,
+.install-orbit,
+.install-ambient {
+  filter: grayscale(1);
+}
+
+.sloth-btn {
+  border-radius: 6px;
+}
+
+.sloth-btn-primary {
+  background: var(--sv-text);
+  color: var(--sv-bg-solid) !important;
+  box-shadow: none;
+}
+
+.sloth-feature-card {
+  border-radius: 8px;
+  background: var(--sv-bg-solid);
+}
+
+.sloth-feature-card:hover,
+.project-library-card:hover {
+  border-color: var(--sv-border-strong) !important;
+  transform: translateY(-2px);
+}
+
+.auth-page {
+  background:
+    linear-gradient(90deg, transparent 0 49.92%, var(--sv-border) 49.92% 50.08%, transparent 50.08%),
+    var(--sv-bg);
+}
+
+.auth-card--user {
+  width: min(460px, 100%);
+}
+
+.auth-heading--editorial {
+  text-align: left;
+}
+
+.auth-heading--editorial h1.ant-typography {
+  font-size: 36px;
+}
+
+.auth-kicker {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  letter-spacing: 0.18em;
+}
+
+.auth-footnote {
+  margin: 22px 0 0 !important;
+  text-align: center;
+}
+
+.project-library-card {
+  background: var(--sv-bg-solid) !important;
+}
+
+.project-card-avatar {
+  border-radius: 8px;
+  color: var(--sv-text);
+  filter: grayscale(1);
+}
+
+.project-card-arrow {
+  border-radius: 6px;
+}
+
+.project-library-card:hover .project-card-arrow {
+  border-color: var(--sv-text);
+  background: var(--sv-text);
+  color: var(--sv-bg-solid);
+  transform: none;
+}
+
+.project-card-edition {
+  margin-top: auto;
+  margin-bottom: 18px;
+  color: var(--sv-text-muted);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-sider,
+.admin-header {
+  box-shadow: none;
+}
+
+.admin-brand span {
+  color: var(--sv-text);
+}
+
+.metric-icon {
+  border-color: var(--sv-border);
+  background: var(--sv-bg-soft);
+  color: var(--sv-text);
+}
+
+.ant-tag {
+  border-color: var(--sv-border) !important;
+  background: var(--sv-bg-soft) !important;
+  color: var(--sv-text) !important;
+}
+
+.account-main,
+.profile-main {
+  padding-top: 128px;
+  padding-bottom: 80px;
+}
+
+.account-loading {
+  display: grid;
+  min-height: 70vh;
+  place-items: center;
+  color: var(--sv-text-muted);
+}
+
+.account-hero,
+.profile-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 22px;
+  margin-bottom: 28px;
+  padding: 28px 0;
+  border-top: 1px solid var(--sv-border-strong);
+  border-bottom: 1px solid var(--sv-border);
+}
+
+.account-hero h1.ant-typography,
+.profile-hero h1 {
+  margin: 2px 0 4px;
+  font-size: clamp(2.2rem, 5vw, 4.5rem);
+  letter-spacing: -0.055em;
+}
+
+.account-hero .ant-typography,
+.account-eyebrow,
+.profile-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.profile-hero p {
+  max-width: 680px;
+  margin: 0 0 8px;
+  color: var(--sv-text-muted);
+  font-size: 17px;
+}
+
+.profile-hero small,
+.profile-section-heading > span,
+.profile-article-card p {
+  color: var(--sv-text-muted);
+}
+
+.profile-avatar {
+  display: grid;
+  width: 88px;
+  height: 88px;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid var(--sv-border-strong);
+  border-radius: 50%;
+  background: var(--sv-bg-soft);
+  font-family: ui-serif, Charter, Cambria, serif;
+  font-size: 32px;
+}
+
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(1);
+}
+
+.account-card {
+  border: 1px solid var(--sv-border) !important;
+}
+
+.account-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.account-balance-card .ant-statistic {
+  margin-bottom: 24px;
+}
+
+.account-balance-card .ant-statistic-content {
+  font-family: ui-serif, Charter, "Bitstream Charter", Cambria, serif;
+  font-size: 46px;
+}
+
+.account-ledger-card {
+  margin-top: 16px;
+}
+
+.profile-archive {
+  padding-top: 30px;
+}
+
+.profile-section-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--sv-border);
+}
+
+.profile-section-heading h2 {
+  margin: 3px 0 14px;
+  font-size: 32px;
+}
+
+.profile-article-list {
+  display: grid;
+  gap: 8px;
+}
+
+.profile-article-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.profile-article-card {
+  border: 1px solid var(--sv-border) !important;
+  transition: 160ms ease;
+}
+
+.profile-article-card:hover {
+  border-color: var(--sv-border-strong) !important;
+  transform: translateX(3px);
+}
+
+.profile-article-card {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 20px 22px;
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-radius);
+  background: var(--sv-bg-solid);
+  box-shadow: 0 12px 34px rgba(20, 20, 20, 0.055);
+}
+
+.profile-article-index {
+  color: var(--sv-text-muted);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+}
+
+.profile-article-card h3 {
+  margin: 0 0 3px;
+  font-size: 22px;
+}
+
+.profile-article-card p {
+  margin: 0;
+}
+
+.profile-article-proof {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--sv-text-muted);
+}
+
+.profile-empty {
+  padding: 44px 0;
+  color: var(--sv-text-muted);
+  text-align: center;
+}
+
+.gift-card-copy {
+  margin-top: 12px;
+}
+
+@media (max-width: 760px) {
+  .account-main,
+  .profile-main {
+    padding-top: 92px;
+  }
+
+  .account-hero,
+  .profile-hero {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .account-hero-actions {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .account-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-article-card {
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    padding: 16px;
   }
 }

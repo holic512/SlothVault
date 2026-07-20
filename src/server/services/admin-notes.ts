@@ -25,6 +25,7 @@ import {
 type NoteInfoLike = {
   id: number
   categoryId: number
+  authorId?: number | null
   noteTitle: string
   weight: number
   status: number
@@ -82,6 +83,7 @@ export function noteDto(note: NoteInfoLike) {
   return {
     id: note.id.toString(),
     categoryId: note.categoryId.toString(),
+    authorId: note.authorId?.toString() ?? null,
     noteTitle: note.noteTitle,
     weight: note.weight,
     status: note.status,
@@ -202,6 +204,7 @@ export async function listAdminNotes(query: NoteListQuery) {
 
 export async function createAdminNote(input: {
   categoryId?: unknown
+  authorId: number
   noteTitle?: unknown
   weight?: unknown
   status?: unknown
@@ -214,6 +217,7 @@ export async function createAdminNote(input: {
   const note = await prisma.noteInfo.create({
     data: {
       categoryId,
+      authorId: input.authorId,
       noteTitle,
       weight: integerValue(input.weight, 0),
       status: integerValue(input.status, 1),

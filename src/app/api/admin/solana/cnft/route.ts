@@ -61,6 +61,7 @@ export const GET = defineRoute(async (request) => {
   return apiOk(
     await listCnfts({
       projectId: optionalId(query.get('projectId'), 'projectId'),
+      noteInfoId: optionalId(query.get('noteInfoId'), 'noteInfoId'),
       merkleTreeId: optionalId(query.get('merkleTreeId'), 'merkleTreeId'),
       ownerAddress,
       status,

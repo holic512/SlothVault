@@ -4,21 +4,20 @@
  * @file project-shell.tsx
  * @project SlothVault
  * @module Public Project Shell
- * @description Replaces the Nuxt project layout with a React navigation, signed access gate, and shared project data boundary.
- * @logic Load public metadata first, verify protected access, then fetch versions/menus and render nested reading routes.
- * @dependencies React Query, Ant Design, Next navigation, wallet access hook, project context
- * @index_tags project-layout,access-gate,navigation,react-query
+ * @description Provides the public article-collection layout, navigation, and shared project data boundary.
+ * @logic Load published metadata, versions, and menus without identity gates, then render the nested reading routes.
+ * @dependencies React Query, Ant Design, Next navigation, project context
+ * @index_tags project-layout,public-reading,navigation,react-query,web2
  * @author holic512
  */
 import type { ReactNode } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
 import { Alert, Button, Dropdown, Select, Skeleton, Space } from 'antd'
-import { ChevronDown, Library, ShieldCheck } from 'lucide-react'
+import { ChevronDown, Library } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
-import { ProjectAccessGate } from '@/components/project/project-access-gate'
 import {
   ProjectContextProvider,
   type ProjectMenu,
@@ -26,8 +25,7 @@ import {
   type PublicProject,
 } from '@/components/project/project-context'
 import { ThemeControls } from '@/components/theme/theme-controls'
-import { WalletButton } from '@/components/wallet/wallet-button'
-import { useProjectAccess } from '@/hooks/use-project-access'
+import { AccountNav } from '@/components/auth/account-nav'
 import { apiFetch } from '@/lib/api-client'
 
 export function ProjectShell({ projectId, children }: { projectId: string; children: ReactNode }) {
@@ -37,22 +35,15 @@ export function ProjectShell({ projectId, children }: { projectId: string; child
     queryKey: ['public-project', projectId],
     queryFn: () => apiFetch<PublicProject>(`/api/project/${projectId}`),
   })
-  const access = useProjectAccess(projectId, projectQuery.data?.requireAuth)
   const versionsQuery = useQuery({
-    queryKey: ['public-project-versions', projectId, access.publicKey],
-    enabled: Boolean(projectQuery.data && access.hasAccess),
-    queryFn: () =>
-      apiFetch<ProjectVersion[]>(`/api/project/${projectId}/versions`, {
-        headers: access.headers,
-      }),
+    queryKey: ['public-project-versions', projectId],
+    enabled: Boolean(projectQuery.data),
+    queryFn: () => apiFetch<ProjectVersion[]>(`/api/project/${projectId}/versions`),
   })
   const menuQuery = useQuery({
-    queryKey: ['public-project-menu', projectId, access.publicKey],
-    enabled: Boolean(projectQuery.data && access.hasAccess),
-    queryFn: () =>
-      apiFetch<ProjectMenu[]>(`/api/project/${projectId}/menu`, {
-        headers: access.headers,
-      }),
+    queryKey: ['public-project-menu', projectId],
+    enabled: Boolean(projectQuery.data),
+    queryFn: () => apiFetch<ProjectMenu[]>(`/api/project/${projectId}/menu`),
   })
 
   if (projectQuery.isLoading) {
@@ -65,27 +56,6 @@ export function ProjectShell({ projectId, children }: { projectId: string; child
       </div>
     )
   }
-  if (!access.hasAccess) {
-    return (
-      <div className="project-page">
-        <ProjectNavigation
-          project={projectQuery.data}
-          projectId={projectId}
-          versions={[]}
-          menus={[]}
-          pathname={pathname}
-          onVersionChange={(value) => router.push(`/project/${projectId}/v/${value}/docs`)}
-        />
-        <ProjectAccessGate
-          loading={access.loading}
-          connected={access.connected}
-          reason={access.reason}
-          onAuthorize={access.authorize}
-        />
-      </div>
-    )
-  }
-
   const versions = versionsQuery.data || []
   const menus = menuQuery.data || []
   return (
@@ -95,7 +65,6 @@ export function ProjectShell({ projectId, children }: { projectId: string; child
         project: projectQuery.data,
         versions,
         menus,
-        accessHeaders: access.headers,
       }}
     >
       <div className="project-page">
@@ -146,7 +115,6 @@ function ProjectNavigation({
             <span>{project.projectName.charAt(0)}</span>
           )}
           <strong>{project.projectName}</strong>
-          {project.requireAuth ? <ShieldCheck size={14} /> : null}
         </Link>
 
         <div className="project-nav-center">
@@ -192,7 +160,7 @@ function ProjectNavigation({
             />
           ) : null}
           <Button icon={<Library size={16} />} href="/project/projectList" />
-          <WalletButton />
+          <AccountNav compact />
           <ThemeControls />
         </Space>
       </nav>

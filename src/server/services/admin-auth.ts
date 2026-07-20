@@ -11,6 +11,7 @@
 import 'server-only'
 
 import { hashPassword, verifyPassword } from '@/server/auth/password'
+import { USER_ROLE, USER_STATUS } from '@/server/auth/roles'
 import { issueSession } from '@/server/auth/session'
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
@@ -29,7 +30,7 @@ export type LoginAdminInput = {
 }
 
 export async function hasAdminAccount() {
-  return (await prisma.user.count()) > 0
+  return (await prisma.user.count({ where: { role: USER_ROLE.ADMIN } })) > 0
 }
 
 export async function initializeAdmin(input: InitializeAdminInput) {
@@ -37,13 +38,18 @@ export async function initializeAdmin(input: InitializeAdminInput) {
 
   return prisma.$transaction(
     async (tx) => {
-      const count = await tx.user.count()
+      const count = await tx.user.count({ where: { role: USER_ROLE.ADMIN } })
       if (count > 0) {
         throw new HttpError('Admin already initialized', 409, 409)
       }
 
       return tx.user.create({
-        data: { username: input.username, password },
+        data: {
+          username: input.username.trim().toLowerCase(),
+          password,
+          role: USER_ROLE.ADMIN,
+          status: USER_STATUS.ACTIVE,
+        },
         select: { id: true, username: true },
       })
     },
@@ -53,7 +59,14 @@ export async function initializeAdmin(input: InitializeAdminInput) {
 
 export async function loginAdmin(input: LoginAdminInput) {
   const user = await prisma.user.findFirst({
-    where: { OR: [{ username: input.username }, { email: input.username }] },
+    where: {
+      role: USER_ROLE.ADMIN,
+      status: USER_STATUS.ACTIVE,
+      OR: [
+        { username: input.username.trim().toLowerCase() },
+        { email: input.username.trim().toLowerCase() },
+      ],
+    },
   })
 
   if (!user || !(await verifyPassword(user.password, input.password))) {
@@ -69,7 +82,7 @@ export async function loginAdmin(input: LoginAdminInput) {
   })
 
   return {
-    user: { id: user.id, username: user.username },
+    user: { id: user.id, username: user.username, role: user.role },
     session,
   }
 }
