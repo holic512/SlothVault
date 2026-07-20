@@ -30,12 +30,17 @@ logs
 !.env.example
 !.env.docker.example
 
-/app/generated/prisma
+# Prisma clients are generated from the three committed provider schemas.
+/generated/prisma-postgresql/
+/generated/prisma-mysql/
+/generated/prisma-sqlite/
 
 # Uploaded files
 public/uploads
 data/uploads
 data/uploads-legacy-nuxt
+data/config
+data/database
 
 # Docker local persistent data
 docker-data/

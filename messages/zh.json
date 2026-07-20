@@ -189,6 +189,158 @@
       "error": "初始化失败，请重试"
     }
   },
+  "Install": {
+    "hero": {
+      "badge": "首次部署协议",
+      "title": "为知识库选择它的根基。",
+      "desc": "连接一套全新的数据库，SlothVault 会完成结构初始化、密钥配置与首位管理员创建。整个过程只在此设备与目标数据库之间发生。",
+      "secureTitle": "凭据加密落盘",
+      "secureDesc": "连接密码不会在页面中回显",
+      "portableTitle": "数据可迁移",
+      "portableDesc": "通过逻辑备份在数据源间迁移",
+      "emptyTitle": "空库保护",
+      "emptyDesc": "检测到现有业务表时停止写入"
+    },
+    "panel": {
+      "eyebrow": "Deployment console",
+      "title": "安装 SlothVault"
+    },
+    "steps": {
+      "connection": "连接",
+      "initialize": "初始化",
+      "admin": "管理员",
+      "complete": "完成"
+    },
+    "status": {
+      "checking": "正在检查安装状态",
+      "unavailable": "服务暂不可用",
+      "maintenance": "维护模式",
+      "unconfigured": "等待配置",
+      "configuring": "配置待恢复",
+      "schema_ready": "表结构已就绪",
+      "installed": "安装完成"
+    },
+    "loading": {
+      "title": "正在读取部署状态",
+      "desc": "确认本地配置与数据库安装标记…"
+    },
+    "state": {
+      "loadErrorTitle": "无法读取安装状态",
+      "maintenanceTitle": "系统处于维护模式",
+      "maintenanceDesc": "数据库配置损坏、解密失败或已安装数据库暂时不可达。修复配置或连接后重新检测。"
+    },
+    "provider": {
+      "sqlite": {
+        "name": "SQLite",
+        "desc": "单机 · 零依赖"
+      },
+      "mysql": {
+        "name": "MySQL",
+        "desc": "服务化 · InnoDB"
+      },
+      "postgresql": {
+        "name": "PostgreSQL",
+        "desc": "服务化 · 高并发"
+      }
+    },
+    "connection": {
+      "title": "选择数据库并建立连接",
+      "desc": "安装器只接受空数据库；连接测试不会创建表或修改数据。",
+      "providerLabel": "数据库类型",
+      "sqliteTitle": "应用托管的本地数据库",
+      "sqliteDesc": "文件位置由 APP_DATA_PATH 管理，无需填写路径。适用于单实例部署，不支持网络共享文件系统。",
+      "recoveryTitle": "发现未完成的配置",
+      "recoveryDesc": "请重新输入连接凭据并继续，或清除本地待处理配置后重新开始。"
+    },
+    "initialize": {
+      "title": "验证结果与结构初始化",
+      "desc": "连接及空库检查已通过。确认后将写入完整业务表结构。",
+      "connectionReady": "连接验证通过",
+      "connectionReadyDesc": "{provider} 已连接，目标数据库可用于全新安装。",
+      "operation1Title": "二次确认空库",
+      "operation1Desc": "在任何 DDL 执行前再次检查用户表。",
+      "operation2Title": "加密保存连接",
+      "operation2Desc": "数据库凭据以 AES-256-GCM 加密并原子落盘。",
+      "operation3Title": "部署数据结构",
+      "operation3Desc": "运行所选数据源对应的已提交迁移。",
+      "notice": "初始化期间请保持页面开启，不要同时启动另一个 SlothVault 实例。"
+    },
+    "admin": {
+      "title": "创建首位管理员",
+      "desc": "数据库已就绪。这个账户将拥有控制台与系统配置的完整权限。",
+      "ownerTitle": "唯一的初始化入口",
+      "ownerDesc": "创建成功后安装向导将永久关闭"
+    },
+    "complete": {
+      "title": "SlothVault 已准备就绪",
+      "desc": "数据源、表结构和首位管理员均已完成配置。",
+      "redirecting": "正在安全地转到管理员登录页…"
+    },
+    "fields": {
+      "host": "主机",
+      "port": "端口",
+      "database": "数据库名",
+      "username": "数据库用户",
+      "password": "数据库密码",
+      "tls": "TLS 加密连接",
+      "tlsHint": "启用后始终验证服务端证书",
+      "caPem": "自定义 CA 证书（可选）",
+      "caPemHint": "留空时使用系统信任链；仅粘贴 PEM 格式 CA 证书。",
+      "adminUsername": "管理员用户名",
+      "adminPassword": "管理员密码",
+      "confirmPassword": "确认管理员密码"
+    },
+    "placeholders": {
+      "host": "例如 db.internal",
+      "database": "例如 slothvault",
+      "username": "数据库账号",
+      "password": "仅用于加密保存与连接",
+      "caPem": "-----BEGIN CERTIFICATE-----",
+      "adminUsername": "2–64 个字符",
+      "adminPassword": "至少 8 个字符",
+      "confirmPassword": "再次输入管理员密码"
+    },
+    "validation": {
+      "host": "请输入数据库主机",
+      "port": "请输入有效端口",
+      "database": "请输入数据库名",
+      "username": "请输入数据库用户",
+      "password": "请输入数据库密码",
+      "adminUsername": "请输入管理员用户名",
+      "adminUsernameLength": "用户名长度须为 2–64 个字符",
+      "adminPassword": "请输入管理员密码",
+      "adminPasswordLength": "密码长度须为 8–256 个字符",
+      "confirmPassword": "请再次输入管理员密码",
+      "passwordMismatch": "两次输入的密码不一致"
+    },
+    "actions": {
+      "retry": "重试",
+      "recheck": "重新检测",
+      "reset": "清除待处理配置",
+      "test": "测试连接并继续",
+      "back": "返回修改",
+      "initialize": "初始化表结构",
+      "createAdmin": "创建管理员并完成安装",
+      "login": "前往管理员登录"
+    },
+    "errors": {
+      "invalidStatus": "服务端返回了无法识别的安装状态",
+      "status": "读取安装状态失败",
+      "actionTitle": "当前步骤未完成",
+      "connection": "数据库连接测试失败",
+      "connectionExpired": "连接配置已失效，请重新测试",
+      "initialize": "表结构初始化失败",
+      "admin": "管理员创建失败",
+      "reset": "待处理配置清除失败"
+    },
+    "messages": {
+      "connectionSuccess": "连接与空库检查通过",
+      "schemaSuccess": "表结构初始化完成",
+      "adminSuccess": "安装完成",
+      "resetSuccess": "待处理配置已清除"
+    },
+    "footer": "SlothVault · Encrypted deployment channel"
+  },
   "PageTitles": {
     "home": "首页",
     "projects": "项目列表",

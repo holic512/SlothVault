@@ -1,0 +1,278 @@
+// @file prisma/providers/sqlite/schema.prisma
+// @project SlothVault
+// @module SQLite persistence model
+// @description Defines the flat, domain-prefixed SQLite schema used by new single-instance SlothVault installations.
+// @logic Preserve the provider-neutral logical model and rely on SQLite affinity types for portable local deployments.
+// @dependencies Prisma ORM 7.3.0, @prisma/adapter-better-sqlite3 7.3.0
+// @index_tags prisma, sqlite, schema, persistence, installation
+// @author holic512
+
+generator client {
+  provider = "prisma-client"
+  output   = "../../../generated/prisma-sqlite"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Session {
+  id        String    @id
+  userId    Int       @map("user_id")
+  tokenHash String    @unique(map: "uq_auth_session_token_hash") @map("token_hash")
+  createdAt DateTime  @default(now()) @map("created_at")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  ip        String?
+  userAgent String?   @map("user_agent")
+  User      User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([expiresAt], map: "idx_auth_session_expires_at")
+  @@index([userId], map: "idx_auth_session_user_id")
+  @@map("auth_session")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique(map: "uq_auth_user_username")
+  password  String
+  email     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+  Session   Session[]
+
+  @@map("auth_user")
+}
+
+model Project {
+  id          Int   @id @default(autoincrement())
+  projectName String   @map("project_name")
+  avatar      String?
+  weight      Int
+  status      Int
+  requireAuth Boolean  @default(false) @map("require_auth")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+  isDeleted   Boolean  @default(false) @map("is_deleted")
+  versions    ProjectVersion[]
+  menus       ProjectMenu[]
+  home        ProjectHome?
+
+  @@map("collections_project")
+}
+
+model ProjectMenu {
+  id         Int         @id @default(autoincrement())
+  projectId  Int         @map("project_id")
+  parentId   Int?        @map("parent_id")
+  label      String
+  url        String?
+  isExternal Boolean        @default(false) @map("is_external")
+  weight     Int            @default(0)
+  status     Int            @default(1)
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @default(now()) @map("updated_at")
+  isDeleted  Boolean        @default(false) @map("is_deleted")
+  project    Project        @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  parent     ProjectMenu?   @relation("MenuHierarchy", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  children   ProjectMenu[]  @relation("MenuHierarchy")
+
+  @@index([projectId], map: "idx_collections_project_menu_project_id")
+  @@index([parentId], map: "idx_collections_project_menu_parent_id")
+  @@map("collections_project_menu")
+}
+
+model ProjectHome {
+  id        Int   @id @default(autoincrement())
+  projectId Int   @unique(map: "uq_collections_project_home_project_id") @map("project_id")
+  content   String
+  status    Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+  isDeleted Boolean  @default(false) @map("is_deleted")
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([projectId], map: "idx_collections_project_home_project_id")
+  @@map("collections_project_home")
+}
+
+model ProjectVersion {
+  id          Int     @id @default(autoincrement())
+  projectId   Int     @map("project_id")
+  version     String
+  description String?
+  weight      Int
+  status      Int
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @default(now()) @map("updated_at")
+  isDeleted   Boolean    @default(false) @map("is_deleted")
+  project     Project    @relation(fields: [projectId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  categories  Category[]
+
+  @@index([projectId], map: "idx_collections_project_version_project_id")
+  @@map("collections_project_version")
+}
+
+model Category {
+  id               Int         @id @default(autoincrement())
+  projectVersionId Int         @map("project_version_id")
+  categoryName     String         @map("category_name")
+  weight           Int
+  status           Int
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @default(now()) @map("updated_at")
+  isDeleted        Boolean        @default(false) @map("is_deleted")
+  projectVersion   ProjectVersion @relation(fields: [projectVersionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  noteInfos        NoteInfo[]
+
+  @@index([projectVersionId], map: "idx_collections_category_project_version_id")
+  @@map("collections_category")
+}
+
+model NoteInfo {
+  id              Int        @id @default(autoincrement())
+  categoryId      Int        @map("category_id")
+  noteTitle       String        @map("note_title")
+  weight          Int
+  status          Int
+  contentRevision Int           @default(0) @map("content_revision")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @default(now()) @map("updated_at")
+  isDeleted       Boolean       @default(false) @map("is_deleted")
+  category        Category      @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  contents        NoteContent[]
+
+  @@index([categoryId], map: "idx_docs_note_info_category_id")
+  @@map("docs_note_info")
+}
+
+model NoteContent {
+  id          Int   @id @default(autoincrement())
+  noteInfoId  Int   @map("note_info_id")
+  content     String
+  versionNote String?  @map("version_note")
+  isPrimary   Boolean  @default(false) @map("is_primary")
+  status      Int
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+  isDeleted   Boolean  @default(false) @map("is_deleted")
+  noteInfo    NoteInfo @relation(fields: [noteInfoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([noteInfoId], map: "idx_docs_note_content_note_info_id")
+  @@map("docs_note_content")
+}
+
+model FileManagement {
+  id           Int   @id @default(autoincrement())
+  originalName String   @map("original_name")
+  fileName     String   @map("file_name")
+  filePath     String   @map("file_path")
+  fileSize     BigInt   @map("file_size")
+  businessType String   @map("business_type")
+  status       Int      @default(1)
+  createTime   DateTime @default(now()) @map("create_time")
+
+  @@map("files_file_management")
+}
+
+model SystemConfig {
+  id          Int   @id @default(autoincrement())
+  configKey   String   @unique(map: "uq_system_config_key") @map("config_key")
+  configValue String   @map("config_value")
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+
+  @@map("system_config")
+}
+
+model SystemHomepage {
+  id        Int   @id @default(autoincrement())
+  content   String
+  status    Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+  isDeleted Boolean  @default(false) @map("is_deleted")
+
+  @@map("system_homepage")
+}
+
+model SystemInstallation {
+  id             Int       @id
+  provider       String
+  status         String
+  schemaRevision Int       @map("schema_revision")
+  installationId String    @unique(map: "uq_system_installation_id") @map("installation_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @map("updated_at")
+  installedAt    DateTime? @map("installed_at")
+
+  @@map("system_installation")
+}
+
+model RuntimeLock {
+  key       String   @id
+  revision  Int      @default(0)
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  @@map("system_runtime_lock")
+}
+
+model MerkleTree {
+  id                Int          @id @default(autoincrement())
+  name              String
+  treeAddress       String          @unique(map: "uq_solana_merkle_tree_address") @map("tree_address")
+  treeAuthority     String          @map("tree_authority")
+  encryptedKey      String          @map("encrypted_key")
+  creatorAddress    String          @map("creator_address")
+  maxDepth          Int             @map("max_depth")
+  maxBufferSize     Int             @map("max_buffer_size")
+  canopyDepth       Int             @map("canopy_depth")
+  network           String          @default("devnet")
+  totalMinted       Int             @default(0) @map("total_minted")
+  maxCapacity       BigInt          @map("max_capacity")
+  remainingCapacity BigInt          @default(0) @map("remaining_capacity")
+  capacityRevision  Int             @default(0) @map("capacity_revision")
+  creationCost      BigInt          @map("creation_cost")
+  txSignature       String?         @map("tx_signature")
+  priority          Int             @default(0)
+  status            Int             @default(0)
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @default(now()) @map("updated_at")
+  isDeleted         Boolean         @default(false) @map("is_deleted")
+  cnfts             CompressedNft[]
+
+  @@index([network, status], map: "idx_solana_merkle_tree_network_status")
+  @@index([creatorAddress], map: "idx_solana_merkle_tree_creator")
+  @@map("solana_merkle_tree")
+}
+
+model CompressedNft {
+  id                   Int    @id @default(autoincrement())
+  merkleTreeId         Int    @map("merkle_tree_id")
+  projectId            Int    @map("project_id")
+  assetId              String    @unique(map: "uq_solana_compressed_nft_asset_id") @map("asset_id")
+  leafIndex            Int       @map("leaf_index")
+  name                 String
+  symbol               String?
+  description          String?
+  metadataUri          String?   @map("metadata_uri")
+  imageCid             String?   @map("image_cid")
+  metadataCid          String?   @map("metadata_cid")
+  originalImageId      Int?   @map("original_image_id")
+  ownerAddress         String    @map("owner_address")
+  mintTxSignature      String?   @unique(map: "uq_solana_compressed_nft_mint_tx") @map("mint_tx_signature")
+  prepareExpiresAt     DateTime? @map("prepare_expires_at")
+  lastValidBlockHeight BigInt?   @map("last_valid_block_height")
+  capacityReserved     Boolean   @default(false) @map("capacity_reserved")
+  status               Int       @default(0)
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @default(now()) @map("updated_at")
+  merkleTree           MerkleTree @relation(fields: [merkleTreeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([merkleTreeId], map: "idx_solana_compressed_nft_merkle_tree_id")
+  @@index([projectId], map: "idx_solana_compressed_nft_project_id")
+  @@index([ownerAddress], map: "idx_solana_compressed_nft_owner")
+  @@index([projectId, ownerAddress], map: "idx_solana_compressed_nft_project_owner")
+  @@map("solana_compressed_nft")
+}

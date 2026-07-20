@@ -1,14 +1,15 @@
-import type { Metadata } from 'next'
-
-import { AuthFrame } from '@/components/auth/auth-frame'
-import { InitForm } from '@/components/auth/init-form'
-
-export const metadata: Metadata = { title: 'Initialize Admin' }
+/**
+ * @file page.tsx
+ * @project SlothVault
+ * @module Legacy Administrator Initialization Route
+ * @description Preserves the former administrator initialization URL while installation moves to the unified wizard.
+ * @logic Redirect every request to the first-run installation route, where database and administrator state are coordinated.
+ * @dependencies Next.js navigation
+ * @index_tags admin,init,redirect,install
+ * @author holic512
+ */
+import { redirect } from 'next/navigation'
 
 export default function AdminInitPage() {
-  return (
-    <AuthFrame>
-      <InitForm />
-    </AuthFrame>
-  )
+  redirect('/install')
 }

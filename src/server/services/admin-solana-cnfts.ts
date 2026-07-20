@@ -2,8 +2,8 @@
  * @file admin-solana-cnfts.ts
  * @project SlothVault
  * @module Solana cNFT Administration
- * @description Implements cNFT attempt reservation, optional Filebase metadata, wallet prepare/submit, chain-event reconciliation, listing, and terminal-failure deletion.
- * @logic Reserve capacity without claiming a final leaf, persist the deterministic payer signature before broadcast, derive the real leaf and asset PDA only from the confirmed account-compression change log, reconcile attempts after browser/session loss, and advance each tree's confirmed cursor atomically.
+ * @description Implements portable cNFT capacity reservation, optional Filebase metadata, wallet prepare/submit, chain-event reconciliation, listing, and terminal-failure deletion.
+ * @logic Atomically decrement provider-neutral remaining capacity without claiming a final leaf, persist the deterministic payer signature before broadcast, derive the real leaf and asset PDA only from the confirmed account-compression change log, release failed reservations exactly once, and advance each tree's confirmed cursor idempotently.
  * @dependencies Prisma MerkleTree/CompressedNft models, solana-chain, solana-session, Filebase, Sharp, admin file storage
  * @index_tags admin,solana,cnft,attempt,reconciliation,change-log,transaction,filebase
  * @author holic512
@@ -12,12 +12,13 @@ import 'server-only'
 
 import { randomUUID } from 'node:crypto'
 
-import type { Prisma } from '@generated/prisma/client'
+import type { Prisma } from '@generated/prisma-postgresql/client'
 import { Keypair } from '@solana/web3.js'
 import sharp from 'sharp'
 
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
+import { unitOfWork } from '@/server/database/unit-of-work'
 import { hasPrismaCode } from '@/server/services/admin-catalog'
 import {
   inspectPublicUpload,
@@ -63,8 +64,10 @@ export const CNFT_STATUS = {
   NORMAL: 1,
 } as const
 
+const PREPARE_RESERVATION_TIMEOUT_MS = 15 * 60 * 1000
+
 type PrepareCnftOptions = {
-  projectId: bigint
+  projectId: number
   ownerAddress: string
   name: string
   symbol?: string
@@ -122,7 +125,7 @@ function validateOnChainMetadata(name: string, symbol: string, uri: string) {
 }
 
 async function reserveCnft(options: {
-  projectId: bigint
+  projectId: number
   ownerAddress: string
   name: string
   symbol: string
@@ -130,61 +133,55 @@ async function reserveCnft(options: {
   metadataUri: string | null
   network: SolanaNetwork
 }) {
-  return prisma.$transaction(async (tx) => {
-    const candidates = await tx.$queryRaw<Array<{ id: bigint }>>`
-      SELECT tree."id"
-      FROM public."merkle_tree" AS tree
-      WHERE tree."network" = ${options.network}
-        AND tree."status" = ${TREE_STATUS.NORMAL}
-        AND tree."is_deleted" = false
-        AND tree."total_minted"::bigint + (
-          SELECT COUNT(*)
-          FROM public."compressed_nft" AS attempt
-          WHERE attempt."merkle_tree_id" = tree."id"
-            AND attempt."status" = ${CNFT_STATUS.MINTING}
-        ) < tree."max_capacity"
-      ORDER BY tree."priority" DESC, tree."created_at" ASC
-      FOR UPDATE SKIP LOCKED
-      LIMIT 1
-    `
-    const treeId = candidates[0]?.id
-    if (!treeId) {
-      throw new HttpError(
-        `No available Merkle Tree exists on ${options.network}`,
-        400,
-        400,
-      )
-    }
-    const tree = await tx.merkleTree.findFirst({
+  return unitOfWork.execute(async (tx) => {
+    const candidates = await tx.merkleTree.findMany({
       where: {
-        id: treeId,
         network: options.network,
         status: TREE_STATUS.NORMAL,
         isDeleted: false,
+        remainingCapacity: { gt: 0n },
       },
+      orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }],
+      take: 32,
     })
+    let tree: (typeof candidates)[number] | null = null
+    for (const candidate of candidates) {
+      const reserved = await tx.merkleTree.updateMany({
+        where: {
+          id: candidate.id,
+          network: options.network,
+          status: TREE_STATUS.NORMAL,
+          isDeleted: false,
+          remainingCapacity: { gt: 0n },
+        },
+        data: {
+          remainingCapacity: { decrement: 1n },
+          capacityRevision: { increment: 1 },
+          updatedAt: new Date(),
+        },
+      })
+      if (reserved.count === 1) {
+        tree = candidate
+        break
+      }
+    }
     if (!tree) {
-      throw new HttpError('No available Merkle Tree exists', 409, 409)
+      throw new HttpError(`No available Merkle Tree exists on ${options.network}`, 400, 400)
     }
 
-    const pendingCount = await tx.compressedNft.count({
-      where: { merkleTreeId: tree.id, status: CNFT_STATUS.MINTING },
-    })
-    const provisionalLeafIndex = tree.totalMinted + pendingCount
-    if (BigInt(provisionalLeafIndex) >= tree.maxCapacity) {
-      throw new HttpError('No available Merkle Tree capacity exists', 409, 409)
-    }
     const cnft = await tx.compressedNft.create({
       data: {
         merkleTreeId: tree.id,
         projectId: options.projectId,
         assetId: `pending_${randomUUID()}`,
-        leafIndex: provisionalLeafIndex,
+        leafIndex: -1,
         name: options.name,
         symbol: options.symbol || null,
         description: options.description,
         metadataUri: options.metadataUri,
         ownerAddress: options.ownerAddress,
+        prepareExpiresAt: new Date(Date.now() + PREPARE_RESERVATION_TIMEOUT_MS),
+        capacityReserved: true,
         status: CNFT_STATUS.MINTING,
       },
     })
@@ -192,12 +189,9 @@ async function reserveCnft(options: {
   })
 }
 
-async function markCnftFailed(cnftId: bigint) {
+async function markCnftFailed(cnftId: number) {
   try {
-    await prisma.compressedNft.updateMany({
-      where: { id: cnftId, status: CNFT_STATUS.MINTING },
-      data: { status: CNFT_STATUS.FAILED, updatedAt: new Date() },
-    })
+    await releaseFailedAttempt(cnftId)
   } catch (error) {
     console.error('[solana-cnft] Unable to mark failed prepare record', error)
   }
@@ -208,7 +202,7 @@ type PendingCnft = Prisma.CompressedNftGetPayload<{
 }>
 
 function cnftResult(cnft: {
-  id: bigint
+  id: number
   assetId: string
   mintTxSignature: string | null
   status: number
@@ -223,7 +217,7 @@ function cnftResult(cnft: {
   }
 }
 
-async function persistSubmittedSignature(cnftId: bigint, signature: string) {
+async function persistSubmittedSignature(cnftId: number, signature: string) {
   try {
     const result = await prisma.compressedNft.updateMany({
       where: {
@@ -251,66 +245,169 @@ async function persistSubmittedSignature(cnftId: bigint, signature: string) {
   throw new HttpError('cNFT attempt cannot accept this signed transaction', 409, 409)
 }
 
-async function finalizeFailedAttempt(cnftId: bigint) {
-  await prisma.compressedNft.updateMany({
-    where: { id: cnftId, status: CNFT_STATUS.MINTING },
-    data: { status: CNFT_STATUS.FAILED, updatedAt: new Date() },
-  })
-  return prisma.compressedNft.findUnique({ where: { id: cnftId } })
+async function finalizeFailedAttempt(cnftId: number) {
+  return releaseFailedAttempt(cnftId)
 }
 
-async function finalizeSuccessfulAttempt(
-  cnftId: bigint,
-  signature: string,
-  leafIndex: number,
-) {
-  const result = await prisma.$transaction(async (tx) => {
-    const seed = await tx.compressedNft.findUnique({ where: { id: cnftId } })
-    if (!seed) throw new HttpError('cNFT attempt not found', 404, 404)
+async function releaseFailedAttempt(cnftId: number) {
+  return unitOfWork.execute(async (tx) => {
+    const current = await tx.compressedNft.findUnique({ where: { id: cnftId } })
+    if (!current || current.status !== CNFT_STATUS.MINTING) return current
 
-    await tx.$queryRaw`SELECT "id" FROM public."merkle_tree" WHERE "id" = ${seed.merkleTreeId} FOR UPDATE`
-    const [current, tree] = await Promise.all([
-      tx.compressedNft.findUnique({ where: { id: cnftId } }),
-      tx.merkleTree.findUnique({ where: { id: seed.merkleTreeId } }),
-    ])
-    if (!current || !tree) throw new HttpError('cNFT attempt tree is missing', 409, 409)
-    if (current.status === CNFT_STATUS.NORMAL) return { cnft: current, conflict: false }
-
-    const treeAddress = parseSolanaPublicKey(tree.treeAddress, 'treeAddress')
-    const assetId = getAssetId(treeAddress, leafIndex).toBase58()
-    const conflict = await tx.compressedNft.findUnique({ where: { assetId } })
-    const nextTotalMinted = Math.max(tree.totalMinted, leafIndex + 1)
-    const healthyStatus =
-      BigInt(nextTotalMinted) >= tree.maxCapacity
-        ? TREE_STATUS.FULL
-        : TREE_STATUS.NORMAL
-
-    await tx.merkleTree.update({
-      where: { id: tree.id },
+    const released = await tx.compressedNft.updateMany({
+      where: {
+        id: cnftId,
+        status: CNFT_STATUS.MINTING,
+        capacityReserved: true,
+      },
       data: {
-        totalMinted: nextTotalMinted,
-        status: conflict && conflict.id !== current.id
-          ? TREE_STATUS.FAILED
-          : tree.status === TREE_STATUS.FAILED
-            ? TREE_STATUS.FAILED
-            : healthyStatus,
+        status: CNFT_STATUS.FAILED,
+        capacityReserved: false,
         updatedAt: new Date(),
       },
     })
+    if (released.count === 1) {
+      let tree = await tx.merkleTree.update({
+        where: { id: current.merkleTreeId },
+        data: {
+          capacityRevision: { increment: 1 },
+          updatedAt: new Date(),
+        },
+      })
+      if (tree.remainingCapacity < 0n || tree.remainingCapacity >= tree.maxCapacity) {
+        await tx.merkleTree.update({
+          where: { id: current.merkleTreeId },
+          data: { status: TREE_STATUS.FAILED, updatedAt: new Date() },
+        })
+      } else {
+        tree = await tx.merkleTree.update({
+          where: { id: current.merkleTreeId },
+          data: {
+            remainingCapacity: { increment: 1n },
+            updatedAt: new Date(),
+          },
+        })
+        if (tree.status === TREE_STATUS.FULL && tree.remainingCapacity > 0n) {
+          await tx.merkleTree.update({
+            where: { id: current.merkleTreeId },
+            data: { status: TREE_STATUS.NORMAL, updatedAt: new Date() },
+          })
+        }
+      }
+    } else {
+      await tx.compressedNft.updateMany({
+        where: { id: cnftId, status: CNFT_STATUS.MINTING },
+        data: { status: CNFT_STATUS.FAILED, updatedAt: new Date() },
+      })
+    }
+    return tx.compressedNft.findUnique({ where: { id: cnftId } })
+  })
+}
+
+async function finalizeSuccessfulAttempt(
+  cnftId: number,
+  signature: string,
+  leafIndex: number,
+) {
+  const result = await unitOfWork.execute(async (tx) => {
+    const [current, tree] = await Promise.all([
+      tx.compressedNft.findUnique({ where: { id: cnftId } }),
+      tx.compressedNft.findUnique({
+        where: { id: cnftId },
+        select: { merkleTree: true },
+      }),
+    ])
+    if (!current) throw new HttpError('cNFT attempt not found', 404, 404)
+    const treeRecord = tree?.merkleTree
+    if (!treeRecord) throw new HttpError('cNFT attempt tree is missing', 409, 409)
+    if (current.status === CNFT_STATUS.NORMAL) return { cnft: current, conflict: false }
+
+    const treeAddress = parseSolanaPublicKey(treeRecord.treeAddress, 'treeAddress')
+    const assetId = getAssetId(treeAddress, leafIndex).toBase58()
+    const conflict = await tx.compressedNft.findUnique({ where: { assetId } })
+    const nextTotalMinted = Math.max(treeRecord.totalMinted, leafIndex + 1)
 
     if (conflict && conflict.id !== current.id) {
-      return { cnft: current, conflict: true, assetId }
+      await tx.compressedNft.updateMany({
+        where: {
+          id: current.id,
+          status: CNFT_STATUS.MINTING,
+          capacityReserved: true,
+        },
+        data: {
+          leafIndex,
+          mintTxSignature: signature,
+          capacityReserved: false,
+          status: CNFT_STATUS.FAILED,
+          updatedAt: new Date(),
+        },
+      })
+      const conflictedTree = await tx.merkleTree.update({
+        where: { id: treeRecord.id },
+        data: {
+          capacityRevision: { increment: 1 },
+          status: TREE_STATUS.FAILED,
+          updatedAt: new Date(),
+        },
+      })
+      if (conflictedTree.totalMinted < nextTotalMinted) {
+        await tx.merkleTree.update({
+          where: { id: treeRecord.id },
+          data: { totalMinted: nextTotalMinted, updatedAt: new Date() },
+        })
+      }
+      const failed = await tx.compressedNft.findUniqueOrThrow({
+        where: { id: current.id },
+      })
+      return { cnft: failed, conflict: true, assetId }
     }
-    const updated = await tx.compressedNft.update({
-      where: { id: current.id },
+
+    const claimed = await tx.compressedNft.updateMany({
+      where: {
+        id: current.id,
+        status: CNFT_STATUS.MINTING,
+        capacityReserved: true,
+      },
       data: {
         assetId,
         leafIndex,
         mintTxSignature: signature,
+        capacityReserved: false,
         status: CNFT_STATUS.NORMAL,
         updatedAt: new Date(),
       },
     })
+    if (claimed.count === 0) {
+      const settled = await tx.compressedNft.findUnique({ where: { id: current.id } })
+      if (settled?.status === CNFT_STATUS.NORMAL) {
+        return { cnft: settled, conflict: false }
+      }
+      throw new HttpError('cNFT attempt cannot be finalized', 409, 409)
+    }
+
+    let latestTree = await tx.merkleTree.update({
+      where: { id: treeRecord.id },
+      data: {
+        capacityRevision: { increment: 1 },
+        updatedAt: new Date(),
+      },
+    })
+    if (latestTree.totalMinted < nextTotalMinted) {
+      latestTree = await tx.merkleTree.update({
+        where: { id: treeRecord.id },
+        data: { totalMinted: nextTotalMinted, updatedAt: new Date() },
+      })
+    }
+    if (latestTree.status !== TREE_STATUS.FAILED) {
+      await tx.merkleTree.update({
+        where: { id: treeRecord.id },
+        data: {
+          status: latestTree.remainingCapacity <= 0n ? TREE_STATUS.FULL : TREE_STATUS.NORMAL,
+          updatedAt: new Date(),
+        },
+      })
+    }
+    const updated = await tx.compressedNft.findUniqueOrThrow({ where: { id: current.id } })
     return { cnft: updated, conflict: false }
   })
 
@@ -360,6 +457,15 @@ async function reconcileCnftAttempt(current: PendingCnft) {
     if (BigInt(blockHeight) > current.lastValidBlockHeight) {
       return (await finalizeFailedAttempt(current.id)) ?? current
     }
+  }
+  if (
+    inspection.result === 'pending' &&
+    !inspection.seenOnChain &&
+    current.lastValidBlockHeight === null &&
+    current.prepareExpiresAt &&
+    current.prepareExpiresAt.getTime() <= Date.now()
+  ) {
+    return (await finalizeFailedAttempt(current.id)) ?? current
   }
   return current
 }
@@ -493,7 +599,7 @@ export async function prepareCnft(options: PrepareCnftOptions) {
     let finalMetadataUri = inputMetadataUri
     let imageCid: string | null = null
     let metadataCid: string | null = null
-    let originalImageId: bigint | null = null
+    let originalImageId: number | null = null
     let imageResult: FilebaseUploadResult | null = null
     let metadataResult: FilebaseUploadResult | null = null
 
@@ -632,8 +738,11 @@ export async function submitCnft(options: {
   signedTransactionBase64: string
 }) {
   const session = openSolanaSession(options.sessionId, 'mint')
-  const cnftId = BigInt(session.cnftId)
-  const treeId = BigInt(session.merkleTreeId)
+  const cnftId = Number(session.cnftId)
+  const treeId = Number(session.merkleTreeId)
+  if (!Number.isSafeInteger(cnftId) || !Number.isSafeInteger(treeId)) {
+    throw new HttpError('cNFT prepare session contains an invalid database identifier', 400, 400)
+  }
   const current = await prisma.compressedNft.findUnique({
     where: { id: cnftId },
     include: { merkleTree: true },
@@ -717,8 +826,8 @@ export async function submitCnft(options: {
 }
 
 export async function listCnfts(options: {
-  projectId?: bigint
-  merkleTreeId?: bigint
+  projectId?: number
+  merkleTreeId?: number
   ownerAddress?: string
   status?: number
   network?: SolanaNetwork
@@ -793,7 +902,7 @@ export async function listCnfts(options: {
   }
 }
 
-export async function deleteCnft(id: bigint) {
+export async function deleteCnft(id: number) {
   let cnft = await prisma.compressedNft.findUnique({
     where: { id },
     include: { merkleTree: true },

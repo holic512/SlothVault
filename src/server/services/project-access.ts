@@ -69,7 +69,7 @@ async function fetchAssetsByOwner(address: string, network: SolanaNetwork) {
 }
 
 export async function verifyProjectAccess(
-  projectId: bigint,
+  projectId: number,
   walletAddress?: string | null,
   options: { forceChainVerify?: boolean } = {},
 ): Promise<ProjectAccessResult> {

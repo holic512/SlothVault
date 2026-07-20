@@ -48,7 +48,7 @@ export async function listPublicProjects() {
   })
 }
 
-export async function getPublicProject(projectId: bigint) {
+export async function getPublicProject(projectId: number) {
   const project = await prisma.project.findFirst({
     where: { id: projectId, isDeleted: false, status: 1 },
     select: {
@@ -64,7 +64,7 @@ export async function getPublicProject(projectId: bigint) {
   return { ...project, id: project.id.toString() }
 }
 
-async function requireReadAccess(request: NextRequest, projectId: bigint) {
+async function requireReadAccess(request: NextRequest, projectId: number) {
   const project = await getPublicProject(projectId)
   if (!project.requireAuth) return project
 
@@ -76,7 +76,7 @@ async function requireReadAccess(request: NextRequest, projectId: bigint) {
   return project
 }
 
-export async function getProjectHome(request: NextRequest, projectId: bigint) {
+export async function getProjectHome(request: NextRequest, projectId: number) {
   await requireReadAccess(request, projectId)
   const home = await prisma.projectHome.findUnique({ where: { projectId } })
   if (!home || home.isDeleted || home.status !== 1) {
@@ -90,7 +90,7 @@ export async function getProjectHome(request: NextRequest, projectId: bigint) {
   }
 }
 
-export async function getProjectMenu(request: NextRequest, projectId: bigint) {
+export async function getProjectMenu(request: NextRequest, projectId: number) {
   await requireReadAccess(request, projectId)
   const list = await prisma.projectMenu.findMany({
     where: { projectId, parentId: null, isDeleted: false, status: 1 },
@@ -120,7 +120,7 @@ export async function getProjectMenu(request: NextRequest, projectId: bigint) {
   }))
 }
 
-export async function getProjectVersions(request: NextRequest, projectId: bigint) {
+export async function getProjectVersions(request: NextRequest, projectId: number) {
   await requireReadAccess(request, projectId)
   const versions = await prisma.projectVersion.findMany({
     where: { projectId, isDeleted: false, status: 1 },
@@ -130,7 +130,7 @@ export async function getProjectVersions(request: NextRequest, projectId: bigint
   return versions.map((version) => ({ ...version, id: version.id.toString() }))
 }
 
-async function requireVersion(request: NextRequest, projectId: bigint, versionId: bigint) {
+async function requireVersion(request: NextRequest, projectId: number, versionId: number) {
   const version = await prisma.projectVersion.findFirst({
     where: { id: versionId, projectId, isDeleted: false, status: 1 },
     include: { project: { select: { isDeleted: true, status: true } } },
@@ -144,8 +144,8 @@ async function requireVersion(request: NextRequest, projectId: bigint, versionId
 
 export async function getProjectSidebar(
   request: NextRequest,
-  projectId: bigint,
-  versionId: bigint,
+  projectId: number,
+  versionId: number,
 ) {
   await requireVersion(request, projectId, versionId)
   const categories = await prisma.category.findMany({
@@ -173,9 +173,9 @@ export async function getProjectSidebar(
 
 export async function getProjectNote(
   request: NextRequest,
-  projectId: bigint,
-  versionId: bigint,
-  noteId: bigint,
+  projectId: number,
+  versionId: number,
+  noteId: number,
 ) {
   await requireVersion(request, projectId, versionId)
   const note = await prisma.noteInfo.findFirst({

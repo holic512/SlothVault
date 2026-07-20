@@ -18,7 +18,11 @@ import type { SolanaNetwork } from '@/server/services/system-config'
 function optionalId(value: string | null, label: string) {
   if (!value) return undefined
   if (!/^[1-9]\d*$/.test(value)) throw new HttpError(`Invalid ${label}`, 400, 400)
-  return BigInt(value)
+  const id = Number(value)
+  if (!Number.isSafeInteger(id) || id > 2_147_483_647) {
+    throw new HttpError(`Invalid ${label}`, 400, 400)
+  }
+  return id
 }
 
 function boundedInteger(value: string | null, fallback: number, min: number, max: number) {

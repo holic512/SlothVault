@@ -189,6 +189,158 @@
       "error": "Initialization failed, please try again"
     }
   },
+  "Install": {
+    "hero": {
+      "badge": "First-run deployment protocol",
+      "title": "Choose the foundation for your knowledge vault.",
+      "desc": "Connect a fresh database and SlothVault will initialize its schema, secure the configuration, and create the first administrator. The entire process stays between this device and your database.",
+      "secureTitle": "Encrypted credentials",
+      "secureDesc": "Connection passwords are never echoed",
+      "portableTitle": "Portable data",
+      "portableDesc": "Move providers through logical backups",
+      "emptyTitle": "Empty-database guard",
+      "emptyDesc": "Existing application tables stop all writes"
+    },
+    "panel": {
+      "eyebrow": "Deployment console",
+      "title": "Install SlothVault"
+    },
+    "steps": {
+      "connection": "Connect",
+      "initialize": "Initialize",
+      "admin": "Admin",
+      "complete": "Complete"
+    },
+    "status": {
+      "checking": "Checking installation",
+      "unavailable": "Service unavailable",
+      "maintenance": "Maintenance mode",
+      "unconfigured": "Awaiting configuration",
+      "configuring": "Setup recovery",
+      "schema_ready": "Schema ready",
+      "installed": "Installed"
+    },
+    "loading": {
+      "title": "Reading deployment state",
+      "desc": "Verifying the local configuration and database marker…"
+    },
+    "state": {
+      "loadErrorTitle": "Installation state is unavailable",
+      "maintenanceTitle": "SlothVault is in maintenance mode",
+      "maintenanceDesc": "The database configuration is damaged, cannot be decrypted, or the installed database is unreachable. Repair the configuration or connection, then check again."
+    },
+    "provider": {
+      "sqlite": {
+        "name": "SQLite",
+        "desc": "Single node · zero dependencies"
+      },
+      "mysql": {
+        "name": "MySQL",
+        "desc": "Service · InnoDB"
+      },
+      "postgresql": {
+        "name": "PostgreSQL",
+        "desc": "Service · high concurrency"
+      }
+    },
+    "connection": {
+      "title": "Select a database and connect",
+      "desc": "The installer accepts only an empty database. Testing the connection never creates tables or changes data.",
+      "providerLabel": "Database provider",
+      "sqliteTitle": "Application-managed local database",
+      "sqliteDesc": "APP_DATA_PATH controls the file location, so no path is required. Intended for a single instance and not supported on network filesystems.",
+      "recoveryTitle": "An unfinished configuration was found",
+      "recoveryDesc": "Enter the connection credentials again to continue, or clear the pending local configuration and restart."
+    },
+    "initialize": {
+      "title": "Review and initialize the schema",
+      "desc": "The connection and empty-database checks passed. Confirm to write the complete application schema.",
+      "connectionReady": "Connection verified",
+      "connectionReadyDesc": "{provider} is connected and the target is ready for a clean installation.",
+      "operation1Title": "Recheck the empty database",
+      "operation1Desc": "Inspect user tables again before running any DDL.",
+      "operation2Title": "Encrypt the connection",
+      "operation2Desc": "Store credentials atomically with AES-256-GCM encryption.",
+      "operation3Title": "Deploy the schema",
+      "operation3Desc": "Run the committed migrations for the selected provider.",
+      "notice": "Keep this page open during initialization and do not start another SlothVault instance."
+    },
+    "admin": {
+      "title": "Create the first administrator",
+      "desc": "The database is ready. This account receives full access to the console and system configuration.",
+      "ownerTitle": "The only initialization entry point",
+      "ownerDesc": "The installation wizard closes permanently after this account is created"
+    },
+    "complete": {
+      "title": "SlothVault is ready",
+      "desc": "The data source, schema, and first administrator are now configured.",
+      "redirecting": "Securely transferring you to the administrator login…"
+    },
+    "fields": {
+      "host": "Host",
+      "port": "Port",
+      "database": "Database",
+      "username": "Database user",
+      "password": "Database password",
+      "tls": "TLS-encrypted connection",
+      "tlsHint": "The server certificate is always verified when enabled",
+      "caPem": "Custom CA certificate (optional)",
+      "caPemHint": "Leave blank to use the system trust store. Paste only a PEM-encoded CA certificate.",
+      "adminUsername": "Administrator username",
+      "adminPassword": "Administrator password",
+      "confirmPassword": "Confirm administrator password"
+    },
+    "placeholders": {
+      "host": "For example, db.internal",
+      "database": "For example, slothvault",
+      "username": "Database account",
+      "password": "Used only for encrypted storage and connection",
+      "caPem": "-----BEGIN CERTIFICATE-----",
+      "adminUsername": "2–64 characters",
+      "adminPassword": "At least 8 characters",
+      "confirmPassword": "Enter the administrator password again"
+    },
+    "validation": {
+      "host": "Enter the database host",
+      "port": "Enter a valid port",
+      "database": "Enter the database name",
+      "username": "Enter the database user",
+      "password": "Enter the database password",
+      "adminUsername": "Enter an administrator username",
+      "adminUsernameLength": "The username must contain 2–64 characters",
+      "adminPassword": "Enter an administrator password",
+      "adminPasswordLength": "The password must contain 8–256 characters",
+      "confirmPassword": "Enter the administrator password again",
+      "passwordMismatch": "The passwords do not match"
+    },
+    "actions": {
+      "retry": "Retry",
+      "recheck": "Check again",
+      "reset": "Clear pending setup",
+      "test": "Test connection and continue",
+      "back": "Back to edit",
+      "initialize": "Initialize schema",
+      "createAdmin": "Create administrator and finish",
+      "login": "Continue to administrator login"
+    },
+    "errors": {
+      "invalidStatus": "The server returned an unknown installation state",
+      "status": "Failed to read the installation state",
+      "actionTitle": "This step is not complete",
+      "connection": "The database connection test failed",
+      "connectionExpired": "The connection configuration expired; test it again",
+      "initialize": "Schema initialization failed",
+      "admin": "Administrator creation failed",
+      "reset": "Failed to clear the pending configuration"
+    },
+    "messages": {
+      "connectionSuccess": "Connection and empty-database checks passed",
+      "schemaSuccess": "Schema initialization completed",
+      "adminSuccess": "Installation completed",
+      "resetSuccess": "Pending configuration cleared"
+    },
+    "footer": "SlothVault · Encrypted deployment channel"
+  },
   "PageTitles": {
     "home": "Home",
     "projects": "Projects",

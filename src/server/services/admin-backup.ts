@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Admin Backup and Recovery
  * @description Provides relation-closed database snapshots, strict backup validation, atomic business-data restore/reset, and ZIP staging workflows for the configured upload storage.
- * @logic Read active business records from one repeatable snapshot while excluding orphaned descendants, validate complete backups before mutation, import relational data in one transaction with old-to-new ID maps, normalize note primaries, and commit filesystem changes only after contained staging succeeds with rollback paths available.
+ * @logic Read active business records from one repeatable snapshot, serialize portable decimal-string IDs, validate complete backups before mutation, import with old-to-new ID maps, normalize note primaries, and commit filesystem changes only after contained staging succeeds with rollback paths available.
  * @dependencies Prisma business models, admin file UPLOAD_ROOT, archiver, unzipper, node filesystem and stream APIs, zod
  * @index_tags admin,backup,restore,transaction,zip,zip-slip,rollback,system-reset
  * @author holic512
@@ -34,14 +34,15 @@ import {
 import { Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 
-import { Prisma } from '@generated/prisma/client'
+import { Prisma } from '@generated/prisma-postgresql/client'
 import archiver from 'archiver'
 import unzipper, { type File as ZipEntry } from 'unzipper'
 import { z } from 'zod'
 
 import { HttpError } from '@/server/http/errors'
 import { toJsonSafe } from '@/server/http/response'
-import { prisma } from '@/server/prisma'
+import { databaseSnapshotIsolationLevel } from '@/server/database/client'
+import { unitOfWork } from '@/server/database/unit-of-work'
 import {
   BUSINESS_TYPE_CONFIG,
   UPLOAD_ROOT,
@@ -56,13 +57,14 @@ export const ZIP_ENTRY_MAX_BYTES = 256 * 1024 * 1024
 export const ZIP_TOTAL_UNCOMPRESSED_MAX_BYTES = 1024 * 1024 * 1024
 export const ZIP_PATH_MAX_BYTES = 1024
 
-const POSTGRES_BIGINT_MAX = 9_223_372_036_854_775_807n
+const DATABASE_BIGINT_MAX = 9_223_372_036_854_775_807n
 const INT_MIN = -2_147_483_648
 const INT_MAX = 2_147_483_647
 const SMALL_INT_MIN = -32_768
 const SMALL_INT_MAX = 32_767
 const DATABASE_TRANSACTION_TIMEOUT_MS = 10 * 60 * 1000
 const DATABASE_TRANSACTION_MAX_WAIT_MS = 10_000
+const LEGACY_SIGNED_ATTEMPT_GRACE_MS = 15 * 60 * 1000
 const STANDARD_RESET_DIRECTORIES = [
   ...new Set(Object.values(BUSINESS_TYPE_CONFIG).map((config) => config.dir)),
 ]
@@ -138,19 +140,19 @@ function isValidIsoTimestamp(value: string) {
 
 const dateStringSchema = z.string().refine(isValidIsoTimestamp, 'Invalid ISO date')
 
-function isPostgresBigInt(value: string, positive: boolean) {
+function isDatabaseBigInt(value: string, positive: boolean) {
   const pattern = positive ? /^[1-9]\d*$/ : /^(?:0|[1-9]\d*)$/
   if (!pattern.test(value) || value.length > 19) return false
-  return BigInt(value) <= POSTGRES_BIGINT_MAX
+  return BigInt(value) <= DATABASE_BIGINT_MAX
 }
 
 const idStringSchema = z.string().refine(
-  (value) => isPostgresBigInt(value, true),
+  (value) => isDatabaseBigInt(value, true),
   'Expected a positive decimal-string ID',
 )
 const bigintStringSchema = z.string().refine(
-  (value) => isPostgresBigInt(value, false),
-  'Expected a non-negative PostgreSQL BigInt string',
+  (value) => isDatabaseBigInt(value, false),
+  'Expected a non-negative 64-bit integer string',
 )
 const nullableIdStringSchema = idStringSchema.nullable()
 const intSchema = z.number().int().min(INT_MIN).max(INT_MAX)
@@ -299,13 +301,15 @@ const merkleTreeSchema = z.object({
   maxDepth: smallIntSchema,
   maxBufferSize: smallIntSchema,
   canopyDepth: smallIntSchema,
-  network: limitedString(20),
+  network: z.enum(['mainnet', 'devnet']),
   totalMinted: intSchema,
   maxCapacity: bigintStringSchema,
+  remainingCapacity: bigintStringSchema.optional(),
+  capacityRevision: intSchema.nonnegative().optional(),
   creationCost: bigintStringSchema,
   txSignature: nullableString(128),
   priority: intSchema,
-  status: smallIntSchema,
+  status: z.union([z.literal(-1), z.literal(0), z.literal(1), z.literal(2)]),
   createdAt: dateStringSchema,
   updatedAt: dateStringSchema,
   isDeleted: z.boolean(),
@@ -328,7 +332,8 @@ const compressedNftSchema = z.object({
   mintTxSignature: nullableString(128),
   prepareExpiresAt: dateStringSchema.nullable().optional(),
   lastValidBlockHeight: bigintStringSchema.nullable().optional(),
-  status: smallIntSchema,
+  capacityReserved: z.boolean().optional(),
+  status: z.union([z.literal(-1), z.literal(0), z.literal(1)]),
   createdAt: dateStringSchema,
   updatedAt: dateStringSchema,
 }).strict()
@@ -358,6 +363,15 @@ export type DatabaseImportPayload = z.infer<typeof databaseImportPayloadSchema>
 
 function invalidBackup(message: string): never {
   throw new HttpError(`Invalid backup data: ${message}`, 400, 400)
+}
+
+function hasDatabaseErrorCode(error: unknown, code: string) {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === code
+  )
 }
 
 function mapById<T extends { id: string }>(label: string, items: T[]) {
@@ -437,11 +451,89 @@ function validateBackupRelations(data: BackupData) {
   for (const item of data.noteContents) {
     assertReference(noteInfos, item.noteInfoId, 'noteInfoId')
   }
+  const confirmedLeaves = new Set<string>()
   for (const item of data.compressedNfts) {
     assertReference(merkleTrees, item.merkleTreeId, 'merkleTreeId')
     assertReference(projects, item.projectId, 'projectId')
     if (item.originalImageId) {
       assertReference(fileManagements, item.originalImageId, 'originalImageId')
+    }
+    if (item.capacityReserved === true && item.status !== 0) {
+      invalidBackup(`compressedNft ${item.id} reserves capacity outside MINTING status`)
+    }
+    if (item.status === 0 && item.capacityReserved === false) {
+      invalidBackup(`compressedNft ${item.id} is MINTING without a capacity reservation`)
+    }
+    if (item.status === 1 && item.leafIndex < 0) {
+      invalidBackup(`compressedNft ${item.id} has an invalid confirmed leafIndex`)
+    }
+    if (item.status === 1) {
+      const tree = merkleTrees.get(item.merkleTreeId)
+      if (!tree) invalidBackup(`unknown merkleTreeId ${item.merkleTreeId}`)
+      if (
+        BigInt(item.leafIndex) >= BigInt(tree.totalMinted) ||
+        BigInt(item.leafIndex) >= BigInt(tree.maxCapacity)
+      ) {
+        invalidBackup(`compressedNft ${item.id} leafIndex exceeds its tree cursor`)
+      }
+      const leafKey = `${item.merkleTreeId}:${item.leafIndex}`
+      if (confirmedLeaves.has(leafKey)) {
+        invalidBackup(`duplicate confirmed leafIndex ${leafKey}`)
+      }
+      confirmedLeaves.add(leafKey)
+    }
+  }
+
+  const pendingReservationsByTree = new Map<string, bigint>()
+  const confirmedRecordsByTree = new Map<string, bigint>()
+  for (const item of data.compressedNfts) {
+    if (item.status === 0 && item.capacityReserved !== false) {
+      pendingReservationsByTree.set(
+        item.merkleTreeId,
+        (pendingReservationsByTree.get(item.merkleTreeId) ?? 0n) + 1n,
+      )
+    }
+    if (item.status === 1) {
+      confirmedRecordsByTree.set(
+        item.merkleTreeId,
+        (confirmedRecordsByTree.get(item.merkleTreeId) ?? 0n) + 1n,
+      )
+    }
+  }
+  for (const tree of data.merkleTrees) {
+    const maxCapacity = BigInt(tree.maxCapacity)
+    const totalMinted = BigInt(tree.totalMinted)
+    const pendingReservations = pendingReservationsByTree.get(tree.id) ?? 0n
+    const confirmedRecords = confirmedRecordsByTree.get(tree.id) ?? 0n
+    if (maxCapacity <= 0n) {
+      invalidBackup(`merkleTree ${tree.id} has a non-positive maxCapacity`)
+    }
+    if (totalMinted < 0n || totalMinted > maxCapacity) {
+      invalidBackup(`merkleTree ${tree.id} has an invalid totalMinted`)
+    }
+    const upperRemaining = maxCapacity - totalMinted
+    const lowerRemainingCandidate = upperRemaining - pendingReservations
+    const lowerRemaining = lowerRemainingCandidate > 0n ? lowerRemainingCandidate : 0n
+    if (upperRemaining < 0n) {
+      invalidBackup(`merkleTree ${tree.id} reservations exceed maxCapacity`)
+    }
+    if (
+      tree.remainingCapacity !== undefined &&
+      (
+        BigInt(tree.remainingCapacity) < lowerRemaining ||
+        BigInt(tree.remainingCapacity) > upperRemaining
+      )
+    ) {
+      invalidBackup(`merkleTree ${tree.id} has an inconsistent remainingCapacity`)
+    }
+    const effectiveRemaining = tree.remainingCapacity === undefined
+      ? lowerRemaining
+      : BigInt(tree.remainingCapacity)
+    if (pendingReservations > maxCapacity - effectiveRemaining) {
+      invalidBackup(`merkleTree ${tree.id} has more reservations than allocated capacity`)
+    }
+    if (confirmedRecords + pendingReservations > maxCapacity) {
+      invalidBackup(`merkleTree ${tree.id} has more active cNFT records than maxCapacity`)
     }
   }
 
@@ -511,9 +603,9 @@ export function assertRequestContentLength(request: Request, maxBytes: number) {
 }
 
 function relationClosedMenus<T extends {
-  id: bigint
-  parentId: bigint | null
-  projectId: bigint
+  id: number
+  parentId: number | null
+  projectId: number
 }>(menus: T[]) {
   const byId = new Map(menus.map((menu) => [menu.id.toString(), menu]))
   const decisions = new Map<string, boolean>()
@@ -549,7 +641,7 @@ function relationClosedMenus<T extends {
 
 export async function exportDatabaseBackup() {
   const exportedAt = new Date().toISOString()
-  const snapshot = await prisma.$transaction(async (tx) => {
+  const snapshot = await unitOfWork.execute(async (tx) => {
     const projects = await tx.project.findMany({ where: { isDeleted: false } })
     const projectIds = projects.map((item) => item.id)
 
@@ -634,12 +726,87 @@ export async function exportDatabaseBackup() {
       compressedNfts: safeCompressedNfts,
     }
   }, {
-    isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+    isolationLevel: databaseSnapshotIsolationLevel(),
     maxWait: DATABASE_TRANSACTION_MAX_WAIT_MS,
     timeout: DATABASE_TRANSACTION_TIMEOUT_MS,
+    mode: 'read',
   })
 
-  const data = backupDataSchema.parse(toJsonSafe(snapshot))
+  const portableSnapshot = {
+    projects: snapshot.projects.map(({ id, ...item }) => ({
+      ...item,
+      id: id.toString(),
+    })),
+    projectVersions: snapshot.projectVersions.map(({ id, projectId, ...item }) => ({
+      ...item,
+      id: id.toString(),
+      projectId: projectId.toString(),
+    })),
+    categories: snapshot.categories.map(({ id, projectVersionId, ...item }) => ({
+      ...item,
+      id: id.toString(),
+      projectVersionId: projectVersionId.toString(),
+    })),
+    projectMenus: snapshot.projectMenus.map(({ id, projectId, parentId, ...item }) => ({
+      ...item,
+      id: id.toString(),
+      projectId: projectId.toString(),
+      parentId: parentId?.toString() ?? null,
+    })),
+    projectHomes: snapshot.projectHomes.map(({ id, projectId, ...item }) => ({
+      ...item,
+      id: id.toString(),
+      projectId: projectId.toString(),
+    })),
+    noteInfos: snapshot.noteInfos.map(({
+      id,
+      categoryId,
+      contentRevision,
+      ...item
+    }) => {
+      void contentRevision
+      return {
+        ...item,
+        id: id.toString(),
+        categoryId: categoryId.toString(),
+      }
+    }),
+    noteContents: snapshot.noteContents.map(({ id, noteInfoId, ...item }) => ({
+      ...item,
+      id: id.toString(),
+      noteInfoId: noteInfoId.toString(),
+    })),
+    fileManagements: snapshot.fileManagements.map(({ id, ...item }) => ({
+      ...item,
+      id: id.toString(),
+    })),
+    systemConfigs: snapshot.systemConfigs.map(({ id, ...item }) => ({
+      ...item,
+      id: id.toString(),
+    })),
+    systemHomepages: snapshot.systemHomepages.map(({ id, ...item }) => ({
+      ...item,
+      id: id.toString(),
+    })),
+    merkleTrees: snapshot.merkleTrees.map(({ id, ...item }) => ({
+      ...item,
+      id: id.toString(),
+    })),
+    compressedNfts: snapshot.compressedNfts.map(({
+      id,
+      merkleTreeId,
+      projectId,
+      originalImageId,
+      ...item
+    }) => ({
+      ...item,
+      id: id.toString(),
+      merkleTreeId: merkleTreeId.toString(),
+      projectId: projectId.toString(),
+      originalImageId: originalImageId?.toString() ?? null,
+    })),
+  }
+  const data = backupDataSchema.parse(toJsonSafe(portableSnapshot))
   validateBackupRelations(data)
 
   return {
@@ -733,7 +900,7 @@ function selectedPrimaryContentIds(data: BackupData) {
   return selected
 }
 
-function requiredMappedId(map: Map<string, bigint>, id: string, label: string) {
+function requiredMappedId(map: Map<string, number>, id: string, label: string) {
   const mapped = map.get(id)
   if (!mapped) throw new Error(`Validated ${label} mapping is missing`)
   return mapped
@@ -743,22 +910,23 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
   const { data, mode } = payload
   const primaryContentIds = selectedPrimaryContentIds(data)
 
-  return prisma.$transaction(async (tx) => {
+  try {
+    return await unitOfWork.execute(async (tx) => {
     if (mode === 'overwrite') await deleteBusinessData(tx)
 
     const ids = {
-      projects: new Map<string, bigint>(),
-      projectVersions: new Map<string, bigint>(),
-      categories: new Map<string, bigint>(),
-      projectMenus: new Map<string, bigint>(),
-      projectHomes: new Map<string, bigint>(),
-      noteInfos: new Map<string, bigint>(),
-      noteContents: new Map<string, bigint>(),
-      fileManagements: new Map<string, bigint>(),
-      systemConfigs: new Map<string, bigint>(),
-      systemHomepages: new Map<string, bigint>(),
-      merkleTrees: new Map<string, bigint>(),
-      compressedNfts: new Map<string, bigint>(),
+      projects: new Map<string, number>(),
+      projectVersions: new Map<string, number>(),
+      categories: new Map<string, number>(),
+      projectMenus: new Map<string, number>(),
+      projectHomes: new Map<string, number>(),
+      noteInfos: new Map<string, number>(),
+      noteContents: new Map<string, number>(),
+      fileManagements: new Map<string, number>(),
+      systemConfigs: new Map<string, number>(),
+      systemHomepages: new Map<string, number>(),
+      merkleTrees: new Map<string, number>(),
+      compressedNfts: new Map<string, number>(),
     }
 
     for (const item of data.projects) {
@@ -933,11 +1101,25 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
       ids.systemHomepages.set(item.id, created.id)
     }
 
+    const pendingReservationsByTree = new Map<string, number>()
+    for (const item of data.compressedNfts) {
+      if (item.status !== 0 || item.capacityReserved === false) continue
+      pendingReservationsByTree.set(
+        item.merkleTreeId,
+        (pendingReservationsByTree.get(item.merkleTreeId) ?? 0) + 1,
+      )
+    }
+
     for (const item of data.merkleTrees) {
-      const record = await tx.merkleTree.upsert({
-        where: { treeAddress: item.treeAddress },
-        update: {},
-        create: {
+      const maxCapacity = BigInt(item.maxCapacity)
+      const derivedRemainingCandidate =
+        maxCapacity - BigInt(item.totalMinted) - BigInt(pendingReservationsByTree.get(item.id) ?? 0)
+      const derivedRemaining = derivedRemainingCandidate > 0n ? derivedRemainingCandidate : 0n
+      const remainingCapacity = item.remainingCapacity
+        ? BigInt(item.remainingCapacity)
+        : derivedRemaining
+      const record = await tx.merkleTree.create({
+        data: {
           name: item.name,
           treeAddress: item.treeAddress,
           treeAuthority: item.treeAuthority,
@@ -948,7 +1130,9 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
           canopyDepth: item.canopyDepth,
           network: item.network,
           totalMinted: item.totalMinted,
-          maxCapacity: BigInt(item.maxCapacity),
+          maxCapacity,
+          remainingCapacity,
+          capacityRevision: item.capacityRevision ?? 0,
           creationCost: BigInt(item.creationCost),
           txSignature: item.txSignature,
           priority: item.priority,
@@ -962,10 +1146,8 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
     }
 
     for (const item of data.compressedNfts) {
-      const record = await tx.compressedNft.upsert({
-        where: { assetId: item.assetId },
-        update: {},
-        create: {
+      const record = await tx.compressedNft.create({
+        data: {
           merkleTreeId: requiredMappedId(
             ids.merkleTrees,
             item.merkleTreeId,
@@ -991,10 +1173,15 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
           mintTxSignature: item.mintTxSignature,
           prepareExpiresAt: item.prepareExpiresAt
             ? new Date(item.prepareExpiresAt)
-            : null,
+            : item.status === 0 && !item.mintTxSignature
+              ? new Date()
+              : item.status === 0
+                ? new Date(Date.now() + LEGACY_SIGNED_ATTEMPT_GRACE_MS)
+                : null,
           lastValidBlockHeight: item.lastValidBlockHeight
             ? BigInt(item.lastValidBlockHeight)
             : null,
+          capacityReserved: item.capacityReserved ?? item.status === 0,
           status: item.status,
           createdAt: new Date(item.createdAt),
           updatedAt: new Date(item.updatedAt),
@@ -1021,10 +1208,16 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
         compressedNfts: ids.compressedNfts.size,
       },
     }
-  }, {
-    maxWait: DATABASE_TRANSACTION_MAX_WAIT_MS,
-    timeout: DATABASE_TRANSACTION_TIMEOUT_MS,
-  })
+    }, {
+      maxWait: DATABASE_TRANSACTION_MAX_WAIT_MS,
+      timeout: DATABASE_TRANSACTION_TIMEOUT_MS,
+    })
+  } catch (error) {
+    if (hasDatabaseErrorCode(error, 'P2002')) {
+      throw new HttpError('Backup data conflicts with existing records', 409, 409)
+    }
+    throw error
+  }
 }
 
 type StorageTreeEntry = {
@@ -1775,7 +1968,7 @@ export async function resetSystem(options: {
   let databaseResult: Awaited<ReturnType<typeof deleteBusinessData>> | null = null
   try {
     if (options.clearDatabase) {
-      databaseResult = await prisma.$transaction(
+      databaseResult = await unitOfWork.execute(
         (tx) => deleteBusinessData(tx),
         {
           maxWait: DATABASE_TRANSACTION_MAX_WAIT_MS,

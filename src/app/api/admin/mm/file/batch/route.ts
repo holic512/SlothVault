@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Admin File Batch API
  * @description Applies the legacy batch soft-delete action to managed files.
- * @logic Authenticate, require a supported action and decimal-string ID array, then return the affected row count without treating unknown IDs as errors.
+ * @logic Authenticate and parse a supported decimal-ID batch request, then delegate the soft-delete update to the file service.
  * @dependencies admin session, HTTP route helpers, admin catalog ID parsing, admin file storage service
  * @index_tags api,admin,files,batch,soft-delete
  * @author holic512
@@ -16,7 +16,7 @@ import { defineRoute } from '@/server/http/handler'
 import { readJson } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
 import { parseJsonDecimalIds } from '@/server/services/admin-catalog'
-import { batchSoftDelete } from '@/server/services/admin-files'
+import { batchDeleteAdminFiles } from '@/server/services/admin-files'
 
 const batchFileSchema = z.object({
   action: z.unknown().optional(),
@@ -37,6 +37,5 @@ export const POST = defineRoute(async (request) => {
   if (!ids) throw new HttpError('Invalid ids', 400, 400)
   if (body.action !== 'delete') throw new HttpError('Invalid action', 400, 400)
 
-  const result = await batchSoftDelete(ids)
-  return apiOk({ affected: result.count }, 'batch deleted')
+  return apiOk(await batchDeleteAdminFiles(ids), 'batch deleted')
 })

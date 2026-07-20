@@ -4,7 +4,7 @@
  * @module Solana Session Security
  * @description Preserves legacy encrypted tree-authority keys and replaces process-local prepare sessions with short-lived encrypted HMAC tokens.
  * @logic Derive purpose-separated keys from ENCRYPTION_KEY, seal validated transaction context for five minutes, authenticate before decrypting, and reject expired or wrong-purpose tokens.
- * @dependencies node:crypto, zod, server/http/errors
+ * @dependencies node:crypto, zod, server/http/errors, config/master-key
  * @index_tags solana,session,token,hmac,aes-gcm,encryption
  * @author holic512
  */
@@ -22,6 +22,7 @@ import {
 
 import { z } from 'zod'
 
+import { getMasterKey } from '@/server/config/master-key'
 import { HttpError } from '@/server/http/errors'
 
 const PRIVATE_KEY_ALGORITHM = 'aes-256-gcm'
@@ -29,7 +30,7 @@ const PRIVATE_KEY_IV_BYTES = 16
 const PRIVATE_KEY_SALT_BYTES = 32
 const SESSION_VERSION = 'v1'
 const SESSION_IV_BYTES = 12
-const SESSION_TTL_MS = 5 * 60 * 1000
+export const SOLANA_SESSION_TTL_MS = 5 * 60 * 1000
 const SESSION_TOKEN_MAX_LENGTH = 16_384
 
 const solanaNetworkSchema = z.enum(['mainnet', 'devnet'])
@@ -66,7 +67,7 @@ const mintSessionSchema = transactionContextSchema.extend({
   kind: z.literal('mint'),
   merkleTreeId: decimalIdSchema,
   cnftId: decimalIdSchema,
-  leafIndex: z.number().int().nonnegative(),
+  leafIndex: z.number().int().min(-1),
   ownerAddress: publicKeySchema,
   treeAuthority: publicKeySchema,
 })
@@ -80,9 +81,11 @@ export type TreePrepareSessionInput = Omit<TreePrepareSession, 'issuedAt' | 'exp
 export type MintPrepareSessionInput = Omit<MintPrepareSession, 'issuedAt' | 'expiresAt' | 'nonce'>
 
 function encryptionSecret() {
-  const secret = process.env.ENCRYPTION_KEY?.trim()
-  if (!secret) throw new HttpError('ENCRYPTION_KEY is not configured', 500, 500)
-  return secret
+  try {
+    return getMasterKey()
+  } catch {
+    throw new HttpError('Application master key is not configured', 500, 500)
+  }
 }
 
 function deriveKey(purpose: string) {
@@ -169,7 +172,7 @@ function sessionSignature(input: string) {
 
 export function sealSolanaSession(input: TreePrepareSessionInput | MintPrepareSessionInput) {
   const issuedAt = Date.now()
-  const expiresAt = issuedAt + SESSION_TTL_MS
+  const expiresAt = issuedAt + SOLANA_SESSION_TTL_MS
   const payload = sessionSchema.parse({
     ...input,
     issuedAt,

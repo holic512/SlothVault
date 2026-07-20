@@ -1,0 +1,149 @@
+# 数据库安装与迁移指南
+
+SlothVault 的发布包同时包含 SQLite、MySQL 和 PostgreSQL 支持，但一个运行实例只使用首次安装时选定的一种数据库。应用可以在没有数据库的情况下启动，数据库连接、空库校验和初始迁移全部由 `/install` 完成。
+
+## 支持范围
+
+| Provider | 支持版本 | 适用部署 | 主要限制 |
+| --- | --- | --- | --- |
+| SQLite | 应用内置 driver | 单机、个人或轻量部署 | 单 SlothVault 实例、本地磁盘，不支持网络共享文件系统 |
+| MySQL | 8.0+、InnoDB | 独立数据库服务 | 数据库必须预先创建且没有任何用户表 |
+| PostgreSQL | 14+ | 独立数据库服务 | 数据库必须预先创建且没有任何用户表 |
+
+三种 provider 使用相同逻辑模型和独立、已提交的初始迁移。安装完成后不能在线切换 provider；需要切换时使用逻辑备份恢复流程。
+
+## Docker 部署
+
+### SQLite（默认）
+
+```bash
+cp .env.docker.example .env.docker
+docker compose --env-file .env.docker up -d --build
+```
+
+Compose 默认只启动 `slothvault`。访问 `http://localhost:3000/install` 并选择 SQLite；文件路径由服务端固定为 `/app/data/database/slothvault.db`，页面不能填写任意路径。
+
+### PostgreSQL profile
+
+修改 `.env.docker` 的 `POSTGRES_DB`、`POSTGRES_USER` 和 `POSTGRES_PASSWORD`，然后运行：
+
+```bash
+docker compose --env-file .env.docker --profile postgres up -d --build
+docker compose --env-file .env.docker ps
+```
+
+数据库健康后，在安装页使用主机 `postgres`、端口 `5432` 以及相同的数据库、用户和密码。本地 Compose 网络通常不需要 TLS；外部数据库应遵循服务提供方的 TLS 要求。
+
+### MySQL profile
+
+修改 `.env.docker` 的 `MYSQL_DATABASE`、`MYSQL_USER`、`MYSQL_PASSWORD` 和 `MYSQL_ROOT_PASSWORD`，然后运行：
+
+```bash
+docker compose --env-file .env.docker --profile mysql up -d --build
+docker compose --env-file .env.docker ps
+```
+
+数据库健康后，在安装页使用主机 `mysql`、端口 `3306` 和非 root 应用用户。Compose 使用 MySQL 8.0、InnoDB 默认存储引擎以及 `utf8mb4` 字符集。
+
+应用服务没有 `depends_on` 数据库，也不会运行 `pg_isready`、`mysqladmin` 或启动前迁移。数据库尚未就绪时，应用仍可显示安装页，连接测试会返回可恢复的错误。
+
+## 安装状态与接口
+
+| 状态 | 含义 | 允许操作 |
+| --- | --- | --- |
+| `UNCONFIGURED` | 没有本地数据库配置 | 测试连接、初始化 |
+| `CONFIGURING` | 已保存 pending 配置，迁移尚未完成 | 重试初始化；未创建 schema 时可 reset |
+| `SCHEMA_READY` | 初始迁移完成，尚无管理员 | 创建唯一首个管理员 |
+| `INSTALLED` | 安装完成 | 正常访问应用；`/install` 重定向到登录页 |
+| `MAINTENANCE` | 配置无法读取或已安装数据库不可用 | 修复卷、主密钥或数据库；不会开放重装 |
+
+安装接口：
+
+- `GET /api/install/status`：返回状态、provider 和脱敏的主机/数据库摘要。
+- `POST /api/install/test-connection`：只读检查连接、TLS 与空库状态。
+- `POST /api/install/initialize`：重新检查空库，保存加密配置并执行对应初始迁移。
+- `POST /api/install/admin`：事务内创建唯一首个管理员并完成安装。
+- `POST /api/install/reset`：仅在 schema 尚未成功创建时清除 pending 本地配置，不删除数据库对象。
+
+第一位访问者可以安装系统。文件锁、进程锁和数据库唯一约束用于阻止并发安装，但公网部署仍应先通过反向代理、防火墙或临时网络规则限制 `/install` 的访问范围，直到管理员创建完成。
+
+## 空库与权限要求
+
+MySQL/PostgreSQL 的数据库必须由数据库管理员预先创建，并授予应用用户建立表、索引、外键以及读写业务数据所需权限。安装器不会创建数据库或数据库用户。
+
+空库检查会枚举目标数据库中的用户表。只要发现任何用户表，初始化就会拒绝且不会执行 DDL；不能把旧版 SlothVault 数据库直接交给新安装器，也不能用 `prisma db push` 合并结构。
+
+SQLite 安装同样只接受不存在或没有用户表的受控数据库文件。若安装失败，不要手工删除可能已创建的数据库对象；保留日志并确认安装状态后再处理。
+
+## TLS 与 CA
+
+MySQL/PostgreSQL 表单支持 TLS 开关和可选 CA PEM：
+
+- 启用 TLS 时始终验证服务端证书，不提供“接受任意证书”的模式。
+- 托管数据库使用公共 CA 时，按服务商说明决定是否需要粘贴 CA。
+- 私有 CA 或自签发链必须粘贴完整 PEM；不要把客户端私钥或数据库密码粘贴到 CA 字段。
+- 主机名必须与证书匹配。不要用 IP 地址替代证书中的 DNS 名称，除非证书明确包含该 IP。
+
+CA 内容随数据库配置一起加密，不会通过安装状态接口返回。迁移子进程只通过环境传递临时连接串；CA 临时文件使用私有权限并在操作结束后删除。
+
+## 配置与密钥
+
+运行数据根目录由 `APP_DATA_PATH` 控制，Docker 固定为 `/app/data`：
+
+```text
+/app/data/
+├── config/
+│   ├── database.enc
+│   ├── installation.state # 配置丢失检测标记，不含数据库凭据
+│   └── master.key         # 未设置 ENCRYPTION_KEY 时生成
+├── database/
+│   └── slothvault.db     # 仅 SQLite
+└── uploads/
+```
+
+`database.enc` 使用 AES-256-GCM 加密并以原子重命名写入；`installation.state` 用于区分真正首次部署与配置文件意外丢失。配置目录权限为 `0700`，配置、标记和密钥文件权限为 `0600`。数据库密码不会出现在状态接口或正常日志中。
+
+数据库连接只能通过安装页保存。以下旧变量不受支持，也不能绕过安装状态：
+
+- `DATABASE_URL`
+- `DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USER`、`DB_PASSWORD`
+- `DB_WAIT_TIMEOUT`
+
+Compose 的 `POSTGRES_*` 与 `MYSQL_*` 仅用于启动可选数据库容器，不会注入应用服务。
+
+如果不提供 `ENCRYPTION_KEY`，请持久化并备份整个 `config` 目录。若通过环境提供密钥，则必须在所有重启中保持完全一致，并与配置卷一起备份。不能通过清空配置目录来修复一个已安装系统；这样会失去数据库绑定并可能破坏加密的 Solana 数据。
+
+## SQLite 运行约束
+
+- 只运行一个 SlothVault 进程或容器；第二实例应被实例锁拒绝。
+- 使用本地块存储；不支持 NFS、SMB、分布式卷或多主机共享。
+- 同时备份 `slothvault.db` 及 SQLite 运行时相关文件时，应先停止应用，或优先使用系统逻辑备份。
+- 保持 `database` 目录可写并持久化；只挂载单个数据库文件会遗漏辅助文件和原子替换需求。
+
+需要高可用、多副本或远程数据库时请选择 MySQL/PostgreSQL。
+
+## 旧 PostgreSQL 与 provider 切换
+
+新版本只在空库安装，不自动接管旧 PostgreSQL 的四-schema 结构。迁移步骤：
+
+1. 保持旧实例运行，在旧管理后台导出数据库 JSON 和上传 ZIP。
+2. 若旧版本尚未包含 cNFT attempt 对账字段与交易签名唯一索引，先在旧代码或旧镜像中按原部署方式执行 `npx prisma migrate deploy`，验证后再导出。
+3. 备份旧 `ENCRYPTION_KEY`。如果存在加密 Tree Authority，新实例必须继续使用同一密钥。
+4. 使用目标 provider 和全新空库启动新实例，完成 `/install`，并创建新的管理员。
+5. 登录新实例，导入数据库 JSON，再导入上传 ZIP。
+6. 抽查首页、项目、笔记版本、文件、系统设置和 Solana Tree/cNFT 记录。
+7. 验证完成前保留旧数据库、旧上传目录及两份导出文件。
+
+逻辑备份不迁移管理员和 Session，因此新实例必须创建管理员，所有用户会话都会失效。不要复制旧数据库表或尝试在新旧 schema 上混合运行迁移。
+
+## 维护与恢复
+
+| 现象 | 处理 |
+| --- | --- |
+| `/install` 报目标非空 | 换用真正空库；不要授权安装器清表 |
+| 配置无法解密 | 恢复匹配的 `config` 卷和 `ENCRYPTION_KEY`；不要重新安装覆盖 |
+| 已安装数据库不可达 | 修复网络、DNS、TLS、数据库服务或账号权限，然后重试请求 |
+| SQLite 第二实例启动失败 | 保留一个实例；确认没有另一个进程持有同一 `database` 卷 |
+| 初始化中断 | 保留现场并重试状态检查；只有仍为 `CONFIGURING` 且 schema 未创建时才使用 reset |
+
+容器日志用于判断启动与请求状态，但不应输出数据库密码、完整连接串、Cookie、Token 或私钥。自动版本升级迁移不在当前范围内；升级前必须阅读对应发布版本的迁移说明并先备份。

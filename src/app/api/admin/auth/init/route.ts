@@ -1,11 +1,19 @@
+/**
+ * @file route.ts
+ * @project SlothVault
+ * @module Admin Authentication API
+ * @description Accepts the legacy first-administrator initialization request.
+ * @logic Validate the JSON payload, delegate serialized account creation to the authentication service, and preserve the created response contract.
+ * @dependencies zod, server/http helpers, admin authentication service
+ * @index_tags api,admin,authentication,initialization
+ * @author holic512
+ */
 import { z } from 'zod'
 
-import { hashPassword } from '@/server/auth/password'
-import { HttpError } from '@/server/http/errors'
 import { defineRoute } from '@/server/http/handler'
 import { readJson } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
-import { prisma } from '@/server/prisma'
+import { initializeAdmin } from '@/server/services/admin-auth'
 
 const initSchema = z.object({
   username: z.string().trim().min(2).max(64),
@@ -14,22 +22,6 @@ const initSchema = z.object({
 
 export const POST = defineRoute(async (request) => {
   const body = await readJson(request, initSchema)
-  const password = await hashPassword(body.password)
-
-  const user = await prisma.$transaction(
-    async (tx) => {
-      const count = await tx.user.count()
-      if (count > 0) {
-        throw new HttpError('Admin already initialized', 409, 409)
-      }
-
-      return tx.user.create({
-        data: { username: body.username, password },
-        select: { id: true, username: true },
-      })
-    },
-    { isolationLevel: 'Serializable' },
-  )
-
+  const user = await initializeAdmin(body)
   return apiOk(user, 'created', 201)
 })

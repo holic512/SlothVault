@@ -15,13 +15,15 @@ export async function readJson<T>(request: NextRequest, schema: ZodType<T>): Pro
   return schema.parse(body)
 }
 
-export function parseBigIntId(value: string | undefined, label = 'id'): bigint {
+export function parseBigIntId(value: string | undefined, label = 'id'): number {
   if (!value) {
     throw new HttpError(`Missing ${label}`, 400, 400)
   }
 
   try {
-    return BigInt(value)
+    const id = Number(value)
+    if (!Number.isSafeInteger(id) || id < 1 || id > 2_147_483_647) throw new Error('range')
+    return id
   } catch {
     throw new HttpError(`Invalid ${label}`, 400, 400)
   }

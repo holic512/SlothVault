@@ -3,30 +3,26 @@
  * @project SlothVault
  * @module Admin Note API
  * @description Lists and creates note metadata for authenticated administrators.
- * @logic Preserve legacy filters and relation expansion, validate active category parents, and return stable note DTOs.
- * @dependencies admin session, HTTP route helpers, Prisma NoteInfo model, admin notes service
+ * @logic Authenticate and parse legacy query/body inputs, then delegate note metadata reads and writes to the notes service.
+ * @dependencies admin session, HTTP route helpers, admin catalog parsing, admin notes service
  * @index_tags api,admin,note,list,create
  * @author holic512
  */
-import type { Prisma } from '@generated/prisma/client'
 import { z } from 'zod'
 
 import { requireAdminSession } from '@/server/auth/session'
-import { HttpError } from '@/server/http/errors'
 import { defineRoute } from '@/server/http/handler'
 import { readJson } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
-import { prisma } from '@/server/prisma'
 import {
   integerValue,
   legacyBoolean,
   pagination,
   parseDecimalId,
-  parseJsonDecimalId,
   safeOrderField,
   sortDirection,
 } from '@/server/services/admin-catalog'
-import { noteDto, requireActiveCategory } from '@/server/services/admin-notes'
+import { createAdminNote, listAdminNotes } from '@/server/services/admin-notes'
 
 const createNoteSchema = z.object({
   categoryId: z.unknown().optional(),
@@ -66,64 +62,31 @@ export const GET = defineRoute(async (request) => {
   )
   const order = sortDirection(searchParams.get('order'))
 
-  const where: Prisma.NoteInfoWhereInput = {}
-  if (onlyDeleted) where.isDeleted = true
-  else if (!includeDeleted) where.isDeleted = false
-  if (keyword) where.noteTitle = { contains: keyword, mode: 'insensitive' }
-  if (Number.isFinite(status)) where.status = status
-  if (categoryIdRaw !== null) where.categoryId = parseDecimalId(categoryIdRaw, 'categoryId')
-
-  const categoryWhere: Prisma.CategoryWhereInput = {}
-  if (projectVersionIdRaw !== null) {
-    categoryWhere.projectVersionId = parseDecimalId(
-      projectVersionIdRaw,
-      'projectVersionId',
-    )
-  }
-  if (projectIdRaw !== null) {
-    categoryWhere.projectVersion = {
-      projectId: parseDecimalId(projectIdRaw, 'projectId'),
-    }
-  }
-  if (Object.keys(categoryWhere).length > 0) where.category = categoryWhere
-
-  const [total, list] = await Promise.all([
-    prisma.noteInfo.count({ where }),
-    prisma.noteInfo.findMany({
-      where,
+  return apiOk(
+    await listAdminNotes({
+      page,
+      pageSize,
       skip,
-      take: pageSize,
-      orderBy: { [orderByField]: order },
-      include: {
-        category: {
-          include: {
-            projectVersion: { include: { project: true } },
-          },
-        },
-        _count: { select: { contents: true } },
-      },
+      keyword,
+      includeDeleted,
+      onlyDeleted,
+      status,
+      categoryId:
+        categoryIdRaw === null ? undefined : parseDecimalId(categoryIdRaw, 'categoryId'),
+      projectVersionId:
+        projectVersionIdRaw === null
+          ? undefined
+          : parseDecimalId(projectVersionIdRaw, 'projectVersionId'),
+      projectId:
+        projectIdRaw === null ? undefined : parseDecimalId(projectIdRaw, 'projectId'),
+      orderByField,
+      order,
     }),
-  ])
-
-  return apiOk({ list: list.map(noteDto), page, pageSize, total })
+  )
 })
 
 export const POST = defineRoute(async (request) => {
   await requireAdminSession(request)
   const body = await readJson(request, createNoteSchema)
-  const categoryId = parseJsonDecimalId(body.categoryId, 'categoryId')
-  const noteTitle = typeof body.noteTitle === 'string' ? body.noteTitle.trim() : ''
-  if (!noteTitle) throw new HttpError('Missing noteTitle', 400, 400)
-
-  await requireActiveCategory(categoryId)
-  const note = await prisma.noteInfo.create({
-    data: {
-      categoryId,
-      noteTitle,
-      weight: integerValue(body.weight, 0),
-      status: integerValue(body.status, 1),
-    },
-    include: { category: true },
-  })
-  return apiOk(noteDto(note), 'created', 201)
+  return apiOk(await createAdminNote(body), 'created', 201)
 })

@@ -42,6 +42,7 @@ export const POST = defineRoute(async (request) => {
   try {
     return apiOk(await importDatabaseBackup(payload))
   } catch (error) {
+    if (error instanceof HttpError) throw error
     console.error('[backup] Database import failed', error)
     throw new HttpError('Database import failed', 500, 500)
   }

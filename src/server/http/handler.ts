@@ -3,14 +3,23 @@
  * @project SlothVault
  * @module Server HTTP
  * @description Provides the shared error boundary, typed context, and process-wide read/write coordination for Next.js Route Handlers.
- * @logic Run read-only methods concurrently, serialize state-changing methods, optionally retain a lock through streamed response consumption, and map domain/validation failures to the API envelope.
- * @dependencies next/server, zod, server/http/errors, server/http/response, maintenance-lock
+ * @logic Gate normal APIs until installation completes, run read-only methods concurrently, serialize state-changing methods, optionally retain a lock through streamed response consumption, and map domain/validation failures to the API envelope.
+ * @dependencies next/server, zod, server/http/errors, server/http/response, maintenance-lock, database/installation-state
  * @index_tags route-handler,error-boundary,validation,maintenance-lock,stream
  * @author holic512
  */
 import type { NextRequest } from 'next/server'
 import { ZodError } from 'zod'
 
+import { DatabaseConfigurationError } from '@/server/database/config-store'
+import {
+  isInstallationApiPath,
+} from '@/server/database/installation-state'
+import {
+  isDatabaseConnectivityError,
+  markInstalledDatabaseUnavailable,
+  readRuntimeInstallationPublicStatus,
+} from '@/server/database/runtime-health'
 import { HttpError } from '@/server/http/errors'
 import { apiFail } from '@/server/http/response'
 import {
@@ -52,6 +61,25 @@ async function executeRoute<Params extends Record<string, unknown>>(
 
     if (error instanceof ZodError) {
       return apiFail('Invalid request data', 400, 400, error.flatten())
+    }
+
+    if (error instanceof DatabaseConfigurationError) {
+      return apiFail(
+        'System configuration requires maintenance',
+        503,
+        5032,
+        { reason: 'SYSTEM_MAINTENANCE' },
+      )
+    }
+
+    if (isDatabaseConnectivityError(error)) {
+      markInstalledDatabaseUnavailable()
+      return apiFail(
+        'Installed database is unavailable',
+        503,
+        5032,
+        { reason: 'SYSTEM_MAINTENANCE' },
+      )
     }
 
     console.error('[api] Unhandled route error', error)
@@ -108,6 +136,22 @@ export function defineRoute<Params extends Record<string, unknown> = Record<stri
   options: RouteOptions = {},
 ): RouteHandler<Params> {
   return async (request, context) => {
+    const bootstrapSafePath =
+      isInstallationApiPath(request.nextUrl.pathname) ||
+      request.nextUrl.pathname === '/api/preferences/locale'
+    if (!bootstrapSafePath) {
+      const installation = await readRuntimeInstallationPublicStatus()
+      if (installation.status !== 'INSTALLED') {
+        const maintenance = installation.status === 'MAINTENANCE'
+        return apiFail(
+          maintenance ? 'System configuration requires maintenance' : 'System is not installed',
+          503,
+          maintenance ? 5032 : 5031,
+          { reason: maintenance ? 'SYSTEM_MAINTENANCE' : 'SYSTEM_NOT_INSTALLED' },
+        )
+      }
+    }
+
     if (options.lockMode === 'none') {
       return executeRoute(handler, request, context)
     }

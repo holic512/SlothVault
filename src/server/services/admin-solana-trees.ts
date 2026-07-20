@@ -2,8 +2,8 @@
  * @file admin-solana-trees.ts
  * @project SlothVault
  * @module Solana Tree Administration
- * @description Implements configured-network management and the full Merkle Tree list, estimate, prepare, submit, verify, and safe-delete workflow.
- * @logic Build server-partially-signed transactions, seal immutable prepare context, validate wallet submissions, persist chain outcomes idempotently, verify account ownership/dimensions, and reconcile the confirmed mint cursor from the on-chain sequence when no cNFT attempt is pending.
+ * @description Implements configured-network management and the portable Merkle Tree list, estimate, prepare, submit, verify, and safe-delete workflow.
+ * @logic Build server-partially-signed transactions, seal immutable prepare context, validate wallet submissions, serialize priority through a database lock record, persist chain outcomes idempotently, and reconcile confirmed and remaining capacity from chain state.
  * @dependencies Prisma MerkleTree/SystemConfig models, solana-chain, solana-session
  * @index_tags admin,solana,merkle-tree,prepare,submit,verify
  * @author holic512
@@ -14,6 +14,7 @@ import { Keypair, SystemProgram } from '@solana/web3.js'
 
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
+import { unitOfWork } from '@/server/database/unit-of-work'
 import { hasPrismaCode } from '@/server/services/admin-catalog'
 import {
   BUBBLEGUM_PROGRAM_ID,
@@ -52,7 +53,7 @@ export const TREE_STATUS = {
 } as const
 
 function treeDto(tree: {
-  id: bigint
+  id: number
   name: string
   treeAddress: string
   treeAuthority: string
@@ -345,12 +346,15 @@ export async function submitMerkleTree(options: {
   const maxCapacity = 1n << BigInt(session.maxDepth)
 
   try {
-    const record = await prisma.$transaction(async (tx) => {
+    const record = await unitOfWork.execute(async (tx) => {
       const duplicate = await tx.merkleTree.findUnique({
         where: { treeAddress: session.treeAddress },
       })
       if (duplicate) return duplicate
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`solana-tree-priority:${session.network}`}))`
+      await tx.runtimeLock.update({
+        where: { key: `solana-tree-priority:${session.network}` },
+        data: { revision: { increment: 1 }, updatedAt: new Date() },
+      })
       const priority = await tx.merkleTree.aggregate({
         where: { network: session.network, isDeleted: false },
         _max: { priority: true },
@@ -368,6 +372,7 @@ export async function submitMerkleTree(options: {
           network: session.network,
           totalMinted: 0,
           maxCapacity,
+          remainingCapacity: maxCapacity,
           creationCost: BigInt(session.rentLamports),
           txSignature: submitted.signature,
           priority: (priority._max.priority ?? 0) + 1,
@@ -406,7 +411,29 @@ export async function submitMerkleTree(options: {
   }
 }
 
-export async function verifyMerkleTree(id: bigint) {
+export function reconciledRemainingCapacity(options: {
+  maxCapacity: bigint
+  currentSequence: number
+  pendingAttempts: number
+  storedRemainingCapacity: bigint
+}) {
+  const upperBound = options.maxCapacity - BigInt(options.currentSequence)
+  const lowerBoundCandidate = upperBound - BigInt(options.pendingAttempts)
+  const lowerBound = lowerBoundCandidate > 0n ? lowerBoundCandidate : 0n
+  const valid =
+    upperBound >= 0n &&
+    options.storedRemainingCapacity >= lowerBound &&
+    options.storedRemainingCapacity <= upperBound
+  return {
+    valid,
+    remainingCapacity:
+      options.pendingAttempts === 0 ? upperBound : options.storedRemainingCapacity,
+    lowerBound,
+    upperBound,
+  }
+}
+
+export async function verifyMerkleTree(id: number) {
   const tree = await prisma.merkleTree.findFirst({
     where: { id, isDeleted: false },
   })
@@ -422,66 +449,113 @@ export async function verifyMerkleTree(id: bigint) {
       parseSolanaPublicKey(tree.treeAddress, 'treeAddress'),
     )
     if (account) {
-      if (
-        account.maxDepth !== tree.maxDepth ||
-        account.maxBufferSize !== tree.maxBufferSize ||
-        account.canopyDepth !== tree.canopyDepth
-      ) {
-        await prisma.merkleTree.update({
-          where: { id: tree.id },
-          data: { status: TREE_STATUS.FAILED, updatedAt: new Date() },
+      return unitOfWork.execute(async (tx) => {
+        const currentTree = await tx.merkleTree.findFirst({
+          where: { id: tree.id, isDeleted: false },
         })
-        return { status: TREE_STATUS.FAILED, message: 'On-chain tree parameters do not match the record' }
-      }
+        if (!currentTree) throw new HttpError('Merkle Tree not found', 404, 404)
 
-      const [pendingAttempts, highestConfirmedLeaf] = await Promise.all([
-        prisma.compressedNft.count({
-          where: { merkleTreeId: tree.id, status: 0 },
-        }),
-        prisma.compressedNft.aggregate({
-          where: { merkleTreeId: tree.id, status: 1 },
-          _max: { leafIndex: true },
-        }),
-      ])
-      if (pendingAttempts > 0 && account.currentSequence !== tree.totalMinted) {
-        return {
-          status: tree.status,
-          message: 'Pending cNFT attempts must be reconciled before synchronizing the tree sequence',
-          currentSequence: account.currentSequence,
+        if (
+          account.maxDepth !== currentTree.maxDepth ||
+          account.maxBufferSize !== currentTree.maxBufferSize ||
+          account.canopyDepth !== currentTree.canopyDepth
+        ) {
+          await tx.merkleTree.update({
+            where: { id: currentTree.id },
+            data: {
+              capacityRevision: { increment: 1 },
+              status: TREE_STATUS.FAILED,
+              updatedAt: new Date(),
+            },
+          })
+          return {
+            status: TREE_STATUS.FAILED,
+            message: 'On-chain tree parameters do not match the record',
+          }
         }
-      }
-      if (
-        account.currentSequence > Number(tree.maxCapacity) ||
-        (highestConfirmedLeaf._max.leafIndex !== null &&
-          highestConfirmedLeaf._max.leafIndex >= account.currentSequence)
-      ) {
-        await prisma.merkleTree.update({
-          where: { id: tree.id },
-          data: { status: TREE_STATUS.FAILED, updatedAt: new Date() },
+
+        const [pendingAttempts, highestConfirmedLeaf] = await Promise.all([
+          tx.compressedNft.count({
+            where: { merkleTreeId: currentTree.id, status: 0, capacityReserved: true },
+          }),
+          tx.compressedNft.aggregate({
+            where: { merkleTreeId: currentTree.id, status: 1 },
+            _max: { leafIndex: true },
+          }),
+        ])
+        if (pendingAttempts > 0 && account.currentSequence !== currentTree.totalMinted) {
+          return {
+            status: currentTree.status,
+            message: 'Pending cNFT attempts must be reconciled before synchronizing the tree sequence',
+            currentSequence: account.currentSequence,
+          }
+        }
+
+        const capacity = reconciledRemainingCapacity({
+          maxCapacity: currentTree.maxCapacity,
+          currentSequence: account.currentSequence,
+          pendingAttempts,
+          storedRemainingCapacity: currentTree.remainingCapacity,
         })
+        const statePredicate = {
+          id: currentTree.id,
+          totalMinted: currentTree.totalMinted,
+          remainingCapacity: currentTree.remainingCapacity,
+          capacityRevision: currentTree.capacityRevision,
+          status: currentTree.status,
+          isDeleted: false,
+        }
+        const concurrentlyChanged = async () => {
+          const latest = await tx.merkleTree.findUnique({ where: { id: currentTree.id } })
+          return {
+            status: latest?.status ?? currentTree.status,
+            message: 'Merkle Tree capacity changed concurrently; verify again',
+            currentSequence: account.currentSequence,
+          }
+        }
+
+        if (
+          !capacity.valid ||
+          (highestConfirmedLeaf._max.leafIndex !== null &&
+            highestConfirmedLeaf._max.leafIndex >= account.currentSequence)
+        ) {
+          const failed = await tx.merkleTree.updateMany({
+            where: statePredicate,
+            data: {
+              capacityRevision: { increment: 1 },
+              status: TREE_STATUS.FAILED,
+              updatedAt: new Date(),
+            },
+          })
+          if (failed.count === 0) return concurrentlyChanged()
+          return {
+            status: TREE_STATUS.FAILED,
+            message: capacity.valid
+              ? 'The on-chain sequence conflicts with confirmed local cNFT records'
+              : 'Local cNFT reservations conflict with the on-chain tree capacity',
+            currentSequence: account.currentSequence,
+          }
+        }
+
+        const status =
+          capacity.remainingCapacity === 0n ? TREE_STATUS.FULL : TREE_STATUS.NORMAL
+        const synchronized = await tx.merkleTree.updateMany({
+          where: statePredicate,
+          data: {
+            totalMinted: account.currentSequence,
+            remainingCapacity: capacity.remainingCapacity,
+            capacityRevision: { increment: 1 },
+            status,
+            updatedAt: new Date(),
+          },
+        })
+        if (synchronized.count === 0) return concurrentlyChanged()
         return {
-          status: TREE_STATUS.FAILED,
-          message: 'The on-chain sequence conflicts with confirmed local cNFT records',
+          status,
+          message: 'Merkle Tree account is valid on chain',
           currentSequence: account.currentSequence,
         }
-      }
-      const status =
-        BigInt(account.currentSequence) >= tree.maxCapacity
-          ? TREE_STATUS.FULL
-          : TREE_STATUS.NORMAL
-      await prisma.merkleTree.update({
-        where: { id: tree.id },
-        data: {
-          totalMinted: account.currentSequence,
-          status,
-          updatedAt: new Date(),
-        },
       })
-      return {
-        status,
-        message: 'Merkle Tree account is valid on chain',
-        currentSequence: account.currentSequence,
-      }
     }
 
     if (tree.txSignature) {
@@ -489,10 +563,28 @@ export async function verifyMerkleTree(id: bigint) {
         searchTransactionHistory: true,
       })
       if (signatureStatus.value?.err) {
-        await prisma.merkleTree.update({
-          where: { id: tree.id },
-          data: { status: TREE_STATUS.FAILED, updatedAt: new Date() },
-        })
+        const failed = await unitOfWork.execute((tx) =>
+          tx.merkleTree.updateMany({
+            where: {
+              id: tree.id,
+              status: tree.status,
+              capacityRevision: tree.capacityRevision,
+              isDeleted: false,
+            },
+            data: {
+              capacityRevision: { increment: 1 },
+              status: TREE_STATUS.FAILED,
+              updatedAt: new Date(),
+            },
+          }),
+        )
+        if (failed.count === 0) {
+          const latest = await prisma.merkleTree.findUnique({ where: { id: tree.id } })
+          return {
+            status: latest?.status ?? tree.status,
+            message: 'Merkle Tree state changed concurrently; verify again',
+          }
+        }
         return { status: TREE_STATUS.FAILED, message: 'Merkle Tree transaction failed on chain' }
       }
     }
@@ -502,7 +594,7 @@ export async function verifyMerkleTree(id: bigint) {
   }
 }
 
-export async function deleteMerkleTree(id: bigint) {
+export async function deleteMerkleTree(id: number) {
   const tree = await prisma.merkleTree.findFirst({
     where: { id, isDeleted: false },
     include: { _count: { select: { cnfts: true } } },

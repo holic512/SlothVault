@@ -1,12 +1,20 @@
+/**
+ * @file route.ts
+ * @project SlothVault
+ * @module Admin Authentication API
+ * @description Authenticates an administrator and establishes the secure session cookie.
+ * @logic Validate credentials, collect request metadata, delegate credential/session persistence, and attach the returned token as a cookie.
+ * @dependencies zod, server/auth/session cookie helper, server/http helpers, admin authentication service
+ * @index_tags api,admin,authentication,login,session-cookie
+ * @author holic512
+ */
 import { z } from 'zod'
 
-import { issueSession, setSessionCookie } from '@/server/auth/session'
-import { verifyPassword } from '@/server/auth/password'
-import { HttpError } from '@/server/http/errors'
+import { setSessionCookie } from '@/server/auth/session'
 import { defineRoute } from '@/server/http/handler'
 import { readJson } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
-import { prisma } from '@/server/prisma'
+import { loginAdmin } from '@/server/services/admin-auth'
 
 const loginSchema = z.object({
   username: z.string().trim().min(1).max(255),
@@ -16,23 +24,13 @@ const loginSchema = z.object({
 
 export const POST = defineRoute(async (request) => {
   const body = await readJson(request, loginSchema)
-  const user = await prisma.user.findFirst({
-    where: { OR: [{ username: body.username }, { email: body.username }] },
-  })
-
-  if (!user || !(await verifyPassword(user.password, body.password))) {
-    throw new HttpError('Invalid credentials', 401, 401)
-  }
-
-  const ttlMs = (body.remember ? 30 : 7) * 24 * 60 * 60 * 1000
   const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-  const session = await issueSession({
-    userId: user.id,
-    ttlMs,
+  const result = await loginAdmin({
+    ...body,
     ip: forwardedFor || request.headers.get('x-real-ip'),
     userAgent: request.headers.get('user-agent'),
   })
-  const response = apiOk({ id: user.id, username: user.username })
-  setSessionCookie(response, session.token, session.expiresAt)
+  const response = apiOk(result.user)
+  setSessionCookie(response, result.session.token, result.session.expiresAt)
   return response
 })

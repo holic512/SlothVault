@@ -2,36 +2,21 @@
  * @file prisma.ts
  * @project SlothVault
  * @module Database
- * @description Creates the single Prisma 7 PostgreSQL client shared by Next.js server routes and services.
- * @logic Build the driver adapter from DATABASE_URL and reuse the client during development hot reloads.
- * @dependencies @prisma/adapter-pg, generated/prisma/client
- * @index_tags prisma,postgresql,database,singleton
+ * @description Exposes the installed provider's lazy Prisma client through the legacy server import boundary.
+ * @logic Defer encrypted configuration loading and provider selection until a database property is first accessed, then bind methods to the shared runtime client.
+ * @dependencies server/database/client, generated/prisma-postgresql/client
+ * @index_tags prisma,database,lazy-client,compatibility
  * @author holic512
  */
 import 'server-only'
 
-import { PrismaPg } from '@prisma/adapter-pg'
-import { PrismaClient } from '@generated/prisma/client'
+import type { AppPrismaClient } from '@/server/database/client'
+import { getDatabaseClient } from '@/server/database/client'
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
-
-function createPrismaClient() {
-  const connectionString = process.env.DATABASE_URL
-  if (!connectionString) {
-    throw new Error('DATABASE_URL is required')
-  }
-
-  const adapter = new PrismaPg({ connectionString })
-  return new PrismaClient({
-    adapter,
-    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
-  })
-}
-
-export const prisma = globalForPrisma.prisma ?? createPrismaClient()
-
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma
-}
+export const prisma = new Proxy({} as AppPrismaClient, {
+  get(_target, property) {
+    const client = getDatabaseClient()
+    const value = Reflect.get(client, property, client) as unknown
+    return typeof value === 'function' ? value.bind(client) : value
+  },
+})

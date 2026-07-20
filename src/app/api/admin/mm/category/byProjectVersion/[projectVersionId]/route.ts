@@ -3,24 +3,19 @@
  * @project SlothVault
  * @module Admin Category API
  * @description Lists categories belonging to one project version with optional version metadata.
- * @logic Authenticate, validate the version path ID, preserve legacy filters, and return paginated category DTOs.
- * @dependencies admin session, HTTP route helpers, Prisma Category model, admin catalog service
+ * @logic Authenticate and parse the version-scoped legacy query before delegating the paginated lookup to the catalog service.
+ * @dependencies admin session, HTTP route helpers, admin catalog service
  * @index_tags api,admin,category,project-version-filter,list
  * @author holic512
  */
-import type { Prisma } from '@generated/prisma/client'
-
 import { requireAdminSession } from '@/server/auth/session'
-import { HttpError } from '@/server/http/errors'
 import { defineRoute } from '@/server/http/handler'
 import { apiOk } from '@/server/http/response'
-import { prisma } from '@/server/prisma'
 import {
-  categoryBaseDto,
   legacyBoolean,
+  listAdminCategoriesByProjectVersion,
   pagination,
   parseDecimalId,
-  projectVersionBaseDto,
   safeOrderField,
   sortDirection,
 } from '@/server/services/admin-catalog'
@@ -54,32 +49,17 @@ export const GET = defineRoute<{ projectVersionId: string }>(async (request, con
   )
   const order = sortDirection(searchParams.get('order'))
 
-  const projectVersion = await prisma.projectVersion.findUnique({
-    where: { id: projectVersionId },
-  })
-  if (!projectVersion) throw new HttpError('ProjectVersion not found', 404, 404)
-
-  const where: Prisma.CategoryWhereInput = { projectVersionId }
-  if (onlyDeleted) where.isDeleted = true
-  else if (!includeDeleted) where.isDeleted = false
-
-  const [total, list] = await Promise.all([
-    prisma.category.count({ where }),
-    prisma.category.findMany({
-      where,
+  return apiOk(
+    await listAdminCategoriesByProjectVersion({
+      projectVersionId,
+      page,
+      pageSize,
       skip,
-      take: pageSize,
-      orderBy: { [orderByField]: order },
+      includeDeleted,
+      onlyDeleted,
+      includeProjectVersionInfo,
+      orderByField,
+      order,
     }),
-  ])
-
-  return apiOk({
-    list: list.map(categoryBaseDto),
-    page,
-    pageSize,
-    total,
-    ...(includeProjectVersionInfo
-      ? { projectVersion: projectVersionBaseDto(projectVersion) }
-      : {}),
-  })
+  )
 })

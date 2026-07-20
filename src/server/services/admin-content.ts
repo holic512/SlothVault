@@ -2,21 +2,28 @@
  * @file admin-content.ts
  * @project SlothVault
  * @module Admin Content Services
- * @description Provides DTO mapping and validation shared by homepage, project menu, and system configuration APIs.
- * @logic Serialize decimal identifiers, enforce two-level same-project menus, validate navigation URLs, and describe masked runtime settings.
- * @dependencies Prisma content models, server/http/errors
- * @index_tags admin,homepage,project-menu,configuration,dto,validation
+ * @description Owns project-home, project-menu, and system-homepage persistence, validation, transactions, and stable DTO mapping.
+ * @logic Validate content commands, enforce active project and two-level menu invariants, execute atomic mutations, and serialize database records for admin APIs.
+ * @dependencies Prisma project content models, server/http/errors, admin-catalog helpers
+ * @index_tags admin,homepage,project-menu,system-homepage,transaction,dto,validation
  * @author holic512
  */
 import 'server-only'
 
-import type { Prisma } from '@generated/prisma/client'
+import type { Prisma } from '@generated/prisma-postgresql/client'
 
 import { HttpError } from '@/server/http/errors'
+import { prisma } from '@/server/prisma'
+import {
+  hasPrismaCode,
+  integerValue,
+  optionalIntegerValue,
+  parseJsonDecimalId,
+} from '@/server/services/admin-catalog'
 
 type ProjectHomeLike = {
-  id: bigint
-  projectId: bigint
+  id: number
+  projectId: number
   content: string
   status: number
   createdAt: Date
@@ -25,7 +32,7 @@ type ProjectHomeLike = {
 }
 
 type SystemHomepageLike = {
-  id: bigint
+  id: number
   content: string
   status: number
   createdAt: Date
@@ -34,9 +41,9 @@ type SystemHomepageLike = {
 }
 
 type ProjectMenuLike = {
-  id: bigint
-  projectId: bigint
-  parentId: bigint | null
+  id: number
+  projectId: number
+  parentId: number | null
   label: string
   url: string | null
   isExternal: boolean
@@ -46,6 +53,47 @@ type ProjectMenuLike = {
   updatedAt: Date
   isDeleted: boolean
   children?: ProjectMenuLike[]
+}
+
+export type CreateProjectHomeInput = {
+  content?: unknown
+  status?: unknown
+}
+
+export type UpdateProjectHomeInput = {
+  content?: unknown
+  status?: unknown
+  isDeleted?: unknown
+}
+
+export type ListProjectMenusInput = {
+  projectId: number
+  tree: boolean
+  includeDeleted: boolean
+}
+
+export type CreateProjectMenuInput = {
+  parentId?: unknown
+  label?: unknown
+  url?: unknown
+  isExternal?: unknown
+  weight?: unknown
+  status?: unknown
+}
+
+export type UpdateProjectMenuInput = CreateProjectMenuInput & {
+  isDeleted?: unknown
+}
+
+export type CreateSystemHomepageInput = {
+  content?: unknown
+  status?: unknown
+}
+
+export type UpdateSystemHomepageInput = {
+  content?: unknown
+  status?: unknown
+  isDeleted?: unknown
 }
 
 export function projectHomeDto(home: ProjectHomeLike) {
@@ -96,7 +144,7 @@ export function projectMenuDtoBase(menu: ProjectMenuLike) {
   }
 }
 
-export async function requireActiveProject(tx: Prisma.TransactionClient, projectId: bigint) {
+export async function requireActiveProject(tx: Prisma.TransactionClient, projectId: number) {
   const project = await tx.project.findFirst({
     where: { id: projectId, isDeleted: false },
     select: { id: true },
@@ -106,7 +154,7 @@ export async function requireActiveProject(tx: Prisma.TransactionClient, project
 
 export async function validateMenuParent(
   tx: Prisma.TransactionClient,
-  options: { projectId: bigint; parentId: bigint; currentId?: bigint },
+  options: { projectId: number; parentId: number; currentId?: number },
 ) {
   if (options.currentId === options.parentId) {
     throw new HttpError('Cannot set self as parent', 400, 400)
@@ -150,69 +198,262 @@ export function normalizeMenuUrl(rawUrl: unknown, isExternal: boolean) {
   return url
 }
 
-export const ADMIN_CONFIG_DEFINITIONS = [
-  {
-    key: 'SOLANA_RPC_URL',
-    group: 'solana',
-    sensitive: false,
-    description: 'Solana mainnet RPC URL',
-    defaultValue: '',
-  },
-  {
-    key: 'SOLANA_DEVNET_RPC_URL',
-    group: 'solana',
-    sensitive: false,
-    description: 'Solana devnet RPC URL',
-    defaultValue: '',
-  },
-  {
-    key: 'FILEBASE_ACCESS_KEY',
-    group: 'filebase',
-    sensitive: true,
-    description: 'Filebase IPFS access key',
-    defaultValue: '',
-  },
-  {
-    key: 'FILEBASE_SECRET_KEY',
-    group: 'filebase',
-    sensitive: true,
-    description: 'Filebase IPFS secret key',
-    defaultValue: '',
-  },
-  {
-    key: 'FILEBASE_BUCKET',
-    group: 'filebase',
-    sensitive: false,
-    description: 'Filebase bucket name',
-    defaultValue: '',
-  },
-  {
-    key: 'FILEBASE_ENDPOINT',
-    group: 'filebase',
-    sensitive: false,
-    description: 'Filebase S3 endpoint',
-    defaultValue: 'https://s3.filebase.com',
-  },
-] as const
-
-export type AdminConfigKey = (typeof ADMIN_CONFIG_DEFINITIONS)[number]['key']
-
-export function configDefinition(key: string) {
-  return ADMIN_CONFIG_DEFINITIONS.find((item) => item.key === key)
+export async function getProjectHomeByProjectId(projectId: number) {
+  const home = await prisma.projectHome.findUnique({ where: { projectId } })
+  if (!home) throw new HttpError('Not Found', 404, 404)
+  return projectHomeDto(home)
 }
 
-export function validateConfigValue(key: AdminConfigKey, value: string) {
-  if (value.length > 500) throw new HttpError(`${key} exceeds 500 characters`, 400, 400)
-  if (key.endsWith('_URL') && value) {
-    let parsed: URL
-    try {
-      parsed = new URL(value)
-    } catch {
-      throw new HttpError(`${key} must be a valid URL`, 400, 400)
-    }
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      throw new HttpError(`${key} must use HTTP(S)`, 400, 400)
-    }
+export async function createOrRestoreProjectHome(
+  projectId: number,
+  input: CreateProjectHomeInput,
+) {
+  if (typeof input.content !== 'string') throw new HttpError('Missing content', 400, 400)
+
+  const home = await prisma.$transaction(async (tx) => {
+    await requireActiveProject(tx, projectId)
+    return tx.projectHome.upsert({
+      where: { projectId },
+      update: {
+        content: input.content as string,
+        status: integerValue(input.status, 1),
+        isDeleted: false,
+        updatedAt: new Date(),
+      },
+      create: {
+        projectId,
+        content: input.content as string,
+        status: integerValue(input.status, 1),
+      },
+    })
+  })
+  return projectHomeDto(home)
+}
+
+export async function getProjectHome(id: number) {
+  const home = await prisma.projectHome.findUnique({ where: { id } })
+  if (!home) throw new HttpError('Not Found', 404, 404)
+  return projectHomeDto(home)
+}
+
+export async function updateProjectHome(id: number, input: UpdateProjectHomeInput) {
+  const existing = await prisma.projectHome.findUnique({ where: { id } })
+  if (!existing) throw new HttpError('Not Found', 404, 404)
+  if (input.isDeleted === false) {
+    await prisma.$transaction((tx) => requireActiveProject(tx, existing.projectId))
   }
-  return value
+
+  const data: Prisma.ProjectHomeUpdateInput = { updatedAt: new Date() }
+  if (typeof input.content === 'string') data.content = input.content
+  const status = optionalIntegerValue(input.status)
+  if (status !== null) data.status = status
+  if (typeof input.isDeleted === 'boolean') data.isDeleted = input.isDeleted
+  if (Object.keys(data).length === 1) throw new HttpError('No fields to update', 400, 400)
+
+  try {
+    const home = await prisma.projectHome.update({ where: { id }, data })
+    return projectHomeDto(home)
+  } catch (error) {
+    if (hasPrismaCode(error, 'P2025')) throw new HttpError('Not Found', 404, 404)
+    throw error
+  }
+}
+
+export async function deleteProjectHome(id: number, hard: boolean) {
+  try {
+    if (hard) await prisma.projectHome.delete({ where: { id } })
+    else {
+      await prisma.projectHome.update({
+        where: { id },
+        data: { isDeleted: true, updatedAt: new Date() },
+      })
+    }
+  } catch (error) {
+    if (hasPrismaCode(error, 'P2025')) throw new HttpError('Not Found', 404, 404)
+    throw error
+  }
+}
+
+export async function listProjectMenus(input: ListProjectMenusInput) {
+  const project = await prisma.project.findFirst({
+    where: { id: input.projectId, isDeleted: false },
+  })
+  if (!project) throw new HttpError('Project not found', 404, 404)
+
+  const baseWhere = {
+    projectId: input.projectId,
+    ...(input.includeDeleted ? {} : { isDeleted: false }),
+  }
+  if (input.tree) {
+    const list = await prisma.projectMenu.findMany({
+      where: { ...baseWhere, parentId: null },
+      include: {
+        children: {
+          where: input.includeDeleted ? {} : { isDeleted: false },
+          orderBy: [{ weight: 'desc' }, { id: 'asc' }],
+        },
+      },
+      orderBy: [{ weight: 'desc' }, { id: 'asc' }],
+    })
+    return list.map(projectMenuDto)
+  }
+
+  const list = await prisma.projectMenu.findMany({
+    where: baseWhere,
+    orderBy: [{ weight: 'desc' }, { id: 'asc' }],
+  })
+  return list.map(projectMenuDtoBase)
+}
+
+export async function createProjectMenu(projectId: number, input: CreateProjectMenuInput) {
+  const label = typeof input.label === 'string' ? input.label.trim() : ''
+  if (!label) throw new HttpError('Missing label', 400, 400)
+  if (label.length > 64) throw new HttpError('Label is too long', 400, 400)
+  const isExternal = input.isExternal === true
+  const parentId =
+    input.parentId === undefined || input.parentId === null || input.parentId === ''
+      ? null
+      : parseJsonDecimalId(input.parentId, 'parentId')
+  const url = normalizeMenuUrl(input.url, isExternal)
+
+  const menu = await prisma.$transaction(async (tx) => {
+    await requireActiveProject(tx, projectId)
+    if (parentId) await validateMenuParent(tx, { projectId, parentId })
+    return tx.projectMenu.create({
+      data: {
+        projectId,
+        parentId,
+        label,
+        url,
+        isExternal,
+        weight: integerValue(input.weight, 0),
+        status: integerValue(input.status, 1),
+      },
+    })
+  })
+  return projectMenuDtoBase(menu)
+}
+
+export async function getProjectMenu(id: number) {
+  const menu = await prisma.projectMenu.findUnique({
+    where: { id },
+    include: {
+      children: {
+        where: { isDeleted: false },
+        orderBy: [{ weight: 'desc' }, { id: 'asc' }],
+      },
+    },
+  })
+  if (!menu) throw new HttpError('Not Found', 404, 404)
+  return projectMenuDto(menu)
+}
+
+export async function updateProjectMenu(id: number, input: UpdateProjectMenuInput) {
+  const menu = await prisma.$transaction(async (tx) => {
+    const current = await tx.projectMenu.findUnique({ where: { id } })
+    if (!current) throw new HttpError('Not Found', 404, 404)
+    const resultingExternal =
+      typeof input.isExternal === 'boolean' ? input.isExternal : current.isExternal
+    const resultingUrl =
+      input.url !== undefined
+        ? normalizeMenuUrl(input.url, resultingExternal)
+        : input.isExternal !== undefined
+          ? normalizeMenuUrl(current.url, resultingExternal)
+          : undefined
+    const data: Prisma.ProjectMenuUpdateInput = { updatedAt: new Date() }
+
+    if (input.parentId !== undefined) {
+      if (input.parentId === null || input.parentId === '') data.parent = { disconnect: true }
+      else {
+        const parentId = parseJsonDecimalId(input.parentId, 'parentId')
+        const childCount = await tx.projectMenu.count({ where: { parentId: id } })
+        if (childCount > 0) {
+          throw new HttpError('A menu with children cannot become a child menu', 400, 400)
+        }
+        await validateMenuParent(tx, {
+          projectId: current.projectId,
+          parentId,
+          currentId: id,
+        })
+        data.parent = { connect: { id: parentId } }
+      }
+    }
+    if (typeof input.label === 'string') {
+      const label = input.label.trim()
+      if (!label) throw new HttpError('Label cannot be empty', 400, 400)
+      if (label.length > 64) throw new HttpError('Label is too long', 400, 400)
+      data.label = label
+    }
+    if (resultingUrl !== undefined) data.url = resultingUrl
+    if (typeof input.isExternal === 'boolean') data.isExternal = input.isExternal
+    if (input.weight !== undefined) data.weight = integerValue(input.weight, current.weight)
+    if (input.status !== undefined) data.status = integerValue(input.status, current.status)
+    if (typeof input.isDeleted === 'boolean') {
+      if (!input.isDeleted && current.parentId) {
+        const parent = await tx.projectMenu.findFirst({
+          where: { id: current.parentId, projectId: current.projectId, isDeleted: false },
+        })
+        if (!parent) throw new HttpError('Restore the parent menu first', 400, 400)
+      }
+      data.isDeleted = input.isDeleted
+    }
+    if (Object.keys(data).length === 1) throw new HttpError('No fields to update', 400, 400)
+    return tx.projectMenu.update({ where: { id }, data })
+  })
+  return projectMenuDtoBase(menu)
+}
+
+export async function deleteProjectMenu(id: number, hard: boolean) {
+  await prisma.$transaction(async (tx) => {
+    const current = await tx.projectMenu.findUnique({ where: { id } })
+    if (!current) throw new HttpError('Not Found', 404, 404)
+    if (hard) {
+      await tx.projectMenu.deleteMany({ where: { parentId: id } })
+      await tx.projectMenu.delete({ where: { id } })
+    } else {
+      const now = new Date()
+      await tx.projectMenu.updateMany({
+        where: { parentId: id },
+        data: { isDeleted: true, updatedAt: now },
+      })
+      await tx.projectMenu.update({
+        where: { id },
+        data: { isDeleted: true, updatedAt: now },
+      })
+    }
+  })
+}
+
+export async function getSystemHomepage() {
+  const homepage = await prisma.systemHomepage.findFirst({
+    where: { isDeleted: false },
+    orderBy: { id: 'desc' },
+  })
+  if (!homepage) throw new HttpError('Not Found', 404, 404)
+  return systemHomepageDto(homepage)
+}
+
+export async function createSystemHomepage(input: CreateSystemHomepageInput) {
+  if (typeof input.content !== 'string') throw new HttpError('Invalid content', 400, 400)
+  const homepage = await prisma.systemHomepage.create({
+    data: { content: input.content, status: integerValue(input.status, 1) },
+  })
+  return systemHomepageDto(homepage)
+}
+
+export async function updateSystemHomepage(id: number, input: UpdateSystemHomepageInput) {
+  const data: Prisma.SystemHomepageUpdateInput = { updatedAt: new Date() }
+  if (typeof input.content === 'string') data.content = input.content
+  const status = optionalIntegerValue(input.status)
+  if (status !== null) data.status = status
+  if (typeof input.isDeleted === 'boolean') data.isDeleted = input.isDeleted
+  if (Object.keys(data).length === 1) throw new HttpError('No fields to update', 400, 400)
+
+  try {
+    const homepage = await prisma.systemHomepage.update({ where: { id }, data })
+    return systemHomepageDto(homepage)
+  } catch (error) {
+    if (hasPrismaCode(error, 'P2025')) throw new HttpError('Not Found', 404, 404)
+    throw error
+  }
 }

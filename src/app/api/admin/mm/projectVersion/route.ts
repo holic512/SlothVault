@@ -3,27 +3,24 @@
  * @project SlothVault
  * @module Admin Project Version API
  * @description Lists and creates project versions for authenticated administrators.
- * @logic Apply legacy filters and pagination, validate the parent project, and return stable version DTOs.
- * @dependencies admin session, HTTP route helpers, Prisma ProjectVersion model, admin catalog service
+ * @logic Authenticate and parse legacy query/body inputs, then delegate version reads and writes to the catalog service.
+ * @dependencies admin session, HTTP route helpers, admin catalog service
  * @index_tags api,admin,project-version,list,create
  * @author holic512
  */
-import type { Prisma } from '@generated/prisma/client'
 import { z } from 'zod'
 
 import { requireAdminSession } from '@/server/auth/session'
-import { HttpError } from '@/server/http/errors'
 import { defineRoute } from '@/server/http/handler'
 import { readJson } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
-import { prisma } from '@/server/prisma'
 import {
+  createAdminProjectVersion,
   integerValue,
   legacyBoolean,
+  listAdminProjectVersions,
   pagination,
   parseDecimalId,
-  parseJsonDecimalId,
-  projectVersionDto,
   safeOrderField,
   sortDirection,
 } from '@/server/services/admin-catalog'
@@ -66,53 +63,26 @@ export const GET = defineRoute(async (request) => {
   )
   const order = sortDirection(searchParams.get('order'))
 
-  const where: Prisma.ProjectVersionWhereInput = {}
-  if (onlyDeleted) where.isDeleted = true
-  else if (!includeDeleted) where.isDeleted = false
-  if (keyword) {
-    where.OR = [
-      { version: { contains: keyword, mode: 'insensitive' } },
-      { description: { contains: keyword, mode: 'insensitive' } },
-    ]
-  }
-  if (Number.isFinite(status)) where.status = status
-  if (projectIdRaw !== null) where.projectId = parseDecimalId(projectIdRaw, 'projectId')
-
-  const [total, list] = await Promise.all([
-    prisma.projectVersion.count({ where }),
-    prisma.projectVersion.findMany({
-      where,
+  return apiOk(
+    await listAdminProjectVersions({
+      page,
+      pageSize,
       skip,
-      take: pageSize,
-      orderBy: { [orderByField]: order },
-      include: includeProject ? { project: true } : undefined,
+      keyword,
+      includeDeleted,
+      onlyDeleted,
+      includeProject,
+      status,
+      projectId:
+        projectIdRaw === null ? undefined : parseDecimalId(projectIdRaw, 'projectId'),
+      orderByField,
+      order,
     }),
-  ])
-
-  return apiOk({ list: list.map(projectVersionDto), page, pageSize, total })
+  )
 })
 
 export const POST = defineRoute(async (request) => {
   await requireAdminSession(request)
   const body = await readJson(request, createProjectVersionSchema)
-  const projectId = parseJsonDecimalId(body.projectId, 'projectId')
-  const version = typeof body.version === 'string' ? body.version.trim() : ''
-  if (!version) throw new HttpError('Missing version', 400, 400)
-
-  const project = await prisma.project.findFirst({
-    where: { id: projectId, isDeleted: false },
-  })
-  if (!project) throw new HttpError('Project not found', 404, 404)
-
-  const projectVersion = await prisma.projectVersion.create({
-    data: {
-      projectId,
-      version,
-      description: typeof body.description === 'string' ? body.description.trim() || null : null,
-      weight: integerValue(body.weight, 0),
-      status: integerValue(body.status, 1),
-    },
-    include: { project: true },
-  })
-  return apiOk(projectVersionDto(projectVersion), 'created', 201)
+  return apiOk(await createAdminProjectVersion(body), 'created', 201)
 })

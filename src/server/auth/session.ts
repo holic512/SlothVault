@@ -10,7 +10,7 @@
  */
 import 'server-only'
 
-import { createHash, randomBytes } from 'node:crypto'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
 
 import type { NextRequest, NextResponse } from 'next/server'
 
@@ -35,6 +35,7 @@ export async function issueSession(options: {
   const expiresAt = new Date(Date.now() + ttlMs)
   const session = await prisma.session.create({
     data: {
+      id: randomUUID(),
       userId: options.userId,
       tokenHash: sha256(token),
       expiresAt,

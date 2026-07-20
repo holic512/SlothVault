@@ -105,7 +105,10 @@ describe('Nuxt to Next migration contract', () => {
       join(root, 'src', 'server', 'services', 'solana-chain.ts'),
       'utf8',
     )
-    const schema = readFileSync(join(root, 'prisma', 'schema.prisma'), 'utf8')
+    const schema = readFileSync(
+      join(root, 'prisma', 'providers', 'postgresql', 'schema.prisma'),
+      'utf8',
+    )
 
     expect(chainService).toContain('deserializeChangeLogEventV1')
     expect(chainService).toContain('inspectMintTransaction')
@@ -116,6 +119,8 @@ describe('Nuxt to Next migration contract', () => {
     expect(schema).toMatch(/prepareExpiresAt\s+DateTime\?/)
     expect(schema).toMatch(/lastValidBlockHeight\s+BigInt\?/)
     expect(schema).toMatch(/mintTxSignature\s+String\?\s+@unique/)
+    expect(schema).toMatch(/remainingCapacity\s+BigInt/)
+    expect(schema).toMatch(/capacityReserved\s+Boolean/)
   })
 
   it('coordinates streamed backups with state-changing Route Handlers', () => {
@@ -132,7 +137,7 @@ describe('Nuxt to Next migration contract', () => {
     expect(handler).toContain("method === 'GET' || method === 'HEAD'")
     expect(handler).toContain('acquireMaintenanceLock(mode)')
     expect(filesExport).toContain('holdLockUntilBodyClosed: true')
-    expect(databaseBackup).toContain('Prisma.TransactionIsolationLevel.RepeatableRead')
+    expect(databaseBackup).toContain('databaseSnapshotIsolationLevel()')
     expect(databaseBackup).toContain('relationClosedMenus')
   })
 })

@@ -3,18 +3,15 @@
  * @project SlothVault
  * @module Admin File API
  * @description Lists file metadata and accepts bounded multipart uploads for authenticated administrators.
- * @logic Preserve legacy filters and DTOs, ignore client size overrides, validate all files before exclusive writes, and commit metadata atomically.
- * @dependencies admin session, Next Route Handlers, Prisma FileManagement model, admin file storage service
+ * @logic Authenticate and parse legacy list/upload inputs, then delegate metadata queries and bounded multipart persistence to the file service.
+ * @dependencies admin session, Next Route Handlers, admin catalog parsing, admin file storage service
  * @index_tags api,admin,files,list,upload,multipart
  * @author holic512
  */
-import type { Prisma } from '@generated/prisma/client'
-
 import { requireAdminSession } from '@/server/auth/session'
 import { HttpError } from '@/server/http/errors'
 import { defineRoute } from '@/server/http/handler'
 import { apiOk } from '@/server/http/response'
-import { prisma } from '@/server/prisma'
 import {
   integerValue,
   legacyBoolean,
@@ -23,10 +20,9 @@ import {
   sortDirection,
 } from '@/server/services/admin-catalog'
 import {
-  fileDto,
   isBusinessType,
-  uploadFiles,
-  uploadedFileDto,
+  listAdminFiles,
+  uploadAdminFiles,
 } from '@/server/services/admin-files'
 
 const fileOrderFields = [
@@ -56,23 +52,19 @@ export const GET = defineRoute(async (request) => {
   )
   const order = sortDirection(searchParams.get('order'))
 
-  const where: Prisma.FileManagementWhereInput = {}
-  if (!includeDeleted) where.status = 1
-  else if (Number.isFinite(status)) where.status = status
-  if (keyword) where.originalName = { contains: keyword, mode: 'insensitive' }
-  if (businessType) where.businessType = businessType
-
-  const [total, list] = await Promise.all([
-    prisma.fileManagement.count({ where }),
-    prisma.fileManagement.findMany({
-      where,
+  return apiOk(
+    await listAdminFiles({
+      page,
+      pageSize,
       skip,
-      take: pageSize,
-      orderBy: { [orderByField]: order },
+      keyword,
+      businessType,
+      includeDeleted,
+      status,
+      orderByField,
+      order,
     }),
-  ])
-
-  return apiOk({ list: list.map(fileDto), page, pageSize, total })
+  )
 })
 
 export const POST = defineRoute(async (request) => {
@@ -82,6 +74,9 @@ export const POST = defineRoute(async (request) => {
     throw new HttpError('Invalid businessType', 400, 400)
   }
 
-  const records = await uploadFiles(request, { businessType: businessTypeRaw })
-  return apiOk(records.map(uploadedFileDto), 'uploaded', 201)
+  return apiOk(
+    await uploadAdminFiles(request, { businessType: businessTypeRaw }),
+    'uploaded',
+    201,
+  )
 })

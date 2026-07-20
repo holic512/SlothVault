@@ -2,13 +2,15 @@
  * @file admin-files.ts
  * @project SlothVault
  * @module Admin File Storage
- * @description Owns safe upload validation, file metadata DTOs, contained storage access, and compensating deletion workflows.
- * @logic Validate every multipart file before disk writes, persist metadata in one Prisma transaction, constrain physical paths to the configured upload root while preserving public uploads/* URLs, and stage hard deletes in a hidden trash directory until the database delete succeeds.
+ * @description Owns managed-file queries, safe upload validation, stable DTOs, contained storage access, and compensating deletion workflows.
+ * @logic Build provider-portable metadata filters, validate every multipart file before disk writes, persist metadata atomically, constrain physical paths to the upload root, and stage hard deletes until the database delete succeeds.
  * @dependencies node:fs/promises, node:path, sharp, Prisma FileManagement model, server/http/errors
  * @index_tags admin,files,upload,filesystem,containment,sharp,transaction,hard-delete
  * @author holic512
  */
 import 'server-only'
+
+import type { Prisma } from '@generated/prisma-postgresql/client'
 
 import { randomUUID } from 'node:crypto'
 import {
@@ -34,7 +36,7 @@ import sharp from 'sharp'
 
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
-import { hasPrismaCode } from '@/server/services/admin-catalog'
+import { databaseTextContains, hasPrismaCode } from '@/server/services/admin-catalog'
 
 export const GENERAL_FILE_MAX_BYTES = 10 * 1024 * 1024
 export const AVATAR_FILE_MAX_BYTES = 2 * 1024 * 1024
@@ -45,7 +47,7 @@ export const REQUEST_CONTENT_LENGTH_MAX_BYTES = 25 * 1024 * 1024
 const configuredUploadRoot = process.env.UPLOAD_STORAGE_PATH?.trim()
 export const UPLOAD_ROOT = configuredUploadRoot
   ? resolve(/* turbopackIgnore: true */ process.cwd(), configuredUploadRoot)
-  : resolve(process.cwd(), 'data', 'uploads')
+  : resolve(/* turbopackIgnore: true */ process.cwd(), 'data', 'uploads')
 const TRASH_DIRECTORY = '.trash'
 const IMAGE_PIXEL_LIMIT = 40_000_000
 
@@ -93,7 +95,7 @@ const CONTENT_TYPES: Record<string, string> = {
 }
 
 type FileRecordLike = {
-  id: bigint
+  id: number
   originalName: string
   fileName: string
   filePath: string
@@ -379,6 +381,55 @@ export function avatarFileDto(file: FileRecordLike) {
   }
 }
 
+type FileOrderField =
+  | 'id'
+  | 'originalName'
+  | 'fileSize'
+  | 'businessType'
+  | 'createTime'
+
+export type FileListQuery = {
+  page: number
+  pageSize: number
+  skip: number
+  keyword: string
+  businessType?: string
+  includeDeleted: boolean
+  status?: number
+  orderByField: FileOrderField
+  order: 'asc' | 'desc'
+}
+
+export async function listAdminFiles(query: FileListQuery) {
+  const where: Prisma.FileManagementWhereInput = {}
+  if (!query.includeDeleted) where.status = 1
+  else if (Number.isFinite(query.status)) where.status = query.status
+  if (query.keyword) where.originalName = databaseTextContains(query.keyword)
+  if (query.businessType) where.businessType = query.businessType
+
+  const [total, list] = await Promise.all([
+    prisma.fileManagement.count({ where }),
+    prisma.fileManagement.findMany({
+      where,
+      skip: query.skip,
+      take: query.pageSize,
+      orderBy: { [query.orderByField]: query.order },
+    }),
+  ])
+  return {
+    list: list.map(fileDto),
+    page: query.page,
+    pageSize: query.pageSize,
+    total,
+  }
+}
+
+export async function getAdminFile(id: number) {
+  const file = await prisma.fileManagement.findUnique({ where: { id } })
+  if (!file) throw new HttpError('Not Found', 404, 404)
+  return fileDto(file)
+}
+
 export async function uploadFiles(request: Request, options: UploadFilesOptions) {
   const maxFiles = Math.min(
     REQUEST_FILE_MAX_COUNT,
@@ -427,7 +478,19 @@ export async function uploadFiles(request: Request, options: UploadFilesOptions)
   }
 }
 
-export async function updateFileBusinessType(id: bigint, businessType: BusinessType) {
+export async function uploadAdminFiles(request: Request, options: UploadFilesOptions) {
+  return (await uploadFiles(request, options)).map(uploadedFileDto)
+}
+
+export async function uploadAdminProjectAvatar(request: Request) {
+  const [file] = await uploadFiles(request, {
+    businessType: 'ProjectAvatar',
+    maxFiles: 1,
+  })
+  return avatarFileDto(file)
+}
+
+export async function updateFileBusinessType(id: number, businessType: BusinessType) {
   try {
     return await prisma.fileManagement.update({
       where: { id },
@@ -439,7 +502,7 @@ export async function updateFileBusinessType(id: bigint, businessType: BusinessT
   }
 }
 
-export async function softDeleteFile(id: bigint) {
+export async function softDeleteFile(id: number) {
   try {
     return await prisma.fileManagement.update({
       where: { id },
@@ -462,7 +525,7 @@ async function restoreStagedFile(stagedPath: string, originalPath: string) {
   await rename(stagedPath, originalPath)
 }
 
-export async function hardDeleteFile(id: bigint) {
+export async function hardDeleteFile(id: number) {
   const file = await prisma.fileManagement.findUnique({ where: { id } })
   if (!file) throw new HttpError('Not Found', 404, 404)
 
@@ -507,11 +570,28 @@ export async function hardDeleteFile(id: bigint) {
   }
 }
 
-export async function batchSoftDelete(ids: bigint[]) {
+export async function batchSoftDelete(ids: number[]) {
   return prisma.fileManagement.updateMany({
     where: { id: { in: ids } },
     data: { status: 0 },
   })
+}
+
+export async function updateAdminFileBusinessType(
+  id: number,
+  businessType: BusinessType,
+) {
+  return fileDto(await updateFileBusinessType(id, businessType))
+}
+
+export async function deleteAdminFile(id: number, hard: boolean) {
+  if (hard) await hardDeleteFile(id)
+  else await softDeleteFile(id)
+}
+
+export async function batchDeleteAdminFiles(ids: number[]) {
+  const result = await batchSoftDelete(ids)
+  return { affected: result.count }
 }
 
 export async function inspectPublicUpload(pathSegments: string[]) {

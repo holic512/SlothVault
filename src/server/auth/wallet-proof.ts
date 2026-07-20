@@ -40,7 +40,7 @@ export function readWalletProof(request: NextRequest): WalletProof | null {
   return { address, signature, timestamp }
 }
 
-export function verifyWalletProof(projectId: bigint, proof: WalletProof): string {
+export function verifyWalletProof(projectId: number, proof: WalletProof): string {
   if (Math.abs(Date.now() - proof.timestamp) > WALLET_PROOF_MAX_AGE_MS) {
     throw new HttpError('Wallet proof expired', 401, 401)
   }
