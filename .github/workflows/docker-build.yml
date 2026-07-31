@@ -1,4 +1,13 @@
-name: Build and Push Docker Image
+# @file .github/workflows/docker-build.yml
+# @project SlothVault
+# @module Container and source release delivery
+# @description Validates pull-request images and synchronously publishes the default-branch Docker image plus a source-only GitHub Release.
+# @logic Build one multi-architecture standalone image, then create or refresh an idempotent release whose body contains only the first-parent commit log.
+# @dependencies GitHub Actions, Docker Buildx, Docker Hub, GitHub CLI
+# @index_tags github-actions,docker,standalone,release,source-archive,commit-log
+# @author holic512
+
+name: Build Docker Image and Publish Release
 
 on:
   pull_request:
@@ -9,8 +18,10 @@ on:
     branches:
       - master
       - main
-    tags:
-      - 'v*'
+
+concurrency:
+  group: docker-release-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   REGISTRY: docker.io
@@ -47,12 +58,10 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,format=short,prefix=sha-
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build Docker image
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -60,8 +69,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max,ignore-error=true
+          cache-from: type=gha,scope=slothvault
+          cache-to: type=gha,scope=slothvault,mode=min,ignore-error=true
           provenance: false
 
       - name: Generate deployment summary
@@ -73,6 +82,7 @@ jobs:
             echo "- Build validation only; image was not pushed." >> $GITHUB_STEP_SUMMARY
           else
             echo "- Built and pushed to Docker Hub." >> $GITHUB_STEP_SUMMARY
+            echo "- Digest: \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Image Tags" >> $GITHUB_STEP_SUMMARY
@@ -89,17 +99,78 @@ jobs:
           echo "cp .env.docker.example .env.docker" >> $GITHUB_STEP_SUMMARY
           echo "docker compose --env-file .env.docker up -d" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### External PostgreSQL Install" >> $GITHUB_STEP_SUMMARY
-          echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "mkdir -p docker-data/uploads" >> $GITHUB_STEP_SUMMARY
-          echo "docker run -d --name slothvault -p 3000:3000 \\" >> $GITHUB_STEP_SUMMARY
-          echo "  -e ENCRYPTION_KEY=\"your-stable-random-secret\" \\" >> $GITHUB_STEP_SUMMARY
-          echo "  -e DB_HOST=\"your-postgres-host\" \\" >> $GITHUB_STEP_SUMMARY
-          echo "  -e DB_PORT=\"5432\" \\" >> $GITHUB_STEP_SUMMARY
-          echo "  -e DB_NAME=\"slothvault\" \\" >> $GITHUB_STEP_SUMMARY
-          echo "  -e DB_USER=\"slothvault\" \\" >> $GITHUB_STEP_SUMMARY
-          echo "  -e DB_PASSWORD=\"your-database-password\" \\" >> $GITHUB_STEP_SUMMARY
-          echo "  -v \"\$(pwd)/docker-data/uploads:/app/public/uploads\" \\" >> $GITHUB_STEP_SUMMARY
-          echo "  ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  publish-release:
+    name: Publish source release
+    needs: build-and-push
+    if: >-
+      github.event_name == 'push' &&
+      github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository history
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Generate release commit log
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="$(node -p "require('./package.json').version")"
+          tag="v${version}-build.${GITHUB_RUN_NUMBER}"
+          title="SlothVault ${version} · Build ${GITHUB_RUN_NUMBER}"
+          previous_tag=""
+
+          while IFS= read -r candidate; do
+            if [ "$candidate" != "$tag" ]; then
+              previous_tag="$candidate"
+              break
+            fi
+          done < <(git tag --merged "$GITHUB_SHA" --sort=-creatordate)
+
+          {
+            echo "## 提交日志"
+            echo
+            if [ -n "$previous_tag" ]; then
+              git log "${previous_tag}..${GITHUB_SHA}" --first-parent --pretty=format:'- `%h` %s'
+            else
+              git log "$GITHUB_SHA" --first-parent -n 50 --pretty=format:'- `%h` %s'
+            fi
+            echo
+          } > release-notes.md
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "title=$title" >> "$GITHUB_OUTPUT"
+
+      - name: Create source-only GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_TITLE: ${{ steps.release.outputs.title }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" \
+              --title "$RELEASE_TITLE" \
+              --notes-file release-notes.md
+          else
+            gh release create "$RELEASE_TAG" \
+              --target "$GITHUB_SHA" \
+              --title "$RELEASE_TITLE" \
+              --notes-file release-notes.md
+          fi
+
+      - name: Generate release summary
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          echo "## Source Release" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Tag: \`$RELEASE_TAG\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Notes: first-parent commit log only." >> "$GITHUB_STEP_SUMMARY"
+          echo "- Assets: GitHub-generated source ZIP and tar.gz only; no build package was uploaded." >> "$GITHUB_STEP_SUMMARY"
