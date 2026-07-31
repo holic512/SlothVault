@@ -6,37 +6,23 @@
     "discord": "Discord",
     "github": "GitHub"
   },
-  "projectAuth": {
-    "verifying": "Verifying access...",
-    "walletConnected": "Wallet connected",
-    "connectFailed": "Connection failed",
-    "connectWallet": {
-      "title": "Connect Wallet to Continue",
-      "desc": "This content requires a valid access credential (cNFT) to view",
-      "step1": "Connect Wallet",
-      "step2": "Verify Credential",
-      "step3": "Access Content",
-      "btn": "Connect Solana Wallet",
-      "hint": "We only verify your wallet address, no signature required"
-    },
-    "noAccess": {
-      "title": "Access Restricted",
-      "desc": "You don't have permission to view this content",
-      "infoTitle": "How to get access?",
-      "infoText": "You need to hold a valid cNFT credential for this project. Please contact the project administrator to obtain one.",
-      "retryBtn": "Retry Verification",
-      "contactHint": "Contact the administrator for access credentials"
-    }
-  },
   "ProjectsPage": {
     "title": "Publications",
     "desc": "Browse every public article collection. No wallet or token is required to read.",
     "loading": "Loading...",
     "error": "Failed to load, please try again later",
     "empty": "No public projects yet",
-    "categories": "categories",
-    "requireAuth": "Auth",
-    "unlocked": "Unlocked"
+    "categories": "categories"
+  },
+  "Article": {
+    "unknownAuthor": "Legacy article",
+    "updated": "Updated {date}",
+    "certificate": {
+      "title": "On-chain copyright certificate",
+      "description": "This certificate binds the article to its author for verification and never restricts public reading.",
+      "asset": "Verify asset",
+      "transaction": "View transaction"
+    }
   },
   "ThemeToggle": {
     "aria": {
@@ -44,8 +30,7 @@
     },
     "section": {
       "mode": "Mode",
-      "language": "Language",
-      "color": "Color"
+      "language": "Language"
     },
     "mode": {
       "light": "Light",
@@ -56,12 +41,6 @@
     "language": {
       "zh": "Chinese",
       "en": "English"
-    },
-    "palette": {
-      "purple": "Purple",
-      "cyan": "Cyan",
-      "emerald": "Emerald",
-      "rose": "Rose"
     }
   },
   "IndexPage": {
@@ -69,7 +48,7 @@
         "badge": "Powered by Next.js 16 + PostgreSQL",
       "title_line1": "For a single administrator",
       "title_line2": "Private Document Universe",
-        "desc": "Unified publishing and management with project versions, Markdown workflows, file storage, and optional Solana cNFT access control.",
+        "desc": "Unified publishing and management with project versions, Markdown workflows, file storage, and optional Solana cNFT copyright certificates.",
       "actions": {
         "build": "Get Started",
         "console": "Open Console"
@@ -129,30 +108,6 @@
         "docs": "Read Docs"
       }
     }
-  },
-  "aria": {
-    "openThemeSettings": "Open Theme Settings"
-  },
-  "section": {
-    "mode": "Mode",
-    "language": "Language",
-    "color": "Color"
-  },
-  "mode": {
-    "light": "Light",
-    "dark": "Dark",
-    "light_title": "Light Mode",
-    "dark_title": "Dark Mode"
-  },
-  "language": {
-    "zh": "Chinese",
-    "en": "English"
-  },
-  "palette": {
-    "purple": "Purple",
-    "cyan": "Cyan",
-    "emerald": "Emerald",
-    "rose": "Rose"
   },
   "AdminLogin": {
     "hero": {
@@ -382,16 +337,11 @@
       "filters": {
         "keyword": "Search by project name",
         "status": "Status",
-        "requireAuth": "Auth",
         "includeDeleted": "Include Deleted"
       },
       "status": {
         "enabled": "Enabled(1)",
         "disabled": "Disabled(0)"
-      },
-      "auth": {
-        "required": "Auth Required",
-        "notRequired": "No Auth"
       },
       "actions": {
         "search": "Search",
@@ -400,9 +350,7 @@
         "batchDelete": "Batch Delete",
         "batchRestore": "Batch Restore",
         "batchEnable": "Batch Enable",
-        "batchDisable": "Batch Disable",
-        "batchEnableAuth": "Batch Enable Auth",
-        "batchDisableAuth": "Batch Disable Auth"
+        "batchDisable": "Batch Disable"
       },
       "table": {
         "id": "ID",
@@ -412,7 +360,6 @@
         "status": "Status",
         "latestVersion": "Latest Version",
         "categoryCount": "Categories",
-        "requireAuth": "Auth",
         "createdAt": "Created At",
         "updatedAt": "Updated At",
         "operations": "Operations"
@@ -421,10 +368,6 @@
         "deleted": "Deleted",
         "enabled": "Enabled",
         "disabled": "Disabled"
-      },
-      "authTag": {
-        "required": "Required",
-        "notRequired": "Not Required"
       },
       "operations": {
         "homeEdit": "Home Edit",
@@ -443,7 +386,6 @@
         "projectName": "Project Name",
         "weight": "Weight",
         "status": "Status",
-        "requireAuth": "Require Auth",
         "cancel": "Cancel",
         "save": "Save"
       },
@@ -1032,7 +974,6 @@
         "activeSessions": "Active Sessions",
         "projects": "Projects",
         "active": "Active",
-        "withAuth": "Auth Required",
         "categories": "Categories",
         "notes": "Notes",
         "versions": "Versions",

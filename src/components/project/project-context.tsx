@@ -16,7 +16,6 @@ export type PublicProject = {
   id: string
   projectName: string
   avatar: string | null
-  requireAuth: boolean
   status: number
   updatedAt: string
 }

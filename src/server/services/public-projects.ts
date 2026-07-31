@@ -2,10 +2,10 @@
  * @file public-projects.ts
  * @project SlothVault
  * @module Public Project Reading
- * @description Centralizes project, navigation, version, sidebar, and note queries used by public pages and APIs.
- * @logic Validate enabled project/version ownership relationships once, keep all published reads public, and map identifiers to stable string DTOs.
- * @dependencies Prisma project/document models
- * @index_tags public-project,public-reader,versions,notes,web2
+ * @description Centralizes public collection navigation and article reads, including author identity and optional copyright evidence.
+ * @logic Validate published ownership relationships, keep reading independent from wallets, and expose only matching author-bound cNFT evidence.
+ * @dependencies Prisma project, document, user, and compressed NFT models
+ * @index_tags public-project,public-reader,versions,notes,author,copyright,web2
  * @author holic512
  */
 import 'server-only'
@@ -170,7 +170,7 @@ export async function getProjectNote(
       status: 1,
       category: { projectVersionId: versionId, isDeleted: false, status: 1 },
     },
-    select: { id: true, noteTitle: true },
+    select: { id: true, authorId: true, noteTitle: true },
   })
   if (!note) throw new HttpError('Note not found', 404, 404)
 
@@ -185,6 +185,32 @@ export async function getProjectNote(
     }))
   if (!content) throw new HttpError('Note content not found', 404, 404)
 
+  const [author, certificate] = await Promise.all([
+    note.authorId
+      ? prisma.user.findFirst({
+          where: { id: note.authorId, status: 1 },
+          select: { username: true, displayName: true },
+        })
+      : null,
+    note.authorId
+      ? prisma.compressedNft.findFirst({
+          where: {
+            noteInfoId: note.id,
+            copyrightOwnerId: note.authorId,
+            status: 1,
+          },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            assetId: true,
+            mintTxSignature: true,
+            ownerAddress: true,
+            createdAt: true,
+            merkleTree: { select: { network: true } },
+          },
+        })
+      : null,
+  ])
+
   return {
     id: content.id.toString(),
     noteId: note.id.toString(),
@@ -192,5 +218,20 @@ export async function getProjectNote(
     content: content.content,
     versionNote: content.versionNote,
     updatedAt: content.updatedAt,
+    author: author
+      ? {
+          username: author.username,
+          displayName: author.displayName,
+        }
+      : null,
+    certificate: certificate
+      ? {
+          assetId: certificate.assetId,
+          transaction: certificate.mintTxSignature,
+          ownerAddress: certificate.ownerAddress,
+          network: certificate.merkleTree.network,
+          issuedAt: certificate.createdAt,
+        }
+      : null,
   }
 }

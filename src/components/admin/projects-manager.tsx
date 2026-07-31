@@ -44,7 +44,6 @@ type ProjectDto = {
   avatar: string | null
   weight: number
   status: number
-  requireAuth: boolean
   createdAt: string
   updatedAt: string
   isDeleted: boolean

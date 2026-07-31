@@ -534,27 +534,6 @@ select {
   margin: 14px 0;
 }
 
-.palette-options {
-  width: 100%;
-}
-
-.palette-option {
-  min-width: 118px;
-}
-
-.palette-option::before {
-  width: 9px;
-  height: 9px;
-  border-radius: 999px;
-  content: "";
-  background: var(--palette-swatch);
-}
-
-.palette-option--purple { --palette-swatch: #8b5cf6; }
-.palette-option--cyan { --palette-swatch: #06b6d4; }
-.palette-option--emerald { --palette-swatch: #10b981; }
-.palette-option--rose { --palette-swatch: #f43f5e; }
-
 .auth-page {
   min-height: 100vh;
   background:
@@ -2543,6 +2522,95 @@ select {
   letter-spacing: -0.055em;
 }
 
+.docs-article-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  color: var(--sv-text-muted);
+  font-size: 13px;
+}
+
+.docs-author-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--sv-text);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.docs-author-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.docs-copyright-proof {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+  padding: 14px;
+  border: 1px solid var(--sv-border-strong);
+  border-radius: var(--sv-radius);
+  background: var(--sv-bg-soft);
+}
+
+.docs-copyright-mark {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--sv-border-strong);
+  border-radius: 50%;
+  background: var(--sv-bg-solid);
+  place-items: center;
+}
+
+.docs-copyright-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.docs-copyright-copy strong {
+  font-size: 13px;
+}
+
+.docs-copyright-copy span,
+.docs-copyright-copy code {
+  color: var(--sv-text-muted);
+  font-size: 12px;
+}
+
+.docs-copyright-copy code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docs-copyright-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px 10px;
+}
+
+.docs-copyright-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--sv-text);
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.docs-copyright-links a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 @media (max-width: 900px) {
   .install-main {
     width: min(760px, calc(100% - 36px));
@@ -3037,6 +3105,16 @@ select {
 
   .docs-article {
     padding: 26px 18px 60px;
+  }
+
+  .docs-copyright-proof {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .docs-copyright-links {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    padding-left: 48px;
   }
 }
 

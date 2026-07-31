@@ -6,37 +6,23 @@
     "discord": "Discord",
     "github": "GitHub"
   },
-  "projectAuth": {
-    "verifying": "正在验证访问权限...",
-    "walletConnected": "钱包连接成功",
-    "connectFailed": "连接失败",
-    "connectWallet": {
-      "title": "连接钱包以继续",
-      "desc": "该内容需要持有有效的访问凭证（cNFT）才能查看",
-      "step1": "连接钱包",
-      "step2": "验证凭证",
-      "step3": "访问内容",
-      "btn": "连接 Solana 钱包",
-      "hint": "我们仅验证您的钱包地址，无需签名授权"
-    },
-    "noAccess": {
-      "title": "访问受限",
-      "desc": "您没有权限查看此内容",
-      "infoTitle": "如何获取访问权限？",
-      "infoText": "您需要持有该项目的有效 cNFT 凭证。请联系项目管理员获取访问凭证。",
-      "retryBtn": "重新验证",
-      "contactHint": "联系管理员获取访问凭证"
-    }
-  },
   "ProjectsPage": {
     "title": "公开文章库",
     "desc": "浏览全部公开文章，无需连接钱包或持有任何代币。",
     "loading": "加载中...",
     "error": "加载失败，请稍后重试",
     "empty": "暂无公开项目",
-    "categories": "个分类",
-    "requireAuth": "需鉴权",
-    "unlocked": "已解锁"
+    "categories": "个分类"
+  },
+  "Article": {
+    "unknownAuthor": "历史文章",
+    "updated": "更新于 {date}",
+    "certificate": {
+      "title": "链上版权凭证",
+      "description": "凭证绑定本文与作者，仅用于版权核验，不限制公开阅读。",
+      "asset": "核验资产",
+      "transaction": "查看交易"
+    }
   },
   "ThemeToggle": {
     "aria": {
@@ -44,8 +30,7 @@
     },
     "section": {
       "mode": "模式",
-      "language": "语言",
-      "color": "颜色"
+      "language": "语言"
     },
     "mode": {
       "light": "明亮",
@@ -56,12 +41,6 @@
     "language": {
       "zh": "中文",
       "en": "英文"
-    },
-    "palette": {
-      "purple": "紫色",
-      "cyan": "青色",
-      "emerald": "祖母绿",
-      "rose": "玫红"
     }
   },
   "IndexPage": {
@@ -69,7 +48,7 @@
         "badge": "Next.js 16 + PostgreSQL 驱动",
       "title_line1": "面向单一管理员的",
       "title_line2": "私有文档宇宙",
-        "desc": "集发布与管理于一体，支持项目版本、Markdown 工作流、文件存储，以及可选的 Solana cNFT 阅读权限。",
+        "desc": "集发布与管理于一体，支持项目版本、Markdown 工作流、文件存储，以及可选的 Solana cNFT 版权凭证。",
       "actions": {
         "build": "开始构建",
         "console": "进入控制台"
@@ -129,30 +108,6 @@
         "docs": "查阅文档"
       }
     }
-  },
-  "aria": {
-    "openThemeSettings": "打开主题设置"
-  },
-  "section": {
-    "mode": "模式",
-    "language": "语言",
-    "color": "颜色"
-  },
-  "mode": {
-    "light": "明亮",
-    "dark": "暗黑",
-    "light_title": "明亮模式",
-    "dark_title": "暗黑模式"
-  },
-  "language": {
-    "zh": "中文",
-    "en": "英文"
-  },
-  "palette": {
-    "purple": "紫色",
-    "cyan": "青色",
-    "emerald": "祖母绿",
-    "rose": "玫红"
   },
   "AdminLogin": {
     "hero": {
@@ -382,16 +337,11 @@
       "filters": {
         "keyword": "按项目名模糊搜索",
         "status": "状态",
-        "requireAuth": "鉴权",
         "includeDeleted": "包含已删除"
       },
       "status": {
         "enabled": "启用(1)",
         "disabled": "停用(0)"
-      },
-      "auth": {
-        "required": "需要鉴权",
-        "notRequired": "无需鉴权"
       },
       "actions": {
         "search": "查询",
@@ -400,9 +350,7 @@
         "batchDelete": "批量删除",
         "batchRestore": "批量恢复",
         "batchEnable": "批量启用",
-        "batchDisable": "批量停用",
-        "batchEnableAuth": "批量开启鉴权",
-        "batchDisableAuth": "批量关闭鉴权"
+        "batchDisable": "批量停用"
       },
       "table": {
         "id": "ID",
@@ -412,7 +360,6 @@
         "status": "状态",
         "latestVersion": "最新版本",
         "categoryCount": "分类数",
-        "requireAuth": "鉴权",
         "createdAt": "创建时间",
         "updatedAt": "更新时间",
         "operations": "操作"
@@ -421,10 +368,6 @@
         "deleted": "已删除",
         "enabled": "启用",
         "disabled": "停用"
-      },
-      "authTag": {
-        "required": "需要",
-        "notRequired": "无需"
       },
       "operations": {
         "homeEdit": "首页编辑",
@@ -443,7 +386,6 @@
         "projectName": "项目名称",
         "weight": "权重",
         "status": "状态",
-        "requireAuth": "需要鉴权",
         "cancel": "取消",
         "save": "保存"
       },
@@ -1032,7 +974,6 @@
         "activeSessions": "活跃会话",
         "projects": "项目",
         "active": "启用",
-        "withAuth": "需鉴权",
         "categories": "分类",
         "notes": "笔记",
         "versions": "版本",
