@@ -3,11 +3,11 @@
 # @module Production container image
 # @description Builds a database-independent Next.js standalone image containing all supported Prisma providers and installer migrations.
 # @logic Generate all clients at build time, retain the Prisma CLI and native adapters, then prepare separate persistent runtime directories.
-# @dependencies Node.js 22 Alpine, Next.js standalone, Prisma 7
+# @dependencies Node.js 24.18.1 LTS Alpine, Next.js standalone, Prisma 7
 # @index_tags docker, standalone, prisma, sqlite, mysql, postgresql
 # @author holic512
 
-FROM node:22-alpine AS base
+FROM node:24.18.1-alpine AS base
 
 WORKDIR /app
 

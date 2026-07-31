@@ -146,7 +146,7 @@ npm run prisma:validate
 已确认：
 
 - 迁移前的 PostgreSQL/Docker 隔离环境已验证 14 个旧迁移、Session 有效/过期/撤销、管理 CRUD、公开读取、上传与 ZIP 恢复、数据库 overwrite/reset/恢复、双 Next 实例并发和 PostgreSQL 行锁阻塞；这些结果不替代三 provider 新安装矩阵；
-- Node 22 Alpine 多阶段生产镜像可以从锁文件执行 `npm ci` 并完成 Next standalone 构建；
+- Node 24.18.1 LTS Alpine 多阶段生产镜像可以从锁文件执行 `npm ci` 并完成 Next standalone 构建；
 - `/app/data/uploads` 旧挂载方案已通过两个独立容器的写入、销毁和重新读取验证；新部署进一步拆分 `config`、`database` 与 `uploads` 卷；
 - Filebase 服务使用真实 AWS SDK HTTP 请求完成本地 S3 兼容协议 smoke，覆盖 PUT/HEAD/DELETE、CID header、对象 key 和错误处理；
 - Solana devnet 真实 RPC 只读 smoke 已连接当前 Bubblegum 程序，从 MintV1/MintV2/MintToCollection 交易的 SPL Noop change log 解析真实 tree/leaf；

@@ -24,7 +24,7 @@ SlothVault 基于 Next.js 16 App Router、React 19、Prisma 7 和 Redis。应用
 
 ### 本地开发
 
-要求：Node.js `>=22.12.0`、npm 11、Docker Compose。
+要求：Node.js `>=24.18.1`（当前 LTS）、npm `>=11.16.0`、Docker Compose。
 
 ```bash
 npm ci
