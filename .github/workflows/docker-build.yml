@@ -26,6 +26,7 @@ concurrency:
 env:
   REGISTRY: docker.io
   IMAGE_NAME: ${{ vars.DOCKER_IMAGE_NAME || 'holic512/slothvault' }}
+  DOCKER_BUILD_RECORD_UPLOAD: "false"
 
 jobs:
   build-and-push:
