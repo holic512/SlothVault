@@ -16,6 +16,6 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts}'],
-    exclude: ['node_modules', '.nuxt', '.next', '.output', 'dist', 'legacy-nuxt'],
+    exclude: ['node_modules', '.next', 'dist'],
   },
 })

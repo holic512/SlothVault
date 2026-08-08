@@ -215,8 +215,6 @@ src/
 prisma/providers/              # PostgreSQL / MySQL / SQLite schema 与迁移
 messages/                      # 中英文消息
 data/                          # 本地配置、SQLite 与上传数据（git ignored）
-legacy-nuxt/                   # 迁移参考，不参与当前构建
-server/                        # 旧 Nuxt API 参考，不参与当前构建
 ```
 
 ## 开发与验证
@@ -235,7 +233,6 @@ npm run build
 更多资料：
 
 - [数据库安装与迁移指南](docs/DATABASE_INSTALLATION.md)
-- [Nuxt → Next.js 迁移矩阵](docs/NUXT_TO_NEXT_MIGRATION.md)
 
 ## 许可证
 

@@ -44,10 +44,6 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules",
-    "legacy-nuxt",
-    "server",
-    ".nuxt",
-    ".output"
+    "node_modules"
   ]
 }

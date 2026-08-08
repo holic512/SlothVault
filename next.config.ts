@@ -52,11 +52,6 @@ const nextConfig: NextConfig = {
       'data/**/*',
       'docker-data/**/*',
       'docs/**/*',
-      'legacy-nuxt/**/*',
-      'server/**/*',
-      'generated/prisma/**/*',
-      'prisma/migrations/**/*',
-      'prisma/schema.prisma',
     ],
   },
 }

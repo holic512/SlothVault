@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { dirname, join, relative, sep } from 'node:path'
+import { join, relative, sep } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
@@ -16,41 +16,7 @@ function normalizedPath(path: string) {
   return path.split(sep).join('/')
 }
 
-function legacyApiContracts() {
-  const apiRoot = join(root, 'server', 'api')
-  return walk(apiRoot)
-    .filter((file) => /\.(get|post|put|patch|delete)\.ts$/.test(file))
-    .map((file) => {
-      const relativePath = normalizedPath(relative(apiRoot, file))
-      const match = /\.(get|post|put|patch|delete)\.ts$/.exec(relativePath)
-      if (!match) throw new Error(`Unable to parse legacy API method: ${relativePath}`)
-      const route = relativePath
-        .replace(/\/index\.(get|post|put|patch|delete)\.ts$/, '')
-        .replace(/\.(get|post|put|patch|delete)\.ts$/, '')
-      return `${match[1].toUpperCase()} /api/${route}`
-    })
-}
-
-function nextApiContracts() {
-  const apiRoot = join(root, 'src', 'app', 'api')
-  return walk(apiRoot)
-    .filter((file) => file.endsWith(`${sep}route.ts`))
-    .flatMap((file) => {
-      const source = readFileSync(file, 'utf8')
-      const route = normalizedPath(relative(apiRoot, dirname(file)))
-      return [...source.matchAll(/export (?:const|async function) (GET|POST|PUT|PATCH|DELETE|HEAD)\b/g)]
-        .map((match) => `${match[1]} /api/${route}`)
-    })
-}
-
-describe('Nuxt to Next migration contract', () => {
-  it('preserves every legacy API URL and HTTP method', () => {
-    const legacy = legacyApiContracts()
-    const next = new Set(nextApiContracts())
-    expect(legacy).toHaveLength(80)
-    expect(legacy.filter((contract) => !next.has(contract))).toEqual([])
-  })
-
+describe('Next runtime contract', () => {
   it('guards every non-authentication admin Route Handler', () => {
     const adminRoot = join(root, 'src', 'app', 'api', 'admin')
     const unguarded = walk(adminRoot)

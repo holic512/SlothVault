@@ -22,10 +22,8 @@ SlothVault now runs on Next.js 16 App Router and React 19. It provides public Ma
 - APIs: `src/app/api/**/route.ts`
 - Server boundaries and services: `src/server/**`
 - Prisma schema/migrations: `prisma/**`
-- Prisma generated client: `generated/prisma/**`
+- Provider-specific generated clients: `generated/prisma-{postgresql,mysql,sqlite}/**`
 - Translations: `messages/**`
-
-`legacy-nuxt/**` and the root legacy `server/**` tree are migration references only. Do not import them into current code or delete them before the corresponding Next flows have passed real environment verification.
 
 ## Route Handler Pattern
 

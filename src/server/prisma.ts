@@ -2,10 +2,10 @@
  * @file prisma.ts
  * @project SlothVault
  * @module Database
- * @description Exposes the installed provider's lazy Prisma client through the legacy server import boundary.
+ * @description Exposes the installed provider's lazy Prisma client through the shared server import boundary.
  * @logic Defer encrypted configuration loading and provider selection until a database property is first accessed, then bind methods to the shared runtime client.
  * @dependencies server/database/client, generated/prisma-postgresql/client
- * @index_tags prisma,database,lazy-client,compatibility
+ * @index_tags prisma,database,lazy-client
  * @author holic512
  */
 import 'server-only'

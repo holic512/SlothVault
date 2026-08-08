@@ -2,7 +2,7 @@
  * @file solana-chain.ts
  * @project SlothVault
  * @module Solana Chain Runtime
- * @description Builds, validates, submits, and reconciles legacy Solana transactions for Bubblegum tree creation and cNFT minting without the former Nitro CJS bridge.
+ * @description Builds, validates, submits, and reconciles Solana transactions for Bubblegum tree creation and cNFT minting.
  * @logic Use the locked account-compression package for exact tree allocation and change-log decoding, partially sign server-owned authorities, bind submit payloads to the prepared message, persist deterministic signatures before broadcast, and derive cNFT identity only from confirmed chain events.
  * @dependencies @solana/web3.js, @solana/spl-account-compression, bs58, server/services/system-config
  * @index_tags solana,bubblegum,merkle-tree,cnft,transaction,signature,reconciliation,change-log

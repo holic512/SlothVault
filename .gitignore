@@ -1,16 +1,12 @@
-# Nuxt dev/build outputs
-.output
-.data
-.nuxt
-.nitro
-.cache
-dist
-
 # Next.js dev/build outputs
 .next
 out
 coverage
 *.tsbuildinfo
+
+# Generic tool outputs
+.cache
+dist
 
 # Node dependencies
 node_modules

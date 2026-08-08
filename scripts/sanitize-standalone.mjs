@@ -49,8 +49,6 @@ const forbiddenDirectories = [
   'data',
   'docker-data',
   'docs',
-  'legacy-nuxt',
-  'server',
   'src',
 ]
 

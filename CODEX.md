@@ -2,7 +2,7 @@
 
 ## 开发流程
 
-实现功能前先确认业务目标、相关 Prisma 模型、现有服务边界和工作区差异；修改后执行与风险匹配的 typecheck、lint、build 或集成测试。不要覆盖来源不明的修改，也不要在未验证对应功能前删除 legacy 实现。
+实现功能前先确认业务目标、相关 Prisma 模型、现有服务边界和工作区差异；修改后执行与风险匹配的 typecheck、lint、build 或集成测试。不要覆盖来源不明的修改。
 
 ## 项目概览
 
@@ -25,9 +25,8 @@ SlothVault 当前运行栈是 Next.js 16 App Router + React 19。系统提供公
 - React 组件：`src/components/**`
 - API：`src/app/api/**/route.ts`
 - 服务端认证/HTTP/业务：`src/server/**`
-- Prisma Client：`generated/prisma/**`
+- Prisma Client：`generated/prisma-{postgresql,mysql,sqlite}/**`
 - 文案：`messages/en.json`、`messages/zh.json`
-- Nuxt 参考：`legacy-nuxt/**` 与根目录旧 `server/**`，不属于当前运行入口
 
 ## Route Handler 约定
 

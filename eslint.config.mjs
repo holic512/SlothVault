@@ -7,11 +7,6 @@ export default defineConfig([
   ...nextTypeScript,
   globalIgnores([
     '.next/**',
-    '.output/**',
-    '.nuxt/**',
-    'nuxt.config.ts',
-    'legacy-nuxt/**',
-    'server/**',
     'generated/**',
     'public/uploads/**',
   ]),
