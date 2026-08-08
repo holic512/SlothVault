@@ -63,10 +63,15 @@ describe('Next runtime contract', () => {
   })
 
   it('persists and reconciles cNFT attempts from confirmed chain events', () => {
-    const cnftService = readFileSync(
-      join(root, 'src', 'server', 'services', 'admin-solana-cnfts.ts'),
-      'utf8',
-    )
+    const cnftService = [
+      'attempts.ts',
+      'submit.ts',
+    ].map((file) =>
+      readFileSync(
+        join(root, 'src', 'server', 'services', 'admin-solana-cnfts', file),
+        'utf8',
+      ),
+    ).join('\n')
     const chainService = readFileSync(
       join(root, 'src', 'server', 'services', 'solana-chain.ts'),
       'utf8',
@@ -96,7 +101,14 @@ describe('Next runtime contract', () => {
       'utf8',
     )
     const databaseBackup = readFileSync(
-      join(root, 'src', 'server', 'services', 'admin-backup.ts'),
+      join(
+        root,
+        'src',
+        'server',
+        'services',
+        'admin-backup',
+        'database-export.ts',
+      ),
       'utf8',
     )
 
