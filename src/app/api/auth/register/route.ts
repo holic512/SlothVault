@@ -4,7 +4,7 @@
  * @module User Registration API
  * @description Creates a conventional personal account and establishes the shared HTTP-only session.
  * @logic Rate-limit by client address, validate normalized profile credentials, persist the user, and issue the same session used by wallet login.
- * @dependencies zod, user-auth service, session service, Redis rate limit
+ * @dependencies zod, user-auth service, session service, in-memory rate limit
  * @index_tags api,user,registration,session,rate-limit
  * @author holic512
  */
@@ -14,7 +14,7 @@ import { issueSession, setSessionCookie } from '@/server/auth/session'
 import { defineRoute } from '@/server/http/handler'
 import { readJson, requestClientIp } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
-import { enforceRateLimit } from '@/server/redis'
+import { enforceRateLimit } from '@/server/short-lived-state'
 import { registerUser } from '@/server/services/user-auth'
 
 const registerSchema = z.object({

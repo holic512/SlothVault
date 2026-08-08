@@ -2,10 +2,10 @@
  * @file wallet-auth.ts
  * @project SlothVault
  * @module Optional Wallet Authentication
- * @description Implements Redis-backed Solana message challenges for optional account login or wallet binding.
- * @logic Validate a canonical address, store one short-lived challenge, consume it exactly once, verify Ed25519 ownership, then bind or provision a regular user account and issue the normal HTTP session.
- * @dependencies @solana/web3.js, bs58, tweetnacl, Redis, Prisma User model, wallet-login contract
- * @index_tags wallet,login,binding,redis,challenge,web2
+ * @description Implements process-memory Solana message challenges for optional account login or wallet binding.
+ * @logic Validate a canonical address, store one process-local short-lived challenge, consume it exactly once, verify Ed25519 ownership, then bind or provision a regular user account and issue the normal HTTP session.
+ * @dependencies @solana/web3.js, bs58, tweetnacl, short-lived state, Prisma User model, wallet-login contract
+ * @index_tags wallet,login,binding,memory,challenge,web2
  * @author holic512
  */
 import 'server-only'
@@ -24,9 +24,9 @@ import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
 import {
   consumeEphemeralJson,
-  redisKey,
+  shortLivedStateKey,
   storeEphemeralJson,
-} from '@/server/redis'
+} from '@/server/short-lived-state'
 import { userDto } from '@/server/services/user-auth'
 
 const WALLET_CHALLENGE_TTL_SECONDS = 5 * 60
@@ -61,7 +61,7 @@ export async function createWalletLoginChallenge(input: {
   const expiresAt = Date.now() + WALLET_CHALLENGE_TTL_SECONDS * 1000
   const message = buildWalletLoginMessage({ address, challengeId, nonce, expiresAt })
   const stored = await storeEphemeralJson(
-    redisKey('wallet-login', challengeId),
+    shortLivedStateKey('wallet-login', challengeId),
     { address, message, expiresAt, userId: input.userId ?? null } satisfies StoredWalletChallenge,
     WALLET_CHALLENGE_TTL_SECONDS,
   )
@@ -108,7 +108,7 @@ export async function verifyWalletLogin(input: {
 }) {
   const address = canonicalWalletAddress(input.address)
   const challenge = await consumeEphemeralJson<StoredWalletChallenge>(
-    redisKey('wallet-login', input.challengeId),
+    shortLivedStateKey('wallet-login', input.challengeId),
   )
   if (!challenge || challenge.expiresAt <= Date.now() || challenge.address !== address) {
     throw new HttpError('Wallet challenge is invalid or expired', 401, 401)

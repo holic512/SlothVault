@@ -62,6 +62,24 @@ describe('Next runtime contract', () => {
     expect(entrypoint).toContain('exec node server.js')
   })
 
+  it('keeps the runtime free of the removed Redis service', () => {
+    const compose = readFileSync(join(root, 'docker-compose.yml'), 'utf8')
+    const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
+      dependencies: Record<string, string>
+      scripts: Record<string, string>
+    }
+    const packageLock = JSON.parse(readFileSync(join(root, 'package-lock.json'), 'utf8')) as {
+      packages: Record<string, unknown>
+    }
+
+    expect(packageJson.dependencies).not.toHaveProperty('redis')
+    expect(packageJson.scripts.dev).toBe('next dev')
+    expect(packageJson.scripts).not.toHaveProperty('dev:services')
+    expect(packageLock.packages).not.toHaveProperty('node_modules/redis')
+    expect(compose).not.toMatch(/^\s{2}redis:/m)
+    expect(compose).not.toContain('REDIS_')
+  })
+
   it('persists and reconciles cNFT attempts from confirmed chain events', () => {
     const cnftService = [
       'attempts.ts',

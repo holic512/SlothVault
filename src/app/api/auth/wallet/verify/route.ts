@@ -3,8 +3,8 @@
  * @project SlothVault
  * @module Wallet Login Verification API
  * @description Verifies a one-time wallet signature and establishes the ordinary SlothVault user session.
- * @logic Consume the Redis challenge, verify Ed25519 ownership, bind/provision the account, and set the shared HTTP-only cookie.
- * @dependencies zod, wallet-auth service, session cookie, Redis rate limit
+ * @logic Consume the process-local challenge, verify Ed25519 ownership, bind/provision the account, and set the shared HTTP-only cookie.
+ * @dependencies zod, wallet-auth service, session cookie, in-memory rate limit
  * @index_tags api,wallet,login,verification,session
  * @author holic512
  */
@@ -14,7 +14,7 @@ import { setSessionCookie } from '@/server/auth/session'
 import { defineRoute } from '@/server/http/handler'
 import { readJson, requestClientIp } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
-import { enforceRateLimit } from '@/server/redis'
+import { enforceRateLimit } from '@/server/short-lived-state'
 import { verifyWalletLogin } from '@/server/services/wallet-auth'
 
 const verifySchema = z.object({

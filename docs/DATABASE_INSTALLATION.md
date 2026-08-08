@@ -1,6 +1,6 @@
 # 数据库安装与迁移指南
 
-SlothVault 的发布包同时包含 SQLite、MySQL 和 PostgreSQL 支持，但一个运行实例只使用首次安装时选定的一种主数据库。Redis 是默认短期状态服务，用于登录挑战与限流；数据库连接、空库校验和首次迁移由 `/install` 完成，后续已提交迁移在服务启动时自动部署。
+SlothVault 的发布包同时包含 SQLite、MySQL 和 PostgreSQL 支持，但一个运行实例只使用首次安装时选定的一种主数据库。登录挑战与限流使用单实例进程内存；数据库连接、空库校验和首次迁移由 `/install` 完成，后续已提交迁移在服务启动时自动部署。
 
 ## 支持范围
 
@@ -21,7 +21,7 @@ cp .env.docker.example .env.docker
 docker compose --env-file .env.docker up -d --build
 ```
 
-Compose 默认启动 `slothvault` 与 `redis`。访问 `http://localhost:3000/install` 并选择 SQLite；文件路径由服务端固定为 `/app/data/database/slothvault.db`，页面不能填写任意路径。Redis 数据默认保存在 `./docker-data/redis`，主机端口只绑定 `127.0.0.1`。
+Compose 默认只启动 `slothvault`。访问 `http://localhost:3000/install` 并选择 SQLite；文件路径由服务端固定为 `/app/data/database/slothvault.db`，页面不能填写任意路径。
 
 ### PostgreSQL profile
 
@@ -45,20 +45,13 @@ docker compose --env-file .env.docker ps
 
 数据库健康后，在安装页使用主机 `mysql`、端口 `3306` 和非 root 应用用户。Compose 使用 MySQL 8.0、InnoDB 默认存储引擎以及 `utf8mb4` 字符集。
 
-应用服务不会等待可选的 PostgreSQL/MySQL profile，但会等待默认 Redis 健康。首次安装前仍可显示安装页；已安装实例启动时会对当前 provider 执行已提交的 `prisma migrate deploy`，全部成功后才更新 schema revision。
+应用服务不会等待可选的 PostgreSQL/MySQL profile。首次安装前仍可显示安装页；已安装实例启动时会对当前 provider 执行已提交的 `prisma migrate deploy`，全部成功后才更新 schema revision。
 
-## Redis 运行流程
+## 短期内存状态
 
-本地 `npm run dev` 先执行 `docker compose up -d --wait --wait-timeout 60 redis`，确认 Redis 健康后再启动 Next.js。仅启动应用可使用 `npm run dev:app`，此时需自行保证 `REDIS_URL` 可用。
+本地 `npm run dev` 直接启动 Next.js，不依赖外部缓存服务。钱包登录的一次性挑战和注册、登录、卡密兑换等接口的固定窗口限流保存在当前 Node.js 进程中，并按 TTL 惰性清理。
 
-| 变量 | 默认值 | 说明 |
-| --- | --- | --- |
-| `REDIS_URL` | 本地 `redis://127.0.0.1:6379`；容器 `redis://redis:6379` | Redis 连接地址 |
-| `REDIS_PREFIX` | `slothvault` | 多实例 key 命名空间 |
-| `REDIS_PORT` | `6379` | Compose 主机绑定端口 |
-| `REDIS_DATA_DIR` | `./docker-data/redis` | Compose 持久化目录 |
-
-Redis 不保存用户余额、积分流水、卡密权威状态或 Session 记录。Redis 不可用时，注册、登录、钱包挑战和卡密兑换等安全敏感操作会失败关闭；公开文章读取仍由主数据库提供。
+短期状态在进程重启后清空，不保存用户余额、积分流水、卡密权威状态或 Session 记录。内存容量达到安全上限时，新挑战或新限流身份会失败关闭。该实现面向 SQLite 单实例和轻量部署；若未来运行多个应用副本，需要重新引入独立的共享短期状态服务。
 
 ## 安装状态与接口
 

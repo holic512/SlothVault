@@ -19,8 +19,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/server/auth/password', () => ({ hashPassword: mocks.hashPassword }))
 vi.mock('@/server/auth/session', () => ({ issueSession: mocks.issueSession }))
-vi.mock('@/server/redis', () => ({
-  redisKey: (...segments: Array<string | number>) => ['slothvault', ...segments].join(':'),
+vi.mock('@/server/short-lived-state', () => ({
+  shortLivedStateKey: (...segments: Array<string | number>) => segments.join(':'),
   storeEphemeralJson: mocks.storeEphemeralJson,
   consumeEphemeralJson: mocks.consumeEphemeralJson,
 }))
@@ -57,7 +57,7 @@ describe('optional wallet authentication', () => {
     vi.clearAllMocks()
   })
 
-  it('stores a short-lived Redis challenge with the current account binding', async () => {
+  it('stores a short-lived in-memory challenge with the current account binding', async () => {
     const address = Keypair.generate().publicKey.toBase58()
     mocks.storeEphemeralJson.mockResolvedValue(true)
 
@@ -67,7 +67,7 @@ describe('optional wallet authentication', () => {
     expect(challenge.message).toContain('purpose:account-login')
     expect(challenge.message).toContain(`address:${address}`)
     expect(mocks.storeEphemeralJson).toHaveBeenCalledWith(
-      `slothvault:wallet-login:${challenge.challengeId}`,
+      `wallet-login:${challenge.challengeId}`,
       expect.objectContaining({
         address,
         message: challenge.message,

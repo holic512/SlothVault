@@ -7,7 +7,7 @@
 
 </div>
 
-SlothVault 基于 Next.js 16 App Router、React 19、Prisma 7 和 Redis。应用支持 SQLite、MySQL、PostgreSQL 三种主数据库，并通过网页安装器完成首次配置。普通账户默认使用用户名/邮箱和密码登录，也可以选择通过 Solana 钱包地址签名登录；钱包不参与阅读权限判断。
+SlothVault 基于 Next.js 16 App Router、React 19 和 Prisma 7。应用支持 SQLite、MySQL、PostgreSQL 三种主数据库，并通过网页安装器完成首次配置。普通账户默认使用用户名/邮箱和密码登录，也可以选择通过 Solana 钱包地址签名登录；钱包不参与阅读权限判断。
 
 ## 核心能力
 
@@ -24,31 +24,27 @@ SlothVault 基于 Next.js 16 App Router、React 19、Prisma 7 和 Redis。应用
 
 ### 本地开发
 
-要求：Node.js `>=24.18.1`（当前 LTS）、npm `>=11.16.0`、Docker Compose。
+要求：Node.js `>=24.18.1`（当前 LTS）、npm `>=11.16.0`。SQLite 本地开发不需要 Docker。
 
 ```bash
 npm ci
 APP_DATA_PATH=./data UPLOAD_STORAGE_PATH=./data/uploads npm run dev
 ```
 
-`npm run dev` 会先执行 `docker compose up -d --wait --wait-timeout 60 redis`，等待 Redis 健康后再启动 Next.js。默认 Redis 地址为 `redis://127.0.0.1:6379`。如果 Redis 已由其他方式运行，可以只启动应用：
-
-```bash
-npm run dev:app
-```
+`npm run dev` 直接启动 Next.js。钱包挑战与接口限流使用当前 Node.js 进程中的短期内存状态，不需要额外服务。
 
 打开 `http://localhost:3000/install`，选择 SQLite、MySQL 或 PostgreSQL，完成空库检查、迁移和首位管理员创建。
 
 ### Docker 部署
 
-默认 Compose 启动 SlothVault 与 Redis，主数据库在网页安装器中选择：
+默认 Compose 只启动 SlothVault，主数据库在网页安装器中选择：
 
 ```bash
 cp .env.docker.example .env.docker
 docker compose --env-file .env.docker up -d --build
 ```
 
-默认 SQLite 数据保存在 `./docker-data/database`。Redis 数据保存在 `./docker-data/redis`，只绑定主机 `127.0.0.1:6379`。
+默认 SQLite 数据保存在 `./docker-data/database`，上传文件保存在 `./docker-data/uploads`。
 
 可选 PostgreSQL 16：
 
@@ -86,7 +82,7 @@ MySQL/PostgreSQL profile 只初始化数据库容器；数据库连接仍由 `/i
 
 普通密码登录与钱包登录最终都签发同一种 HttpOnly 数据库 Session。钱包流程只验证地址所有权：
 
-1. 服务端在 Redis 写入五分钟一次性挑战。
+1. 服务端在当前进程内存中写入五分钟一次性挑战。
 2. 浏览器钱包签署固定消息，不发送交易，也不暴露私钥。
 3. 服务端原子消费挑战并验证 Ed25519 签名。
 4. 地址绑定已有账户，或创建一个普通钱包账户。
@@ -98,7 +94,7 @@ MySQL/PostgreSQL profile 只初始化数据库容器；数据库连接仍由 `/i
 - 管理员可按批次生成最多 500 张卡密；明文只在发行响应中出现一次。
 - 数据库只保存卡密 SHA-256 哈希和脱敏提示。
 - 兑换在可序列化事务中完成：消费卡密、增加余额、写入流水必须同时成功。
-- Redis 对注册、登录、钱包挑战和卡密兑换执行短窗口限流；Redis 不作为余额或流水权威数据源。
+- 进程内存对注册、登录、钱包挑战和卡密兑换执行短窗口限流；重启后计数自动清空，不作为余额或流水权威数据源。
 
 ## 文章版权凭证
 
@@ -130,7 +126,7 @@ flowchart LR
     Prisma --> MySQL[(MySQL)]
     Prisma --> PostgreSQL[(PostgreSQL)]
 
-    Services --> Redis[(Redis)]
+    Services --> Memory["Process memory / TTL state"]
     Services --> Uploads[(data/uploads)]
     Services --> Solana["Solana RPC / cNFT"]
     Services --> Filebase["Optional Filebase S3 / IPFS"]
@@ -139,7 +135,7 @@ flowchart LR
     Installer --> Prisma
 ```
 
-应用只加载安装时选定的一套 Prisma Client。Redis 只承载短期挑战与限流；账户、文章、积分、卡密和版权记录均以 SQL 数据库为权威。
+应用只加载安装时选定的一套 Prisma Client。进程内存只承载短期挑战与限流；账户、文章、积分、卡密和版权记录均以 SQL 数据库为权威。该内存状态适用于单应用实例，不在多个实例之间共享。
 
 ## 数据库安装与升级
 
@@ -160,8 +156,6 @@ SQLite 仅支持单应用实例和本地磁盘，不支持 NFS/SMB 等网络共�
 | `APP_DATA_PATH` | 否 | 本地默认 `<cwd>/data`；Docker 为 `/app/data` |
 | `UPLOAD_STORAGE_PATH` | 否 | 本地默认 `<cwd>/data/uploads`；Docker 为 `/app/data/uploads` |
 | `ENCRYPTION_KEY` | 否 | 未设置时在配置目录生成持久化 `master.key` |
-| `REDIS_URL` | 否 | 本地默认 `redis://127.0.0.1:6379`；Docker 默认 `redis://redis:6379` |
-| `REDIS_PREFIX` | 否 | 默认 `slothvault` |
 | `SOLANA_RPC_URL` | 否 | 主网 RPC fallback |
 | `SOLANA_DEVNET_RPC_URL` | 否 | devnet RPC fallback |
 | `NEXT_PUBLIC_SOLANA_RPC_URL` | 否 | 浏览器钱包与版权交易连接地址 |
@@ -194,7 +188,7 @@ SQLite 仅支持单应用实例和本地磁盘，不支持 NFS/SMB 等网络共�
 | 主题 / 国际化 | next-themes、next-intl 4 |
 | Markdown | `@uiw/react-md-editor`、react-markdown、remark/rehype |
 | 主数据库 | SQLite、MySQL 8.0+ InnoDB、PostgreSQL 14+；Prisma 7 adapters |
-| 短期状态 | Redis 7 server、`redis` 6.1.0 client |
+| 短期状态 | Node.js 进程内存、TTL 清理与容量上限 |
 | 认证 | Argon2id、HttpOnly 数据库 Session、可选 Ed25519 钱包签名 |
 | 版权链 | Solana web3.js、SPL Account Compression、Wallet Adapter |
 | 部署 | Next standalone、Docker、Docker Compose |

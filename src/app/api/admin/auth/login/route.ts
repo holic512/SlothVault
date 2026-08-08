@@ -4,7 +4,7 @@
  * @module Admin Authentication API
  * @description Authenticates an administrator and establishes the secure session cookie.
  * @logic Validate credentials, collect request metadata, delegate credential/session persistence, and attach the returned token as a cookie.
- * @dependencies zod, server/auth/session cookie helper, server/http helpers, admin authentication service
+ * @dependencies zod, server/auth/session cookie helper, server/http helpers, admin authentication service, in-memory rate limit
  * @index_tags api,admin,authentication,login,session-cookie
  * @author holic512
  */
@@ -14,7 +14,7 @@ import { setSessionCookie } from '@/server/auth/session'
 import { defineRoute } from '@/server/http/handler'
 import { readJson, requestClientIp } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
-import { enforceRateLimit } from '@/server/redis'
+import { enforceRateLimit } from '@/server/short-lived-state'
 import { loginAdmin } from '@/server/services/admin-auth'
 
 const loginSchema = z.object({

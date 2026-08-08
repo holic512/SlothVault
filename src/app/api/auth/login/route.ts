@@ -4,7 +4,7 @@
  * @module User Login API
  * @description Authenticates a username/email and password for any active personal or administrator account.
  * @logic Rate-limit attempts, validate credentials through the shared identity service, and attach the returned HTTP-only session cookie.
- * @dependencies zod, user-auth service, session cookie, Redis rate limit
+ * @dependencies zod, user-auth service, session cookie, in-memory rate limit
  * @index_tags api,user,login,password,session
  * @author holic512
  */
@@ -14,7 +14,7 @@ import { setSessionCookie } from '@/server/auth/session'
 import { defineRoute } from '@/server/http/handler'
 import { readJson, requestClientIp } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
-import { enforceRateLimit } from '@/server/redis'
+import { enforceRateLimit } from '@/server/short-lived-state'
 import { loginUser } from '@/server/services/user-auth'
 
 const loginSchema = z.object({

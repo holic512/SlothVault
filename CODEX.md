@@ -15,7 +15,7 @@ SlothVault 当前运行栈是 Next.js 16 App Router + React 19。系统提供公
 - Theme/i18n: next-themes、next-intl
 - Markdown: `@uiw/react-md-editor`、react-markdown、remark/rehype
 - Database: SQLite / MySQL / PostgreSQL + Prisma 7 provider clients
-- Short-lived state: Redis 7 + node-redis（钱包登录挑战、限流）
+- Short-lived state: Node.js 进程内存（钱包登录挑战、限流；仅支持单应用实例）
 - Blockchain: `@solana/web3.js`、SPL Account Compression、React Wallet Adapter
 - Storage: `data/uploads` 受控路由；可选 Filebase S3/IPFS
 

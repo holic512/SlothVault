@@ -1,10 +1,10 @@
 # @file docker-compose.yml
 # @project SlothVault
 # @module Local container deployment
-# @description Runs the installable application with its default Redis runtime and optional PostgreSQL or MySQL profile services.
-# @logic Persist configuration, SQLite data, uploads, and short-lived Redis state separately while leaving the primary database selection to the web installer.
-# @dependencies Docker Compose, SlothVault image, Redis 7, optional PostgreSQL 16 or MySQL 8
-# @index_tags docker, compose, redis, sqlite, mysql, postgresql, installer
+# @description Runs the installable application with optional PostgreSQL or MySQL profile services.
+# @logic Persist configuration, SQLite data, and uploads while leaving the primary database selection to the web installer.
+# @dependencies Docker Compose, SlothVault image, optional PostgreSQL 16 or MySQL 8
+# @index_tags docker,compose,sqlite,mysql,postgresql,installer
 # @author holic512
 
 services:
@@ -25,27 +25,6 @@ services:
       APP_DATA_PATH: /app/data
       UPLOAD_STORAGE_PATH: /app/data/uploads
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
-      REDIS_PREFIX: ${REDIS_PREFIX:-slothvault}
-    depends_on:
-      redis:
-        condition: service_healthy
-
-  redis:
-    image: redis:7-alpine
-    container_name: slothvault-redis
-    restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1"]
-    ports:
-      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
-    volumes:
-      - ${REDIS_DATA_DIR:-./docker-data/redis}:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 12
-      start_period: 5s
 
   postgres:
     profiles: ["postgres"]

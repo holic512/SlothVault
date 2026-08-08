@@ -4,7 +4,7 @@
  * @module Gift Card Redemption API
  * @description Atomically redeems one issued card into the current user's point account.
  * @logic Require the user session, rate-limit attempts, hash the submitted code, consume it once, and append the resulting point ledger entry.
- * @dependencies zod, session service, points service, Redis rate limit
+ * @dependencies zod, session service, points service, in-memory rate limit
  * @index_tags api,account,gift-card,redeem,points
  * @author holic512
  */
@@ -14,7 +14,7 @@ import { requireUserSession } from '@/server/auth/session'
 import { defineRoute } from '@/server/http/handler'
 import { readJson, requestClientIp } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
-import { enforceRateLimit } from '@/server/redis'
+import { enforceRateLimit } from '@/server/short-lived-state'
 import { redeemGiftCard } from '@/server/services/points'
 
 const redeemSchema = z.object({ code: z.string().trim().min(10).max(64) })

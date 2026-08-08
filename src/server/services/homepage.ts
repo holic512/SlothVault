@@ -41,7 +41,7 @@ export const DEFAULT_HOMEPAGE_CONTENT = `
 
 - **应用框架**：Next.js 16 App Router + React 19
 - **数据层**：SQLite / PostgreSQL / MySQL + Prisma ORM
-- **短期状态**：Redis（登录挑战与安全限流）
+- **短期状态**：进程内存（登录挑战与安全限流）
 - **登录方式**：用户名 / 邮箱 / 密码，或可选的钱包地址签名
 - **链上能力**：Solana cNFT 文章版权凭证
 `

@@ -10,7 +10,7 @@ SlothVault now runs on Next.js 16 App Router and React 19. It provides public Ma
 - Ant Design 6, TanStack Query, Zustand
 - next-intl and next-themes
 - SQLite, MySQL, or PostgreSQL through provider-specific Prisma 7 clients
-- Redis 7 / node-redis for short-lived wallet-login challenges and rate limits
+- Process-local Node.js memory for short-lived wallet-login challenges and rate limits
 - Solana web3.js, SPL Account Compression, React Wallet Adapter
 - `@uiw/react-md-editor` and react-markdown
 - Next standalone Docker runtime

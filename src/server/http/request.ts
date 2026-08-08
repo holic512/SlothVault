@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Server HTTP Requests
  * @description Centralizes JSON validation, identifier parsing, query coercion, and privacy-safe client identity extraction.
- * @logic Parse untrusted request values once and expose a stable client-IP token for Redis-backed abuse controls.
+ * @logic Parse untrusted request values once and expose a stable client-IP token for process-local abuse controls.
  * @dependencies next/server, zod, server/http/errors
  * @index_tags http,request,validation,client-ip,rate-limit
  * @author holic512

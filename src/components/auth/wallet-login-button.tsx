@@ -5,7 +5,7 @@
  * @project SlothVault
  * @module Optional Wallet Login UI
  * @description Offers Solana address ownership as one optional login or account-binding method inside conventional account screens.
- * @logic Open wallet selection when disconnected, request a Redis-backed challenge, sign its exact message, verify it server-side, and refresh the ordinary cookie session.
+ * @logic Open wallet selection when disconnected, request a process-local one-time challenge, sign its exact message, verify it server-side, and refresh the ordinary cookie session.
  * @dependencies Solana Wallet Adapter, bs58, Ant Design, auth API
  * @index_tags wallet,login,binding,optional-auth,client
  * @author holic512
