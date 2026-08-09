@@ -5,7 +5,7 @@
  * @project SlothVault
  * @module First-run Installation
  * @description Renders database provider selection and connection configuration for the first installation stage.
- * @logic Select a provider, collect provider-specific fields, expose recovery reset, and delegate connection testing to the orchestrator.
+ * @logic Select a provider with minimal chrome, collect only provider-specific fields, expose recovery reset, and delegate connection testing.
  * @dependencies Ant Design, Ant Design Icons, provider icons, installation workflow types
  * @index_tags install,connection,database,sqlite,mysql,postgresql,tls
  * @author holic512
@@ -15,7 +15,6 @@ import {
   CheckCircleFilled,
   CloudServerOutlined,
   DatabaseOutlined,
-  HddOutlined,
   LockOutlined,
   UserOutlined,
 } from '@ant-design/icons'
@@ -54,7 +53,6 @@ export function ConnectionStage({
     <div className="install-stage-content install-stage-content--enter">
       <div className="install-stage-heading">
         <Typography.Title level={3}>{t('connection.title')}</Typography.Title>
-        <Typography.Paragraph type="secondary">{t('connection.desc')}</Typography.Paragraph>
       </div>
 
       {recovering ? (
@@ -81,7 +79,6 @@ export function ConnectionStage({
             <span className="install-provider-icon">{providerIcons[item]}</span>
             <span>
               <strong>{t(`provider.${item}.name`)}</strong>
-              <small>{t(`provider.${item}.desc`)}</small>
             </span>
             <CheckCircleFilled className="install-provider-check" />
           </button>
@@ -90,11 +87,8 @@ export function ConnectionStage({
 
       {provider === 'sqlite' ? (
         <div className="install-sqlite-note">
-          <HddOutlined />
-          <div>
-            <Typography.Text strong>{t('connection.sqliteTitle')}</Typography.Text>
-            <Typography.Paragraph type="secondary">{t('connection.sqliteDesc')}</Typography.Paragraph>
-          </div>
+          <CheckCircleFilled />
+          <Typography.Text type="secondary">{t('connection.sqliteDesc')}</Typography.Text>
         </div>
       ) : (
         <Form<ConnectionValues>

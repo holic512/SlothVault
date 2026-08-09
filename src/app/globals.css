@@ -707,14 +707,13 @@ select {
 .install-main {
   position: relative;
   z-index: 2;
-  display: grid;
-  width: min(1240px, calc(100% - 48px));
-  min-height: calc(100vh - 124px);
-  grid-template-columns: minmax(330px, 0.82fr) minmax(560px, 1.35fr);
+  display: flex;
+  width: min(620px, calc(100% - 48px));
+  min-height: calc(100vh - 76px);
   align-items: center;
+  justify-content: center;
   margin: 0 auto;
-  gap: clamp(50px, 7vw, 104px);
-  padding: 52px 0 40px;
+  padding: 36px 0 56px;
 }
 
 .install-manifesto {
@@ -858,69 +857,44 @@ select {
   width: 100%;
   overflow: hidden;
   border: 1px solid var(--sv-border) !important;
-  border-radius: 28px !important;
+  border-radius: 22px !important;
   background:
     linear-gradient(145deg, rgba(var(--sv-primary-rgb), 0.065), transparent 32%),
     color-mix(in srgb, var(--sv-bg-solid) 88%, transparent) !important;
-  box-shadow: 0 38px 100px rgba(0, 0, 0, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(28px) saturate(150%);
-  -webkit-backdrop-filter: blur(28px) saturate(150%);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.11), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(24px) saturate(145%);
+  -webkit-backdrop-filter: blur(24px) saturate(145%);
 }
 
 .install-card > .ant-card-body {
-  padding: clamp(24px, 4vw, 42px);
+  padding: clamp(22px, 3vw, 30px);
 }
 
 .install-card-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 20px;
-}
-
-.install-card-head h2.ant-typography {
-  margin: 5px 0 0;
-  font-size: clamp(24px, 3vw, 32px);
-  letter-spacing: -0.045em;
-}
-
-.install-eyebrow {
+  gap: 16px;
   color: var(--sv-text-muted);
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.15em;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
-.install-provider-tag {
-  display: inline-flex;
-  min-height: 30px;
-  align-items: center;
-  margin: 3px 0 0 !important;
-  padding: 0 10px !important;
-  border-color: rgba(var(--sv-primary-rgb), 0.22) !important;
-  border-radius: 999px !important;
-  background: rgba(var(--sv-primary-rgb), 0.08) !important;
-  color: var(--sv-primary-strong) !important;
-  font-size: 11px !important;
-  font-weight: 700;
+.install-step-label {
+  color: var(--sv-primary-strong);
+  font-variant-numeric: tabular-nums;
 }
 
-.install-steps {
-  margin: 30px 0 34px;
-  padding: 16px 18px;
-  border: 1px solid var(--sv-border);
-  border-radius: 17px;
-  background: color-mix(in srgb, var(--sv-bg-soft) 58%, transparent);
+.install-progress {
+  display: block;
+  margin: 8px 0 22px;
+  line-height: 1;
 }
 
-.install-steps .ant-steps-item-title {
-  font-size: 11px !important;
-  font-weight: 650;
-}
-
-.install-steps .ant-steps-item-icon {
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--sv-bg-solid) 72%, transparent);
+.install-progress .ant-progress-inner {
+  background: var(--sv-border);
 }
 
 .install-alert,
@@ -929,7 +903,7 @@ select {
 }
 
 .install-stage {
-  min-height: 390px;
+  min-height: 0;
 }
 
 .install-stage-content--enter {
@@ -937,12 +911,12 @@ select {
 }
 
 .install-stage-heading {
-  margin-bottom: 24px;
+  margin-bottom: 18px;
 }
 
 .install-stage-heading h3.ant-typography {
   margin: 0 0 5px;
-  font-size: 20px;
+  font-size: 19px;
   letter-spacing: -0.03em;
 }
 
@@ -954,21 +928,21 @@ select {
 .install-provider-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .install-provider-option {
   position: relative;
   display: flex;
   min-width: 0;
-  min-height: 112px;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 14px;
+  min-height: 60px;
+  flex-direction: row;
+  align-items: center;
+  gap: 9px;
+  padding: 10px;
   overflow: hidden;
   border: 1px solid var(--sv-border);
-  border-radius: 16px;
+  border-radius: 13px;
   background: color-mix(in srgb, var(--sv-bg-solid) 72%, transparent);
   color: var(--sv-text);
   cursor: pointer;
@@ -1013,10 +987,10 @@ select {
 
 .install-provider-icon {
   display: grid;
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   place-items: center;
-  border-radius: 10px;
+  border-radius: 9px;
   background: var(--sv-bg-soft);
   color: var(--sv-primary-strong);
   font-size: 16px;
@@ -1059,22 +1033,22 @@ select {
 .install-sqlite-note,
 .install-check-card {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-columns: 28px minmax(0, 1fr);
   align-items: center;
-  margin-top: 20px;
-  gap: 14px;
-  padding: 18px;
+  margin-top: 14px;
+  gap: 9px;
+  padding: 11px 12px;
   border: 1px solid var(--sv-border);
-  border-radius: 16px;
+  border-radius: 13px;
   background: color-mix(in srgb, var(--sv-bg-soft) 55%, transparent);
 }
 
 .install-sqlite-note > svg,
 .install-check-icon {
   display: grid;
-  width: 44px;
-  height: 44px;
-  padding: 13px;
+  width: 28px;
+  height: 28px;
+  padding: 7px;
   place-items: center;
   border-radius: 13px;
   background: rgba(var(--sv-primary-rgb), 0.1);
@@ -1087,12 +1061,21 @@ select {
   font-size: 12px;
 }
 
+.install-sqlite-note > .ant-typography {
+  font-size: 12px;
+  line-height: 1.55;
+}
+
 .install-connection-form {
-  margin-top: 22px;
+  margin-top: 18px;
 }
 
 .install-connection-form .ant-form-item {
-  margin-bottom: 16px;
+  margin-bottom: 14px;
+}
+
+.install-stage-content > .ant-form .ant-form-item {
+  margin-bottom: 18px;
 }
 
 .install-connection-form .ant-form-item-label > label,
@@ -1149,8 +1132,8 @@ select {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 26px;
-  padding-top: 20px;
+  margin-top: 20px;
+  padding-top: 16px;
   border-top: 1px solid var(--sv-border);
 }
 
@@ -1161,15 +1144,25 @@ select {
 
 .install-check-card {
   margin-top: 0;
+  grid-template-columns: 40px minmax(0, 1fr);
+  padding: 13px;
   border-color: color-mix(in srgb, #22c55e 28%, var(--sv-border));
   background: color-mix(in srgb, #22c55e 6%, var(--sv-bg-solid));
 }
 
 .install-check-icon {
+  width: 40px;
+  height: 40px;
   padding: 0;
   background: color-mix(in srgb, #22c55e 13%, transparent);
   color: #22c55e;
   font-size: 20px;
+}
+
+.install-inline-note {
+  margin: 14px 2px 0 !important;
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .install-operation-list {
@@ -1242,6 +1235,11 @@ select {
   color: var(--sv-text-muted);
 }
 
+.install-admin-submit {
+  height: 40px;
+  margin-top: 2px;
+}
+
 .install-stage-content--complete {
   text-align: center;
 }
@@ -1252,7 +1250,7 @@ select {
 
 .install-card--loading > .ant-card-body {
   display: grid;
-  min-height: 510px;
+  min-height: 360px;
   align-content: center;
   justify-items: center;
   gap: 18px;
@@ -2613,11 +2611,9 @@ select {
 
 @media (max-width: 900px) {
   .install-main {
-    width: min(760px, calc(100% - 36px));
+    width: min(620px, calc(100% - 36px));
     min-height: auto;
-    grid-template-columns: 1fr;
-    gap: 34px;
-    padding: 48px 0 54px;
+    padding: 36px 0 48px;
   }
 
   .install-manifesto {
@@ -2735,8 +2731,7 @@ select {
 
   .install-main {
     width: calc(100% - 20px);
-    gap: 26px;
-    padding: 34px 0 42px;
+    padding: 26px 0 36px;
   }
 
   .install-manifesto {
@@ -2767,11 +2762,11 @@ select {
   }
 
   .install-card {
-    border-radius: 21px !important;
+    border-radius: 18px !important;
   }
 
   .install-card > .ant-card-body {
-    padding: 21px 18px;
+    padding: 19px 16px;
   }
 
   .install-card-head {
@@ -2817,7 +2812,7 @@ select {
   }
 
   .install-stage-heading {
-    margin-bottom: 19px;
+    margin-bottom: 16px;
   }
 
   .install-provider-grid {
@@ -2826,11 +2821,11 @@ select {
   }
 
   .install-provider-option {
-    min-height: 70px;
+    min-height: 58px;
     flex-direction: row;
     align-items: center;
-    gap: 12px;
-    padding: 11px 13px;
+    gap: 10px;
+    padding: 9px 11px;
   }
 
   .install-provider-option small {
@@ -2855,16 +2850,16 @@ select {
 
   .install-sqlite-note,
   .install-check-card {
-    grid-template-columns: 38px minmax(0, 1fr);
-    gap: 11px;
-    padding: 14px;
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 9px;
+    padding: 11px;
   }
 
   .install-sqlite-note > svg,
   .install-check-icon {
-    width: 38px;
-    height: 38px;
-    padding: 11px;
+    width: 30px;
+    height: 30px;
+    padding: 8px;
   }
 
   .install-check-icon {
@@ -2893,7 +2888,7 @@ select {
   }
 
   .install-card--loading > .ant-card-body {
-    min-height: 430px;
+    min-height: 320px;
   }
 
   .install-card--state .ant-result {

@@ -199,16 +199,16 @@
       }
     },
     "connection": {
-      "title": "选择数据库并建立连接",
+      "title": "选择数据库",
       "desc": "安装器只接受空数据库；连接测试不会创建表或修改数据。",
       "providerLabel": "数据库类型",
       "sqliteTitle": "应用托管的本地数据库",
-      "sqliteDesc": "文件位置由 APP_DATA_PATH 管理，无需填写路径。适用于单实例部署，不支持网络共享文件系统。",
+      "sqliteDesc": "文件由应用管理，适合单实例部署，不支持网络共享磁盘。",
       "recoveryTitle": "发现未完成的配置",
       "recoveryDesc": "请重新输入连接凭据并继续，或清除本地待处理配置后重新开始。"
     },
     "initialize": {
-      "title": "验证结果与结构初始化",
+      "title": "初始化数据结构",
       "desc": "连接及空库检查已通过。确认后将写入完整业务表结构。",
       "connectionReady": "连接验证通过",
       "connectionReadyDesc": "{provider} 已连接，目标数据库可用于全新安装。",
@@ -221,10 +221,10 @@
       "notice": "初始化期间请保持页面开启，不要同时启动另一个 SlothVault 实例。"
     },
     "admin": {
-      "title": "创建首位管理员",
+      "title": "创建管理员",
       "desc": "数据库已就绪。这个账户将拥有控制台与系统配置的完整权限。",
       "ownerTitle": "唯一的初始化入口",
-      "ownerDesc": "创建成功后安装向导将永久关闭"
+      "ownerDesc": "完成后安装入口将自动关闭"
     },
     "complete": {
       "title": "SlothVault 已准备就绪",
@@ -241,9 +241,9 @@
       "tlsHint": "启用后始终验证服务端证书",
       "caPem": "自定义 CA 证书（可选）",
       "caPemHint": "留空时使用系统信任链；仅粘贴 PEM 格式 CA 证书。",
-      "adminUsername": "管理员用户名",
-      "adminPassword": "管理员密码",
-      "confirmPassword": "确认管理员密码"
+      "adminUsername": "用户名",
+      "adminPassword": "密码",
+      "confirmPassword": "确认密码"
     },
     "placeholders": {
       "host": "例如 db.internal",
@@ -272,10 +272,10 @@
       "retry": "重试",
       "recheck": "重新检测",
       "reset": "清除待处理配置",
-      "test": "测试连接并继续",
+      "test": "测试并继续",
       "back": "返回修改",
-      "initialize": "初始化表结构",
-      "createAdmin": "创建管理员并完成安装",
+      "initialize": "开始初始化",
+      "createAdmin": "创建并完成安装",
       "login": "前往管理员登录"
     },
     "errors": {

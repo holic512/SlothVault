@@ -5,13 +5,13 @@
  * @project SlothVault
  * @module First-run Installation
  * @description Renders the schema initialization confirmation stage after a successful database connection test.
- * @logic Summarize the selected provider and initialization operations, then delegate back or initialize actions to the orchestrator.
+ * @logic Confirm the verified provider and delegate the back or schema initialization action with minimal explanatory chrome.
  * @dependencies Ant Design, Ant Design Icons, installation workflow types
  * @index_tags install,database,schema,initialization
  * @author holic512
  */
 import { ArrowLeftOutlined, CheckCircleFilled, DatabaseOutlined } from '@ant-design/icons'
-import { Alert, Button, Typography } from 'antd'
+import { Button, Typography } from 'antd'
 
 import type { DatabaseProvider, PendingAction, Translation } from './types'
 
@@ -32,7 +32,6 @@ export function InitializationStage({
     <div className="install-stage-content install-stage-content--enter">
       <div className="install-stage-heading">
         <Typography.Title level={3}>{t('initialize.title')}</Typography.Title>
-        <Typography.Paragraph type="secondary">{t('initialize.desc')}</Typography.Paragraph>
       </div>
 
       <div className="install-check-card">
@@ -45,13 +44,9 @@ export function InitializationStage({
         </div>
       </div>
 
-      <div className="install-operation-list">
-        <div><span>01</span><p><strong>{t('initialize.operation1Title')}</strong>{t('initialize.operation1Desc')}</p></div>
-        <div><span>02</span><p><strong>{t('initialize.operation2Title')}</strong>{t('initialize.operation2Desc')}</p></div>
-        <div><span>03</span><p><strong>{t('initialize.operation3Title')}</strong>{t('initialize.operation3Desc')}</p></div>
-      </div>
-
-      <Alert type="info" showIcon title={t('initialize.notice')} />
+      <Typography.Paragraph className="install-inline-note" type="secondary">
+        {t('initialize.notice')}
+      </Typography.Paragraph>
 
       <div className="install-actions">
         <Button icon={<ArrowLeftOutlined />} disabled={Boolean(pendingAction)} onClick={onBack}>

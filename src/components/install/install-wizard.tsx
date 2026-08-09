@@ -19,11 +19,10 @@ import {
   Button,
   Card,
   Form,
+  Progress,
   Result,
   Skeleton,
   Spin,
-  Steps,
-  Tag,
   Typography,
 } from 'antd'
 import { useTranslations } from 'next-intl'
@@ -43,7 +42,6 @@ import {
 } from './install-wizard/helpers'
 import { InitializationStage } from './install-wizard/initialization-stage'
 import { InstallShell } from './install-wizard/install-shell'
-import { providerIcons } from './install-wizard/provider-icons'
 import type {
   AdminValues,
   ConnectionDraft,
@@ -226,13 +224,7 @@ export function InstallWizard() {
     }
   }
 
-  const providerLabel = t(`provider.${provider}.name`)
-  const stepItems = [
-    { title: t('steps.connection') },
-    { title: t('steps.initialize') },
-    { title: t('steps.admin') },
-    { title: t('steps.complete') },
-  ]
+  const stepLabels = [t('steps.connection'), t('steps.initialize'), t('steps.admin'), t('steps.complete')]
 
   if (pendingAction === 'status' && !serverStatus && !pageError) {
     return (
@@ -292,14 +284,18 @@ export function InstallWizard() {
     <InstallShell statusLabel={t(`status.${(serverStatus ?? 'UNCONFIGURED').toLowerCase()}`)}>
       <Card className="install-card" variant="borderless">
         <div className="install-card-head">
-          <div>
-            <Typography.Text className="install-eyebrow">{t('panel.eyebrow')}</Typography.Text>
-            <Typography.Title level={2}>{t('panel.title')}</Typography.Title>
-          </div>
-          <Tag className="install-provider-tag" icon={providerIcons[provider]}>{providerLabel}</Tag>
+          <Typography.Text className="install-step-label">
+            {activeStep < 3 ? `${activeStep + 1} / 3` : t('steps.complete')}
+          </Typography.Text>
+          <Typography.Text type="secondary">{stepLabels[activeStep]}</Typography.Text>
         </div>
-
-        <Steps className="install-steps" current={activeStep} items={stepItems} responsive={false} size="small" />
+        <Progress
+          className="install-progress"
+          percent={activeStep === 3 ? 100 : ((activeStep + 1) / 3) * 100}
+          showInfo={false}
+          size={{ height: 3 }}
+          strokeLinecap="butt"
+        />
 
         {flowError ? (
           <Alert

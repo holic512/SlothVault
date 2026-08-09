@@ -199,16 +199,16 @@
       }
     },
     "connection": {
-      "title": "Select a database and connect",
+      "title": "Choose a database",
       "desc": "The installer accepts only an empty database. Testing the connection never creates tables or changes data.",
       "providerLabel": "Database provider",
       "sqliteTitle": "Application-managed local database",
-      "sqliteDesc": "APP_DATA_PATH controls the file location, so no path is required. Intended for a single instance and not supported on network filesystems.",
+      "sqliteDesc": "Application-managed storage for a single instance. Network drives are not supported.",
       "recoveryTitle": "An unfinished configuration was found",
       "recoveryDesc": "Enter the connection credentials again to continue, or clear the pending local configuration and restart."
     },
     "initialize": {
-      "title": "Review and initialize the schema",
+      "title": "Initialize the schema",
       "desc": "The connection and empty-database checks passed. Confirm to write the complete application schema.",
       "connectionReady": "Connection verified",
       "connectionReadyDesc": "{provider} is connected and the target is ready for a clean installation.",
@@ -221,10 +221,10 @@
       "notice": "Keep this page open during initialization and do not start another SlothVault instance."
     },
     "admin": {
-      "title": "Create the first administrator",
+      "title": "Create administrator",
       "desc": "The database is ready. This account receives full access to the console and system configuration.",
       "ownerTitle": "The only initialization entry point",
-      "ownerDesc": "The installation wizard closes permanently after this account is created"
+      "ownerDesc": "The installer closes automatically when this is complete"
     },
     "complete": {
       "title": "SlothVault is ready",
@@ -241,9 +241,9 @@
       "tlsHint": "The server certificate is always verified when enabled",
       "caPem": "Custom CA certificate (optional)",
       "caPemHint": "Leave blank to use the system trust store. Paste only a PEM-encoded CA certificate.",
-      "adminUsername": "Administrator username",
-      "adminPassword": "Administrator password",
-      "confirmPassword": "Confirm administrator password"
+      "adminUsername": "Username",
+      "adminPassword": "Password",
+      "confirmPassword": "Confirm password"
     },
     "placeholders": {
       "host": "For example, db.internal",
@@ -272,10 +272,10 @@
       "retry": "Retry",
       "recheck": "Check again",
       "reset": "Clear pending setup",
-      "test": "Test connection and continue",
+      "test": "Test and continue",
       "back": "Back to edit",
-      "initialize": "Initialize schema",
-      "createAdmin": "Create administrator and finish",
+      "initialize": "Initialize",
+      "createAdmin": "Create and finish",
       "login": "Continue to administrator login"
     },
     "errors": {
