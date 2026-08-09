@@ -17,6 +17,7 @@ import { Alert, App, Button, Card, Empty, Input, Skeleton, Space, Tag, Typograph
 import { Boxes, KeyRound, RefreshCw, RotateCcw, Save, Waypoints } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+import { AdminPage, AdminPageActions } from '@/components/admin/admin-page'
 import { apiFetch } from '@/lib/api-client'
 
 type ConfigItem = {
@@ -91,12 +92,8 @@ function SettingsForm({ data }: { data: ConfigData }) {
   })
 
   return (
-    <div className="admin-page-stack">
-      <div className="admin-page-heading">
-        <div>
-          <Typography.Title level={2}>{t('title')}</Typography.Title>
-          <Typography.Paragraph type="secondary">{t('desc')}</Typography.Paragraph>
-        </div>
+    <AdminPage>
+      <AdminPageActions>
         <Space wrap>
           <Button
             icon={<RotateCcw size={15} />}
@@ -122,7 +119,7 @@ function SettingsForm({ data }: { data: ConfigData }) {
             {t('actions.save')}
           </Button>
         </Space>
-      </div>
+      </AdminPageActions>
 
       <Alert showIcon type="info" message={t('tips.title')} description={t('tips.content')} />
       {changedKeys.length ? <Tag color="warning">{t('unsavedChanges')}</Tag> : null}
@@ -180,6 +177,6 @@ function SettingsForm({ data }: { data: ConfigData }) {
           <Empty description={t('empty')} />
         )}
       </div>
-    </div>
+    </AdminPage>
   )
 }

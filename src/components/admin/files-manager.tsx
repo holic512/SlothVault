@@ -24,7 +24,6 @@ import {
   Switch,
   Table,
   Tag,
-  Typography,
   Upload,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -32,6 +31,7 @@ import type { UploadFile } from 'antd/es/upload/interface'
 import { FileArchive, FileImage, RefreshCw, Trash2, UploadCloud } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+import { AdminPage, AdminPageActions } from '@/components/admin/admin-page'
 import { apiFetch } from '@/lib/api-client'
 
 type FileDto = {
@@ -235,12 +235,8 @@ export function FilesManager() {
   ]
 
   return (
-    <div className="admin-page-stack">
-      <div className="admin-page-heading">
-        <div>
-          <Typography.Title level={2}>{t('title')}</Typography.Title>
-          <Typography.Paragraph type="secondary">{t('desc')}</Typography.Paragraph>
-        </div>
+    <AdminPage>
+      <AdminPageActions>
         <Space>
           <Button icon={<RefreshCw size={15} />} onClick={() => void refresh()}>
             {t('actions.search')}
@@ -249,7 +245,7 @@ export function FilesManager() {
             {t('actions.upload')}
           </Button>
         </Space>
-      </div>
+      </AdminPageActions>
 
       <div className="admin-toolbar-card">
         <div className="admin-filters">
@@ -346,6 +342,6 @@ export function FilesManager() {
       >
         {previewFile ? <Image className="file-preview-image" src={previewFile.url} alt={previewFile.originalName} /> : null}
       </Modal>
-    </div>
+    </AdminPage>
   )
 }

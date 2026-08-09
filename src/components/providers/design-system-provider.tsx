@@ -5,8 +5,8 @@
  * @project SlothVault
  * @module Design System
  * @description Unifies Ant Design, React Query, locale, and the restrained monochrome editorial theme.
- * @logic Derive neutral component tokens from light/dark mode, remove legacy palette classes, synchronize language, and expose one query client.
- * @dependencies antd, @tanstack/react-query, next-themes, next-intl
+ * @logic Derive neutral component tokens from the hydration-safe theme contract, synchronize language, and expose one query client.
+ * @dependencies antd, @tanstack/react-query, app-theme-context, next-intl
  * @index_tags provider,antd,react-query,theme,locale,monochrome
  * @author holic512
  */
@@ -19,14 +19,13 @@ import zhCN from 'antd/locale/zh_CN'
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
 import { useLocale } from 'next-intl'
-import { useTheme } from 'next-themes'
 
-import { useHydrated } from '@/hooks/use-hydrated'
+import { useResolvedAppTheme } from '@/components/providers/app-theme-context'
+import { appThemePalette } from '@/theme/app-theme'
 
 export function DesignSystemProvider({ children }: { children: ReactNode }) {
   const locale = useLocale()
-  const { resolvedTheme } = useTheme()
-  const mounted = useHydrated()
+  const resolvedTheme = useResolvedAppTheme()
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -40,13 +39,8 @@ export function DesignSystemProvider({ children }: { children: ReactNode }) {
       }),
   )
 
-  const dark = !mounted || resolvedTheme !== 'light'
-
-  useEffect(() => {
-    const root = document.documentElement
-    root.classList.remove('theme-purple', 'theme-cyan', 'theme-emerald', 'theme-rose')
-    root.classList.add('theme-mono')
-  }, [])
+  const dark = resolvedTheme === 'dark'
+  const palette = appThemePalette[resolvedTheme]
 
   useEffect(() => {
     dayjs.locale(locale === 'zh' ? 'zh-cn' : 'en')
@@ -61,17 +55,17 @@ export function DesignSystemProvider({ children }: { children: ReactNode }) {
           cssVar: { key: `slothvault-${dark ? 'dark' : 'light'}-mono` },
           algorithm: dark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
           token: {
-            colorPrimary: dark ? '#f1f1ef' : '#141414',
-            colorInfo: dark ? '#d7d7d3' : '#2a2a2a',
-            colorSuccess: dark ? '#d7d7d3' : '#2a2a2a',
-            colorWarning: dark ? '#b8b8b2' : '#575757',
-            colorError: dark ? '#d98b8b' : '#8f3030',
+            colorPrimary: palette.primary,
+            colorInfo: palette.info,
+            colorSuccess: palette.success,
+            colorWarning: palette.warning,
+            colorError: palette.error,
             borderRadius: 8,
             borderRadiusLG: 12,
             fontFamily: '"Source Sans Pro", "Public Sans", sans-serif',
-            colorBgBase: dark ? '#0d0d0d' : '#f4f3ef',
-            colorBgContainer: dark ? '#141414' : '#fbfaf7',
-            colorBorder: dark ? 'rgba(255,255,255,.14)' : 'rgba(20,20,20,.16)',
+            colorBgBase: palette.background,
+            colorBgContainer: palette.container,
+            colorBorder: palette.border,
             controlHeight: 38,
           },
           components: {
@@ -80,14 +74,14 @@ export function DesignSystemProvider({ children }: { children: ReactNode }) {
             Layout: {
               bodyBg: 'transparent',
               headerBg: 'transparent',
-              siderBg: dark ? '#101010' : '#f8f7f3',
+              siderBg: palette.sider,
             },
             Menu: {
               darkItemBg: 'transparent',
               darkSubMenuItemBg: 'transparent',
               itemBorderRadius: 10,
             },
-            Table: { headerBg: dark ? '#1a1a1a' : '#efeee9' },
+            Table: { headerBg: palette.tableHeader },
           },
         }}
       >

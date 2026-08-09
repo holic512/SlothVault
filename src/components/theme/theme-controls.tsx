@@ -19,17 +19,33 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
 
+import { useResolvedAppTheme } from '@/components/providers/app-theme-context'
 import { apiFetch } from '@/lib/api-client'
-import { useHydrated } from '@/hooks/use-hydrated'
+import { isAppTheme } from '@/theme/app-theme'
 
 export function ThemeControls() {
   const t = useTranslations('ThemeToggle')
   const locale = useLocale()
   const router = useRouter()
-  const { resolvedTheme, setTheme } = useTheme()
-  const mounted = useHydrated()
+  const { setTheme } = useTheme()
+  const resolvedTheme = useResolvedAppTheme()
   const [changingLocale, startLocaleTransition] = useTransition()
-  const light = mounted && resolvedTheme === 'light'
+  const [changingTheme, startThemeTransition] = useTransition()
+  const light = resolvedTheme === 'light'
+
+  const changeTheme = (nextTheme: string | number) => {
+    const theme = String(nextTheme)
+    if (!isAppTheme(theme)) return
+
+    setTheme(theme)
+    startThemeTransition(async () => {
+      await apiFetch('/api/preferences/theme', {
+        method: 'POST',
+        body: JSON.stringify({ theme }),
+      })
+      router.refresh()
+    })
+  }
 
   const changeLocale = (nextLocale: string | number) => {
     startLocaleTransition(async () => {
@@ -46,8 +62,9 @@ export function ThemeControls() {
       <Typography.Text type="secondary">{t('section.mode')}</Typography.Text>
       <Segmented
         block
+        disabled={changingTheme}
         value={light ? 'light' : 'dark'}
-        onChange={(value) => setTheme(String(value))}
+        onChange={changeTheme}
         options={[
           { label: t('mode.light'), value: 'light', icon: <Sun size={14} /> },
           { label: t('mode.dark'), value: 'dark', icon: <Moon size={14} /> },

@@ -13,9 +13,10 @@
 import { useState } from 'react'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { App, Button, Form, Input, InputNumber, Modal, Space, Table, Typography } from 'antd'
+import { App, Button, Form, Input, InputNumber, Modal, Space, Table } from 'antd'
 import { Coins, RefreshCw, Search, UserRound } from 'lucide-react'
 
+import { AdminPage, AdminPageActions, AdminTablePanel, AdminToolbar } from '@/components/admin/admin-page'
 import { apiFetch } from '@/lib/api-client'
 
 type UserRow = {
@@ -62,16 +63,12 @@ export function UsersManager() {
   })
 
   return (
-    <div className="admin-page-stack">
-      <div className="admin-page-heading">
-        <div>
-          <Typography.Title level={2}>用户管理</Typography.Title>
-          <Typography.Paragraph type="secondary">普通账户、管理员身份、钱包绑定与积分余额。</Typography.Paragraph>
-        </div>
+    <AdminPage>
+      <AdminPageActions>
         <Button icon={<RefreshCw size={15} />} onClick={() => void query.refetch()}>刷新</Button>
-      </div>
+      </AdminPageActions>
 
-      <div className="admin-toolbar-card">
+      <AdminToolbar>
         <Input.Search
           allowClear
           value={keyword}
@@ -80,9 +77,9 @@ export function UsersManager() {
           onChange={(event) => setKeyword(event.target.value)}
           onSearch={() => setPage(1)}
         />
-      </div>
+      </AdminToolbar>
 
-      <div className="admin-table-card">
+      <AdminTablePanel>
         <Table<UserRow>
           rowKey="id"
           loading={query.isLoading}
@@ -118,7 +115,7 @@ export function UsersManager() {
             },
           ]}
         />
-      </div>
+      </AdminTablePanel>
 
       <Modal
         open={Boolean(adjusting)}
@@ -142,6 +139,6 @@ export function UsersManager() {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </AdminPage>
   )
 }

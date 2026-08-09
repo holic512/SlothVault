@@ -1,0 +1,34 @@
+/**
+ * @file utilities.css
+ * @project SlothVault
+ * @module Global Style Utilities
+ * @description Defines the minimal accessibility and sizing helpers shared by unrelated components.
+ * @logic Offer only behavior-level utilities that cannot reasonably belong to one feature module.
+ * @dependencies SlothVault design tokens, feature markup
+ * @index_tags css,utilities,accessibility
+ * @author holic512
+ */
+
+.full-width {
+  width: 100%;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  clip-path: inset(50%) !important;
+}
+
+.mono-ellipsis {
+  display: inline-block;
+  max-width: 210px;
+  overflow: hidden;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  white-space: nowrap;
+}

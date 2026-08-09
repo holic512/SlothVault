@@ -5,6 +5,7 @@ import { ArchiveRestore, Blocks, BookOpenText, Coins, FileStack, FolderTree, Ref
 import { useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
 
+import { AdminPage, AdminPageActions } from '@/components/admin/admin-page'
 import { apiFetch } from '@/lib/api-client'
 
 type DashboardData = {
@@ -75,18 +76,14 @@ export function DashboardView() {
     : []
 
   return (
-    <div className="admin-page-stack">
-      <div className="admin-page-heading">
-        <div>
-          <Typography.Title level={2}>{t('title')}</Typography.Title>
-          <Typography.Paragraph type="secondary">{t('desc')}</Typography.Paragraph>
-        </div>
+    <AdminPage>
+      <AdminPageActions>
         <Button icon={<RefreshCw size={15} />} loading={query.isFetching} onClick={() => void query.refetch()}>
           {t('actions.refresh')}
         </Button>
-      </div>
+      </AdminPageActions>
 
-      <Row gutter={[14, 14]}>
+      <Row gutter={[10, 10]}>
         {stats.map((item) => (
           <Col xs={24} sm={12} xl={8} xxl={4} key={item.title}>
             <Card className="metric-card" loading={query.isLoading}>
@@ -101,7 +98,7 @@ export function DashboardView() {
       </Row>
 
       {data ? (
-        <Row gutter={[14, 14]}>
+        <Row gutter={[10, 10]}>
           <Col xs={24} xl={9}>
             <Card title={t('health.title')} className="dashboard-panel">
               <div className="health-list">
@@ -131,6 +128,6 @@ export function DashboardView() {
           </Col>
         </Row>
       ) : null}
-    </div>
+    </AdminPage>
   )
 }

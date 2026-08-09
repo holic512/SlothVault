@@ -14,6 +14,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, App, Select, Space, Tabs, Typography } from 'antd'
 import { useTranslations } from 'next-intl'
 
+import { AdminPage, AdminPageActions } from '@/components/admin/admin-page'
 import { apiFetch } from '@/lib/api-client'
 
 import { CnftsPanel } from './solana-manager/cnfts-panel'
@@ -60,12 +61,8 @@ export function SolanaManager() {
   }
 
   return (
-    <div className="admin-page-stack">
-      <div className="admin-page-heading">
-        <div>
-          <Typography.Title level={2}>{t('title')}</Typography.Title>
-          <Typography.Paragraph type="secondary">{t('desc')}</Typography.Paragraph>
-        </div>
+    <AdminPage>
+      <AdminPageActions>
         <Space>
           <Typography.Text type="secondary">{t('network.label')}</Typography.Text>
           <Select
@@ -78,7 +75,7 @@ export function SolanaManager() {
             onChange={switchNetwork}
           />
         </Space>
-      </div>
+      </AdminPageActions>
       {network === 'mainnet' ? <Alert showIcon type="warning" message={t('network.switchWarning')} /> : null}
       <Tabs
         className="solana-tabs"
@@ -95,6 +92,6 @@ export function SolanaManager() {
           },
         ]}
       />
-    </div>
+    </AdminPage>
   )
 }

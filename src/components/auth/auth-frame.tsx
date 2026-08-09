@@ -1,10 +1,11 @@
 import Link from 'next/link'
 
 import { ThemeControls } from '@/components/theme/theme-controls'
+import authStyles from '@/styles/modules/auth.module.css'
 
 export function AuthFrame({ children }: { children: React.ReactNode }) {
   return (
-    <div className="auth-page">
+    <div className={`${authStyles.root} auth-page`}>
       <header className="auth-topbar">
         <Link href="/" className="brand-lockup">
           {/* eslint-disable-next-line @next/next/no-img-element */}

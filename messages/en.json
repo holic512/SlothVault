@@ -4,7 +4,9 @@
     "projects": "Articles",
     "community": "Community",
     "discord": "Discord",
-    "github": "GitHub"
+    "github": "GitHub",
+    "openMenu": "Open navigation",
+    "mobileNavigation": "Mobile navigation"
   },
   "ProjectsPage": {
     "title": "Publications",
@@ -1031,7 +1033,8 @@
     },
     "sidebar": {
       "expand": "Expand Sidebar",
-      "collapse": "Collapse Sidebar"
+      "collapse": "Collapse Sidebar",
+      "openMobile": "Open admin navigation"
     },
     "header": {
       "backHome": "Back to Home"

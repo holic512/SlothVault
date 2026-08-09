@@ -16,7 +16,8 @@ import type { ICommand, TextAreaTextApi } from '@uiw/react-md-editor'
 import { commands } from '@uiw/react-md-editor'
 import { ImageUp } from 'lucide-react'
 import dynamic from 'next/dynamic'
-import { useTheme } from 'next-themes'
+
+import { useResolvedAppTheme } from '@/components/providers/app-theme-context'
 
 const MDEditor = dynamic(() => import('@uiw/react-md-editor'), { ssr: false })
 
@@ -29,7 +30,7 @@ export function MarkdownContentEditor({
   onChange: (value: string) => void
   onUpload: (files: File[]) => Promise<string[]>
 }) {
-  const { resolvedTheme } = useTheme()
+  const resolvedTheme = useResolvedAppTheme()
   const inputRef = useRef<HTMLInputElement>(null)
   const textApiRef = useRef<TextAreaTextApi | null>(null)
   const [uploading, setUploading] = useState(false)

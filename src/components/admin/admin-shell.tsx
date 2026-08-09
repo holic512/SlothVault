@@ -12,7 +12,7 @@
  */
 import { useMemo, useState, type ReactNode } from 'react'
 
-import { Button, Layout, Menu, Space, Tooltip, Typography } from 'antd'
+import { Button, Drawer, Layout, Menu, Space, Tooltip } from 'antd'
 import {
   ArchiveRestore,
   Blocks,
@@ -24,6 +24,7 @@ import {
   Home,
   House,
   LogOut,
+  Menu as MenuIcon,
   PanelsTopLeft,
   Settings,
   TicketCheck,
@@ -35,6 +36,7 @@ import { usePathname, useRouter } from 'next/navigation'
 
 import { ThemeControls } from '@/components/theme/theme-controls'
 import { apiFetch } from '@/lib/api-client'
+import adminStyles from '@/styles/modules/admin.module.css'
 
 const { Header, Sider, Content } = Layout
 
@@ -49,6 +51,7 @@ export function AdminShell({
   const pathname = usePathname()
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   const menuItems = useMemo(
     () => [
@@ -81,11 +84,11 @@ export function AdminShell({
   }
 
   return (
-    <Layout className="admin-layout">
+    <Layout className={`${adminStyles.root} admin-layout`}>
       <Sider
         className="admin-sider"
-        width={220}
-        collapsedWidth={64}
+        width={208}
+        collapsedWidth={56}
         collapsible
         collapsed={collapsed}
         trigger={null}
@@ -115,11 +118,20 @@ export function AdminShell({
 
       <Layout className="admin-main-layout">
         <Header className="admin-header">
-          <div className="admin-header-copy">
-            <Typography.Text type="secondary">{t('title')}</Typography.Text>
-            <Typography.Title level={4}>{currentLabel}</Typography.Title>
+          <div className="admin-header-leading">
+            <Button
+              className="admin-mobile-trigger"
+              aria-label={t('sidebar.openMobile')}
+              icon={<MenuIcon size={17} />}
+              onClick={() => setMobileOpen(true)}
+            />
+            <nav className="admin-breadcrumb" aria-label="Breadcrumb">
+              <Link href="/admin/mm">{t('title')}</Link>
+              <span aria-hidden="true">/</span>
+              <span aria-current="page">{currentLabel}</span>
+            </nav>
           </div>
-          <Space size={8} className="admin-header-actions">
+          <Space size={6} className="admin-header-actions">
             <Tooltip title="Home">
               <Button icon={<Home size={16} />} href="/" />
             </Tooltip>
@@ -131,6 +143,25 @@ export function AdminShell({
         </Header>
         <Content className="admin-content">{children}</Content>
       </Layout>
+      <Drawer
+        className="admin-mobile-drawer"
+        title={t('title')}
+        placement="left"
+        size={248}
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+      >
+        <Menu
+          className="admin-mobile-menu"
+          mode="inline"
+          selectedKeys={[selectedKey]}
+          items={menuItems}
+          onClick={({ key }) => {
+            setMobileOpen(false)
+            router.push(key)
+          }}
+        />
+      </Drawer>
     </Layout>
   )
 }

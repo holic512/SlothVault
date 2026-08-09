@@ -14,6 +14,7 @@ import { notFound } from 'next/navigation'
 
 import { PublicNavbar } from '@/components/shell/public-navbar'
 import { getPublicUserProfile } from '@/server/services/public-users'
+import publicStyles from '@/styles/modules/public.module.css'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,7 +40,7 @@ export default async function PublicUserPage({
   if (!profile) notFound()
 
   return (
-    <div className="public-page profile-page">
+    <div className={`${publicStyles.root} public-page profile-page`}>
       <PublicNavbar />
       <main className="profile-main content-container">
         <section className="profile-hero">

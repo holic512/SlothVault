@@ -15,6 +15,7 @@ import { redirect } from 'next/navigation'
 import { AccountView } from '@/components/account/account-view'
 import { PublicNavbar } from '@/components/shell/public-navbar'
 import { readSessionToken, SESSION_COOKIE } from '@/server/auth/session'
+import publicStyles from '@/styles/modules/public.module.css'
 
 export const metadata: Metadata = { title: '账户中心' }
 export const dynamic = 'force-dynamic'
@@ -25,7 +26,7 @@ export default async function AccountPage() {
   if (!session) redirect('/login')
 
   return (
-    <div className="public-page account-page">
+    <div className={`${publicStyles.root} public-page account-page`}>
       <PublicNavbar />
       <AccountView />
     </div>

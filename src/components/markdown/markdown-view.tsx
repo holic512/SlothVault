@@ -7,6 +7,8 @@ import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import rehypeSlug from 'rehype-slug'
 import remarkGfm from 'remark-gfm'
 
+import markdownStyles from '@/styles/modules/markdown.module.css'
+
 const sanitizeSchema = {
   ...defaultSchema,
   attributes: {
@@ -26,7 +28,7 @@ const sanitizeSchema = {
 
 export function MarkdownView({ content, className = '' }: { content: string; className?: string }) {
   return (
-    <article className={`markdown-body ${className}`.trim()}>
+    <article className={`${markdownStyles.root} ${className}`.trim()}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[

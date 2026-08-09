@@ -1,0 +1,948 @@
+/**
+ * @file install.module.css
+ * @project SlothVault
+ * @module Installation Experience Styles
+ * @description Scopes the first-run installation shell, stages, forms, progress, and ambient decoration.
+ * @logic Present the database and administrator workflow as a responsive focused workbench.
+ * @dependencies SlothVault design tokens, feature markup
+ * @index_tags css-module,install,wizard,responsive
+ * @author holic512
+ */
+
+.root {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background:
+    radial-gradient(700px circle at 8% 35%, rgb(var(--sv-primary-rgb), 0.13), transparent 68%),
+    radial-gradient(520px circle at 97% 12%, color-mix(in srgb, var(--sv-accent) 12%, transparent), transparent 68%);
+}
+
+.root::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background:
+    linear-gradient(115deg, transparent 0 44%, rgb(var(--sv-primary-rgb), 0.035) 44% 44.2%, transparent 44.2% 100%),
+    linear-gradient(25deg, transparent 0 72%, color-mix(in srgb, var(--sv-accent) 4%, transparent) 72% 72.2%, transparent 72.2% 100%);
+}
+
+.root :global(.install-ambient) {
+  position: absolute;
+  border: 1px solid rgb(var(--sv-primary-rgb), 0.12);
+  border-radius: 50%;
+  pointer-events: none;
+  filter: grayscale(1);
+}
+
+.root :global(.install-ambient--one) {
+  top: 13%;
+  left: -180px;
+  width: 450px;
+  height: 450px;
+  box-shadow:
+    0 0 0 62px rgb(var(--sv-primary-rgb), 0.025),
+    0 0 0 124px rgb(var(--sv-primary-rgb), 0.018);
+}
+
+.root :global(.install-ambient--two) {
+  right: -110px;
+  bottom: -210px;
+  width: 390px;
+  height: 390px;
+  border-color: color-mix(in srgb, var(--sv-accent) 14%, transparent);
+  box-shadow: 0 0 0 82px color-mix(in srgb, var(--sv-accent) 2.5%, transparent);
+}
+
+.root :global(.install-topbar) {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  width: min(1320px, calc(100% - 48px));
+  min-height: 76px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 auto;
+  border-bottom: 1px solid var(--sv-border);
+}
+
+.root :global(.install-topbar-actions) {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.root :global(.install-status-pill) {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--sv-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sv-bg-solid) 72%, transparent);
+  color: var(--sv-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  backdrop-filter: blur(14px);
+}
+
+.root :global(.install-status-pill) i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--sv-primary);
+  box-shadow: 0 0 0 4px rgb(var(--sv-primary-rgb), 0.12);
+  animation: install-status-pulse 2.4s ease-in-out infinite;
+}
+
+.root :global(.install-main) {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  width: min(620px, calc(100% - 48px));
+  min-height: calc(100vh - 76px);
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  padding: 36px 0 56px;
+}
+
+.root :global(.install-manifesto) {
+  position: relative;
+  align-self: center;
+}
+
+.root :global(.install-kicker) {
+  display: inline-flex;
+  margin-bottom: 16px;
+  align-items: center;
+  gap: 8px;
+  color: var(--sv-primary-strong);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.root :global(.install-kicker)::before {
+  width: 28px;
+  height: 1px;
+  content: "";
+  background: var(--sv-primary);
+}
+
+.root :global(.install-manifesto) h1:global(.ant-typography) {
+  max-width: 530px;
+  margin: 0 0 18px;
+  font-size: clamp(3.2rem, 5.5vw, 5.7rem);
+  line-height: 0.96;
+  letter-spacing: -0.068em;
+}
+
+.root :global(.install-manifesto) > :global(.ant-typography-secondary) {
+  max-width: 485px;
+  margin-bottom: 0;
+  color: var(--sv-text-muted);
+  font-size: clamp(15px, 1.3vw, 18px);
+  line-height: 1.75;
+}
+
+.root :global(.install-manifesto) > p:global(.ant-typography) {
+  max-width: 485px;
+  margin-bottom: 0;
+  color: var(--sv-text-muted);
+  font-size: clamp(15px, 1.3vw, 18px);
+  line-height: 1.75;
+}
+
+.root :global(.install-guarantees) {
+  display: grid;
+  margin-top: 42px;
+  gap: 12px;
+}
+
+.root :global(.install-guarantees) > div {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.root :global(.install-guarantees) > div > svg {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  padding: 10px;
+  border: 1px solid var(--sv-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--sv-bg-solid) 70%, transparent);
+  color: var(--sv-primary-strong);
+}
+
+.root :global(.install-guarantees) span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  color: var(--sv-text-muted);
+  font-size: 12px;
+}
+
+.root :global(.install-guarantees) strong {
+  color: var(--sv-text);
+  font-size: 13px;
+}
+
+.root :global(.install-orbit) {
+  position: absolute;
+  top: -116px;
+  left: -74px;
+  width: 190px;
+  height: 190px;
+  border: 1px solid rgb(var(--sv-primary-rgb), 0.15);
+  border-radius: 50%;
+  opacity: 0.8;
+  animation: install-orbit-spin 22s linear infinite;
+  filter: grayscale(1);
+}
+
+.root :global(.install-orbit)::before {
+  position: absolute;
+  border: 1px solid rgb(var(--sv-primary-rgb), 0.11);
+  border-radius: 50%;
+  content: ""; inset: 24px;
+}
+
+.root :global(.install-orbit)::after {
+  position: absolute;
+  border: 1px solid rgb(var(--sv-primary-rgb), 0.11);
+  border-radius: 50%;
+  content: ""; inset: 54px;
+}
+
+.root :global(.install-orbit-core) {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgb(var(--sv-primary-rgb), 0.25);
+  border-radius: 14px;
+  background: var(--sv-bg-solid);
+  color: var(--sv-primary-strong);
+  box-shadow: 0 12px 28px rgb(var(--sv-primary-rgb), 0.18);
+  transform: translate(-50%, -50%);
+}
+
+.root :global(.install-orbit-node) {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--sv-bg-solid);
+  border-radius: 50%;
+  background: var(--sv-primary);
+  box-shadow: 0 0 0 3px rgb(var(--sv-primary-rgb), 0.16);
+}
+
+.root :global(.install-orbit-node--a) { top: 21px; left: 91px; }
+.root :global(.install-orbit-node--b) { right: 21px; bottom: 48px; background: var(--sv-accent); }
+.root :global(.install-orbit-node--c) { bottom: 7px; left: 70px; }
+
+.root :global(.install-workbench) {
+  min-width: 0;
+  width: 100%;
+}
+
+.root :global(.install-card) {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--sv-border) !important;
+  border-radius: 22px !important;
+  background:
+    linear-gradient(145deg, rgb(var(--sv-primary-rgb), 0.065), transparent 32%),
+    color-mix(in srgb, var(--sv-bg-solid) 88%, transparent) !important;
+  box-shadow: 0 24px 64px rgb(0, 0, 0, 11%), inset 0 1px 0 rgb(255, 255, 255, 8%);
+  backdrop-filter: blur(24px) saturate(145%);
+}
+
+.root :global(.install-card) > :global(.ant-card-body) {
+  padding: clamp(22px, 3vw, 30px);
+}
+
+.root :global(.install-card-head) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--sv-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.root :global(.install-step-label) {
+  color: var(--sv-primary-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.root :global(.install-progress) {
+  display: block;
+  margin: 8px 0 22px;
+  line-height: 1;
+}
+
+.root :global(.install-progress) :global(.ant-progress-inner) {
+  background: var(--sv-border);
+}
+
+.root :global(.install-alert) {
+  margin-bottom: 22px;
+}
+
+.root :global(.install-recovery-alert) {
+  margin-bottom: 22px;
+}
+
+.root :global(.install-stage) {
+  min-height: 0;
+}
+
+.root :global(.install-stage-content--enter) {
+  animation: install-stage-in 320ms cubic-bezier(0.2, 0.72, 0.2, 1) both;
+}
+
+.root :global(.install-stage-heading) {
+  margin-bottom: 18px;
+}
+
+.root :global(.install-stage-heading) h3:global(.ant-typography) {
+  margin: 0 0 5px;
+  font-size: 19px;
+  letter-spacing: -0.03em;
+}
+
+.root :global(.install-stage-heading) p:global(.ant-typography) {
+  margin-bottom: 0;
+  font-size: 13px;
+}
+
+.root :global(.install-provider-grid) {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.root :global(.install-provider-option) {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 60px;
+  flex-direction: row;
+  align-items: center;
+  gap: 9px;
+  padding: 10px;
+  overflow: hidden;
+  border: 1px solid var(--sv-border);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--sv-bg-solid) 72%, transparent);
+  color: var(--sv-text);
+  cursor: pointer;
+  text-align: left;
+  transition: 180ms ease;
+}
+
+.root :global(.install-provider-option)::after {
+  position: absolute;
+  right: -24px;
+  bottom: -34px;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  content: "";
+  background: rgb(var(--sv-primary-rgb), 0.07);
+  opacity: 0;
+  transform: scale(0.6);
+  transition: 180ms ease;
+}
+
+.root :global(.install-provider-option):hover:not(:disabled) {
+  border-color: rgb(var(--sv-primary-rgb), 0.38);
+  transform: translateY(-2px);
+}
+
+.root :global(.install-provider-option):global(.is-active) {
+  border-color: rgb(var(--sv-primary-rgb), 0.48);
+  background: rgb(var(--sv-primary-rgb), 0.09);
+  box-shadow: inset 0 0 0 1px rgb(var(--sv-primary-rgb), 0.08);
+}
+
+.root :global(.install-provider-option):global(.is-active)::after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.root :global(.install-provider-option):disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.root :global(.install-provider-icon) {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--sv-bg-soft);
+  color: var(--sv-primary-strong);
+  font-size: 16px;
+}
+
+.root :global(.install-provider-option) > span:nth-child(2) {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.root :global(.install-provider-option) strong {
+  font-size: 13px;
+}
+
+.root :global(.install-provider-option) small {
+  overflow: hidden;
+  color: var(--sv-text-muted);
+  font-size: 10px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.root :global(.install-provider-check) {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  color: var(--sv-primary);
+  opacity: 0;
+  transform: scale(0.7);
+  transition: 160ms ease;
+}
+
+.root :global(.install-provider-option):global(.is-active) :global(.install-provider-check) {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.root :global(.install-sqlite-note) {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  margin-top: 14px;
+  gap: 9px;
+  padding: 11px 12px;
+  border: 1px solid var(--sv-border);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--sv-bg-soft) 55%, transparent);
+}
+
+.root :global(.install-check-card) {
+  display: grid;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--sv-border);
+  border-radius: 13px;
+  margin-top: 0;
+  grid-template-columns: 40px minmax(0, 1fr);
+  padding: 13px;
+  border-color: color-mix(in srgb, var(--sv-success) 28%, var(--sv-border));
+  background: color-mix(in srgb, var(--sv-success) 6%, var(--sv-bg-solid));
+}
+
+.root :global(.install-sqlite-note) > svg {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  padding: 7px;
+  place-items: center;
+  border-radius: 13px;
+  background: rgb(var(--sv-primary-rgb), 0.1);
+  color: var(--sv-primary-strong);
+}
+
+.root :global(.install-check-icon) {
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: color-mix(in srgb, var(--sv-success) 13%, transparent);
+  color: var(--sv-success);
+  font-size: 20px;
+}
+
+.root :global(.install-sqlite-note) p:global(.ant-typography) {
+  margin: 2px 0 0;
+  font-size: 12px;
+}
+
+.root :global(.install-check-card) p:global(.ant-typography) {
+  margin: 2px 0 0;
+  font-size: 12px;
+}
+
+.root :global(.install-sqlite-note) > :global(.ant-typography) {
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.root :global(.install-connection-form) {
+  margin-top: 18px;
+}
+
+.root :global(.install-connection-form) :global(.ant-form-item) {
+  margin-bottom: 14px;
+}
+
+.root :global(.install-stage-content) > :global(.ant-form) :global(.ant-form-item) {
+  margin-bottom: 18px;
+}
+
+.root :global(.install-connection-form) :global(.ant-form-item-label) > label {
+  color: var(--sv-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.root :global(.install-stage-content) :global(.ant-form-item-label) > label {
+  color: var(--sv-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.root :global(.install-form-grid) {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(100px, 0.65fr);
+  gap: 12px;
+}
+
+.root :global(.install-form-grid) + :global(.install-form-grid) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.root :global(.install-tls-row) {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 10px 14px;
+  border: 1px solid var(--sv-border);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--sv-bg-soft) 45%, transparent);
+}
+
+.root :global(.install-tls-row) > div:first-child {
+  display: flex;
+  flex-direction: column;
+}
+
+.root :global(.install-tls-row) :global(.ant-typography-secondary) {
+  font-size: 11px;
+}
+
+.root :global(.install-ca-field) {
+  margin-top: 16px;
+}
+
+.root :global(.install-ca-field) textarea {
+  font-family: SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+}
+
+.root :global(.install-actions) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--sv-border);
+}
+
+.root :global(.install-actions) :global(.ant-btn-primary) {
+  min-width: 154px;
+  box-shadow: 0 12px 28px rgb(var(--sv-primary-rgb), 0.2);
+}
+
+.root :global(.install-inline-note) {
+  margin: 14px 2px 0 !important;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.root :global(.install-operation-list) {
+  display: grid;
+  margin: 22px 0;
+  gap: 2px;
+}
+
+.root :global(.install-operation-list) > div {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: start;
+  gap: 11px;
+  padding: 11px 5px;
+  border-bottom: 1px dashed var(--sv-border);
+}
+
+.root :global(.install-operation-list) > div:last-child {
+  border-bottom: 0;
+}
+
+.root :global(.install-operation-list) span {
+  color: var(--sv-primary-strong);
+  font-family: "Source Sans Pro", sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.root :global(.install-operation-list) p {
+  display: flex;
+  margin: 0;
+  flex-direction: column;
+  color: var(--sv-text-muted);
+  font-size: 11px;
+}
+
+.root :global(.install-operation-list) strong {
+  color: var(--sv-text);
+  font-size: 12px;
+}
+
+.root :global(.install-admin-mark) {
+  display: flex;
+  align-items: center;
+  margin-bottom: 22px;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgb(var(--sv-primary-rgb), 0.2);
+  border-radius: 15px;
+  background: rgb(var(--sv-primary-rgb), 0.055);
+}
+
+.root :global(.install-admin-mark) > span {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 12px;
+  background: rgb(var(--sv-primary-rgb), 0.12);
+  color: var(--sv-primary-strong);
+}
+
+.root :global(.install-admin-mark) > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.root :global(.install-admin-mark) small {
+  color: var(--sv-text-muted);
+}
+
+.root :global(.install-admin-submit) {
+  height: 40px;
+  margin-top: 2px;
+}
+
+.root :global(.install-stage-content--complete) {
+  text-align: center;
+}
+
+.root :global(.install-stage-content--complete) :global(.ant-result) {
+  padding: 14px 0 4px;
+}
+
+.root :global(.install-card--loading) > :global(.ant-card-body) {
+  display: grid;
+  min-height: 360px;
+  align-content: center;
+  justify-items: center;
+  gap: 18px;
+  text-align: center;
+}
+
+.root :global(.install-card--loading) h2:global(.ant-typography) {
+  margin-bottom: 6px;
+}
+
+.root :global(.install-card--loading) :global(.ant-skeleton) {
+  width: min(360px, 100%);
+}
+
+.root :global(.install-card--state) :global(.ant-result) {
+  padding: clamp(34px, 8vw, 74px) 12px;
+}
+
+.root :global(.install-footer) {
+  position: relative;
+  z-index: 2;
+  min-height: 48px;
+  color: var(--sv-text-muted);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+@keyframes install-status-pulse {
+  0%, 100% { opacity: 0.62; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+@keyframes install-orbit-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes install-stage-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 900px) {
+  .root :global(.install-main) {
+    width: min(620px, calc(100% - 36px));
+    min-height: auto;
+    padding: 36px 0 48px;
+  }
+
+  .root :global(.install-manifesto) {
+    padding-right: 100px;
+  }
+
+  .root :global(.install-manifesto) h1:global(.ant-typography) {
+    max-width: 600px;
+    font-size: clamp(3rem, 9vw, 4.8rem);
+  }
+
+  .root :global(.install-guarantees) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 30px;
+    gap: 18px;
+  }
+
+  .root :global(.install-guarantees) > div {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 9px;
+  }
+
+  .root :global(.install-guarantees) > div > svg {
+    width: 34px;
+    height: 34px;
+    padding: 9px;
+  }
+
+  .root :global(.install-orbit) {
+    top: 0;
+    right: -20px;
+    left: auto;
+    width: 130px;
+    height: 130px;
+  }
+
+  .root :global(.install-orbit)::before { inset: 18px; }
+  .root :global(.install-orbit)::after { inset: 40px; }
+  .root :global(.install-orbit-node--a) { top: 13px; left: 62px; }
+  .root :global(.install-orbit-node--b) { right: 12px; bottom: 34px; }
+  .root :global(.install-orbit-node--c) { bottom: 3px; left: 47px; }
+}
+
+@media (max-width: 640px) {
+  .root :global(.install-topbar) {
+    width: calc(100% - 24px);
+    min-height: 64px;
+  }
+
+  .root :global(.install-topbar) :global(.brand-lockup) {
+    font-size: 14px;
+  }
+
+  .root :global(.install-topbar) :global(.brand-logo) {
+    width: 24px;
+    height: 24px;
+  }
+
+  .root :global(.install-status-pill) {
+    max-width: 128px;
+    min-height: 32px;
+    padding: 0 9px;
+    overflow: hidden;
+    font-size: 9px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .root :global(.install-main) {
+    width: calc(100% - 20px);
+    padding: 26px 0 36px;
+  }
+
+  .root :global(.install-manifesto) {
+    padding-right: 0;
+  }
+
+  .root :global(.install-kicker) {
+    margin-bottom: 12px;
+    font-size: 9px;
+  }
+
+  .root :global(.install-manifesto) h1:global(.ant-typography) {
+    max-width: 350px;
+    margin-bottom: 14px;
+    font-size: clamp(2.65rem, 14vw, 3.6rem);
+    line-height: 0.98;
+  }
+
+  .root :global(.install-manifesto) > p:global(.ant-typography) {
+    max-width: 360px;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+
+  .root :global(.install-orbit) {
+    display: none;
+  }
+
+  .root :global(.install-guarantees) {
+    display: none;
+  }
+
+  .root :global(.install-card) {
+    border-radius: 18px !important;
+  }
+
+  .root :global(.install-card) > :global(.ant-card-body) {
+    padding: 19px 16px;
+  }
+
+  .root :global(.install-card-head) {
+    align-items: center;
+  }
+
+  .root :global(.install-card-head) h2:global(.ant-typography) {
+    font-size: 23px;
+  }
+
+  .root :global(.install-stage) {
+    min-height: 0;
+  }
+
+  .root :global(.install-stage-heading) {
+    margin-bottom: 16px;
+  }
+
+  .root :global(.install-provider-grid) {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .root :global(.install-provider-option) {
+    min-height: 58px;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 11px;
+  }
+
+  .root :global(.install-provider-option) small {
+    white-space: normal;
+  }
+
+  .root :global(.install-provider-check) {
+    top: 50%;
+    right: 14px;
+    transform: translateY(-50%) scale(0.7);
+  }
+
+  .root :global(.install-provider-option):global(.is-active) :global(.install-provider-check) {
+    transform: translateY(-50%) scale(1);
+  }
+
+  .root :global(.install-form-grid) {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .root :global(.install-form-grid) + :global(.install-form-grid) {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .root :global(.install-sqlite-note) {
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 9px;
+    padding: 11px;
+  }
+
+  .root :global(.install-check-card) {
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 9px;
+    padding: 11px;
+  }
+
+  .root :global(.install-sqlite-note) > svg {
+    width: 30px;
+    height: 30px;
+    padding: 8px;
+  }
+
+  .root :global(.install-check-icon) {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+  }
+
+  .root :global(.install-tls-row) {
+    align-items: flex-start;
+  }
+
+  .root :global(.install-actions) {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .root :global(.install-actions) > span:empty {
+    display: none;
+  }
+
+  .root :global(.install-actions) :global(.ant-btn) {
+    width: 100%;
+  }
+
+  .root :global(.install-operation-list) > div {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+
+  .root :global(.install-card--loading) > :global(.ant-card-body) {
+    min-height: 320px;
+  }
+
+  .root :global(.install-card--state) :global(.ant-result) {
+    padding-right: 0;
+    padding-left: 0;
+  }
+
+  .root :global(.install-footer) {
+    padding: 0 16px 20px;
+  }
+}

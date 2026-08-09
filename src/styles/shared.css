@@ -1,0 +1,123 @@
+/**
+ * @file shared.css
+ * @project SlothVault
+ * @module Shared Visual Primitives
+ * @description Defines the small set of cross-route brand, container, theme-control, and action primitives.
+ * @logic Keep intentionally global primitives stable while feature styling remains locally scoped.
+ * @dependencies SlothVault design tokens, feature markup
+ * @index_tags css,shared,brand,container,controls
+ * @author holic512
+ */
+
+.brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 9px;
+  color: var(--sv-text);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  text-decoration: none;
+}
+
+.brand-logo {
+  width: 27px;
+  height: 27px;
+  object-fit: contain;
+  filter: grayscale(1) contrast(1.15);
+}
+
+.brand-accent {
+  color: var(--sv-text-muted);
+}
+
+.icon-action {
+  border-color: var(--sv-border);
+  background: color-mix(in srgb, var(--sv-bg-solid) 78%, transparent);
+  box-shadow: none;
+}
+
+.content-container {
+  width: min(var(--sv-container-content), calc(100% - 40px));
+  margin: 0 auto;
+}
+
+.content-container--reading {
+  width: min(var(--sv-container-reading), calc(100% - 40px));
+}
+
+.theme-panel {
+  width: 300px;
+}
+
+.theme-panel > .ant-typography {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.theme-panel .ant-divider {
+  margin: 14px 0;
+}
+
+.mobile-nav-links {
+  display: grid;
+  gap: 6px;
+}
+
+.mobile-nav-links > a {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--sv-radius-sm);
+  color: var(--sv-text-muted);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.mobile-nav-links > a:hover {
+  border-color: var(--sv-border);
+  background: var(--sv-bg-soft);
+  color: var(--sv-text);
+}
+
+.mobile-nav-links > a.is-active {
+  border-color: var(--sv-border);
+  background: var(--sv-bg-soft);
+  color: var(--sv-text);
+}
+
+.project-mobile-version-select {
+  width: 100%;
+  margin: 8px 0;
+}
+
+@media (max-width: 640px) {
+  .brand-lockup {
+    font-size: 14px;
+  }
+
+  .brand-logo {
+    width: 24px;
+    height: 24px;
+  }
+
+  .content-container {
+    width: min(100% - 20px, 980px);
+  }
+
+  .content-container--reading {
+    width: min(100% - 20px, 980px);
+  }
+
+  .theme-panel {
+    width: min(280px, calc(100vw - 40px));
+  }
+}

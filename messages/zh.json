@@ -4,7 +4,9 @@
     "projects": "文章",
     "community": "加入交流群",
     "discord": "Discord",
-    "github": "GitHub"
+    "github": "GitHub",
+    "openMenu": "打开导航",
+    "mobileNavigation": "移动端导航"
   },
   "ProjectsPage": {
     "title": "公开文章库",
@@ -1031,7 +1033,8 @@
     },
     "sidebar": {
       "expand": "展开侧边栏",
-      "collapse": "收起侧边栏"
+      "collapse": "收起侧边栏",
+      "openMobile": "打开后台导航"
     },
     "header": {
       "backHome": "返回主页"

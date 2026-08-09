@@ -1,0 +1,92 @@
+/**
+ * @file tokens.css
+ * @project SlothVault
+ * @module Global Design Tokens
+ * @description Defines the light and dark semantic token contract for color, spacing, typography, layout, elevation, radii, motion, and navigation.
+ * @logic Map the root theme class to stable CSS custom properties consumed by application and vendor styles.
+ * @dependencies SlothVault design tokens
+ * @index_tags css,tokens,theme,light,dark
+ * @author holic512
+ */
+
+:root {
+  --sv-bg: #f4f3ef;
+  --sv-bg-elevated: rgb(250, 249, 245, 94%);
+  --sv-bg-solid: #fbfaf7;
+  --sv-bg-soft: #ebeae5;
+  --sv-text: #151515;
+  --sv-text-muted: #66645f;
+  --sv-border: rgb(20, 20, 20, 14%);
+  --sv-border-strong: rgb(20, 20, 20, 28%);
+  --sv-primary: #151515;
+  --sv-primary-rgb: 21, 21, 21;
+  --sv-primary-strong: #000;
+  --sv-accent: #55534f;
+  --sv-danger: #8f3030;
+  --sv-success: #17843b;
+  --sv-warning: #9a6700;
+  --sv-code-bg: #0c0e12;
+  --sv-code-text: #e8edf3;
+  --sv-shadow: 0 22px 70px rgb(20, 20, 20, 8%);
+  --sv-shadow-tight: 0 10px 28px rgb(20, 20, 20, 7%);
+  --sv-radius-sm: 7px;
+  --sv-radius: 11px;
+  --sv-radius-lg: 16px;
+  --sv-space-1: 4px;
+  --sv-space-2: 8px;
+  --sv-space-3: 12px;
+  --sv-space-4: 16px;
+  --sv-space-5: 24px;
+  --sv-space-6: 32px;
+  --sv-space-7: 48px;
+  --sv-space-8: 64px;
+  --sv-font-body: "Source Sans Pro", "Public Sans", sans-serif;
+  --sv-font-display: ui-serif, charter, "Bitstream Charter", "Sitka Text", cambria, serif;
+  --sv-font-mono: ui-monospace, "SFMono-Regular", consolas, monospace;
+  --sv-font-caption: 12px;
+  --sv-font-body-size: 15px;
+  --sv-font-lead: 17px;
+  --sv-line-body: 1.6;
+  --sv-line-reading: 1.78;
+  --sv-container-reading: 980px;
+  --sv-container-content: 1180px;
+  --sv-container-wide: 1320px;
+  --sv-z-header: 50;
+  --sv-z-navigation: 100;
+  --sv-motion-fast: 160ms;
+  --sv-motion-normal: 200ms;
+  --sv-ease-standard: ease;
+  --sv-nav-height: 58px;
+
+  color-scheme: light;
+}
+
+.dark {
+  --sv-bg: #0d0d0d;
+  --sv-bg-elevated: rgb(20, 20, 20, 94%);
+  --sv-bg-solid: #151515;
+  --sv-bg-soft: #202020;
+  --sv-text: #f1f0ec;
+  --sv-text-muted: #aaa8a1;
+  --sv-border: rgb(255, 255, 255, 13%);
+  --sv-border-strong: rgb(255, 255, 255, 26%);
+  --sv-primary: #f1f0ec;
+  --sv-primary-rgb: 241, 240, 236;
+  --sv-primary-strong: #fff;
+  --sv-accent: #b8b6af;
+  --sv-danger: #d98b8b;
+  --sv-success: #4ade80;
+  --sv-warning: #facc15;
+  --sv-code-bg: #090b0e;
+  --sv-code-text: #e8edf3;
+  --sv-shadow: 0 28px 90px rgb(0, 0, 0, 48%);
+  --sv-shadow-tight: 0 12px 32px rgb(0, 0, 0, 35%);
+
+  color-scheme: dark;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --sv-nav-height: 52px;
+  }
+}

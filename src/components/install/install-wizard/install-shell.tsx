@@ -11,10 +11,11 @@
  * @author holic512
  */
 import { ThemeControls } from '@/components/theme/theme-controls'
+import installStyles from '@/styles/modules/install.module.css'
 
 export function InstallShell({ children, statusLabel }: { children: React.ReactNode; statusLabel: string }) {
   return (
-    <div className="install-page">
+    <div className={`${installStyles.root} install-page`}>
       <div className="install-ambient install-ambient--one" />
       <div className="install-ambient install-ambient--two" />
       <header className="install-topbar">

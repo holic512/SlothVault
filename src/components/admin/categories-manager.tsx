@@ -25,13 +25,13 @@ import {
   Switch,
   Table,
   Tag,
-  Typography,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { NotebookTabs, Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter, useSearchParams } from 'next/navigation'
 
+import { AdminPage, AdminPageActions } from '@/components/admin/admin-page'
 import { apiFetch } from '@/lib/api-client'
 
 type ProjectDto = { id: string; projectName: string }
@@ -203,17 +203,13 @@ export function CategoriesManager() {
     ]
 
   return (
-    <div className="admin-page-stack">
-      <div className="admin-page-heading">
-        <div>
-          <Typography.Title level={2}>{t('title')}</Typography.Title>
-          <Typography.Paragraph type="secondary">{t('desc')}</Typography.Paragraph>
-        </div>
+    <AdminPage>
+      <AdminPageActions>
         <Space>
           <Button icon={<RefreshCw size={15} />} onClick={() => void refresh()}>{t('actions.search')}</Button>
           <Button type="primary" icon={<Plus size={15} />} onClick={() => openForm()}>{t('actions.create')}</Button>
         </Space>
-      </div>
+      </AdminPageActions>
 
       <div className="admin-toolbar-card">
         <div className="admin-filters admin-filters--wide">
@@ -262,6 +258,6 @@ export function CategoriesManager() {
           </div>
         </Form>
       </Modal>
-    </div>
+    </AdminPage>
   )
 }

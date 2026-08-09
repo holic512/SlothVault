@@ -32,6 +32,7 @@ import { FilePenLine, Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter, useSearchParams } from 'next/navigation'
 
+import { AdminPage, AdminPageActions } from '@/components/admin/admin-page'
 import { apiFetch } from '@/lib/api-client'
 
 type ProjectDto = { id: string; projectName: string }
@@ -269,12 +270,8 @@ export function NotesManager() {
   ]
 
   return (
-    <div className="admin-page-stack">
-      <div className="admin-page-heading">
-        <div>
-          <Typography.Title level={2}>{t('title')}</Typography.Title>
-          <Typography.Paragraph type="secondary">{t('desc')}</Typography.Paragraph>
-        </div>
+    <AdminPage>
+      <AdminPageActions>
         <Space>
           <Button icon={<RefreshCw size={15} />} onClick={() => void refresh()}>
             {t('actions.search')}
@@ -283,7 +280,7 @@ export function NotesManager() {
             {t('actions.create')}
           </Button>
         </Space>
-      </div>
+      </AdminPageActions>
 
       <div className="admin-toolbar-card">
         <div className="admin-filters admin-filters--notes">
@@ -414,6 +411,6 @@ export function NotesManager() {
           </div>
         </Form>
       </Modal>
-    </div>
+    </AdminPage>
   )
 }

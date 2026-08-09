@@ -8,6 +8,8 @@ export default defineConfig([
   globalIgnores([
     '.next/**',
     'generated/**',
+    'playwright-report/**',
     'public/uploads/**',
+    'test-results/**',
   ]),
 ])

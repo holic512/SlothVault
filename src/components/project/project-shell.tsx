@@ -10,11 +10,11 @@
  * @index_tags project-layout,public-reading,navigation,react-query,web2
  * @author holic512
  */
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
-import { Alert, Button, Dropdown, Select, Skeleton, Space } from 'antd'
-import { ChevronDown, Library } from 'lucide-react'
+import { Alert, Button, Drawer, Dropdown, Select, Skeleton, Space } from 'antd'
+import { ChevronDown, Library, Menu } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
@@ -27,6 +27,7 @@ import {
 import { ThemeControls } from '@/components/theme/theme-controls'
 import { AccountNav } from '@/components/auth/account-nav'
 import { apiFetch } from '@/lib/api-client'
+import projectStyles from '@/styles/modules/project.module.css'
 
 export function ProjectShell({ projectId, children }: { projectId: string; children: ReactNode }) {
   const pathname = usePathname()
@@ -47,12 +48,14 @@ export function ProjectShell({ projectId, children }: { projectId: string; child
   })
 
   if (projectQuery.isLoading) {
-    return <div className="project-shell-loading"><Skeleton active paragraph={{ rows: 8 }} /></div>
+    return <div className={projectStyles.root}><div className="project-shell-loading"><Skeleton active paragraph={{ rows: 8 }} /></div></div>
   }
   if (projectQuery.isError || !projectQuery.data) {
     return (
-      <div className="project-shell-loading">
-        <Alert type="error" showIcon message="Project unavailable" description={projectQuery.error?.message} />
+      <div className={projectStyles.root}>
+        <div className="project-shell-loading">
+          <Alert type="error" showIcon message="Project unavailable" description={projectQuery.error?.message} />
+        </div>
       </div>
     )
   }
@@ -67,7 +70,7 @@ export function ProjectShell({ projectId, children }: { projectId: string; child
         menus,
       }}
     >
-      <div className="project-page">
+      <div className={`${projectStyles.root} project-page`}>
         <ProjectNavigation
           project={projectQuery.data}
           projectId={projectId}
@@ -97,6 +100,7 @@ function ProjectNavigation({
   pathname: string
   onVersionChange: (value: string) => void
 }) {
+  const [mobileOpen, setMobileOpen] = useState(false)
   const versionMatch = pathname.match(/\/v\/([^/]+)/)
   const currentVersion = versionMatch?.[1]
   const resolveUrl = (url: string | null) => {
@@ -162,8 +166,68 @@ function ProjectNavigation({
           <Button icon={<Library size={16} />} href="/project/projectList" />
           <AccountNav compact />
           <ThemeControls />
+          <Button
+            className="project-nav-menu"
+            aria-label="Open project navigation"
+            icon={<Menu size={17} />}
+            onClick={() => setMobileOpen(true)}
+          />
         </Space>
       </nav>
+      <Drawer
+        className="mobile-nav-drawer project-mobile-drawer"
+        title={project.projectName}
+        placement="right"
+        size={340}
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+      >
+        <nav className="mobile-nav-links" aria-label="Project navigation">
+          <Link href={`/project/${projectId}/home`} onClick={() => setMobileOpen(false)}>
+            Home
+          </Link>
+          <Link href={`/project/${projectId}/docs`} onClick={() => setMobileOpen(false)}>
+            Docs
+          </Link>
+          {pathname.includes('/docs') && versions.length ? (
+            <Select
+              className="project-mobile-version-select"
+              value={currentVersion || versions[0]?.id}
+              options={versions.map((version) => ({ label: version.version, value: version.id }))}
+              onChange={(value) => {
+                onVersionChange(value)
+                setMobileOpen(false)
+              }}
+              suffixIcon={<ChevronDown size={13} />}
+            />
+          ) : null}
+          {menus.flatMap((menu) =>
+            menu.children.length
+              ? menu.children.map((child) =>
+                  child.isExternal ? (
+                    <a key={child.id} href={child.url || '#'} target="_blank" rel="noreferrer">
+                      {child.label}
+                    </a>
+                  ) : (
+                    <Link key={child.id} href={resolveUrl(child.url)} onClick={() => setMobileOpen(false)}>
+                      {child.label}
+                    </Link>
+                  ),
+                )
+              : menu.isExternal
+                ? [
+                    <a key={menu.id} href={menu.url || '#'} target="_blank" rel="noreferrer">
+                      {menu.label}
+                    </a>,
+                  ]
+                : [
+                    <Link key={menu.id} href={resolveUrl(menu.url)} onClick={() => setMobileOpen(false)}>
+                      {menu.label}
+                    </Link>,
+                  ],
+          )}
+        </nav>
+      </Drawer>
     </header>
   )
 }

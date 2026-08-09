@@ -11,6 +11,7 @@
 import { MarkdownView } from '@/components/markdown/markdown-view'
 import { PublicNavbar } from '@/components/shell/public-navbar'
 import { getHomepageContent } from '@/server/services/homepage'
+import publicStyles from '@/styles/modules/public.module.css'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +19,7 @@ export default async function HomePage() {
   const content = await getHomepageContent()
 
   return (
-    <div className="public-page">
+    <div className={`${publicStyles.root} public-page`}>
       <PublicNavbar />
       <main className="homepage-main">
         <div className="content-container content-container--reading">

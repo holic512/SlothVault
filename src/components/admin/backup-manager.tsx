@@ -35,6 +35,7 @@ import {
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+import { AdminPage } from '@/components/admin/admin-page'
 import { apiFetch } from '@/lib/api-client'
 
 type ImportMode = 'insert' | 'overwrite'
@@ -193,13 +194,7 @@ export function BackupManager() {
   }
 
   return (
-    <div className="admin-page-stack">
-      <div className="admin-page-heading">
-        <div>
-          <Typography.Title level={2}>{t('title')}</Typography.Title>
-          <Typography.Paragraph type="secondary">{t('desc')}</Typography.Paragraph>
-        </div>
-      </div>
+    <AdminPage>
       <Alert showIcon type="warning" message={t('warning.title')} description={t('warning.content')} />
 
       <div className="backup-grid">
@@ -320,7 +315,7 @@ export function BackupManager() {
           />
         </Space>
       </Modal>
-    </div>
+    </AdminPage>
   )
 }
 

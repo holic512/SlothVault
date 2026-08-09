@@ -10,7 +10,10 @@
  * @index_tags navbar,public,navigation,responsive
  * @author holic512
  */
-import { BookOpenText } from 'lucide-react'
+import { useState } from 'react'
+
+import { Button, Drawer } from 'antd'
+import { BookOpenText, Menu } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -21,6 +24,7 @@ import { AccountNav } from '@/components/auth/account-nav'
 export function PublicNavbar() {
   const t = useTranslations('Nav')
   const pathname = usePathname()
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
     <header className="public-nav-wrap">
@@ -47,8 +51,40 @@ export function PublicNavbar() {
         <div className="public-nav-actions">
           <AccountNav />
           <ThemeControls />
+          <Button
+            className="public-nav-menu"
+            aria-label={t('openMenu')}
+            icon={<Menu size={17} />}
+            onClick={() => setMobileOpen(true)}
+          />
         </div>
       </nav>
+      <Drawer
+        className="mobile-nav-drawer"
+        title="SlothVault"
+        placement="right"
+        size={320}
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+      >
+        <nav className="mobile-nav-links" aria-label={t('mobileNavigation')}>
+          <Link
+            className={pathname === '/' ? 'is-active' : ''}
+            href="/"
+            onClick={() => setMobileOpen(false)}
+          >
+            {t('home')}
+          </Link>
+          <Link
+            className={pathname.startsWith('/project') ? 'is-active' : ''}
+            href="/project/projectList"
+            onClick={() => setMobileOpen(false)}
+          >
+            <BookOpenText size={17} />
+            {t('projects')}
+          </Link>
+        </nav>
+      </Drawer>
     </header>
   )
 }

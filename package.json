@@ -12,8 +12,11 @@
     "postbuild": "node scripts/sanitize-standalone.mjs",
     "start": "next start",
     "lint": "eslint .",
+    "lint:styles": "stylelint \"src/**/*.css\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:visual": "playwright test",
+    "test:visual:update": "playwright test --update-snapshots",
     "prisma:generate": "node scripts/generate-prisma.mjs",
     "prisma:validate": "node scripts/generate-prisma.mjs --validate",
     "postinstall": "npm run prisma:generate"
@@ -65,6 +68,7 @@
     "zustand": "5.0.14"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.1",
     "@types/archiver": "7.0.0",
     "@types/better-sqlite3": "7.6.13",
     "@types/node": "24.10.4",
@@ -77,6 +81,8 @@
     "eslint-config-next": "16.2.12",
     "fast-check": "4.5.3",
     "prisma": "7.3.0",
+    "stylelint": "17.14.1",
+    "stylelint-config-standard": "40.0.0",
     "typescript": "5.9.3",
     "vitest": "4.1.10"
   },

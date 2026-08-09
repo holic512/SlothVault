@@ -1,0 +1,132 @@
+/**
+ * @file base.css
+ * @project SlothVault
+ * @module Global Base Styles
+ * @description Defines document reset, typography defaults, background treatment, focus behavior, selection, and scrollbars.
+ * @logic Apply a restrained editorial paper-and-ink foundation before route or component styles.
+ * @dependencies SlothVault design tokens, feature markup
+ * @index_tags css,reset,typography,accessibility,base
+ * @author holic512
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+*::before {
+  box-sizing: border-box;
+}
+
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sv-border-strong) transparent;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  overflow-x: hidden;
+  background:
+    linear-gradient(90deg, transparent 0 49.92%, color-mix(in srgb, var(--sv-border) 34%, transparent) 49.92% 50.08%, transparent 50.08%),
+    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--sv-border) 46%, transparent) 0.7px, transparent 0.8px),
+    var(--sv-bg);
+  background-size: 100% 100%, 18px 18px, auto;
+  color: var(--sv-text);
+  font-family: var(--sv-font-body);
+  font-size: var(--sv-font-body-size);
+  line-height: var(--sv-line-body);
+  text-rendering: optimizelegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: "";
+  background: linear-gradient(180deg, color-mix(in srgb, var(--sv-bg) 4%, transparent), var(--sv-bg) 88%);
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font: inherit;
+}
+
+input {
+  font: inherit;
+}
+
+textarea {
+  font: inherit;
+}
+
+select {
+  font: inherit;
+}
+
+::selection {
+  background: rgb(var(--sv-primary-rgb), 0.28);
+}
+
+:focus-visible {
+  outline: 3px solid rgb(var(--sv-primary-rgb), 0.28);
+  outline-offset: 3px;
+}
+
+*::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+*::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--sv-border-strong);
+}
+
+h1 {
+  font-family: var(--sv-font-display);
+  font-weight: 600;
+}
+
+h2 {
+  font-family: var(--sv-font-display);
+  font-weight: 600;
+}
+
+h3 {
+  font-family: var(--sv-font-display);
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  *::before {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

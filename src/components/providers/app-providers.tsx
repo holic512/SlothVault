@@ -14,15 +14,19 @@ import type { ReactNode } from 'react'
 
 import { ThemeProvider } from 'next-themes'
 
+import { AppThemeContextProvider } from '@/components/providers/app-theme-context'
 import { DesignSystemProvider } from '@/components/providers/design-system-provider'
 import { WalletRuntime } from '@/components/providers/wallet-runtime'
+import type { AppTheme } from '@/theme/app-theme'
 
-export function AppProviders({ children }: { children: ReactNode }) {
+export function AppProviders({ children, initialTheme }: { children: ReactNode; initialTheme: AppTheme }) {
   return (
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
-      <DesignSystemProvider>
-        <WalletRuntime>{children}</WalletRuntime>
-      </DesignSystemProvider>
+    <ThemeProvider attribute="class" defaultTheme={initialTheme} enableSystem={false} disableTransitionOnChange>
+      <AppThemeContextProvider initialTheme={initialTheme}>
+        <DesignSystemProvider>
+          <WalletRuntime>{children}</WalletRuntime>
+        </DesignSystemProvider>
+      </AppThemeContextProvider>
     </ThemeProvider>
   )
 }

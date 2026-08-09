@@ -8,6 +8,7 @@ import Link from 'next/link'
 
 import { PublicNavbar } from '@/components/shell/public-navbar'
 import { apiFetch } from '@/lib/api-client'
+import publicStyles from '@/styles/modules/public.module.css'
 
 type ProjectListItem = {
   id: string
@@ -27,7 +28,7 @@ export function ProjectListView() {
   })
 
   return (
-    <div className="public-page projects-page">
+    <div className={`${publicStyles.root} public-page projects-page`}>
       <PublicNavbar />
       <main className="projects-main content-container">
         <div className="projects-heading">

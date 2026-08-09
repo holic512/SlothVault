@@ -1,0 +1,163 @@
+/**
+ * @file vendors.css
+ * @project SlothVault
+ * @module Vendor Style Adapters
+ * @description Contains isolated adaptations for Ant Design, Wallet Adapter, Drawers, and the Markdown editor.
+ * @logic Bridge third-party semantic class contracts to SlothVault tokens without mixing vendor selectors into feature modules.
+ * @dependencies SlothVault design tokens, feature markup
+ * @index_tags css,vendors,antd,wallet,markdown-editor
+ * @author holic512
+ */
+
+.mobile-nav-drawer .ant-drawer-header {
+  border-bottom-color: var(--sv-border);
+}
+
+.admin-mobile-drawer .ant-drawer-header {
+  border-bottom-color: var(--sv-border);
+}
+
+.mobile-nav-drawer .ant-drawer-content {
+  background: var(--sv-bg-solid);
+}
+
+.admin-mobile-drawer .ant-drawer-content {
+  background: var(--sv-bg-solid);
+}
+
+.sloth-wallet-button.wallet-adapter-button {
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid rgb(var(--sv-primary-rgb), 0.32);
+  font-family: var(--sv-font-body);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 36px;
+  transition: var(--sv-motion-fast) var(--sv-ease-standard);
+  border-color: var(--sv-border-strong);
+  border-radius: var(--sv-radius-sm);
+  background: var(--sv-bg-solid);
+  color: var(--sv-text);
+}
+
+.sloth-wallet-button.wallet-adapter-button:hover {
+  transform: translateY(-1px);
+  border-color: var(--sv-text);
+  background: var(--sv-bg-soft);
+}
+
+.wallet-adapter-modal-wrapper {
+  border: 1px solid var(--sv-border) !important;
+  background: var(--sv-bg-solid) !important;
+  font-family: "Public Sans", sans-serif !important;
+}
+
+.admin-mobile-menu {
+  border-inline-end: 0 !important;
+  background: transparent !important;
+}
+
+.markdown-editor-shell {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+  background: var(--sv-bg-solid);
+}
+
+.markdown-editor-shell .w-md-editor {
+  height: 100% !important;
+  min-height: 680px;
+  border: 0;
+  border-radius: 0;
+  background: var(--sv-bg-solid);
+  box-shadow: none;
+}
+
+.markdown-editor-shell .w-md-editor-toolbar {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--sv-border);
+  background: color-mix(in srgb, var(--sv-bg-soft) 70%, var(--sv-bg-solid));
+}
+
+.markdown-editor-shell .w-md-editor-content {
+  background: var(--sv-bg-solid);
+}
+
+.markdown-editor-shell .w-md-editor-text {
+  background: var(--sv-bg-solid);
+}
+
+.markdown-editor-shell .w-md-editor-preview {
+  background: var(--sv-bg-solid);
+}
+
+.markdown-editor-shell .w-md-editor-text-pre > code {
+  font-family: var(--sv-font-body) !important;
+  font-size: var(--sv-font-body-size) !important;
+  line-height: 1.72 !important;
+}
+
+.markdown-editor-shell .w-md-editor-text-input {
+  font-family: var(--sv-font-body) !important;
+  font-size: var(--sv-font-body-size) !important;
+  line-height: 1.72 !important;
+}
+
+.ant-typography h1 {
+  font-family: var(--sv-font-display);
+  font-weight: 600;
+}
+
+.ant-typography h2 {
+  font-family: var(--sv-font-display);
+  font-weight: 600;
+}
+
+.ant-typography h3 {
+  font-family: var(--sv-font-display);
+  font-weight: 600;
+}
+
+h1.ant-typography {
+  font-family: var(--sv-font-display);
+  font-weight: 600;
+}
+
+h2.ant-typography {
+  font-family: var(--sv-font-display);
+  font-weight: 600;
+}
+
+h3.ant-typography {
+  font-family: var(--sv-font-display);
+  font-weight: 600;
+}
+
+.ant-tag {
+  border-color: var(--sv-border) !important;
+  background: var(--sv-bg-soft) !important;
+  color: var(--sv-text) !important;
+}
+
+@media (max-width: 900px) {
+  .sloth-wallet-button.wallet-adapter-button {
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 640px) {
+  .sloth-wallet-button.wallet-adapter-button {
+    width: 38px;
+    min-width: 38px;
+    padding: 0;
+    color: transparent;
+  }
+
+  .sloth-wallet-button.wallet-adapter-button::after {
+    color: var(--sv-primary-strong);
+    content: "◎";
+  }
+}

@@ -1,0 +1,108 @@
+/**
+ * @file auth.module.css
+ * @project SlothVault
+ * @module Authentication Experience Styles
+ * @description Scopes login, registration, maintenance, and authentication frame presentation.
+ * @logic Center a stable editorial authentication surface and adapt it to compact screens.
+ * @dependencies SlothVault design tokens, feature markup
+ * @index_tags css-module,auth,login,register
+ * @author holic512
+ */
+
+.root {
+  min-height: 100vh;
+  background:
+    linear-gradient(90deg, transparent 0 49.92%, var(--sv-border) 49.92% 50.08%, transparent 50.08%),
+    var(--sv-bg);
+}
+
+.root :global(.auth-topbar) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 72px;
+  padding: 0 clamp(18px, 5vw, 72px);
+}
+
+.root :global(.auth-main) {
+  display: grid;
+  min-height: calc(100vh - 72px);
+  place-items: center;
+  padding: 28px 20px 80px;
+}
+
+.root :global(.auth-card) {
+  width: min(430px, 100%);
+  border: 1px solid var(--sv-border) !important;
+  backdrop-filter: blur(18px);
+  border-radius: var(--sv-radius) !important;
+  background: var(--sv-bg-solid) !important;
+  box-shadow: 0 12px 34px rgb(20, 20, 20, 5.5%);
+}
+
+.root :global(.auth-card) :global(.ant-card-body) {
+  padding: clamp(26px, 6vw, 42px);
+}
+
+.root :global(.auth-heading) {
+  margin-bottom: 28px;
+  text-align: center;
+}
+
+.root :global(.auth-heading) :global(.ant-typography) {
+  margin-bottom: 7px;
+}
+
+.root :global(.auth-heading) h1:global(.ant-typography) {
+  margin-top: 7px;
+  font-size: 30px;
+  letter-spacing: -0.045em;
+}
+
+.root :global(.auth-kicker) {
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--sv-text-muted) !important;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  letter-spacing: 0.18em;
+}
+
+.root :global(.auth-alert) {
+  margin-bottom: 20px;
+}
+
+.root :global(.auth-options) {
+  width: 100%;
+  margin: -2px 0 22px;
+}
+
+.root :global(.auth-submit-row) {
+  margin-bottom: 0 !important;
+}
+
+.root :global(.auth-submit-row) :global(.ant-btn) {
+  height: 44px;
+  box-shadow: 0 12px 26px rgb(var(--sv-primary-rgb), 0.24);
+}
+
+.root :global(.auth-card--user) {
+  width: min(460px, 100%);
+}
+
+.root :global(.auth-heading--editorial) {
+  text-align: left;
+}
+
+.root :global(.auth-heading--editorial) h1:global(.ant-typography) {
+  font-size: 36px;
+}
+
+.root :global(.auth-footnote) {
+  margin: 22px 0 0 !important;
+  text-align: center;
+}

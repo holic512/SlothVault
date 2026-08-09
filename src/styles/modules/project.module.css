@@ -1,0 +1,489 @@
+/**
+ * @file project.module.css
+ * @project SlothVault
+ * @module Project Reading Experience Styles
+ * @description Scopes public project navigation, access states, documentation sidebar, and reading layouts.
+ * @logic Keep versioned project reading responsive while exposing compact navigation through a mobile Drawer.
+ * @dependencies SlothVault design tokens, feature markup
+ * @index_tags css-module,project,docs,reader,responsive
+ * @author holic512
+ */
+
+.root :global(.project-nav-menu) {
+  display: none !important;
+}
+
+.root {
+  min-height: 100vh;
+}
+
+.root :global(.project-nav-wrap) {
+  position: fixed;
+  top: 14px;
+  right: 0;
+  left: 0;
+  z-index: var(--sv-z-navigation);
+  padding: 0 18px;
+}
+
+.root :global(.project-nav) {
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) auto minmax(190px, 1fr);
+  align-items: center;
+  width: min(1260px, 100%);
+  min-height: 60px;
+  margin: 0 auto;
+  padding: 8px 10px 8px 13px;
+  border: 1px solid var(--sv-border);
+  background: var(--sv-bg-elevated);
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgb(20, 20, 20, 6%);
+  backdrop-filter: blur(14px);
+}
+
+.root :global(.project-brand-lockup) {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  justify-self: start;
+  gap: 9px;
+  color: var(--sv-text);
+  text-decoration: none;
+}
+
+.root :global(.project-brand-lockup) > img {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--sv-border);
+  border-radius: 11px;
+  background: var(--sv-bg-soft);
+  color: var(--sv-primary-strong);
+  object-fit: cover;
+}
+
+.root :global(.project-brand-lockup) > span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--sv-border);
+  border-radius: 11px;
+  background: var(--sv-bg-soft);
+  color: var(--sv-primary-strong);
+  object-fit: cover;
+}
+
+.root :global(.project-brand-lockup) strong {
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.root :global(.project-brand-lockup) svg {
+  flex: 0 0 auto;
+  color: var(--sv-primary-strong);
+}
+
+.root :global(.project-nav-center) {
+  display: flex;
+  align-items: center;
+  justify-self: center;
+  gap: 3px;
+}
+
+.root :global(.project-nav-center) > a {
+  display: inline-flex;
+  height: 34px;
+  align-items: center;
+  gap: 4px;
+  padding: 0 11px;
+  border-radius: 9px;
+  color: var(--sv-text-muted);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 34px;
+  text-decoration: none;
+}
+
+.root :global(.project-nav-center) :global(.ant-btn) {
+  display: inline-flex;
+  height: 34px;
+  align-items: center;
+  gap: 4px;
+  padding: 0 11px;
+  border-radius: 9px;
+  color: var(--sv-text-muted);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 34px;
+  text-decoration: none;
+}
+
+.root :global(.project-nav-center) > a:hover {
+  background: var(--sv-bg-soft) !important;
+  color: var(--sv-text) !important;
+}
+
+.root :global(.project-nav-center) > a:global(.is-active) {
+  background: var(--sv-bg-soft) !important;
+  color: var(--sv-text) !important;
+}
+
+.root :global(.project-nav-center) :global(.ant-btn):hover {
+  background: var(--sv-bg-soft) !important;
+  color: var(--sv-text) !important;
+}
+
+.root :global(.project-nav-actions) {
+  justify-self: end;
+}
+
+.root :global(.project-nav-actions) :global(.sloth-wallet-button):global(.wallet-adapter-button) {
+  height: 36px;
+  line-height: 34px;
+}
+
+.root :global(.project-version-select) {
+  width: 118px;
+}
+
+.root :global(.project-shell-loading) {
+  width: min(800px, calc(100% - 40px));
+  margin: 0 auto;
+  padding-top: 130px;
+}
+
+.root :global(.project-route-loading) {
+  width: min(800px, calc(100% - 40px));
+  margin: 0 auto;
+  padding-top: 130px;
+}
+
+.root :global(.project-gate-wrap) {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 120px 20px 60px;
+}
+
+.root :global(.project-gate-card) {
+  width: min(520px, 100%);
+  border: 1px solid var(--sv-border) !important;
+  border-radius: 24px !important;
+  background: color-mix(in srgb, var(--sv-bg-solid) 92%, transparent) !important;
+  box-shadow: var(--sv-shadow);
+  text-align: center;
+}
+
+.root :global(.project-gate-card) :global(.ant-card-body) {
+  padding: clamp(28px, 6vw, 48px);
+}
+
+.root :global(.project-gate-icon) {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 20px;
+  place-items: center;
+  border: 1px solid rgb(var(--sv-primary-rgb), 0.25);
+  border-radius: 18px;
+  background: rgb(var(--sv-primary-rgb), 0.1);
+  color: var(--sv-primary-strong);
+}
+
+.root :global(.project-gate-card) h2:global(.ant-typography) {
+  margin-bottom: 10px;
+  letter-spacing: -0.045em;
+}
+
+.root :global(.project-gate-card) :global(.ant-alert) {
+  margin: 22px 0;
+  text-align: left;
+}
+
+.root :global(.project-gate-actions) {
+  width: 100%;
+}
+
+.root :global(.project-reading-main) {
+  min-height: 100vh;
+  padding: 110px 0 70px;
+}
+
+.root :global(.project-home-markdown) {
+  padding: clamp(24px, 5vw, 56px);
+  border: 1px solid var(--sv-border);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--sv-bg-solid) 92%, transparent);
+  box-shadow: var(--sv-shadow);
+}
+
+.root :global(.docs-reader) {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  width: min(var(--sv-container-wide), calc(100% - 36px));
+  min-height: 100vh;
+  margin: 0 auto;
+  gap: 0;
+  padding-top: 96px;
+}
+
+.root :global(.docs-sidebar) {
+  position: sticky;
+  top: 96px;
+  align-self: start;
+  height: calc(100vh - 112px);
+  padding: 16px 16px 30px 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--sv-border);
+}
+
+.root :global(.docs-category) {
+  margin-bottom: 20px;
+}
+
+.root :global(.docs-category) > :global(.ant-typography) {
+  display: block;
+  margin: 0 8px 6px;
+  color: var(--sv-text);
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.root :global(.docs-category) nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.root :global(.docs-category) nav a {
+  padding: 7px 9px;
+  border-radius: 9px;
+  color: var(--sv-text-muted);
+  font-size: 13px;
+  line-height: 1.4;
+  text-decoration: none;
+}
+
+.root :global(.docs-category) nav a:hover {
+  background: rgb(var(--sv-primary-rgb), 0.1);
+  color: var(--sv-primary-strong);
+}
+
+.root :global(.docs-category) nav a:global(.is-active) {
+  background: rgb(var(--sv-primary-rgb), 0.1);
+  color: var(--sv-primary-strong);
+}
+
+.root :global(.docs-article) {
+  width: min(840px, 100%);
+  min-width: 0;
+  margin: 0 auto;
+  padding: 24px clamp(24px, 5vw, 64px) 80px;
+}
+
+.root :global(.docs-article-header) {
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--sv-border);
+}
+
+.root :global(.docs-article-header) h1:global(.ant-typography) {
+  margin: 7px 0 4px;
+  font-size: clamp(2rem, 5vw, 3.3rem);
+  letter-spacing: -0.055em;
+}
+
+.root :global(.docs-article-meta) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  color: var(--sv-text-muted);
+  font-size: 13px;
+}
+
+.root :global(.docs-author-link) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--sv-text);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.root :global(.docs-author-link):hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.root :global(.docs-copyright-proof) {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+  padding: 14px;
+  border: 1px solid var(--sv-border-strong);
+  border-radius: var(--sv-radius);
+  background: var(--sv-bg-soft);
+}
+
+.root :global(.docs-copyright-mark) {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--sv-border-strong);
+  border-radius: 50%;
+  background: var(--sv-bg-solid);
+  place-items: center;
+}
+
+.root :global(.docs-copyright-copy) {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.root :global(.docs-copyright-copy) strong {
+  font-size: 13px;
+}
+
+.root :global(.docs-copyright-copy) span {
+  color: var(--sv-text-muted);
+  font-size: 12px;
+}
+
+.root :global(.docs-copyright-copy) code {
+  color: var(--sv-text-muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.root :global(.docs-copyright-links) {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px 10px;
+}
+
+.root :global(.docs-copyright-links) a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--sv-text);
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.root :global(.docs-copyright-links) a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 900px) {
+  .root :global(.project-nav-menu) {
+    display: inline-flex !important;
+  }
+
+  .root :global(.project-nav) {
+    grid-template-columns: 1fr auto;
+  }
+
+  .root :global(.project-nav-center) {
+    display: none;
+  }
+
+  .root :global(.project-nav-actions) :global(.sloth-wallet-button):global(.wallet-adapter-button) {
+    display: none;
+  }
+
+  .root :global(.docs-reader) {
+    grid-template-columns: 205px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .root :global(.project-nav-wrap) {
+    top: 9px;
+    padding: 0 9px;
+  }
+
+  .root :global(.project-nav) {
+    min-height: 54px;
+    padding: 6px 7px 6px 10px;
+    border-radius: 16px;
+  }
+
+  .root :global(.project-brand-lockup) strong {
+    max-width: 110px;
+  }
+
+  .root :global(.project-brand-lockup) > img {
+    width: 31px;
+    height: 31px;
+  }
+
+  .root :global(.project-brand-lockup) > span {
+    width: 31px;
+    height: 31px;
+  }
+
+  .root :global(.project-version-select) {
+    display: none;
+  }
+
+  .root :global(.project-nav-actions) > :global(.ant-btn):first-of-type {
+    display: none;
+  }
+
+  .root :global(.project-reading-main) {
+    padding-top: 84px;
+  }
+
+  .root :global(.docs-reader) {
+    display: block;
+    width: 100%;
+    padding-top: 76px;
+  }
+
+  .root :global(.docs-sidebar) {
+    position: static;
+    display: flex;
+    height: auto;
+    gap: 8px;
+    padding: 10px;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--sv-border);
+  }
+
+  .root :global(.docs-category) {
+    min-width: 180px;
+    margin: 0;
+  }
+
+  .root :global(.docs-article) {
+    padding: 26px 18px 60px;
+  }
+
+  .root :global(.docs-copyright-proof) {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .root :global(.docs-copyright-links) {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    padding-left: 48px;
+  }
+}

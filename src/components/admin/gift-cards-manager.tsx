@@ -16,6 +16,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Button, Form, Input, InputNumber, Modal, Progress, Space, Table, Typography } from 'antd'
 import { Copy, Plus, RefreshCw } from 'lucide-react'
 
+import { AdminPage, AdminPageActions, AdminTablePanel } from '@/components/admin/admin-page'
 import { apiFetch } from '@/lib/api-client'
 
 type BatchRow = {
@@ -73,19 +74,15 @@ export function GiftCardsManager() {
   }
 
   return (
-    <div className="admin-page-stack">
-      <div className="admin-page-heading">
-        <div>
-          <Typography.Title level={2}>卡密管理</Typography.Title>
-          <Typography.Paragraph type="secondary">批量发行一次性卡密，用户兑换后写入积分流水。</Typography.Paragraph>
-        </div>
+    <AdminPage>
+      <AdminPageActions>
         <Space>
           <Button icon={<RefreshCw size={15} />} onClick={() => void query.refetch()}>刷新</Button>
           <Button type="primary" icon={<Plus size={15} />} onClick={() => setCreateOpen(true)}>发行卡密</Button>
         </Space>
-      </div>
+      </AdminPageActions>
 
-      <div className="admin-table-card">
+      <AdminTablePanel>
         <Table<BatchRow>
           rowKey="id"
           loading={query.isLoading}
@@ -116,7 +113,7 @@ export function GiftCardsManager() {
             { title: '发行人', dataIndex: 'createdBy', width: 120 },
           ]}
         />
-      </div>
+      </AdminTablePanel>
 
       <Modal
         open={createOpen}
@@ -153,6 +150,6 @@ export function GiftCardsManager() {
           复制全部卡密
         </Button>
       </Modal>
-    </div>
+    </AdminPage>
   )
 }
