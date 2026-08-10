@@ -15,9 +15,6 @@
 
 .root {
   --sv-admin-border: color-mix(in srgb, var(--sv-border) 74%, transparent);
-  --sv-admin-control-height: 32px;
-  --sv-admin-radius: 5px;
-  --sv-admin-space: 10px;
 
   min-height: 100vh;
   background: transparent !important;
@@ -61,7 +58,7 @@
 .root :global(.admin-brand) img {
   width: 24px;
   height: 24px;
-  filter: grayscale(1) contrast(1.15);
+  filter: var(--sv-logo-filter);
 }
 
 .root :global(.admin-brand) span {

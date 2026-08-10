@@ -31,8 +31,13 @@
       "openThemeSettings": "Open Theme Settings"
     },
     "section": {
+      "style": "Visual style",
       "mode": "Mode",
       "language": "Language"
+    },
+    "style": {
+      "mono": "Editorial",
+      "saas": "Professional SaaS"
     },
     "mode": {
       "light": "Light",
@@ -43,6 +48,9 @@
     "language": {
       "zh": "Chinese",
       "en": "English"
+    },
+    "messages": {
+      "styleSaveFailed": "Could not save the visual style; your previous setting was restored."
     }
   },
   "IndexPage": {

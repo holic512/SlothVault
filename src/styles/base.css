@@ -32,11 +32,9 @@ body {
   min-height: 100vh;
   margin: 0;
   overflow-x: hidden;
-  background:
-    linear-gradient(90deg, transparent 0 49.92%, color-mix(in srgb, var(--sv-border) 34%, transparent) 49.92% 50.08%, transparent 50.08%),
-    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--sv-border) 46%, transparent) 0.7px, transparent 0.8px),
-    var(--sv-bg);
-  background-size: 100% 100%, 18px 18px, auto;
+  background: var(--sv-page-background);
+  background-size: var(--sv-page-background-size);
+  background-repeat: var(--sv-page-background-repeat);
   color: var(--sv-text);
   font-family: var(--sv-font-body);
   font-size: var(--sv-font-body-size);
@@ -51,7 +49,7 @@ body::before {
   z-index: -1;
   pointer-events: none;
   content: "";
-  background: linear-gradient(180deg, color-mix(in srgb, var(--sv-bg) 4%, transparent), var(--sv-bg) 88%);
+  background: var(--sv-page-overlay);
 }
 
 a {

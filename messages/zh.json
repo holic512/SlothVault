@@ -31,8 +31,13 @@
       "openThemeSettings": "打开主题设置"
     },
     "section": {
+      "style": "界面风格",
       "mode": "模式",
       "language": "语言"
+    },
+    "style": {
+      "mono": "单色编辑",
+      "saas": "专业 SaaS"
     },
     "mode": {
       "light": "明亮",
@@ -43,6 +48,9 @@
     "language": {
       "zh": "中文",
       "en": "英文"
+    },
+    "messages": {
+      "styleSaveFailed": "保存界面风格失败，已恢复原设置"
     }
   },
   "IndexPage": {

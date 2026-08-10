@@ -2,9 +2,15 @@ import { expect, test, type BrowserContext, type Page } from '@playwright/test'
 
 const baseURL = 'http://localhost:3000'
 
-async function setTheme(context: BrowserContext, page: Page, theme: 'light' | 'dark') {
+async function setTheme(
+  context: BrowserContext,
+  page: Page,
+  theme: 'light' | 'dark',
+  style: 'mono' | 'saas' = 'mono',
+) {
   await context.addCookies([
     { name: 'sv_theme', value: theme, url: baseURL },
+    { name: 'sv_style', value: style, url: baseURL },
     { name: 'sv_locale', value: 'en', url: baseURL },
   ])
   await page.addInitScript((value) => localStorage.setItem('theme', value), theme)
@@ -98,6 +104,40 @@ test('@desktop authentication surface hydrates directly into dark mode', async (
   await expect(page).toHaveScreenshot('login-dark.png', { fullPage: true })
 })
 
+test('@desktop SaaS styling hydrates directly into its light public surface', async ({ context, page }) => {
+  await setTheme(context, page, 'light', 'saas')
+  await mockProjectList(page)
+  await page.goto('/project/projectList')
+  await expect(page.locator('html')).toHaveAttribute('data-style', 'saas')
+  await expect(page.getByRole('heading', { name: 'Atlas Notes' })).toBeVisible()
+  await expect.poll(() => page.locator('body').evaluate((body) => getComputedStyle(body).backgroundImage)).toBe('none')
+  await stabilize(page)
+  await expectNoHorizontalOverflow(page)
+  await expect(page).toHaveScreenshot('publication-grid-saas-light.png', { fullPage: true })
+})
+
+test('@desktop SaaS styling hydrates directly into its dark authentication surface', async ({ context, page }) => {
+  await setTheme(context, page, 'dark', 'saas')
+  await page.goto('/login')
+  await expect(page.locator('html')).toHaveClass(/dark/)
+  await expect(page.locator('html')).toHaveAttribute('data-style', 'saas')
+  await expect(page.locator('.auth-card')).toBeVisible()
+  await stabilize(page)
+  await expectNoHorizontalOverflow(page)
+  await expect(page).toHaveScreenshot('login-saas-dark.png', { fullPage: true })
+})
+
+test('@desktop visual style control persists the selected SaaS style', async ({ context, page }) => {
+  await setTheme(context, page, 'light')
+  await page.goto('/login')
+  await page.getByRole('button', { name: 'Open Theme Settings' }).click()
+  await page.getByText('Professional SaaS', { exact: true }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-style', 'saas')
+  await expect.poll(async () => (await context.cookies(baseURL)).find((cookie) => cookie.name === 'sv_style')?.value).toBe('saas')
+  await page.reload()
+  await expect(page.locator('html')).toHaveAttribute('data-style', 'saas')
+})
+
 test('@mobile mobile navigation keeps public destinations reachable', async ({ context, page }) => {
   await setTheme(context, page, 'light')
   await mockProjectList(page)
@@ -107,4 +147,15 @@ test('@mobile mobile navigation keeps public destinations reachable', async ({ c
   await expect(page.getByRole('navigation', { name: 'Mobile navigation' })).toBeVisible()
   await stabilize(page)
   await expect(page).toHaveScreenshot('mobile-navigation-open.png')
+})
+
+test('@mobile SaaS styling keeps public destinations reachable', async ({ context, page }) => {
+  await setTheme(context, page, 'light', 'saas')
+  await mockProjectList(page)
+  await page.goto('/project/projectList')
+  await page.getByRole('button', { name: 'Open navigation' }).click()
+  await expect(page.getByRole('navigation', { name: 'Mobile navigation' })).toBeVisible()
+  await expect(page.locator('html')).toHaveAttribute('data-style', 'saas')
+  await stabilize(page)
+  await expect(page).toHaveScreenshot('mobile-navigation-open-saas.png')
 })

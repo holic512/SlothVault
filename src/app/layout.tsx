@@ -3,9 +3,9 @@
  * @project SlothVault
  * @module Application Shell
  * @description Defines the root Next.js document, metadata, locale provider, Ant Design SSR registry, and client providers.
- * @logic Resolve request messages on the server, emit a hydration-safe themed document, and wrap every route once.
- * @dependencies next-intl, @ant-design/nextjs-registry, app-providers, global styles
- * @index_tags root-layout,metadata,providers,ssr
+ * @logic Resolve request preferences on the server, emit a hydration-safe color mode and visual style, and wrap every route once.
+ * @dependencies next-intl, @ant-design/nextjs-registry, app-providers, app-style, global styles
+ * @index_tags root-layout,metadata,providers,theme,style,ssr
  * @author holic512
  */
 import type { Metadata } from 'next'
@@ -35,6 +35,11 @@ import {
   DEFAULT_APP_THEME,
   isAppTheme,
 } from '@/theme/app-theme'
+import {
+  APP_STYLE_COOKIE,
+  DEFAULT_APP_STYLE,
+  isAppStyle,
+} from '@/theme/app-style'
 
 export const metadata: Metadata = {
   title: {
@@ -50,14 +55,23 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const messages = await getMessages()
   const cookieStore = await cookies()
   const cookieTheme = cookieStore.get(APP_THEME_COOKIE)?.value
+  const cookieStyle = cookieStore.get(APP_STYLE_COOKIE)?.value
   const initialTheme = isAppTheme(cookieTheme) ? cookieTheme : DEFAULT_APP_THEME
+  const initialStyle = isAppStyle(cookieStyle) ? cookieStyle : DEFAULT_APP_STYLE
 
   return (
-    <html lang={locale} className={`theme-mono ${initialTheme}`} suppressHydrationWarning>
+    <html
+      lang={locale}
+      className={`theme-${initialStyle} ${initialTheme}`}
+      data-style={initialStyle}
+      suppressHydrationWarning
+    >
       <body>
         <AntdRegistry>
           <NextIntlClientProvider locale={locale} messages={messages}>
-            <AppProviders initialTheme={initialTheme}>{children}</AppProviders>
+            <AppProviders initialTheme={initialTheme} initialStyle={initialStyle}>
+              {children}
+            </AppProviders>
           </NextIntlClientProvider>
         </AntdRegistry>
       </body>

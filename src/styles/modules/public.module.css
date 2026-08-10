@@ -35,7 +35,7 @@
   background: var(--sv-bg-elevated);
   pointer-events: auto;
   border-radius: 10px;
-  box-shadow: 0 8px 28px rgb(20, 20, 20, 6%);
+  box-shadow: var(--sv-surface-shadow);
   backdrop-filter: blur(14px);
 }
 
@@ -112,7 +112,7 @@
   backdrop-filter: blur(12px);
   border-radius: var(--sv-radius) !important;
   background: var(--sv-bg-solid) !important;
-  box-shadow: 0 12px 34px rgb(20, 20, 20, 5.5%);
+  box-shadow: var(--sv-surface-shadow);
 }
 
 .root :global(.projects-page) {
@@ -166,7 +166,7 @@
   border: 1px solid var(--sv-border) !important;
   transition: 200ms ease;
   border-radius: var(--sv-radius) !important;
-  box-shadow: 0 12px 34px rgb(20, 20, 20, 5.5%);
+  box-shadow: var(--sv-surface-shadow);
   background: var(--sv-bg-solid) !important;
 }
 
@@ -290,7 +290,7 @@
 .root :global(.account-card) {
   border-radius: var(--sv-radius) !important;
   background: var(--sv-bg-solid) !important;
-  box-shadow: 0 12px 34px rgb(20, 20, 20, 5.5%);
+  box-shadow: var(--sv-surface-shadow);
   border: 1px solid var(--sv-border) !important;
 }
 

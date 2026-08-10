@@ -25,7 +25,7 @@
   width: 27px;
   height: 27px;
   object-fit: contain;
-  filter: grayscale(1) contrast(1.15);
+  filter: var(--sv-logo-filter);
 }
 
 .brand-accent {
@@ -62,6 +62,22 @@
 
 .theme-panel .ant-divider {
   margin: 14px 0;
+}
+
+.theme-style-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.theme-saas-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border: 2px solid rgb(255, 255, 255, 85%);
+  border-radius: 999px;
+  background: var(--sv-primary);
+  box-shadow: 0 0 0 1px rgb(var(--sv-primary-rgb), 30%);
 }
 
 .mobile-nav-links {

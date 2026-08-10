@@ -138,7 +138,8 @@ export function defineRoute<Params extends Record<string, unknown> = Record<stri
   return async (request, context) => {
     const bootstrapSafePath =
       isInstallationApiPath(request.nextUrl.pathname) ||
-      request.nextUrl.pathname === '/api/preferences/locale'
+      request.nextUrl.pathname === '/api/preferences/locale' ||
+      request.nextUrl.pathname === '/api/preferences/style'
     if (!bootstrapSafePath) {
       const installation = await readRuntimeInstallationPublicStatus()
       if (installation.status !== 'INSTALLED') {

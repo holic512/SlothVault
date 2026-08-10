@@ -2,8 +2,8 @@
  * @file tokens.css
  * @project SlothVault
  * @module Global Design Tokens
- * @description Defines the light and dark semantic token contract for color, spacing, typography, layout, elevation, radii, motion, and navigation.
- * @logic Map the root theme class to stable CSS custom properties consumed by application and vendor styles.
+ * @description Defines the style and color-mode semantic token contract for color, spacing, typography, layout, elevation, radii, motion, and navigation.
+ * @logic Map the document style and color-mode attributes to stable CSS custom properties consumed by application and vendor styles.
  * @dependencies SlothVault design tokens
  * @index_tags css,tokens,theme,light,dark
  * @author holic512
@@ -29,6 +29,7 @@
   --sv-code-text: #e8edf3;
   --sv-shadow: 0 22px 70px rgb(20, 20, 20, 8%);
   --sv-shadow-tight: 0 10px 28px rgb(20, 20, 20, 7%);
+  --sv-surface-shadow: 0 12px 34px rgb(20, 20, 20, 5.5%);
   --sv-radius-sm: 7px;
   --sv-radius: 11px;
   --sv-radius-lg: 16px;
@@ -57,6 +58,17 @@
   --sv-motion-normal: 200ms;
   --sv-ease-standard: ease;
   --sv-nav-height: 58px;
+  --sv-admin-control-height: 32px;
+  --sv-admin-radius: 5px;
+  --sv-admin-space: 10px;
+  --sv-logo-filter: grayscale(1) contrast(1.15);
+  --sv-page-background:
+    linear-gradient(90deg, transparent 0 49.92%, color-mix(in srgb, var(--sv-border) 34%, transparent) 49.92% 50.08%, transparent 50.08%),
+    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--sv-border) 46%, transparent) 0.7px, transparent 0.8px),
+    var(--sv-bg);
+  --sv-page-background-size: 100% 100%, 18px 18px, auto;
+  --sv-page-background-repeat: no-repeat, repeat, no-repeat;
+  --sv-page-overlay: linear-gradient(180deg, color-mix(in srgb, var(--sv-bg) 4%, transparent), var(--sv-bg) 88%);
 
   color-scheme: light;
 }
@@ -81,8 +93,72 @@
   --sv-code-text: #e8edf3;
   --sv-shadow: 0 28px 90px rgb(0, 0, 0, 48%);
   --sv-shadow-tight: 0 12px 32px rgb(0, 0, 0, 35%);
+  --sv-surface-shadow: 0 12px 34px rgb(0, 0, 0, 32%);
 
   color-scheme: dark;
+}
+
+:root[data-style='saas'] {
+  --sv-bg: #f4f7fb;
+  --sv-bg-elevated: rgb(255, 255, 255, 88%);
+  --sv-bg-solid: #fff;
+  --sv-bg-soft: #edf3ff;
+  --sv-text: #172033;
+  --sv-text-muted: #64748b;
+  --sv-border: #d9e1ee;
+  --sv-border-strong: #b8c7dd;
+  --sv-primary: #2563eb;
+  --sv-primary-rgb: 37, 99, 235;
+  --sv-primary-strong: #1d4ed8;
+  --sv-accent: #3b82f6;
+  --sv-danger: #dc2626;
+  --sv-success: #15803d;
+  --sv-warning: #b45309;
+  --sv-code-bg: #111827;
+  --sv-code-text: #e5edff;
+  --sv-shadow: 0 22px 70px rgb(30, 64, 175, 13%);
+  --sv-shadow-tight: 0 12px 30px rgb(30, 64, 175, 15%);
+  --sv-surface-shadow: 0 12px 34px rgb(30, 64, 175, 10%);
+  --sv-radius-sm: 7px;
+  --sv-radius: 12px;
+  --sv-radius-lg: 18px;
+  --sv-font-body: "Public Sans", sans-serif;
+  --sv-font-display: "Public Sans", sans-serif;
+  --sv-admin-control-height: 36px;
+  --sv-admin-radius: 7px;
+  --sv-admin-space: 12px;
+  --sv-logo-filter: none;
+  --sv-page-background: var(--sv-bg);
+  --sv-page-background-size: auto;
+  --sv-page-background-repeat: no-repeat;
+  --sv-page-overlay: transparent;
+}
+
+:root[data-style='saas'].dark {
+  --sv-bg: #0b1220;
+  --sv-bg-elevated: rgb(15, 23, 38, 88%);
+  --sv-bg-solid: #111a2b;
+  --sv-bg-soft: #182641;
+  --sv-text: #e8eefb;
+  --sv-text-muted: #9aabc7;
+  --sv-border: #263650;
+  --sv-border-strong: #3c5378;
+  --sv-primary: #78a6ff;
+  --sv-primary-rgb: 120, 166, 255;
+  --sv-primary-strong: #a9c6ff;
+  --sv-accent: #78a6ff;
+  --sv-danger: #fb7185;
+  --sv-success: #4ade80;
+  --sv-warning: #fbbf24;
+  --sv-code-bg: #080e1a;
+  --sv-code-text: #e5edff;
+  --sv-shadow: 0 28px 90px rgb(0, 0, 0, 48%);
+  --sv-shadow-tight: 0 12px 32px rgb(0, 0, 0, 38%);
+  --sv-surface-shadow: 0 12px 34px rgb(0, 0, 0, 34%);
+  --sv-page-background: var(--sv-bg);
+  --sv-page-background-size: auto;
+  --sv-page-background-repeat: no-repeat;
+  --sv-page-overlay: transparent;
 }
 
 @media (max-width: 640px) {
