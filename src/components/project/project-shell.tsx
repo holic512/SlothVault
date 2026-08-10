@@ -4,84 +4,56 @@
  * @file project-shell.tsx
  * @project SlothVault
  * @module Public Project Shell
- * @description Provides the public article-collection layout, navigation, and shared project data boundary.
- * @logic Load published metadata, versions, and menus without identity gates, then render the nested reading routes.
- * @dependencies React Query, Ant Design, Next navigation, project context
- * @index_tags project-layout,public-reading,navigation,react-query,web2
+ * @description Provides the public article-collection layout and interactive navigation around server-rendered reading routes.
+ * @logic Receive cached published metadata from the Server Component layout, then handle only browser navigation and responsive menu interaction.
+ * @dependencies Ant Design, Next navigation, project context
+ * @index_tags project-layout,public-reading,navigation,server-data,web2
  * @author holic512
  */
 import { useState, type ReactNode } from 'react'
 
-import { useQuery } from '@tanstack/react-query'
-import { Alert, Button, Drawer, Dropdown, Select, Skeleton, Space } from 'antd'
+import { Button, Drawer, Dropdown, Select, Space } from 'antd'
 import { ChevronDown, Library, Menu } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
 import {
-  ProjectContextProvider,
   type ProjectMenu,
   type ProjectVersion,
   type PublicProject,
 } from '@/components/project/project-context'
 import { ThemeControls } from '@/components/theme/theme-controls'
 import { AccountNav } from '@/components/auth/account-nav'
-import { apiFetch } from '@/lib/api-client'
 import projectStyles from '@/styles/modules/project.module.css'
 
-export function ProjectShell({ projectId, children }: { projectId: string; children: ReactNode }) {
+export function ProjectShell({
+  projectId,
+  project,
+  versions,
+  menus,
+  children,
+}: {
+  projectId: string
+  project: PublicProject
+  versions: ProjectVersion[]
+  menus: ProjectMenu[]
+  children: ReactNode
+}) {
   const pathname = usePathname()
   const router = useRouter()
-  const projectQuery = useQuery({
-    queryKey: ['public-project', projectId],
-    queryFn: () => apiFetch<PublicProject>(`/api/project/${projectId}`),
-  })
-  const versionsQuery = useQuery({
-    queryKey: ['public-project-versions', projectId],
-    enabled: Boolean(projectQuery.data),
-    queryFn: () => apiFetch<ProjectVersion[]>(`/api/project/${projectId}/versions`),
-  })
-  const menuQuery = useQuery({
-    queryKey: ['public-project-menu', projectId],
-    enabled: Boolean(projectQuery.data),
-    queryFn: () => apiFetch<ProjectMenu[]>(`/api/project/${projectId}/menu`),
-  })
 
-  if (projectQuery.isLoading) {
-    return <div className={projectStyles.root}><div className="project-shell-loading"><Skeleton active paragraph={{ rows: 8 }} /></div></div>
-  }
-  if (projectQuery.isError || !projectQuery.data) {
-    return (
-      <div className={projectStyles.root}>
-        <div className="project-shell-loading">
-          <Alert type="error" showIcon message="Project unavailable" description={projectQuery.error?.message} />
-        </div>
-      </div>
-    )
-  }
-  const versions = versionsQuery.data || []
-  const menus = menuQuery.data || []
   return (
-    <ProjectContextProvider
-      value={{
-        projectId,
-        project: projectQuery.data,
-        versions,
-        menus,
-      }}
-    >
-      <div className={`${projectStyles.root} project-page`}>
-        <ProjectNavigation
-          project={projectQuery.data}
-          projectId={projectId}
-          versions={versions}
-          menus={menus}
-          pathname={pathname}
-          onVersionChange={(value) => router.push(`/project/${projectId}/v/${value}/docs`)}
-        />
-        {children}
-      </div>
-    </ProjectContextProvider>
+    <div className={`${projectStyles.root} project-page`}>
+      <ProjectNavigation
+        project={project}
+        projectId={projectId}
+        versions={versions}
+        menus={menus}
+        pathname={pathname}
+        onVersionChange={(value) => router.push(`/project/${projectId}/v/${value}/docs`)}
+      />
+      {children}
+    </div>
   )
 }
 

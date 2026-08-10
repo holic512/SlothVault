@@ -1,17 +1,13 @@
-'use client'
-
 /**
  * @file project-context.tsx
  * @project SlothVault
- * @module Public Project State
- * @description Shares public project metadata, versions, and menus across nested reading routes.
- * @logic Keep one public project query in the layout and expose its stable reading context to home, redirect, and note pages.
- * @dependencies React context
- * @index_tags project,context,reader,state-boundary
+ * @module Public Project DTOs
+ * @description Defines the serialized public project navigation shapes shared by the server layout and client navigation island.
+ * @logic Keep project, version, and menu contracts independent from React state so route data can remain server-rendered.
+ * @dependencies None
+ * @index_tags project, dto, reader, navigation
  * @author holic512
  */
-import { createContext, useContext } from 'react'
-
 export type PublicProject = {
   id: string
   projectName: string
@@ -34,21 +30,4 @@ export type ProjectMenu = {
   isExternal: boolean
   weight: number
   children: ProjectMenu[]
-}
-
-export type ProjectContextValue = {
-  projectId: string
-  project: PublicProject
-  versions: ProjectVersion[]
-  menus: ProjectMenu[]
-}
-
-const ProjectContext = createContext<ProjectContextValue | null>(null)
-
-export const ProjectContextProvider = ProjectContext.Provider
-
-export function useProjectContext() {
-  const context = useContext(ProjectContext)
-  if (!context) throw new Error('useProjectContext must be used inside ProjectShell')
-  return context
 }

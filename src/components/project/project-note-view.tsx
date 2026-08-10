@@ -1,25 +1,26 @@
-'use client'
-
 /**
  * @file project-note-view.tsx
  * @project SlothVault
  * @module Public Article Reader
  * @description Renders public Markdown articles with navigation, administrator authorship, and optional on-chain copyright proof.
- * @logic Load the published article without identity gates, link its author profile, and expose safe Solana Explorer evidence without turning certificates into access controls.
- * @dependencies React Query, next-intl, project context, MarkdownView, public project API
+ * @logic Render already-resolved published article and sidebar data, link its author profile, and expose safe Solana Explorer evidence without turning certificates into access controls.
+ * @dependencies next-intl/server, MarkdownView
  * @index_tags article,reader,author,copyright,certificate,public
  * @author holic512
  */
-import { useQuery } from '@tanstack/react-query'
-import { Alert, Skeleton, Typography } from 'antd'
+import { Typography } from 'antd'
 import { BadgeCheck, ExternalLink, UserRound } from 'lucide-react'
-import { useLocale, useTranslations } from 'next-intl'
+import { getLocale, getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 
 import { MarkdownView } from '@/components/markdown/markdown-view'
-import { useProjectContext } from '@/components/project/project-context'
-import { apiFetch } from '@/lib/api-client'
-import type { SidebarCategory } from '@/components/project/version-docs-redirect'
+
+export type SidebarCategory = {
+  id: string
+  categoryName: string
+  weight: number
+  notes: Array<{ id: string; noteTitle: string; weight: number }>
+}
 
 type NoteData = {
   id: string
@@ -47,34 +48,25 @@ function explorerUrl(kind: 'address' | 'tx', value: string, network: string) {
   return url.toString()
 }
 
-export function ProjectNoteView({ versionId, noteId }: { versionId: string; noteId: string }) {
-  const { projectId } = useProjectContext()
-  const locale = useLocale()
-  const t = useTranslations('Article')
-  const sidebarQuery = useQuery({
-    queryKey: ['project-sidebar', projectId, versionId],
-    queryFn: () =>
-      apiFetch<SidebarCategory[]>(`/api/project/${projectId}/v/${versionId}/sidebar`),
-  })
-  const noteQuery = useQuery({
-    queryKey: ['project-note', projectId, versionId, noteId],
-    queryFn: () =>
-      apiFetch<NoteData>(`/api/project/${projectId}/v/${versionId}/note/${noteId}`),
-  })
-
-  if (sidebarQuery.isError || noteQuery.isError) {
-    return (
-      <div className="project-route-loading">
-        <Alert type="error" showIcon message={(sidebarQuery.error || noteQuery.error)?.message} />
-      </div>
-    )
-  }
+export async function ProjectNoteView({
+  projectId,
+  versionId,
+  noteId,
+  sidebar,
+  note,
+}: {
+  projectId: string
+  versionId: string
+  noteId: string
+  sidebar: SidebarCategory[]
+  note: NoteData
+}) {
+  const [locale, t] = await Promise.all([getLocale(), getTranslations('Article')])
 
   return (
     <main className="docs-reader">
       <aside className="docs-sidebar">
-        {sidebarQuery.isLoading ? <Skeleton active /> : null}
-        {sidebarQuery.data?.map((category) => (
+        {sidebar.map((category) => (
           <section key={category.id} className="docs-category">
             <Typography.Text>{category.categoryName}</Typography.Text>
             <nav>
@@ -92,63 +84,56 @@ export function ProjectNoteView({ versionId, noteId }: { versionId: string; note
         ))}
       </aside>
       <article className="docs-article">
-        {noteQuery.isLoading ? <Skeleton active paragraph={{ rows: 15 }} /> : null}
-        {noteQuery.data ? (
-          <>
-            <header className="docs-article-header">
-              <div className="docs-article-meta">
-                {noteQuery.data.author ? (
-                  <Link href={`/u/${noteQuery.data.author.username}`} className="docs-author-link">
-                    <UserRound size={14} />
-                    {noteQuery.data.author.displayName || noteQuery.data.author.username}
-                  </Link>
-                ) : (
-                  <span>{t('unknownAuthor')}</span>
-                )}
-                <span>
-                  {t('updated', {
-                    date: new Date(noteQuery.data.updatedAt).toLocaleString(
-                      locale === 'zh' ? 'zh-CN' : 'en-US',
-                    ),
-                  })}
-                </span>
+        <header className="docs-article-header">
+          <div className="docs-article-meta">
+            {note.author ? (
+              <Link href={`/u/${note.author.username}`} className="docs-author-link">
+                <UserRound size={14} />
+                {note.author.displayName || note.author.username}
+              </Link>
+            ) : (
+              <span>{t('unknownAuthor')}</span>
+            )}
+            <span>
+              {t('updated', {
+                date: new Date(note.updatedAt).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US'),
+              })}
+            </span>
+          </div>
+          <Typography.Title>{note.noteTitle}</Typography.Title>
+          {note.versionNote ? <Typography.Paragraph type="secondary">{note.versionNote}</Typography.Paragraph> : null}
+          {note.certificate ? (
+            <aside className="docs-copyright-proof" aria-label={t('certificate.title')}>
+              <span className="docs-copyright-mark"><BadgeCheck size={18} /></span>
+              <div className="docs-copyright-copy">
+                <strong>{t('certificate.title')}</strong>
+                <span>{t('certificate.description')}</span>
+                <code title={note.certificate.assetId}>
+                  {note.certificate.assetId.slice(0, 12)}…{note.certificate.assetId.slice(-8)}
+                </code>
               </div>
-              <Typography.Title>{noteQuery.data.noteTitle}</Typography.Title>
-              {noteQuery.data.versionNote ? <Typography.Paragraph type="secondary">{noteQuery.data.versionNote}</Typography.Paragraph> : null}
-              {noteQuery.data.certificate ? (
-                <aside className="docs-copyright-proof" aria-label={t('certificate.title')}>
-                  <span className="docs-copyright-mark"><BadgeCheck size={18} /></span>
-                  <div className="docs-copyright-copy">
-                    <strong>{t('certificate.title')}</strong>
-                    <span>{t('certificate.description')}</span>
-                    <code title={noteQuery.data.certificate.assetId}>
-                      {noteQuery.data.certificate.assetId.slice(0, 12)}…{noteQuery.data.certificate.assetId.slice(-8)}
-                    </code>
-                  </div>
-                  <div className="docs-copyright-links">
-                    <a
-                      href={explorerUrl('address', noteQuery.data.certificate.assetId, noteQuery.data.certificate.network)}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {t('certificate.asset')}<ExternalLink size={12} />
-                    </a>
-                    {noteQuery.data.certificate.transaction ? (
-                      <a
-                        href={explorerUrl('tx', noteQuery.data.certificate.transaction, noteQuery.data.certificate.network)}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {t('certificate.transaction')}<ExternalLink size={12} />
-                      </a>
-                    ) : null}
-                  </div>
-                </aside>
-              ) : null}
-            </header>
-            <MarkdownView content={noteQuery.data.content} />
-          </>
-        ) : null}
+              <div className="docs-copyright-links">
+                <a
+                  href={explorerUrl('address', note.certificate.assetId, note.certificate.network)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {t('certificate.asset')}<ExternalLink size={12} />
+                </a>
+                {note.certificate.transaction ? (
+                  <a
+                    href={explorerUrl('tx', note.certificate.transaction, note.certificate.network)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {t('certificate.transaction')}<ExternalLink size={12} />
+                  </a>
+                ) : null}
+              </div>
+            </aside>
+          ) : null}
+        </header>
+        <MarkdownView content={note.content} />
       </article>
     </main>
   )

@@ -1,10 +1,22 @@
-import { VersionDocsRedirect } from '@/components/project/version-docs-redirect'
+import { redirect } from 'next/navigation'
+
+import { getCachedProjectSidebar } from '@/server/services/public-project-cache'
 
 export default async function VersionDocsPage({
   params,
 }: {
-  params: Promise<{ versionId: string }>
+  params: Promise<{ id: string; versionId: string }>
 }) {
-  const { versionId } = await params
-  return <VersionDocsRedirect versionId={versionId} />
+  const { id, versionId } = await params
+  const sidebar = await getCachedProjectSidebar(Number(id), Number(versionId))
+  const firstNote = sidebar.flatMap((category) => category.notes)[0]
+  if (firstNote) redirect(`/project/${id}/v/${versionId}/docs/${firstNote.id}`)
+
+  return (
+    <main className="project-reading-main">
+      <div className="content-container content-container--reading">
+        <h1>No published notes</h1>
+      </div>
+    </main>
+  )
 }

@@ -18,6 +18,7 @@ import bs58 from 'bs58'
 import { WalletCards } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
+import { WalletRuntime } from '@/components/providers/wallet-runtime'
 import { apiFetch } from '@/lib/api-client'
 import type { SessionUser } from '@/types/user'
 
@@ -34,6 +35,20 @@ export function WalletLoginButton({
 }: {
   mode?: 'login' | 'bind'
   redirectTo?: string
+}) {
+  return (
+    <WalletRuntime>
+      <WalletLoginButtonContent mode={mode} redirectTo={redirectTo} />
+    </WalletRuntime>
+  )
+}
+
+function WalletLoginButtonContent({
+  mode,
+  redirectTo,
+}: {
+  mode: 'login' | 'bind'
+  redirectTo: string
 }) {
   const { publicKey, connected, signMessage } = useWallet()
   const { setVisible } = useWalletModal()

@@ -1,16 +1,12 @@
-'use client'
-
-import { useQuery } from '@tanstack/react-query'
-import { Alert, Card, Empty, Skeleton, Typography } from 'antd'
+import { Card, Empty, Typography } from 'antd'
 import { ArrowUpRight, CalendarClock, FolderTree } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 
 import { PublicNavbar } from '@/components/shell/public-navbar'
-import { apiFetch } from '@/lib/api-client'
 import publicStyles from '@/styles/modules/public.module.css'
 
-type ProjectListItem = {
+export type ProjectListItem = {
   id: string
   projectName: string
   avatar: string | null
@@ -20,12 +16,8 @@ type ProjectListItem = {
   updatedAt: string
 }
 
-export function ProjectListView() {
-  const t = useTranslations('ProjectsPage')
-  const query = useQuery({
-    queryKey: ['public-project-list'],
-    queryFn: () => apiFetch<ProjectListItem[]>('/api/project/list'),
-  })
+export async function ProjectListView({ projects }: { projects: ProjectListItem[] }) {
+  const t = await getTranslations('ProjectsPage')
 
   return (
     <div className={`${publicStyles.root} public-page projects-page`}>
@@ -37,15 +29,9 @@ export function ProjectListView() {
           <Typography.Paragraph type="secondary">{t('desc')}</Typography.Paragraph>
         </div>
 
-        {query.isLoading ? (
+        {projects.length ? (
           <div className="project-grid">
-            {Array.from({ length: 6 }, (_, index) => <Card key={index}><Skeleton active /></Card>)}
-          </div>
-        ) : query.isError ? (
-          <Alert type="error" showIcon message={t('error')} description={query.error.message} />
-        ) : query.data?.length ? (
-          <div className="project-grid">
-            {query.data.map((project) => (
+            {projects.map((project) => (
               <Link key={project.id} href={`/project/${project.id}/home`} className="project-card-link">
                 <Card className="project-library-card" variant="borderless">
                   <div className="project-card-topline">

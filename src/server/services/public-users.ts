@@ -10,9 +10,11 @@
  */
 import 'server-only'
 
+import { cache } from 'react'
+
 import { prisma } from '@/server/prisma'
 
-export async function getPublicUserProfile(username: string) {
+export const getPublicUserProfile = cache(async (username: string) => {
   const user = await prisma.user.findFirst({
     where: { username: username.trim().toLowerCase(), status: 1 },
     select: {
@@ -115,4 +117,4 @@ export async function getPublicUserProfile(username: string) {
       }
     }),
   }
-}
+})
