@@ -2,8 +2,8 @@
  * @file request.ts
  * @project SlothVault
  * @module Server HTTP Requests
- * @description Centralizes JSON validation, identifier parsing, query coercion, and privacy-safe client identity extraction.
- * @logic Parse untrusted request values once and expose a stable client-IP token for process-local abuse controls.
+ * @description Centralizes bounded JSON validation, identifier parsing, query coercion, and privacy-safe client identity extraction.
+ * @logic Reject declared or measured oversized JSON before schema parsing, then expose stable request parsing helpers and a client-IP token.
  * @dependencies next/server, zod, server/http/errors
  * @index_tags http,request,validation,client-ip,rate-limit
  * @author holic512
@@ -13,12 +13,30 @@ import type { ZodType } from 'zod'
 
 import { HttpError } from '@/server/http/errors'
 
-export async function readJson<T>(request: NextRequest, schema: ZodType<T>): Promise<T> {
+export async function readJson<T>(
+  request: NextRequest,
+  schema: ZodType<T>,
+  options: { maxBytes?: number } = {},
+): Promise<T> {
   let body: unknown
 
   try {
-    body = await request.json()
-  } catch {
+    if (options.maxBytes) {
+      const declaredLength = Number(request.headers.get('content-length'))
+      if (Number.isFinite(declaredLength) && declaredLength > options.maxBytes) {
+        throw new HttpError('Request body is too large', 413, 413)
+      }
+
+      const rawBody = await request.text()
+      if (new TextEncoder().encode(rawBody).byteLength > options.maxBytes) {
+        throw new HttpError('Request body is too large', 413, 413)
+      }
+      body = JSON.parse(rawBody) as unknown
+    } else {
+      body = await request.json()
+    }
+  } catch (error) {
+    if (error instanceof HttpError) throw error
     throw new HttpError('Invalid JSON body', 400, 400)
   }
 

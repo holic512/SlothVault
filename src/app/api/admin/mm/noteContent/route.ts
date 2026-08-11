@@ -10,6 +10,10 @@
  */
 import { z } from 'zod'
 
+import {
+  DOCUMENT_CONTENT_MAX_CHARACTERS,
+  DOCUMENT_JSON_MAX_BYTES,
+} from '@/lib/document-content'
 import { requireAdminSession } from '@/server/auth/session'
 import { HttpError } from '@/server/http/errors'
 import { defineRoute } from '@/server/http/handler'
@@ -26,7 +30,7 @@ import {
 
 const createNoteContentSchema = z.object({
   noteInfoId: z.unknown().optional(),
-  content: z.unknown().optional(),
+  content: z.string().max(DOCUMENT_CONTENT_MAX_CHARACTERS).optional(),
   versionNote: z.unknown().optional(),
   isPrimary: z.unknown().optional(),
   status: z.unknown().optional(),
@@ -46,6 +50,8 @@ export const GET = defineRoute(async (request) => {
 
 export const POST = defineRoute(async (request) => {
   await requireAdminSession(request)
-  const body = await readJson(request, createNoteContentSchema)
+  const body = await readJson(request, createNoteContentSchema, {
+    maxBytes: DOCUMENT_JSON_MAX_BYTES,
+  })
   return apiOk(await createAdminNoteContent(body), 'created', 201)
 })

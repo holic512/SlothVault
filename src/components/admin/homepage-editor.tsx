@@ -105,7 +105,7 @@ function HomepageDraft({
     async (silent = false) => {
       const contentToSave = draftRef.current
       if (savingRef.current || contentToSave === savedDraft) {
-        if (!silent && contentToSave === savedDraft) message.info(t('messages.contentRequired'))
+        if (!silent && contentToSave === savedDraft) message.info(t('messages.noChanges'))
         return
       }
       savingRef.current = true

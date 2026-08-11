@@ -12,6 +12,7 @@ import 'server-only'
 
 import type { Prisma } from '@generated/prisma-postgresql/client'
 
+import { DOCUMENT_CONTENT_MAX_CHARACTERS } from '@/lib/document-content'
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
 import {
@@ -94,6 +95,14 @@ export type UpdateSystemHomepageInput = {
   content?: unknown
   status?: unknown
   isDeleted?: unknown
+}
+
+function requiredDocumentContent(value: unknown, missingMessage = 'Invalid content') {
+  if (typeof value !== 'string') throw new HttpError(missingMessage, 400, 400)
+  if (value.length > DOCUMENT_CONTENT_MAX_CHARACTERS) {
+    throw new HttpError('Content exceeds the document limit', 400, 400)
+  }
+  return value
 }
 
 export function projectHomeDto(home: ProjectHomeLike) {
@@ -208,21 +217,21 @@ export async function createOrRestoreProjectHome(
   projectId: number,
   input: CreateProjectHomeInput,
 ) {
-  if (typeof input.content !== 'string') throw new HttpError('Missing content', 400, 400)
+  const content = requiredDocumentContent(input.content, 'Missing content')
 
   const home = await prisma.$transaction(async (tx) => {
     await requireActiveProject(tx, projectId)
     return tx.projectHome.upsert({
       where: { projectId },
       update: {
-        content: input.content as string,
+        content,
         status: integerValue(input.status, 1),
         isDeleted: false,
         updatedAt: new Date(),
       },
       create: {
         projectId,
-        content: input.content as string,
+        content,
         status: integerValue(input.status, 1),
       },
     })
@@ -244,7 +253,7 @@ export async function updateProjectHome(id: number, input: UpdateProjectHomeInpu
   }
 
   const data: Prisma.ProjectHomeUpdateInput = { updatedAt: new Date() }
-  if (typeof input.content === 'string') data.content = input.content
+  if (input.content !== undefined) data.content = requiredDocumentContent(input.content)
   const status = optionalIntegerValue(input.status)
   if (status !== null) data.status = status
   if (typeof input.isDeleted === 'boolean') data.isDeleted = input.isDeleted
@@ -434,16 +443,16 @@ export async function getSystemHomepage() {
 }
 
 export async function createSystemHomepage(input: CreateSystemHomepageInput) {
-  if (typeof input.content !== 'string') throw new HttpError('Invalid content', 400, 400)
+  const content = requiredDocumentContent(input.content)
   const homepage = await prisma.systemHomepage.create({
-    data: { content: input.content, status: integerValue(input.status, 1) },
+    data: { content, status: integerValue(input.status, 1) },
   })
   return systemHomepageDto(homepage)
 }
 
 export async function updateSystemHomepage(id: number, input: UpdateSystemHomepageInput) {
   const data: Prisma.SystemHomepageUpdateInput = { updatedAt: new Date() }
-  if (typeof input.content === 'string') data.content = input.content
+  if (input.content !== undefined) data.content = requiredDocumentContent(input.content)
   const status = optionalIntegerValue(input.status)
   if (status !== null) data.status = status
   if (typeof input.isDeleted === 'boolean') data.isDeleted = input.isDeleted

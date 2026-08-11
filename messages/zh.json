@@ -26,6 +26,54 @@
       "transaction": "查看交易"
     }
   },
+  "DocumentEditor": {
+    "title": "Markdown + HTML 混合文档",
+    "description": "Markdown 快速写作，HTML 精细控制布局",
+    "showGuide": "写作指南",
+    "hideGuide": "收起指南",
+    "textareaLabel": "文档内容编辑区，支持 Markdown 与安全 HTML",
+    "ready": "编辑内容会在右侧按公开页面效果实时预览",
+    "uploadImage": "上传图片，也可直接粘贴或拖入",
+    "uploading": "正在上传并插入图片…",
+    "htmlSnippets": "插入 HTML 结构",
+    "imageFallbackAlt": "图片 {index}",
+    "stats": "{characters} / {limit} 字符 · {lines} 行",
+    "guide": {
+      "fastTitle": "正文优先用 Markdown",
+      "fastDescription": "标题、列表、引用、代码和表格使用工具栏或 Markdown，输入更快、后续维护也更轻松。",
+      "layoutTitle": "布局再用 HTML",
+      "layoutDescription": "从 HTML 结构菜单插入提示块、折叠区或双栏卡片；结构内仍可继续写 Markdown。",
+      "safetyTitle": "样式有边界",
+      "safetyDescription": "脚本、iframe、事件属性和外链 CSS 会被移除；内联样式仅保留颜色、间距、对齐和有限布局属性。"
+    },
+    "snippets": {
+      "callout": "提示块",
+      "calloutLabel": "提示",
+      "calloutBody": "在这里写重点说明，仍然支持 **Markdown**。",
+      "disclosure": "折叠内容",
+      "disclosureSummary": "展开查看详情",
+      "disclosureBody": "在这里补充详情。",
+      "columns": "双栏卡片",
+      "columnTitleOne": "要点一",
+      "columnBodyOne": "填写第一组内容。",
+      "columnTitleTwo": "要点二",
+      "columnBodyTwo": "填写第二组内容。"
+    },
+    "messages": {
+      "tooManyFiles": "单次最多上传 {maximum} 张图片",
+      "emptyFile": "图片“{name}”内容为空",
+      "unsupportedType": "图片“{name}”格式不受支持，请使用 JPG、PNG、GIF 或 WebP",
+      "fileTooLarge": "图片“{name}”超过 {maximum}MB 限制",
+      "batchTooLarge": "本次图片总大小超过 {maximum}MB 限制",
+      "uploadWouldExceedLimit": "剩余文档空间不足，无法继续上传图片",
+      "uploadFailed": "图片上传失败，请检查网络或文件后重试",
+      "uploadedButNotInserted": "图片已上传，但插入后会超过文档限制；请先精简内容，再从文件管理中复制地址",
+      "partialUpload": "部分图片未能上传，已插入成功的图片",
+      "contentLimitReached": "已达到文档字符上限，本次输入未写入",
+      "existingContentTooLarge": "现有文档超过限制，请先精简到安全范围后再保存",
+      "nearContentLimit": "文档接近字符上限，建议拆分为多篇内容"
+    }
+  },
   "ThemeToggle": {
     "aria": {
       "openThemeSettings": "打开主题设置"
@@ -1023,10 +1071,10 @@
     },
     "homepage": {
       "title": "系统首页管理",
-      "desc": "编辑系统首页的 Markdown 内容",
+      "desc": "使用 Markdown 快速写作，并以安全 HTML 自定义布局",
       "editor": {
         "label": "首页内容",
-        "placeholder": "请输入 Markdown 格式的首页内容..."
+        "placeholder": "请输入 Markdown 或安全 HTML 内容..."
       },
       "actions": {
         "save": "保存",
@@ -1036,6 +1084,7 @@
         "saveSuccess": "保存成功",
         "saveFailed": "保存失败",
         "loadFailed": "加载失败",
+        "noChanges": "内容没有变化",
         "contentRequired": "内容不能为空"
       }
     },

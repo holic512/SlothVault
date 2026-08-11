@@ -26,6 +26,54 @@
       "transaction": "View transaction"
     }
   },
+  "DocumentEditor": {
+    "title": "Markdown + HTML document",
+    "description": "Write quickly in Markdown and refine layouts with HTML",
+    "showGuide": "Writing guide",
+    "hideGuide": "Hide guide",
+    "textareaLabel": "Document editor supporting Markdown and safe HTML",
+    "ready": "Your content is previewed on the right using the public-page renderer",
+    "uploadImage": "Upload an image, or paste and drop one here",
+    "uploading": "Uploading and inserting images…",
+    "htmlSnippets": "Insert HTML structure",
+    "imageFallbackAlt": "Image {index}",
+    "stats": "{characters} / {limit} characters · {lines} lines",
+    "guide": {
+      "fastTitle": "Use Markdown for prose",
+      "fastDescription": "Use the toolbar or Markdown for headings, lists, quotes, code, and tables. It is quicker to write and easier to maintain.",
+      "layoutTitle": "Use HTML for layout",
+      "layoutDescription": "Insert callouts, disclosures, or two-column cards from the HTML structure menu. Markdown still works inside each structure.",
+      "safetyTitle": "Customization has boundaries",
+      "safetyDescription": "Scripts, iframes, event attributes, and remote CSS are removed. Inline styles retain only colors, spacing, alignment, and limited layout properties."
+    },
+    "snippets": {
+      "callout": "Callout",
+      "calloutLabel": "Note",
+      "calloutBody": "Write the important detail here. **Markdown** still works.",
+      "disclosure": "Disclosure",
+      "disclosureSummary": "Expand for details",
+      "disclosureBody": "Add supporting details here.",
+      "columns": "Two-column cards",
+      "columnTitleOne": "First point",
+      "columnBodyOne": "Add the first group of content.",
+      "columnTitleTwo": "Second point",
+      "columnBodyTwo": "Add the second group of content."
+    },
+    "messages": {
+      "tooManyFiles": "Upload no more than {maximum} images at once",
+      "emptyFile": "Image “{name}” is empty",
+      "unsupportedType": "Image “{name}” is unsupported; use JPG, PNG, GIF, or WebP",
+      "fileTooLarge": "Image “{name}” exceeds the {maximum}MB limit",
+      "batchTooLarge": "The selected images exceed the {maximum}MB batch limit",
+      "uploadWouldExceedLimit": "The document has too little space left to upload more images",
+      "uploadFailed": "Image upload failed; check the connection or file and try again",
+      "uploadedButNotInserted": "The image uploaded, but inserting it would exceed the document limit. Shorten the document, then copy its URL from File Management.",
+      "partialUpload": "Some images failed to upload; the successful images were inserted",
+      "contentLimitReached": "The document character limit has been reached; this input was not added",
+      "existingContentTooLarge": "This existing document exceeds the limit; shorten it before saving",
+      "nearContentLimit": "This document is close to the character limit; consider splitting it"
+    }
+  },
   "ThemeToggle": {
     "aria": {
       "openThemeSettings": "Open Theme Settings"
@@ -1023,10 +1071,10 @@
     },
     "homepage": {
       "title": "System Homepage Management",
-      "desc": "Edit system homepage Markdown content",
+      "desc": "Write quickly in Markdown and customize layouts with safe HTML",
       "editor": {
         "label": "Homepage Content",
-        "placeholder": "Enter Markdown content for homepage..."
+        "placeholder": "Enter Markdown or safe HTML content..."
       },
       "actions": {
         "save": "Save",
@@ -1036,6 +1084,7 @@
         "saveSuccess": "Saved successfully",
         "saveFailed": "Save failed",
         "loadFailed": "Load failed",
+        "noChanges": "Content has not changed",
         "contentRequired": "Content is required"
       }
     },

@@ -163,6 +163,131 @@
   text-align: left;
 }
 
+.root mark {
+  padding: 0.05em 0.24em;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--sv-warning) 22%, transparent);
+  color: var(--sv-text);
+}
+
+.root kbd {
+  padding: 0.18em 0.42em;
+  border: 1px solid var(--sv-border-strong);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--sv-bg-soft);
+  font-family: var(--sv-font-mono);
+  font-size: 0.78em;
+}
+
+.root figure {
+  margin: 30px 0;
+}
+
+.root figcaption {
+  margin-top: 9px;
+  color: var(--sv-text-muted);
+  font-size: 0.86em;
+  text-align: center;
+}
+
+.root details {
+  margin: 0 0 22px;
+}
+
+.root summary {
+  cursor: pointer;
+}
+
+.root :global(.sloth-callout) {
+  position: relative;
+  margin: 0 0 24px;
+  padding: 18px 20px 18px 22px;
+  overflow: hidden;
+  border: 1px solid var(--sv-border);
+  border-left: 4px solid var(--sv-primary);
+  border-radius: var(--sv-radius);
+  background: color-mix(in srgb, var(--sv-bg-soft) 76%, var(--sv-bg-solid));
+}
+
+.root :global(.sloth-callout)::before {
+  position: absolute;
+  top: -24px;
+  right: -18px;
+  width: 80px;
+  height: 80px;
+  border: 1px solid rgb(var(--sv-primary-rgb), 0.1);
+  border-radius: 50%;
+  content: "";
+}
+
+.root :global(.sloth-callout) > :last-child {
+  margin-bottom: 0;
+}
+
+.root :global(.sloth-callout-note) {
+  border-left-color: var(--sv-primary);
+}
+
+.root :global(.sloth-callout-warning) {
+  border-left-color: var(--sv-warning);
+}
+
+.root :global(.sloth-callout-success) {
+  border-left-color: var(--sv-success);
+}
+
+.root :global(.sloth-content-grid) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 26px 0;
+}
+
+.root :global(.sloth-content-card) {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-radius);
+  background: var(--sv-bg-solid);
+  box-shadow: var(--sv-shadow-tight);
+}
+
+.root :global(.sloth-content-card) > :first-child {
+  margin-top: 0;
+}
+
+.root :global(.sloth-content-card) > :last-child {
+  margin-bottom: 0;
+}
+
+.root :global(.sloth-disclosure) {
+  overflow: hidden;
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-radius);
+  background: var(--sv-bg-solid);
+}
+
+.root :global(.sloth-disclosure) summary {
+  padding: 13px 16px;
+  background: var(--sv-bg-soft);
+  color: var(--sv-text);
+  font-weight: 700;
+}
+
+.root :global(.sloth-disclosure) > :not(summary) {
+  margin-right: 16px;
+  margin-left: 16px;
+}
+
+.root :global(.sloth-disclosure) > :nth-child(2) {
+  margin-top: 16px;
+}
+
+.root :global(.sloth-disclosure) > :last-child {
+  margin-bottom: 16px;
+}
+
 .root :global(.sloth-hero-markdown) {
   position: relative;
   padding: clamp(12px, 3vw, 32px) 0 clamp(20px, 5vw, 54px);
@@ -279,6 +404,10 @@
   }
 
   .root :global(.sloth-feature-grid) {
+    grid-template-columns: 1fr;
+  }
+
+  .root :global(.sloth-content-grid) {
     grid-template-columns: 1fr;
   }
 }

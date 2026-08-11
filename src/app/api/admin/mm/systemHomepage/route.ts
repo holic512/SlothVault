@@ -10,6 +10,10 @@
  */
 import { z } from 'zod'
 
+import {
+  DOCUMENT_CONTENT_MAX_CHARACTERS,
+  DOCUMENT_JSON_MAX_BYTES,
+} from '@/lib/document-content'
 import { requireAdminSession } from '@/server/auth/session'
 import { defineRoute } from '@/server/http/handler'
 import { readJson } from '@/server/http/request'
@@ -20,7 +24,7 @@ import {
 } from '@/server/services/admin-content'
 
 const createHomepageSchema = z.object({
-  content: z.unknown().optional(),
+  content: z.string().max(DOCUMENT_CONTENT_MAX_CHARACTERS),
   status: z.unknown().optional(),
 })
 
@@ -33,6 +37,8 @@ export const GET = defineRoute(async (request) => {
 
 export const POST = defineRoute(async (request) => {
   await requireAdminSession(request)
-  const body = await readJson(request, createHomepageSchema)
+  const body = await readJson(request, createHomepageSchema, {
+    maxBytes: DOCUMENT_JSON_MAX_BYTES,
+  })
   return apiOk(await createSystemHomepage(body), 'created', 201)
 })

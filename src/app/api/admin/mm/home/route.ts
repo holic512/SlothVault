@@ -10,6 +10,10 @@
  */
 import { z } from 'zod'
 
+import {
+  DOCUMENT_CONTENT_MAX_CHARACTERS,
+  DOCUMENT_JSON_MAX_BYTES,
+} from '@/lib/document-content'
 import { requireAdminSession } from '@/server/auth/session'
 import { HttpError } from '@/server/http/errors'
 import { defineRoute } from '@/server/http/handler'
@@ -23,7 +27,7 @@ import {
 
 const createHomeSchema = z.object({
   projectId: z.unknown().optional(),
-  content: z.unknown().optional(),
+  content: z.string().max(DOCUMENT_CONTENT_MAX_CHARACTERS),
   status: z.unknown().optional(),
 })
 
@@ -39,7 +43,9 @@ export const GET = defineRoute(async (request) => {
 
 export const POST = defineRoute(async (request) => {
   await requireAdminSession(request)
-  const body = await readJson(request, createHomeSchema)
+  const body = await readJson(request, createHomeSchema, {
+    maxBytes: DOCUMENT_JSON_MAX_BYTES,
+  })
   const projectId = parseJsonDecimalId(body.projectId, 'projectId')
   return apiOk(await createOrRestoreProjectHome(projectId, body), 'created', 201)
 })

@@ -10,6 +10,10 @@
  */
 import { z } from 'zod'
 
+import {
+  DOCUMENT_CONTENT_MAX_CHARACTERS,
+  DOCUMENT_JSON_MAX_BYTES,
+} from '@/lib/document-content'
 import { requireAdminSession } from '@/server/auth/session'
 import { defineRoute } from '@/server/http/handler'
 import { readJson } from '@/server/http/request'
@@ -18,7 +22,7 @@ import { parseDecimalId } from '@/server/services/admin-catalog'
 import { updateSystemHomepage } from '@/server/services/admin-content'
 
 const updateHomepageSchema = z.object({
-  content: z.unknown().optional(),
+  content: z.string().max(DOCUMENT_CONTENT_MAX_CHARACTERS).optional(),
   status: z.unknown().optional(),
   isDeleted: z.unknown().optional(),
 })
@@ -29,6 +33,8 @@ export const PUT = defineRoute<{ id: string }>(async (request, context) => {
   await requireAdminSession(request)
   const { id: idRaw } = await context.params
   const id = parseDecimalId(idRaw)
-  const body = await readJson(request, updateHomepageSchema)
+  const body = await readJson(request, updateHomepageSchema, {
+    maxBytes: DOCUMENT_JSON_MAX_BYTES,
+  })
   return apiOk(await updateSystemHomepage(id, body))
 })

@@ -12,6 +12,7 @@ import 'server-only'
 
 import type { Prisma } from '@generated/prisma-postgresql/client'
 
+import { DOCUMENT_CONTENT_MAX_CHARACTERS } from '@/lib/document-content'
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
 import {
@@ -76,6 +77,15 @@ export type UpdateNoteContentInput = {
   isPrimary?: boolean
   status?: number
   isDeleted?: boolean
+}
+
+function optionalDocumentContent(value: unknown) {
+  if (value === undefined) return undefined
+  if (typeof value !== 'string') throw new HttpError('Invalid content', 400, 400)
+  if (value.length > DOCUMENT_CONTENT_MAX_CHARACTERS) {
+    throw new HttpError('Content exceeds the document limit', 400, 400)
+  }
+  return value
 }
 
 export function noteDto(note: NoteInfoLike) {
@@ -507,9 +517,10 @@ export async function createAdminNoteContent(input: {
   isPrimary?: unknown
   status?: unknown
 }) {
+  const content = optionalDocumentContent(input.content)
   const item = await createNoteContent({
     noteInfoId: parseJsonDecimalId(input.noteInfoId, 'noteInfoId'),
-    content: typeof input.content === 'string' ? input.content : '',
+    content: content ?? '',
     versionNote:
       typeof input.versionNote === 'string' ? input.versionNote.trim() || null : null,
     isPrimary: input.isPrimary === true,
@@ -529,7 +540,8 @@ export async function updateAdminNoteContent(
   },
 ) {
   const update: UpdateNoteContentInput = {}
-  if (typeof input.content === 'string') update.content = input.content
+  const content = optionalDocumentContent(input.content)
+  if (content !== undefined) update.content = content
   if (input.versionNote !== undefined) {
     update.versionNote =
       typeof input.versionNote === 'string' ? input.versionNote.trim() || null : null

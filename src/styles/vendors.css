@@ -64,6 +64,118 @@
   background: var(--sv-bg-solid);
 }
 
+.document-editor-intro {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--sv-border);
+  background:
+    linear-gradient(100deg, rgb(var(--sv-primary-rgb), 0.07), transparent 42%),
+    var(--sv-bg-solid);
+}
+
+.document-editor-mode {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+}
+
+.document-editor-mode-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--sv-border-strong);
+  border-radius: var(--sv-admin-radius);
+  background: var(--sv-bg-soft);
+  color: var(--sv-primary-strong);
+}
+
+.document-editor-mode > span:last-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.document-editor-mode strong {
+  color: var(--sv-text);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.document-editor-mode small {
+  overflow: hidden;
+  color: var(--sv-text-muted);
+  font-size: 10px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-editor-guide-toggle {
+  display: inline-flex;
+  min-height: 28px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 0 9px;
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-admin-radius);
+  background: var(--sv-bg-solid);
+  color: var(--sv-text-muted);
+  cursor: pointer;
+  font: 600 11px/1 var(--sv-font-body);
+  transition: var(--sv-motion-fast) var(--sv-ease-standard);
+}
+
+.document-editor-guide-toggle:hover {
+  border-color: var(--sv-border-strong);
+  background: var(--sv-bg-soft);
+  color: var(--sv-text);
+}
+
+.document-editor-guide-toggle:focus-visible {
+  outline: 2px solid var(--sv-primary);
+  outline-offset: 2px;
+}
+
+.document-editor-guide {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  border-bottom: 1px solid var(--sv-border);
+  background: var(--sv-border);
+}
+
+.document-editor-guide > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--sv-bg-soft) 58%, var(--sv-bg-solid));
+}
+
+.document-editor-guide strong {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--sv-text);
+  font-size: 11px;
+}
+
+.document-editor-guide span {
+  color: var(--sv-text-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
 .markdown-editor-shell .w-md-editor {
   height: 100% !important;
   min-height: 680px;
@@ -74,9 +186,18 @@
 }
 
 .markdown-editor-shell .w-md-editor-toolbar {
-  padding: 5px 8px;
+  padding: 6px 9px;
   border-bottom: 1px solid var(--sv-border);
   background: color-mix(in srgb, var(--sv-bg-soft) 70%, var(--sv-bg-solid));
+}
+
+.markdown-editor-shell .w-md-editor-toolbar li > button {
+  border-radius: 4px;
+}
+
+.markdown-editor-shell .w-md-editor-toolbar li > button:focus-visible {
+  outline: 2px solid var(--sv-primary);
+  outline-offset: 1px;
 }
 
 .markdown-editor-shell .w-md-editor-content {
@@ -91,6 +212,25 @@
   background: var(--sv-bg-solid);
 }
 
+.markdown-editor-shell .markdown-editor-preview-content {
+  padding: 24px clamp(18px, 4vw, 42px);
+  font-size: 16px;
+}
+
+.markdown-editor-shell .markdown-editor-preview-content h1 {
+  font-size: clamp(2rem, 4vw, 3.25rem);
+}
+
+.markdown-editor-shell .markdown-editor-preview-content h2 {
+  margin-top: 38px;
+  font-size: clamp(1.4rem, 2.4vw, 1.85rem);
+}
+
+.markdown-editor-shell .markdown-editor-preview-content h3 {
+  margin-top: 26px;
+  font-size: 1.2rem;
+}
+
 .markdown-editor-shell .w-md-editor-text-pre > code {
   font-family: var(--sv-font-body) !important;
   font-size: var(--sv-font-body-size) !important;
@@ -101,6 +241,44 @@
   font-family: var(--sv-font-body) !important;
   font-size: var(--sv-font-body-size) !important;
   line-height: 1.72 !important;
+}
+
+.markdown-editor-shell[data-uploading="true"] .w-md-editor-text-input {
+  cursor: progress;
+}
+
+.document-editor-status {
+  display: flex;
+  min-height: 31px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--sv-border);
+  background: color-mix(in srgb, var(--sv-bg-soft) 48%, var(--sv-bg-solid));
+  color: var(--sv-text-muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.document-editor-status > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-editor-status > span:last-child {
+  flex: 0 0 auto;
+  font-family: var(--sv-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.document-editor-status[data-tone="warning"] {
+  color: var(--sv-warning);
+}
+
+.document-editor-status[data-tone="error"] {
+  color: var(--sv-danger);
 }
 
 .ant-typography h1 {
@@ -149,6 +327,27 @@ h3.ant-typography {
 }
 
 @media (max-width: 640px) {
+  .document-editor-intro {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .document-editor-guide-toggle {
+    align-self: stretch;
+    justify-content: center;
+  }
+
+  .document-editor-guide {
+    grid-template-columns: 1fr;
+  }
+
+  .document-editor-status {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+
   .sloth-wallet-button.wallet-adapter-button {
     width: 38px;
     min-width: 38px;
