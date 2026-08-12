@@ -4,7 +4,7 @@
  * @file project-menu-manager.tsx
  * @project SlothVault
  * @module Project Menu Administration
- * @description Replaces the Nuxt project menu dialog with a two-level Ant Design tree table and validated editor.
+ * @description Provides a two-level Ant Design project menu tree table and validated editor.
  * @logic Load one project's menu tree, restrict parent choices to active roots, and coordinate create, edit, cascade delete, and restore operations.
  * @dependencies Ant Design, React Query, next-intl, api-client
  * @index_tags admin,project-menu,navigation,tree,crud

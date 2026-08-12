@@ -4,7 +4,7 @@
  * @file admin-shell.tsx
  * @project SlothVault
  * @module Administrator Shell
- * @description Replaces the Nuxt admin layout with a responsive Ant Design navigation and authenticated header.
+ * @description Provides a responsive Ant Design navigation shell with an authenticated administrator header.
  * @logic Map routes to one menu/breadcrumb model, preserve collapse state locally, and expose home/theme/logout actions while keeping wallet use inside the optional copyright page.
  * @dependencies antd, next/navigation, next-intl, theme-controls
  * @index_tags admin,layout,navigation,sidebar

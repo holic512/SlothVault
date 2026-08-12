@@ -99,8 +99,8 @@ function validHex(value: string, bytes?: number) {
 }
 
 /**
- * Uses the original Nuxt ciphertext format so existing MerkleTree.encryptedKey
- * records remain readable after migration. The stored salt was historically
+ * Uses the established ciphertext format so existing MerkleTree.encryptedKey
+ * records remain readable. The stored salt was historically
  * informational; the derivation salt must stay `solana-tree-key` for compatibility.
  */
 export function encryptTreeAuthorityKey(privateKey: string) {

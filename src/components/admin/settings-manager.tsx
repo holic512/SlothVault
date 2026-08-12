@@ -4,7 +4,7 @@
  * @file settings-manager.tsx
  * @project SlothVault
  * @module System Settings Administration
- * @description Replaces the Nuxt configuration form with grouped Ant Design controls that do not echo stored secrets.
+ * @description Provides grouped Ant Design configuration controls that do not echo stored secrets.
  * @logic Load known configuration metadata, track only changed keys, submit one atomic batch, and re-read process-independent runtime values.
  * @dependencies Ant Design, React Query, next-intl, api-client
  * @index_tags admin,settings,secrets,configuration,transaction

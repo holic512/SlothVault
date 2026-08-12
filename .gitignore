@@ -36,7 +36,6 @@ logs
 # Uploaded files
 public/uploads
 data/uploads
-data/uploads-legacy-nuxt
 data/config
 data/database
 

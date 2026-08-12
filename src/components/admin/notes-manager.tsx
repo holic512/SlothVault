@@ -4,7 +4,7 @@
  * @file notes-manager.tsx
  * @project SlothVault
  * @module Note Administration
- * @description Replaces the Nuxt note table with a project/version/category-aware Ant Design workflow.
+ * @description Provides a project/version/category-aware Ant Design note administration workflow.
  * @logic Resolve route-backed filters, query paginated notes, and coordinate create, edit, restore, delete, and content-editor navigation.
  * @dependencies Ant Design, React Query, Next navigation, next-intl, api-client
  * @index_tags admin,notes,filters,crud,content-navigation

@@ -30,23 +30,70 @@ describe('Next runtime contract', () => {
     expect(unguarded).toEqual([])
   })
 
-  it('keeps the active runtime free of Nuxt/Vue imports and public uploads', () => {
+  it('keeps the active runtime on the native Next.js stack', () => {
+    const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>
+      devDependencies?: Record<string, string>
+      scripts?: Record<string, string>
+    }
+    const packageLock = JSON.parse(readFileSync(join(root, 'package-lock.json'), 'utf8')) as {
+      packages?: Record<string, unknown>
+    }
+    const installedPackages = {
+      ...packageJson.dependencies,
+      ...packageJson.devDependencies,
+    }
+    const forbiddenDirectPackages = [
+      'nuxt',
+      '@nuxt/kit',
+      '@nuxt/schema',
+      '@nuxtjs/i18n',
+      'nitropack',
+      'h3',
+      'vue',
+      'vue-router',
+      'pinia',
+      'element-plus',
+    ]
+    const forbiddenLockedPackages = Object.keys(packageLock.packages ?? {}).filter(
+      (path) =>
+        /^node_modules\/(?:nuxt|@nuxt\/|@nuxtjs\/|nitropack|h3|vue|@vue\/|vue-router|pinia|element-plus)(?:\/|$)/.test(
+          path,
+        ),
+    )
+    const forbiddenImportPatterns = [
+      /(?:from|import\()\s*['"](?:nuxt|nuxt\/|@nuxt\/|@nuxtjs\/)/,
+      /(?:from|import\()\s*['"](?:vue|vue-router|pinia|element-plus|h3)['"]/,
+      /(?:from|import\()\s*['"](?:#app|#imports)['"]/,
+      /(?:from|import\()\s*['"]~~\//,
+      /require\(\s*['"](?:nuxt|nuxt\/|@nuxt\/|@nuxtjs\/|vue|vue-router|pinia|element-plus|h3)['"]\s*\)/,
+    ]
     const activeSources = walk(join(root, 'src')).filter(
       (file) => /\.(ts|tsx)$/.test(file) && !/\.(test|spec)\.(ts|tsx)$/.test(file),
     )
     const legacyImports = activeSources
       .filter((file) => {
         const source = readFileSync(file, 'utf8')
-        return (
-          /from ['"]vue['"]/.test(source) ||
-          /from ['"]#app['"]/.test(source) ||
-          /from ['"]element-plus['"]/.test(source) ||
-          source.includes("from '~~/") ||
-          source.includes('from "~~/')
-        )
+        return forbiddenImportPatterns.some((pattern) => pattern.test(source))
       })
       .map((file) => normalizedPath(relative(root, file)))
+
+    expect(packageJson.dependencies?.next).toBeDefined()
+    expect(packageJson.scripts?.dev).toBe('next dev')
+    expect(packageJson.scripts?.build).toContain('next build')
+    expect(forbiddenDirectPackages.filter((name) => installedPackages[name])).toEqual([])
+    expect(forbiddenLockedPackages).toEqual([])
     expect(legacyImports).toEqual([])
+    for (const obsoleteDirectory of [
+      'legacy-nuxt',
+      'server',
+      'plugins',
+      'i18n',
+      'data/uploads-legacy-nuxt',
+    ]) {
+      expect(existsSync(join(root, obsoleteDirectory))).toBe(false)
+    }
+    expect(existsSync(join(root, 'nuxt.config.ts'))).toBe(false)
     expect(existsSync(join(root, 'public', 'uploads'))).toBe(false)
   })
 

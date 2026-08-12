@@ -4,7 +4,7 @@
  * @file files-manager.tsx
  * @project SlothVault
  * @module File Administration
- * @description Replaces the Nuxt file console with an Ant Design upload, preview, filtering, and deletion workflow.
+ * @description Provides an Ant Design file upload, preview, filtering, and deletion workflow.
  * @logic Query server-owned file metadata, stage bounded multipart uploads, and expose soft, batch, and explicit hard-delete actions.
  * @dependencies Ant Design, React Query, next-intl, api-client
  * @index_tags admin,files,upload,preview,delete

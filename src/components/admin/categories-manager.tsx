@@ -4,7 +4,7 @@
  * @file categories-manager.tsx
  * @project SlothVault
  * @module Category Administration
- * @description Replaces the Nuxt category page with a project/version-aware Ant Design CRUD table.
+ * @description Provides a project/version-aware Ant Design category administration table.
  * @logic Keep route-selected versions synchronized with filters, fetch the appropriate endpoint, and run create/update/delete/restore mutations.
  * @dependencies Ant Design, React Query, Next navigation, api-client
  * @index_tags admin,categories,versions,crud

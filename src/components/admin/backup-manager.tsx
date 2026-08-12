@@ -4,7 +4,7 @@
  * @file backup-manager.tsx
  * @project SlothVault
  * @module Backup Administration
- * @description Replaces the Nuxt backup console with explicit export, transactional import, file restore, and typed reset confirmation flows.
+ * @description Provides explicit export, transactional import, file restore, and typed reset confirmation flows.
  * @logic Download authenticated artifacts, stage selected restore files, require elevated confirmation for overwrite/reset, and surface server validation failures.
  * @dependencies Ant Design, next-intl, api-client, browser Blob/File APIs
  * @index_tags admin,backup,restore,reset,download

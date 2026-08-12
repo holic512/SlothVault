@@ -4,7 +4,7 @@
  * @file note-content-editor.tsx
  * @project SlothVault
  * @module Note Content Administration
- * @description Replaces the Nuxt three-pane content workspace with React Query, Ant Design navigation, and a controlled Markdown editor.
+ * @description Provides a three-pane content workspace with React Query, Ant Design navigation, and a controlled Markdown editor.
  * @logic Navigate project-version notes, select transactional content revisions, debounce autosaves, upload images, and guard dirty transitions.
  * @dependencies Ant Design, React Query, React MD Editor wrapper, Next navigation, next-intl, api-client
  * @index_tags admin,notes,content,versions,autosave,markdown
