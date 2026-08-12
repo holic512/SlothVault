@@ -2,8 +2,8 @@
  * @file database-export.ts
  * @project SlothVault
  * @module Admin Database Backup Export
- * @description Exports a relation-closed portable snapshot of accounts, content, points, files, configuration, and cNFT records.
- * @logic Read one repeatable transaction snapshot, close menu relations, serialize identifiers and BigInts, then validate the portable result.
+ * @description Exports a relation-closed portable 2.1 snapshot of accounts, immutable releases, content, points, files, configuration, and cNFT records.
+ * @logic Read one repeatable transaction snapshot, close menu relations, omit concurrency revisions, serialize release identity and BigInts, then validate the portable result.
  * @dependencies database unit-of-work, Prisma, HTTP JSON serialization, backup schema and validation
  * @index_tags admin,backup,database,export,snapshot,relations
  * @author holic512
@@ -188,11 +188,19 @@ export async function exportDatabaseBackup() {
       ...item,
       id: id.toString(),
     })),
-    projectVersions: snapshot.projectVersions.map(({ id, projectId, ...item }) => ({
-      ...item,
-      id: id.toString(),
-      projectId: projectId.toString(),
-    })),
+    projectVersions: snapshot.projectVersions.map(({
+      id,
+      projectId,
+      documentRevision,
+      ...item
+    }) => {
+      void documentRevision
+      return {
+        ...item,
+        id: id.toString(),
+        projectId: projectId.toString(),
+      }
+    }),
     categories: snapshot.categories.map(({ id, projectVersionId, ...item }) => ({
       ...item,
       id: id.toString(),
@@ -267,7 +275,7 @@ export async function exportDatabaseBackup() {
   validateBackupRelations(data)
 
   return {
-    version: '2.0.0',
+    version: '2.1.0',
     exportedAt,
     data,
   }

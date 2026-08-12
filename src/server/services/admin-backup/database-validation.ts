@@ -2,8 +2,8 @@
  * @file database-validation.ts
  * @project SlothVault
  * @module Admin Database Backup Validation
- * @description Validates cross-record backup relations and parses database import payloads before mutation.
- * @logic Reject duplicate identities, broken references, menu cycles, inconsistent primary content, unsafe tree capacity, and oversized requests.
+ * @description Validates cross-record backup relations, immutable release metadata, and database import payloads before mutation.
+ * @logic Reject duplicate identities, broken references, menu cycles, partial release identity groups, unsafe tree capacity, and oversized requests while converting legacy 2.0 versions to drafts.
  * @dependencies server/http/errors, backup constants, database backup schema
  * @index_tags admin,backup,database,validation,relations,request-limits
  * @author holic512
@@ -107,6 +107,25 @@ export function validateBackupRelations(data: BackupData) {
 
   for (const item of data.projectVersions) {
     assertReference(projects, item.projectId, 'projectId')
+    const releaseFields = [
+      item.releaseId,
+      item.releaseHash,
+      item.manifestVersion,
+      item.publishedAt,
+    ]
+    const present = releaseFields.filter((value) => value !== null).length
+    if (present !== 0 && present !== releaseFields.length) {
+      invalidBackup(`projectVersion ${item.id} has partial release metadata`)
+    }
+    if (present === 0 && item.status !== 0) {
+      invalidBackup(`draft projectVersion ${item.id} must have status 0`)
+    }
+    if (present === releaseFields.length && item.status !== 0 && item.status !== 1) {
+      invalidBackup(`published projectVersion ${item.id} must have status 0 or 1`)
+    }
+    if (present === releaseFields.length && item.isDeleted) {
+      invalidBackup(`published projectVersion ${item.id} cannot be deleted`)
+    }
   }
   for (const item of data.categories) {
     assertReference(projectVersions, item.projectVersionId, 'projectVersionId')
@@ -267,6 +286,20 @@ export function validateBackupRelations(data: BackupData) {
     (item) => item.walletAddress,
   )
   assertUniqueField('giftCard codeHash', data.giftCards, (item) => item.codeHash)
+  assertUniqueField(
+    'releaseId',
+    data.projectVersions.filter(
+      (item): item is typeof item & { releaseId: string } => item.releaseId !== null,
+    ),
+    (item) => item.releaseId,
+  )
+  assertUniqueField(
+    'releaseHash',
+    data.projectVersions.filter(
+      (item): item is typeof item & { releaseHash: string } => item.releaseHash !== null,
+    ),
+    (item) => item.releaseHash,
+  )
   assertUniqueField('treeAddress', data.merkleTrees, (item) => item.treeAddress)
   assertUniqueField('assetId', data.compressedNfts, (item) => item.assetId)
   assertUniqueField(
@@ -287,6 +320,15 @@ export function parseDatabaseImportPayload(input: unknown): DatabaseImportPayloa
     invalidBackup(`${path}${issue?.message || 'invalid structure'}`)
   }
 
+  if (parsed.data.version === '2.0.0') {
+    for (const version of parsed.data.data.projectVersions) {
+      version.status = 0
+      version.releaseId = null
+      version.releaseHash = null
+      version.manifestVersion = null
+      version.publishedAt = null
+    }
+  }
   validateBackupRelations(parsed.data.data)
   return parsed.data
 }

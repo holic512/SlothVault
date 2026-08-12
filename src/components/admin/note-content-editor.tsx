@@ -58,6 +58,7 @@ type NoteInfo = {
       id: string
       version: string
       projectId: string
+      publishedAt: string | null
       project?: { id: string; projectName: string } | null
     } | null
   } | null
@@ -77,6 +78,7 @@ type ProjectVersion = {
   id: string
   projectId: string
   version: string
+  publishedAt: string | null
   project?: { id: string; projectName: string } | null
 }
 type Category = {
@@ -133,7 +135,11 @@ export function NoteContentEditor({ noteId }: { noteId: string }) {
   })
 
   const currentVersionId = noteQuery.data?.category?.projectVersion?.id || ''
+  const isReleased = Boolean(noteQuery.data?.category?.projectVersion?.publishedAt)
   const navVersionId = selectedNavVersionId ?? currentVersionId
+  const navVersionReleased = Boolean(
+    versionsQuery.data?.find((version) => version.id === navVersionId)?.publishedAt,
+  )
   const categoriesQuery = useQuery({
     queryKey: ['admin-note-editor-categories', navVersionId],
     enabled: Boolean(navVersionId),
@@ -307,6 +313,7 @@ export function NoteContentEditor({ noteId }: { noteId: string }) {
         </div>
         <Space wrap>
           {dirty ? <Tag color="warning">{contentT('unsaved')}</Tag> : null}
+          {isReleased ? <Tag color="blue">{contentT('releasedReadOnly')}</Tag> : null}
           <Button
             icon={<RefreshCw size={15} />}
             onClick={() => {
@@ -320,6 +327,15 @@ export function NoteContentEditor({ noteId }: { noteId: string }) {
           </Button>
         </Space>
       </div>
+
+      {isReleased ? (
+        <Alert
+          showIcon
+          type="info"
+          message={contentT('releasedReadOnly')}
+          description={contentT('releasedReadOnlyTip')}
+        />
+      ) : null}
 
       <div className="note-editor-workspace">
         <aside className="note-library-panel">
@@ -370,6 +386,7 @@ export function NoteContentEditor({ noteId }: { noteId: string }) {
               type="primary"
               size="small"
               icon={<FilePlus2 size={13} />}
+              disabled={isReleased || navVersionReleased}
               onClick={() => setNewVersionOpen(true)}
             >
               {contentT('newVersion')}
@@ -398,6 +415,7 @@ export function NoteContentEditor({ noteId }: { noteId: string }) {
                         size="small"
                         aria-label={contentT('setPrimary')}
                         icon={<Star size={13} />}
+                        disabled={isReleased}
                         onClick={() => setPrimary.mutate(item.id)}
                       />
                     ) : null}
@@ -407,6 +425,7 @@ export function NoteContentEditor({ noteId }: { noteId: string }) {
                       size="small"
                       aria-label={contentT('delete')}
                       icon={<Trash2 size={13} />}
+                      disabled={isReleased}
                       onClick={() => deleteVersion(item)}
                     />
                   </span>
@@ -423,6 +442,7 @@ export function NoteContentEditor({ noteId }: { noteId: string }) {
             <RevisionEditor
               key={`${noteId}:${selectedContent.id}`}
               item={selectedContent}
+              readOnly={isReleased}
               onDirtyChange={setDirty}
               onSaved={(updated) => {
                 queryClient.setQueryData<{ list: NoteContent[] }>(
@@ -439,7 +459,7 @@ export function NoteContentEditor({ noteId }: { noteId: string }) {
             <div className="note-editor-empty">
               <CloudUpload size={30} />
               <Typography.Text>{contentT('selectOrCreate')}</Typography.Text>
-              <Button type="primary" onClick={() => setNewVersionOpen(true)}>
+              <Button type="primary" disabled={isReleased} onClick={() => setNewVersionOpen(true)}>
                 {contentT('newVersion')}
               </Button>
             </div>
@@ -474,10 +494,12 @@ export function NoteContentEditor({ noteId }: { noteId: string }) {
 
 function RevisionEditor({
   item,
+  readOnly,
   onDirtyChange,
   onSaved,
 }: {
   item: NoteContent
+  readOnly: boolean
   onDirtyChange: (dirty: boolean) => void
   onSaved: (item: NoteContent) => void
 }) {
@@ -520,21 +542,21 @@ function RevisionEditor({
   )
 
   useEffect(() => {
-    if (draft === savedDraft) return
+    if (readOnly || draft === savedDraft) return
     const timer = window.setTimeout(() => void save(true), 3000)
     return () => window.clearTimeout(timer)
-  }, [draft, save, savedDraft])
+  }, [draft, readOnly, save, savedDraft])
 
   useEffect(() => {
     const handleKeydown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === 's') {
+      if (!readOnly && (event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === 's') {
         event.preventDefault()
         void save(false)
       }
     }
     window.addEventListener('keydown', handleKeydown)
     return () => window.removeEventListener('keydown', handleKeydown)
-  }, [save])
+  }, [readOnly, save])
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -579,7 +601,7 @@ function RevisionEditor({
             type="primary"
             icon={<Save size={14} />}
             loading={saving}
-            disabled={draft === savedDraft}
+            disabled={readOnly || draft === savedDraft}
             onClick={() => void save(false)}
           >
             {contentT('save')}
@@ -594,6 +616,7 @@ function RevisionEditor({
           onDirtyChange(value !== savedDraft)
         }}
         onUpload={uploadImages}
+        readOnly={readOnly}
       />
     </>
   )

@@ -2,8 +2,8 @@
  * @file database-schema.ts
  * @project SlothVault
  * @module Admin Database Backup Schema
- * @description Defines the strict portable database-backup shape and its inferred import types.
- * @logic Validate primitive bounds, timestamps, managed file paths, every exported collection, and the import mode envelope.
+ * @description Defines the strict portable database-backup shape, release metadata, and inferred import types.
+ * @logic Validate primitive bounds, timestamps, managed file paths, every exported collection, optional legacy release fields, and the import mode/version envelope.
  * @dependencies Zod, Node path rules, backup constants
  * @index_tags admin,backup,database,schema,zod,portable
  * @author holic512
@@ -179,6 +179,10 @@ const projectVersionSchema = z.object({
   description: z.string().nullable(),
   weight: intSchema,
   status: smallIntSchema,
+  releaseId: z.string().uuid().nullable().optional().default(null),
+  releaseHash: z.string().regex(/^[a-f0-9]{64}$/).nullable().optional().default(null),
+  manifestVersion: z.literal(1).nullable().optional().default(null),
+  publishedAt: dateStringSchema.nullable().optional().default(null),
   createdAt: dateStringSchema,
   updatedAt: dateStringSchema,
   isDeleted: z.boolean(),
@@ -343,6 +347,7 @@ export const backupDataSchema = z.object({
 export const databaseImportPayloadSchema = z.object({
   data: backupDataSchema,
   mode: z.enum(['insert', 'overwrite']).optional().default('insert'),
+  version: z.enum(['2.0.0', '2.1.0']).optional().default('2.0.0'),
 }).strict()
 
 export type BackupData = z.infer<typeof backupDataSchema>

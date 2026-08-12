@@ -36,7 +36,7 @@ import { AdminPage, AdminPageActions } from '@/components/admin/admin-page'
 import { apiFetch } from '@/lib/api-client'
 
 type ProjectDto = { id: string; projectName: string }
-type VersionDto = { id: string; projectId: string; version: string }
+type VersionDto = { id: string; projectId: string; version: string; publishedAt: string | null }
 type CategoryDto = { id: string; projectVersionId: string; categoryName: string }
 type NoteDto = {
   id: string
@@ -56,6 +56,7 @@ type NoteDto = {
       id: string
       version: string
       projectId: string
+      publishedAt: string | null
       project?: { id: string; projectName: string } | null
     } | null
   } | null
@@ -129,6 +130,9 @@ export function NotesManager() {
       return apiFetch<NoteListData>(`/api/admin/mm/note?${params}`)
     },
   })
+  const selectedVersionReleased = Boolean(
+    versionsQuery.data?.list.find((version) => version.id === versionId)?.publishedAt,
+  )
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['admin-notes'] })
   const save = useMutation({
@@ -150,6 +154,10 @@ export function NotesManager() {
   })
 
   const openForm = (note?: NoteDto) => {
+    if (note?.category?.projectVersion?.publishedAt || (!note && selectedVersionReleased)) {
+      message.info(t('messages.releasedReadOnly'))
+      return
+    }
     if (!note && !categoryId) {
       message.warning(t('messages.selectCategoryFirst'))
       return
@@ -252,15 +260,15 @@ export function NotesManager() {
           >
             {t('operations.contentEdit')}
           </Button>
-          <Button type="link" disabled={row.isDeleted} onClick={() => openForm(row)}>
+          <Button type="link" disabled={row.isDeleted || Boolean(row.category?.projectVersion?.publishedAt)} onClick={() => openForm(row)}>
             {t('operations.edit')}
           </Button>
           {row.isDeleted ? (
-            <Button type="link" icon={<RotateCcw size={14} />} onClick={() => void restore(row)}>
+            <Button type="link" disabled={Boolean(row.category?.projectVersion?.publishedAt)} icon={<RotateCcw size={14} />} onClick={() => void restore(row)}>
               {t('operations.restore')}
             </Button>
           ) : (
-            <Button type="link" danger icon={<Trash2 size={14} />} onClick={() => remove(row)}>
+            <Button type="link" disabled={Boolean(row.category?.projectVersion?.publishedAt)} danger icon={<Trash2 size={14} />} onClick={() => remove(row)}>
               {t('operations.delete')}
             </Button>
           )}
@@ -276,7 +284,7 @@ export function NotesManager() {
           <Button icon={<RefreshCw size={15} />} onClick={() => void refresh()}>
             {t('actions.search')}
           </Button>
-          <Button type="primary" icon={<Plus size={15} />} onClick={() => openForm()}>
+          <Button type="primary" disabled={selectedVersionReleased} icon={<Plus size={15} />} onClick={() => openForm()}>
             {t('actions.create')}
           </Button>
         </Space>

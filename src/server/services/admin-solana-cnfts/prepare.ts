@@ -14,6 +14,7 @@ import { Keypair } from '@solana/web3.js'
 
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
+import { RELEASE_MANIFEST_VERSION } from '@/server/services/project-version-release'
 import {
   isFilebaseConfigured,
   type FilebaseUploadResult,
@@ -131,6 +132,10 @@ export async function prepareCnft(options: PrepareCnftOptions) {
         projectVersion: {
           isDeleted: false,
           status: 1,
+          publishedAt: { not: null },
+          releaseId: { not: null },
+          releaseHash: { not: null },
+          manifestVersion: RELEASE_MANIFEST_VERSION,
           project: { id: options.projectId, isDeleted: false, status: 1 },
         },
       },
@@ -146,7 +151,7 @@ export async function prepareCnft(options: PrepareCnftOptions) {
         },
       },
       contents: {
-        where: { isDeleted: false, status: 1 },
+        where: { isDeleted: false, status: 1, isPrimary: true },
         select: { id: true },
         take: 1,
       },

@@ -46,6 +46,16 @@ function readWeb2Migration(provider: (typeof providers)[number]) {
   )
 }
 
+function readReleaseMigration(provider: (typeof providers)[number]) {
+  return readFileSync(
+    resolve(
+      process.cwd(),
+      `prisma/providers/${provider}/migrations/20260812000000_project_version_releases/migration.sql`,
+    ),
+    'utf8',
+  )
+}
+
 function modelBlocks(schema: string) {
   return new Map(
     [...schema.matchAll(/model\s+(\w+)\s*\{([\s\S]*?)\n\}/g)].map((match) => [
@@ -90,6 +100,11 @@ describe('provider schema parity', () => {
     expect(models.get('GiftCard')).toContain('codeHash String @unique')
     expect(models.get('NoteInfo')).toContain('contentRevision Int @default(0) @map("content_revision")')
     expect(models.get('NoteInfo')).toContain('authorId Int? @map("author_id")')
+    expect(models.get('ProjectVersion')).toContain('documentRevision Int @default(0) @map("document_revision")')
+    expect(models.get('ProjectVersion')).toContain('releaseId String? @unique')
+    expect(models.get('ProjectVersion')).toContain('releaseHash String? @unique')
+    expect(models.get('ProjectVersion')).toContain('manifestVersion Int? @map("manifest_version")')
+    expect(models.get('ProjectVersion')).toContain('publishedAt DateTime? @map("published_at")')
     expect(models.get('MerkleTree')).toContain('remainingCapacity BigInt @default(0) @map("remaining_capacity")')
     expect(models.get('CompressedNft')).toContain('capacityReserved Boolean @default(false) @map("capacity_reserved")')
     expect(models.get('CompressedNft')).toContain('noteInfoId Int? @map("note_info_id")')
@@ -155,5 +170,16 @@ describe('provider schema parity', () => {
     expect(migration).toContain('author_id')
     expect(migration).toContain('note_info_id')
     expect(migration).toContain('copyright_owner_id')
+  })
+
+  it.each(providers)('%s migrates historical versions to immutable release-ready drafts', (provider) => {
+    const migration = readReleaseMigration(provider)
+
+    expect(migration).toContain('document_revision')
+    expect(migration).toContain('release_id')
+    expect(migration).toContain('release_hash')
+    expect(migration).toContain('manifest_version')
+    expect(migration).toContain('published_at')
+    expect(migration).toMatch(/SET\s+[`"]status[`"]\s*=\s*0/i)
   })
 })

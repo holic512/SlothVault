@@ -336,6 +336,18 @@
   background: var(--sv-bg-soft);
 }
 
+.root :global(.docs-release-proof) {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+  padding: 14px;
+  border: 1px solid var(--sv-border-strong);
+  border-radius: var(--sv-radius);
+  background: var(--sv-bg-soft);
+}
+
 .root :global(.docs-copyright-mark) {
   display: grid;
   width: 36px;
@@ -367,6 +379,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.root :global(.docs-release-proof) :global(.docs-copyright-copy) code {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .root :global(.docs-copyright-links) {
@@ -478,6 +497,10 @@
   }
 
   .root :global(.docs-copyright-proof) {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .root :global(.docs-release-proof) {
     grid-template-columns: auto minmax(0, 1fr);
   }
 

@@ -10,7 +10,7 @@
  */
 import 'server-only'
 
-import { unstable_cache } from 'next/cache'
+import { revalidateTag, unstable_cache } from 'next/cache'
 
 import {
   getProjectHome,
@@ -23,6 +23,16 @@ import {
 } from '@/server/services/public-projects'
 
 const PUBLIC_CONTENT_REVALIDATE_SECONDS = 60
+export const PUBLIC_PROJECTS_CACHE_TAG = 'public-projects'
+
+export function publicProjectCacheTag(projectId: number) {
+  return `public-project:${projectId}`
+}
+
+export async function invalidatePublicProjectCache(projectId?: number) {
+  revalidateTag(PUBLIC_PROJECTS_CACHE_TAG, { expire: 0 })
+  if (projectId !== undefined) revalidateTag(publicProjectCacheTag(projectId), { expire: 0 })
+}
 
 function iso(value: Date) {
   return value.toISOString()
@@ -35,7 +45,7 @@ export function getCachedPublicProjectList() {
       return projects.map((project) => ({ ...project, updatedAt: iso(project.updatedAt) }))
     },
     ['public-project-list'],
-    { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS },
+    { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS, tags: [PUBLIC_PROJECTS_CACHE_TAG] },
   )()
 }
 
@@ -49,12 +59,21 @@ export function getCachedProjectShell(projectId: number) {
       ])
       return {
         project: { ...project, updatedAt: iso(project.updatedAt) },
-        versions,
+        versions: versions.map((version) => ({
+          ...version,
+          releaseId: version.releaseId!,
+          releaseHash: version.releaseHash!,
+          manifestVersion: version.manifestVersion!,
+          publishedAt: iso(version.publishedAt!),
+        })),
         menus,
       }
     },
     ['public-project-shell', String(projectId)],
-    { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS },
+    {
+      revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS,
+      tags: [PUBLIC_PROJECTS_CACHE_TAG, publicProjectCacheTag(projectId)],
+    },
   )()
 }
 
@@ -65,15 +84,30 @@ export function getCachedProjectHome(projectId: number) {
       return { ...home, updatedAt: iso(home.updatedAt) }
     },
     ['public-project-home', String(projectId)],
-    { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS },
+    {
+      revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS,
+      tags: [PUBLIC_PROJECTS_CACHE_TAG, publicProjectCacheTag(projectId)],
+    },
   )()
 }
 
 export function getCachedProjectVersions(projectId: number) {
   return unstable_cache(
-    () => getProjectVersions(projectId),
+    async () => {
+      const versions = await getProjectVersions(projectId)
+      return versions.map((version) => ({
+        ...version,
+        releaseId: version.releaseId!,
+        releaseHash: version.releaseHash!,
+        manifestVersion: version.manifestVersion!,
+        publishedAt: iso(version.publishedAt!),
+      }))
+    },
     ['public-project-versions', String(projectId)],
-    { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS },
+    {
+      revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS,
+      tags: [PUBLIC_PROJECTS_CACHE_TAG, publicProjectCacheTag(projectId)],
+    },
   )()
 }
 
@@ -81,7 +115,10 @@ export function getCachedProjectSidebar(projectId: number, versionId: number) {
   return unstable_cache(
     () => getProjectSidebar(projectId, versionId),
     ['public-project-sidebar', String(projectId), String(versionId)],
-    { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS },
+    {
+      revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS,
+      tags: [PUBLIC_PROJECTS_CACHE_TAG, publicProjectCacheTag(projectId)],
+    },
   )()
 }
 
@@ -92,12 +129,16 @@ export function getCachedProjectNote(projectId: number, versionId: number, noteI
       return {
         ...note,
         updatedAt: iso(note.updatedAt),
+        publishedAt: iso(note.publishedAt),
         certificate: note.certificate
           ? { ...note.certificate, issuedAt: iso(note.certificate.issuedAt) }
           : null,
       }
     },
     ['public-project-note', String(projectId), String(versionId), String(noteId)],
-    { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS },
+    {
+      revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS,
+      tags: [PUBLIC_PROJECTS_CACHE_TAG, publicProjectCacheTag(projectId)],
+    },
   )()
 }

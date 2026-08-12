@@ -2,9 +2,9 @@
  * @file admin-notes.ts
  * @project SlothVault
  * @module Admin Notes
- * @description Owns note metadata queries and portable serialized NoteContent primary-version mutations for administration APIs.
- * @logic Build provider-portable filters, validate active category/note parents, increment the parent content revision before content writes, and normalize undeleted contents to exactly one primary inside each transaction.
- * @dependencies server/prisma, admin-catalog parsing, Prisma NoteInfo/NoteContent models, server/http/errors
+ * @description Owns draft-only note metadata queries and serialized NoteContent primary-version mutations for administration APIs.
+ * @logic Lock every owning project version before metadata or content writes, lock cross-version moves in stable order, increment note revisions, and normalize undeleted contents to exactly one primary in the same serializable transaction.
+ * @dependencies server/prisma, admin-catalog parsing, Prisma NoteInfo/NoteContent models, server/http/errors, project-version release service
  * @index_tags admin,notes,note-content,service,transaction,revision-lock,primary-version
  * @author holic512
  */
@@ -22,6 +22,12 @@ import {
   optionalIntegerValue,
   parseJsonDecimalId,
 } from '@/server/services/admin-catalog'
+import {
+  executeVersionWrite,
+  lockDraftProjectVersions,
+  projectVersionIdForCategory,
+  projectVersionIdForNote,
+} from '@/server/services/project-version-release'
 
 type NoteInfoLike = {
   id: number
@@ -43,6 +49,7 @@ type NoteInfoLike = {
               id: number
               version: string
               projectId: number
+              publishedAt?: Date | null
               project?: { id: number; projectName: string } | null
             }
           | null
@@ -112,6 +119,7 @@ export function noteDto(note: NoteInfoLike) {
                       id: category.projectVersion.id.toString(),
                       version: category.projectVersion.version,
                       projectId: category.projectVersion.projectId.toString(),
+                      publishedAt: category.projectVersion.publishedAt ?? null,
                       ...(category.projectVersion.project !== undefined
                         ? {
                             project: category.projectVersion.project
@@ -165,6 +173,7 @@ export type NoteListQuery = {
   categoryId?: number
   projectVersionId?: number
   projectId?: number
+  publishedOnly?: boolean
   orderByField: NoteOrderField
   order: 'asc' | 'desc'
 }
@@ -183,6 +192,22 @@ export async function listAdminNotes(query: NoteListQuery) {
   }
   if (query.projectId !== undefined) {
     categoryWhere.projectVersion = { projectId: query.projectId }
+  }
+  if (query.publishedOnly) {
+    const releaseWhere: Prisma.ProjectVersionWhereInput = {
+      isDeleted: false,
+      status: 1,
+      publishedAt: { not: null },
+      releaseId: { not: null },
+      releaseHash: { not: null },
+      manifestVersion: 1,
+    }
+    categoryWhere.projectVersion = query.projectId === undefined
+      ? releaseWhere
+      : { ...releaseWhere, projectId: query.projectId }
+    where.contents = { some: { isDeleted: false, status: 1, isPrimary: true } }
+    categoryWhere.isDeleted = false
+    categoryWhere.status = 1
   }
   if (Object.keys(categoryWhere).length > 0) where.category = categoryWhere
 
@@ -223,16 +248,29 @@ export async function createAdminNote(input: {
   const noteTitle = typeof input.noteTitle === 'string' ? input.noteTitle.trim() : ''
   if (!noteTitle) throw new HttpError('Missing noteTitle', 400, 400)
 
-  await requireActiveCategory(categoryId)
-  const note = await prisma.noteInfo.create({
-    data: {
-      categoryId,
-      authorId: input.authorId,
-      noteTitle,
-      weight: integerValue(input.weight, 0),
-      status: integerValue(input.status, 1),
-    },
-    include: { category: true },
+  const note = await executeVersionWrite(async (tx) => {
+    const projectVersionId = await projectVersionIdForCategory(tx, categoryId)
+    await lockDraftProjectVersions(tx, [projectVersionId])
+    const category = await tx.category.findFirst({
+      where: { id: categoryId, isDeleted: false },
+      select: { id: true, projectVersionId: true },
+    })
+    if (!category) throw new HttpError('Category not found', 404, 404)
+    if (category.projectVersionId !== projectVersionId) {
+      throw new HttpError('Category parent changed during create', 409, 409, {
+        reason: 'VERSION_WRITE_CONFLICT',
+      })
+    }
+    return tx.noteInfo.create({
+      data: {
+        categoryId,
+        authorId: input.authorId,
+        noteTitle,
+        weight: integerValue(input.weight, 0),
+        status: integerValue(input.status, 1),
+      },
+      include: { category: true },
+    })
   })
   return noteDto(note)
 }
@@ -263,14 +301,22 @@ export async function updateAdminNote(
 ) {
   const current = await prisma.noteInfo.findFirst({
     where: { id, category: { isDeleted: false } },
-    select: { id: true },
+    select: { id: true, categoryId: true, category: { select: { projectVersionId: true } } },
   })
   if (!current) throw new HttpError('Not Found', 404, 404)
 
   const data: Prisma.NoteInfoUncheckedUpdateInput = { updatedAt: new Date() }
+  let targetCategoryId = current.categoryId
+  let targetVersionId = current.category.projectVersionId
   if (input.categoryId !== undefined) {
     const categoryId = parseJsonDecimalId(input.categoryId, 'categoryId')
-    await requireActiveCategory(categoryId)
+    const target = await prisma.category.findFirst({
+      where: { id: categoryId, isDeleted: false },
+      select: { projectVersionId: true },
+    })
+    if (!target) throw new HttpError('Category not found', 404, 404)
+    targetCategoryId = categoryId
+    targetVersionId = target.projectVersionId
     data.categoryId = categoryId
   }
   if (typeof input.noteTitle === 'string') {
@@ -286,10 +332,39 @@ export async function updateAdminNote(
   if (Object.keys(data).length === 1) throw new HttpError('No fields to update', 400, 400)
 
   try {
-    const note = await prisma.noteInfo.update({
-      where: { id },
-      data,
-      include: { category: true },
+    const note = await executeVersionWrite(async (tx) => {
+      await lockDraftProjectVersions(tx, [current.category.projectVersionId, targetVersionId])
+      const fresh = await tx.noteInfo.findUnique({
+        where: { id },
+        select: {
+          categoryId: true,
+          category: { select: { projectVersionId: true } },
+        },
+      })
+      if (
+        !fresh ||
+        fresh.categoryId !== current.categoryId ||
+        fresh.category.projectVersionId !== current.category.projectVersionId
+      ) {
+        throw new HttpError('Note parent changed during update', 409, 409, {
+          reason: 'VERSION_WRITE_CONFLICT',
+        })
+      }
+      const target = await tx.category.findFirst({
+        where: { id: targetCategoryId, isDeleted: false },
+        select: { id: true, projectVersionId: true },
+      })
+      if (!target) throw new HttpError('Category not found', 404, 404)
+      if (target.projectVersionId !== targetVersionId) {
+        throw new HttpError('Target category parent changed during update', 409, 409, {
+          reason: 'VERSION_WRITE_CONFLICT',
+        })
+      }
+      return tx.noteInfo.update({
+        where: { id },
+        data,
+        include: { category: true },
+      })
     })
     return noteDto(note)
   } catch (error) {
@@ -301,14 +376,33 @@ export async function updateAdminNote(
 export async function deleteAdminNote(id: number) {
   const current = await prisma.noteInfo.findFirst({
     where: { id, isDeleted: false, category: { isDeleted: false } },
-    select: { id: true },
+    select: { id: true, categoryId: true, category: { select: { projectVersionId: true } } },
   })
   if (!current) throw new HttpError('Not Found', 404, 404)
 
   try {
-    await prisma.noteInfo.update({
-      where: { id },
-      data: { isDeleted: true, updatedAt: new Date() },
+    await executeVersionWrite(async (tx) => {
+      await lockDraftProjectVersions(tx, [current.category.projectVersionId])
+      const fresh = await tx.noteInfo.findUnique({
+        where: { id },
+        select: {
+          categoryId: true,
+          category: { select: { projectVersionId: true } },
+        },
+      })
+      if (
+        !fresh ||
+        fresh.categoryId !== current.categoryId ||
+        fresh.category.projectVersionId !== current.category.projectVersionId
+      ) {
+        throw new HttpError('Note parent changed during delete', 409, 409, {
+          reason: 'VERSION_WRITE_CONFLICT',
+        })
+      }
+      await tx.noteInfo.update({
+        where: { id },
+        data: { isDeleted: true, updatedAt: new Date() },
+      })
     })
   } catch (error) {
     if (hasPrismaCode(error, 'P2025')) throw new HttpError('Not Found', 404, 404)
@@ -408,7 +502,14 @@ async function normalizePrimaryContent(
 }
 
 export async function createNoteContent(input: CreateNoteContentInput) {
-  return prisma.$transaction(async (tx) => {
+  return executeVersionWrite(async (tx) => {
+    const projectVersionId = await projectVersionIdForNote(tx, input.noteInfoId)
+    await lockDraftProjectVersions(tx, [projectVersionId])
+    if (await projectVersionIdForNote(tx, input.noteInfoId) !== projectVersionId) {
+      throw new HttpError('Note parent changed during content create', 409, 409, {
+        reason: 'VERSION_WRITE_CONFLICT',
+      })
+    }
     await lockActiveNoteInfo(tx, input.noteInfoId)
 
     const created = await tx.noteContent.create({
@@ -438,7 +539,14 @@ export async function updateNoteContent(id: number, input: UpdateNoteContentInpu
   })
   if (!reference) throw new HttpError('Not Found', 404, 404)
 
-  return prisma.$transaction(async (tx) => {
+  return executeVersionWrite(async (tx) => {
+    const projectVersionId = await projectVersionIdForNote(tx, reference.noteInfoId)
+    await lockDraftProjectVersions(tx, [projectVersionId])
+    if (await projectVersionIdForNote(tx, reference.noteInfoId) !== projectVersionId) {
+      throw new HttpError('Note parent changed during content update', 409, 409, {
+        reason: 'VERSION_WRITE_CONFLICT',
+      })
+    }
     await lockActiveNoteInfo(tx, reference.noteInfoId)
 
     const current = await tx.noteContent.findUnique({ where: { id } })
@@ -480,7 +588,14 @@ export async function deleteNoteContent(id: number) {
   })
   if (!reference) throw new HttpError('Not Found', 404, 404)
 
-  await prisma.$transaction(async (tx) => {
+  await executeVersionWrite(async (tx) => {
+    const projectVersionId = await projectVersionIdForNote(tx, reference.noteInfoId)
+    await lockDraftProjectVersions(tx, [projectVersionId])
+    if (await projectVersionIdForNote(tx, reference.noteInfoId) !== projectVersionId) {
+      throw new HttpError('Note parent changed during content delete', 409, 409, {
+        reason: 'VERSION_WRITE_CONFLICT',
+      })
+    }
     await lockActiveNoteInfo(tx, reference.noteInfoId)
 
     const current = await tx.noteContent.findUnique({ where: { id } })

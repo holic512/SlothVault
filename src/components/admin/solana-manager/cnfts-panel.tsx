@@ -244,7 +244,7 @@ function MintCnftDialog({
     queryKey: ['admin-solana-article-options', selectedProjectId],
     enabled: open && Boolean(selectedProjectId),
     queryFn: () => apiFetch<{ list: NoteOption[] }>(
-      `/api/admin/mm/note?pageSize=100&status=1&projectId=${selectedProjectId}`,
+      `/api/admin/mm/note?pageSize=100&status=1&publishedOnly=1&projectId=${selectedProjectId}`,
     ),
   })
   const mutation = useMutation({

@@ -29,6 +29,10 @@ type ProjectVersionLike = {
   description: string | null
   weight: number
   status: number
+  releaseId: string | null
+  releaseHash: string | null
+  manifestVersion: number | null
+  publishedAt: Date | null
   createdAt: Date
   updatedAt: Date
   isDeleted: boolean
@@ -46,6 +50,7 @@ type CategoryLike = {
   isDeleted: boolean
   projectVersion?:
     | (Pick<ProjectVersionLike, 'id' | 'projectId' | 'version'> & {
+        publishedAt?: Date | null
         project?: Pick<ProjectLike, 'id' | 'projectName'> | null
       })
     | null
@@ -105,6 +110,10 @@ export function projectVersionBaseDto(projectVersion: ProjectVersionLike) {
     description: projectVersion.description,
     weight: projectVersion.weight,
     status: projectVersion.status,
+    releaseId: projectVersion.releaseId,
+    releaseHash: projectVersion.releaseHash,
+    manifestVersion: projectVersion.manifestVersion,
+    publishedAt: projectVersion.publishedAt,
     createdAt: projectVersion.createdAt,
     updatedAt: projectVersion.updatedAt,
     isDeleted: projectVersion.isDeleted,
@@ -144,6 +153,7 @@ export function categoryDto(category: CategoryLike) {
           id: projectVersion.id.toString(),
           version: projectVersion.version,
           projectId: projectVersion.projectId.toString(),
+          publishedAt: projectVersion.publishedAt ?? null,
           ...(projectVersion.project !== undefined
             ? {
                 project: projectVersion.project

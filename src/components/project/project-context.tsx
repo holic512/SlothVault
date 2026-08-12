@@ -21,6 +21,10 @@ export type ProjectVersion = {
   version: string
   description: string | null
   weight: number
+  releaseId: string
+  releaseHash: string
+  manifestVersion: number
+  publishedAt: string
 }
 
 export type ProjectMenu = {

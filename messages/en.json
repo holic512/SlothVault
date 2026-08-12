@@ -19,6 +19,12 @@
   "Article": {
     "unknownAuthor": "Legacy article",
     "updated": "Updated {date}",
+    "release": {
+      "title": "Project version integrity",
+      "published": "Published {date}",
+      "scope": "This hash covers the version manifest and logical Markdown content, not attachment bytes or the current contents of external URLs.",
+      "download": "Download manifest"
+    },
     "certificate": {
       "title": "On-chain copyright certificate",
       "description": "This certificate binds the article to its author for verification and never restricts public reading.",
@@ -469,7 +475,20 @@
         "batchUpdated": "Updated {count} items",
         "batchUpdateFailed": "Batch update failed",
         "selectFirst": "Please select items first",
-        "requestFailed": "Request failed"
+        "requestFailed": "Request failed",
+        "releasedReadOnly": "Published versions are read only; clone a new draft first"
+      },
+      "versionRelease": {
+        "title": "Versions · {name}",
+        "includeDeleted": "Include deleted",
+        "newVersion": "New version",
+        "deleteConfirm": "Delete version \"{version}\"?",
+        "table": { "version": "Version", "description": "Description", "weight": "Weight", "lifecycle": "Lifecycle", "hash": "Release hash", "actions": "Actions" },
+        "status": { "deleted": "Deleted", "draft": "Draft", "published": "Published", "hidden": "Hidden" },
+        "actions": { "edit": "Edit", "categories": "Categories", "restore": "Restore", "hide": "Hide release", "show": "Restore release", "copyHash": "Copy hash", "manifest": "Download manifest", "integrity": "Verify integrity", "clone": "Clone to draft", "release": "Release", "publish": "Publish", "delete": "Delete" },
+        "form": { "newTitle": "New version", "editTitle": "Edit version", "version": "Version label", "description": "Description", "weight": "Weight", "status": "Status" },
+        "clone": { "title": "Clone {version} to draft", "version": "New version label" },
+        "messages": { "saved": "Saved", "published": "Version published", "publishValidationFailed": "Publish validation failed", "restored": "Release restored", "hidden": "Release hidden", "integrityVerified": "Release integrity verified", "integrityFailed": "Release integrity failed", "manifestFailed": "Manifest download failed", "cloned": "Draft cloned", "hashCopied": "Hash copied", "copyFailed": "Unable to copy hash" }
       }
     },
     "projectMenu": {
@@ -663,7 +682,8 @@
         "deleteFailed": "Delete failed",
         "restored": "Restored",
         "restoreFailed": "Restore failed",
-        "requestFailed": "Request failed"
+        "requestFailed": "Request failed",
+        "releasedReadOnly": "Published versions are read only; clone a new draft first"
       },
       "content": {
         "navTitle": "Categories & Notes",
@@ -695,6 +715,8 @@
         "saved": "Saved",
         "saveHint": "Ctrl+S to save",
         "save": "Save",
+        "releasedReadOnly": "Published version (read only)",
+        "releasedReadOnlyTip": "The published document tree is frozen. Clone it to a new draft from Project Versions before editing.",
         "selectOrCreate": "Please select or create a content version from the left",
         "newVersionDialog": {
           "title": "New Content Version",

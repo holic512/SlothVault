@@ -2,9 +2,9 @@
  * @file categories.ts
  * @project SlothVault
  * @module Admin Category Administration
- * @description Implements category listing, mutations, soft deletion, and project-version-scoped queries.
- * @logic Validate active parent versions, apply Prisma filters and mutations, and preserve existing DTO and error behavior.
- * @dependencies server/prisma, server/http/errors, catalog values, catalog DTOs
+ * @description Implements category listing and draft-only mutations for project versions.
+ * @logic Resolve source and target versions, lock them in stable order inside a serializable transaction, recheck parent relationships, and reject every mutation beneath a published release.
+ * @dependencies server/prisma, server/http/errors, catalog values, catalog DTOs, project-version release service
  * @index_tags admin,catalog,category,crud,project-version
  * @author holic512
  */
@@ -14,6 +14,10 @@ import type { Prisma } from '@generated/prisma-postgresql/client'
 
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
+import {
+  executeVersionWrite,
+  lockDraftProjectVersions,
+} from '@/server/services/project-version-release'
 
 import {
   databaseTextContains,
@@ -32,8 +36,11 @@ import type {
   CategoryListQuery,
 } from './query-types'
 
-async function requireActiveProjectVersion(projectVersionId: number) {
-  const projectVersion = await prisma.projectVersion.findFirst({
+async function requireActiveProjectVersion(
+  projectVersionId: number,
+  reader: Pick<Prisma.TransactionClient, 'projectVersion'> = prisma,
+) {
+  const projectVersion = await reader.projectVersion.findFirst({
     where: { id: projectVersionId, isDeleted: false },
     select: { id: true },
   })
@@ -78,16 +85,18 @@ export async function createAdminCategory(input: {
   const projectVersionId = parseJsonDecimalId(input.projectVersionId, 'projectVersionId')
   const categoryName = typeof input.categoryName === 'string' ? input.categoryName.trim() : ''
   if (!categoryName) throw new HttpError('Missing categoryName', 400, 400)
-  await requireActiveProjectVersion(projectVersionId)
-
-  const category = await prisma.category.create({
-    data: {
-      projectVersionId,
-      categoryName,
-      weight: integerValue(input.weight, 0),
-      status: integerValue(input.status, 1),
-    },
-    include: { projectVersion: true },
+  const category = await executeVersionWrite(async (tx) => {
+    await lockDraftProjectVersions(tx, [projectVersionId])
+    await requireActiveProjectVersion(projectVersionId, tx)
+    return tx.category.create({
+      data: {
+        projectVersionId,
+        categoryName,
+        weight: integerValue(input.weight, 0),
+        status: integerValue(input.status, 1),
+      },
+      include: { projectVersion: true },
+    })
   })
   return categoryDto(category)
 }
@@ -99,12 +108,20 @@ export async function updateAdminCategory(
     categoryName?: unknown
     weight?: unknown
     status?: unknown
+    isDeleted?: unknown
   },
 ) {
+  const current = await prisma.category.findUnique({
+    where: { id },
+    select: { projectVersionId: true },
+  })
+  if (!current) throw new HttpError('Not Found', 404, 404)
+
   const data: Prisma.CategoryUncheckedUpdateInput = { updatedAt: new Date() }
+  let targetVersionId = current.projectVersionId
   if (input.projectVersionId !== undefined) {
     const projectVersionId = parseJsonDecimalId(input.projectVersionId, 'projectVersionId')
-    await requireActiveProjectVersion(projectVersionId)
+    targetVersionId = projectVersionId
     data.projectVersionId = projectVersionId
   }
   if (typeof input.categoryName === 'string') {
@@ -116,13 +133,27 @@ export async function updateAdminCategory(
   if (weight !== null) data.weight = weight
   const status = optionalIntegerValue(input.status)
   if (status !== null) data.status = status
+  if (typeof input.isDeleted === 'boolean') data.isDeleted = input.isDeleted
   if (Object.keys(data).length === 1) throw new HttpError('No fields to update', 400, 400)
 
   try {
-    const category = await prisma.category.update({
-      where: { id },
-      data,
-      include: { projectVersion: true },
+    const category = await executeVersionWrite(async (tx) => {
+      await lockDraftProjectVersions(tx, [current.projectVersionId, targetVersionId])
+      const fresh = await tx.category.findUnique({
+        where: { id },
+        select: { projectVersionId: true },
+      })
+      if (!fresh || fresh.projectVersionId !== current.projectVersionId) {
+        throw new HttpError('Category parent changed during update', 409, 409, {
+          reason: 'VERSION_WRITE_CONFLICT',
+        })
+      }
+      await requireActiveProjectVersion(targetVersionId, tx)
+      return tx.category.update({
+        where: { id },
+        data,
+        include: { projectVersion: true },
+      })
     })
     return categoryDto(category)
   } catch (error) {
@@ -132,10 +163,27 @@ export async function updateAdminCategory(
 }
 
 export async function deleteAdminCategory(id: number) {
+  const current = await prisma.category.findUnique({
+    where: { id },
+    select: { projectVersionId: true },
+  })
+  if (!current) throw new HttpError('Not Found', 404, 404)
   try {
-    await prisma.category.update({
-      where: { id },
-      data: { isDeleted: true, updatedAt: new Date() },
+    await executeVersionWrite(async (tx) => {
+      await lockDraftProjectVersions(tx, [current.projectVersionId])
+      const fresh = await tx.category.findUnique({
+        where: { id },
+        select: { projectVersionId: true },
+      })
+      if (!fresh || fresh.projectVersionId !== current.projectVersionId) {
+        throw new HttpError('Category parent changed during delete', 409, 409, {
+          reason: 'VERSION_WRITE_CONFLICT',
+        })
+      }
+      await tx.category.update({
+        where: { id },
+        data: { isDeleted: true, updatedAt: new Date() },
+      })
     })
   } catch (error) {
     if (hasPrismaCode(error, 'P2025')) throw new HttpError('Not Found', 404, 404)

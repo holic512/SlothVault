@@ -35,7 +35,7 @@ import { AdminPage, AdminPageActions } from '@/components/admin/admin-page'
 import { apiFetch } from '@/lib/api-client'
 
 type ProjectDto = { id: string; projectName: string }
-type VersionDto = { id: string; projectId: string; version: string; description: string | null; weight: number; status: number }
+type VersionDto = { id: string; projectId: string; version: string; description: string | null; weight: number; status: number; publishedAt: string | null }
 type CategoryDto = {
   id: string
   projectVersionId: string
@@ -49,6 +49,7 @@ type CategoryDto = {
     id: string
     version: string
     projectId: string
+    publishedAt: string | null
     project?: { id: string; projectName: string } | null
   } | null
 }
@@ -113,6 +114,10 @@ export function CategoriesManager() {
       return apiFetch<CategoryListData>(`${base}?${params}`)
     },
   })
+  const selectedVersionReleased = Boolean(
+    versionsQuery.data?.list.find((version) => version.id === versionId)?.publishedAt ||
+    listQuery.data?.projectVersion?.publishedAt,
+  )
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['admin-categories'] })
   const save = useMutation({
@@ -134,6 +139,9 @@ export function CategoriesManager() {
   })
 
   const openForm = (category?: CategoryDto) => {
+    if (category?.projectVersion?.publishedAt || (!category && selectedVersionReleased)) {
+      return message.info(t('messages.releasedReadOnly'))
+    }
     if (!category && !versionId) return message.warning(t('messages.selectVersionFirst'))
     setEditing(category || null)
     form.setFieldsValue(
@@ -191,11 +199,11 @@ export function CategoriesManager() {
         render: (_value, row) => (
           <Space size={2}>
             <Button type="link" icon={<NotebookTabs size={14} />} onClick={() => router.push(`/admin/mm/notes?categoryId=${row.id}`)}>{t('operations.noteManage')}</Button>
-            <Button type="link" onClick={() => openForm(row)}>{t('operations.edit')}</Button>
+            <Button type="link" disabled={Boolean(row.projectVersion?.publishedAt)} onClick={() => openForm(row)}>{t('operations.edit')}</Button>
             {row.isDeleted ? (
-              <Button type="link" icon={<RotateCcw size={14} />} onClick={() => void restore(row)}>{t('operations.restore')}</Button>
+              <Button type="link" disabled={Boolean(row.projectVersion?.publishedAt)} icon={<RotateCcw size={14} />} onClick={() => void restore(row)}>{t('operations.restore')}</Button>
             ) : (
-              <Button type="link" danger icon={<Trash2 size={14} />} onClick={() => remove(row)}>{t('operations.delete')}</Button>
+              <Button type="link" disabled={Boolean(row.projectVersion?.publishedAt)} danger icon={<Trash2 size={14} />} onClick={() => remove(row)}>{t('operations.delete')}</Button>
             )}
           </Space>
         ),
@@ -207,7 +215,7 @@ export function CategoriesManager() {
       <AdminPageActions>
         <Space>
           <Button icon={<RefreshCw size={15} />} onClick={() => void refresh()}>{t('actions.search')}</Button>
-          <Button type="primary" icon={<Plus size={15} />} onClick={() => openForm()}>{t('actions.create')}</Button>
+          <Button type="primary" disabled={selectedVersionReleased} icon={<Plus size={15} />} onClick={() => openForm()}>{t('actions.create')}</Button>
         </Space>
       </AdminPageActions>
 

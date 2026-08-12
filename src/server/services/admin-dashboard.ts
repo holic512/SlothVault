@@ -49,7 +49,9 @@ export async function getAdminDashboard() {
     prisma.project.count({ where: { isDeleted: false } }),
     prisma.project.count({ where: { isDeleted: false, status: 1 } }),
     prisma.projectVersion.count({ where: { isDeleted: false } }),
-    prisma.projectVersion.count({ where: { isDeleted: false, status: 1 } }),
+    prisma.projectVersion.count({
+      where: { isDeleted: false, status: 1, publishedAt: { not: null } },
+    }),
     prisma.category.count({ where: { isDeleted: false } }),
     prisma.category.count({ where: { isDeleted: false, status: 1 } }),
     prisma.noteInfo.count({ where: { isDeleted: false } }),

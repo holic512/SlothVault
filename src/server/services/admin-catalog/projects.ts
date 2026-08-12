@@ -14,6 +14,7 @@ import type { Prisma } from '@generated/prisma-postgresql/client'
 
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
+import { invalidatePublicProjectCache } from '@/server/services/public-project-cache'
 
 import {
   databaseTextContains,
@@ -41,7 +42,14 @@ export async function listAdminProjects(query: ProjectListQuery) {
       orderBy: { [query.orderByField]: query.order },
       include: {
         versions: {
-          where: { isDeleted: false, status: 1 },
+          where: {
+            isDeleted: false,
+            status: 1,
+            publishedAt: { not: null },
+            releaseId: { not: null },
+            releaseHash: { not: null },
+            manifestVersion: 1,
+          },
           orderBy: { weight: 'desc' },
           take: 1,
           include: {
@@ -119,7 +127,9 @@ export async function updateAdminProject(
   if (Object.keys(data).length === 1) throw new HttpError('No fields to update', 400, 400)
 
   try {
-    return projectDto(await prisma.project.update({ where: { id }, data }))
+    const project = await prisma.project.update({ where: { id }, data })
+    if (data.status !== undefined) await invalidatePublicProjectCache(id)
+    return projectDto(project)
   } catch (error) {
     if (hasPrismaCode(error, 'P2025')) throw new HttpError('Not Found', 404, 404)
     throw error
@@ -132,6 +142,7 @@ export async function deleteAdminProject(id: number) {
       where: { id },
       data: { isDeleted: true, status: 0, updatedAt: new Date() },
     })
+    await invalidatePublicProjectCache(id)
     return projectSummaryDto(project)
   } catch (error) {
     if (hasPrismaCode(error, 'P2025')) throw new HttpError('Not Found', 404, 404)
@@ -153,6 +164,7 @@ export async function applyAdminProjectBatch(input: {
       where: { id: { in: ids } },
       data: { isDeleted: true, status: 0, updatedAt: new Date() },
     })
+    await Promise.all(ids.map((id) => invalidatePublicProjectCache(id)))
     return { count: result.count }
   }
   if (action === 'restore') {
@@ -160,6 +172,7 @@ export async function applyAdminProjectBatch(input: {
       where: { id: { in: ids } },
       data: { isDeleted: false, status: 1, updatedAt: new Date() },
     })
+    await Promise.all(ids.map((id) => invalidatePublicProjectCache(id)))
     return { count: result.count }
   }
   if (action === 'setStatus') {
@@ -169,6 +182,7 @@ export async function applyAdminProjectBatch(input: {
       where: { id: { in: ids }, isDeleted: false },
       data: { status, updatedAt: new Date() },
     })
+    await Promise.all(ids.map((id) => invalidatePublicProjectCache(id)))
     return { count: result.count }
   }
   throw new HttpError('Invalid action', 400, 400)

@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
     project: { findFirst: vi.fn() },
     projectVersion: { findFirst: vi.fn() },
     noteInfo: { findFirst: vi.fn() },
-    noteContent: { findFirst: vi.fn() },
+    noteContent: { findMany: vi.fn() },
     user: { findFirst: vi.fn() },
     compressedNft: { findFirst: vi.fn() },
   },
@@ -43,6 +43,10 @@ describe('public project reading', () => {
     mocks.prisma.projectVersion.findFirst.mockResolvedValue({
       id: 8,
       projectId: 4,
+      releaseId: '550e8400-e29b-41d4-a716-446655440000',
+      releaseHash: 'a'.repeat(64),
+      manifestVersion: 1,
+      publishedAt: new Date('2026-07-30T11:00:00.000Z'),
       project: { isDeleted: false, status: 1 },
     })
     mocks.prisma.project.findFirst.mockResolvedValue({
@@ -57,12 +61,12 @@ describe('public project reading', () => {
       authorId: 3,
       noteTitle: 'A public essay',
     })
-    mocks.prisma.noteContent.findFirst.mockResolvedValue({
+    mocks.prisma.noteContent.findMany.mockResolvedValue([{
       id: 18,
       content: '# Essay',
       versionNote: 'First edition',
       updatedAt,
-    })
+    }])
     mocks.prisma.user.findFirst.mockResolvedValue({
       username: 'editor',
       displayName: 'Editor',
@@ -93,6 +97,10 @@ describe('public project reading', () => {
       content: '# Essay',
       versionNote: 'First edition',
       updatedAt,
+      releaseId: '550e8400-e29b-41d4-a716-446655440000',
+      releaseHash: 'a'.repeat(64),
+      manifestVersion: 1,
+      publishedAt: new Date('2026-07-30T11:00:00.000Z'),
       author: { username: 'editor', displayName: 'Editor' },
       certificate: {
         assetId: 'Asset111111111111111111111111111111111111',

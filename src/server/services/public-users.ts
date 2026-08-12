@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Public Personal Profiles
  * @description Resolves shareable user profiles and administrator-authored published articles with optional copyright certificate summaries.
- * @logic Expose only active profile fields, require each listed article to be published through an active collection/version/category, and join cNFT records as copyright evidence rather than access credentials.
+ * @logic Expose only active profile fields, require each listed article to belong to a visible immutable release with an enabled primary content, and join cNFT records as copyright evidence rather than access credentials.
  * @dependencies Prisma User/NoteInfo/CompressedNft models
  * @index_tags user,profile,public,articles,copyright
  * @author holic512
@@ -13,6 +13,7 @@ import 'server-only'
 import { cache } from 'react'
 
 import { prisma } from '@/server/prisma'
+import { RELEASE_MANIFEST_VERSION } from '@/server/services/project-version-release'
 
 export const getPublicUserProfile = cache(async (username: string) => {
   const user = await prisma.user.findFirst({
@@ -34,13 +35,17 @@ export const getPublicUserProfile = cache(async (username: string) => {
       authorId: user.id,
       status: 1,
       isDeleted: false,
-      contents: { some: { status: 1, isDeleted: false } },
+      contents: { some: { status: 1, isDeleted: false, isPrimary: true } },
       category: {
         status: 1,
         isDeleted: false,
         projectVersion: {
           status: 1,
           isDeleted: false,
+          publishedAt: { not: null },
+          releaseId: { not: null },
+          releaseHash: { not: null },
+          manifestVersion: RELEASE_MANIFEST_VERSION,
           project: { status: 1, isDeleted: false },
         },
       },
@@ -57,6 +62,10 @@ export const getPublicUserProfile = cache(async (username: string) => {
             select: {
               id: true,
               version: true,
+              releaseId: true,
+              releaseHash: true,
+              manifestVersion: true,
+              publishedAt: true,
               project: { select: { id: true, projectName: true } },
             },
           },
@@ -105,6 +114,10 @@ export const getPublicUserProfile = cache(async (username: string) => {
         category: note.category.categoryName,
         project: version.project.projectName,
         version: version.version,
+        releaseId: version.releaseId!,
+        releaseHash: version.releaseHash!,
+        manifestVersion: version.manifestVersion!,
+        publishedAt: version.publishedAt!,
         updatedAt: note.updatedAt,
         href: `/project/${version.project.id}/v/${version.id}/docs/${note.id}`,
         certificate: certificate

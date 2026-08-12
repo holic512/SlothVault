@@ -2,9 +2,9 @@
  * @file database-import.ts
  * @project SlothVault
  * @module Admin Database Backup Import
- * @description Imports a validated portable database backup in insert or overwrite mode.
- * @logic Map old identifiers to new records in dependency order, preserve authorship and ledgers, normalize legacy cNFT reservations, and commit atomically.
- * @dependencies database unit-of-work, server/http/errors, backup schema, backup validation, business-data deletion
+ * @description Imports a validated portable database backup in insert or overwrite mode while preserving immutable release identities.
+ * @logic Map old identifiers to new records, preserve release metadata, rebuild each published manifest after ID remapping, reject identity/hash drift, and commit all records atomically.
+ * @dependencies database unit-of-work, server/http/errors, project-version release service, backup schema, backup validation, business-data deletion
  * @index_tags admin,backup,database,import,restore,id-mapping
  * @author holic512
  */
@@ -12,6 +12,11 @@ import 'server-only'
 
 import { unitOfWork } from '@/server/database/unit-of-work'
 import { HttpError } from '@/server/http/errors'
+import { invalidatePublicProjectCache } from '@/server/services/public-project-cache'
+import {
+  buildReleaseManifest,
+  loadReleaseTree,
+} from '@/server/services/project-version-release'
 
 import {
   DATABASE_TRANSACTION_MAX_WAIT_MS,
@@ -82,11 +87,11 @@ function requiredMappedId(map: Map<string, number>, id: string, label: string) {
 }
 
 export async function importDatabaseBackup(payload: DatabaseImportPayload) {
-  const { data, mode } = payload
-  const primaryContentIds = selectedPrimaryContentIds(data)
+  const { data, mode, version } = payload
+  const primaryContentIds = version === '2.0.0' ? selectedPrimaryContentIds(data) : new Map()
 
   try {
-    return await unitOfWork.execute(async (tx) => {
+    const result = await unitOfWork.execute(async (tx) => {
     if (mode === 'overwrite') await deleteBusinessData(tx)
 
     const ids = {
@@ -223,6 +228,10 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
           description: item.description,
           weight: item.weight,
           status: item.status,
+          releaseId: item.releaseId,
+          releaseHash: item.releaseHash,
+          manifestVersion: item.manifestVersion,
+          publishedAt: item.publishedAt ? new Date(item.publishedAt) : null,
           createdAt: new Date(item.createdAt),
           updatedAt: new Date(item.updatedAt),
           isDeleted: item.isDeleted,
@@ -308,7 +317,7 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
           noteInfoId: requiredMappedId(ids.noteInfos, item.noteInfoId, 'noteInfoId'),
           content: item.content,
           versionNote: item.versionNote,
-          isPrimary: false,
+          isPrimary: version === '2.1.0' ? item.isPrimary : false,
           status: item.status,
           createdAt: new Date(item.createdAt),
           updatedAt: new Date(item.updatedAt),
@@ -469,6 +478,27 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
       ids.compressedNfts.set(item.id, record.id)
     }
 
+    for (const item of data.projectVersions) {
+      if (!item.publishedAt || !item.releaseId || !item.releaseHash) continue
+      const mappedVersionId = requiredMappedId(
+        ids.projectVersions,
+        item.id,
+        'projectVersionId',
+      )
+      const source = await loadReleaseTree(tx, mappedVersionId)
+      if (!source) throw new Error('Imported project version mapping is missing')
+      const built = buildReleaseManifest(source, item.releaseId)
+      if (built.issues.length > 0 || built.hash !== item.releaseHash) {
+        throw new HttpError('Backup release integrity verification failed', 409, 409, {
+          reason: 'BACKUP_RELEASE_INTEGRITY_FAILED',
+          projectVersionId: item.id,
+          storedHash: item.releaseHash,
+          computedHash: built.hash,
+          issues: built.issues,
+        })
+      }
+    }
+
     return {
       message: 'Database import completed successfully',
       mode,
@@ -495,9 +525,13 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
       maxWait: DATABASE_TRANSACTION_MAX_WAIT_MS,
       timeout: DATABASE_TRANSACTION_TIMEOUT_MS,
     })
+    await invalidatePublicProjectCache()
+    return result
   } catch (error) {
     if (hasDatabaseErrorCode(error, 'P2002')) {
-      throw new HttpError('Backup data conflicts with existing records', 409, 409)
+      throw new HttpError('Backup data conflicts with existing records', 409, 409, {
+        reason: 'BACKUP_UNIQUE_CONFLICT',
+      })
     }
     throw error
   }

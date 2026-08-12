@@ -2,9 +2,9 @@
  * @file project-versions.ts
  * @project SlothVault
  * @module Admin Project Version Administration
- * @description Implements project-version listing, mutations, batch actions, and project-scoped queries.
- * @logic Validate active parent projects, apply Prisma mutations, and preserve existing response DTOs and error mapping.
- * @dependencies server/prisma, server/http/errors, catalog values, catalog DTOs
+ * @description Implements draft project-version listing, mutations, batch actions, and project-scoped queries around immutable releases.
+ * @logic Normalize new versions to drafts, serialize mutable writes through the version lock, route published visibility changes through the release service, and reject mixed frozen batches atomically.
+ * @dependencies server/prisma, server/http/errors, catalog values, catalog DTOs, project-version release service
  * @index_tags admin,catalog,project-version,crud,batch
  * @author holic512
  */
@@ -14,6 +14,12 @@ import type { Prisma } from '@generated/prisma-postgresql/client'
 
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
+import {
+  executeVersionWrite,
+  lockDraftProjectVersions,
+  setProjectVersionVisibility,
+  setProjectVersionsVisibility,
+} from '@/server/services/project-version-release'
 
 import {
   databaseTextContains,
@@ -91,7 +97,7 @@ export async function createAdminProjectVersion(input: {
       description:
         typeof input.description === 'string' ? input.description.trim() || null : null,
       weight: integerValue(input.weight, 0),
-      status: integerValue(input.status, 1),
+      status: 0,
     },
     include: { project: true },
   })
@@ -108,6 +114,33 @@ export async function updateAdminProjectVersion(
     status?: unknown
   },
 ) {
+  const current = await prisma.projectVersion.findUnique({
+    where: { id },
+    select: { publishedAt: true },
+  })
+  if (!current) throw new HttpError('Not Found', 404, 404)
+
+  const requestedStatus = optionalIntegerValue(input.status)
+  const changesContent =
+    input.projectId !== undefined ||
+    input.version !== undefined ||
+    input.description !== undefined ||
+    input.weight !== undefined
+  if (current.publishedAt) {
+    if (changesContent || requestedStatus === null || (requestedStatus !== 0 && requestedStatus !== 1)) {
+      throw new HttpError('Published project version is frozen', 409, 409, {
+        reason: 'VERSION_FROZEN',
+        projectVersionId: String(id),
+      })
+    }
+    return setProjectVersionVisibility(id, requestedStatus as 0 | 1)
+  }
+  if (input.status !== undefined) {
+    throw new HttpError('Draft visibility cannot be changed', 409, 409, {
+      reason: 'DRAFT_STATUS_IMMUTABLE',
+    })
+  }
+
   const data: Prisma.ProjectVersionUncheckedUpdateInput = { updatedAt: new Date() }
   if (input.projectId !== undefined) {
     const projectId = parseJsonDecimalId(input.projectId, 'projectId')
@@ -122,15 +155,23 @@ export async function updateAdminProjectVersion(
   if (typeof input.description === 'string') data.description = input.description.trim() || null
   const weight = optionalIntegerValue(input.weight)
   if (weight !== null) data.weight = weight
-  const status = optionalIntegerValue(input.status)
-  if (status !== null) data.status = status
   if (Object.keys(data).length === 1) throw new HttpError('No fields to update', 400, 400)
 
   try {
-    const projectVersion = await prisma.projectVersion.update({
-      where: { id },
-      data,
-      include: { project: true },
+    const projectVersion = await executeVersionWrite(async (tx) => {
+      await lockDraftProjectVersions(tx, [id])
+      if (data.projectId !== undefined) {
+        const target = await tx.project.findFirst({
+          where: { id: data.projectId as number, isDeleted: false },
+          select: { id: true },
+        })
+        if (!target) throw new HttpError('Project not found', 404, 404)
+      }
+      return tx.projectVersion.update({
+        where: { id },
+        data,
+        include: { project: true },
+      })
     })
     return projectVersionDto(projectVersion)
   } catch (error) {
@@ -141,9 +182,12 @@ export async function updateAdminProjectVersion(
 
 export async function deleteAdminProjectVersion(id: number) {
   try {
-    const projectVersion = await prisma.projectVersion.update({
-      where: { id },
-      data: { isDeleted: true, status: 0, updatedAt: new Date() },
+    const projectVersion = await executeVersionWrite(async (tx) => {
+      await lockDraftProjectVersions(tx, [id])
+      return tx.projectVersion.update({
+        where: { id },
+        data: { isDeleted: true, status: 0, updatedAt: new Date() },
+      })
     })
     return projectVersionBaseDto(projectVersion)
   } catch (error) {
@@ -162,37 +206,75 @@ export async function applyAdminProjectVersionBatch(input: {
   const ids = parseJsonDecimalIds(input.ids)
   if (!action || !ids) throw new HttpError('Missing action or ids', 400, 400)
 
-  if (action === 'delete') {
-    const result = await prisma.projectVersion.updateMany({
-      where: { id: { in: ids } },
-      data: { isDeleted: true, status: 0, updatedAt: new Date() },
-    })
-    return { count: result.count }
-  }
-  if (action === 'restore') {
-    const result = await prisma.projectVersion.updateMany({
-      where: { id: { in: ids } },
-      data: { isDeleted: false, status: 1, updatedAt: new Date() },
-    })
-    return { count: result.count }
-  }
+  const versions = await prisma.projectVersion.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, publishedAt: true },
+  })
+  if (versions.length !== new Set(ids).size) throw new HttpError('Not Found', 404, 404)
+
   if (action === 'setStatus') {
     const status = optionalIntegerValue(input.status)
-    if (status === null) throw new HttpError('Missing status', 400, 400)
-    const result = await prisma.projectVersion.updateMany({
-      where: { id: { in: ids }, isDeleted: false },
-      data: { status, updatedAt: new Date() },
+    if (status === null || (status !== 0 && status !== 1)) {
+      throw new HttpError('Invalid status', 400, 400)
+    }
+    if (versions.some((version) => !version.publishedAt)) {
+      throw new HttpError('Draft visibility cannot be changed', 409, 409, {
+        reason: 'DRAFT_STATUS_IMMUTABLE',
+      })
+    }
+    return setProjectVersionsVisibility(ids, status as 0 | 1)
+  }
+
+  if (versions.some((version) => version.publishedAt)) {
+    throw new HttpError('Batch contains a frozen project version', 409, 409, {
+      reason: 'VERSION_FROZEN',
     })
-    return { count: result.count }
+  }
+
+  if (action === 'delete') {
+    return executeVersionWrite(async (tx) => {
+      await lockDraftProjectVersions(tx, ids)
+      const result = await tx.projectVersion.updateMany({
+        where: { id: { in: ids } },
+        data: { isDeleted: true, status: 0, updatedAt: new Date() },
+      })
+      return { count: result.count }
+    })
+  }
+  if (action === 'restore') {
+    return executeVersionWrite(async (tx) => {
+      const locked = await tx.projectVersion.updateMany({
+        where: { id: { in: ids }, publishedAt: null },
+        data: { documentRevision: { increment: 1 }, updatedAt: new Date() },
+      })
+      if (locked.count !== ids.length) {
+        throw new HttpError('Batch contains a frozen project version', 409, 409, {
+          reason: 'VERSION_FROZEN',
+        })
+      }
+      const result = await tx.projectVersion.updateMany({
+        where: { id: { in: ids }, publishedAt: null },
+        data: { isDeleted: false, status: 0, updatedAt: new Date() },
+      })
+      return { count: result.count }
+    })
   }
   if (action === 'moveToProject') {
     const projectId = parseJsonDecimalId(input.projectId, 'projectId')
     await requireActiveProject(projectId)
-    const result = await prisma.projectVersion.updateMany({
-      where: { id: { in: ids }, isDeleted: false },
-      data: { projectId, updatedAt: new Date() },
+    return executeVersionWrite(async (tx) => {
+      await lockDraftProjectVersions(tx, ids)
+      const target = await tx.project.findFirst({
+        where: { id: projectId, isDeleted: false },
+        select: { id: true },
+      })
+      if (!target) throw new HttpError('Project not found', 404, 404)
+      const result = await tx.projectVersion.updateMany({
+        where: { id: { in: ids }, isDeleted: false },
+        data: { projectId, updatedAt: new Date() },
+      })
+      return { count: result.count }
     })
-    return { count: result.count }
   }
   throw new HttpError('Invalid action', 400, 400)
 }

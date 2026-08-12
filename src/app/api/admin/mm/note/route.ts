@@ -55,6 +55,7 @@ export const GET = defineRoute(async (request) => {
   const categoryIdRaw = searchParams.get('categoryId')
   const projectVersionIdRaw = searchParams.get('projectVersionId')
   const projectIdRaw = searchParams.get('projectId')
+  const publishedOnly = legacyBoolean(searchParams.get('publishedOnly'))
   const orderByField = safeOrderField(
     searchParams.get('orderBy'),
     noteOrderFields,
@@ -79,6 +80,7 @@ export const GET = defineRoute(async (request) => {
           : parseDecimalId(projectVersionIdRaw, 'projectVersionId'),
       projectId:
         projectIdRaw === null ? undefined : parseDecimalId(projectIdRaw, 'projectId'),
+      publishedOnly,
       orderByField,
       order,
     }),

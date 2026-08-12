@@ -2,8 +2,8 @@
  * @file public-projects.ts
  * @project SlothVault
  * @module Public Project Reading
- * @description Centralizes public collection navigation and article reads, including author identity and optional copyright evidence.
- * @logic Validate published ownership relationships, keep reading independent from wallets, and expose only matching author-bound cNFT evidence.
+ * @description Centralizes public immutable release navigation, manifest metadata, and article reads, including author identity and optional copyright evidence.
+ * @logic Require a visible publishedAt release across every public path, select its unique enabled primary content without fallback, and expose release identity alongside matching author-bound cNFT evidence.
  * @dependencies Prisma project, document, user, and compressed NFT models
  * @index_tags public-project,public-reader,versions,notes,author,copyright,web2
  * @author holic512
@@ -15,11 +15,31 @@ import { prisma } from '@/server/prisma'
 
 export async function listPublicProjects() {
   const list = await prisma.project.findMany({
-    where: { isDeleted: false, status: 1 },
+    where: {
+      isDeleted: false,
+      status: 1,
+      versions: {
+        some: {
+          isDeleted: false,
+          status: 1,
+          publishedAt: { not: null },
+          releaseId: { not: null },
+          releaseHash: { not: null },
+          manifestVersion: 1,
+        },
+      },
+    },
     orderBy: { weight: 'desc' },
     include: {
       versions: {
-        where: { isDeleted: false, status: 1 },
+        where: {
+          isDeleted: false,
+          status: 1,
+          publishedAt: { not: null },
+          releaseId: { not: null },
+          releaseHash: { not: null },
+          manifestVersion: 1,
+        },
         orderBy: { weight: 'desc' },
         take: 1,
         include: {
@@ -110,16 +130,42 @@ export async function getProjectMenu(projectId: number) {
 export async function getProjectVersions(projectId: number) {
   await requirePublishedProject(projectId)
   const versions = await prisma.projectVersion.findMany({
-    where: { projectId, isDeleted: false, status: 1 },
+    where: {
+      projectId,
+      isDeleted: false,
+      status: 1,
+      publishedAt: { not: null },
+      releaseId: { not: null },
+      releaseHash: { not: null },
+      manifestVersion: 1,
+    },
     orderBy: { weight: 'desc' },
-    select: { id: true, version: true, description: true, weight: true },
+    select: {
+      id: true,
+      version: true,
+      description: true,
+      weight: true,
+      releaseId: true,
+      releaseHash: true,
+      manifestVersion: true,
+      publishedAt: true,
+    },
   })
   return versions.map((version) => ({ ...version, id: version.id.toString() }))
 }
 
 async function requireVersion(projectId: number, versionId: number) {
   const version = await prisma.projectVersion.findFirst({
-    where: { id: versionId, projectId, isDeleted: false, status: 1 },
+    where: {
+      id: versionId,
+      projectId,
+      isDeleted: false,
+      status: 1,
+      publishedAt: { not: null },
+      releaseId: { not: null },
+      releaseHash: { not: null },
+      manifestVersion: 1,
+    },
     include: { project: { select: { isDeleted: true, status: true } } },
   })
   if (!version || version.project.isDeleted || version.project.status !== 1) {
@@ -162,7 +208,7 @@ export async function getProjectNote(
   versionId: number,
   noteId: number,
 ) {
-  await requireVersion(projectId, versionId)
+  const version = await requireVersion(projectId, versionId)
   const note = await prisma.noteInfo.findFirst({
     where: {
       id: noteId,
@@ -174,15 +220,11 @@ export async function getProjectNote(
   })
   if (!note) throw new HttpError('Note not found', 404, 404)
 
-  const content =
-    (await prisma.noteContent.findFirst({
-      where: { noteInfoId: noteId, isPrimary: true, isDeleted: false, status: 1 },
-      orderBy: { updatedAt: 'desc' },
-    })) ||
-    (await prisma.noteContent.findFirst({
-      where: { noteInfoId: noteId, isDeleted: false, status: 1 },
-      orderBy: { createdAt: 'desc' },
-    }))
+  const contents = await prisma.noteContent.findMany({
+    where: { noteInfoId: noteId, isPrimary: true, isDeleted: false, status: 1 },
+    take: 2,
+  })
+  const content = contents.length === 1 ? contents[0] : null
   if (!content) throw new HttpError('Note content not found', 404, 404)
 
   const [author, certificate] = await Promise.all([
@@ -218,6 +260,10 @@ export async function getProjectNote(
     content: content.content,
     versionNote: content.versionNote,
     updatedAt: content.updatedAt,
+    releaseId: version.releaseId!,
+    releaseHash: version.releaseHash!,
+    manifestVersion: version.manifestVersion!,
+    publishedAt: version.publishedAt!,
     author: author
       ? {
           username: author.username,

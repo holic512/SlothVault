@@ -19,6 +19,12 @@
   "Article": {
     "unknownAuthor": "历史文章",
     "updated": "更新于 {date}",
+    "release": {
+      "title": "项目版本完整性",
+      "published": "发布于 {date}",
+      "scope": "此哈希证明版本 manifest 与 Markdown 逻辑内容，不包含附件二进制或外部 URL 当前内容。",
+      "download": "下载 manifest"
+    },
     "certificate": {
       "title": "链上版权凭证",
       "description": "凭证绑定本文与作者，仅用于版权核验，不限制公开阅读。",
@@ -469,7 +475,20 @@
         "batchUpdated": "已更新 {count} 项",
         "batchUpdateFailed": "批量更新失败",
         "selectFirst": "请先选择要操作的项目",
-        "requestFailed": "请求失败"
+        "requestFailed": "请求失败",
+        "releasedReadOnly": "已发布版本为只读，请先克隆为新草稿"
+      },
+      "versionRelease": {
+        "title": "版本管理 · {name}",
+        "includeDeleted": "包含已删除",
+        "newVersion": "新建版本",
+        "deleteConfirm": "确认删除版本「{version}」？",
+        "table": { "version": "版本", "description": "描述", "weight": "权重", "lifecycle": "生命周期", "hash": "发布哈希", "actions": "操作" },
+        "status": { "deleted": "已删除", "draft": "草稿", "published": "已发布", "hidden": "已隐藏" },
+        "actions": { "edit": "编辑", "categories": "分类", "restore": "恢复", "hide": "隐藏发布", "show": "恢复发布", "copyHash": "复制哈希", "manifest": "下载 manifest", "integrity": "校验完整性", "clone": "克隆为草稿", "release": "发布操作", "publish": "发布", "delete": "删除" },
+        "form": { "newTitle": "新建版本", "editTitle": "编辑版本", "version": "版本标签", "description": "描述", "weight": "权重", "status": "状态" },
+        "clone": { "title": "将 {version} 克隆为草稿", "version": "新版本标签" },
+        "messages": { "saved": "已保存", "published": "版本已发布", "publishValidationFailed": "发布校验未通过", "restored": "发布已恢复", "hidden": "发布已隐藏", "integrityVerified": "发布完整性校验通过", "integrityFailed": "发布完整性校验失败", "manifestFailed": "manifest 下载失败", "cloned": "已克隆为草稿", "hashCopied": "哈希已复制", "copyFailed": "无法复制哈希" }
       }
     },
     "projectMenu": {
@@ -663,7 +682,8 @@
         "deleteFailed": "删除失败",
         "restored": "已恢复",
         "restoreFailed": "恢复失败",
-        "requestFailed": "请求失败"
+        "requestFailed": "请求失败",
+        "releasedReadOnly": "已发布版本为只读，请先克隆为新草稿"
       },
       "content": {
         "navTitle": "分类笔记",
@@ -695,6 +715,8 @@
         "saved": "已保存",
         "saveHint": "Ctrl+S 保存",
         "save": "保存",
+        "releasedReadOnly": "已发布版本（只读）",
+        "releasedReadOnlyTip": "已发布文档树已冻结。若需修改，请在项目版本管理中克隆为新草稿。",
         "selectOrCreate": "请从左侧选择或创建一个内容版本",
         "newVersionDialog": {
           "title": "新建内容版本",

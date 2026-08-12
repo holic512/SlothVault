@@ -95,10 +95,14 @@ export function BackupManager() {
     const execute = async () => {
       setBusy('db-import')
       try {
-        const parsed = JSON.parse(await file.text()) as { data?: unknown }
+        const parsed = JSON.parse(await file.text()) as { data?: unknown; version?: unknown }
         await apiFetch('/api/admin/mm/backup/database-import', {
           method: 'POST',
-          body: JSON.stringify({ data: parsed.data ?? parsed, mode: databaseMode }),
+          body: JSON.stringify({
+            data: parsed.data ?? parsed,
+            mode: databaseMode,
+            ...(typeof parsed.version === 'string' ? { version: parsed.version } : {}),
+          }),
         })
         message.success(t('messages.dbImportSuccess'))
       } catch (error) {

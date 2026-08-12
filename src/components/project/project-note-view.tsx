@@ -2,14 +2,14 @@
  * @file project-note-view.tsx
  * @project SlothVault
  * @module Public Article Reader
- * @description Renders public Markdown articles with navigation, administrator authorship, and optional on-chain copyright proof.
- * @logic Render already-resolved published article and sidebar data, link its author profile, and expose safe Solana Explorer evidence without turning certificates into access controls.
+ * @description Renders immutable public Markdown releases with navigation, manifest identity, administrator authorship, and optional on-chain copyright proof.
+ * @logic Render resolved published content, display its full reproducible SHA-256 and publication time, link canonical manifest bytes, and expose optional Solana evidence without conflating either proof with access control.
  * @dependencies next-intl/server, MarkdownView
  * @index_tags article,reader,author,copyright,certificate,public
  * @author holic512
  */
 import { Typography } from 'antd'
-import { BadgeCheck, ExternalLink, UserRound } from 'lucide-react'
+import { BadgeCheck, Download, ExternalLink, Fingerprint, UserRound } from 'lucide-react'
 import { getLocale, getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 
@@ -29,6 +29,10 @@ type NoteData = {
   content: string
   versionNote: string | null
   updatedAt: string
+  releaseId: string
+  releaseHash: string
+  manifestVersion: number
+  publishedAt: string
   author: {
     username: string
     displayName: string | null
@@ -102,6 +106,24 @@ export async function ProjectNoteView({
           </div>
           <Typography.Title>{note.noteTitle}</Typography.Title>
           {note.versionNote ? <Typography.Paragraph type="secondary">{note.versionNote}</Typography.Paragraph> : null}
+          <aside className="docs-release-proof" aria-label={t('release.title')}>
+            <span className="docs-copyright-mark"><Fingerprint size={18} /></span>
+            <div className="docs-copyright-copy">
+              <strong>{t('release.title')}</strong>
+              <span>
+                {t('release.published', {
+                  date: new Date(note.publishedAt).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US'),
+                })}
+              </span>
+              <code title={note.releaseHash}>{note.releaseHash}</code>
+              <span>{t('release.scope')}</span>
+            </div>
+            <div className="docs-copyright-links">
+              <a href={`/api/project/${projectId}/v/${versionId}/manifest`} download>
+                {t('release.download')}<Download size={12} />
+              </a>
+            </div>
+          </aside>
           {note.certificate ? (
             <aside className="docs-copyright-proof" aria-label={t('certificate.title')}>
               <span className="docs-copyright-mark"><BadgeCheck size={18} /></span>

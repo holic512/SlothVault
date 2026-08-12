@@ -161,17 +161,22 @@ model ProjectHome {
 }
 
 model ProjectVersion {
-  id          Int     @id @default(autoincrement())
-  projectId   Int     @map("project_id")
-  version     String     @db.VarChar(64)
-  description String?    @db.Text
-  weight      Int
-  status      Int        @db.SmallInt
-  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime   @default(now()) @map("updated_at") @db.Timestamptz(3)
-  isDeleted   Boolean    @default(false) @map("is_deleted")
-  project     Project    @relation(fields: [projectId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  categories  Category[]
+  id               Int     @id @default(autoincrement())
+  projectId        Int     @map("project_id")
+  version          String     @db.VarChar(64)
+  description      String?    @db.Text
+  weight           Int
+  status           Int        @db.SmallInt
+  documentRevision Int        @default(0) @map("document_revision")
+  releaseId        String?    @unique(map: "uq_collections_project_version_release_id") @map("release_id") @db.VarChar(36)
+  releaseHash      String?    @unique(map: "uq_collections_project_version_release_hash") @map("release_hash") @db.Char(64)
+  manifestVersion  Int?       @map("manifest_version")
+  publishedAt      DateTime?  @map("published_at") @db.Timestamptz(3)
+  createdAt        DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime   @default(now()) @map("updated_at") @db.Timestamptz(3)
+  isDeleted        Boolean    @default(false) @map("is_deleted")
+  project          Project    @relation(fields: [projectId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  categories       Category[]
 
   @@index([projectId], map: "idx_collections_project_version_project_id")
   @@map("collections_project_version")

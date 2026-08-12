@@ -56,10 +56,12 @@ export function MarkdownContentEditor({
   value,
   onChange,
   onUpload,
+  readOnly = false,
 }: {
   value: string
   onChange: (value: string) => void
   onUpload: (files: File[]) => Promise<string[]>
+  readOnly?: boolean
 }) {
   const t = useTranslations('DocumentEditor')
   const locale = useLocale()
@@ -330,13 +332,13 @@ export function MarkdownContentEditor({
         height={680}
         preview="live"
         visibleDragbar={false}
-        commands={editorCommands}
-        extraCommands={[commands.codeEdit, commands.codeLive, commands.codePreview, commands.fullscreen]}
+        commands={readOnly ? [] : editorCommands}
+        extraCommands={readOnly ? [commands.codePreview, commands.fullscreen] : [commands.codeEdit, commands.codeLive, commands.codePreview, commands.fullscreen]}
         components={{ preview: previewDocument }}
         textareaProps={{
           'aria-label': t('textareaLabel'),
           'aria-describedby': `${guideOpen ? `${guideId} ` : ''}${statusId}`,
-          readOnly: uploading,
+          readOnly: uploading || readOnly,
           spellCheck: true,
           onClick: (event) => rememberTextApi(event.currentTarget),
           onKeyUp: (event) => rememberTextApi(event.currentTarget),

@@ -142,3 +142,58 @@ describe('database backup capacity validation', () => {
     )
   })
 })
+
+describe('database backup release compatibility', () => {
+  it('forces legacy 2.0 project versions to drafts', () => {
+    const data = backupWithReservation()
+    data.projectVersions.push({
+      id: '2',
+      projectId: '1',
+      version: 'legacy',
+      description: null,
+      weight: 1,
+      status: 1,
+      releaseId: null,
+      releaseHash: null,
+      manifestVersion: null,
+      publishedAt: null,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      isDeleted: false,
+    })
+
+    const parsed = parseDatabaseImportPayload({ data, version: '2.0.0' })
+    expect(parsed.data.projectVersions[0]).toMatchObject({
+      status: 0,
+      releaseId: null,
+      releaseHash: null,
+      manifestVersion: null,
+      publishedAt: null,
+    })
+  })
+
+  it('rejects partial 2.1 release metadata', () => {
+    const data = backupWithReservation()
+    data.projectVersions.push({
+      id: '2',
+      projectId: '1',
+      version: 'release',
+      description: null,
+      weight: 1,
+      status: 1,
+      releaseId: releaseId,
+      releaseHash: null,
+      manifestVersion: null,
+      publishedAt: null,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      isDeleted: false,
+    })
+
+    expect(() => parseDatabaseImportPayload({ data, version: '2.1.0' })).toThrow(
+      'partial release metadata',
+    )
+  })
+})
+
+const releaseId = '550e8400-e29b-41d4-a716-446655440000'
