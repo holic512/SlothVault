@@ -3,8 +3,8 @@
  * @project SlothVault
  * @module Database Bootstrap
  * @description Owns the resumable empty-database initialization and first-administrator state machine.
- * @logic Validate an empty target before persisting pending encrypted configuration, deploy only the fixed provider migration set, record schema readiness, then create the sole first administrator and installation marker in one serializable transaction.
- * @dependencies database configuration/client/migrations/locks, auth/password, Prisma SystemInstallation/User models
+ * @logic Validate an empty target before persisting pending encrypted configuration, deploy the fixed provider migrations, seed the editable homepage, record schema readiness, then create the sole first administrator and installation marker in one serializable transaction.
+ * @dependencies database configuration/client/migrations/locks, homepage service, auth/password, Prisma SystemInstallation/User models
  * @index_tags installer,database,administrator,state-machine,migrations
  * @author holic512
  */
@@ -42,6 +42,7 @@ import { CURRENT_SCHEMA_REVISION, INSTALLATION_ROW_ID } from '@/server/database/
 import type { DatabaseConnectionInput } from '@/server/database/types'
 import { unitOfWork } from '@/server/database/unit-of-work'
 import { HttpError } from '@/server/http/errors'
+import { ensureInitialHomepage } from '@/server/services/homepage'
 
 function hasPrismaCode(error: unknown, code: string) {
   return (
@@ -93,24 +94,27 @@ async function writeSchemaReadyMarker(connection: DatabaseConnectionInput) {
       installationStateConflict()
     }
 
-    const existingStatus = await inspectMarker()
-    if (existingStatus) return existingStatus
-
-    try {
-      await client.systemInstallation.create({
-        data: {
-          id: INSTALLATION_ROW_ID,
-          installationId: randomUUID(),
-          provider: connection.provider,
-          status: 'SCHEMA_READY',
-          schemaRevision: CURRENT_SCHEMA_REVISION,
-        },
-      })
-      return 'SCHEMA_READY' as const
-    } catch (error) {
-      if (!hasPrismaCode(error, 'P2002')) throw error
-      return (await inspectMarker()) ?? installationStateConflict()
+    let markerStatus = await inspectMarker()
+    if (!markerStatus) {
+      try {
+        await client.systemInstallation.create({
+          data: {
+            id: INSTALLATION_ROW_ID,
+            installationId: randomUUID(),
+            provider: connection.provider,
+            status: 'SCHEMA_READY',
+            schemaRevision: CURRENT_SCHEMA_REVISION,
+          },
+        })
+        markerStatus = 'SCHEMA_READY'
+      } catch (error) {
+        if (!hasPrismaCode(error, 'P2002')) throw error
+        markerStatus = (await inspectMarker()) ?? installationStateConflict()
+      }
     }
+
+    await ensureInitialHomepage(client)
+    return markerStatus
   } finally {
     await disconnectDatabaseClient(client).catch(() => undefined)
   }

@@ -2,14 +2,15 @@
  * @file homepage.ts
  * @project SlothVault
  * @module Homepage
- * @description Supplies the public homepage content without mutating the database from a GET request.
- * @logic Read the newest enabled homepage; when none exists or the database is unavailable, return a truthful Next.js fallback.
- * @dependencies Prisma SystemHomepage model
- * @index_tags homepage,markdown,fallback,public
+ * @description Owns the initial editable homepage content and supplies the enabled content to the public viewer.
+ * @logic Seed the default homepage once during database initialization, then read the newest enabled record without mutating from public GET requests.
+ * @dependencies Prisma SystemHomepage model, database client contract
+ * @index_tags homepage,markdown,initialization,fallback,public
  * @author holic512
  */
 import 'server-only'
 
+import type { AppPrismaClient } from '@/server/database/client'
 import { prisma } from '@/server/prisma'
 
 export const DEFAULT_HOMEPAGE_CONTENT = `
@@ -45,6 +46,18 @@ export const DEFAULT_HOMEPAGE_CONTENT = `
 - **登录方式**：用户名 / 邮箱 / 密码，或可选的钱包地址签名
 - **链上能力**：Solana cNFT 文章版权凭证
 `
+
+export async function ensureInitialHomepage(
+  client: Pick<AppPrismaClient, 'systemHomepage'>,
+) {
+  const existing = await client.systemHomepage.findFirst({ select: { id: true } })
+  if (existing) return false
+
+  await client.systemHomepage.create({
+    data: { content: DEFAULT_HOMEPAGE_CONTENT, status: 1 },
+  })
+  return true
+}
 
 export async function getHomepageContent() {
   try {
