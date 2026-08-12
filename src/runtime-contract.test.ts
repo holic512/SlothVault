@@ -101,12 +101,24 @@ describe('Next runtime contract', () => {
     const dockerfile = readFileSync(join(root, 'Dockerfile'), 'utf8')
     const compose = readFileSync(join(root, 'docker-compose.yml'), 'utf8')
     const entrypoint = readFileSync(join(root, 'docker-entrypoint.sh'), 'utf8')
+    const sanitizer = readFileSync(
+      join(root, 'scripts', 'sanitize-standalone.mjs'),
+      'utf8',
+    )
+    const workflow = readFileSync(
+      join(root, '.github', 'workflows', 'docker-build.yml'),
+      'utf8',
+    )
     const deploymentSources = `${dockerfile}\n${compose}\n${entrypoint}`
     expect(deploymentSources).not.toContain('/app/public/uploads')
     expect(deploymentSources).not.toContain('.output/server')
     expect(dockerfile).toContain('.next/standalone')
     expect(compose).toContain('/app/data/uploads')
     expect(entrypoint).toContain('exec node server.js')
+    expect(sanitizer).toContain('removeSourceMaps(standaloneRoot)')
+    expect(sanitizer).toContain('pruneSharpRuntimePackages(standaloneRoot)')
+    expect(workflow).toContain('Inspect published image sizes')
+    expect(workflow).toContain('Compressed Image Size')
   })
 
   it('keeps the runtime free of the removed Redis service', () => {
@@ -127,18 +139,13 @@ describe('Next runtime contract', () => {
     expect(compose).not.toContain('REDIS_')
   })
 
-  it('persists and reconciles cNFT attempts from confirmed chain events', () => {
-    const cnftService = [
-      'attempts.ts',
-      'submit.ts',
-    ].map((file) =>
-      readFileSync(
-        join(root, 'src', 'server', 'services', 'admin-solana-cnfts', file),
-        'utf8',
-      ),
-    ).join('\n')
+  it('persists signed release evidence before broadcast and removes the cNFT runtime', () => {
+    const evidenceService = readFileSync(
+      join(root, 'src', 'server', 'services', 'release-evidence.ts'),
+      'utf8',
+    )
     const chainService = readFileSync(
-      join(root, 'src', 'server', 'services', 'solana-chain.ts'),
+      join(root, 'src', 'server', 'services', 'release-evidence-chain.ts'),
       'utf8',
     )
     const schema = readFileSync(
@@ -146,17 +153,16 @@ describe('Next runtime contract', () => {
       'utf8',
     )
 
-    expect(chainService).toContain('deserializeChangeLogEventV1')
-    expect(chainService).toContain('inspectMintTransaction')
-    expect(cnftService).toContain('finalizeSuccessfulAttempt')
-    expect(cnftService).not.toContain('getAssetId(\n    parseSolanaPublicKey(session.treeAddress')
-    expect(cnftService.indexOf('persistSubmittedSignature(cnftId, expectedSignature)'))
-      .toBeLessThan(cnftService.indexOf('sendAndConfirmPreparedTransaction({'))
-    expect(schema).toMatch(/prepareExpiresAt\s+DateTime\?/)
-    expect(schema).toMatch(/lastValidBlockHeight\s+BigInt\?/)
-    expect(schema).toMatch(/mintTxSignature\s+String\?\s+@unique/)
-    expect(schema).toMatch(/remainingCapacity\s+BigInt/)
-    expect(schema).toMatch(/capacityReserved\s+Boolean/)
+    expect(chainService).toContain('finalizedEvidenceTransaction')
+    expect(evidenceService.indexOf('transactionSignature: signature'))
+      .toBeLessThan(evidenceService.indexOf('connection.sendRawTransaction(raw'))
+    expect(schema).toMatch(/model ReleaseCredential \{/)
+    expect(schema).toMatch(/@@unique\(\[projectVersionId, network\]/)
+    expect(schema).toMatch(/model ReleaseCredentialAttempt \{/)
+    expect(schema).not.toContain('model MerkleTree')
+    expect(schema).not.toContain('model CompressedNft')
+    expect(existsSync(join(root, 'src', 'server', 'services', 'solana-chain.ts'))).toBe(false)
+    expect(existsSync(join(root, 'src', 'server', 'services', 'filebase.ts'))).toBe(false)
   })
 
   it('coordinates streamed backups with state-changing Route Handlers', () => {

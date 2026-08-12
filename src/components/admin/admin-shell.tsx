@@ -5,7 +5,7 @@
  * @project SlothVault
  * @module Administrator Shell
  * @description Provides a responsive Ant Design navigation shell with an authenticated administrator header.
- * @logic Map routes to one menu/breadcrumb model, preserve collapse state locally, and expose home/theme/logout actions while keeping wallet use inside the optional copyright page.
+ * @logic Map routes to one menu/breadcrumb model, preserve collapse state locally, and expose home/theme/logout actions while keeping wallet use inside the transaction-evidence center.
  * @dependencies antd, next/navigation, next-intl, theme-controls
  * @index_tags admin,layout,navigation,sidebar
  * @author holic512
@@ -63,7 +63,7 @@ export function AdminShell({
       { key: '/admin/mm/files', icon: <FileStack size={17} />, label: t('menu.files') },
       { key: '/admin/mm/users', icon: <Users size={17} />, label: t('menu.users') },
       { key: '/admin/mm/gift-cards', icon: <TicketCheck size={17} />, label: t('menu.giftCards') },
-      { key: '/admin/mm/solana', icon: <ArchiveRestore size={17} />, label: t('menu.solana') },
+      { key: '/admin/mm/evidence', icon: <ArchiveRestore size={17} />, label: t('menu.solana') },
       { key: '/admin/mm/backup', icon: <ArchiveRestore size={17} />, label: t('menu.backup') },
       { key: '/admin/mm/settings', icon: <Settings size={17} />, label: t('menu.settings') },
     ],

@@ -3,8 +3,8 @@
 # @file Dockerfile
 # @project SlothVault
 # @module Production container image
-# @description Builds a compact database-independent Next.js standalone image containing all supported Prisma providers and installer migrations.
-# @logic Cache dependency/build stages, copy only the traced standalone runtime plus the Prisma CLI closure, then prepare persistent application directories.
+# @description Builds a compact database-independent Next.js standalone image containing all supported Prisma providers and installer migrations without diagnostic source maps or foreign libc binaries.
+# @logic Cache dependency/build stages, sanitize the traced standalone runtime and Prisma CLI closure for the target Alpine platform, then prepare persistent application directories.
 # @dependencies Node.js 24.18.1 LTS Alpine, Next.js standalone, Prisma 7
 # @index_tags docker, standalone, prisma, sqlite, mysql, postgresql
 # @author holic512

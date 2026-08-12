@@ -1,10 +1,10 @@
 # @file .github/workflows/docker-build.yml
 # @project SlothVault
 # @module Container and source release delivery
-# @description Validates pull-request images and synchronously publishes the default-branch Docker image plus a source-only GitHub Release.
-# @logic Build one multi-architecture standalone image, then create or refresh an idempotent release whose body contains only the first-parent commit log.
-# @dependencies GitHub Actions, Docker Buildx, Docker Hub, GitHub CLI
-# @index_tags github-actions,docker,standalone,release,source-archive,commit-log
+# @description Validates pull-request images and publishes the default-branch Docker image with per-platform size metrics plus a source-only GitHub Release.
+# @logic Capture the previous image size, build and inspect one multi-architecture standalone image, report compressed-size deltas, then refresh the idempotent source release.
+# @dependencies GitHub Actions, Docker Buildx, Docker Hub, Node.js, GitHub CLI
+# @index_tags github-actions,docker,standalone,image-size,release,source-archive,commit-log
 # @author holic512
 
 name: Build Docker Image and Publish Release
@@ -61,6 +61,16 @@ jobs:
             type=ref,event=pr
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Capture previous image sizes
+        id: previous-size
+        if: github.event_name != 'pull_request'
+        env:
+          IMAGE_REFERENCE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        run: >-
+          node scripts/docker-image-size.mjs "$IMAGE_REFERENCE"
+          --github-output "$GITHUB_OUTPUT"
+          --allow-missing
+
       - name: Build Docker image
         id: build
         uses: docker/build-push-action@v7
@@ -74,8 +84,35 @@ jobs:
           cache-to: type=gha,scope=slothvault,mode=min,ignore-error=true
           provenance: false
 
+      - name: Inspect published image sizes
+        id: image-size
+        if: github.event_name != 'pull_request'
+        env:
+          IMAGE_REFERENCE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+        run: >-
+          node scripts/docker-image-size.mjs "$IMAGE_REFERENCE"
+          --github-output "$GITHUB_OUTPUT"
+
       - name: Generate deployment summary
+        env:
+          AMD64_BYTES: ${{ steps.image-size.outputs.amd64_bytes }}
+          AMD64_MIB: ${{ steps.image-size.outputs.amd64_mib }}
+          AMD64_PREVIOUS_BYTES: ${{ steps.previous-size.outputs.amd64_bytes }}
+          ARM64_BYTES: ${{ steps.image-size.outputs.arm64_bytes }}
+          ARM64_MIB: ${{ steps.image-size.outputs.arm64_mib }}
+          ARM64_PREVIOUS_BYTES: ${{ steps.previous-size.outputs.arm64_bytes }}
         run: |
+          size_delta() {
+            current="$1"
+            previous="$2"
+            if [ -z "$previous" ]; then
+              echo "n/a"
+              return
+            fi
+            awk -v current="$current" -v previous="$previous" \
+              'BEGIN { printf "%+.1f MiB (%+.1f%%)", (current - previous) / 1048576, (current - previous) * 100 / previous }'
+          }
+
           echo "## Docker Image Build" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Mode" >> $GITHUB_STEP_SUMMARY
@@ -84,6 +121,13 @@ jobs:
           else
             echo "- Built and pushed to Docker Hub." >> $GITHUB_STEP_SUMMARY
             echo "- Digest: \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Compressed Image Size" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Platform | Size | Change |" >> $GITHUB_STEP_SUMMARY
+            echo "| --- | ---: | ---: |" >> $GITHUB_STEP_SUMMARY
+            echo "| linux/amd64 | ${AMD64_MIB} MiB (${AMD64_BYTES} bytes) | $(size_delta "$AMD64_BYTES" "$AMD64_PREVIOUS_BYTES") |" >> $GITHUB_STEP_SUMMARY
+            echo "| linux/arm64 | ${ARM64_MIB} MiB (${ARM64_BYTES} bytes) | $(size_delta "$ARM64_BYTES" "$ARM64_PREVIOUS_BYTES") |" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Image Tags" >> $GITHUB_STEP_SUMMARY

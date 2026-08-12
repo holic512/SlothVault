@@ -2,8 +2,8 @@
  * @file database-schema.ts
  * @project SlothVault
  * @module Admin Database Backup Schema
- * @description Defines the strict portable database-backup shape, release metadata, and inferred import types.
- * @logic Validate primitive bounds, timestamps, managed file paths, every exported collection, optional legacy release fields, and the import mode/version envelope.
+ * @description Defines the portable 2.2 database-backup shape with version transaction evidence and legacy cNFT input compatibility.
+ * @logic Validate active collections strictly, accept deprecated Tree/cNFT arrays only for ignore accounting, and retain 2.0/2.1 import envelopes.
  * @dependencies Zod, Node path rules, backup constants
  * @index_tags admin,backup,database,schema,zod,portable
  * @author holic512
@@ -325,6 +325,44 @@ const compressedNftSchema = z.object({
   updatedAt: dateStringSchema,
 }).strict()
 
+const releaseCredentialSchema = z.object({
+  id: idStringSchema,
+  projectVersionId: idStringSchema,
+  issuerUserId: idStringSchema,
+  network: z.enum(['mainnet', 'devnet']),
+  signerAddress: nonEmptyString(64),
+  memo: z.string(),
+  transactionSignature: nullableString(128),
+  status: z.union([z.literal(-1), z.literal(0), z.literal(1), z.literal(2)]),
+  slot: bigintStringSchema.nullable(),
+  blockTime: dateStringSchema.nullable(),
+  feeLamports: bigintStringSchema.nullable(),
+  finalizedAt: dateStringSchema.nullable(),
+  lastVerifiedAt: dateStringSchema.nullable(),
+  createdAt: dateStringSchema,
+  updatedAt: dateStringSchema,
+}).strict()
+
+const releaseCredentialAttemptSchema = z.object({
+  id: idStringSchema,
+  credentialId: idStringSchema,
+  issuerUserId: idStringSchema,
+  signerAddress: nonEmptyString(64),
+  memo: z.string(),
+  messageHash: z.string().regex(/^[a-f0-9]{64}$/),
+  recentBlockhash: nonEmptyString(100),
+  lastValidBlockHeight: bigintStringSchema,
+  transactionSignature: nullableString(128),
+  status: z.union([z.literal(-1), z.literal(0), z.literal(1), z.literal(2)]),
+  failureCode: nullableString(64),
+  failureMessage: nullableString(500),
+  expiresAt: dateStringSchema,
+  submittedAt: dateStringSchema.nullable(),
+  finalizedAt: dateStringSchema.nullable(),
+  createdAt: dateStringSchema,
+  updatedAt: dateStringSchema,
+}).strict()
+
 export const backupDataSchema = z.object({
   users: z.array(userSchema).max(DATABASE_RECORD_LIMIT).default([]),
   pointTransactions: z.array(pointTransactionSchema).max(DATABASE_RECORD_LIMIT).default([]),
@@ -340,14 +378,16 @@ export const backupDataSchema = z.object({
   fileManagements: z.array(fileManagementSchema).max(DATABASE_RECORD_LIMIT),
   systemConfigs: z.array(systemConfigSchema).max(DATABASE_RECORD_LIMIT),
   systemHomepages: z.array(systemHomepageSchema).max(DATABASE_RECORD_LIMIT),
-  merkleTrees: z.array(merkleTreeSchema).max(DATABASE_RECORD_LIMIT),
-  compressedNfts: z.array(compressedNftSchema).max(DATABASE_RECORD_LIMIT),
+  releaseCredentials: z.array(releaseCredentialSchema).max(DATABASE_RECORD_LIMIT).default([]),
+  releaseCredentialAttempts: z.array(releaseCredentialAttemptSchema).max(DATABASE_RECORD_LIMIT).default([]),
+  merkleTrees: z.array(merkleTreeSchema).max(DATABASE_RECORD_LIMIT).optional().default([]),
+  compressedNfts: z.array(compressedNftSchema).max(DATABASE_RECORD_LIMIT).optional().default([]),
 }).strict()
 
 export const databaseImportPayloadSchema = z.object({
   data: backupDataSchema,
   mode: z.enum(['insert', 'overwrite']).optional().default('insert'),
-  version: z.enum(['2.0.0', '2.1.0']).optional().default('2.0.0'),
+  version: z.enum(['2.0.0', '2.1.0', '2.2.0']).optional().default('2.0.0'),
 }).strict()
 
 export type BackupData = z.infer<typeof backupDataSchema>

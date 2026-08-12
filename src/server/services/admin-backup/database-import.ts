@@ -21,7 +21,7 @@ import {
 import {
   DATABASE_TRANSACTION_MAX_WAIT_MS,
   DATABASE_TRANSACTION_TIMEOUT_MS,
-  LEGACY_SIGNED_ATTEMPT_GRACE_MS,
+  DEPRECATED_CONFIG_KEYS,
 } from './constants'
 import { deleteBusinessData } from './database-delete'
 import type {
@@ -89,6 +89,11 @@ function requiredMappedId(map: Map<string, number>, id: string, label: string) {
 export async function importDatabaseBackup(payload: DatabaseImportPayload) {
   const { data, mode, version } = payload
   const primaryContentIds = version === '2.0.0' ? selectedPrimaryContentIds(data) : new Map()
+  const ignoredLegacy = {
+    merkleTrees: data.merkleTrees.length,
+    compressedNfts: data.compressedNfts.length,
+    deprecatedConfigs: data.systemConfigs.filter((item) => DEPRECATED_CONFIG_KEYS.has(item.configKey)).length,
+  }
 
   try {
     const result = await unitOfWork.execute(async (tx) => {
@@ -109,8 +114,8 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
       fileManagements: new Map<string, number>(),
       systemConfigs: new Map<string, number>(),
       systemHomepages: new Map<string, number>(),
-      merkleTrees: new Map<string, number>(),
-      compressedNfts: new Map<string, number>(),
+      releaseCredentials: new Map<string, number>(),
+      releaseCredentialAttempts: new Map<string, number>(),
     }
     const importingAdmin = await tx.user.findFirst({
       where: { role: 'ADMIN', status: 1 },
@@ -317,7 +322,7 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
           noteInfoId: requiredMappedId(ids.noteInfos, item.noteInfoId, 'noteInfoId'),
           content: item.content,
           versionNote: item.versionNote,
-          isPrimary: version === '2.1.0' ? item.isPrimary : false,
+          isPrimary: version === '2.0.0' ? false : item.isPrimary,
           status: item.status,
           createdAt: new Date(item.createdAt),
           updatedAt: new Date(item.updatedAt),
@@ -352,6 +357,7 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
     }
 
     for (const item of data.systemConfigs) {
+      if (DEPRECATED_CONFIG_KEYS.has(item.configKey)) continue
       const record = await tx.systemConfig.upsert({
         where: { configKey: item.configKey },
         update: {
@@ -383,99 +389,50 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
       ids.systemHomepages.set(item.id, created.id)
     }
 
-    const pendingReservationsByTree = new Map<string, number>()
-    for (const item of data.compressedNfts) {
-      if (item.status !== 0 || item.capacityReserved === false) continue
-      pendingReservationsByTree.set(
-        item.merkleTreeId,
-        (pendingReservationsByTree.get(item.merkleTreeId) ?? 0) + 1,
-      )
-    }
-
-    for (const item of data.merkleTrees) {
-      const maxCapacity = BigInt(item.maxCapacity)
-      const derivedRemainingCandidate =
-        maxCapacity - BigInt(item.totalMinted) - BigInt(pendingReservationsByTree.get(item.id) ?? 0)
-      const derivedRemaining = derivedRemainingCandidate > 0n ? derivedRemainingCandidate : 0n
-      const remainingCapacity = item.remainingCapacity
-        ? BigInt(item.remainingCapacity)
-        : derivedRemaining
-      const record = await tx.merkleTree.create({
+    for (const item of data.releaseCredentials) {
+      const record = await tx.releaseCredential.create({
         data: {
-          name: item.name,
-          treeAddress: item.treeAddress,
-          treeAuthority: item.treeAuthority,
-          encryptedKey: item.encryptedKey,
-          creatorAddress: item.creatorAddress,
-          maxDepth: item.maxDepth,
-          maxBufferSize: item.maxBufferSize,
-          canopyDepth: item.canopyDepth,
+          projectVersionId: requiredMappedId(ids.projectVersions, item.projectVersionId, 'releaseCredential projectVersionId'),
+          issuerUserId: requiredMappedId(ids.users, item.issuerUserId, 'releaseCredential issuerUserId'),
           network: item.network,
-          totalMinted: item.totalMinted,
-          maxCapacity,
-          remainingCapacity,
-          capacityRevision: item.capacityRevision ?? 0,
-          creationCost: BigInt(item.creationCost),
-          txSignature: item.txSignature,
-          priority: item.priority,
+          signerAddress: item.signerAddress,
+          memo: item.memo,
+          transactionSignature: item.transactionSignature,
           status: item.status,
+          slot: item.slot ? BigInt(item.slot) : null,
+          blockTime: item.blockTime ? new Date(item.blockTime) : null,
+          feeLamports: item.feeLamports ? BigInt(item.feeLamports) : null,
+          finalizedAt: item.finalizedAt ? new Date(item.finalizedAt) : null,
+          lastVerifiedAt: item.lastVerifiedAt ? new Date(item.lastVerifiedAt) : null,
           createdAt: new Date(item.createdAt),
           updatedAt: new Date(item.updatedAt),
-          isDeleted: item.isDeleted,
         },
       })
-      ids.merkleTrees.set(item.id, record.id)
+      ids.releaseCredentials.set(item.id, record.id)
     }
 
-    for (const item of data.compressedNfts) {
-      const record = await tx.compressedNft.create({
+    for (const item of data.releaseCredentialAttempts) {
+      const record = await tx.releaseCredentialAttempt.create({
         data: {
-          merkleTreeId: requiredMappedId(
-            ids.merkleTrees,
-            item.merkleTreeId,
-            'merkleTreeId',
-          ),
-          projectId: requiredMappedId(ids.projects, item.projectId, 'projectId'),
-          noteInfoId: item.noteInfoId
-            ? requiredMappedId(ids.noteInfos, item.noteInfoId, 'noteInfoId')
-            : null,
-          copyrightOwnerId: item.copyrightOwnerId
-            ? ids.users.get(item.copyrightOwnerId) ?? importingAdmin.id
-            : null,
-          assetId: item.assetId,
-          leafIndex: item.leafIndex,
-          name: item.name,
-          symbol: item.symbol,
-          description: item.description,
-          metadataUri: item.metadataUri,
-          imageCid: item.imageCid,
-          metadataCid: item.metadataCid,
-          originalImageId: item.originalImageId
-            ? requiredMappedId(
-                ids.fileManagements,
-                item.originalImageId,
-                'originalImageId',
-              )
-            : null,
-          ownerAddress: item.ownerAddress,
-          mintTxSignature: item.mintTxSignature,
-          prepareExpiresAt: item.prepareExpiresAt
-            ? new Date(item.prepareExpiresAt)
-            : item.status === 0 && !item.mintTxSignature
-              ? new Date()
-              : item.status === 0
-                ? new Date(Date.now() + LEGACY_SIGNED_ATTEMPT_GRACE_MS)
-                : null,
-          lastValidBlockHeight: item.lastValidBlockHeight
-            ? BigInt(item.lastValidBlockHeight)
-            : null,
-          capacityReserved: item.capacityReserved ?? item.status === 0,
+          credentialId: requiredMappedId(ids.releaseCredentials, item.credentialId, 'releaseCredentialAttempt credentialId'),
+          issuerUserId: requiredMappedId(ids.users, item.issuerUserId, 'releaseCredentialAttempt issuerUserId'),
+          signerAddress: item.signerAddress,
+          memo: item.memo,
+          messageHash: item.messageHash,
+          recentBlockhash: item.recentBlockhash,
+          lastValidBlockHeight: BigInt(item.lastValidBlockHeight),
+          transactionSignature: item.transactionSignature,
           status: item.status,
+          failureCode: item.failureCode,
+          failureMessage: item.failureMessage,
+          expiresAt: new Date(item.expiresAt),
+          submittedAt: item.submittedAt ? new Date(item.submittedAt) : null,
+          finalizedAt: item.finalizedAt ? new Date(item.finalizedAt) : null,
           createdAt: new Date(item.createdAt),
           updatedAt: new Date(item.updatedAt),
         },
       })
-      ids.compressedNfts.set(item.id, record.id)
+      ids.releaseCredentialAttempts.set(item.id, record.id)
     }
 
     for (const item of data.projectVersions) {
@@ -517,9 +474,10 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
         fileManagements: ids.fileManagements.size,
         systemConfigs: ids.systemConfigs.size,
         systemHomepages: ids.systemHomepages.size,
-        merkleTrees: ids.merkleTrees.size,
-        compressedNfts: ids.compressedNfts.size,
+        releaseCredentials: ids.releaseCredentials.size,
+        releaseCredentialAttempts: ids.releaseCredentialAttempts.size,
       },
+      ignoredLegacy,
     }
     }, {
       maxWait: DATABASE_TRANSACTION_MAX_WAIT_MS,

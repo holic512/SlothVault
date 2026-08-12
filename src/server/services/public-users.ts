@@ -2,10 +2,10 @@
  * @file public-users.ts
  * @project SlothVault
  * @module Public Personal Profiles
- * @description Resolves shareable user profiles and administrator-authored published articles with optional copyright certificate summaries.
- * @logic Expose only active profile fields, require each listed article to belong to a visible immutable release with an enabled primary content, and join cNFT records as copyright evidence rather than access credentials.
- * @dependencies Prisma User/NoteInfo/CompressedNft models
- * @index_tags user,profile,public,articles,copyright
+ * @description Resolves shareable user profiles and administrator-authored published articles with version evidence markers.
+ * @logic Expose active profile fields, require a visible immutable release, and mark articles when their shared version has finalized transaction evidence.
+ * @dependencies Prisma User, NoteInfo, ProjectVersion, ReleaseCredential models
+ * @index_tags user,profile,public,articles,evidence
  * @author holic512
  */
 import 'server-only'
@@ -66,6 +66,11 @@ export const getPublicUserProfile = cache(async (username: string) => {
               releaseHash: true,
               manifestVersion: true,
               publishedAt: true,
+              releaseCredentials: {
+                where: { status: 2 },
+                select: { id: true },
+                take: 1,
+              },
               project: { select: { id: true, projectName: true } },
             },
           },
@@ -73,29 +78,6 @@ export const getPublicUserProfile = cache(async (username: string) => {
       },
     },
   })
-  const noteIds = notes.map((note) => note.id)
-  const certificates = noteIds.length
-    ? await prisma.compressedNft.findMany({
-        where: {
-          noteInfoId: { in: noteIds },
-          copyrightOwnerId: user.id,
-          status: 1,
-        },
-        orderBy: { createdAt: 'desc' },
-        select: {
-          noteInfoId: true,
-          assetId: true,
-          mintTxSignature: true,
-          metadataUri: true,
-        },
-      })
-    : []
-  const certificateMap = new Map(
-    certificates
-      .filter((item) => item.noteInfoId !== null)
-      .map((item) => [item.noteInfoId!, item]),
-  )
-
   return {
     user: {
       username: user.username,
@@ -107,7 +89,6 @@ export const getPublicUserProfile = cache(async (username: string) => {
     },
     articles: notes.map((note) => {
       const version = note.category.projectVersion
-      const certificate = certificateMap.get(note.id)
       return {
         id: note.id.toString(),
         title: note.noteTitle,
@@ -120,13 +101,7 @@ export const getPublicUserProfile = cache(async (username: string) => {
         publishedAt: version.publishedAt!,
         updatedAt: note.updatedAt,
         href: `/project/${version.project.id}/v/${version.id}/docs/${note.id}`,
-        certificate: certificate
-          ? {
-              assetId: certificate.assetId,
-              transaction: certificate.mintTxSignature,
-              metadataUri: certificate.metadataUri,
-            }
-          : null,
+        hasEvidence: version.releaseCredentials.length > 0,
       }
     }),
   }

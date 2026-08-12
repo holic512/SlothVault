@@ -2,15 +2,13 @@
  * @file database-export.ts
  * @project SlothVault
  * @module Admin Database Backup Export
- * @description Exports a relation-closed portable 2.1 snapshot of accounts, immutable releases, content, points, files, configuration, and cNFT records.
- * @logic Read one repeatable transaction snapshot, close menu relations, omit concurrency revisions, serialize release identity and BigInts, then validate the portable result.
+ * @description Exports a relation-closed portable 2.2 snapshot of content, accounts, configuration, and version transaction evidence.
+ * @logic Read one repeatable transaction snapshot, close relations, serialize evidence BigInts and release identity, then validate the portable result.
  * @dependencies database unit-of-work, Prisma, HTTP JSON serialization, backup schema and validation
  * @index_tags admin,backup,database,export,snapshot,relations
  * @author holic512
  */
 import 'server-only'
-
-import type { Prisma } from '@generated/prisma-postgresql/client'
 
 import { databaseSnapshotIsolationLevel } from '@/server/database/client'
 import { unitOfWork } from '@/server/database/unit-of-work'
@@ -19,6 +17,7 @@ import { toJsonSafe } from '@/server/http/response'
 import {
   DATABASE_TRANSACTION_MAX_WAIT_MS,
   DATABASE_TRANSACTION_TIMEOUT_MS,
+  DEPRECATED_CONFIG_KEYS,
 } from './constants'
 import { backupDataSchema } from './database-schema'
 import { validateBackupRelations } from './database-validation'
@@ -72,7 +71,7 @@ export async function exportDatabaseBackup() {
     const projects = await tx.project.findMany({ where: { isDeleted: false } })
     const projectIds = projects.map((item) => item.id)
 
-    const [projectVersions, candidateMenus, projectHomes, merkleTrees] =
+    const [projectVersions, candidateMenus, projectHomes] =
       await Promise.all([
         tx.projectVersion.findMany({
           where: { isDeleted: false, projectId: { in: projectIds } },
@@ -83,7 +82,6 @@ export async function exportDatabaseBackup() {
         tx.projectHome.findMany({
           where: { isDeleted: false, projectId: { in: projectIds } },
         }),
-        tx.merkleTree.findMany({ where: { isDeleted: false } }),
       ])
 
     const projectMenus = relationClosedMenus(candidateMenus)
@@ -103,40 +101,16 @@ export async function exportDatabaseBackup() {
       where: { isDeleted: false, noteInfoId: { in: noteInfoIds } },
     })
 
-    const merkleTreeIds = merkleTrees.map((item) => item.id)
-    const compressedNfts = await tx.compressedNft.findMany({
-      where: {
-        merkleTreeId: { in: merkleTreeIds },
-        projectId: { in: projectIds },
-      },
-    })
-    const referencedFileIds = [
-      ...new Set(
-        compressedNfts.flatMap((item) =>
-          item.originalImageId ? [item.originalImageId] : [],
-        ),
-      ),
-    ]
-    const fileWhere: Prisma.FileManagementWhereInput = {
-      OR: [
-        { status: 1 },
-        ...(referencedFileIds.length > 0
-          ? [{ id: { in: referencedFileIds } }]
-          : []),
-      ],
-    }
-
-    const [fileManagements, systemConfigs, systemHomepages] = await Promise.all([
-      tx.fileManagement.findMany({ where: fileWhere }),
+    const [fileManagements, systemConfigs, systemHomepages, releaseCredentials] = await Promise.all([
+      tx.fileManagement.findMany({ where: { status: 1 } }),
       tx.systemConfig.findMany(),
       tx.systemHomepage.findMany({ where: { isDeleted: false } }),
+      tx.releaseCredential.findMany({ where: { projectVersionId: { in: projectVersionIds } } }),
     ])
-    const exportedFileIds = new Set(fileManagements.map((item) => item.id.toString()))
-    const safeCompressedNfts = compressedNfts.map((item) =>
-      item.originalImageId && !exportedFileIds.has(item.originalImageId.toString())
-        ? { ...item, originalImageId: null }
-        : item,
-    )
+    const credentialIds = releaseCredentials.map((item) => item.id)
+    const releaseCredentialAttempts = await tx.releaseCredentialAttempt.findMany({
+      where: { credentialId: { in: credentialIds } },
+    })
 
     return {
       users,
@@ -151,10 +125,10 @@ export async function exportDatabaseBackup() {
       noteInfos,
       noteContents,
       fileManagements,
-      systemConfigs,
+      systemConfigs: systemConfigs.filter((item) => !DEPRECATED_CONFIG_KEYS.has(item.configKey)),
       systemHomepages,
-      merkleTrees,
-      compressedNfts: safeCompressedNfts,
+      releaseCredentials,
+      releaseCredentialAttempts,
     }
   }, {
     isolationLevel: databaseSnapshotIsolationLevel(),
@@ -249,34 +223,37 @@ export async function exportDatabaseBackup() {
       ...item,
       id: id.toString(),
     })),
-    merkleTrees: snapshot.merkleTrees.map(({ id, ...item }) => ({
+    releaseCredentials: snapshot.releaseCredentials.map(({ id, projectVersionId, issuerUserId, ...item }) => ({
       ...item,
       id: id.toString(),
+      projectVersionId: projectVersionId.toString(),
+      issuerUserId: issuerUserId.toString(),
     })),
-    compressedNfts: snapshot.compressedNfts.map(({
+    releaseCredentialAttempts: snapshot.releaseCredentialAttempts.map(({
       id,
-      merkleTreeId,
-      projectId,
-      noteInfoId,
-      copyrightOwnerId,
-      originalImageId,
+      credentialId,
+      issuerUserId,
       ...item
     }) => ({
       ...item,
       id: id.toString(),
-      merkleTreeId: merkleTreeId.toString(),
-      projectId: projectId.toString(),
-      noteInfoId: noteInfoId?.toString() ?? null,
-      copyrightOwnerId: copyrightOwnerId?.toString() ?? null,
-      originalImageId: originalImageId?.toString() ?? null,
+      credentialId: credentialId.toString(),
+      issuerUserId: issuerUserId.toString(),
     })),
   }
   const data = backupDataSchema.parse(toJsonSafe(portableSnapshot))
   validateBackupRelations(data)
+  const {
+    merkleTrees: _legacyMerkleTrees,
+    compressedNfts: _legacyCompressedNfts,
+    ...activeData
+  } = data
+  void _legacyMerkleTrees
+  void _legacyCompressedNfts
 
   return {
-    version: '2.1.0',
+    version: '2.2.0',
     exportedAt,
-    data,
+    data: activeData,
   }
 }

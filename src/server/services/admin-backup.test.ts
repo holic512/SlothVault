@@ -39,6 +39,8 @@ function backupWithReservation(options: {
     fileManagements: [],
     systemConfigs: [],
     systemHomepages: [],
+    releaseCredentials: [],
+    releaseCredentialAttempts: [],
     merkleTrees: [
       {
         id: '10',
@@ -94,8 +96,8 @@ function backupWithReservation(options: {
   }
 }
 
-describe('database backup capacity validation', () => {
-  it('accepts a legacy pending reservation without the new optional fields', () => {
+describe('database backup legacy cNFT compatibility', () => {
+  it('accepts legacy Tree/cNFT collections for explicit ignore handling', () => {
     const parsed = parseDatabaseImportPayload({
       data: backupWithReservation(),
       mode: 'insert',
@@ -104,30 +106,15 @@ describe('database backup capacity validation', () => {
     expect(parsed.data.compressedNfts[0].capacityReserved).toBeUndefined()
   })
 
-  it('rejects an inconsistent explicit remaining capacity', () => {
-    expect(() =>
-      parseDatabaseImportPayload({
-        data: backupWithReservation({ remainingCapacity: '9' }),
-      }),
-    ).toThrow('inconsistent remainingCapacity')
-  })
-
-  it('accepts authoritative remaining capacity when a pending lower leaf is already in sequence', () => {
+  it('does not apply removed Tree capacity rules to legacy data', () => {
     const parsed = parseDatabaseImportPayload({
-      data: backupWithReservation({ remainingCapacity: '8' }),
+      data: backupWithReservation({ remainingCapacity: '9', capacityReserved: false }),
     })
-    expect(parsed.data.merkleTrees[0].remainingCapacity).toBe('8')
+    expect(parsed.data.merkleTrees).toHaveLength(1)
+    expect(parsed.data.compressedNfts).toHaveLength(1)
   })
 
-  it('rejects a minting cNFT that no longer owns a reservation', () => {
-    expect(() =>
-      parseDatabaseImportPayload({
-        data: backupWithReservation({ capacityReserved: false }),
-      }),
-    ).toThrow('MINTING without a capacity reservation')
-  })
-
-  it('rejects more pending reservations than the tree ever allocated', () => {
+  it('continues accepting legacy rows even when their historical allocation is inconsistent', () => {
     const data = backupWithReservation({ remainingCapacity: '0' })
     data.merkleTrees[0].maxCapacity = '1'
     data.merkleTrees[0].totalMinted = 1
@@ -137,13 +124,42 @@ describe('database backup capacity validation', () => {
       assetId: 'pending-test-2',
     })
 
-    expect(() => parseDatabaseImportPayload({ data })).toThrow(
-      'more reservations than allocated capacity',
-    )
+    expect(() => parseDatabaseImportPayload({ data, version: '2.1.0' })).not.toThrow()
   })
 })
 
 describe('database backup release compatibility', () => {
+  it('accepts a 2.2 credential and its attempt', () => {
+    const data = backupWithReservation()
+    data.users.push({
+      id: '7', username: 'admin', password: 'hash', passwordConfigured: true,
+      email: null, displayName: null, avatar: null, bio: null, role: 'ADMIN',
+      status: 1, pointsBalance: 0, walletAddress: null, lastLoginAt: null,
+      createdAt: timestamp, updatedAt: timestamp,
+    })
+    data.projectVersions.push({
+      id: '2', projectId: '1', version: 'v2.2', description: null, weight: 1, status: 1,
+      releaseId, releaseHash: 'a'.repeat(64), manifestVersion: 1, publishedAt: timestamp,
+      createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
+    })
+    data.releaseCredentials.push({
+      id: '30', projectVersionId: '2', issuerUserId: '7', network: 'devnet',
+      signerAddress: '11111111111111111111111111111111', memo: '{}',
+      transactionSignature: null, status: 0, slot: null, blockTime: null,
+      feeLamports: null, finalizedAt: null, lastVerifiedAt: null,
+      createdAt: timestamp, updatedAt: timestamp,
+    })
+    data.releaseCredentialAttempts.push({
+      id: '31', credentialId: '30', issuerUserId: '7',
+      signerAddress: '11111111111111111111111111111111', memo: '{}',
+      messageHash: 'b'.repeat(64), recentBlockhash: '11111111111111111111111111111111',
+      lastValidBlockHeight: '100', transactionSignature: null, status: 0,
+      failureCode: null, failureMessage: null, expiresAt: timestamp,
+      submittedAt: null, finalizedAt: null, createdAt: timestamp, updatedAt: timestamp,
+    })
+    expect(parseDatabaseImportPayload({ data, version: '2.2.0' }).data.releaseCredentialAttempts).toHaveLength(1)
+  })
+
   it('forces legacy 2.0 project versions to drafts', () => {
     const data = backupWithReservation()
     data.projectVersions.push({

@@ -12,14 +12,13 @@ const mysqlUrl = process.env.TEST_MYSQL_DATABASE_URL
 const runSqlProviders = process.env.RUN_MULTI_PROVIDER_SQL_SMOKE === '1'
 
 describe.runIf(runSqlProviders && Boolean(postgresUrl))('PostgreSQL provider integration', () => {
-  it('uses the generated client for install state, seeded locks, and portable Int IDs', async () => {
+  it('uses the generated client for install state and portable Int IDs', async () => {
     const prisma = new PostgresPrismaClient({
       adapter: new PrismaPg({ connectionString: postgresUrl }),
     })
     const installationId = randomUUID()
 
     try {
-      expect(await prisma.runtimeLock.count()).toBe(2)
       const installation = await prisma.systemInstallation.create({
         data: {
           id: 1,
@@ -52,12 +51,11 @@ describe.runIf(runSqlProviders && Boolean(postgresUrl))('PostgreSQL provider int
 })
 
 describe.runIf(runSqlProviders && Boolean(mysqlUrl))('MySQL provider integration', () => {
-  it('uses the generated client for install state, seeded locks, and portable Int IDs', async () => {
+  it('uses the generated client for install state and portable Int IDs', async () => {
     const prisma = new MySqlPrismaClient({ adapter: new PrismaMariaDb(mysqlUrl!) })
     const installationId = randomUUID()
 
     try {
-      expect(await prisma.runtimeLock.count()).toBe(2)
       const installation = await prisma.systemInstallation.create({
         data: {
           id: 1,

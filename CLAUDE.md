@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-SlothVault now runs on Next.js 16 App Router and React 19. It provides public Markdown publications, conventional user accounts and profiles, an administrator-only publishing console, points and gift cards, controlled local file storage, and optional Solana cNFT article copyright certificates.
+SlothVault runs on Next.js 16 App Router and React 19 with optional Solana Memo transaction evidence for immutable project releases.
 
 ## Current Stack
 
@@ -11,7 +11,7 @@ SlothVault now runs on Next.js 16 App Router and React 19. It provides public Ma
 - next-intl and next-themes
 - SQLite, MySQL, or PostgreSQL through provider-specific Prisma 7 clients
 - Process-local Node.js memory for short-lived wallet-login challenges and rate limits
-- Solana web3.js, SPL Account Compression, React Wallet Adapter
+- Solana web3.js, Memo Program, React Wallet Adapter
 - `@uiw/react-md-editor` and react-markdown
 - Next standalone Docker runtime
 
@@ -38,17 +38,15 @@ import { prisma } from '@/server/prisma'
 - Authenticate every admin API with `requireAdminSession`; it must enforce the `ADMIN` role. Use `requireUserSession` for ordinary account APIs.
 - Use `defineRoute`, `HttpError`, Zod, and the standard `{ code, message, data }` envelope.
 - Keep database transactions, filesystem compensation, DTO mapping, and chain logic in `src/server/services`.
-- Never expose `MerkleTree.encryptedKey` or stored secret configuration values.
+- Never expose stored secret configuration values or custom RPC URLs.
 
 ## Security Invariants
 
 - Runtime uploads live under `UPLOAD_STORAGE_PATH` (default `data/uploads`), never `public/uploads`.
 - Enforce path containment, regular-file checks, request limits, and image decoding on file operations.
-- Treat database backups as sensitive because they include configuration and encrypted authority keys.
-- Keep every published article publicly readable; wallet/cNFT ownership must never gate reading.
-- Bind Solana submit transactions to their prepare token, fee payer, programs, tree/owner, complete cryptographic signatures, article ID, and copyright owner record.
-- Allocate cNFT leaves under a PostgreSQL row lock and do not decrement potentially exposed indexes.
-- Preserve compatibility with existing `ENCRYPTION_KEY` ciphertexts.
+- Treat database backups as sensitive because they include accounts, configuration, and evidence indexes.
+- Keep every published article publicly readable; wallet or evidence state must never gate reading.
+- Bind Solana submission to the prepared message hash, Memo, program, network, blockhash, fee payer, signing wallet, and complete signature; persist the signature before broadcast.
 
 ## Validation
 
@@ -58,4 +56,4 @@ npm run lint
 npm run build
 ```
 
-Database restore/reset, filesystem overwrite, Docker volume persistence, Solana, DAS, and Filebase require isolated real-service tests before claiming end-to-end completion.
+Database restore/reset, filesystem overwrite, Docker volume persistence, and Solana require isolated real-service tests before claiming end-to-end completion.

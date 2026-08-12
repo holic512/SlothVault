@@ -18,8 +18,7 @@ type DashboardData = {
     notes: { total: number; active: number }
     files: { total: number; totalSizeMB: string }
     blockchain: {
-      merkleTrees: { total: number; active: number }
-      cnfts: { total: number; minted: number; failed: number; pending: number }
+      evidence: { total: number; finalized: number; failed: number; pending: number }
     }
   }
   health: Record<string, number>
@@ -71,7 +70,7 @@ export function DashboardView() {
         { title: t('stats.categories'), value: data.overview.categories.total, meta: `${data.overview.categories.active} ${t('stats.active')}`, icon: <FolderTree /> },
         { title: t('stats.notes'), value: data.overview.notes.total, meta: `${data.overview.notes.active} ${t('stats.active')}`, icon: <BookOpenText /> },
         { title: t('stats.files'), value: data.overview.files.total, meta: `${data.overview.files.totalSizeMB} MB`, icon: <FileStack /> },
-        { title: t('stats.cnfts'), value: data.overview.blockchain.cnfts.total, meta: `${data.overview.blockchain.cnfts.minted} ${t('stats.minted')}`, icon: <ArchiveRestore /> },
+        { title: t('stats.evidence'), value: data.overview.blockchain.evidence.total, meta: `${data.overview.blockchain.evidence.finalized} ${t('stats.minted')}`, icon: <ArchiveRestore /> },
       ]
     : []
 

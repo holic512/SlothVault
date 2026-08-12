@@ -67,7 +67,19 @@ export async function listAdminProjectVersions(query: ProjectVersionListQuery) {
       skip: query.skip,
       take: query.pageSize,
       orderBy: { [query.orderByField]: query.order },
-      include: query.includeProject ? { project: true } : undefined,
+      include: {
+        ...(query.includeProject ? { project: true } : {}),
+        releaseCredentials: {
+          select: {
+            network: true,
+            status: true,
+            transactionSignature: true,
+            signerAddress: true,
+            finalizedAt: true,
+          },
+          orderBy: { network: 'asc' },
+        },
+      },
     }),
   ])
   return {

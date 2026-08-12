@@ -37,6 +37,13 @@ type ProjectVersionLike = {
   updatedAt: Date
   isDeleted: boolean
   project?: Pick<ProjectLike, 'id' | 'projectName'> | null
+  releaseCredentials?: Array<{
+    network: string
+    status: number
+    transactionSignature: string | null
+    signerAddress: string
+    finalizedAt: Date | null
+  }>
 }
 
 type CategoryLike = {
@@ -117,6 +124,15 @@ export function projectVersionBaseDto(projectVersion: ProjectVersionLike) {
     createdAt: projectVersion.createdAt,
     updatedAt: projectVersion.updatedAt,
     isDeleted: projectVersion.isDeleted,
+    evidence: Object.fromEntries(
+      (projectVersion.releaseCredentials || []).map((credential) => [credential.network, {
+        status: credential.status,
+        transactionSignature: credential.transactionSignature,
+        signerAddress: credential.signerAddress,
+        finalizedAt: credential.finalizedAt,
+        test: credential.network === 'devnet',
+      }]),
+    ),
   }
 }
 

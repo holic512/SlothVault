@@ -3,7 +3,7 @@
 
 # SlothVault
 
-面向个人写作与公开分享的 Web2 文章系统：管理员发布、访客自由阅读、普通用户拥有个人主页与积分账户，Solana cNFT 仅作为可选的文章版权凭证。
+面向个人写作与公开分享的 Web2 文章系统：管理员发布、访客自由阅读、普通用户拥有个人主页与积分账户，并可用 Solana 交易存证已发布版本。
 
 </div>
 
@@ -15,8 +15,8 @@ SlothVault 基于 Next.js 16 App Router、React 19 和 Prisma 7。应用支持 S
 - 用户体系：注册、登录、退出、资料编辑、密码设置/修改、钱包地址绑定与钱包签名登录。
 - 个人主页：每个活跃用户都有 `/u/<username>` 分享地址；管理员主页展示其发布文章。
 - 积分与卡密：积分余额、不可变流水、管理员增减积分、批量发卡、一次性卡密兑换。
-- 版权凭证：管理员可为已发布文章制作 cNFT，记录文章、版权归属、链上资产与交易信息。
-- 管理后台：文章目录、首页、文件、用户、积分、卡密、备份、系统配置与版权凭证管理。
+- 交易存证：管理员用当前钱包签署版本哈希，一条凭证对应一个已发布版本；Mainnet 为正式存证，Devnet 为测试凭证。
+- 管理后台：文章目录、首页、文件、用户、积分、卡密、备份、系统配置与交易存证管理。
 - 多数据库安装：SQLite、MySQL 8.0+、PostgreSQL 14+ 使用一致的逻辑模型和独立迁移。
 - 受控文件与备份：上传文件不进入 `public/`；数据库 JSON 和上传 ZIP 支持严格校验与恢复。
 
@@ -76,7 +76,7 @@ MySQL/PostgreSQL profile 只初始化数据库容器；数据库连接仍由 `/i
 | --- | --- |
 | 访客 | 阅读全部已发布文章、访问公开个人主页 |
 | 普通用户 | 访客能力 + 账户资料、钱包绑定、积分查询、卡密兑换 |
-| 管理员 | 普通用户能力 + 发布文章、管理内容/用户/积分/卡密、制作版权凭证 |
+| 管理员 | 普通用户能力 + 发布文章、管理内容/用户/积分/卡密、办理版本交易存证 |
 
 管理员发布文章时，`NoteInfo.authorId` 自动绑定当前管理员。旧版本文章在第二版迁移中绑定到首位管理员。`Project.requireAuth` 仅为旧数据兼容保留，读取服务和界面不再使用它。
 
@@ -96,17 +96,15 @@ MySQL/PostgreSQL profile 只初始化数据库容器；数据库连接仍由 `/i
 - 兑换在可序列化事务中完成：消费卡密、增加余额、写入流水必须同时成功。
 - 进程内存对注册、登录、钱包挑战和卡密兑换执行短窗口限流；重启后计数自动清空，不作为余额或流水权威数据源。
 
-## 文章版权凭证
+## 版本交易存证
 
-cNFT 不再是阅读凭证。新建 cNFT 时必须选择已发布文章，服务端同时记录：
+存证使用官方 Solana Memo Program，一条凭证绑定一个 `ProjectVersion.releaseHash`，不表示 NFT 所有权、版权归属或可转移资产。当前连接钱包同时作为 fee payer、交易签名者和 Memo signer，服务端不保存钱包私钥。
 
-- `projectId`：文章所属公开集合；
-- `noteInfoId`：具体文章；
-- `copyrightOwnerId`：发起操作的管理员账户；
-- `ownerAddress`：链上资产接收地址；
-- `assetId`、交易签名、Metadata URI 与 Merkle Tree 信息。
-
-Tree 创建、容量预留、prepare/sign/submit、签名持久化和链上事件对账仍沿用原有安全流程。链上写入会产生真实 SOL 费用，默认应先在 devnet 验证。
+- 发布与存证解耦，钱包拒签或 RPC 故障不影响版本公开。
+- 同一版本在 Mainnet、Devnet 各最多一条最终凭证；不同版本哈希生成独立凭证。
+- prepare 会复算版本 manifest，并展示余额、预计费用与最终 Memo。
+- submit 先持久化交易签名再广播；不确定结果可在后台继续对账。
+- `/evidence/<transactionSignature>` 提供公开回执和实时链上核验；隐藏版本不会公开正文、版本名称或 manifest。
 
 ## 架构
 
@@ -128,14 +126,13 @@ flowchart LR
 
     Services --> Memory["Process memory / TTL state"]
     Services --> Uploads[(data/uploads)]
-    Services --> Solana["Solana RPC / cNFT"]
-    Services --> Filebase["Optional Filebase S3 / IPFS"]
+    Services --> Solana["Solana RPC / Memo evidence"]
 
     Installer["/install"] --> Config["encrypted database.enc"]
     Installer --> Prisma
 ```
 
-应用只加载安装时选定的一套 Prisma Client。进程内存只承载短期挑战与限流；账户、文章、积分、卡密和版权记录均以 SQL 数据库为权威。该内存状态适用于单应用实例，不在多个实例之间共享。
+应用只加载安装时选定的一套 Prisma Client。进程内存只承载短期挑战与限流；账户、文章、积分、卡密和存证索引均以 SQL 数据库为权威。
 
 ## 数据库安装与升级
 
@@ -145,7 +142,7 @@ flowchart LR
 UNCONFIGURED → CONFIGURING → SCHEMA_READY → INSTALLED
 ```
 
-安装器只接受空数据库。安装完成后，服务启动阶段会执行当前 provider 已提交的 `prisma migrate deploy`，全部迁移成功后才提升 `system_installation.schema_revision`。当前 schema revision 为 `2`。
+安装器只接受空数据库。安装完成后，服务启动阶段会执行当前 provider 已提交的 `prisma migrate deploy`，全部迁移成功后才提升 `system_installation.schema_revision`。当前 schema revision 为 `4`。
 
 SQLite 仅支持单应用实例和本地磁盘，不支持 NFS/SMB 等网络共享文件系统。详细规则见 [数据库安装与迁移指南](docs/DATABASE_INSTALLATION.md)。
 
@@ -156,13 +153,11 @@ SQLite 仅支持单应用实例和本地磁盘，不支持 NFS/SMB 等网络共�
 | `APP_DATA_PATH` | 否 | 本地默认 `<cwd>/data`；Docker 为 `/app/data` |
 | `UPLOAD_STORAGE_PATH` | 否 | 本地默认 `<cwd>/data/uploads`；Docker 为 `/app/data/uploads` |
 | `ENCRYPTION_KEY` | 否 | 未设置时在配置目录生成持久化 `master.key` |
-| `SOLANA_RPC_URL` | 否 | 主网 RPC fallback |
-| `SOLANA_DEVNET_RPC_URL` | 否 | devnet RPC fallback |
-| `NEXT_PUBLIC_SOLANA_RPC_URL` | 否 | 浏览器钱包与版权交易连接地址 |
-| `FILEBASE_ACCESS_KEY` | 否 | 可选 Filebase S3 Access Key |
-| `FILEBASE_SECRET_KEY` | 否 | 可选 Filebase S3 Secret Key |
-| `FILEBASE_BUCKET` | 否 | 可选 Filebase bucket |
-| `FILEBASE_ENDPOINT` | 否 | 默认 `https://s3.filebase.com` |
+| `SOLANA_RPC_URL` | 否 | Mainnet 主 RPC 环境回退；推荐在后台敏感配置中设置 |
+| `SOLANA_MAINNET_RPC_FALLBACK` | 否 | Mainnet 备用 RPC |
+| `SOLANA_DEVNET_RPC_URL` | 否 | Devnet 主 RPC 环境回退 |
+| `SOLANA_DEVNET_RPC_FALLBACK` | 否 | Devnet 备用 RPC |
+| `NEXT_PUBLIC_SOLANA_RPC_URL` | 否 | 浏览器 Wallet Adapter 使用的公共集群地址 |
 
 数据库连接不接受 `DATABASE_URL` 或旧 `DB_*` 环境变量绕过安装器。
 
@@ -174,7 +169,7 @@ SQLite 仅支持单应用实例和本地磁盘，不支持 NFS/SMB 等网络共�
 - 用户资料、角色、钱包绑定与积分余额；
 - 积分流水、卡密批次、卡密哈希与兑换关系；
 - 项目、版本、分类、文章、内容版本与文章作者；
-- 文件记录、系统配置、首页、Merkle Tree 与文章版权 cNFT。
+- 文件记录、系统配置、首页、版本存证主体与全部 attempts。
 
 因此数据库备份属于敏感数据，必须按密钥材料管理。跨 provider 恢复会重新映射所有整数 ID；活跃 Session 不迁移。上传 ZIP 独立导出，并执行路径 containment、ZIP Slip、符号链接、特殊文件、加密 ZIP 和大小限制检查。
 
@@ -190,7 +185,7 @@ SQLite 仅支持单应用实例和本地磁盘，不支持 NFS/SMB 等网络共�
 | 主数据库 | SQLite、MySQL 8.0+ InnoDB、PostgreSQL 14+；Prisma 7 adapters |
 | 短期状态 | Node.js 进程内存、TTL 清理与容量上限 |
 | 认证 | Argon2id、HttpOnly 数据库 Session、可选 Ed25519 钱包签名 |
-| 版权链 | Solana web3.js、SPL Account Compression、Wallet Adapter |
+| 存证链 | Solana web3.js、Memo Program、Wallet Adapter |
 | 部署 | Next standalone、Docker、Docker Compose |
 
 ## 目录结构
@@ -203,7 +198,7 @@ src/
 ├── server/
 │   ├── auth/                  # Session、角色与密码
 │   ├── database/              # 多 provider、安装与迁移
-│   └── services/              # 用户、积分、内容、备份与版权业务
+│   └── services/              # 用户、积分、内容、备份与交易存证业务
 └── types/                     # 浏览器安全 DTO
 
 prisma/providers/              # PostgreSQL / MySQL / SQLite schema 与迁移
@@ -222,7 +217,7 @@ npm test
 npm run build
 ```
 
-默认测试会跳过需要真实 Filebase、SQL 服务或 Solana RPC/凭据的 opt-in 集成用例。不要把静态检查结果表述为真实链上写入或跨数据库恢复已经完成。
+默认测试会跳过需要真实 SQL 服务或 Solana RPC/钱包的 opt-in 集成用例。不要把静态检查结果表述为真实链上写入或跨数据库恢复已经完成。
 
 更多资料：
 

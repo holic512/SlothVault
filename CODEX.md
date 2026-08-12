@@ -6,7 +6,7 @@
 
 ## 项目概览
 
-SlothVault 当前运行栈是 Next.js 16 App Router + React 19。系统提供公开 Markdown 文章、普通用户与个人主页、管理员发布后台、积分/卡密、本地受控文件存储，以及可选的 Solana cNFT 文章版权凭证。
+SlothVault 当前运行栈是 Next.js 16 App Router + React 19。系统提供公开 Markdown 文章、普通用户与个人主页、管理员发布后台、积分/卡密、本地受控文件存储，以及可选的 Solana 版本交易存证。
 
 ## 当前技术栈
 
@@ -16,8 +16,8 @@ SlothVault 当前运行栈是 Next.js 16 App Router + React 19。系统提供公
 - Markdown: `@uiw/react-md-editor`、react-markdown、remark/rehype
 - Database: SQLite / MySQL / PostgreSQL + Prisma 7 provider clients
 - Short-lived state: Node.js 进程内存（钱包登录挑战、限流；仅支持单应用实例）
-- Blockchain: `@solana/web3.js`、SPL Account Compression、React Wallet Adapter
-- Storage: `data/uploads` 受控路由；可选 Filebase S3/IPFS
+- Blockchain: `@solana/web3.js`、Solana Memo Program、React Wallet Adapter
+- Storage: `data/uploads` 受控路由
 
 ## 当前代码边界
 
@@ -48,10 +48,9 @@ import { prisma } from '@/server/prisma'
 - 上传根由 `UPLOAD_STORAGE_PATH` 控制，默认 `data/uploads`；不要重新创建 `public/uploads`。
 - 任何存储路径必须做 containment 与符号链接检查。
 - 敏感配置不回显；数据库备份视为敏感数据。
-- 已发布文章必须公开读取，不得重新引入钱包/cNFT 阅读门槛。
-- Solana submit 必须绑定 prepare 消息、fee payer、程序、树/owner 和完整签名；新 cNFT 必须绑定文章和版权管理员。
-- cNFT leaf 分配必须持有 `merkle_tree` 行锁；失败/删除不得回退可能已暴露的索引。
-- `ENCRYPTION_KEY` 格式兼容现有 Tree Authority 密文，不得随意更换 KDF/旧密文格式。
+- 已发布文章必须公开读取，不得重新引入钱包或存证阅读门槛。
+- Solana submit 必须绑定 prepare 消息哈希、Memo、程序、网络、blockhash、fee payer、签名钱包和完整签名。
+- 同一版本同一网络只能有一个凭证主体；签名必须先持久化再广播，RPC 不确定结果保持可对账。
 
 ## 常用验证
 
@@ -61,4 +60,4 @@ npm run lint
 npm run build
 ```
 
-数据库恢复、文件 overwrite/reset、Solana 与 Filebase 变更需要隔离的真实集成环境；不得把静态检查写成链上或数据库验证已完成。
+数据库恢复、文件 overwrite/reset 与 Solana 变更需要隔离的真实集成环境；不得把静态检查写成链上或数据库验证已完成。

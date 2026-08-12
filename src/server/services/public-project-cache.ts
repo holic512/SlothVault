@@ -130,9 +130,10 @@ export function getCachedProjectNote(projectId: number, versionId: number, noteI
         ...note,
         updatedAt: iso(note.updatedAt),
         publishedAt: iso(note.publishedAt),
-        certificate: note.certificate
-          ? { ...note.certificate, issuedAt: iso(note.certificate.issuedAt) }
-          : null,
+        evidence: note.evidence.map((item) => ({
+          ...item,
+          finalizedAt: iso(item.finalizedAt),
+        })),
       }
     },
     ['public-project-note', String(projectId), String(versionId), String(noteId)],

@@ -2,14 +2,20 @@
  * @file sanitize-standalone.mjs
  * @project SlothVault
  * @module Production Build
- * @description Completes the compiled Turbopack runtime, adds the minimal Prisma migration CLI dependency closure, and removes build-host secrets or mutable data.
- * @logic Copy generated server chunks, external aliases, production Next runtimes, and the Prisma command graph; delete unsafe build inputs and verify the result.
- * @dependencies node:fs/promises, node:path
- * @index_tags nextjs,standalone,security,build,sanitization
+ * @description Completes and minimizes the compiled Turbopack runtime while preserving the Prisma migration and native package assets required by the installer.
+ * @logic Copy generated chunks and the Prisma command graph, remove unsafe inputs and source maps, prune non-runtime Sharp binaries on Alpine, then verify the result.
+ * @dependencies node:fs/promises, node:path, standalone-optimization
+ * @index_tags nextjs,standalone,security,build,sanitization,sharp,source-map
  * @author holic512
  */
 import { access, cp, mkdir, readFile, readdir, rm } from 'node:fs/promises'
 import { dirname, relative, resolve } from 'node:path'
+
+import {
+  formatBinaryBytes,
+  pruneSharpRuntimePackages,
+  removeSourceMaps,
+} from './standalone-optimization.mjs'
 
 const projectRoot = resolve(process.cwd())
 const standaloneRoot = resolve(projectRoot, '.next', 'standalone')
@@ -210,6 +216,18 @@ for (const entry of entries) {
   if (entry.name.startsWith('.env') || forbiddenNames.has(entry.name)) {
     await rm(resolve(standaloneRoot, entry.name), { recursive: true, force: true })
   }
+}
+
+const sourceMapCleanup = await removeSourceMaps(standaloneRoot)
+const sharpCleanup = await pruneSharpRuntimePackages(standaloneRoot)
+
+console.log(
+  `[standalone] Removed ${sourceMapCleanup.files} source maps (${formatBinaryBytes(sourceMapCleanup.bytes)}).`,
+)
+if (sharpCleanup.packages.length > 0) {
+  console.log(
+    `[standalone] Removed ${sharpCleanup.packages.length} non-runtime Sharp packages (${formatBinaryBytes(sharpCleanup.bytes)}).`,
+  )
 }
 
 const remaining = await readdir(standaloneRoot)

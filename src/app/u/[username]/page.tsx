@@ -3,9 +3,9 @@
  * @project SlothVault
  * @module Public Personal Homepage
  * @description Renders a shareable personal profile and the administrator-authored public article archive.
- * @logic Resolve the active profile on the server, return a real 404 when absent, and present copyright certificates as optional evidence beside publicly readable articles.
+ * @logic Resolve the profile, return a real 404 when absent, and mark articles whose containing release has transaction evidence.
  * @dependencies Next metadata/navigation, PublicNavbar, public-users service, Ant Design
- * @index_tags profile,personal-homepage,articles,copyright,public
+ * @index_tags profile,personal-homepage,articles,release-evidence,public
  * @author holic512
  */
 import type { Metadata } from 'next'
@@ -80,7 +80,7 @@ export default async function PublicUserPage({
                       <p>{article.project} / {article.version} / {article.category}</p>
                     </div>
                     <div className="profile-article-proof">
-                      {article.certificate ? <span title="Copyright certified">©</span> : null}
+                      {article.hasEvidence ? <span title="版本已存证">✓</span> : null}
                       <span aria-hidden>↗</span>
                     </div>
                   </article>

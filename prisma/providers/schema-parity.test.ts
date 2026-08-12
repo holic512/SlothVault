@@ -20,9 +20,8 @@ const expectedTables = {
   SystemConfig: 'system_config',
   SystemHomepage: 'system_homepage',
   SystemInstallation: 'system_installation',
-  RuntimeLock: 'system_runtime_lock',
-  MerkleTree: 'solana_merkle_tree',
-  CompressedNft: 'solana_compressed_nft',
+  ReleaseCredential: 'release_credential',
+  ReleaseCredentialAttempt: 'release_credential_attempt',
 } as const
 
 function readSchema(provider: (typeof providers)[number]) {
@@ -105,12 +104,11 @@ describe('provider schema parity', () => {
     expect(models.get('ProjectVersion')).toContain('releaseHash String? @unique')
     expect(models.get('ProjectVersion')).toContain('manifestVersion Int? @map("manifest_version")')
     expect(models.get('ProjectVersion')).toContain('publishedAt DateTime? @map("published_at")')
-    expect(models.get('MerkleTree')).toContain('remainingCapacity BigInt @default(0) @map("remaining_capacity")')
-    expect(models.get('CompressedNft')).toContain('capacityReserved Boolean @default(false) @map("capacity_reserved")')
-    expect(models.get('CompressedNft')).toContain('noteInfoId Int? @map("note_info_id")')
-    expect(models.get('CompressedNft')).toContain('copyrightOwnerId Int? @map("copyright_owner_id")')
+    expect(models.get('ReleaseCredential')).toContain('projectVersionId Int @map("project_version_id")')
+    expect(models.get('ReleaseCredential')).toContain('transactionSignature String? @unique')
+    expect(models.get('ReleaseCredentialAttempt')).toContain('lastValidBlockHeight BigInt @map("last_valid_block_height")')
     expect(models.has('SystemInstallation')).toBe(true)
-    expect(models.has('RuntimeLock')).toBe(true)
+    expect(models.has('RuntimeLock')).toBe(false)
   })
 
   it.each(providers)('%s uses portable Int identity keys and reserves BigInt for business values', (provider) => {
@@ -130,8 +128,8 @@ describe('provider schema parity', () => {
       'FileManagement',
       'SystemConfig',
       'SystemHomepage',
-      'MerkleTree',
-      'CompressedNft',
+      'ReleaseCredential',
+      'ReleaseCredentialAttempt',
     ]
 
     for (const model of autoIncrementModels) {
@@ -140,15 +138,12 @@ describe('provider schema parity', () => {
 
     expect(models.get('ProjectMenu')).toContain('projectId Int @map("project_id")')
     expect(models.get('ProjectMenu')).toContain('parentId Int? @map("parent_id")')
-    expect(models.get('CompressedNft')).toContain('merkleTreeId Int @map("merkle_tree_id")')
-    expect(models.get('CompressedNft')).toContain('projectId Int @map("project_id")')
     expect(models.get('FileManagement')).toContain('fileSize BigInt @map("file_size")')
-    expect(models.get('MerkleTree')).toContain('maxCapacity BigInt @map("max_capacity")')
-    expect(models.get('MerkleTree')).toContain('creationCost BigInt @map("creation_cost")')
-    expect(models.get('CompressedNft')).toContain('lastValidBlockHeight BigInt? @map("last_valid_block_height")')
+    expect(models.get('ReleaseCredential')).toContain('slot BigInt?')
+    expect(models.get('ReleaseCredential')).toContain('feeLamports BigInt? @map("fee_lamports")')
   })
 
-  it.each(providers)('%s initial migration seeds provider-neutral priority locks', (provider) => {
+  it.each(providers)('%s keeps the historical initial migration and provider lock metadata', (provider) => {
     const migration = readInitialMigration(provider)
     const migrationLock = readFileSync(
       resolve(process.cwd(), `prisma/providers/${provider}/migrations/migration_lock.toml`),

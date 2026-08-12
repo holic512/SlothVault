@@ -2,10 +2,10 @@
  * @file public-projects.ts
  * @project SlothVault
  * @module Public Project Reading
- * @description Centralizes public immutable release navigation, manifest metadata, and article reads, including author identity and optional copyright evidence.
- * @logic Require a visible publishedAt release across every public path, select its unique enabled primary content without fallback, and expose release identity alongside matching author-bound cNFT evidence.
- * @dependencies Prisma project, document, user, and compressed NFT models
- * @index_tags public-project,public-reader,versions,notes,author,copyright,web2
+ * @description Centralizes public immutable release navigation, manifest metadata, article reads, and version transaction evidence.
+ * @logic Require a visible published release, select its unique primary content, and expose the same finalized version evidence to every article in that release.
+ * @dependencies Prisma project, document, user, and release credential models
+ * @index_tags public-project,public-reader,versions,notes,author,evidence
  * @author holic512
  */
 import 'server-only'
@@ -166,7 +166,19 @@ async function requireVersion(projectId: number, versionId: number) {
       releaseHash: { not: null },
       manifestVersion: 1,
     },
-    include: { project: { select: { isDeleted: true, status: true } } },
+    include: {
+      project: { select: { isDeleted: true, status: true } },
+      releaseCredentials: {
+        where: { status: 2 },
+        orderBy: { finalizedAt: 'desc' },
+        select: {
+          network: true,
+          transactionSignature: true,
+          signerAddress: true,
+          finalizedAt: true,
+        },
+      },
+    },
   })
   if (!version || version.project.isDeleted || version.project.status !== 1) {
     throw new HttpError('Version not found', 404, 404)
@@ -227,31 +239,14 @@ export async function getProjectNote(
   const content = contents.length === 1 ? contents[0] : null
   if (!content) throw new HttpError('Note content not found', 404, 404)
 
-  const [author, certificate] = await Promise.all([
+  const author = await (
     note.authorId
       ? prisma.user.findFirst({
           where: { id: note.authorId, status: 1 },
           select: { username: true, displayName: true },
         })
-      : null,
-    note.authorId
-      ? prisma.compressedNft.findFirst({
-          where: {
-            noteInfoId: note.id,
-            copyrightOwnerId: note.authorId,
-            status: 1,
-          },
-          orderBy: { createdAt: 'desc' },
-          select: {
-            assetId: true,
-            mintTxSignature: true,
-            ownerAddress: true,
-            createdAt: true,
-            merkleTree: { select: { network: true } },
-          },
-        })
-      : null,
-  ])
+      : null
+  )
 
   return {
     id: content.id.toString(),
@@ -270,14 +265,11 @@ export async function getProjectNote(
           displayName: author.displayName,
         }
       : null,
-    certificate: certificate
-      ? {
-          assetId: certificate.assetId,
-          transaction: certificate.mintTxSignature,
-          ownerAddress: certificate.ownerAddress,
-          network: certificate.merkleTree.network,
-          issuedAt: certificate.createdAt,
-        }
-      : null,
+    evidence: version.releaseCredentials.map((credential) => ({
+      network: credential.network,
+      transactionSignature: credential.transactionSignature!,
+      signerAddress: credential.signerAddress,
+      finalizedAt: credential.finalizedAt!,
+    })),
   }
 }

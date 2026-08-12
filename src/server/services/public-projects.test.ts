@@ -7,7 +7,6 @@ const mocks = vi.hoisted(() => ({
     noteInfo: { findFirst: vi.fn() },
     noteContent: { findMany: vi.fn() },
     user: { findFirst: vi.fn() },
-    compressedNft: { findFirst: vi.fn() },
   },
 }))
 
@@ -37,7 +36,7 @@ describe('public project reading', () => {
     })
   })
 
-  it('returns only matching author-bound copyright evidence with an article', async () => {
+  it('returns finalized evidence shared by every article in a release', async () => {
     const updatedAt = new Date('2026-07-30T12:00:00.000Z')
     const issuedAt = new Date('2026-07-30T13:00:00.000Z')
     mocks.prisma.projectVersion.findFirst.mockResolvedValue({
@@ -48,6 +47,12 @@ describe('public project reading', () => {
       manifestVersion: 1,
       publishedAt: new Date('2026-07-30T11:00:00.000Z'),
       project: { isDeleted: false, status: 1 },
+      releaseCredentials: [{
+        network: 'devnet',
+        transactionSignature: 'Signature1111111111111111111111111111111',
+        signerAddress: 'Owner111111111111111111111111111111111111',
+        finalizedAt: issuedAt,
+      }],
     })
     mocks.prisma.project.findFirst.mockResolvedValue({
       id: 4,
@@ -71,25 +76,8 @@ describe('public project reading', () => {
       username: 'editor',
       displayName: 'Editor',
     })
-    mocks.prisma.compressedNft.findFirst.mockResolvedValue({
-      assetId: 'Asset111111111111111111111111111111111111',
-      mintTxSignature: 'Signature1111111111111111111111111111111',
-      ownerAddress: 'Owner111111111111111111111111111111111111',
-      createdAt: issuedAt,
-      merkleTree: { network: 'devnet' },
-    })
-
     const result = await getProjectNote(4, 8, 12)
 
-    expect(mocks.prisma.compressedNft.findFirst).toHaveBeenCalledWith({
-      where: {
-        noteInfoId: 12,
-        copyrightOwnerId: 3,
-        status: 1,
-      },
-      orderBy: { createdAt: 'desc' },
-      select: expect.any(Object),
-    })
     expect(result).toEqual({
       id: '18',
       noteId: '12',
@@ -102,13 +90,12 @@ describe('public project reading', () => {
       manifestVersion: 1,
       publishedAt: new Date('2026-07-30T11:00:00.000Z'),
       author: { username: 'editor', displayName: 'Editor' },
-      certificate: {
-        assetId: 'Asset111111111111111111111111111111111111',
-        transaction: 'Signature1111111111111111111111111111111',
-        ownerAddress: 'Owner111111111111111111111111111111111111',
+      evidence: [{
+        transactionSignature: 'Signature1111111111111111111111111111111',
+        signerAddress: 'Owner111111111111111111111111111111111111',
         network: 'devnet',
-        issuedAt,
-      },
+        finalizedAt: issuedAt,
+      }],
     })
   })
 })

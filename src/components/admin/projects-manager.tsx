@@ -340,6 +340,13 @@ type VersionDto = {
   isDeleted: boolean
   createdAt: string
   updatedAt: string
+  evidence: Partial<Record<'mainnet' | 'devnet', {
+    status: number
+    transactionSignature: string | null
+    signerAddress: string
+    finalizedAt: string | null
+    test: boolean
+  }>>
 }
 
 function VersionManager({ project, onClose, onUpdated }: { project: ProjectDto | null; onClose: () => void; onUpdated: () => unknown }) {
@@ -381,7 +388,17 @@ function VersionManager({ project, onClose, onUpdated }: { project: ProjectDto |
   })
   const publish = useMutation({
     mutationFn: (id: string) => apiFetch(`/api/admin/mm/projectVersion/${id}/publish`, { method: 'POST' }),
-    onSuccess: async () => { message.success(vt('messages.published')); await refresh() },
+    onSuccess: async (_result, id) => {
+      message.success(vt('messages.published'))
+      await refresh()
+      modal.confirm({
+        title: '版本已公开，是否立即办理交易存证？',
+        content: '存证与发布相互独立。你可以使用当前连接的钱包签署该版本哈希，也可以稍后从交易存证中心处理。',
+        okText: '立即存证',
+        cancelText: '稍后处理',
+        onOk: () => router.push(`/admin/mm/evidence?projectVersionId=${id}`),
+      })
+    },
     onError: (error) => {
       const issues = error instanceof ApiClientError && error.data && typeof error.data === 'object' && 'issues' in error.data
         ? (error.data as { issues?: Array<{ code: string; message: string }> }).issues || []
@@ -484,6 +501,15 @@ function VersionManager({ project, onClose, onUpdated }: { project: ProjectDto |
             render: (_, row) => row.releaseHash
               ? <code title={row.releaseHash}>{row.releaseHash.slice(0, 12)}…</code>
               : '—',
+          },
+          {
+            title: '存证',
+            width: 145,
+            render: (_, row) => <Space size={2} wrap>
+              {row.evidence?.mainnet ? <Tag color={row.evidence.mainnet.status === 2 ? 'success' : 'processing'}>Mainnet</Tag> : null}
+              {row.evidence?.devnet ? <Tag color={row.evidence.devnet.status === 2 ? 'warning' : 'processing'}>Devnet 测试</Tag> : null}
+              {row.publishedAt && !row.evidence?.mainnet && !row.evidence?.devnet ? <Tag>未存证</Tag> : null}
+            </Space>,
           },
           {
             title: vt('table.actions'),

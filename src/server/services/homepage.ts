@@ -18,7 +18,7 @@ export const DEFAULT_HOMEPAGE_CONTENT = `
 
 # SlothVault
 
-一套克制的 Web2 写作与个人主页系统。文章公开阅读，账户回归用户名与密码，链上能力只用于可选的版权凭证。
+一套克制的 Web2 写作与个人主页系统。文章公开阅读，链上能力只用于可选的版本交易存证。
 
 <div class="sloth-actions">
   <a class="sloth-btn sloth-btn-primary" href="/project/projectList">浏览文章</a>
@@ -35,7 +35,7 @@ export const DEFAULT_HOMEPAGE_CONTENT = `
   <div class="sloth-feature-card"><strong>公开文章</strong><span>管理员负责发布，访客无需钱包即可阅读。</span></div>
   <div class="sloth-feature-card"><strong>个人主页</strong><span>普通用户拥有账户、资料页与可分享的主页地址。</span></div>
   <div class="sloth-feature-card"><strong>积分与卡密</strong><span>积分余额、完整流水、批量发卡和一次性兑换。</span></div>
-  <div class="sloth-feature-card"><strong>版权凭证</strong><span>可为已发布文章制作 cNFT，作为链上版权证据。</span></div>
+  <div class="sloth-feature-card"><strong>交易存证</strong><span>管理员可用当前钱包签署版本哈希，并公开核验 Solana 交易。</span></div>
 </div>
 
 ## 技术底座
@@ -44,7 +44,7 @@ export const DEFAULT_HOMEPAGE_CONTENT = `
 - **数据层**：SQLite / PostgreSQL / MySQL + Prisma ORM
 - **短期状态**：进程内存（登录挑战与安全限流）
 - **登录方式**：用户名 / 邮箱 / 密码，或可选的钱包地址签名
-- **链上能力**：Solana cNFT 文章版权凭证
+- **链上能力**：Solana Memo 版本交易存证（Mainnet 正式 / Devnet 测试）
 `
 
 export async function ensureInitialHomepage(

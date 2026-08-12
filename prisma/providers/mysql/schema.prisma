@@ -1,8 +1,8 @@
 // @file prisma/providers/mysql/schema.prisma
 // @project SlothVault
 // @module MySQL persistence model
-// @description Defines the flat, domain-prefixed MySQL 8 schema for publishing, user identity, points, gift cards, and optional copyright credentials.
-// @logic Preserve the provider-neutral logical model while applying MySQL-native types and keeping public reading independent from wallet ownership.
+// @description Defines the flat, domain-prefixed MySQL 8 schema for publishing, user identity, points, gift cards, and version transaction evidence.
+// @logic Preserve the provider-neutral logical model while applying MySQL-native types and binding optional Solana evidence to immutable releases.
 // @dependencies Prisma ORM 7.3.0, @prisma/adapter-mariadb 7.3.0
 // @index_tags prisma, mysql, schema, persistence, installation
 // @author holic512
@@ -52,6 +52,8 @@ model User {
   pointTransactions      PointTransaction[]
   createdGiftCardBatches GiftCardBatch[]     @relation("GiftCardBatchCreator")
   redeemedGiftCards      GiftCard[]          @relation("GiftCardRedemption")
+  releaseCredentials     ReleaseCredential[] @relation("ReleaseCredentialIssuer")
+  credentialAttempts     ReleaseCredentialAttempt[] @relation("ReleaseCredentialAttemptIssuer")
 
   @@index([role, status], map: "idx_auth_user_role_status")
   @@map("auth_user")
@@ -177,6 +179,7 @@ model ProjectVersion {
   isDeleted        Boolean    @default(false) @map("is_deleted")
   project          Project    @relation(fields: [projectId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   categories       Category[]
+  releaseCredentials ReleaseCredential[]
 
   @@index([projectId], map: "idx_collections_project_version_project_id")
   @@map("collections_project_version")
@@ -281,73 +284,54 @@ model SystemInstallation {
   @@map("system_installation")
 }
 
-model RuntimeLock {
-  key       String   @id @db.VarChar(128)
-  revision  Int      @default(0)
-  updatedAt DateTime @default(now()) @map("updated_at") @db.DateTime(3)
+model ReleaseCredential {
+  id                   Int      @id @default(autoincrement())
+  projectVersionId     Int      @map("project_version_id")
+  issuerUserId         Int      @map("issuer_user_id")
+  network              String   @db.VarChar(20)
+  signerAddress        String   @map("signer_address") @db.VarChar(64)
+  memo                 String   @db.Text
+  transactionSignature String?  @unique(map: "uq_release_credential_transaction_signature") @map("transaction_signature") @db.VarChar(128)
+  status               Int      @default(0) @db.SmallInt
+  slot                  BigInt?  @db.BigInt
+  blockTime             DateTime? @map("block_time") @db.DateTime(3)
+  feeLamports           BigInt?  @map("fee_lamports") @db.BigInt
+  finalizedAt           DateTime? @map("finalized_at") @db.DateTime(3)
+  lastVerifiedAt        DateTime? @map("last_verified_at") @db.DateTime(3)
+  createdAt             DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt             DateTime @default(now()) @map("updated_at") @db.DateTime(3)
+  projectVersion        ProjectVersion @relation(fields: [projectVersionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  issuerUser            User @relation("ReleaseCredentialIssuer", fields: [issuerUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  attempts              ReleaseCredentialAttempt[]
 
-  @@map("system_runtime_lock")
+  @@unique([projectVersionId, network], map: "uq_release_credential_version_network")
+  @@index([network, status], map: "idx_release_credential_network_status")
+  @@index([signerAddress], map: "idx_release_credential_signer")
+  @@map("release_credential")
 }
 
-model MerkleTree {
-  id                Int          @id @default(autoincrement())
-  name              String          @db.VarChar(128)
-  treeAddress       String          @unique(map: "uq_solana_merkle_tree_address") @map("tree_address") @db.VarChar(64)
-  treeAuthority     String          @map("tree_authority") @db.VarChar(64)
-  encryptedKey      String          @map("encrypted_key") @db.Text
-  creatorAddress    String          @map("creator_address") @db.VarChar(64)
-  maxDepth          Int             @map("max_depth") @db.SmallInt
-  maxBufferSize     Int             @map("max_buffer_size") @db.SmallInt
-  canopyDepth       Int             @map("canopy_depth") @db.SmallInt
-  network           String          @default("devnet") @db.VarChar(20)
-  totalMinted       Int             @default(0) @map("total_minted")
-  maxCapacity       BigInt          @map("max_capacity") @db.BigInt
-  remainingCapacity BigInt          @default(0) @map("remaining_capacity") @db.BigInt
-  capacityRevision  Int             @default(0) @map("capacity_revision")
-  creationCost      BigInt          @map("creation_cost") @db.BigInt
-  txSignature       String?         @map("tx_signature") @db.VarChar(128)
-  priority          Int             @default(0)
-  status            Int             @default(0) @db.SmallInt
-  createdAt         DateTime        @default(now()) @map("created_at") @db.DateTime(3)
-  updatedAt         DateTime        @default(now()) @map("updated_at") @db.DateTime(3)
-  isDeleted         Boolean         @default(false) @map("is_deleted")
-  cnfts             CompressedNft[]
+model ReleaseCredentialAttempt {
+  id                   Int      @id @default(autoincrement())
+  credentialId         Int      @map("credential_id")
+  issuerUserId         Int      @map("issuer_user_id")
+  signerAddress        String   @map("signer_address") @db.VarChar(64)
+  memo                 String   @db.Text
+  messageHash          String   @map("message_hash") @db.Char(64)
+  recentBlockhash      String   @map("recent_blockhash") @db.VarChar(100)
+  lastValidBlockHeight BigInt   @map("last_valid_block_height") @db.BigInt
+  transactionSignature String?  @map("transaction_signature") @db.VarChar(128)
+  status               Int      @default(0) @db.SmallInt
+  failureCode          String?  @map("failure_code") @db.VarChar(64)
+  failureMessage       String?  @map("failure_message") @db.VarChar(500)
+  expiresAt            DateTime @map("expires_at") @db.DateTime(3)
+  submittedAt          DateTime? @map("submitted_at") @db.DateTime(3)
+  finalizedAt          DateTime? @map("finalized_at") @db.DateTime(3)
+  createdAt            DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt            DateTime @default(now()) @map("updated_at") @db.DateTime(3)
+  credential           ReleaseCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  issuerUser            User @relation("ReleaseCredentialAttemptIssuer", fields: [issuerUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
-  @@index([network, status], map: "idx_solana_merkle_tree_network_status")
-  @@index([creatorAddress], map: "idx_solana_merkle_tree_creator")
-  @@map("solana_merkle_tree")
-}
-
-model CompressedNft {
-  id                   Int    @id @default(autoincrement())
-  merkleTreeId         Int    @map("merkle_tree_id")
-  projectId            Int    @map("project_id")
-  noteInfoId           Int?   @map("note_info_id")
-  copyrightOwnerId     Int?   @map("copyright_owner_id")
-  assetId              String    @unique(map: "uq_solana_compressed_nft_asset_id") @map("asset_id") @db.VarChar(64)
-  leafIndex            Int       @map("leaf_index")
-  name                 String    @db.VarChar(128)
-  symbol               String?   @db.VarChar(32)
-  description          String?   @db.Text
-  metadataUri          String?   @map("metadata_uri") @db.VarChar(500)
-  imageCid             String?   @map("image_cid") @db.VarChar(128)
-  metadataCid          String?   @map("metadata_cid") @db.VarChar(128)
-  originalImageId      Int?   @map("original_image_id")
-  ownerAddress         String    @map("owner_address") @db.VarChar(64)
-  mintTxSignature      String?   @unique(map: "uq_solana_compressed_nft_mint_tx") @map("mint_tx_signature") @db.VarChar(128)
-  prepareExpiresAt     DateTime? @map("prepare_expires_at") @db.DateTime(3)
-  lastValidBlockHeight BigInt?   @map("last_valid_block_height") @db.BigInt
-  capacityReserved     Boolean   @default(false) @map("capacity_reserved")
-  status               Int       @default(0) @db.SmallInt
-  createdAt            DateTime  @default(now()) @map("created_at") @db.DateTime(3)
-  updatedAt            DateTime  @default(now()) @map("updated_at") @db.DateTime(3)
-  merkleTree           MerkleTree @relation(fields: [merkleTreeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@index([merkleTreeId], map: "idx_solana_compressed_nft_merkle_tree_id")
-  @@index([projectId], map: "idx_solana_compressed_nft_project_id")
-  @@index([noteInfoId], map: "idx_solana_compressed_nft_note_info_id")
-  @@index([copyrightOwnerId], map: "idx_solana_compressed_nft_copyright_owner_id")
-  @@index([ownerAddress], map: "idx_solana_compressed_nft_owner")
-  @@index([projectId, ownerAddress], map: "idx_solana_compressed_nft_project_owner")
-  @@map("solana_compressed_nft")
+  @@index([credentialId, status], map: "idx_release_credential_attempt_status")
+  @@index([transactionSignature], map: "idx_release_credential_attempt_signature")
+  @@map("release_credential_attempt")
 }

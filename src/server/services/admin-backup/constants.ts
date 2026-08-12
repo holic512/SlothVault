@@ -28,7 +28,6 @@ export const SMALL_INT_MIN = -32_768
 export const SMALL_INT_MAX = 32_767
 export const DATABASE_TRANSACTION_TIMEOUT_MS = 10 * 60 * 1000
 export const DATABASE_TRANSACTION_MAX_WAIT_MS = 10_000
-export const LEGACY_SIGNED_ATTEMPT_GRACE_MS = 15 * 60 * 1000
 export const STANDARD_RESET_DIRECTORIES = [
   ...new Set(Object.values(BUSINESS_TYPE_CONFIG).map((config) => config.dir)),
 ]
@@ -48,8 +47,20 @@ export const BACKUP_COLLECTION_KEYS = [
   'fileManagements',
   'systemConfigs',
   'systemHomepages',
+  'releaseCredentials',
+  'releaseCredentialAttempts',
   'merkleTrees',
   'compressedNfts',
 ] as const
+
+export const DEPRECATED_CONFIG_KEYS = new Set([
+  'solana_network',
+  'SOLANA_RPC_URL',
+  'SOLANA_DEVNET_RPC_URL',
+  'FILEBASE_ACCESS_KEY',
+  'FILEBASE_SECRET_KEY',
+  'FILEBASE_BUCKET',
+  'FILEBASE_ENDPOINT',
+])
 
 export type ImportMode = 'insert' | 'overwrite'

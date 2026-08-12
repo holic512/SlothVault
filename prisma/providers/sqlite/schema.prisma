@@ -1,8 +1,8 @@
 // @file prisma/providers/sqlite/schema.prisma
 // @project SlothVault
 // @module SQLite persistence model
-// @description Defines the flat, domain-prefixed SQLite schema for publishing, user identity, points, gift cards, and optional copyright credentials.
-// @logic Preserve the provider-neutral logical model for single-instance deployments and keep public reading independent from wallet ownership.
+// @description Defines the flat, domain-prefixed SQLite schema for publishing, user identity, points, gift cards, and version transaction evidence.
+// @logic Preserve the provider-neutral logical model for single-instance deployments and bind optional Solana evidence to immutable project releases.
 // @dependencies Prisma ORM 7.3.0, @prisma/adapter-better-sqlite3 7.3.0
 // @index_tags prisma, sqlite, schema, persistence, installation
 // @author holic512
@@ -52,6 +52,8 @@ model User {
   pointTransactions      PointTransaction[]
   createdGiftCardBatches GiftCardBatch[]     @relation("GiftCardBatchCreator")
   redeemedGiftCards      GiftCard[]          @relation("GiftCardRedemption")
+  releaseCredentials     ReleaseCredential[] @relation("ReleaseCredentialIssuer")
+  credentialAttempts     ReleaseCredentialAttempt[] @relation("ReleaseCredentialAttemptIssuer")
 
   @@index([role, status], map: "idx_auth_user_role_status")
   @@map("auth_user")
@@ -177,6 +179,7 @@ model ProjectVersion {
   isDeleted        Boolean    @default(false) @map("is_deleted")
   project          Project    @relation(fields: [projectId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   categories       Category[]
+  releaseCredentials ReleaseCredential[]
 
   @@index([projectId], map: "idx_collections_project_version_project_id")
   @@map("collections_project_version")
@@ -281,73 +284,54 @@ model SystemInstallation {
   @@map("system_installation")
 }
 
-model RuntimeLock {
-  key       String   @id
-  revision  Int      @default(0)
-  updatedAt DateTime @default(now()) @map("updated_at")
+model ReleaseCredential {
+  id                   Int      @id @default(autoincrement())
+  projectVersionId     Int      @map("project_version_id")
+  issuerUserId         Int      @map("issuer_user_id")
+  network              String
+  signerAddress        String   @map("signer_address")
+  memo                 String
+  transactionSignature String?  @unique(map: "uq_release_credential_transaction_signature") @map("transaction_signature")
+  status               Int      @default(0)
+  slot                  BigInt?
+  blockTime             DateTime? @map("block_time")
+  feeLamports           BigInt?  @map("fee_lamports")
+  finalizedAt           DateTime? @map("finalized_at")
+  lastVerifiedAt        DateTime? @map("last_verified_at")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @default(now()) @map("updated_at")
+  projectVersion        ProjectVersion @relation(fields: [projectVersionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  issuerUser            User @relation("ReleaseCredentialIssuer", fields: [issuerUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  attempts              ReleaseCredentialAttempt[]
 
-  @@map("system_runtime_lock")
+  @@unique([projectVersionId, network], map: "uq_release_credential_version_network")
+  @@index([network, status], map: "idx_release_credential_network_status")
+  @@index([signerAddress], map: "idx_release_credential_signer")
+  @@map("release_credential")
 }
 
-model MerkleTree {
-  id                Int          @id @default(autoincrement())
-  name              String
-  treeAddress       String          @unique(map: "uq_solana_merkle_tree_address") @map("tree_address")
-  treeAuthority     String          @map("tree_authority")
-  encryptedKey      String          @map("encrypted_key")
-  creatorAddress    String          @map("creator_address")
-  maxDepth          Int             @map("max_depth")
-  maxBufferSize     Int             @map("max_buffer_size")
-  canopyDepth       Int             @map("canopy_depth")
-  network           String          @default("devnet")
-  totalMinted       Int             @default(0) @map("total_minted")
-  maxCapacity       BigInt          @map("max_capacity")
-  remainingCapacity BigInt          @default(0) @map("remaining_capacity")
-  capacityRevision  Int             @default(0) @map("capacity_revision")
-  creationCost      BigInt          @map("creation_cost")
-  txSignature       String?         @map("tx_signature")
-  priority          Int             @default(0)
-  status            Int             @default(0)
-  createdAt         DateTime        @default(now()) @map("created_at")
-  updatedAt         DateTime        @default(now()) @map("updated_at")
-  isDeleted         Boolean         @default(false) @map("is_deleted")
-  cnfts             CompressedNft[]
+model ReleaseCredentialAttempt {
+  id                   Int      @id @default(autoincrement())
+  credentialId         Int      @map("credential_id")
+  issuerUserId         Int      @map("issuer_user_id")
+  signerAddress        String   @map("signer_address")
+  memo                 String
+  messageHash          String   @map("message_hash")
+  recentBlockhash      String   @map("recent_blockhash")
+  lastValidBlockHeight BigInt   @map("last_valid_block_height")
+  transactionSignature String?  @map("transaction_signature")
+  status               Int      @default(0)
+  failureCode          String?  @map("failure_code")
+  failureMessage       String?  @map("failure_message")
+  expiresAt            DateTime @map("expires_at")
+  submittedAt          DateTime? @map("submitted_at")
+  finalizedAt          DateTime? @map("finalized_at")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @default(now()) @map("updated_at")
+  credential           ReleaseCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  issuerUser            User @relation("ReleaseCredentialAttemptIssuer", fields: [issuerUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
-  @@index([network, status], map: "idx_solana_merkle_tree_network_status")
-  @@index([creatorAddress], map: "idx_solana_merkle_tree_creator")
-  @@map("solana_merkle_tree")
-}
-
-model CompressedNft {
-  id                   Int    @id @default(autoincrement())
-  merkleTreeId         Int    @map("merkle_tree_id")
-  projectId            Int    @map("project_id")
-  noteInfoId           Int?   @map("note_info_id")
-  copyrightOwnerId     Int?   @map("copyright_owner_id")
-  assetId              String    @unique(map: "uq_solana_compressed_nft_asset_id") @map("asset_id")
-  leafIndex            Int       @map("leaf_index")
-  name                 String
-  symbol               String?
-  description          String?
-  metadataUri          String?   @map("metadata_uri")
-  imageCid             String?   @map("image_cid")
-  metadataCid          String?   @map("metadata_cid")
-  originalImageId      Int?   @map("original_image_id")
-  ownerAddress         String    @map("owner_address")
-  mintTxSignature      String?   @unique(map: "uq_solana_compressed_nft_mint_tx") @map("mint_tx_signature")
-  prepareExpiresAt     DateTime? @map("prepare_expires_at")
-  lastValidBlockHeight BigInt?   @map("last_valid_block_height")
-  capacityReserved     Boolean   @default(false) @map("capacity_reserved")
-  status               Int       @default(0)
-  createdAt            DateTime  @default(now()) @map("created_at")
-  updatedAt            DateTime  @default(now()) @map("updated_at")
-  merkleTree           MerkleTree @relation(fields: [merkleTreeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@index([merkleTreeId], map: "idx_solana_compressed_nft_merkle_tree_id")
-  @@index([projectId], map: "idx_solana_compressed_nft_project_id")
-  @@index([noteInfoId], map: "idx_solana_compressed_nft_note_info_id")
-  @@index([copyrightOwnerId], map: "idx_solana_compressed_nft_copyright_owner_id")
-  @@index([ownerAddress], map: "idx_solana_compressed_nft_owner")
-  @@index([projectId, ownerAddress], map: "idx_solana_compressed_nft_project_owner")
-  @@map("solana_compressed_nft")
+  @@index([credentialId, status], map: "idx_release_credential_attempt_status")
+  @@index([transactionSignature], map: "idx_release_credential_attempt_signature")
+  @@map("release_credential_attempt")
 }

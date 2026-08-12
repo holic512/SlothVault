@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Admin Database Backup Validation
  * @description Validates cross-record backup relations, immutable release metadata, and database import payloads before mutation.
- * @logic Reject duplicate identities, broken references, menu cycles, partial release identity groups, unsafe tree capacity, and oversized requests while converting legacy 2.0 versions to drafts.
+ * @logic Reject broken active relations, duplicate evidence identities, and oversized requests while ignoring deprecated Tree/cNFT data from legacy backups.
  * @dependencies server/http/errors, backup constants, database backup schema
  * @index_tags admin,backup,database,validation,relations,request-limits
  * @author holic512
@@ -85,11 +85,11 @@ export function validateBackupRelations(data: BackupData) {
   const projectHomes = mapById('projectHome', data.projectHomes)
   const noteInfos = mapById('noteInfo', data.noteInfos)
   mapById('noteContent', data.noteContents)
-  const fileManagements = mapById('fileManagement', data.fileManagements)
+  mapById('fileManagement', data.fileManagements)
   mapById('systemConfig', data.systemConfigs)
   mapById('systemHomepage', data.systemHomepages)
-  const merkleTrees = mapById('merkleTree', data.merkleTrees)
-  mapById('compressedNft', data.compressedNfts)
+  const releaseCredentials = mapById('releaseCredential', data.releaseCredentials)
+  mapById('releaseCredentialAttempt', data.releaseCredentialAttempts)
 
   if (data.users.length > 0 && !data.users.some((user) => user.role === 'ADMIN')) {
     invalidBackup('user collection does not contain an administrator')
@@ -150,94 +150,13 @@ export function validateBackupRelations(data: BackupData) {
   for (const item of data.noteContents) {
     assertReference(noteInfos, item.noteInfoId, 'noteInfoId')
   }
-  const confirmedLeaves = new Set<string>()
-  for (const item of data.compressedNfts) {
-    assertReference(merkleTrees, item.merkleTreeId, 'merkleTreeId')
-    assertReference(projects, item.projectId, 'projectId')
-    if (item.noteInfoId) assertReference(noteInfos, item.noteInfoId, 'noteInfoId')
-    if (item.copyrightOwnerId && users.size > 0) {
-      assertReference(users, item.copyrightOwnerId, 'copyrightOwnerId')
-    }
-    if (item.originalImageId) {
-      assertReference(fileManagements, item.originalImageId, 'originalImageId')
-    }
-    if (item.capacityReserved === true && item.status !== 0) {
-      invalidBackup(`compressedNft ${item.id} reserves capacity outside MINTING status`)
-    }
-    if (item.status === 0 && item.capacityReserved === false) {
-      invalidBackup(`compressedNft ${item.id} is MINTING without a capacity reservation`)
-    }
-    if (item.status === 1 && item.leafIndex < 0) {
-      invalidBackup(`compressedNft ${item.id} has an invalid confirmed leafIndex`)
-    }
-    if (item.status === 1) {
-      const tree = merkleTrees.get(item.merkleTreeId)
-      if (!tree) invalidBackup(`unknown merkleTreeId ${item.merkleTreeId}`)
-      if (
-        BigInt(item.leafIndex) >= BigInt(tree.totalMinted) ||
-        BigInt(item.leafIndex) >= BigInt(tree.maxCapacity)
-      ) {
-        invalidBackup(`compressedNft ${item.id} leafIndex exceeds its tree cursor`)
-      }
-      const leafKey = `${item.merkleTreeId}:${item.leafIndex}`
-      if (confirmedLeaves.has(leafKey)) {
-        invalidBackup(`duplicate confirmed leafIndex ${leafKey}`)
-      }
-      confirmedLeaves.add(leafKey)
-    }
+  for (const item of data.releaseCredentials) {
+    assertReference(projectVersions, item.projectVersionId, 'releaseCredential projectVersionId')
+    assertReference(users, item.issuerUserId, 'releaseCredential issuerUserId')
   }
-
-  const pendingReservationsByTree = new Map<string, bigint>()
-  const confirmedRecordsByTree = new Map<string, bigint>()
-  for (const item of data.compressedNfts) {
-    if (item.status === 0 && item.capacityReserved !== false) {
-      pendingReservationsByTree.set(
-        item.merkleTreeId,
-        (pendingReservationsByTree.get(item.merkleTreeId) ?? 0n) + 1n,
-      )
-    }
-    if (item.status === 1) {
-      confirmedRecordsByTree.set(
-        item.merkleTreeId,
-        (confirmedRecordsByTree.get(item.merkleTreeId) ?? 0n) + 1n,
-      )
-    }
-  }
-  for (const tree of data.merkleTrees) {
-    const maxCapacity = BigInt(tree.maxCapacity)
-    const totalMinted = BigInt(tree.totalMinted)
-    const pendingReservations = pendingReservationsByTree.get(tree.id) ?? 0n
-    const confirmedRecords = confirmedRecordsByTree.get(tree.id) ?? 0n
-    if (maxCapacity <= 0n) {
-      invalidBackup(`merkleTree ${tree.id} has a non-positive maxCapacity`)
-    }
-    if (totalMinted < 0n || totalMinted > maxCapacity) {
-      invalidBackup(`merkleTree ${tree.id} has an invalid totalMinted`)
-    }
-    const upperRemaining = maxCapacity - totalMinted
-    const lowerRemainingCandidate = upperRemaining - pendingReservations
-    const lowerRemaining = lowerRemainingCandidate > 0n ? lowerRemainingCandidate : 0n
-    if (upperRemaining < 0n) {
-      invalidBackup(`merkleTree ${tree.id} reservations exceed maxCapacity`)
-    }
-    if (
-      tree.remainingCapacity !== undefined &&
-      (
-        BigInt(tree.remainingCapacity) < lowerRemaining ||
-        BigInt(tree.remainingCapacity) > upperRemaining
-      )
-    ) {
-      invalidBackup(`merkleTree ${tree.id} has an inconsistent remainingCapacity`)
-    }
-    const effectiveRemaining = tree.remainingCapacity === undefined
-      ? lowerRemaining
-      : BigInt(tree.remainingCapacity)
-    if (pendingReservations > maxCapacity - effectiveRemaining) {
-      invalidBackup(`merkleTree ${tree.id} has more reservations than allocated capacity`)
-    }
-    if (confirmedRecords + pendingReservations > maxCapacity) {
-      invalidBackup(`merkleTree ${tree.id} has more active cNFT records than maxCapacity`)
-    }
+  for (const item of data.releaseCredentialAttempts) {
+    assertReference(releaseCredentials, item.credentialId, 'releaseCredentialAttempt credentialId')
+    assertReference(users, item.issuerUserId, 'releaseCredentialAttempt issuerUserId')
   }
 
   const homeProjects = new Set<string>()
@@ -300,15 +219,18 @@ export function validateBackupRelations(data: BackupData) {
     ),
     (item) => item.releaseHash,
   )
-  assertUniqueField('treeAddress', data.merkleTrees, (item) => item.treeAddress)
-  assertUniqueField('assetId', data.compressedNfts, (item) => item.assetId)
   assertUniqueField(
-    'mintTxSignature',
-    data.compressedNfts.filter(
-      (item): item is typeof item & { mintTxSignature: string } =>
-        item.mintTxSignature !== null,
+    'releaseCredential version/network',
+    data.releaseCredentials,
+    (item) => `${item.projectVersionId}:${item.network}`,
+  )
+  assertUniqueField(
+    'releaseCredential transactionSignature',
+    data.releaseCredentials.filter(
+      (item): item is typeof item & { transactionSignature: string } =>
+        item.transactionSignature !== null,
     ),
-    (item) => item.mintTxSignature,
+    (item) => item.transactionSignature,
   )
 }
 

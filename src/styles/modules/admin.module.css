@@ -839,6 +839,77 @@
   font-weight: 650;
 }
 
+.root :global(.evidence-hero) {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 26px 30px;
+  color: rgb(238 249 245);
+  background:
+    linear-gradient(120deg, rgb(255 255 255 / 8%) 1px, transparent 1px) 0 0 / 20px 20px,
+    rgb(18 62 56);
+  border-radius: 4px 18px 4px 4px;
+  box-shadow: 0 18px 36px rgb(20 68 60 / 16%);
+}
+
+.root :global(.evidence-hero) h1,
+.root :global(.evidence-hero) p {
+  margin: 0;
+}
+
+.root :global(.evidence-hero) h1 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 34px;
+  font-weight: 500;
+}
+
+.root :global(.evidence-hero) p {
+  max-width: 720px;
+  margin-top: 6px;
+  color: rgb(238 249 245 / 76%);
+  line-height: 1.7;
+}
+
+.root :global(.evidence-kicker) {
+  color: rgb(180 220 204);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .2em;
+}
+
+.root :global(.evidence-metrics) :global(.ant-card) {
+  height: 100%;
+  border-bottom: 3px solid color-mix(in srgb, var(--sv-primary) 55%, transparent);
+}
+
+.root :global(.evidence-ledger) {
+  overflow: hidden;
+}
+
+.root :global(.evidence-toolbar) {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.root :global(.evidence-toolbar) :global(.ant-input-affix-wrapper) {
+  width: 220px;
+}
+
+.root :global(.evidence-ledger) :global(.ant-table-thead > tr > th) {
+  color: var(--sv-text-muted);
+  font-size: 11px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.root :global(.evidence-mobile-list) {
+  display: none;
+}
+
 .root :global(.metric-card) {
   height: 100%;
   border: 1px solid var(--sv-admin-border) !important;
@@ -915,6 +986,51 @@
 }
 
 @media (max-width: 640px) {
+  .root :global(.evidence-hero) {
+    align-items: flex-start;
+    padding: 22px;
+  }
+
+  .root :global(.evidence-hero) > svg {
+    display: none;
+  }
+
+  .root :global(.evidence-toolbar) {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .root :global(.evidence-toolbar) > :global(.ant-space),
+  .root :global(.evidence-toolbar) :global(.ant-select),
+  .root :global(.evidence-toolbar) :global(.ant-input-affix-wrapper) {
+    width: 100%;
+  }
+
+  .root :global(.evidence-ledger) > :global(.ant-card-body) > :global(.ant-table-wrapper) {
+    display: none;
+  }
+
+  .root :global(.evidence-mobile-list) {
+    display: grid;
+    gap: 10px;
+  }
+
+  .root :global(.evidence-mobile-card) {
+    display: grid;
+    gap: 12px;
+    padding: 15px;
+    background: var(--sv-bg-soft);
+    border: 1px solid var(--sv-admin-border);
+    border-radius: var(--sv-admin-radius);
+  }
+
+  .root :global(.evidence-mobile-card) > div:first-child {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
   .root :global(.admin-sider) {
     display: none;
   }

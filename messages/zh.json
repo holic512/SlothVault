@@ -24,12 +24,6 @@
       "published": "发布于 {date}",
       "scope": "此哈希证明版本 manifest 与 Markdown 逻辑内容，不包含附件二进制或外部 URL 当前内容。",
       "download": "下载 manifest"
-    },
-    "certificate": {
-      "title": "链上版权凭证",
-      "description": "凭证绑定本文与作者，仅用于版权核验，不限制公开阅读。",
-      "asset": "核验资产",
-      "transaction": "查看交易"
     }
   },
   "DocumentEditor": {
@@ -112,7 +106,7 @@
         "badge": "Next.js 16 + PostgreSQL 驱动",
       "title_line1": "面向单一管理员的",
       "title_line2": "私有文档宇宙",
-        "desc": "集发布与管理于一体，支持项目版本、Markdown 工作流、文件存储，以及可选的 Solana cNFT 版权凭证。",
+        "desc": "集发布与管理于一体，支持项目版本、Markdown 工作流、文件存储，以及可选的 Solana 版本交易存证。",
       "actions": {
         "build": "开始构建",
         "console": "进入控制台"
@@ -156,11 +150,11 @@
       "Page": "Page"
     },
     "highlight": {
-      "title": "可验证的文章版权",
-        "desc": "将可选的 Solana 压缩 NFT 作为与文章及作者绑定的发布凭证，同时保持文章公开阅读。",
+      "title": "可验证的版本发布",
+        "desc": "由管理员钱包签署版本完整哈希，通过 Solana Memo 交易公开核验，同时保持文章公开阅读。",
       "tags": {
-        "walletSign": "🔗 文章绑定",
-        "onChainCert": "📜 链上凭证",
+        "walletSign": "🔗 钱包签名",
+        "onChainCert": "📜 交易存证",
         "permissionCheck": "👁️ 公开阅读"
       }
     },
@@ -374,7 +368,7 @@
     "adminNotes": "笔记管理",
     "adminNoteContent": "内容编辑",
     "adminFiles": "文件管理",
-    "adminSolana": "文章版权凭证",
+    "adminSolana": "版本交易存证",
     "adminBackup": "备份管理",
     "adminSettings": "系统设置",
     "adminProjectHome": "首页编辑",
@@ -391,7 +385,7 @@
       "files": "文件管理",
       "users": "用户管理",
       "giftCards": "卡密管理",
-      "solana": "版权凭证",
+      "solana": "交易存证",
       "backup": "备份管理",
       "settings": "系统设置"
     },
@@ -822,148 +816,27 @@
       }
     },
     "solana": {
-      "title": "文章版权凭证",
-      "desc": "管理已发布文章的可选 cNFT 发布凭证，并支持多树冗余",
-      "network": {
-        "label": "当前网络:",
-        "devnet": "测试网",
-        "mainnet": "主网",
-        "switchToMainnet": "切换到主网",
-        "switchWarning": "切换到主网将使用真实 SOL，请确保您了解相关风险。",
-        "confirmSwitch": "确认切换",
-        "cancel": "取消",
-        "switchFailed": "切换失败",
-        "fetchConfigFailed": "获取网络配置失败"
-      },
-      "tabs": {
-        "trees": "Merkle Tree 管理",
-        "cnfts": "文章 cNFT 凭证"
-      },
-      "trees": {
-        "stats": {
-          "availableTrees": "可用树",
-          "totalCapacity": "总容量",
-          "minted": "已铸造",
-          "remainingCapacity": "剩余容量",
-          "usageRate": "使用率"
-        },
-        "capacityWarning": "系统容量不足，建议创建新的 Merkle Tree",
-        "actions": {
-          "createNow": "立即创建",
-          "createTree": "创建 Merkle Tree",
-          "refresh": "刷新"
-        },
-        "table": {
-          "name": "名称",
-          "capacityUsage": "容量使用",
-          "config": "配置",
-          "creationCost": "创建成本",
-          "priority": "优先级",
-          "status": "状态",
-          "treeAddress": "树地址",
-          "operations": "操作",
-          "configFormat": "深度: {depth} | 缓冲: {buffer} | 树冠: {canopy}"
-        },
-        "status": {
-          "creating": "创建中",
-          "normal": "正常",
-          "full": "已满",
-          "failed": "失败",
-          "unknown": "未知"
-        },
-        "operations": {
-          "verify": "验证",
-          "delete": "删除",
-          "detail": "详情"
-        },
-        "empty": {
-          "title": "暂无 Merkle Tree，请先创建",
-          "hint": "系统需要至少一个可用的树才能铸造 cNFT",
-          "createFirst": "创建第一个树"
-        },
-        "messages": {
-          "fetchFailed": "获取树列表失败",
-          "verifySuccess": "验证成功",
-          "verifyFailed": "验证失败",
-          "deleteConfirm": "确定要删除树「{name}」吗？\n\n此操作只会删除数据库记录，不会影响链上数据。",
-          "deleteConfirmTitle": "确认删除",
-          "deleteButton": "删除",
-          "cancelButton": "取消",
-          "deleteSuccess": "删除成功",
-          "deleteFailed": "删除失败"
-        }
-      },
-      "cnfts": {
-        "actions": {
-          "mint": "铸造 cNFT",
-          "refresh": "刷新"
-        },
-        "filters": {
-          "byProject": "按项目筛选",
-          "byStatus": "按状态筛选",
-          "searchOwner": "搜索持有者地址",
-          "search": "搜索",
-          "reset": "重置"
-        },
-        "status": {
-          "minting": "铸造中",
-          "normal": "正常",
-          "failed": "失败",
-          "unknown": "未知"
-        },
-        "network": {
-          "mainnet": "主网",
-          "devnet": "测试网"
-        },
-        "table": {
-          "nftInfo": "NFT 信息",
-          "project": "项目",
-          "owner": "持有者",
-          "merkleTree": "Merkle Tree",
-          "leafIndex": "Leaf Index",
-          "status": "状态",
-          "mintTime": "铸造时间",
-          "assetId": "Asset ID",
-          "operations": "操作"
-        },
-        "operations": {
-          "delete": "删除"
-        },
-        "empty": {
-          "title": "暂无 cNFT 记录",
-          "hint": "点击「铸造 cNFT」按钮开始铸造",
-          "mintFirst": "铸造第一个 cNFT"
-        },
-        "messages": {
-          "fetchProjectsFailed": "获取项目列表失败",
-          "fetchCnftsFailed": "获取 cNFT 列表失败",
-          "deleteConfirm": "确定要删除这条{status}的 cNFT 记录吗？\n\n名称：{name}\n持有者：{owner}",
-          "deleteConfirmTitle": "确认删除",
-          "deleteButton": "删除",
-          "cancelButton": "取消",
-          "deleteSuccess": "删除成功",
-          "deleteFailed": "删除失败"
-        }
-      }
+      "title": "版本交易存证",
+      "desc": "使用当前钱包签署已发布版本哈希，并通过 Solana Memo 公开核验"
     },
     "settings": {
       "title": "系统设置",
-      "desc": "管理系统配置，包括 Solana RPC 和 Filebase IPFS 存储设置",
+      "desc": "管理 Mainnet 与 Devnet 交易存证网络档案",
       "tips": {
         "title": "配置说明",
-        "content": "配置存储在数据库中，并使用内存缓存。修改后点击「保存」持久化更改，然后点击「刷新缓存」可立即生效。"
+        "content": "RPC 地址作为敏感配置保存且不会回显；禁用网络仅阻止新存证，不影响历史核验。"
       },
       "groups": {
-        "solana": "Solana 配置",
-        "filebase": "Filebase IPFS 配置"
+        "evidence": "交易存证网络"
       },
       "configDesc": {
-        "SOLANA_RPC_URL": "Solana 主网 RPC URL（如 Helius）",
-        "SOLANA_DEVNET_RPC_URL": "Solana 测试网 RPC URL",
-        "FILEBASE_ACCESS_KEY": "Filebase IPFS Access Key",
-        "FILEBASE_SECRET_KEY": "Filebase IPFS Secret Key",
-        "FILEBASE_BUCKET": "Filebase Bucket 名称",
-        "FILEBASE_ENDPOINT": "Filebase S3 端点"
+        "SOLANA_DEFAULT_NETWORK": "新存证默认选择的网络",
+        "SOLANA_MAINNET_ENABLED": "允许办理 Mainnet 正式存证",
+        "SOLANA_MAINNET_RPC_PRIMARY": "Mainnet 主 RPC，仅服务端使用",
+        "SOLANA_MAINNET_RPC_FALLBACK": "Mainnet 备用 RPC，仅在网络故障时切换",
+        "SOLANA_DEVNET_ENABLED": "允许办理 Devnet 测试凭证",
+        "SOLANA_DEVNET_RPC_PRIMARY": "Devnet 主 RPC，仅服务端使用",
+        "SOLANA_DEVNET_RPC_FALLBACK": "Devnet 备用 RPC，仅在网络故障时切换"
       },
       "placeholder": "请输入配置值",
       "unsavedChanges": "有未保存的更改",
@@ -1058,8 +931,8 @@
         "notes": "笔记",
         "versions": "版本",
         "files": "文件",
-        "cnfts": "cNFT",
-        "minted": "已铸造",
+        "evidence": "交易存证",
+        "minted": "已确认",
         "pending": "待处理"
       },
       "health": {
@@ -1067,8 +940,7 @@
         "projectUtilization": "项目启用率",
         "noteUtilization": "笔记启用率",
         "categoryUtilization": "分类启用率",
-        "cnftSuccessRate": "cNFT 成功率",
-        "merkleTreeUtilization": "Merkle Tree 利用率"
+        "evidenceFinalizationRate": "存证确认率"
       },
       "recent": {
         "projects": "最近创建的项目",

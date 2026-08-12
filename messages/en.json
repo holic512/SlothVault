@@ -24,12 +24,6 @@
       "published": "Published {date}",
       "scope": "This hash covers the version manifest and logical Markdown content, not attachment bytes or the current contents of external URLs.",
       "download": "Download manifest"
-    },
-    "certificate": {
-      "title": "On-chain copyright certificate",
-      "description": "This certificate binds the article to its author for verification and never restricts public reading.",
-      "asset": "Verify asset",
-      "transaction": "View transaction"
     }
   },
   "DocumentEditor": {
@@ -112,7 +106,7 @@
         "badge": "Powered by Next.js 16 + PostgreSQL",
       "title_line1": "For a single administrator",
       "title_line2": "Private Document Universe",
-        "desc": "Unified publishing and management with project versions, Markdown workflows, file storage, and optional Solana cNFT copyright certificates.",
+        "desc": "Unified publishing and management with project versions, Markdown workflows, file storage, and optional Solana release transaction evidence.",
       "actions": {
         "build": "Get Started",
         "console": "Open Console"
@@ -156,11 +150,11 @@
       "Page": "Page"
     },
     "highlight": {
-      "title": "Verifiable Article Copyright",
-        "desc": "Issues optional Solana compressed NFTs as publishing certificates tied to an article and its author, while reading remains public.",
+      "title": "Verifiable Releases",
+        "desc": "An administrator wallet signs each release hash through a publicly verifiable Solana Memo transaction while reading remains public.",
       "tags": {
-        "walletSign": "🔗 Article Binding",
-        "onChainCert": "📜 On-chain Certificate",
+        "walletSign": "🔗 Wallet Signature",
+        "onChainCert": "📜 Transaction Evidence",
         "permissionCheck": "👁️ Public Reading"
       }
     },
@@ -374,7 +368,7 @@
     "adminNotes": "Note Management",
     "adminNoteContent": "Content Editor",
     "adminFiles": "File Management",
-    "adminSolana": "Article Copyright Certificates",
+    "adminSolana": "Release Transaction Evidence",
     "adminBackup": "Backup Management",
     "adminSettings": "System Settings",
     "adminProjectHome": "Home Editor",
@@ -391,7 +385,7 @@
       "files": "File Management",
       "users": "User Management",
       "giftCards": "Gift Cards",
-      "solana": "Copyright Certificates",
+      "solana": "Transaction Evidence",
       "backup": "Backup Management",
       "settings": "System Settings"
     },
@@ -822,148 +816,27 @@
       }
     },
     "solana": {
-      "title": "Article Copyright Certificates",
-      "desc": "Manage optional cNFT publishing certificates for published articles with multi-tree redundancy",
-      "network": {
-        "label": "Current Network:",
-        "devnet": "Devnet",
-        "mainnet": "Mainnet",
-        "switchToMainnet": "Switch to Mainnet",
-        "switchWarning": "Switching to mainnet will use real SOL, please ensure you understand the risks.",
-        "confirmSwitch": "Confirm Switch",
-        "cancel": "Cancel",
-        "switchFailed": "Switch failed",
-        "fetchConfigFailed": "Failed to fetch network config"
-      },
-      "tabs": {
-        "trees": "Merkle Tree Management",
-        "cnfts": "Article cNFT Certificates"
-      },
-      "trees": {
-        "stats": {
-          "availableTrees": "Available Trees",
-          "totalCapacity": "Total Capacity",
-          "minted": "Minted",
-          "remainingCapacity": "Remaining",
-          "usageRate": "Usage Rate"
-        },
-        "capacityWarning": "System capacity is low, consider creating a new Merkle Tree",
-        "actions": {
-          "createNow": "Create Now",
-          "createTree": "Create Merkle Tree",
-          "refresh": "Refresh"
-        },
-        "table": {
-          "name": "Name",
-          "capacityUsage": "Capacity Usage",
-          "config": "Config",
-          "creationCost": "Creation Cost",
-          "priority": "Priority",
-          "status": "Status",
-          "treeAddress": "Tree Address",
-          "operations": "Operations",
-          "configFormat": "Depth: {depth} | Buffer: {buffer} | Canopy: {canopy}"
-        },
-        "status": {
-          "creating": "Creating",
-          "normal": "Normal",
-          "full": "Full",
-          "failed": "Failed",
-          "unknown": "Unknown"
-        },
-        "operations": {
-          "verify": "Verify",
-          "delete": "Delete",
-          "detail": "Details"
-        },
-        "empty": {
-          "title": "No Merkle Tree yet, please create one",
-          "hint": "System needs at least one available tree to mint cNFT",
-          "createFirst": "Create First Tree"
-        },
-        "messages": {
-          "fetchFailed": "Failed to fetch tree list",
-          "verifySuccess": "Verification successful",
-          "verifyFailed": "Verification failed",
-          "deleteConfirm": "Are you sure to delete tree \"{name}\"?\n\nThis will only delete the database record, not affect on-chain data.",
-          "deleteConfirmTitle": "Confirm Delete",
-          "deleteButton": "Delete",
-          "cancelButton": "Cancel",
-          "deleteSuccess": "Deleted successfully",
-          "deleteFailed": "Delete failed"
-        }
-      },
-      "cnfts": {
-        "actions": {
-          "mint": "Mint cNFT",
-          "refresh": "Refresh"
-        },
-        "filters": {
-          "byProject": "Filter by project",
-          "byStatus": "Filter by status",
-          "searchOwner": "Search owner address",
-          "search": "Search",
-          "reset": "Reset"
-        },
-        "status": {
-          "minting": "Minting",
-          "normal": "Normal",
-          "failed": "Failed",
-          "unknown": "Unknown"
-        },
-        "network": {
-          "mainnet": "Mainnet",
-          "devnet": "Devnet"
-        },
-        "table": {
-          "nftInfo": "NFT Info",
-          "project": "Project",
-          "owner": "Owner",
-          "merkleTree": "Merkle Tree",
-          "leafIndex": "Leaf Index",
-          "status": "Status",
-          "mintTime": "Mint Time",
-          "assetId": "Asset ID",
-          "operations": "Operations"
-        },
-        "operations": {
-          "delete": "Delete"
-        },
-        "empty": {
-          "title": "No cNFT records yet",
-          "hint": "Click \"Mint cNFT\" button to start minting",
-          "mintFirst": "Mint First cNFT"
-        },
-        "messages": {
-          "fetchProjectsFailed": "Failed to fetch project list",
-          "fetchCnftsFailed": "Failed to fetch cNFT list",
-          "deleteConfirm": "Are you sure to delete this {status} cNFT record?\n\nName: {name}\nOwner: {owner}",
-          "deleteConfirmTitle": "Confirm Delete",
-          "deleteButton": "Delete",
-          "cancelButton": "Cancel",
-          "deleteSuccess": "Deleted successfully",
-          "deleteFailed": "Delete failed"
-        }
-      }
+      "title": "Release Transaction Evidence",
+      "desc": "Sign published release hashes with the connected wallet and verify them through Solana Memo transactions"
     },
     "settings": {
       "title": "System Settings",
-      "desc": "Manage system configuration including Solana RPC and Filebase IPFS settings",
+      "desc": "Manage Mainnet and Devnet transaction-evidence network profiles",
       "tips": {
         "title": "Configuration Tips",
-        "content": "Configuration is stored in the database with memory caching. After modifying, click 'Save' to persist changes, then click 'Refresh Cache' to apply immediately."
+        "content": "RPC URLs are stored as sensitive values and never echoed. Disabling a network blocks new issuance without hiding historical receipts."
       },
       "groups": {
-        "solana": "Solana Configuration",
-        "filebase": "Filebase IPFS Configuration"
+        "evidence": "Evidence Networks"
       },
       "configDesc": {
-        "SOLANA_RPC_URL": "Solana Mainnet RPC URL (e.g., Helius)",
-        "SOLANA_DEVNET_RPC_URL": "Solana Devnet RPC URL",
-        "FILEBASE_ACCESS_KEY": "Filebase IPFS Access Key",
-        "FILEBASE_SECRET_KEY": "Filebase IPFS Secret Key",
-        "FILEBASE_BUCKET": "Filebase Bucket Name",
-        "FILEBASE_ENDPOINT": "Filebase S3 Endpoint"
+        "SOLANA_DEFAULT_NETWORK": "Default network for new evidence",
+        "SOLANA_MAINNET_ENABLED": "Allow formal Mainnet evidence",
+        "SOLANA_MAINNET_RPC_PRIMARY": "Mainnet primary server-only RPC",
+        "SOLANA_MAINNET_RPC_FALLBACK": "Mainnet fallback for connection failures",
+        "SOLANA_DEVNET_ENABLED": "Allow Devnet test evidence",
+        "SOLANA_DEVNET_RPC_PRIMARY": "Devnet primary server-only RPC",
+        "SOLANA_DEVNET_RPC_FALLBACK": "Devnet fallback for connection failures"
       },
       "placeholder": "Enter configuration value",
       "unsavedChanges": "Unsaved changes",
@@ -1058,8 +931,8 @@
         "notes": "Notes",
         "versions": "Versions",
         "files": "Files",
-        "cnfts": "cNFTs",
-        "minted": "Minted",
+        "evidence": "Evidence",
+        "minted": "Finalized",
         "pending": "Pending"
       },
       "health": {
@@ -1067,8 +940,7 @@
         "projectUtilization": "Project Utilization",
         "noteUtilization": "Note Utilization",
         "categoryUtilization": "Category Utilization",
-        "cnftSuccessRate": "cNFT Success Rate",
-        "merkleTreeUtilization": "Merkle Tree Utilization"
+        "evidenceFinalizationRate": "Evidence Finalization Rate"
       },
       "recent": {
         "projects": "Recent Projects",

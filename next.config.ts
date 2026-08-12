@@ -23,7 +23,6 @@ const nextConfig: NextConfig = {
     '@prisma/adapter-better-sqlite3',
     '@prisma/adapter-mariadb',
     '@prisma/adapter-pg',
-    '@solana/spl-account-compression',
     '@solana/web3.js',
     'archiver',
     'argon2',

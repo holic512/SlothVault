@@ -2,9 +2,9 @@
  * @file admin-dashboard.ts
  * @project SlothVault
  * @module Admin Dashboard Service
- * @description Aggregates administration overview counts, user/point/card metrics, content health, file statistics, optional copyright-chain status, and recent activity.
+ * @description Aggregates administration overview counts, user/point/card metrics, content health, file statistics, version evidence status, and recent activity.
  * @logic Query independent dashboard metrics concurrently, normalize aggregate values, calculate percentages, and map recent records to the stable API shape.
- * @dependencies Prisma user, content, file, session, and Solana models
+ * @dependencies Prisma user, content, file, session, and release credential models
  * @index_tags admin,dashboard,metrics,health,recent-activity
  * @author holic512
  */
@@ -32,11 +32,9 @@ export async function getAdminDashboard() {
     totalFiles,
     totalFileSize,
     filesByType,
-    totalMerkleTrees,
-    activeMerkleTrees,
-    totalCnfts,
-    mintedCnfts,
-    failedCnfts,
+    totalEvidence,
+    finalizedEvidence,
+    failedEvidence,
     recentProjects,
     recentNotes,
     recentSessions,
@@ -64,11 +62,9 @@ export async function getAdminDashboard() {
       _count: { id: true },
       _sum: { fileSize: true },
     }),
-    prisma.merkleTree.count({ where: { isDeleted: false } }),
-    prisma.merkleTree.count({ where: { isDeleted: false, status: 1 } }),
-    prisma.compressedNft.count(),
-    prisma.compressedNft.count({ where: { status: 1 } }),
-    prisma.compressedNft.count({ where: { status: -1 } }),
+    prisma.releaseCredential.count(),
+    prisma.releaseCredential.count({ where: { status: 2 } }),
+    prisma.releaseCredential.count({ where: { status: -1 } }),
     prisma.project.findMany({
       where: { isDeleted: false },
       orderBy: { createdAt: 'desc' },
@@ -141,12 +137,11 @@ export async function getAdminDashboard() {
         })),
       },
       blockchain: {
-        merkleTrees: { total: totalMerkleTrees, active: activeMerkleTrees },
-        cnfts: {
-          total: totalCnfts,
-          minted: mintedCnfts,
-          failed: failedCnfts,
-          pending: totalCnfts - mintedCnfts - failedCnfts,
+        evidence: {
+          total: totalEvidence,
+          finalized: finalizedEvidence,
+          failed: failedEvidence,
+          pending: totalEvidence - finalizedEvidence - failedEvidence,
         },
       },
     },
@@ -154,8 +149,7 @@ export async function getAdminDashboard() {
       projectUtilization: percentage(activeProjects, totalProjects),
       noteUtilization: percentage(activeNotes, totalNotes),
       categoryUtilization: percentage(activeCategories, totalCategories),
-      cnftSuccessRate: percentage(mintedCnfts, totalCnfts),
-      merkleTreeUtilization: percentage(activeMerkleTrees, totalMerkleTrees),
+      evidenceFinalizationRate: percentage(finalizedEvidence, totalEvidence),
     },
     recentActivity: {
       projects: recentProjects.map((project) => ({

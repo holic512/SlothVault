@@ -2,86 +2,105 @@
  * @file admin-settings.ts
  * @project SlothVault
  * @module Admin Settings Service
- * @description Owns the supported runtime-setting registry, masked reads, validated writes, and storage refresh checks.
- * @logic Join stored rows with fixed metadata, hide secret values, reject unknown or duplicate changes, and persist accepted changes atomically.
- * @dependencies Prisma SystemConfig model, server/http/errors
- * @index_tags admin,settings,secrets,validation,transaction
+ * @description Owns fixed Solana evidence network profiles, masked RPC reads, validated writes, and database-backed refresh checks.
+ * @logic Join stored rows with a typed registry, never echo RPC endpoints, reject invalid defaults or disabled default networks, and persist changes atomically.
+ * @dependencies Prisma SystemConfig model, server/http/errors, system-config keys
+ * @index_tags admin,settings,solana,evidence,rpc,validation,transaction
  * @author holic512
  */
 import 'server-only'
 
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
+import { CONFIG_KEYS } from '@/server/services/system-config'
 
 export const ADMIN_CONFIG_DEFINITIONS = [
   {
-    key: 'SOLANA_RPC_URL',
-    group: 'solana',
+    key: CONFIG_KEYS.DEFAULT_NETWORK,
+    group: 'evidence',
+    kind: 'network',
     sensitive: false,
-    description: 'Solana mainnet RPC URL',
-    defaultValue: '',
+    description: 'Default network for new transaction evidence',
+    defaultValue: 'devnet',
   },
   {
-    key: 'SOLANA_DEVNET_RPC_URL',
-    group: 'solana',
+    key: CONFIG_KEYS.MAINNET_ENABLED,
+    group: 'evidence',
+    kind: 'boolean',
     sensitive: false,
-    description: 'Solana devnet RPC URL',
-    defaultValue: '',
+    description: 'Allow formal Mainnet evidence issuance',
+    defaultValue: 'false',
   },
   {
-    key: 'FILEBASE_ACCESS_KEY',
-    group: 'filebase',
+    key: CONFIG_KEYS.MAINNET_RPC_PRIMARY,
+    group: 'evidence',
+    kind: 'url',
     sensitive: true,
-    description: 'Filebase IPFS access key',
+    description: 'Mainnet primary RPC endpoint',
     defaultValue: '',
   },
   {
-    key: 'FILEBASE_SECRET_KEY',
-    group: 'filebase',
+    key: CONFIG_KEYS.MAINNET_RPC_FALLBACK,
+    group: 'evidence',
+    kind: 'url',
     sensitive: true,
-    description: 'Filebase IPFS secret key',
+    description: 'Mainnet fallback RPC endpoint',
     defaultValue: '',
   },
   {
-    key: 'FILEBASE_BUCKET',
-    group: 'filebase',
+    key: CONFIG_KEYS.DEVNET_ENABLED,
+    group: 'evidence',
+    kind: 'boolean',
     sensitive: false,
-    description: 'Filebase bucket name',
+    description: 'Allow Devnet test evidence issuance',
+    defaultValue: 'true',
+  },
+  {
+    key: CONFIG_KEYS.DEVNET_RPC_PRIMARY,
+    group: 'evidence',
+    kind: 'url',
+    sensitive: true,
+    description: 'Devnet primary RPC endpoint',
     defaultValue: '',
   },
   {
-    key: 'FILEBASE_ENDPOINT',
-    group: 'filebase',
-    sensitive: false,
-    description: 'Filebase S3 endpoint',
-    defaultValue: 'https://s3.filebase.com',
+    key: CONFIG_KEYS.DEVNET_RPC_FALLBACK,
+    group: 'evidence',
+    kind: 'url',
+    sensitive: true,
+    description: 'Devnet fallback RPC endpoint',
+    defaultValue: '',
   },
 ] as const
 
 export type AdminConfigKey = (typeof ADMIN_CONFIG_DEFINITIONS)[number]['key']
-
-export type AdminConfigChange = {
-  key: string
-  value: string
-  clear?: boolean
-}
+export type AdminConfigChange = { key: string; value: string; clear?: boolean }
 
 function configDefinition(key: string) {
   return ADMIN_CONFIG_DEFINITIONS.find((item) => item.key === key)
 }
 
-function validateConfigValue(key: AdminConfigKey, value: string) {
-  if (value.length > 500) throw new HttpError(`${key} exceeds 500 characters`, 400, 400)
-  if (key.endsWith('_URL') && value) {
+function validateConfigValue(
+  definition: (typeof ADMIN_CONFIG_DEFINITIONS)[number],
+  value: string,
+) {
+  if (value.length > 500) throw new HttpError(`${definition.key} exceeds 500 characters`, 400, 400)
+  if (definition.kind === 'url' && value) {
     let parsed: URL
     try {
       parsed = new URL(value)
     } catch {
-      throw new HttpError(`${key} must be a valid URL`, 400, 400)
+      throw new HttpError(`${definition.key} must be a valid URL`, 400, 400)
     }
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      throw new HttpError(`${key} must use HTTP(S)`, 400, 400)
+      throw new HttpError(`${definition.key} must use HTTP(S)`, 400, 400)
     }
+  }
+  if (definition.kind === 'boolean' && value !== 'true' && value !== 'false') {
+    throw new HttpError(`${definition.key} must be true or false`, 400, 400)
+  }
+  if (definition.kind === 'network' && value !== 'mainnet' && value !== 'devnet') {
+    throw new HttpError(`${definition.key} must be mainnet or devnet`, 400, 400)
   }
   return value
 }
@@ -95,62 +114,61 @@ export async function listAdminSettings() {
     const storedValue = byKey.get(definition.key) || ''
     return {
       key: definition.key,
-      value: definition.sensitive ? '' : storedValue,
+      value: definition.sensitive ? '' : storedValue || definition.defaultValue,
       description: definition.description,
       defaultValue: definition.defaultValue,
+      kind: definition.kind,
       sensitive: definition.sensitive,
       configured: Boolean(storedValue),
     }
   })
-  const groups = ['solana', 'filebase'].map((groupKey) => ({
-    key: groupKey,
-    label: groupKey,
-    configs: configs.filter(
-      (config) => configDefinition(config.key)?.group === groupKey,
-    ),
-  }))
-  return { configs, groups }
+  return {
+    configs,
+    groups: [{ key: 'evidence', label: 'evidence', configs }],
+  }
 }
 
 export async function updateAdminSettings(configs: AdminConfigChange[]) {
   const seen = new Set<string>()
-  const changes: Array<{
-    key: AdminConfigKey
-    value: string
-    description: string
-  }> = []
-
+  const records = await prisma.systemConfig.findMany({
+    where: { configKey: { in: ADMIN_CONFIG_DEFINITIONS.map((item) => item.key) } },
+  })
+  const effective = new Map(
+    ADMIN_CONFIG_DEFINITIONS.map((item) => [
+      item.key,
+      records.find((record) => record.configKey === item.key)?.configValue || item.defaultValue,
+    ]),
+  )
+  const changes: Array<{ key: AdminConfigKey; value: string; description: string }> = []
   for (const item of configs) {
     if (seen.has(item.key)) throw new HttpError(`Duplicate config key: ${item.key}`, 400, 400)
     seen.add(item.key)
     const definition = configDefinition(item.key)
     if (!definition) throw new HttpError(`Unknown config key: ${item.key}`, 400, 400)
     if (definition.sensitive && item.value === '' && item.clear !== true) continue
-    changes.push({
-      key: definition.key,
-      value: validateConfigValue(definition.key, item.value),
-      description: definition.description,
-    })
+    const value = validateConfigValue(definition, item.value.trim())
+    effective.set(definition.key, value)
+    changes.push({ key: definition.key, value, description: definition.description })
   }
   if (!changes.length) throw new HttpError('No configuration changes to save', 400, 400)
 
-  await prisma.$transaction(
-    changes.map((change) =>
-      prisma.systemConfig.upsert({
-        where: { configKey: change.key },
-        update: {
-          configValue: change.value,
-          description: change.description,
-          updatedAt: new Date(),
-        },
-        create: {
-          configKey: change.key,
-          configValue: change.value,
-          description: change.description,
-        },
-      }),
-    ),
-  )
+  const defaultNetwork = effective.get(CONFIG_KEYS.DEFAULT_NETWORK)
+  const enabledKey = defaultNetwork === 'mainnet'
+    ? CONFIG_KEYS.MAINNET_ENABLED
+    : CONFIG_KEYS.DEVNET_ENABLED
+  if (effective.get(enabledKey) !== 'true') {
+    throw new HttpError('The default evidence network must be enabled', 400, 400)
+  }
+
+  await prisma.$transaction(changes.map((change) => prisma.systemConfig.upsert({
+    where: { configKey: change.key },
+    update: { configValue: change.value, description: change.description, updatedAt: new Date() },
+    create: {
+      configKey: change.key,
+      configValue: change.value,
+      description: change.description,
+    },
+  })))
   return { updated: changes.length, message: 'Configuration saved' }
 }
 

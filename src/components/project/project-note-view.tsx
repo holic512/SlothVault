@@ -2,14 +2,14 @@
  * @file project-note-view.tsx
  * @project SlothVault
  * @module Public Article Reader
- * @description Renders immutable public Markdown releases with navigation, manifest identity, administrator authorship, and optional on-chain copyright proof.
- * @logic Render resolved published content, display its full reproducible SHA-256 and publication time, link canonical manifest bytes, and expose optional Solana evidence without conflating either proof with access control.
+ * @description Renders immutable public Markdown releases with navigation, manifest identity, authorship, and version-level transaction evidence.
+ * @logic Display the release hash and one shared evidence receipt set for every article in the version, clearly distinguishing Mainnet formal records from Devnet tests.
  * @dependencies next-intl/server, MarkdownView
- * @index_tags article,reader,author,copyright,certificate,public
+ * @index_tags article,reader,release,evidence,transaction,public
  * @author holic512
  */
 import { Typography } from 'antd'
-import { BadgeCheck, Download, ExternalLink, Fingerprint, UserRound } from 'lucide-react'
+import { BadgeCheck, Download, ExternalLink, Fingerprint, FlaskConical, UserRound } from 'lucide-react'
 import { getLocale, getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 
@@ -37,19 +37,12 @@ type NoteData = {
     username: string
     displayName: string | null
   } | null
-  certificate: {
-    assetId: string
-    transaction: string | null
-    ownerAddress: string
+  evidence: Array<{
+    transactionSignature: string
+    signerAddress: string
     network: string
-    issuedAt: string
-  } | null
-}
-
-function explorerUrl(kind: 'address' | 'tx', value: string, network: string) {
-  const url = new URL(`https://explorer.solana.com/${kind}/${encodeURIComponent(value)}`)
-  if (network === 'devnet') url.searchParams.set('cluster', 'devnet')
-  return url.toString()
+    finalizedAt: string
+  }>
 }
 
 export async function ProjectNoteView({
@@ -124,36 +117,25 @@ export async function ProjectNoteView({
               </a>
             </div>
           </aside>
-          {note.certificate ? (
-            <aside className="docs-copyright-proof" aria-label={t('certificate.title')}>
-              <span className="docs-copyright-mark"><BadgeCheck size={18} /></span>
+          {note.evidence.map((credential) => (
+            <aside className="docs-copyright-proof" aria-label="版本交易存证" key={credential.transactionSignature}>
+              <span className="docs-copyright-mark">
+                {credential.network === 'devnet' ? <FlaskConical size={18} /> : <BadgeCheck size={18} />}
+              </span>
               <div className="docs-copyright-copy">
-                <strong>{t('certificate.title')}</strong>
-                <span>{t('certificate.description')}</span>
-                <code title={note.certificate.assetId}>
-                  {note.certificate.assetId.slice(0, 12)}…{note.certificate.assetId.slice(-8)}
+                <strong>{credential.network === 'devnet' ? '测试存证 · Devnet' : '正式存证 · Mainnet'}</strong>
+                <span>签名钱包已对本版本完整哈希进行 Solana Memo 存证。</span>
+                <code title={credential.transactionSignature}>
+                  {credential.transactionSignature.slice(0, 12)}…{credential.transactionSignature.slice(-8)}
                 </code>
               </div>
               <div className="docs-copyright-links">
-                <a
-                  href={explorerUrl('address', note.certificate.assetId, note.certificate.network)}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {t('certificate.asset')}<ExternalLink size={12} />
-                </a>
-                {note.certificate.transaction ? (
-                  <a
-                    href={explorerUrl('tx', note.certificate.transaction, note.certificate.network)}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {t('certificate.transaction')}<ExternalLink size={12} />
-                  </a>
-                ) : null}
+                <Link href={`/evidence/${credential.transactionSignature}`}>
+                  核验凭证<ExternalLink size={12} />
+                </Link>
               </div>
             </aside>
-          ) : null}
+          ))}
         </header>
         <MarkdownView content={note.content} />
       </article>

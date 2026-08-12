@@ -13,7 +13,7 @@
 import { useMemo, useState } from 'react'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, App, Button, Card, Empty, Input, Skeleton, Space, Tag, Typography } from 'antd'
+import { Alert, App, Button, Card, Empty, Input, Segmented, Skeleton, Space, Switch, Tag, Typography } from 'antd'
 import { Boxes, KeyRound, RefreshCw, RotateCcw, Save, Waypoints } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -27,6 +27,7 @@ type ConfigItem = {
   defaultValue: string
   sensitive?: boolean
   configured?: boolean
+  kind?: 'boolean' | 'network' | 'url'
 }
 type ConfigGroup = { key: string; label: string; configs: ConfigItem[] }
 type ConfigData = { configs: ConfigItem[]; groups: ConfigGroup[] }
@@ -90,6 +91,11 @@ function SettingsForm({ data }: { data: ConfigData }) {
     },
     onError: (error) => message.error(error.message),
   })
+  const networkTestMutation = useMutation({
+    mutationFn: () => apiFetch('/api/admin/evidence/networks/test', { method: 'POST', body: '{}' }),
+    onSuccess: () => message.success('RPC 主备端点检测完成'),
+    onError: (error) => message.error(error.message),
+  })
 
   return (
     <AdminPage>
@@ -101,6 +107,13 @@ function SettingsForm({ data }: { data: ConfigData }) {
             onClick={() => setValues(initialValues)}
           >
             {t('actions.reset')}
+          </Button>
+          <Button
+            icon={<Waypoints size={15} />}
+            loading={networkTestMutation.isPending}
+            onClick={() => networkTestMutation.mutate()}
+          >
+            检测 RPC
           </Button>
           <Button
             icon={<RefreshCw size={15} />}
@@ -132,7 +145,7 @@ function SettingsForm({ data }: { data: ConfigData }) {
               className="settings-card"
               title={
                 <span className="settings-card-title">
-                  {group.key === 'solana' ? <Waypoints size={17} /> : <Boxes size={17} />}
+                  {group.key === 'evidence' ? <Waypoints size={17} /> : <Boxes size={17} />}
                   {t(`groups.${group.key}`)}
                 </span>
               }
@@ -154,19 +167,33 @@ function SettingsForm({ data }: { data: ConfigData }) {
                       <Typography.Text type="secondary">
                         {t(`configDesc.${config.key}`)}
                       </Typography.Text>
-                      <Input.Password
-                        visibilityToggle={sensitive}
-                        type={sensitive ? undefined : 'text'}
-                        value={values[config.key] || ''}
-                        placeholder={
-                          sensitive && config.configured
-                            ? 'Leave blank to keep the stored value'
-                            : config.defaultValue || t('placeholder')
-                        }
-                        onChange={(event) =>
-                          setValues((current) => ({ ...current, [config.key]: event.target.value }))
-                        }
-                      />
+                      {config.kind === 'boolean' ? (
+                        <Switch
+                          checked={values[config.key] === 'true'}
+                          checkedChildren="启用"
+                          unCheckedChildren="禁用"
+                          onChange={(checked) => setValues((current) => ({ ...current, [config.key]: String(checked) }))}
+                        />
+                      ) : config.kind === 'network' ? (
+                        <Segmented
+                          value={values[config.key]}
+                          options={[{ value: 'devnet', label: 'Devnet · 测试' }, { value: 'mainnet', label: 'Mainnet · 正式' }]}
+                          onChange={(value) => setValues((current) => ({ ...current, [config.key]: String(value) }))}
+                        />
+                      ) : sensitive ? (
+                        <Input.Password
+                          visibilityToggle
+                          value={values[config.key] || ''}
+                          placeholder={config.configured ? '留空以保留已保存地址' : config.defaultValue || 'https://…'}
+                          onChange={(event) => setValues((current) => ({ ...current, [config.key]: event.target.value }))}
+                        />
+                      ) : (
+                        <Input
+                          value={values[config.key] || ''}
+                          placeholder={config.defaultValue || t('placeholder')}
+                          onChange={(event) => setValues((current) => ({ ...current, [config.key]: event.target.value }))}
+                        />
+                      )}
                     </label>
                   )
                 })}
