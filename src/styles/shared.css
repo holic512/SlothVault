@@ -2,10 +2,10 @@
  * @file shared.css
  * @project SlothVault
  * @module Shared Visual Primitives
- * @description Defines the small set of cross-route brand, container, theme-control, and action primitives.
- * @logic Keep intentionally global primitives stable while feature styling remains locally scoped.
+ * @description Defines the small set of cross-route brand, container, theme-control, account-menu, and action primitives.
+ * @logic Keep intentionally global primitives stable while feature styling remains locally scoped, including navigation popups rendered in document portals.
  * @dependencies SlothVault design tokens, feature markup
- * @index_tags css,shared,brand,container,controls
+ * @index_tags css,shared,brand,container,controls,account-menu
  * @author holic512
  */
 
@@ -78,6 +78,101 @@
   border-radius: 999px;
   background: var(--sv-primary);
   box-shadow: 0 0 0 1px rgb(var(--sv-primary-rgb), 30%);
+}
+
+.account-nav-trigger.ant-btn {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  padding-inline: 6px 8px;
+  border-radius: 999px;
+  color: var(--sv-text);
+}
+
+.account-nav-trigger.ant-btn:hover {
+  background: var(--sv-bg-soft);
+}
+
+.account-nav-trigger-label {
+  max-width: 112px;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-nav-trigger.is-compact .account-nav-trigger-label {
+  display: none;
+}
+
+.account-nav-trigger .ant-avatar {
+  flex: 0 0 auto;
+  border: 1px solid var(--sv-border);
+  background: var(--sv-bg-soft);
+}
+
+.account-nav-dropdown {
+  min-width: 232px;
+}
+
+.account-nav-popup {
+  overflow: hidden;
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-radius);
+  background: var(--sv-bg-solid);
+  box-shadow: var(--sv-shadow-tight);
+}
+
+.account-nav-popup-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--sv-border);
+  color: var(--sv-text);
+  text-decoration: none;
+}
+
+.account-nav-popup-header:hover {
+  background: var(--sv-bg-soft);
+}
+
+.account-nav-popup-header .ant-avatar {
+  border: 1px solid var(--sv-border);
+  background: var(--sv-bg-soft);
+}
+
+.account-nav-popup-header > span {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.account-nav-popup-header strong,
+.account-nav-popup-header small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-nav-popup-header strong {
+  font-size: 13px;
+}
+
+.account-nav-popup-header small {
+  color: var(--sv-text-muted);
+  font-size: 11px;
+}
+
+.account-nav-popup .ant-dropdown-menu {
+  padding: 5px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .mobile-nav-links {
