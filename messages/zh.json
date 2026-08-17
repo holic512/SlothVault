@@ -775,6 +775,7 @@
         "includeDeleted": "包含已删除"
       },
       "businessType": {
+        "SystemLogo": "系统 Logo",
         "ProjectAvatar": "项目头像",
         "UserAvatar": "用户头像",
         "NoteAttachment": "笔记附件",
@@ -845,15 +846,17 @@
     },
     "settings": {
       "title": "系统设置",
-      "desc": "管理 Mainnet 与 Devnet 交易存证网络档案",
+      "desc": "管理系统品牌与交易存证网络档案",
       "tips": {
         "title": "配置说明",
         "content": "RPC 地址作为敏感配置保存且不会回显；禁用网络仅阻止新存证，不影响历史核验。"
       },
       "groups": {
+        "branding": "系统品牌",
         "evidence": "交易存证网络"
       },
       "configDesc": {
+        "SYSTEM_LOGO_FILE_PATH": "上传后保存；恢复默认将重新使用内置 Logo",
         "SOLANA_DEFAULT_NETWORK": "新存证默认选择的网络",
         "SOLANA_MAINNET_ENABLED": "允许办理 Mainnet 正式存证",
         "SOLANA_MAINNET_RPC_PRIMARY": "Mainnet 主 RPC，仅服务端使用",
@@ -868,7 +871,14 @@
       "actions": {
         "save": "保存",
         "refresh": "刷新缓存",
-        "reset": "重置"
+        "reset": "重置",
+        "uploadLogo": "上传 Logo",
+        "restoreDefaultLogo": "恢复默认"
+      },
+      "logo": {
+        "previewAlt": "系统 Logo 预览",
+        "uploadHint": "支持 JPG、PNG、GIF、WebP，单个文件最大 2MB。上传后请点击保存以生效。",
+        "pendingDefault": "待恢复默认"
       },
       "messages": {
         "loadFailed": "加载配置失败",
@@ -876,7 +886,9 @@
         "saveFailed": "保存配置失败",
         "refreshSuccess": "缓存已刷新",
         "refreshFailed": "刷新缓存失败",
-        "requestFailed": "请求失败"
+        "requestFailed": "请求失败",
+        "uploadSuccess": "Logo 已上传，等待保存",
+        "uploadFailed": "Logo 上传失败"
       }
     },
     "backup": {

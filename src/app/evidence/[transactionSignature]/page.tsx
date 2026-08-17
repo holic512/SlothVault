@@ -18,6 +18,7 @@ import { PublicEvidenceVerifier } from '@/components/evidence/public-evidence-ve
 import { PublicNavbar } from '@/components/shell/public-navbar'
 import { createPageMetadata } from '@/i18n/metadata'
 import { getPublicReleaseEvidence } from '@/server/services/release-evidence'
+import { getSystemBranding } from '@/server/services/system-branding'
 import evidenceStyles from '@/styles/modules/evidence.module.css'
 
 export const dynamic = 'force-dynamic'
@@ -37,7 +38,7 @@ export default async function EvidenceReceiptPage({ params }: { params: Promise<
   if (!evidence) notFound()
 
   return <div className={evidenceStyles.root}>
-    <PublicNavbar />
+    <PublicNavbar branding={await getSystemBranding()} />
     <main className="evidence-receipt-shell">
       <header className="evidence-receipt-header">
         <span className="evidence-receipt-seal">{evidence.network === 'devnet' ? <FlaskConical /> : <BadgeCheck />}</span>

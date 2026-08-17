@@ -13,6 +13,7 @@ import { getTranslations } from 'next-intl/server'
 import { MarkdownView } from '@/components/markdown/markdown-view'
 import { PublicNavbar } from '@/components/shell/public-navbar'
 import { createPageMetadata } from '@/i18n/metadata'
+import { getSystemBranding } from '@/server/services/system-branding'
 import { getHomepageContent } from '@/server/services/homepage'
 import publicStyles from '@/styles/modules/public.module.css'
 
@@ -23,14 +24,15 @@ export async function generateMetadata() {
 }
 
 export default async function HomePage() {
-  const [content, t] = await Promise.all([
+  const [content, t, branding] = await Promise.all([
     getHomepageContent(),
     getTranslations('HomepageEmpty'),
+    getSystemBranding(),
   ])
 
   return (
     <div className={`${publicStyles.root} public-page`}>
-      <PublicNavbar />
+      <PublicNavbar branding={branding} />
       <main className="homepage-main">
         <div className="content-container content-container--reading">
           {content ? (

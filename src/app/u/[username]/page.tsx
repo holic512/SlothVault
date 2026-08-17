@@ -14,6 +14,7 @@ import { notFound } from 'next/navigation'
 
 import { PublicNavbar } from '@/components/shell/public-navbar'
 import { createPageMetadata } from '@/i18n/metadata'
+import { getSystemBranding } from '@/server/services/system-branding'
 import { getPublicUserProfile } from '@/server/services/public-users'
 import publicStyles from '@/styles/modules/public.module.css'
 
@@ -47,7 +48,7 @@ export default async function PublicUserPage({
 
   return (
     <div className={`${publicStyles.root} public-page profile-page`}>
-      <PublicNavbar />
+      <PublicNavbar branding={await getSystemBranding()} />
       <main className="profile-main content-container">
         <section className="profile-hero">
           <div className="profile-avatar">

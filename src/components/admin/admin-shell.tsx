@@ -5,9 +5,9 @@
  * @project SlothVault
  * @module Administrator Shell
  * @description Provides a responsive, grouped Ant Design navigation shell with an authenticated administrator header.
- * @logic Map routes into compact labeled sidebar groups and one breadcrumb model, preserve collapse state locally, and expose home/theme/logout actions while keeping wallet use inside the transaction-evidence center.
- * @dependencies antd, next/navigation, next-intl, theme-controls
- * @index_tags admin,layout,navigation,sidebar,menu-groups
+ * @logic Map routes into compact labeled sidebar groups and one breadcrumb model, render the server-resolved system brand, preserve collapse state locally, and expose home/theme/logout actions while keeping wallet use inside the transaction-evidence center.
+ * @dependencies antd, next/navigation, next-intl, brand-logo, theme-controls
+ * @index_tags admin,layout,navigation,sidebar,branding,menu-groups
  * @author holic512
  */
 import { useMemo, useState, type ReactNode } from 'react'
@@ -35,8 +35,10 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
 import { ThemeControls } from '@/components/theme/theme-controls'
+import { BrandLogo } from '@/components/shell/brand-logo'
 import { apiFetch } from '@/lib/api-client'
 import adminStyles from '@/styles/modules/admin.module.css'
+import type { SystemBranding } from '@/types/branding'
 
 const { Header, Sider, Content } = Layout
 
@@ -48,7 +50,7 @@ type AdminMenuRoute = {
   label: string
 }
 
-export function AdminShell({ children }: { children: ReactNode }) {
+export function AdminShell({ children, branding }: { children: ReactNode; branding: SystemBranding }) {
   const t = useTranslations('AdminMM')
   const pathname = usePathname()
   const router = useRouter()
@@ -113,8 +115,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         trigger={null}
       >
         <Link href="/admin/mm" className={`admin-brand ${collapsed ? 'is-collapsed' : ''}`}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="" />
+          <BrandLogo branding={branding} />
           {!collapsed ? <span>{t('title')}</span> : null}
         </Link>
         <Menu

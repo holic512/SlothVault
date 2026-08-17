@@ -16,6 +16,7 @@ import { redirect } from 'next/navigation'
 import { AccountShell } from '@/components/account/account-shell'
 import { PublicNavbar } from '@/components/shell/public-navbar'
 import { readSessionToken, SESSION_COOKIE } from '@/server/auth/session'
+import { getSystemBranding } from '@/server/services/system-branding'
 import publicStyles from '@/styles/modules/public.module.css'
 import type { SessionUser } from '@/types/user'
 
@@ -43,7 +44,7 @@ export default async function AccountLayout({ children }: { children: ReactNode 
 
   return (
     <div className={`${publicStyles.root} public-page account-page`}>
-      <PublicNavbar />
+      <PublicNavbar branding={await getSystemBranding()} />
       <AccountShell initialUser={user}>{children}</AccountShell>
     </div>
   )

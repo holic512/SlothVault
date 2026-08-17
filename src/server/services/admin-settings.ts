@@ -2,10 +2,10 @@
  * @file admin-settings.ts
  * @project SlothVault
  * @module Admin Settings Service
- * @description Owns fixed Solana evidence network profiles, masked RPC reads, validated writes, and database-backed refresh checks.
- * @logic Join stored rows with a typed registry, never echo RPC endpoints, reject invalid defaults or disabled default networks, and persist changes atomically.
- * @dependencies Prisma SystemConfig model, server/http/errors, system-config keys
- * @index_tags admin,settings,solana,evidence,rpc,validation,transaction
+ * @description Owns installed-system branding and fixed Solana evidence network profiles, masked RPC reads, validated writes, and database-backed refresh checks.
+ * @logic Join stored rows with a typed registry, validate managed logo references without echoing RPC endpoints, reject invalid defaults or disabled default networks, and persist changes atomically.
+ * @dependencies Prisma SystemConfig/FileManagement models, server/http/errors, system configuration and branding services
+ * @index_tags admin,settings,branding,logo,solana,evidence,rpc,validation,transaction
  * @author holic512
  */
 import 'server-only'
@@ -13,8 +13,20 @@ import 'server-only'
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
 import { CONFIG_KEYS } from '@/server/services/system-config'
+import {
+  getSystemBranding,
+  isSystemLogoFilePath,
+} from '@/server/services/system-branding'
 
 export const ADMIN_CONFIG_DEFINITIONS = [
+  {
+    key: CONFIG_KEYS.SYSTEM_LOGO_FILE_PATH,
+    group: 'branding',
+    kind: 'image',
+    sensitive: false,
+    description: 'Optional managed logo displayed across the installed system',
+    defaultValue: '',
+  },
   {
     key: CONFIG_KEYS.DEFAULT_NETWORK,
     group: 'evidence',
@@ -102,13 +114,19 @@ function validateConfigValue(
   if (definition.kind === 'network' && value !== 'mainnet' && value !== 'devnet') {
     throw new HttpError(`${definition.key} must be mainnet or devnet`, 400, 400)
   }
+  if (definition.kind === 'image' && value && !isSystemLogoFilePath(value)) {
+    throw new HttpError(`${definition.key} must reference a managed system logo`, 400, 400)
+  }
   return value
 }
 
 export async function listAdminSettings() {
-  const records = await prisma.systemConfig.findMany({
-    where: { configKey: { in: ADMIN_CONFIG_DEFINITIONS.map((item) => item.key) } },
-  })
+  const [records, branding] = await Promise.all([
+    prisma.systemConfig.findMany({
+      where: { configKey: { in: ADMIN_CONFIG_DEFINITIONS.map((item) => item.key) } },
+    }),
+    getSystemBranding(),
+  ])
   const byKey = new Map(records.map((record) => [record.configKey, record.configValue]))
   const configs = ADMIN_CONFIG_DEFINITIONS.map((definition) => {
     const storedValue = byKey.get(definition.key) || ''
@@ -120,11 +138,20 @@ export async function listAdminSettings() {
       kind: definition.kind,
       sensitive: definition.sensitive,
       configured: Boolean(storedValue),
+      previewUrl: definition.kind === 'image' ? branding.logoUrl : undefined,
+      isCustom: definition.kind === 'image' ? branding.isCustom : undefined,
     }
   })
   return {
     configs,
-    groups: [{ key: 'evidence', label: 'evidence', configs }],
+    groups: ADMIN_CONFIG_DEFINITIONS
+      .map((definition) => definition.group)
+      .filter((group, index, groups) => groups.indexOf(group) === index)
+      .map((group) => ({
+        key: group,
+        label: group,
+        configs: configs.filter((config) => configDefinition(config.key)?.group === group),
+      })),
   }
 }
 
@@ -160,15 +187,28 @@ export async function updateAdminSettings(configs: AdminConfigChange[]) {
     throw new HttpError('The default evidence network must be enabled', 400, 400)
   }
 
-  await prisma.$transaction(changes.map((change) => prisma.systemConfig.upsert({
-    where: { configKey: change.key },
-    update: { configValue: change.value, description: change.description, updatedAt: new Date() },
-    create: {
-      configKey: change.key,
-      configValue: change.value,
-      description: change.description,
-    },
-  })))
+  await prisma.$transaction(async (tx) => {
+    const logoPath = effective.get(CONFIG_KEYS.SYSTEM_LOGO_FILE_PATH) || ''
+    if (logoPath) {
+      const logo = await tx.fileManagement.findFirst({
+        where: { filePath: logoPath, businessType: 'SystemLogo', status: 1 },
+        select: { id: true },
+      })
+      if (!logo) {
+        throw new HttpError('The selected system logo is unavailable', 400, 400)
+      }
+    }
+
+    await Promise.all(changes.map((change) => tx.systemConfig.upsert({
+      where: { configKey: change.key },
+      update: { configValue: change.value, description: change.description, updatedAt: new Date() },
+      create: {
+        configKey: change.key,
+        configValue: change.value,
+        description: change.description,
+      },
+    })))
+  })
   return { updated: changes.length, message: 'Configuration saved' }
 }
 

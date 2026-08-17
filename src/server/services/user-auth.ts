@@ -2,10 +2,10 @@
  * @file user-auth.ts
  * @project SlothVault
  * @module User Authentication Service
- * @description Implements conventional registration, password login, profile updates, password changes, and public user DTO mapping.
- * @logic Normalize human identifiers, hash passwords with Argon2id, enforce active identities, update login metadata, and revoke existing sessions after credential changes.
+ * @description Implements conventional registration, password login, profile and managed-avatar updates, password changes, and public user DTO mapping.
+ * @logic Normalize human identifiers, hash passwords with Argon2id, enforce active identities, update login metadata, persist managed avatar references separately, and revoke existing sessions after credential changes.
  * @dependencies Prisma User model, auth/password, auth/session, auth/roles, database/unit-of-work
- * @index_tags user,registration,login,profile,password,web2
+ * @index_tags user,registration,login,profile,avatar,password,web2
  * @author holic512
  */
 import 'server-only'
@@ -129,7 +129,6 @@ export async function loginUser(input: {
 export async function updateUserProfile(userId: number, input: {
   email?: string | null
   displayName?: string | null
-  avatar?: string | null
   bio?: string | null
 }) {
   try {
@@ -140,7 +139,6 @@ export async function updateUserProfile(userId: number, input: {
         ...(input.displayName !== undefined
           ? { displayName: input.displayName?.trim() || null }
           : {}),
-        ...(input.avatar !== undefined ? { avatar: input.avatar?.trim() || null } : {}),
         ...(input.bio !== undefined ? { bio: input.bio?.trim() || null } : {}),
         updatedAt: new Date(),
       },
@@ -150,6 +148,19 @@ export async function updateUserProfile(userId: number, input: {
     if (hasPrismaCode(error, 'P2002')) {
       throw new HttpError('Email is already registered', 409, 409)
     }
+    throw error
+  }
+}
+
+export async function updateUserAvatar(userId: number, avatar: string | null) {
+  try {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { avatar, updatedAt: new Date() },
+    })
+    return userDto(user)
+  } catch (error) {
+    if (hasPrismaCode(error, 'P2025')) throw new HttpError('User not found', 404, 404)
     throw error
   }
 }

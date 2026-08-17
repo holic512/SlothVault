@@ -4,18 +4,19 @@
  * @file settings-manager.tsx
  * @project SlothVault
  * @module System Settings Administration
- * @description Provides grouped Ant Design configuration controls that do not echo stored secrets.
- * @logic Load known configuration metadata, track only changed keys, submit one atomic batch, and re-read process-independent runtime values.
- * @dependencies Ant Design, React Query, next-intl, api-client
- * @index_tags admin,settings,secrets,configuration,transaction
+ * @description Provides grouped Ant Design configuration controls, including managed system-logo uploads, that do not echo stored secrets.
+ * @logic Load known configuration metadata, stage uploaded logo paths with changed keys, submit one atomic batch, and re-read process-independent runtime values.
+ * @dependencies Ant Design, React Query, next-intl, Next navigation, api-client
+ * @index_tags admin,settings,branding,logo,secrets,configuration,transaction
  * @author holic512
  */
 import { useMemo, useState } from 'react'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, App, Button, Card, Empty, Input, Segmented, Skeleton, Space, Switch, Tag, Tooltip, Typography } from 'antd'
-import { Boxes, CircleHelp, KeyRound, RefreshCw, RotateCcw, Save, Waypoints } from 'lucide-react'
+import { Alert, App, Button, Card, Empty, Image, Input, Segmented, Skeleton, Space, Switch, Tag, Tooltip, Typography, Upload } from 'antd'
+import { Boxes, CircleHelp, ImageUp, KeyRound, RefreshCw, RotateCcw, Save, Waypoints } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
 
 import { AdminPage, AdminPageActions } from '@/components/admin/admin-page'
 import { apiFetch } from '@/lib/api-client'
@@ -27,7 +28,9 @@ type ConfigItem = {
   defaultValue: string
   sensitive?: boolean
   configured?: boolean
-  kind?: 'boolean' | 'network' | 'url'
+  previewUrl?: string
+  isCustom?: boolean
+  kind?: 'boolean' | 'network' | 'url' | 'image'
 }
 type ConfigGroup = { key: string; label: string; configs: ConfigItem[] }
 type ConfigData = { configs: ConfigItem[]; groups: ConfigGroup[] }
@@ -57,12 +60,19 @@ export function SettingsManager() {
 function SettingsForm({ data }: { data: ConfigData }) {
   const t = useTranslations('AdminMM.settings')
   const queryClient = useQueryClient()
+  const router = useRouter()
   const { message } = App.useApp()
   const initialValues = useMemo(
     () => Object.fromEntries(data.configs.map((config) => [config.key, config.value])),
     [data.configs],
   )
   const [values, setValues] = useState<Record<string, string>>(initialValues)
+  const initialPreviewUrls = useMemo(
+    () => Object.fromEntries(data.configs.map((config) => [config.key, config.previewUrl || '/logo.png'])),
+    [data.configs],
+  )
+  const [previewUrls, setPreviewUrls] = useState<Record<string, string>>(initialPreviewUrls)
+  const [uploadingLogoKey, setUploadingLogoKey] = useState<string | null>(null)
 
   const changedKeys = Object.keys(values).filter((key) => values[key] !== initialValues[key])
   const saveMutation = useMutation({
@@ -76,6 +86,7 @@ function SettingsForm({ data }: { data: ConfigData }) {
     onSuccess: async () => {
       message.success(t('messages.saveSuccess'))
       await queryClient.invalidateQueries({ queryKey: ['admin-system-config'] })
+      router.refresh()
     },
     onError: (error) => message.error(error.message),
   })
@@ -97,6 +108,26 @@ function SettingsForm({ data }: { data: ConfigData }) {
     onError: (error) => message.error(error.message),
   })
 
+  const uploadSystemLogo = async (key: string, file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    setUploadingLogoKey(key)
+    try {
+      const [uploaded] = await apiFetch<Array<{ filePath: string; url: string }>>(
+        '/api/admin/mm/file?businessType=SystemLogo',
+        { method: 'POST', body: formData },
+      )
+      if (!uploaded) throw new Error(t('messages.uploadFailed'))
+      setValues((current) => ({ ...current, [key]: uploaded.filePath }))
+      setPreviewUrls((current) => ({ ...current, [key]: uploaded.url }))
+      message.success(t('messages.uploadSuccess'))
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : t('messages.uploadFailed'))
+    } finally {
+      setUploadingLogoKey(null)
+    }
+  }
+
   return (
     <AdminPage>
       <AdminPageActions>
@@ -109,7 +140,10 @@ function SettingsForm({ data }: { data: ConfigData }) {
           <Button
             icon={<RotateCcw size={15} />}
             disabled={!changedKeys.length}
-            onClick={() => setValues(initialValues)}
+            onClick={() => {
+              setValues(initialValues)
+              setPreviewUrls(initialPreviewUrls)
+            }}
           >
             {t('actions.reset')}
           </Button>
@@ -148,7 +182,7 @@ function SettingsForm({ data }: { data: ConfigData }) {
               className="settings-card"
               title={
                 <span className="settings-card-title">
-                  {group.key === 'evidence' ? <Waypoints size={17} /> : <Boxes size={17} />}
+                  {group.key === 'evidence' ? <Waypoints size={17} /> : group.key === 'branding' ? <ImageUp size={17} /> : <Boxes size={17} />}
                   {t(`groups.${group.key}`)}
                 </span>
               }
@@ -183,6 +217,43 @@ function SettingsForm({ data }: { data: ConfigData }) {
                           options={[{ value: 'devnet', label: 'Devnet · 测试' }, { value: 'mainnet', label: 'Mainnet · 正式' }]}
                           onChange={(value) => setValues((current) => ({ ...current, [config.key]: String(value) }))}
                         />
+                      ) : config.kind === 'image' ? (
+                        <div className="settings-logo-control">
+                          <Image
+                            className="settings-logo-preview"
+                            src={previewUrls[config.key] || '/logo.png'}
+                            alt={t('logo.previewAlt')}
+                            preview={false}
+                          />
+                          <Space wrap>
+                            <Upload
+                              accept="image/png,image/jpeg,image/gif,image/webp"
+                              maxCount={1}
+                              showUploadList={false}
+                              beforeUpload={(file) => {
+                                void uploadSystemLogo(config.key, file)
+                                return false
+                              }}
+                            >
+                              <Button icon={<ImageUp size={15} />} loading={uploadingLogoKey === config.key}>
+                                {t('actions.uploadLogo')}
+                              </Button>
+                            </Upload>
+                            <Button
+                              disabled={!values[config.key]}
+                              onClick={() => {
+                                setValues((current) => ({ ...current, [config.key]: '' }))
+                                setPreviewUrls((current) => ({ ...current, [config.key]: '/logo.png' }))
+                              }}
+                            >
+                              {t('actions.restoreDefaultLogo')}
+                            </Button>
+                            {config.isCustom && !values[config.key] ? <Tag color="warning">{t('logo.pendingDefault')}</Tag> : null}
+                          </Space>
+                          <Typography.Text type="secondary">
+                            {t('logo.uploadHint')}
+                          </Typography.Text>
+                        </div>
                       ) : sensitive ? (
                         <Input.Password
                           visibilityToggle

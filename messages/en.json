@@ -775,6 +775,7 @@
         "includeDeleted": "Include Deleted"
       },
       "businessType": {
+        "SystemLogo": "System Logo",
         "ProjectAvatar": "Project Avatar",
         "UserAvatar": "User Avatar",
         "NoteAttachment": "Note Attachment",
@@ -845,15 +846,17 @@
     },
     "settings": {
       "title": "System Settings",
-      "desc": "Manage Mainnet and Devnet transaction-evidence network profiles",
+      "desc": "Manage system branding and transaction-evidence network profiles",
       "tips": {
         "title": "Configuration Tips",
         "content": "RPC URLs are stored as sensitive values and never echoed. Disabling a network blocks new issuance without hiding historical receipts."
       },
       "groups": {
+        "branding": "System Branding",
         "evidence": "Evidence Networks"
       },
       "configDesc": {
+        "SYSTEM_LOGO_FILE_PATH": "Saved after upload; restoring the default uses the bundled logo again",
         "SOLANA_DEFAULT_NETWORK": "Default network for new evidence",
         "SOLANA_MAINNET_ENABLED": "Allow formal Mainnet evidence",
         "SOLANA_MAINNET_RPC_PRIMARY": "Mainnet primary server-only RPC",
@@ -868,7 +871,14 @@
       "actions": {
         "save": "Save",
         "refresh": "Refresh Cache",
-        "reset": "Reset"
+        "reset": "Reset",
+        "uploadLogo": "Upload Logo",
+        "restoreDefaultLogo": "Restore Default"
+      },
+      "logo": {
+        "previewAlt": "System logo preview",
+        "uploadHint": "JPG, PNG, GIF, and WebP are supported, up to 2MB. Save to apply the change.",
+        "pendingDefault": "Default pending"
       },
       "messages": {
         "loadFailed": "Failed to load configuration",
@@ -876,7 +886,9 @@
         "saveFailed": "Failed to save configuration",
         "refreshSuccess": "Cache refreshed",
         "refreshFailed": "Failed to refresh cache",
-        "requestFailed": "Request failed"
+        "requestFailed": "Request failed",
+        "uploadSuccess": "Logo uploaded; save to apply it",
+        "uploadFailed": "Logo upload failed"
       }
     },
     "backup": {

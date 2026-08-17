@@ -5,9 +5,9 @@
  * @project SlothVault
  * @module Public Navigation
  * @description Provides the shared brand, article navigation, conventional account, locale, and theme controls for public pages.
- * @logic Highlight the current route and keep the account/theme actions inside a restrained responsive navigation shell.
- * @dependencies next/link, next-intl, account-nav, theme-controls
- * @index_tags navbar,public,navigation,responsive
+ * @logic Highlight the current route, render the server-resolved system brand, and keep the account/theme actions inside a restrained responsive navigation shell.
+ * @dependencies next/link, next-intl, account-nav, brand-logo, theme-controls
+ * @index_tags navbar,public,navigation,branding,responsive
  * @author holic512
  */
 import { useState } from 'react'
@@ -20,8 +20,10 @@ import { usePathname } from 'next/navigation'
 
 import { ThemeControls } from '@/components/theme/theme-controls'
 import { AccountNav } from '@/components/auth/account-nav'
+import { BrandLogo } from '@/components/shell/brand-logo'
+import type { SystemBranding } from '@/types/branding'
 
-export function PublicNavbar() {
+export function PublicNavbar({ branding }: { branding: SystemBranding }) {
   const t = useTranslations('Nav')
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -30,8 +32,7 @@ export function PublicNavbar() {
     <header className="public-nav-wrap">
       <nav className="public-nav" aria-label="Primary navigation">
         <Link href="/" className="brand-lockup" aria-label="SlothVault home">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="" className="brand-logo" />
+          <BrandLogo branding={branding} />
           <span>Sloth<span className="brand-accent">Vault</span></span>
         </Link>
 

@@ -52,6 +52,7 @@ const TRASH_DIRECTORY = '.trash'
 const IMAGE_PIXEL_LIMIT = 40_000_000
 
 export const BUSINESS_TYPE_CONFIG = {
+  SystemLogo: { dir: 'system-logo', imagesOnly: true },
   ProjectAvatar: { dir: 'project-avatar', imagesOnly: true },
   UserAvatar: { dir: 'user-avatar', imagesOnly: true },
   NoteAttachment: { dir: 'note-attachment', imagesOnly: false },
@@ -279,7 +280,9 @@ async function readMultipartFiles(request: Request, maxFiles: number) {
 async function prepareUploads(files: File[], businessType: BusinessType) {
   const config = BUSINESS_TYPE_CONFIG[businessType]
   const maxFileSize =
-    businessType === 'ProjectAvatar' || businessType === 'UserAvatar'
+    businessType === 'SystemLogo' ||
+    businessType === 'ProjectAvatar' ||
+    businessType === 'UserAvatar'
       ? AVATAR_FILE_MAX_BYTES
       : GENERAL_FILE_MAX_BYTES
   let totalSize = 0
@@ -377,6 +380,7 @@ export function avatarFileDto(file: FileRecordLike) {
     url: `/${file.filePath}`,
     originalName: file.originalName,
     fileName: file.fileName,
+    filePath: file.filePath,
     fileSize: file.fileSize.toString(),
   }
 }
@@ -479,12 +483,23 @@ export async function uploadFiles(request: Request, options: UploadFilesOptions)
 }
 
 export async function uploadAdminFiles(request: Request, options: UploadFilesOptions) {
-  return (await uploadFiles(request, options)).map(uploadedFileDto)
+  return (await uploadFiles(request, {
+    ...options,
+    maxFiles: options.businessType === 'SystemLogo' ? 1 : options.maxFiles,
+  })).map(uploadedFileDto)
 }
 
 export async function uploadAdminProjectAvatar(request: Request) {
   const [file] = await uploadFiles(request, {
     businessType: 'ProjectAvatar',
+    maxFiles: 1,
+  })
+  return avatarFileDto(file)
+}
+
+export async function uploadUserAvatar(request: Request) {
+  const [file] = await uploadFiles(request, {
+    businessType: 'UserAvatar',
     maxFiles: 1,
   })
   return avatarFileDto(file)

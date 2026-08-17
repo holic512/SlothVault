@@ -78,6 +78,7 @@ export function FilesManager() {
   const [previewFile, setPreviewFile] = useState<FileDto | null>(null)
 
   const businessTypeOptions = [
+    'SystemLogo',
     'ProjectAvatar',
     'UserAvatar',
     'NoteAttachment',
@@ -320,8 +321,8 @@ export function FilesManager() {
             onChange={setUploadBusinessType}
           />
           <Upload.Dragger
-            multiple
-            maxCount={10}
+            multiple={uploadBusinessType !== 'SystemLogo'}
+            maxCount={uploadBusinessType === 'SystemLogo' ? 1 : 10}
             beforeUpload={() => false}
             fileList={uploadFiles}
             onChange={({ fileList }) => setUploadFiles(fileList)}

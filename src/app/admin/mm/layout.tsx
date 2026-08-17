@@ -14,6 +14,7 @@ import { redirect } from 'next/navigation'
 import { AdminShell } from '@/components/admin/admin-shell'
 import { isAdminRole } from '@/server/auth/roles'
 import { readSessionToken, SESSION_COOKIE } from '@/server/auth/session'
+import { getSystemBranding } from '@/server/services/system-branding'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,5 +23,5 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const session = await readSessionToken(cookieStore.get(SESSION_COOKIE)?.value)
   if (!session || !isAdminRole(session.User.role)) redirect('/admin/auth/login')
 
-  return <AdminShell>{children}</AdminShell>
+  return <AdminShell branding={await getSystemBranding()}>{children}</AdminShell>
 }

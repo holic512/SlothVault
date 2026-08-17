@@ -25,7 +25,7 @@ vi.mock('@/server/database/unit-of-work', () => ({
 }))
 vi.mock('@/server/prisma', () => ({ prisma: mocks.prisma }))
 
-import { loginUser, registerUser } from '@/server/services/user-auth'
+import { loginUser, registerUser, updateUserAvatar } from '@/server/services/user-auth'
 
 const createdAt = new Date('2026-07-30T00:00:00.000Z')
 const updatedAt = new Date('2026-07-30T00:00:00.000Z')
@@ -119,5 +119,16 @@ describe('conventional user authentication', () => {
       userAgent: 'vitest',
     })
     expect(result.user.role).toBe('USER')
+  })
+
+  it('updates the avatar only through the dedicated managed-avatar operation', async () => {
+    const avatar = '/uploads/user-avatar/5d6d4d83-04dc-45bb-b8bf-409b181d1a2c.webp'
+    mocks.prisma.user.update.mockResolvedValue(userRecord({ avatar }))
+
+    await expect(updateUserAvatar(7, avatar)).resolves.toMatchObject({ avatar })
+    expect(mocks.prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 7 },
+      data: { avatar, updatedAt: expect.any(Date) },
+    })
   })
 })

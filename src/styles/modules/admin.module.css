@@ -61,6 +61,10 @@
   filter: var(--sv-logo-filter);
 }
 
+.root :global(.admin-brand) img:global(.brand-logo--custom) {
+  filter: none;
+}
+
 .root :global(.admin-brand) span {
   color: var(--sv-text);
 }
@@ -820,6 +824,34 @@
   justify-self: start;
 }
 
+.root :global(.settings-logo-control) {
+  display: grid;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: center;
+}
+
+.root :global(.settings-logo-preview) {
+  width: 58px !important;
+  height: 58px !important;
+  object-fit: contain;
+  border: 1px solid var(--sv-admin-border);
+  border-radius: var(--sv-admin-radius);
+  background: var(--sv-bg-soft);
+}
+
+.root :global(.settings-logo-control) > :global(.ant-space),
+.root :global(.settings-logo-control) > :global(.ant-typography) {
+  min-width: 0;
+}
+
+.root :global(.settings-logo-control) > :global(.ant-typography) {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .root :global(.backup-grid) {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1159,6 +1191,11 @@
   .root :global(.settings-field) > :global(.ant-input-affix-wrapper),
   .root :global(.settings-field) > :global(.ant-segmented),
   .root :global(.settings-field) > :global(.ant-switch) {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .root :global(.settings-logo-control) {
     grid-column: 1;
     grid-row: 3;
   }

@@ -7,6 +7,7 @@ import Link from 'next/link'
 
 import { PublicNavbar } from '@/components/shell/public-navbar'
 import publicStyles from '@/styles/modules/public.module.css'
+import type { SystemBranding } from '@/types/branding'
 
 export type ProjectListItem = {
   id: string
@@ -18,12 +19,18 @@ export type ProjectListItem = {
   updatedAt: string
 }
 
-export function ProjectListView({ projects }: { projects: ProjectListItem[] }) {
+export function ProjectListView({
+  projects,
+  branding,
+}: {
+  projects: ProjectListItem[]
+  branding: SystemBranding
+}) {
   const t = useTranslations('ProjectsPage')
 
   return (
     <div className={`${publicStyles.root} public-page projects-page`}>
-      <PublicNavbar />
+      <PublicNavbar branding={branding} />
       <main className="projects-main content-container">
         <div className="projects-heading">
           <Typography.Text className="projects-kicker">Library</Typography.Text>

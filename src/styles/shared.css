@@ -28,6 +28,10 @@
   filter: var(--sv-logo-filter);
 }
 
+.brand-logo--custom {
+  filter: none;
+}
+
 .brand-accent {
   color: var(--sv-text-muted);
 }

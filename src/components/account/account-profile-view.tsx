@@ -4,17 +4,17 @@
  * @file account-profile-view.tsx
  * @project SlothVault
  * @module Personal Profile Settings
- * @description Provides the dedicated authenticated profile editor.
- * @logic Initialize from the shared account context, persist only profile fields, and synchronize the global account session cache after saving.
- * @dependencies React, React Query, Ant Design, account shell, account profile API
- * @index_tags account,profile,settings,form
+ * @description Provides the dedicated authenticated profile editor with a managed avatar upload control.
+ * @logic Initialize from the shared account context, upload or remove the avatar through its dedicated file API, persist remaining profile fields, and synchronize the global account session cache after each change.
+ * @dependencies React, React Query, Ant Design, account shell, account profile APIs
+ * @index_tags account,profile,avatar,upload,settings,form
  * @author holic512
  */
 import { useEffect } from 'react'
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { App, Button, Card, Form, Input, Typography } from 'antd'
-import { Save, UserRound } from 'lucide-react'
+import { App, Avatar, Button, Card, Form, Input, Space, Typography, Upload } from 'antd'
+import { ImageUp, Save, Trash2, UserRound } from 'lucide-react'
 
 import { useAccountUser } from '@/components/account/account-shell'
 import { apiFetch } from '@/lib/api-client'
@@ -23,7 +23,6 @@ import type { SessionUser } from '@/types/user'
 type ProfileValues = {
   displayName?: string
   email?: string
-  avatar?: string
   bio?: string
 }
 
@@ -37,7 +36,6 @@ export function AccountProfileView() {
     form.setFieldsValue({
       displayName: user.displayName || '',
       email: user.email || '',
-      avatar: user.avatar || '',
       bio: user.bio || '',
     })
   }, [form, user])
@@ -49,13 +47,37 @@ export function AccountProfileView() {
         body: JSON.stringify({
           displayName: values.displayName || null,
           email: values.email || null,
-          avatar: values.avatar || null,
           bio: values.bio || null,
         }),
       }),
     onSuccess: (nextUser) => {
       queryClient.setQueryData(['session-user'], nextUser)
       message.success('个人资料已保存')
+    },
+    onError: (error) => message.error(error.message),
+  })
+
+  const uploadAvatarMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      return apiFetch<SessionUser>('/api/account/profile/avatar', {
+        method: 'POST',
+        body: formData,
+      })
+    },
+    onSuccess: (nextUser) => {
+      queryClient.setQueryData(['session-user'], nextUser)
+      message.success('头像已更新')
+    },
+    onError: (error) => message.error(error.message),
+  })
+
+  const removeAvatarMutation = useMutation({
+    mutationFn: () => apiFetch<SessionUser>('/api/account/profile/avatar', { method: 'DELETE' }),
+    onSuccess: (nextUser) => {
+      queryClient.setQueryData(['session-user'], nextUser)
+      message.success('头像已恢复为默认')
     },
     onError: (error) => message.error(error.message),
   })
@@ -76,8 +98,36 @@ export function AccountProfileView() {
             <Form.Item name="displayName" label="显示名称"><Input prefix={<UserRound size={14} />} maxLength={80} /></Form.Item>
             <Form.Item name="email" label="邮箱" rules={[{ type: 'email', message: '请输入有效邮箱地址' }]}><Input /></Form.Item>
           </div>
-          <Form.Item name="avatar" label="头像地址" rules={[{ type: 'url', warningOnly: true }]}>
-            <Input placeholder="https://..." />
+          <Form.Item label="头像">
+            <Space wrap size={12}>
+              <Avatar size={68} src={user.avatar || undefined} icon={<UserRound />} />
+              <Space orientation="vertical" size={6}>
+                <Upload
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  maxCount={1}
+                  showUploadList={false}
+                  beforeUpload={(file) => {
+                    uploadAvatarMutation.mutate(file)
+                    return false
+                  }}
+                >
+                  <Button icon={<ImageUp size={15} />} loading={uploadAvatarMutation.isPending}>
+                    上传头像
+                  </Button>
+                </Upload>
+                <Button
+                  danger
+                  size="small"
+                  icon={<Trash2 size={14} />}
+                  disabled={!user.avatar}
+                  loading={removeAvatarMutation.isPending}
+                  onClick={() => removeAvatarMutation.mutate()}
+                >
+                  恢复默认头像
+                </Button>
+                <Typography.Text type="secondary">支持 JPG、PNG、GIF、WebP，单个文件最大 2MB。</Typography.Text>
+              </Space>
+            </Space>
           </Form.Item>
           <Form.Item name="bio" label="个人简介">
             <Input.TextArea rows={4} maxLength={2_000} showCount />

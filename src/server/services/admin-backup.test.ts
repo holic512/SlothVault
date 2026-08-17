@@ -128,6 +128,34 @@ describe('database backup legacy cNFT compatibility', () => {
   })
 })
 
+describe('database backup system branding compatibility', () => {
+  it('retains a system-logo path independently of file record IDs', () => {
+    const data = backupWithReservation()
+    const filePath = 'uploads/system-logo/6e2c5774-3a95-4c34-8ac2-17dc8d7df5cf.png'
+    data.fileManagements.push({
+      id: '91',
+      originalName: 'logo.png',
+      fileName: '6e2c5774-3a95-4c34-8ac2-17dc8d7df5cf.png',
+      filePath,
+      fileSize: '1200',
+      businessType: 'SystemLogo',
+      status: 1,
+      createTime: timestamp,
+    })
+    data.systemConfigs.push({
+      id: '92',
+      configKey: 'SYSTEM_LOGO_FILE_PATH',
+      configValue: filePath,
+      description: 'Optional managed system logo',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    })
+
+    const parsed = parseDatabaseImportPayload({ data, mode: 'insert' }).data
+    expect(parsed.systemConfigs[0].configValue).toBe(parsed.fileManagements[0].filePath)
+  })
+})
+
 describe('database backup release compatibility', () => {
   it('accepts a 2.2 credential and its attempt', () => {
     const data = backupWithReservation()
