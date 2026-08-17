@@ -1,8 +1,28 @@
+import type { Metadata } from 'next'
+
 import { ProjectNoteView } from '@/components/project/project-note-view'
+import { createPageMetadata } from '@/i18n/metadata'
 import {
   getCachedProjectNote,
+  getCachedProjectShell,
   getCachedProjectSidebar,
 } from '@/server/services/public-project-cache'
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string; versionId: string; noteId: string }>
+}): Promise<Metadata> {
+  const { id, versionId, noteId } = await params
+  const [projectShell, note] = await Promise.all([
+    getCachedProjectShell(Number(id)),
+    getCachedProjectNote(Number(id), Number(versionId), Number(noteId)),
+  ])
+  return createPageMetadata('projectNote', {
+    noteTitle: note.noteTitle,
+    projectName: projectShell.project.projectName,
+  })
+}
 
 export default async function ProjectNotePage({
   params,

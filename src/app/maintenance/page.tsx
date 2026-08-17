@@ -11,9 +11,14 @@
 import { Alert, Card, Typography } from 'antd'
 
 import { AuthFrame } from '@/components/auth/auth-frame'
+import { createPageMetadata } from '@/i18n/metadata'
 import { readRuntimeInstallationPublicStatus } from '@/server/database/runtime-health'
 
 export const dynamic = 'force-dynamic'
+
+export async function generateMetadata() {
+  return createPageMetadata('maintenance')
+}
 
 export default async function MaintenancePage() {
   const status = await readRuntimeInstallationPublicStatus()

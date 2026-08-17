@@ -82,6 +82,32 @@
   font-weight: 600;
 }
 
+.root :global(.admin-menu) :global(.ant-menu-item-group) + :global(.ant-menu-item-group) {
+  margin-top: 7px;
+}
+
+.root :global(.admin-menu) :global(.ant-menu-item-group-title) {
+  padding: 8px 8px 3px !important;
+  color: var(--sv-text-muted) !important;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.root :global(.admin-menu) :global(.ant-menu-item-group:first-child) :global(.ant-menu-item-group-title) {
+  padding-top: 2px !important;
+}
+
+.root :global(.admin-sider):global(.ant-layout-sider-collapsed) :global(.admin-menu) :global(.ant-menu-item-group-title) {
+  display: none;
+}
+
+.root :global(.admin-sider):global(.ant-layout-sider-collapsed) :global(.admin-menu) :global(.ant-menu-item-group) + :global(.ant-menu-item-group) {
+  margin-top: 6px;
+}
+
 .root :global(.admin-collapse) {
   display: flex;
   min-height: 40px;

@@ -16,6 +16,7 @@ import { notFound } from 'next/navigation'
 
 import { PublicEvidenceVerifier } from '@/components/evidence/public-evidence-verifier'
 import { PublicNavbar } from '@/components/shell/public-navbar'
+import { createPageMetadata } from '@/i18n/metadata'
 import { getPublicReleaseEvidence } from '@/server/services/release-evidence'
 import evidenceStyles from '@/styles/modules/evidence.module.css'
 
@@ -27,7 +28,7 @@ function explorerUrl(signature: string, network: string) {
 
 export async function generateMetadata({ params }: { params: Promise<{ transactionSignature: string }> }): Promise<Metadata> {
   const { transactionSignature } = await params
-  return { title: `存证 ${transactionSignature.slice(0, 8)}…` }
+  return createPageMetadata('evidenceReceipt', { signature: `${transactionSignature.slice(0, 8)}…` })
 }
 
 export default async function EvidenceReceiptPage({ params }: { params: Promise<{ transactionSignature: string }> }) {

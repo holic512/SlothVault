@@ -12,10 +12,15 @@ import { getTranslations } from 'next-intl/server'
 
 import { MarkdownView } from '@/components/markdown/markdown-view'
 import { PublicNavbar } from '@/components/shell/public-navbar'
+import { createPageMetadata } from '@/i18n/metadata'
 import { getHomepageContent } from '@/server/services/homepage'
 import publicStyles from '@/styles/modules/public.module.css'
 
 export const dynamic = 'force-dynamic'
+
+export async function generateMetadata() {
+  return createPageMetadata('home')
+}
 
 export default async function HomePage() {
   const [content, t] = await Promise.all([

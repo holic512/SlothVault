@@ -8,11 +8,12 @@
  * @index_tags account,overview,route
  * @author holic512
  */
-import type { Metadata } from 'next'
-
 import { AccountOverview } from '@/components/account/account-view'
+import { createPageMetadata } from '@/i18n/metadata'
 
-export const metadata: Metadata = { title: '账户概览' }
+export async function generateMetadata() {
+  return createPageMetadata('account')
+}
 
 export default function AccountPage() {
   return <AccountOverview />

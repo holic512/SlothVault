@@ -1,8 +1,9 @@
-import type { Metadata } from 'next'
-
 import { DashboardView } from '@/components/admin/dashboard-view'
+import { createPageMetadata } from '@/i18n/metadata'
 
-export const metadata: Metadata = { title: 'Admin Dashboard' }
+export async function generateMetadata() {
+  return createPageMetadata('adminDashboard')
+}
 
 export default function AdminDashboardPage() {
   return <DashboardView />

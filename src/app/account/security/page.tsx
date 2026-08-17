@@ -8,11 +8,12 @@
  * @index_tags account,security,password,wallet,route
  * @author holic512
  */
-import type { Metadata } from 'next'
-
 import { AccountSecurityView } from '@/components/account/account-security-view'
+import { createPageMetadata } from '@/i18n/metadata'
 
-export const metadata: Metadata = { title: '安全与登录' }
+export async function generateMetadata() {
+  return createPageMetadata('accountSecurity')
+}
 
 export default function AccountSecurityPage() {
   return <AccountSecurityView />

@@ -22,5 +22,5 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const session = await readSessionToken(cookieStore.get(SESSION_COOKIE)?.value)
   if (!session || !isAdminRole(session.User.role)) redirect('/admin/auth/login')
 
-  return <AdminShell username={session.User.username}>{children}</AdminShell>
+  return <AdminShell>{children}</AdminShell>
 }

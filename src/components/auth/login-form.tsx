@@ -104,7 +104,7 @@ export function LoginForm() {
 
       {errorText ? <Alert className="auth-alert" type="error" showIcon message={errorText} /> : null}
 
-      <Form form={form} layout="vertical" requiredMark={false} onFinish={submit} size="large" disabled={checking}>
+      <Form form={form} layout="vertical" requiredMark={false} onFinish={submit} disabled={checking}>
         <Form.Item name="username" rules={[{ required: true, message: t('status.required') }]}> 
           <Input prefix={<UserOutlined />} placeholder={t('form.username')} autoComplete="username" />
         </Form.Item>

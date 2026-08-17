@@ -8,11 +8,12 @@
  * @index_tags account,points,ledger,route
  * @author holic512
  */
-import type { Metadata } from 'next'
-
 import { AccountPointsView } from '@/components/account/account-points-view'
+import { createPageMetadata } from '@/i18n/metadata'
 
-export const metadata: Metadata = { title: '积分中心' }
+export async function generateMetadata() {
+  return createPageMetadata('accountPoints')
+}
 
 export default function AccountPointsPage() {
   return <AccountPointsView />

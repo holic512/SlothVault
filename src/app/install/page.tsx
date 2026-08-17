@@ -8,13 +8,14 @@
  * @index_tags install,first-run,database,administrator
  * @author holic512
  */
-import type { Metadata } from 'next'
-
 import { InstallWizard } from '@/components/install/install-wizard'
+import { createPageMetadata } from '@/i18n/metadata'
 
-export const metadata: Metadata = {
-  title: 'Install',
-  description: 'Configure the database and first administrator for SlothVault.',
+export async function generateMetadata() {
+  return {
+    ...(await createPageMetadata('install')),
+    description: 'Configure the database and first administrator for SlothVault.',
+  }
 }
 
 export default function InstallPage() {

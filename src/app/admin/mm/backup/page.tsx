@@ -1,8 +1,9 @@
-import type { Metadata } from 'next'
-
 import { BackupManager } from '@/components/admin/backup-manager'
+import { createPageMetadata } from '@/i18n/metadata'
 
-export const metadata: Metadata = { title: 'Backup Management' }
+export async function generateMetadata() {
+  return createPageMetadata('adminBackup')
+}
 
 export default function BackupPage() {
   return <BackupManager />

@@ -363,6 +363,12 @@
     "projectHome": "{projectName}",
     "projectDocs": "{projectName} - Docs",
     "projectNote": "{noteTitle} - {projectName}",
+    "login": "Sign in",
+    "register": "Create account",
+    "account": "Account overview",
+    "accountPoints": "Points center",
+    "accountProfile": "Profile",
+    "accountSecurity": "Security & sign-in",
     "adminLogin": "Admin Login",
     "adminInit": "Initialize Admin",
     "adminDashboard": "Admin Dashboard",
@@ -375,6 +381,15 @@
     "adminBackup": "Backup Management",
     "adminSettings": "System Settings",
     "adminProjectHome": "Home Editor",
+    "adminHomepage": "System Homepage Management",
+    "adminUsers": "User Management",
+    "adminGiftCards": "Gift Cards",
+    "adminEvidence": "Transaction Evidence",
+    "install": "Install",
+    "maintenance": "System maintenance",
+    "evidenceReceipt": "Evidence {signature}",
+    "userProfile": "{username}'s profile",
+    "userNotFound": "User not found",
     "siteName": "SlothVault"
   },
   "AdminMM": {
@@ -391,6 +406,12 @@
       "solana": "Transaction Evidence",
       "backup": "Backup Management",
       "settings": "System Settings"
+    },
+    "menuGroups": {
+      "overview": "Overview",
+      "content": "Content",
+      "users": "Users & Credits",
+      "system": "System & Evidence"
     },
     "projects": {
       "title": "Project Management",
@@ -1062,7 +1083,9 @@
     "sidebar": {
       "expand": "Expand Sidebar",
       "collapse": "Collapse Sidebar",
-      "openMobile": "Open admin navigation"
+      "openMobile": "Open admin navigation",
+      "home": "Go to homepage",
+      "logout": "Sign out"
     },
     "header": {
       "backHome": "Back to Home"

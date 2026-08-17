@@ -1,9 +1,10 @@
-import type { Metadata } from 'next'
-
 import { AuthFrame } from '@/components/auth/auth-frame'
 import { LoginForm } from '@/components/auth/login-form'
+import { createPageMetadata } from '@/i18n/metadata'
 
-export const metadata: Metadata = { title: 'Admin Login' }
+export async function generateMetadata() {
+  return createPageMetadata('adminLogin')
+}
 
 export default function AdminLoginPage() {
   return (

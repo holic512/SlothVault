@@ -363,6 +363,12 @@
     "projectHome": "{projectName}",
     "projectDocs": "{projectName} - 文档",
     "projectNote": "{noteTitle} - {projectName}",
+    "login": "登录",
+    "register": "注册",
+    "account": "账户概览",
+    "accountPoints": "积分中心",
+    "accountProfile": "个人资料",
+    "accountSecurity": "安全与登录",
     "adminLogin": "管理员登录",
     "adminInit": "初始化管理员",
     "adminDashboard": "管理后台",
@@ -375,6 +381,15 @@
     "adminBackup": "备份管理",
     "adminSettings": "系统设置",
     "adminProjectHome": "首页编辑",
+    "adminHomepage": "系统首页管理",
+    "adminUsers": "用户管理",
+    "adminGiftCards": "卡密管理",
+    "adminEvidence": "交易存证",
+    "install": "安装",
+    "maintenance": "系统维护",
+    "evidenceReceipt": "存证 {signature}",
+    "userProfile": "{username} 的主页",
+    "userNotFound": "用户不存在",
     "siteName": "SlothVault"
   },
   "AdminMM": {
@@ -391,6 +406,12 @@
       "solana": "交易存证",
       "backup": "备份管理",
       "settings": "系统设置"
+    },
+    "menuGroups": {
+      "overview": "概览",
+      "content": "内容管理",
+      "users": "用户与权益",
+      "system": "系统与存证"
     },
     "projects": {
       "title": "项目管理",
@@ -1062,7 +1083,9 @@
     "sidebar": {
       "expand": "展开侧边栏",
       "collapse": "收起侧边栏",
-      "openMobile": "打开后台导航"
+      "openMobile": "打开后台导航",
+      "home": "返回首页",
+      "logout": "退出登录"
     },
     "header": {
       "backHome": "返回主页"

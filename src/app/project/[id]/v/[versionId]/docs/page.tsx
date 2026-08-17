@@ -1,6 +1,19 @@
+import type { Metadata } from 'next'
+
 import { redirect } from 'next/navigation'
 
-import { getCachedProjectSidebar } from '@/server/services/public-project-cache'
+import { createPageMetadata } from '@/i18n/metadata'
+import { getCachedProjectShell, getCachedProjectSidebar } from '@/server/services/public-project-cache'
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string; versionId: string }>
+}): Promise<Metadata> {
+  const { id } = await params
+  const { project } = await getCachedProjectShell(Number(id))
+  return createPageMetadata('projectDocs', { projectName: project.projectName })
+}
 
 export default async function VersionDocsPage({
   params,

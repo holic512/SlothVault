@@ -1,8 +1,9 @@
-import type { Metadata } from 'next'
-
 import { HomepageEditor } from '@/components/admin/homepage-editor'
+import { createPageMetadata } from '@/i18n/metadata'
 
-export const metadata: Metadata = { title: 'Project Home Editor' }
+export async function generateMetadata() {
+  return createPageMetadata('adminProjectHome')
+}
 
 export default async function ProjectHomepagePage({
   params,

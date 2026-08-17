@@ -1,8 +1,9 @@
-import type { Metadata } from 'next'
-
 import { NoteContentEditor } from '@/components/admin/note-content-editor'
+import { createPageMetadata } from '@/i18n/metadata'
 
-export const metadata: Metadata = { title: 'Content Editor' }
+export async function generateMetadata() {
+  return createPageMetadata('adminNoteContent')
+}
 
 export default async function NoteContentPage({
   params,

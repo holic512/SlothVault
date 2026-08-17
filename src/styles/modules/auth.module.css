@@ -28,34 +28,34 @@
   display: grid;
   min-height: calc(100vh - 72px);
   place-items: center;
-  padding: 28px 20px 80px;
+  padding: 24px 20px 48px;
 }
 
 .root :global(.auth-card) {
   width: min(430px, 100%);
   border: 1px solid var(--sv-border) !important;
   backdrop-filter: blur(18px);
-  border-radius: var(--sv-radius) !important;
+  border-radius: 8px !important;
   background: var(--sv-bg-solid) !important;
-  box-shadow: 0 12px 34px rgb(20, 20, 20, 5.5%);
+  box-shadow: 0 8px 24px rgb(20, 20, 20, 5%);
 }
 
 .root :global(.auth-card) :global(.ant-card-body) {
-  padding: clamp(26px, 6vw, 42px);
+  padding: clamp(22px, 4vw, 30px);
 }
 
 .root :global(.auth-heading) {
-  margin-bottom: 28px;
+  margin-bottom: 18px;
   text-align: center;
 }
 
 .root :global(.auth-heading) :global(.ant-typography) {
-  margin-bottom: 7px;
+  margin-bottom: 5px;
 }
 
 .root :global(.auth-heading) h1:global(.ant-typography) {
-  margin-top: 7px;
-  font-size: 30px;
+  margin-top: 5px;
+  font-size: 28px;
   letter-spacing: -0.045em;
 }
 
@@ -73,12 +73,33 @@
 }
 
 .root :global(.auth-alert) {
-  margin-bottom: 20px;
+  margin-bottom: 12px;
+}
+
+.root :global(.auth-card) :global(.ant-form-item) {
+  margin-bottom: 12px;
+}
+
+.root :global(.auth-card) :global(input.ant-input) {
+  height: 38px;
+  border-radius: 6px;
+}
+
+.root :global(.auth-card) :global(.ant-input-affix-wrapper) {
+  min-height: 38px;
+  padding-block: 3px;
+  border-radius: 6px;
+}
+
+.root :global(.auth-card) :global(.ant-input-affix-wrapper) :global(input.ant-input) {
+  height: auto;
+  padding-block: 0;
+  border-radius: 0;
 }
 
 .root :global(.auth-options) {
   width: 100%;
-  margin: -2px 0 22px;
+  margin: 0 0 16px;
 }
 
 .root :global(.auth-submit-row) {
@@ -86,8 +107,9 @@
 }
 
 .root :global(.auth-submit-row) :global(.ant-btn) {
-  height: 44px;
-  box-shadow: 0 12px 26px rgb(var(--sv-primary-rgb), 0.24);
+  height: 40px;
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgb(var(--sv-primary-rgb), 0.18);
 }
 
 .root :global(.auth-card--user) {
@@ -99,10 +121,14 @@
 }
 
 .root :global(.auth-heading--editorial) h1:global(.ant-typography) {
-  font-size: 36px;
+  font-size: 30px;
 }
 
 .root :global(.auth-footnote) {
-  margin: 22px 0 0 !important;
+  margin: 16px 0 0 !important;
   text-align: center;
+}
+
+.root :global(.auth-card) :global(.ant-divider) {
+  margin: 16px 0;
 }

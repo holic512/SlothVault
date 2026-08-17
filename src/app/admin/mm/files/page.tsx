@@ -1,8 +1,9 @@
-import type { Metadata } from 'next'
-
 import { FilesManager } from '@/components/admin/files-manager'
+import { createPageMetadata } from '@/i18n/metadata'
 
-export const metadata: Metadata = { title: 'File Management' }
+export async function generateMetadata() {
+  return createPageMetadata('adminFiles')
+}
 
 export default function FilesPage() {
   return <FilesManager />

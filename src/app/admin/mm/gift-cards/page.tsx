@@ -1,8 +1,9 @@
-import type { Metadata } from 'next'
-
 import { GiftCardsManager } from '@/components/admin/gift-cards-manager'
+import { createPageMetadata } from '@/i18n/metadata'
 
-export const metadata: Metadata = { title: '卡密管理' }
+export async function generateMetadata() {
+  return createPageMetadata('adminGiftCards')
+}
 
 export default function GiftCardsPage() {
   return <GiftCardsManager />

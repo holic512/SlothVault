@@ -1,8 +1,10 @@
-import type { Metadata } from 'next'
-
 import { redirect } from 'next/navigation'
 
-export const metadata: Metadata = { title: '交易存证' }
+import { createPageMetadata } from '@/i18n/metadata'
+
+export async function generateMetadata() {
+  return createPageMetadata('adminSolana')
+}
 
 export default function SolanaPage() {
   redirect('/admin/mm/evidence')

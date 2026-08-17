@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import { PublicNavbar } from '@/components/shell/public-navbar'
+import { createPageMetadata } from '@/i18n/metadata'
 import { getPublicUserProfile } from '@/server/services/public-users'
 import publicStyles from '@/styles/modules/public.module.css'
 
@@ -26,8 +27,13 @@ export async function generateMetadata({
   const { username } = await params
   const profile = await getPublicUserProfile(username)
   return profile
-    ? { title: profile.user.displayName || profile.user.username, description: profile.user.bio || undefined }
-    : { title: '用户不存在' }
+    ? {
+      ...(await createPageMetadata('userProfile', {
+        username: profile.user.displayName || profile.user.username,
+      })),
+      description: profile.user.bio || undefined,
+    }
+    : createPageMetadata('userNotFound')
 }
 
 export default async function PublicUserPage({

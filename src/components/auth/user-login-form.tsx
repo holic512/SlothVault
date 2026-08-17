@@ -77,7 +77,6 @@ export function UserLoginForm() {
 
       <Form<LoginValues>
         layout="vertical"
-        size="large"
         requiredMark={false}
         initialValues={{ remember: false }}
         onFinish={(values) => void submit(values)}

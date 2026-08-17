@@ -8,11 +8,12 @@
  * @index_tags account,profile,route
  * @author holic512
  */
-import type { Metadata } from 'next'
-
 import { AccountProfileView } from '@/components/account/account-profile-view'
+import { createPageMetadata } from '@/i18n/metadata'
 
-export const metadata: Metadata = { title: '个人资料' }
+export async function generateMetadata() {
+  return createPageMetadata('accountProfile')
+}
 
 export default function AccountProfilePage() {
   return <AccountProfileView />
