@@ -4,8 +4,8 @@
  * @file homepage-editor.tsx
  * @project SlothVault
  * @module Homepage Administration
- * @description Provides one React Markdown editing workflow for the system homepage and per-project homepages.
- * @logic Load an optional homepage record, create it on first save, debounce later updates, guard browser exits, and upload embedded images.
+ * @description Provides one React Markdown editing workflow and unified contextual toolbar for the system homepage and per-project homepages.
+ * @logic Load an optional homepage record, create it on first save, debounce later updates, guard browser exits, upload embedded images, and supply save controls to the editor header.
  * @dependencies React Query, Ant Design, React MD Editor wrapper, next-intl, api-client
  * @index_tags admin,homepage,project-home,markdown,autosave
  * @author holic512
@@ -90,6 +90,7 @@ function HomepageDraft({
   initialResource: HomepageDto | null
 }) {
   const t = useTranslations('AdminMM.homepage')
+  const tDocument = useTranslations('DocumentEditor')
   const router = useRouter()
   const queryClient = useQueryClient()
   const { message } = App.useApp()
@@ -181,39 +182,6 @@ function HomepageDraft({
   const dirty = draft !== savedDraft
   return (
     <div className="managed-markdown-page">
-      <div className="managed-markdown-toolbar">
-        <div className="managed-markdown-heading">
-          {projectId ? (
-            <Button
-              type="text"
-              icon={<ArrowLeft size={16} />}
-              onClick={() => router.push('/admin/mm/projects')}
-            />
-          ) : null}
-          <div>
-            <Typography.Title level={4}>{projectName || t('title')}</Typography.Title>
-            <Typography.Text type="secondary">
-              {projectId ? t('desc') : t('desc')}
-            </Typography.Text>
-          </div>
-        </div>
-        <Space>
-          {dirty ? <Tag color="warning">Unsaved</Tag> : null}
-          {lastSavedAt ? (
-            <Typography.Text type="secondary">{lastSavedAt.toLocaleTimeString()}</Typography.Text>
-          ) : null}
-          <Typography.Text type="secondary">Ctrl/⌘ + S</Typography.Text>
-          <Button
-            type="primary"
-            icon={<Save size={14} />}
-            loading={saving}
-            disabled={!dirty}
-            onClick={() => void save(false)}
-          >
-            {t('actions.save')}
-          </Button>
-        </Space>
-      </div>
       <MarkdownContentEditor
         value={draft}
         onChange={(value) => {
@@ -221,6 +189,39 @@ function HomepageDraft({
           setDraft(value)
         }}
         onUpload={uploadImages}
+        header={(
+          <div className="managed-markdown-heading">
+            {projectId ? (
+              <Button
+                type="text"
+                icon={<ArrowLeft size={16} />}
+                onClick={() => router.push('/admin/mm/projects')}
+              />
+            ) : null}
+            <div>
+              <Typography.Title level={4}>{projectName || t('title')}</Typography.Title>
+              <Typography.Text type="secondary">{tDocument('title')}</Typography.Text>
+            </div>
+          </div>
+        )}
+        headerActions={(
+          <Space size={6}>
+            {dirty ? <Tag color="warning">Unsaved</Tag> : null}
+            {lastSavedAt ? (
+              <Typography.Text type="secondary">{lastSavedAt.toLocaleTimeString()}</Typography.Text>
+            ) : null}
+            <Typography.Text type="secondary">Ctrl/⌘ + S</Typography.Text>
+            <Button
+              type="primary"
+              icon={<Save size={14} />}
+              loading={saving}
+              disabled={!dirty}
+              onClick={() => void save(false)}
+            >
+              {t('actions.save')}
+            </Button>
+          </Space>
+        )}
       />
     </div>
   )

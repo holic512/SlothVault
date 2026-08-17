@@ -10,11 +10,14 @@
   },
   "ProjectsPage": {
     "title": "公开文章库",
-    "desc": "浏览全部公开文章，无需连接钱包或持有任何代币。",
     "loading": "加载中...",
     "error": "加载失败，请稍后重试",
     "empty": "暂无公开项目",
     "categories": "个分类"
+  },
+  "HomepageEmpty": {
+    "title": "首页内容暂未发布",
+    "description": "请联系管理员前往管理后台编辑并发布首页内容。"
   },
   "Article": {
     "unknownAuthor": "历史文章",
@@ -375,7 +378,7 @@
     "siteName": "SlothVault"
   },
   "AdminMM": {
-    "title": "SV管理后台",
+    "title": "管理后台",
     "menu": {
       "dashboard": "仪表盘",
       "homepage": "首页管理",
@@ -961,6 +964,80 @@
         "loading": "加载中...",
         "loadFailed": "加载失败",
         "noData": "暂无数据"
+      }
+    },
+    "users": {
+      "filters": {
+        "keyword": "搜索用户名、邮箱或显示名称"
+      },
+      "actions": {
+        "refresh": "刷新",
+        "create": "新增用户"
+      },
+      "table": {
+        "user": "用户",
+        "email": "邮箱",
+        "role": "身份",
+        "wallet": "钱包",
+        "points": "积分",
+        "status": "状态",
+        "createdAt": "创建时间",
+        "operations": "操作"
+      },
+      "role": {
+        "admin": "管理员",
+        "user": "用户"
+      },
+      "status": {
+        "active": "启用",
+        "disabled": "已停用"
+      },
+      "wallet": {
+        "bound": "已绑定",
+        "unbound": "未绑定"
+      },
+      "points": {
+        "amount": "积分变化",
+        "description": "流水说明",
+        "placeholder": "正数增加，负数扣除",
+        "nonZero": "积分变化不能为 0"
+      },
+      "operations": {
+        "edit": "编辑",
+        "password": "重置密码",
+        "points": "调整积分",
+        "delete": "删除"
+      },
+      "dialog": {
+        "createTitle": "新增用户",
+        "editTitle": "编辑用户",
+        "passwordTitle": "重置密码 · {name}",
+        "username": "用户名",
+        "displayName": "显示名称",
+        "email": "邮箱",
+        "status": "账号状态",
+        "password": "密码",
+        "confirmPassword": "确认密码",
+        "save": "保存",
+        "resetPassword": "确认重置",
+        "cancel": "取消"
+      },
+      "messages": {
+        "created": "用户已创建",
+        "saved": "用户信息已保存",
+        "passwordReset": "密码已重置，原有登录会话已注销",
+        "deleteConfirmTitle": "删除用户",
+        "deleteConfirm": "确认删除用户「{name}」？",
+        "deleteNotice": "删除会停用账号并注销所有会话，历史数据会保留。",
+        "deleted": "用户已停用",
+        "adjustedPoints": "积分已调整并写入流水",
+        "signedOut": "当前管理员密码已重置，请重新登录"
+      },
+      "validation": {
+        "username": "用户名需为 3–32 位字母、数字或下划线",
+        "email": "请输入有效邮箱地址",
+        "password": "密码至少需要 8 位",
+        "confirmPassword": "两次输入的密码不一致"
       }
     },
     "homepage": {

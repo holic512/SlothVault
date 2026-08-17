@@ -2,50 +2,16 @@
  * @file homepage.ts
  * @project SlothVault
  * @module Homepage
- * @description Owns the initial editable homepage content and supplies the enabled content to the public viewer.
- * @logic Seed the default homepage once during database initialization, then read the newest enabled record without mutating from public GET requests.
+ * @description Owns the initial editable homepage record and supplies enabled content to the public viewer.
+ * @logic Seed one empty homepage record during database initialization, then return only meaningful enabled content without mutating from public GET requests.
  * @dependencies Prisma SystemHomepage model, database client contract
- * @index_tags homepage,markdown,initialization,fallback,public
+ * @index_tags homepage,markdown,initialization,empty-content,public
  * @author holic512
  */
 import 'server-only'
 
 import type { AppPrismaClient } from '@/server/database/client'
 import { prisma } from '@/server/prisma'
-
-export const DEFAULT_HOMEPAGE_CONTENT = `
-<div class="sloth-hero-markdown">
-
-# SlothVault
-
-一套克制的 Web2 写作与个人主页系统。文章公开阅读，链上能力只用于可选的版本交易存证。
-
-<div class="sloth-actions">
-  <a class="sloth-btn sloth-btn-primary" href="/project/projectList">浏览文章</a>
-  <a class="sloth-btn sloth-btn-secondary" href="/register">创建账户</a>
-</div>
-
-</div>
-
----
-
-## 为长期写作而设计
-
-<div class="sloth-feature-grid">
-  <div class="sloth-feature-card"><strong>公开文章</strong><span>管理员负责发布，访客无需钱包即可阅读。</span></div>
-  <div class="sloth-feature-card"><strong>个人主页</strong><span>普通用户拥有账户、资料页与可分享的主页地址。</span></div>
-  <div class="sloth-feature-card"><strong>积分与卡密</strong><span>积分余额、完整流水、批量发卡和一次性兑换。</span></div>
-  <div class="sloth-feature-card"><strong>交易存证</strong><span>管理员可用当前钱包签署版本哈希，并公开核验 Solana 交易。</span></div>
-</div>
-
-## 技术底座
-
-- **应用框架**：Next.js 16 App Router + React 19
-- **数据层**：SQLite / PostgreSQL / MySQL + Prisma ORM
-- **短期状态**：进程内存（登录挑战与安全限流）
-- **登录方式**：用户名 / 邮箱 / 密码，或可选的钱包地址签名
-- **链上能力**：Solana Memo 版本交易存证（Mainnet 正式 / Devnet 测试）
-`
 
 export async function ensureInitialHomepage(
   client: Pick<AppPrismaClient, 'systemHomepage'>,
@@ -54,7 +20,7 @@ export async function ensureInitialHomepage(
   if (existing) return false
 
   await client.systemHomepage.create({
-    data: { content: DEFAULT_HOMEPAGE_CONTENT, status: 1 },
+    data: { content: '', status: 1 },
   })
   return true
 }
@@ -67,9 +33,9 @@ export async function getHomepageContent() {
       select: { content: true },
     })
 
-    return homepage?.content || DEFAULT_HOMEPAGE_CONTENT
+    return homepage?.content.trim() || null
   } catch (error) {
-    console.error('[homepage] Database unavailable; using fallback content', error)
-    return DEFAULT_HOMEPAGE_CONTENT
+    console.error('[homepage] Database unavailable; homepage content is unavailable', error)
+    return null
   }
 }

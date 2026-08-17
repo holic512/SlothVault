@@ -13,8 +13,8 @@
 import { useMemo, useState } from 'react'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, App, Button, Card, Empty, Input, Segmented, Skeleton, Space, Switch, Tag, Typography } from 'antd'
-import { Boxes, KeyRound, RefreshCw, RotateCcw, Save, Waypoints } from 'lucide-react'
+import { Alert, App, Button, Card, Empty, Input, Segmented, Skeleton, Space, Switch, Tag, Tooltip, Typography } from 'antd'
+import { Boxes, CircleHelp, KeyRound, RefreshCw, RotateCcw, Save, Waypoints } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { AdminPage, AdminPageActions } from '@/components/admin/admin-page'
@@ -101,6 +101,11 @@ function SettingsForm({ data }: { data: ConfigData }) {
     <AdminPage>
       <AdminPageActions>
         <Space wrap>
+          <Tooltip title={t('tips.content')}>
+            <Button type="text" icon={<CircleHelp size={15} />} aria-label={t('tips.title')}>
+              {t('tips.title')}
+            </Button>
+          </Tooltip>
           <Button
             icon={<RotateCcw size={15} />}
             disabled={!changedKeys.length}
@@ -122,6 +127,7 @@ function SettingsForm({ data }: { data: ConfigData }) {
           >
             {t('actions.refresh')}
           </Button>
+          {changedKeys.length ? <Tag color="warning">{t('unsavedChanges')}</Tag> : null}
           <Button
             type="primary"
             icon={<Save size={15} />}
@@ -133,9 +139,6 @@ function SettingsForm({ data }: { data: ConfigData }) {
           </Button>
         </Space>
       </AdminPageActions>
-
-      <Alert showIcon type="info" message={t('tips.title')} description={t('tips.content')} />
-      {changedKeys.length ? <Tag color="warning">{t('unsavedChanges')}</Tag> : null}
 
       <div className="settings-grid">
         {data.groups.length ? (

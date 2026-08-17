@@ -68,7 +68,7 @@ export function DesignSystemProvider({ children }: { children: ReactNode }) {
             colorBgBase: palette.background,
             colorBgContainer: palette.container,
             colorBorder: palette.border,
-            controlHeight: 38,
+            controlHeight: style === 'saas' ? 34 : 38,
           },
           components: {
             Button: { fontWeight: style === 'saas' ? 600 : 650 },

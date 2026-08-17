@@ -124,9 +124,9 @@
   --sv-radius-lg: 18px;
   --sv-font-body: "Public Sans", sans-serif;
   --sv-font-display: "Public Sans", sans-serif;
-  --sv-admin-control-height: 36px;
-  --sv-admin-radius: 7px;
-  --sv-admin-space: 12px;
+  --sv-admin-control-height: 32px;
+  --sv-admin-radius: 6px;
+  --sv-admin-space: 8px;
   --sv-logo-filter: none;
   --sv-page-background: var(--sv-bg);
   --sv-page-background-size: auto;

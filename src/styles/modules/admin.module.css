@@ -664,19 +664,6 @@
   box-shadow: none;
 }
 
-.root :global(.managed-markdown-toolbar) {
-  display: flex;
-  min-height: 46px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--sv-admin-border);
-  background:
-    linear-gradient(110deg, rgb(var(--sv-primary-rgb), 0.08), transparent 38%),
-    var(--sv-bg-solid);
-}
-
 .root :global(.managed-markdown-heading) {
   display: flex;
   min-width: 0;
@@ -684,20 +671,50 @@
   gap: 8px;
 }
 
+.root :global(.managed-markdown-heading) > div:last-child {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 9px;
+}
+
 .root :global(.managed-markdown-heading) h4:global(.ant-typography) {
+  min-width: 0;
+  flex: 0 1 auto;
   margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 17px;
 }
 
 .root :global(.managed-markdown-heading) :global(.ant-typography-secondary) {
-  display: block;
-  font-size: 11px;
+  display: inline-flex;
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  align-items: center;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.root :global(.managed-markdown-heading) :global(.ant-typography-secondary)::before {
+  width: 1px;
+  height: 12px;
+  margin-right: 9px;
+  background: var(--sv-border-strong);
+  content: '';
 }
 
 .root :global(.settings-grid) {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+.root :global(.settings-card):only-child {
+  grid-column: 1 / -1;
 }
 
 .root :global(.settings-card) {
@@ -732,12 +749,21 @@
 
 .root :global(.settings-fields) {
   display: grid;
-  gap: 12px;
+  gap: 0;
 }
 
 .root :global(.settings-field) {
   display: grid;
-  gap: 6px;
+  grid-template-columns: minmax(150px, 0.9fr) minmax(190px, 1.3fr);
+  gap: 3px 16px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--sv-admin-border) 72%, transparent);
+}
+
+.root :global(.settings-field):last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
 }
 
 .root :global(.settings-field-label) code {
@@ -748,8 +774,24 @@
 }
 
 .root :global(.settings-field) > :global(.ant-typography) {
-  min-height: 34px;
+  min-height: 0;
+  grid-column: 1;
+  grid-row: 2;
   font-size: 12px;
+  line-height: 1.4;
+}
+
+.root :global(.settings-field) > :global(.ant-input),
+.root :global(.settings-field) > :global(.ant-input-affix-wrapper),
+.root :global(.settings-field) > :global(.ant-segmented),
+.root :global(.settings-field) > :global(.ant-switch) {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+.root :global(.settings-field) > :global(.ant-switch) {
+  justify-self: start;
 }
 
 .root :global(.backup-grid) {
@@ -1076,6 +1118,25 @@
     grid-template-columns: 1fr;
   }
 
+  .root :global(.settings-field) {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding: 10px 0;
+  }
+
+  .root :global(.settings-field) > :global(.ant-typography) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .root :global(.settings-field) > :global(.ant-input),
+  .root :global(.settings-field) > :global(.ant-input-affix-wrapper),
+  .root :global(.settings-field) > :global(.ant-segmented),
+  .root :global(.settings-field) > :global(.ant-switch) {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
   .root :global(.backup-grid) {
     grid-template-columns: 1fr;
   }
@@ -1112,11 +1173,6 @@
   }
 
   .root :global(.note-writing-toolbar) {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .root :global(.managed-markdown-toolbar) {
     align-items: stretch;
     flex-direction: column;
   }

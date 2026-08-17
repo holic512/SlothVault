@@ -10,11 +10,14 @@
   },
   "ProjectsPage": {
     "title": "Publications",
-    "desc": "Browse every public article collection. No wallet or token is required to read.",
     "loading": "Loading...",
     "error": "Failed to load, please try again later",
     "empty": "No public projects yet",
     "categories": "categories"
+  },
+  "HomepageEmpty": {
+    "title": "Homepage content is not available yet",
+    "description": "Please contact an administrator to edit and publish the homepage."
   },
   "Article": {
     "unknownAuthor": "Legacy article",
@@ -375,7 +378,7 @@
     "siteName": "SlothVault"
   },
   "AdminMM": {
-    "title": "SVAdmin",
+    "title": "Admin Dashboard",
     "menu": {
       "dashboard": "Dashboard",
       "homepage": "Homepage Management",
@@ -961,6 +964,80 @@
         "loading": "Loading...",
         "loadFailed": "Load failed",
         "noData": "No data"
+      }
+    },
+    "users": {
+      "filters": {
+        "keyword": "Search username, email, or display name"
+      },
+      "actions": {
+        "refresh": "Refresh",
+        "create": "New User"
+      },
+      "table": {
+        "user": "User",
+        "email": "Email",
+        "role": "Role",
+        "wallet": "Wallet",
+        "points": "Points",
+        "status": "Status",
+        "createdAt": "Created At",
+        "operations": "Operations"
+      },
+      "role": {
+        "admin": "Administrator",
+        "user": "User"
+      },
+      "status": {
+        "active": "Active",
+        "disabled": "Disabled"
+      },
+      "wallet": {
+        "bound": "Bound",
+        "unbound": "Not bound"
+      },
+      "points": {
+        "amount": "Point change",
+        "description": "Ledger description",
+        "placeholder": "Positive to add, negative to deduct",
+        "nonZero": "Point change cannot be zero"
+      },
+      "operations": {
+        "edit": "Edit",
+        "password": "Reset Password",
+        "points": "Adjust Points",
+        "delete": "Delete"
+      },
+      "dialog": {
+        "createTitle": "New User",
+        "editTitle": "Edit User",
+        "passwordTitle": "Reset Password · {name}",
+        "username": "Username",
+        "displayName": "Display Name",
+        "email": "Email",
+        "status": "Account Status",
+        "password": "Password",
+        "confirmPassword": "Confirm Password",
+        "save": "Save",
+        "resetPassword": "Reset Password",
+        "cancel": "Cancel"
+      },
+      "messages": {
+        "created": "User created",
+        "saved": "User details saved",
+        "passwordReset": "Password reset and active sessions revoked",
+        "deleteConfirmTitle": "Delete User",
+        "deleteConfirm": "Delete user \"{name}\"?",
+        "deleteNotice": "Deleting disables the account and revokes every session; historical data is retained.",
+        "deleted": "User disabled",
+        "adjustedPoints": "Points adjusted and recorded in the ledger",
+        "signedOut": "Your administrator password was reset. Please sign in again."
+      },
+      "validation": {
+        "username": "Use 3–32 letters, numbers, or underscores",
+        "email": "Enter a valid email address",
+        "password": "Password must contain at least 8 characters",
+        "confirmPassword": "Passwords do not match"
       }
     },
     "homepage": {

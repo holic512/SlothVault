@@ -1,6 +1,8 @@
+'use client'
+
 import { Card, Empty, Typography } from 'antd'
 import { ArrowUpRight, CalendarClock, FolderTree } from 'lucide-react'
-import { getTranslations } from 'next-intl/server'
+import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 
 import { PublicNavbar } from '@/components/shell/public-navbar'
@@ -16,8 +18,8 @@ export type ProjectListItem = {
   updatedAt: string
 }
 
-export async function ProjectListView({ projects }: { projects: ProjectListItem[] }) {
-  const t = await getTranslations('ProjectsPage')
+export function ProjectListView({ projects }: { projects: ProjectListItem[] }) {
+  const t = useTranslations('ProjectsPage')
 
   return (
     <div className={`${publicStyles.root} public-page projects-page`}>
@@ -26,7 +28,6 @@ export async function ProjectListView({ projects }: { projects: ProjectListItem[
         <div className="projects-heading">
           <Typography.Text className="projects-kicker">Library</Typography.Text>
           <Typography.Title>{t('title')}</Typography.Title>
-          <Typography.Paragraph type="secondary">{t('desc')}</Typography.Paragraph>
         </div>
 
         {projects.length ? (

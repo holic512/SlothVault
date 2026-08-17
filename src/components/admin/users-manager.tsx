@@ -4,17 +4,18 @@
  * @file users-manager.tsx
  * @project SlothVault
  * @module User Administration
- * @description Lists conventional users and provides auditable administrator point adjustments.
- * @logic Query bounded user pages, keep passwords/sessions private, and submit every non-zero point change with a required ledger description.
- * @dependencies Ant Design, React Query, admin user APIs
- * @index_tags admin,users,points,ledger
+ * @description Provides administrator-managed user creation, profile and access updates, reversible account deletion, password resets, and point adjustments.
+ * @logic Query bounded user pages, keep credentials private, submit identity mutations through protected APIs, revoke sessions after access changes, and retain the point ledger workflow.
+ * @dependencies Ant Design, React Query, next-intl, admin user APIs
+ * @index_tags admin,users,crud,password,points,ledger
  * @author holic512
  */
 import { useState } from 'react'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { App, Button, Form, Input, InputNumber, Modal, Space, Table } from 'antd'
-import { Coins, RefreshCw, Search, UserRound } from 'lucide-react'
+import { App, Button, Form, Input, InputNumber, Modal, Select, Space, Table, Tag } from 'antd'
+import { Coins, KeyRound, Pencil, Plus, RefreshCw, Search, Trash2, UserRound } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 import { AdminPage, AdminPageActions, AdminTablePanel, AdminToolbar } from '@/components/admin/admin-page'
 import { apiFetch } from '@/lib/api-client'
@@ -31,14 +32,35 @@ type UserRow = {
   createdAt: string
 }
 
+type UserFormValues = {
+  username: string
+  email?: string
+  displayName?: string
+  password?: string
+  confirmPassword?: string
+  status: number
+}
+
+type PasswordFormValues = {
+  password: string
+  confirmPassword: string
+}
+
 export function UsersManager() {
+  const t = useTranslations('AdminMM.users')
   const queryClient = useQueryClient()
-  const { message } = App.useApp()
+  const { message, modal } = App.useApp()
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [keyword, setKeyword] = useState('')
   const [adjusting, setAdjusting] = useState<UserRow | null>(null)
-  const [form] = Form.useForm<{ amount: number; description: string }>()
+  const [editing, setEditing] = useState<UserRow | null>(null)
+  const [resettingPassword, setResettingPassword] = useState<UserRow | null>(null)
+  const [formOpen, setFormOpen] = useState(false)
+  const [pointsForm] = Form.useForm<{ amount: number; description: string }>()
+  const [userForm] = Form.useForm<UserFormValues>()
+  const [passwordForm] = Form.useForm<PasswordFormValues>()
+
   const query = useQuery({
     queryKey: ['admin-users', page, pageSize, keyword],
     queryFn: () => {
@@ -47,25 +69,124 @@ export function UsersManager() {
       return apiFetch<{ list: UserRow[]; total: number }>(`/api/admin/mm/users?${params}`)
     },
   })
-  const mutation = useMutation({
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+
+  const pointsMutation = useMutation({
     mutationFn: (values: { amount: number; description: string }) =>
       apiFetch('/api/admin/mm/users/points', {
         method: 'POST',
         body: JSON.stringify({ ...values, userId: Number(adjusting!.id) }),
       }),
     onSuccess: async () => {
-      message.success('积分已调整并写入流水')
+      message.success(t('messages.adjustedPoints'))
       setAdjusting(null)
-      form.resetFields()
-      await queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+      pointsForm.resetFields()
+      await refresh()
     },
     onError: (error) => message.error(error.message),
   })
 
+  const saveUserMutation = useMutation({
+    mutationFn: (values: UserFormValues) => {
+      if (editing) {
+        return apiFetch<UserRow>(`/api/admin/mm/users/${editing.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            username: values.username,
+            email: values.email || null,
+            displayName: values.displayName || null,
+            status: values.status,
+          }),
+        })
+      }
+      return apiFetch<UserRow>('/api/admin/mm/users', {
+        method: 'POST',
+        body: JSON.stringify({
+          username: values.username,
+          email: values.email || undefined,
+          displayName: values.displayName || undefined,
+          password: values.password,
+        }),
+      })
+    },
+    onSuccess: async () => {
+      message.success(editing ? t('messages.saved') : t('messages.created'))
+      setFormOpen(false)
+      setEditing(null)
+      userForm.resetFields()
+      await refresh()
+    },
+    onError: (error) => message.error(error.message),
+  })
+
+  const passwordMutation = useMutation({
+    mutationFn: (values: PasswordFormValues) =>
+      apiFetch<{ signedOut: boolean }>(`/api/admin/mm/users/${resettingPassword!.id}/password`, {
+        method: 'POST',
+        body: JSON.stringify({ password: values.password }),
+      }),
+    onSuccess: async ({ signedOut }) => {
+      setResettingPassword(null)
+      passwordForm.resetFields()
+      if (signedOut) {
+        message.success(t('messages.signedOut'))
+        window.location.assign('/admin/auth/login')
+        return
+      }
+      message.success(t('messages.passwordReset'))
+      await refresh()
+    },
+    onError: (error) => message.error(error.message),
+  })
+
+  const openCreate = () => {
+    setEditing(null)
+    userForm.setFieldsValue({ username: '', email: '', displayName: '', password: '', confirmPassword: '', status: 1 })
+    setFormOpen(true)
+  }
+  const openEdit = (user: UserRow) => {
+    setEditing(user)
+    userForm.setFieldsValue({
+      username: user.username,
+      email: user.email || '',
+      displayName: user.displayName || '',
+      status: user.status,
+      password: '',
+      confirmPassword: '',
+    })
+    setFormOpen(true)
+  }
+  const openPasswordReset = (user: UserRow) => {
+    setResettingPassword(user)
+    passwordForm.resetFields()
+  }
+  const confirmDisable = (user: UserRow) => {
+    modal.confirm({
+      title: t('messages.deleteConfirmTitle'),
+      content: (
+        <Space direction="vertical" size={4}>
+          <span>{t('messages.deleteConfirm', { name: user.displayName || user.username })}</span>
+          <span>{t('messages.deleteNotice')}</span>
+        </Space>
+      ),
+      okText: t('operations.delete'),
+      okButtonProps: { danger: true },
+      cancelText: t('dialog.cancel'),
+      onOk: async () => {
+        await apiFetch(`/api/admin/mm/users/${user.id}`, { method: 'DELETE' })
+        message.success(t('messages.deleted'))
+        await refresh()
+      },
+    })
+  }
+
   return (
     <AdminPage>
       <AdminPageActions>
-        <Button icon={<RefreshCw size={15} />} onClick={() => void query.refetch()}>刷新</Button>
+        <Space>
+          <Button icon={<RefreshCw size={15} />} onClick={() => void query.refetch()}>{t('actions.refresh')}</Button>
+          <Button type="primary" icon={<Plus size={15} />} onClick={openCreate}>{t('actions.create')}</Button>
+        </Space>
       </AdminPageActions>
 
       <AdminToolbar>
@@ -73,7 +194,7 @@ export function UsersManager() {
           allowClear
           value={keyword}
           prefix={<Search size={14} />}
-          placeholder="搜索用户名、邮箱或显示名称"
+          placeholder={t('filters.keyword')}
           onChange={(event) => setKeyword(event.target.value)}
           onSearch={() => setPage(1)}
         />
@@ -93,7 +214,7 @@ export function UsersManager() {
           }}
           columns={[
             {
-              title: '用户',
+              title: t('table.user'),
               minWidth: 180,
               render: (_value, user) => (
                 <Space>
@@ -102,15 +223,37 @@ export function UsersManager() {
                 </Space>
               ),
             },
-            { title: '邮箱', dataIndex: 'email', render: (value) => value || '—' },
-            { title: '身份', dataIndex: 'role', width: 90, render: (value) => value === 'ADMIN' ? '管理员' : '用户' },
-            { title: '钱包', dataIndex: 'walletAddress', width: 100, render: (value) => value ? '已绑定' : '未绑定' },
-            { title: '积分', dataIndex: 'pointsBalance', width: 100, align: 'right' },
+            { title: t('table.email'), dataIndex: 'email', render: (value) => value || '—' },
             {
-              title: '操作',
-              width: 120,
+              title: t('table.role'),
+              dataIndex: 'role',
+              width: 96,
+              render: (value) => value === 'ADMIN' ? <Tag color="blue">{t('role.admin')}</Tag> : t('role.user'),
+            },
+            { title: t('table.wallet'), dataIndex: 'walletAddress', width: 100, render: (value) => value ? t('wallet.bound') : t('wallet.unbound') },
+            { title: t('table.points'), dataIndex: 'pointsBalance', width: 100, align: 'right' },
+            {
+              title: t('table.status'),
+              dataIndex: 'status',
+              width: 100,
+              render: (value) => value === 1
+                ? <Tag color="success">{t('status.active')}</Tag>
+                : <Tag color="warning">{t('status.disabled')}</Tag>,
+            },
+            { title: t('table.createdAt'), dataIndex: 'createdAt', width: 170, render: (value) => new Date(value).toLocaleString() },
+            {
+              title: t('table.operations'),
+              fixed: 'right',
+              width: 280,
               render: (_value, user) => (
-                <Button type="link" icon={<Coins size={14} />} onClick={() => setAdjusting(user)}>调整积分</Button>
+                <Space size={4}>
+                  <Button type="link" icon={<Pencil size={14} />} onClick={() => openEdit(user)}>{t('operations.edit')}</Button>
+                  <Button type="link" icon={<KeyRound size={14} />} onClick={() => openPasswordReset(user)}>{t('operations.password')}</Button>
+                  <Button type="link" icon={<Coins size={14} />} onClick={() => setAdjusting(user)}>{t('operations.points')}</Button>
+                  {user.role !== 'ADMIN' && user.status === 1 ? (
+                    <Button danger type="link" icon={<Trash2 size={14} />} onClick={() => confirmDisable(user)}>{t('operations.delete')}</Button>
+                  ) : null}
+                </Space>
               ),
             },
           ]}
@@ -118,23 +261,109 @@ export function UsersManager() {
       </AdminTablePanel>
 
       <Modal
-        open={Boolean(adjusting)}
-        title={`调整积分 · ${adjusting?.displayName || adjusting?.username || ''}`}
-        okText="确认调整"
-        cancelText="取消"
-        confirmLoading={mutation.isPending}
-        onCancel={() => setAdjusting(null)}
-        onOk={() => form.submit()}
+        open={formOpen}
+        title={editing ? t('dialog.editTitle') : t('dialog.createTitle')}
+        okText={t('dialog.save')}
+        cancelText={t('dialog.cancel')}
+        confirmLoading={saveUserMutation.isPending}
+        onCancel={() => setFormOpen(false)}
+        onOk={() => userForm.submit()}
       >
-        <Form form={form} layout="vertical" onFinish={(values) => mutation.mutate(values)}>
+        <Form form={userForm} layout="vertical" onFinish={(values) => saveUserMutation.mutate(values)}>
+          <Form.Item
+            name="username"
+            label={t('dialog.username')}
+            rules={[{ required: true }, { pattern: /^[A-Za-z0-9_]{3,32}$/, message: t('validation.username') }]}
+          >
+            <Input autoComplete="username" />
+          </Form.Item>
+          <Form.Item name="displayName" label={t('dialog.displayName')}>
+            <Input maxLength={80} />
+          </Form.Item>
+          <Form.Item name="email" label={t('dialog.email')} rules={[{ type: 'email', message: t('validation.email') }]}>
+            <Input autoComplete="email" />
+          </Form.Item>
+          {!editing ? (
+            <>
+              <Form.Item name="password" label={t('dialog.password')} rules={[{ required: true }, { min: 8, message: t('validation.password') }]}>
+                <Input.Password autoComplete="new-password" />
+              </Form.Item>
+              <Form.Item
+                name="confirmPassword"
+                label={t('dialog.confirmPassword')}
+                dependencies={['password']}
+                rules={[{ required: true }, ({ getFieldValue }) => ({
+                  validator: async (_, value) => {
+                    if (value === getFieldValue('password')) return
+                    throw new Error(t('validation.confirmPassword'))
+                  },
+                })]}
+              >
+                <Input.Password autoComplete="new-password" />
+              </Form.Item>
+            </>
+          ) : null}
+          {editing ? (
+            <Form.Item name="status" label={t('dialog.status')}>
+              <Select
+                disabled={editing.role === 'ADMIN'}
+                options={[
+                  { value: 1, label: t('status.active') },
+                  { value: 0, label: t('status.disabled') },
+                ]}
+              />
+            </Form.Item>
+          ) : null}
+        </Form>
+      </Modal>
+
+      <Modal
+        open={Boolean(resettingPassword)}
+        title={t('dialog.passwordTitle', { name: resettingPassword?.displayName || resettingPassword?.username || '' })}
+        okText={t('dialog.resetPassword')}
+        cancelText={t('dialog.cancel')}
+        confirmLoading={passwordMutation.isPending}
+        onCancel={() => setResettingPassword(null)}
+        onOk={() => passwordForm.submit()}
+      >
+        <Form form={passwordForm} layout="vertical" onFinish={(values) => passwordMutation.mutate(values)}>
+          <Form.Item name="password" label={t('dialog.password')} rules={[{ required: true }, { min: 8, message: t('validation.password') }]}>
+            <Input.Password autoComplete="new-password" />
+          </Form.Item>
+          <Form.Item
+            name="confirmPassword"
+            label={t('dialog.confirmPassword')}
+            dependencies={['password']}
+            rules={[{ required: true }, ({ getFieldValue }) => ({
+              validator: async (_, value) => {
+                if (value === getFieldValue('password')) return
+                throw new Error(t('validation.confirmPassword'))
+              },
+            })]}
+          >
+            <Input.Password autoComplete="new-password" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        open={Boolean(adjusting)}
+        title={`${t('operations.points')} · ${adjusting?.displayName || adjusting?.username || ''}`}
+        okText={t('operations.points')}
+        cancelText={t('dialog.cancel')}
+        confirmLoading={pointsMutation.isPending}
+        onCancel={() => setAdjusting(null)}
+        onOk={() => pointsForm.submit()}
+      >
+        <Form form={pointsForm} layout="vertical" onFinish={(values) => pointsMutation.mutate(values)}>
           <Form.Item
             name="amount"
-            label="积分变化"
-            rules={[{ required: true }, { validator: async (_, value) => value === 0 ? Promise.reject(new Error('不能为 0')) : undefined }]}
+            label={t('points.amount')}
+            rules={[{ required: true }, { validator: async (_, value) => value === 0 ? Promise.reject(new Error(t('points.nonZero'))) : undefined }]}
           >
-            <InputNumber min={-1000000} max={1000000} className="full-width" placeholder="正数增加，负数扣除" />
+            <InputNumber min={-1000000} max={1000000} className="full-width" placeholder={t('points.placeholder')} />
           </Form.Item>
-          <Form.Item name="description" label="流水说明" rules={[{ required: true, min: 2, max: 255 }]}>
+          <Form.Item name="description" label={t('points.description')} rules={[{ required: true, min: 2, max: 255 }]}>
             <Input.TextArea rows={3} />
           </Form.Item>
         </Form>

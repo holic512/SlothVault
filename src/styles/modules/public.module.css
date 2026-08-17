@@ -5,7 +5,7 @@
  * @description Scopes the public shell, homepage, publication library, account, and profile layouts to the public page boundary.
  * @logic Compose public navigation and editorial content surfaces responsively under one local module root.
  * @dependencies SlothVault design tokens, feature markup
- * @index_tags css-module,public,homepage,profile,account
+ * @index_tags css-module,public,homepage,empty-state,profile,account
  * @author holic512
  */
 
@@ -113,6 +113,31 @@
   border-radius: var(--sv-radius) !important;
   background: var(--sv-bg-solid) !important;
   box-shadow: var(--sv-surface-shadow);
+}
+
+.root :global(.homepage-empty) {
+  display: grid;
+  min-height: calc(100vh - 168px);
+  max-width: 560px;
+  place-content: center;
+  justify-items: center;
+  margin: 0 auto;
+  padding: clamp(28px, 5vw, 48px) 20px;
+  text-align: center;
+}
+
+.root :global(.homepage-empty) h1 {
+  margin: 0;
+  font-size: clamp(1.7rem, 4vw, 2.5rem);
+  letter-spacing: -0.045em;
+}
+
+.root :global(.homepage-empty) p {
+  max-width: 34rem;
+  margin: 12px 0 0;
+  color: var(--sv-text-muted);
+  font-size: 15px;
+  line-height: 1.7;
 }
 
 .root :global(.projects-page) {
@@ -568,6 +593,11 @@
   .root :global(.homepage-markdown) {
     padding: 24px 18px;
     border-radius: 18px;
+  }
+
+  .root :global(.homepage-empty) {
+    min-height: calc(100vh - 112px);
+    padding-inline: 8px;
   }
 
   .root :global(.projects-main) {

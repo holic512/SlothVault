@@ -4,14 +4,14 @@
  * @file markdown-content-editor.tsx
  * @project SlothVault
  * @module Mixed Document Editing Surface
- * @description Provides a fast Markdown workflow with safe HTML layout snippets, exact public-preview rendering, image upload, and visible content constraints.
- * @logic Keep the editor controlled, insert reusable mixed-content structures at the selection, validate pasted/dropped images, and share the sanitized viewer for preview parity.
+ * @description Provides a fast Markdown workflow with safe HTML layout snippets, exact public-preview rendering, image upload, visible content constraints, and optional host toolbar content.
+ * @logic Keep the editor controlled, insert reusable mixed-content structures at the selection, validate pasted/dropped images, share the sanitized viewer for preview parity, and let host workflows consolidate their title and actions into the editor header.
  * @dependencies @uiw/react-md-editor, next/dynamic, next-intl, next-themes, lucide-react, MarkdownView
  * @index_tags markdown,html,editor,preview,upload,validation,accessibility
  * @author holic512
  */
 import { useId, useMemo, useRef, useState } from 'react'
-import type { ClipboardEvent, DragEvent } from 'react'
+import type { ClipboardEvent, DragEvent, ReactNode } from 'react'
 
 import type { ICommand } from '@uiw/react-md-editor'
 import { commands, TextAreaTextApi } from '@uiw/react-md-editor'
@@ -57,11 +57,15 @@ export function MarkdownContentEditor({
   onChange,
   onUpload,
   readOnly = false,
+  header,
+  headerActions,
 }: {
   value: string
   onChange: (value: string) => void
   onUpload: (files: File[]) => Promise<string[]>
   readOnly?: boolean
+  header?: ReactNode
+  headerActions?: ReactNode
 }) {
   const t = useTranslations('DocumentEditor')
   const locale = useLocale()
@@ -290,23 +294,28 @@ export function MarkdownContentEditor({
       />
 
       <div className="document-editor-intro">
-        <div className="document-editor-mode">
-          <span className="document-editor-mode-icon" aria-hidden="true"><Braces size={15} /></span>
-          <span>
-            <strong>{t('title')}</strong>
-            <small>{t('description')}</small>
-          </span>
+        {header || (
+          <div className="document-editor-mode">
+            <span className="document-editor-mode-icon" aria-hidden="true"><Braces size={15} /></span>
+            <span>
+              <strong>{t('title')}</strong>
+              <small>{t('description')}</small>
+            </span>
+          </div>
+        )}
+        <div className="document-editor-intro-actions">
+          {headerActions}
+          <button
+            className="document-editor-guide-toggle"
+            type="button"
+            aria-expanded={guideOpen}
+            aria-controls={guideId}
+            onClick={() => setGuideOpen((current) => !current)}
+          >
+            <CircleHelp size={14} />
+            {guideOpen ? t('hideGuide') : t('showGuide')}
+          </button>
         </div>
-        <button
-          className="document-editor-guide-toggle"
-          type="button"
-          aria-expanded={guideOpen}
-          aria-controls={guideId}
-          onClick={() => setGuideOpen((current) => !current)}
-        >
-          <CircleHelp size={14} />
-          {guideOpen ? t('hideGuide') : t('showGuide')}
-        </button>
       </div>
 
       {guideOpen ? (

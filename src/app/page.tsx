@@ -2,12 +2,14 @@
  * @file page.tsx
  * @project SlothVault
  * @module Public Homepage
- * @description Renders the administrator-managed Markdown homepage in the shared public shell.
- * @logic Read the newest enabled homepage at request time and fall back to a truthful built-in introduction.
- * @dependencies homepage service, MarkdownView, PublicNavbar
- * @index_tags homepage,public,markdown
+ * @description Renders the administrator-managed Markdown homepage or a concise empty state in the shared public shell.
+ * @logic Read enabled homepage content at request time, render it when meaningful, and otherwise direct visitors to the administrator for publication.
+ * @dependencies homepage service, MarkdownView, PublicNavbar, next-intl
+ * @index_tags homepage,public,markdown,empty-state
  * @author holic512
  */
+import { getTranslations } from 'next-intl/server'
+
 import { MarkdownView } from '@/components/markdown/markdown-view'
 import { PublicNavbar } from '@/components/shell/public-navbar'
 import { getHomepageContent } from '@/server/services/homepage'
@@ -16,14 +18,24 @@ import publicStyles from '@/styles/modules/public.module.css'
 export const dynamic = 'force-dynamic'
 
 export default async function HomePage() {
-  const content = await getHomepageContent()
+  const [content, t] = await Promise.all([
+    getHomepageContent(),
+    getTranslations('HomepageEmpty'),
+  ])
 
   return (
     <div className={`${publicStyles.root} public-page`}>
       <PublicNavbar />
       <main className="homepage-main">
         <div className="content-container content-container--reading">
-          <MarkdownView content={content} className="homepage-markdown" />
+          {content ? (
+            <MarkdownView content={content} className="homepage-markdown" />
+          ) : (
+            <section className="homepage-empty" aria-labelledby="homepage-empty-title">
+              <h1 id="homepage-empty-title">{t('title')}</h1>
+              <p>{t('description')}</p>
+            </section>
+          )}
         </div>
       </main>
     </div>
