@@ -28,6 +28,7 @@ describe('SQLite provider bootstrap', () => {
         '20260721000000_web2_identity_points',
         '20260812000000_project_version_releases',
         '20260813000000_release_transaction_evidence',
+        '20260818000000_contract_evidence',
       ]) {
         bootstrapDatabase.exec(readFileSync(resolve(process.cwd(), `prisma/providers/sqlite/migrations/${migration}/migration.sql`), 'utf8'))
       }
@@ -56,6 +57,24 @@ describe('SQLite provider bootstrap', () => {
       })
       expect(evidence.id).toBeTypeOf('number')
       expect(evidence.slot).toBe(2n ** 40n)
+
+      const subject = await prisma.user.create({ data: { username: 'subject', password: 'hash' } })
+      const contract = await prisma.contract.create({
+        data: {
+          contractId: '6ed9ce9d-0ec6-44d3-9ed1-94dcab18fb3f',
+          issuerUserId: admin.id,
+          subjectUserId: subject.id,
+          title: 'Evidence contract',
+          body: 'Frozen body\n',
+          bodyHash: 'a'.repeat(64),
+          partyCommitment: 'b'.repeat(64),
+        },
+      })
+      expect(contract.id).toBeTypeOf('number')
+      const audit = await prisma.contractAdminAudit.create({
+        data: { contractId: contract.id, actorUserId: admin.id, action: 'DRAFT_CREATED' },
+      })
+      expect(audit.id).toBeTypeOf('number')
     } finally {
       await prisma?.$disconnect()
       if (bootstrapDatabase.open) bootstrapDatabase.close()

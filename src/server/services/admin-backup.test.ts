@@ -39,6 +39,10 @@ function backupWithReservation(options: {
     fileManagements: [],
     systemConfigs: [],
     systemHomepages: [],
+    contracts: [],
+    contractAdminAudits: [],
+    contractCredentials: [],
+    contractCredentialAttempts: [],
     releaseCredentials: [],
     releaseCredentialAttempts: [],
     merkleTrees: [

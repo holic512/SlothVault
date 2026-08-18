@@ -85,11 +85,15 @@ export function validateBackupRelations(data: BackupData) {
   const projectHomes = mapById('projectHome', data.projectHomes)
   const noteInfos = mapById('noteInfo', data.noteInfos)
   mapById('noteContent', data.noteContents)
-  mapById('fileManagement', data.fileManagements)
+  const fileManagements = mapById('fileManagement', data.fileManagements)
   mapById('systemConfig', data.systemConfigs)
   mapById('systemHomepage', data.systemHomepages)
   const releaseCredentials = mapById('releaseCredential', data.releaseCredentials)
   mapById('releaseCredentialAttempt', data.releaseCredentialAttempts)
+  const contracts = mapById('contract', data.contracts)
+  mapById('contractAdminAudit', data.contractAdminAudits)
+  const contractCredentials = mapById('contractCredential', data.contractCredentials)
+  mapById('contractCredentialAttempt', data.contractCredentialAttempts)
 
   if (data.users.length > 0 && !data.users.some((user) => user.role === 'ADMIN')) {
     invalidBackup('user collection does not contain an administrator')
@@ -158,6 +162,41 @@ export function validateBackupRelations(data: BackupData) {
     assertReference(releaseCredentials, item.credentialId, 'releaseCredentialAttempt credentialId')
     assertReference(users, item.issuerUserId, 'releaseCredentialAttempt issuerUserId')
   }
+  for (const item of data.contracts) {
+    assertReference(users, item.issuerUserId, 'contract issuerUserId')
+    assertReference(users, item.subjectUserId, 'contract subjectUserId')
+    if (item.attachmentFileId) assertReference(fileManagements, item.attachmentFileId, 'contract attachmentFileId')
+    if (Boolean(item.attachmentFileId) !== Boolean(item.attachmentHash)) {
+      invalidBackup(`contract ${item.id} has partial attachment metadata`)
+    }
+    if (item.status === 0 && (item.installationId || item.issuedAt || item.signedAt || item.contractHash)) {
+      invalidBackup(`draft contract ${item.id} has frozen metadata`)
+    }
+    if (item.status === 1 && (!item.installationId || !item.issuedAt || item.signedAt || item.contractHash)) {
+      invalidBackup(`pending contract ${item.id} has invalid signature metadata`)
+    }
+    if (item.status === 2 && (!item.installationId || !item.issuedAt || !item.signedAt || !item.contractHash)) {
+      invalidBackup(`signed contract ${item.id} is missing immutable hash metadata`)
+    }
+    if (item.status === -1 && (!item.issuedAt || !item.declinedAt || item.contractHash)) {
+      invalidBackup(`declined contract ${item.id} has invalid response metadata`)
+    }
+    if (item.status === -2 && !item.cancelledAt) {
+      invalidBackup(`cancelled contract ${item.id} is missing cancellation metadata`)
+    }
+  }
+  for (const item of data.contractCredentials) {
+    assertReference(contracts, item.contractId, 'contractCredential contractId')
+    assertReference(users, item.issuerUserId, 'contractCredential issuerUserId')
+  }
+  for (const item of data.contractAdminAudits) {
+    assertReference(contracts, item.contractId, 'contractAdminAudit contractId')
+    assertReference(users, item.actorUserId, 'contractAdminAudit actorUserId')
+  }
+  for (const item of data.contractCredentialAttempts) {
+    assertReference(contractCredentials, item.credentialId, 'contractCredentialAttempt credentialId')
+    assertReference(users, item.issuerUserId, 'contractCredentialAttempt issuerUserId')
+  }
 
   const homeProjects = new Set<string>()
   for (const home of projectHomes.values()) {
@@ -196,6 +235,22 @@ export function validateBackupRelations(data: BackupData) {
     'email',
     data.users.filter((item): item is typeof item & { email: string } => item.email !== null),
     (item) => item.email,
+  )
+  assertUniqueField('contractId', data.contracts, (item) => item.contractId)
+  assertUniqueField(
+    'contract attachmentFileId',
+    data.contracts.filter((item): item is typeof item & { attachmentFileId: string } => item.attachmentFileId !== null),
+    (item) => item.attachmentFileId,
+  )
+  assertUniqueField(
+    'contractCredential contract/network',
+    data.contractCredentials,
+    (item) => `${item.contractId}:${item.network}`,
+  )
+  assertUniqueField(
+    'contractCredential transactionSignature',
+    data.contractCredentials.filter((item): item is typeof item & { transactionSignature: string } => item.transactionSignature !== null),
+    (item) => item.transactionSignature,
   )
   assertUniqueField(
     'walletAddress',

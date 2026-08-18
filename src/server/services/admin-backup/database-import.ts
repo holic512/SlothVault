@@ -114,6 +114,9 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
       fileManagements: new Map<string, number>(),
       systemConfigs: new Map<string, number>(),
       systemHomepages: new Map<string, number>(),
+      contracts: new Map<string, number>(),
+      contractCredentials: new Map<string, number>(),
+      contractCredentialAttempts: new Map<string, number>(),
       releaseCredentials: new Map<string, number>(),
       releaseCredentialAttempts: new Map<string, number>(),
     }
@@ -389,6 +392,97 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
       ids.systemHomepages.set(item.id, created.id)
     }
 
+    for (const item of data.contracts) {
+      const record = await tx.contract.create({
+        data: {
+          contractId: item.contractId,
+          installationId: item.installationId,
+          issuerUserId: requiredMappedId(ids.users, item.issuerUserId, 'contract issuerUserId'),
+          subjectUserId: requiredMappedId(ids.users, item.subjectUserId, 'contract subjectUserId'),
+          title: item.title,
+          body: item.body,
+          bodyHash: item.bodyHash,
+          contractHash: item.contractHash,
+          attachmentFileId: item.attachmentFileId
+            ? requiredMappedId(ids.fileManagements, item.attachmentFileId, 'contract attachmentFileId')
+            : null,
+          attachmentHash: item.attachmentHash,
+          partyCommitment: item.partyCommitment,
+          status: item.status,
+          issuedAt: item.issuedAt ? new Date(item.issuedAt) : null,
+          signedAt: item.signedAt ? new Date(item.signedAt) : null,
+          signedSessionId: item.signedSessionId,
+          signedIp: item.signedIp,
+          signedUserAgent: item.signedUserAgent,
+          declinedAt: item.declinedAt ? new Date(item.declinedAt) : null,
+          declineReason: item.declineReason,
+          cancelledAt: item.cancelledAt ? new Date(item.cancelledAt) : null,
+          createdAt: new Date(item.createdAt),
+          updatedAt: new Date(item.updatedAt),
+        },
+      })
+      ids.contracts.set(item.id, record.id)
+    }
+
+    let contractAdminAuditCount = 0
+    for (const item of data.contractAdminAudits) {
+      await tx.contractAdminAudit.create({
+        data: {
+          contractId: requiredMappedId(ids.contracts, item.contractId, 'contractAdminAudit contractId'),
+          actorUserId: requiredMappedId(ids.users, item.actorUserId, 'contractAdminAudit actorUserId'),
+          action: item.action,
+          createdAt: new Date(item.createdAt),
+        },
+      })
+      contractAdminAuditCount += 1
+    }
+
+    for (const item of data.contractCredentials) {
+      const record = await tx.contractCredential.create({
+        data: {
+          contractId: requiredMappedId(ids.contracts, item.contractId, 'contractCredential contractId'),
+          issuerUserId: requiredMappedId(ids.users, item.issuerUserId, 'contractCredential issuerUserId'),
+          network: item.network,
+          signerAddress: item.signerAddress,
+          memo: item.memo,
+          transactionSignature: item.transactionSignature,
+          status: item.status,
+          slot: item.slot ? BigInt(item.slot) : null,
+          blockTime: item.blockTime ? new Date(item.blockTime) : null,
+          feeLamports: item.feeLamports ? BigInt(item.feeLamports) : null,
+          finalizedAt: item.finalizedAt ? new Date(item.finalizedAt) : null,
+          lastVerifiedAt: item.lastVerifiedAt ? new Date(item.lastVerifiedAt) : null,
+          createdAt: new Date(item.createdAt),
+          updatedAt: new Date(item.updatedAt),
+        },
+      })
+      ids.contractCredentials.set(item.id, record.id)
+    }
+
+    for (const item of data.contractCredentialAttempts) {
+      const record = await tx.contractCredentialAttempt.create({
+        data: {
+          credentialId: requiredMappedId(ids.contractCredentials, item.credentialId, 'contractCredentialAttempt credentialId'),
+          issuerUserId: requiredMappedId(ids.users, item.issuerUserId, 'contractCredentialAttempt issuerUserId'),
+          signerAddress: item.signerAddress,
+          memo: item.memo,
+          messageHash: item.messageHash,
+          recentBlockhash: item.recentBlockhash,
+          lastValidBlockHeight: BigInt(item.lastValidBlockHeight),
+          transactionSignature: item.transactionSignature,
+          status: item.status,
+          failureCode: item.failureCode,
+          failureMessage: item.failureMessage,
+          expiresAt: new Date(item.expiresAt),
+          submittedAt: item.submittedAt ? new Date(item.submittedAt) : null,
+          finalizedAt: item.finalizedAt ? new Date(item.finalizedAt) : null,
+          createdAt: new Date(item.createdAt),
+          updatedAt: new Date(item.updatedAt),
+        },
+      })
+      ids.contractCredentialAttempts.set(item.id, record.id)
+    }
+
     for (const item of data.releaseCredentials) {
       const record = await tx.releaseCredential.create({
         data: {
@@ -474,6 +568,10 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
         fileManagements: ids.fileManagements.size,
         systemConfigs: ids.systemConfigs.size,
         systemHomepages: ids.systemHomepages.size,
+        contracts: ids.contracts.size,
+        contractAdminAudits: contractAdminAuditCount,
+        contractCredentials: ids.contractCredentials.size,
+        contractCredentialAttempts: ids.contractCredentialAttempts.size,
         releaseCredentials: ids.releaseCredentials.size,
         releaseCredentialAttempts: ids.releaseCredentialAttempts.size,
       },

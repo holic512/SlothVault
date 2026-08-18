@@ -57,6 +57,7 @@ export const BUSINESS_TYPE_CONFIG = {
   UserAvatar: { dir: 'user-avatar', imagesOnly: true },
   NoteAttachment: { dir: 'note-attachment', imagesOnly: false },
   HomeworkFile: { dir: 'homework', imagesOnly: false },
+  ContractAttachment: { dir: 'contract-attachment', imagesOnly: false },
   Markdown: { dir: 'markdown', imagesOnly: true },
   TempFile: { dir: 'temp', imagesOnly: false },
   Other: { dir: 'other', imagesOnly: false },
@@ -358,14 +359,14 @@ export function fileDto(file: FileRecordLike) {
     businessType: file.businessType,
     status: file.status,
     createTime: file.createTime,
-    url: `/${file.filePath}`,
+    url: file.businessType === 'ContractAttachment' ? null : `/${file.filePath}`,
   }
 }
 
 export function uploadedFileDto(file: FileRecordLike) {
   return {
     id: file.id.toString(),
-    url: `/${file.filePath}`,
+    url: file.businessType === 'ContractAttachment' ? null : `/${file.filePath}`,
     originalName: file.originalName,
     fileName: file.fileName,
     filePath: file.filePath,
@@ -432,6 +433,34 @@ export async function getAdminFile(id: number) {
   const file = await prisma.fileManagement.findUnique({ where: { id } })
   if (!file) throw new HttpError('Not Found', 404, 404)
   return fileDto(file)
+}
+
+export async function readManagedFile(id: number) {
+  const file = await prisma.fileManagement.findFirst({
+    where: { id, status: 1 },
+  })
+  if (!file) throw new HttpError('Managed file not found', 404, 404)
+  try {
+    return {
+      file,
+      buffer: await readFile(resolveStoredUploadPath(file.filePath)),
+    }
+  } catch (error) {
+    if (nodeErrorHasCode(error, 'ENOENT')) {
+      throw new HttpError('Managed file content is missing', 409, 409)
+    }
+    throw error
+  }
+}
+
+async function assertFileIsNotContractAttachment(id: number) {
+  const contract = await prisma.contract.findUnique({
+    where: { attachmentFileId: id },
+    select: { contractId: true },
+  })
+  if (contract) {
+    throw new HttpError('Contract attachments cannot be changed or deleted', 409, 409)
+  }
 }
 
 export async function uploadFiles(request: Request, options: UploadFilesOptions) {
@@ -506,6 +535,7 @@ export async function uploadUserAvatar(request: Request) {
 }
 
 export async function updateFileBusinessType(id: number, businessType: BusinessType) {
+  await assertFileIsNotContractAttachment(id)
   try {
     return await prisma.fileManagement.update({
       where: { id },
@@ -518,6 +548,7 @@ export async function updateFileBusinessType(id: number, businessType: BusinessT
 }
 
 export async function softDeleteFile(id: number) {
+  await assertFileIsNotContractAttachment(id)
   try {
     return await prisma.fileManagement.update({
       where: { id },
@@ -541,6 +572,7 @@ async function restoreStagedFile(stagedPath: string, originalPath: string) {
 }
 
 export async function hardDeleteFile(id: number) {
+  await assertFileIsNotContractAttachment(id)
   const file = await prisma.fileManagement.findUnique({ where: { id } })
   if (!file) throw new HttpError('Not Found', 404, 404)
 
@@ -586,6 +618,11 @@ export async function hardDeleteFile(id: number) {
 }
 
 export async function batchSoftDelete(ids: number[]) {
+  const linked = await prisma.contract.findFirst({
+    where: { attachmentFileId: { in: ids } },
+    select: { contractId: true },
+  })
+  if (linked) throw new HttpError('Contract attachments cannot be changed or deleted', 409, 409)
   return prisma.fileManagement.updateMany({
     where: { id: { in: ids } },
     data: { status: 0 },
@@ -615,6 +652,9 @@ export async function inspectPublicUpload(pathSegments: string[]) {
   }
 
   const safeSegments = pathSegments.map(decodePublicSegment)
+  if (safeSegments[0] === BUSINESS_TYPE_CONFIG.ContractAttachment.dir) {
+    throw new HttpError('Access denied', 403, 403)
+  }
   const candidate = resolveWithinUploads(...safeSegments)
 
   let realUploadRoot: string

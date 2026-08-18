@@ -1,10 +1,10 @@
 // @file prisma/providers/postgresql/schema.prisma
 // @project SlothVault
 // @module PostgreSQL persistence model
-// @description Defines the flat, domain-prefixed PostgreSQL schema for publishing, user identity, points, gift cards, and version transaction evidence.
-// @logic Preserve the provider-neutral logical model while applying PostgreSQL-native types and binding optional Solana evidence to immutable releases.
+// @description Defines the flat, domain-prefixed PostgreSQL schema for publishing, user identity, contracts, points, gift cards, and transaction evidence.
+// @logic Preserve the provider-neutral logical model while applying PostgreSQL-native types and binding optional Solana evidence to immutable releases and frozen contracts.
 // @dependencies Prisma ORM 7.3.0, @prisma/adapter-pg 7.3.0
-// @index_tags prisma, postgresql, schema, persistence, installation
+// @index_tags prisma, postgresql, schema, persistence, installation, contracts
 // @author holic512
 
 generator client {
@@ -54,6 +54,11 @@ model User {
   redeemedGiftCards      GiftCard[]          @relation("GiftCardRedemption")
   releaseCredentials     ReleaseCredential[] @relation("ReleaseCredentialIssuer")
   credentialAttempts     ReleaseCredentialAttempt[] @relation("ReleaseCredentialAttemptIssuer")
+  issuedContracts       Contract[]          @relation("ContractIssuer")
+  receivedContracts     Contract[]          @relation("ContractSubject")
+  contractCredentials   ContractCredential[] @relation("ContractCredentialIssuer")
+  contractCredentialAttempts ContractCredentialAttempt[] @relation("ContractCredentialAttemptIssuer")
+  contractAdminAudits  ContractAdminAudit[] @relation("ContractAdminAuditActor")
 
   @@index([role, status], map: "idx_auth_user_role_status")
   @@map("auth_user")
@@ -245,8 +250,110 @@ model FileManagement {
   businessType String   @map("business_type") @db.VarChar(50)
   status       Int      @default(1) @db.SmallInt
   createTime   DateTime @default(now()) @map("create_time") @db.Timestamptz(3)
+  contractAttachment Contract? @relation("ContractAttachment")
 
   @@map("files_file_management")
+}
+
+model Contract {
+  id               Int       @id @default(autoincrement())
+  contractId       String    @unique(map: "uq_contract_contract_id") @map("contract_id") @db.Uuid
+  installationId   String?   @map("installation_id") @db.Uuid
+  issuerUserId     Int       @map("issuer_user_id")
+  subjectUserId    Int       @map("subject_user_id")
+  title            String    @db.VarChar(255)
+  body             String    @db.Text
+  bodyHash         String    @map("body_hash") @db.Char(64)
+  contractHash     String?   @map("contract_hash") @db.Char(64)
+  attachmentFileId Int?      @unique(map: "uq_contract_attachment_file_id") @map("attachment_file_id")
+  attachmentHash   String?   @map("attachment_hash") @db.Char(64)
+  partyCommitment  String    @map("party_commitment") @db.Char(64)
+  status           Int       @default(0) @db.SmallInt
+  issuedAt         DateTime? @map("issued_at") @db.Timestamptz(3)
+  signedAt         DateTime? @map("signed_at") @db.Timestamptz(3)
+  signedSessionId  String?   @map("signed_session_id") @db.Uuid
+  signedIp         String?   @map("signed_ip") @db.VarChar(255)
+  signedUserAgent  String?   @map("signed_user_agent") @db.Text
+  declinedAt       DateTime? @map("declined_at") @db.Timestamptz(3)
+  declineReason    String?   @map("decline_reason") @db.VarChar(500)
+  cancelledAt      DateTime? @map("cancelled_at") @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+  issuerUser       User      @relation("ContractIssuer", fields: [issuerUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  subjectUser      User      @relation("ContractSubject", fields: [subjectUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  attachmentFile   FileManagement? @relation("ContractAttachment", fields: [attachmentFileId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  credentials      ContractCredential[]
+  adminAudits      ContractAdminAudit[]
+
+  @@index([subjectUserId, status], map: "idx_contract_subject_status")
+  @@index([issuerUserId, createdAt], map: "idx_contract_issuer_created")
+  @@map("contract")
+}
+
+model ContractAdminAudit {
+  id          Int      @id @default(autoincrement())
+  contractId  Int      @map("contract_id")
+  actorUserId Int      @map("actor_user_id")
+  action      String   @db.VarChar(64)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  contract    Contract @relation(fields: [contractId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  actorUser   User     @relation("ContractAdminAuditActor", fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([contractId, createdAt], map: "idx_contract_admin_audit_contract_created")
+  @@index([actorUserId, createdAt], map: "idx_contract_admin_audit_actor_created")
+  @@map("contract_admin_audit")
+}
+
+model ContractCredential {
+  id                   Int      @id @default(autoincrement())
+  contractId           Int      @map("contract_id")
+  issuerUserId         Int      @map("issuer_user_id")
+  network              String   @db.VarChar(20)
+  signerAddress        String   @map("signer_address") @db.VarChar(64)
+  memo                 String   @db.Text
+  transactionSignature String?  @unique(map: "uq_contract_credential_transaction_signature") @map("transaction_signature") @db.VarChar(128)
+  status               Int      @default(0) @db.SmallInt
+  slot                 BigInt?  @db.BigInt
+  blockTime            DateTime? @map("block_time") @db.Timestamptz(3)
+  feeLamports          BigInt?  @map("fee_lamports") @db.BigInt
+  finalizedAt          DateTime? @map("finalized_at") @db.Timestamptz(3)
+  lastVerifiedAt       DateTime? @map("last_verified_at") @db.Timestamptz(3)
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+  contract             Contract @relation(fields: [contractId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  issuerUser           User     @relation("ContractCredentialIssuer", fields: [issuerUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  attempts             ContractCredentialAttempt[]
+
+  @@unique([contractId, network], map: "uq_contract_credential_contract_network")
+  @@index([network, status], map: "idx_contract_credential_network_status")
+  @@index([signerAddress], map: "idx_contract_credential_signer")
+  @@map("contract_credential")
+}
+
+model ContractCredentialAttempt {
+  id                   Int      @id @default(autoincrement())
+  credentialId         Int      @map("credential_id")
+  issuerUserId         Int      @map("issuer_user_id")
+  signerAddress        String   @map("signer_address") @db.VarChar(64)
+  memo                 String   @db.Text
+  messageHash          String   @map("message_hash") @db.Char(64)
+  recentBlockhash      String   @map("recent_blockhash") @db.VarChar(100)
+  lastValidBlockHeight BigInt   @map("last_valid_block_height") @db.BigInt
+  transactionSignature String?  @map("transaction_signature") @db.VarChar(128)
+  status               Int      @default(0) @db.SmallInt
+  failureCode          String?  @map("failure_code") @db.VarChar(64)
+  failureMessage       String?  @map("failure_message") @db.VarChar(500)
+  expiresAt            DateTime @map("expires_at") @db.Timestamptz(3)
+  submittedAt          DateTime? @map("submitted_at") @db.Timestamptz(3)
+  finalizedAt          DateTime? @map("finalized_at") @db.Timestamptz(3)
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+  credential           ContractCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  issuerUser           User     @relation("ContractCredentialAttemptIssuer", fields: [issuerUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([credentialId, status], map: "idx_contract_credential_attempt_status")
+  @@index([transactionSignature], map: "idx_contract_credential_attempt_signature")
+  @@map("contract_credential_attempt")
 }
 
 model SystemConfig {

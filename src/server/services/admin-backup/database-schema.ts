@@ -2,8 +2,8 @@
  * @file database-schema.ts
  * @project SlothVault
  * @module Admin Database Backup Schema
- * @description Defines the portable 2.2 database-backup shape with version transaction evidence and legacy cNFT input compatibility.
- * @logic Validate active collections strictly, accept deprecated Tree/cNFT arrays only for ignore accounting, and retain 2.0/2.1 import envelopes.
+ * @description Defines the portable 2.3 database-backup shape with contract and version transaction evidence plus legacy cNFT input compatibility.
+ * @logic Validate active collections strictly, retain frozen contract snapshots and evidence attempts, accept deprecated Tree/cNFT arrays only for ignore accounting, and retain prior import envelopes.
  * @dependencies Zod, Node path rules, backup constants
  * @index_tags admin,backup,database,schema,zod,portable
  * @author holic512
@@ -363,6 +363,78 @@ const releaseCredentialAttemptSchema = z.object({
   updatedAt: dateStringSchema,
 }).strict()
 
+const contractSchema = z.object({
+  id: idStringSchema,
+  contractId: z.string().uuid(),
+  installationId: z.string().uuid().nullable(),
+  issuerUserId: idStringSchema,
+  subjectUserId: idStringSchema,
+  title: nonEmptyString(255),
+  body: z.string().min(1).max(100_000),
+  bodyHash: z.string().regex(/^[a-f0-9]{64}$/),
+  contractHash: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
+  attachmentFileId: nullableIdStringSchema,
+  attachmentHash: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
+  partyCommitment: z.string().regex(/^[a-f0-9]{64}$/),
+  status: z.union([z.literal(-2), z.literal(-1), z.literal(0), z.literal(1), z.literal(2)]),
+  issuedAt: dateStringSchema.nullable(),
+  signedAt: dateStringSchema.nullable(),
+  signedSessionId: z.string().uuid().nullable(),
+  signedIp: nullableString(255),
+  signedUserAgent: nullableString(4_000),
+  declinedAt: dateStringSchema.nullable(),
+  declineReason: nullableString(500),
+  cancelledAt: dateStringSchema.nullable(),
+  createdAt: dateStringSchema,
+  updatedAt: dateStringSchema,
+}).strict()
+
+const contractCredentialSchema = z.object({
+  id: idStringSchema,
+  contractId: idStringSchema,
+  issuerUserId: idStringSchema,
+  network: z.enum(['mainnet', 'devnet']),
+  signerAddress: nonEmptyString(64),
+  memo: z.string(),
+  transactionSignature: nullableString(128),
+  status: z.union([z.literal(-1), z.literal(0), z.literal(1), z.literal(2)]),
+  slot: bigintStringSchema.nullable(),
+  blockTime: dateStringSchema.nullable(),
+  feeLamports: bigintStringSchema.nullable(),
+  finalizedAt: dateStringSchema.nullable(),
+  lastVerifiedAt: dateStringSchema.nullable(),
+  createdAt: dateStringSchema,
+  updatedAt: dateStringSchema,
+}).strict()
+
+const contractCredentialAttemptSchema = z.object({
+  id: idStringSchema,
+  credentialId: idStringSchema,
+  issuerUserId: idStringSchema,
+  signerAddress: nonEmptyString(64),
+  memo: z.string(),
+  messageHash: z.string().regex(/^[a-f0-9]{64}$/),
+  recentBlockhash: nonEmptyString(100),
+  lastValidBlockHeight: bigintStringSchema,
+  transactionSignature: nullableString(128),
+  status: z.union([z.literal(-1), z.literal(0), z.literal(1), z.literal(2)]),
+  failureCode: nullableString(64),
+  failureMessage: nullableString(500),
+  expiresAt: dateStringSchema,
+  submittedAt: dateStringSchema.nullable(),
+  finalizedAt: dateStringSchema.nullable(),
+  createdAt: dateStringSchema,
+  updatedAt: dateStringSchema,
+}).strict()
+
+const contractAdminAuditSchema = z.object({
+  id: idStringSchema,
+  contractId: idStringSchema,
+  actorUserId: idStringSchema,
+  action: nonEmptyString(64),
+  createdAt: dateStringSchema,
+}).strict()
+
 export const backupDataSchema = z.object({
   users: z.array(userSchema).max(DATABASE_RECORD_LIMIT).default([]),
   pointTransactions: z.array(pointTransactionSchema).max(DATABASE_RECORD_LIMIT).default([]),
@@ -378,6 +450,10 @@ export const backupDataSchema = z.object({
   fileManagements: z.array(fileManagementSchema).max(DATABASE_RECORD_LIMIT),
   systemConfigs: z.array(systemConfigSchema).max(DATABASE_RECORD_LIMIT),
   systemHomepages: z.array(systemHomepageSchema).max(DATABASE_RECORD_LIMIT),
+  contracts: z.array(contractSchema).max(DATABASE_RECORD_LIMIT).default([]),
+  contractAdminAudits: z.array(contractAdminAuditSchema).max(DATABASE_RECORD_LIMIT).default([]),
+  contractCredentials: z.array(contractCredentialSchema).max(DATABASE_RECORD_LIMIT).default([]),
+  contractCredentialAttempts: z.array(contractCredentialAttemptSchema).max(DATABASE_RECORD_LIMIT).default([]),
   releaseCredentials: z.array(releaseCredentialSchema).max(DATABASE_RECORD_LIMIT).default([]),
   releaseCredentialAttempts: z.array(releaseCredentialAttemptSchema).max(DATABASE_RECORD_LIMIT).default([]),
   merkleTrees: z.array(merkleTreeSchema).max(DATABASE_RECORD_LIMIT).optional().default([]),
@@ -387,7 +463,7 @@ export const backupDataSchema = z.object({
 export const databaseImportPayloadSchema = z.object({
   data: backupDataSchema,
   mode: z.enum(['insert', 'overwrite']).optional().default('insert'),
-  version: z.enum(['2.0.0', '2.1.0', '2.2.0']).optional().default('2.0.0'),
+  version: z.enum(['2.0.0', '2.1.0', '2.2.0', '2.3.0', '2.4.0']).optional().default('2.0.0'),
 }).strict()
 
 export type BackupData = z.infer<typeof backupDataSchema>

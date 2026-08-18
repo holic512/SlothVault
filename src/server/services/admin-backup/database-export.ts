@@ -2,8 +2,8 @@
  * @file database-export.ts
  * @project SlothVault
  * @module Admin Database Backup Export
- * @description Exports a relation-closed portable 2.2 snapshot of content, accounts, configuration, and version transaction evidence.
- * @logic Read one repeatable transaction snapshot, close relations, serialize evidence BigInts and release identity, then validate the portable result.
+ * @description Exports a relation-closed portable 2.4 snapshot of content, accounts, contracts, configuration, and transaction evidence.
+ * @logic Read one repeatable transaction snapshot, close relations, serialize evidence BigInts and frozen contract identity, then validate the portable result.
  * @dependencies database unit-of-work, Prisma, HTTP JSON serialization, backup schema and validation
  * @index_tags admin,backup,database,export,snapshot,relations
  * @author holic512
@@ -101,15 +101,23 @@ export async function exportDatabaseBackup() {
       where: { isDeleted: false, noteInfoId: { in: noteInfoIds } },
     })
 
-    const [fileManagements, systemConfigs, systemHomepages, releaseCredentials] = await Promise.all([
+    const [fileManagements, systemConfigs, systemHomepages, releaseCredentials, contracts] = await Promise.all([
       tx.fileManagement.findMany({ where: { status: 1 } }),
       tx.systemConfig.findMany(),
       tx.systemHomepage.findMany({ where: { isDeleted: false } }),
       tx.releaseCredential.findMany({ where: { projectVersionId: { in: projectVersionIds } } }),
+      tx.contract.findMany(),
     ])
     const credentialIds = releaseCredentials.map((item) => item.id)
-    const releaseCredentialAttempts = await tx.releaseCredentialAttempt.findMany({
-      where: { credentialId: { in: credentialIds } },
+    const contractIds = contracts.map((item) => item.id)
+    const [releaseCredentialAttempts, contractCredentials, contractAdminAudits] = await Promise.all([
+      tx.releaseCredentialAttempt.findMany({ where: { credentialId: { in: credentialIds } } }),
+      tx.contractCredential.findMany({ where: { contractId: { in: contractIds } } }),
+      tx.contractAdminAudit.findMany({ where: { contractId: { in: contractIds } } }),
+    ])
+    const contractCredentialIds = contractCredentials.map((item) => item.id)
+    const contractCredentialAttempts = await tx.contractCredentialAttempt.findMany({
+      where: { credentialId: { in: contractCredentialIds } },
     })
 
     return {
@@ -127,6 +135,10 @@ export async function exportDatabaseBackup() {
       fileManagements,
       systemConfigs: systemConfigs.filter((item) => !DEPRECATED_CONFIG_KEYS.has(item.configKey)),
       systemHomepages,
+      contracts,
+      contractAdminAudits,
+      contractCredentials,
+      contractCredentialAttempts,
       releaseCredentials,
       releaseCredentialAttempts,
     }
@@ -223,6 +235,47 @@ export async function exportDatabaseBackup() {
       ...item,
       id: id.toString(),
     })),
+    contracts: snapshot.contracts.map(({
+      id,
+      issuerUserId,
+      subjectUserId,
+      attachmentFileId,
+      ...item
+    }) => ({
+      ...item,
+      id: id.toString(),
+      issuerUserId: issuerUserId.toString(),
+      subjectUserId: subjectUserId.toString(),
+      attachmentFileId: attachmentFileId?.toString() ?? null,
+    })),
+    contractAdminAudits: snapshot.contractAdminAudits.map(({
+      id,
+      contractId,
+      actorUserId,
+      ...item
+    }) => ({
+      ...item,
+      id: id.toString(),
+      contractId: contractId.toString(),
+      actorUserId: actorUserId.toString(),
+    })),
+    contractCredentials: snapshot.contractCredentials.map(({ id, contractId, issuerUserId, ...item }) => ({
+      ...item,
+      id: id.toString(),
+      contractId: contractId.toString(),
+      issuerUserId: issuerUserId.toString(),
+    })),
+    contractCredentialAttempts: snapshot.contractCredentialAttempts.map(({
+      id,
+      credentialId,
+      issuerUserId,
+      ...item
+    }) => ({
+      ...item,
+      id: id.toString(),
+      credentialId: credentialId.toString(),
+      issuerUserId: issuerUserId.toString(),
+    })),
     releaseCredentials: snapshot.releaseCredentials.map(({ id, projectVersionId, issuerUserId, ...item }) => ({
       ...item,
       id: id.toString(),
@@ -252,7 +305,7 @@ export async function exportDatabaseBackup() {
   void _legacyCompressedNfts
 
   return {
-    version: '2.2.0',
+    version: '2.4.0',
     exportedAt,
     data: activeData,
   }

@@ -14,7 +14,7 @@ import { createContext, useContext, type ReactNode } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
 import { Avatar, Button, Space, Typography } from 'antd'
-import { ArrowUpRight, Coins, KeyRound, LayoutDashboard, ShieldCheck, UserRound } from 'lucide-react'
+import { ArrowUpRight, Coins, FileSignature, KeyRound, LayoutDashboard, ShieldCheck, UserRound } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -27,6 +27,7 @@ const accountSections = [
   { href: '/account', label: '账户概览', icon: LayoutDashboard },
   { href: '/account/profile', label: '个人资料', icon: UserRound },
   { href: '/account/security', label: '安全与登录', icon: ShieldCheck },
+  { href: '/account/contracts', label: '我的合同', icon: FileSignature },
   { href: '/account/points', label: '积分中心', icon: Coins },
 ]
 

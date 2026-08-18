@@ -17,6 +17,10 @@ const expectedTables = {
   NoteInfo: 'docs_note_info',
   NoteContent: 'docs_note_content',
   FileManagement: 'files_file_management',
+  Contract: 'contract',
+  ContractAdminAudit: 'contract_admin_audit',
+  ContractCredential: 'contract_credential',
+  ContractCredentialAttempt: 'contract_credential_attempt',
   SystemConfig: 'system_config',
   SystemHomepage: 'system_homepage',
   SystemInstallation: 'system_installation',
@@ -107,6 +111,12 @@ describe('provider schema parity', () => {
     expect(models.get('ReleaseCredential')).toContain('projectVersionId Int @map("project_version_id")')
     expect(models.get('ReleaseCredential')).toContain('transactionSignature String? @unique')
     expect(models.get('ReleaseCredentialAttempt')).toContain('lastValidBlockHeight BigInt @map("last_valid_block_height")')
+    expect(models.get('Contract')).toContain('contractId String @unique')
+    expect(models.get('Contract')).toContain('bodyHash String @map("body_hash")')
+    expect(models.get('Contract')).toContain('partyCommitment String @map("party_commitment")')
+    expect(models.get('ContractCredential')).toContain('contractId Int @map("contract_id")')
+    expect(models.get('ContractAdminAudit')).toContain('actorUserId Int @map("actor_user_id")')
+    expect(models.get('ContractCredentialAttempt')).toContain('lastValidBlockHeight BigInt @map("last_valid_block_height")')
     expect(models.has('SystemInstallation')).toBe(true)
     expect(models.has('RuntimeLock')).toBe(false)
   })
@@ -128,6 +138,10 @@ describe('provider schema parity', () => {
       'FileManagement',
       'SystemConfig',
       'SystemHomepage',
+      'Contract',
+      'ContractAdminAudit',
+      'ContractCredential',
+      'ContractCredentialAttempt',
       'ReleaseCredential',
       'ReleaseCredentialAttempt',
     ]

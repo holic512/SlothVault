@@ -10,24 +10,21 @@
  */
 import 'server-only'
 
-import { createHash } from 'node:crypto'
+import { PublicKey, Transaction } from '@solana/web3.js'
 
 import {
-  PublicKey,
-  Transaction,
-  TransactionInstruction,
-} from '@solana/web3.js'
-import bs58 from 'bs58'
-
-import { HttpError } from '@/server/http/errors'
+  MEMO_PROGRAM_ID,
+  assertSignedMemoTransaction,
+  buildMemoTransaction,
+  memoTransactionMessageHash,
+  parseSignedMemoTransaction,
+  serializePreparedMemoTransaction,
+} from '@/server/services/solana-memo-transaction'
 import type { SolanaNetwork } from '@/server/services/system-config'
 
 export const RELEASE_EVIDENCE_PROTOCOL = 'slothvault.release'
 export const RELEASE_EVIDENCE_PROTOCOL_VERSION = 1
-export const MEMO_PROGRAM_ID = new PublicKey(
-  'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr',
-)
-const MAX_TRANSACTION_BYTES = 1_232
+export { MEMO_PROGRAM_ID }
 
 export type ReleaseEvidenceMemo = {
   protocol: typeof RELEASE_EVIDENCE_PROTOCOL
@@ -59,44 +56,19 @@ export function buildEvidenceTransaction(input: {
   blockhash: string
   lastValidBlockHeight: number
 }) {
-  return new Transaction({
-    feePayer: input.signer,
-    blockhash: input.blockhash,
-    lastValidBlockHeight: input.lastValidBlockHeight,
-  }).add(
-    new TransactionInstruction({
-      programId: MEMO_PROGRAM_ID,
-      keys: [{ pubkey: input.signer, isSigner: true, isWritable: false }],
-      data: Buffer.from(input.memo, 'utf8'),
-    }),
-  )
+  return buildMemoTransaction(input)
 }
 
 export function evidenceMessageHash(transaction: Transaction) {
-  return createHash('sha256').update(transaction.serializeMessage()).digest('hex')
+  return memoTransactionMessageHash(transaction)
 }
 
 export function serializePreparedEvidence(transaction: Transaction) {
-  return transaction
-    .serialize({ requireAllSignatures: false, verifySignatures: false })
-    .toString('base64')
+  return serializePreparedMemoTransaction(transaction)
 }
 
 export function parseSignedEvidence(value: string) {
-  let bytes: Buffer
-  try {
-    bytes = Buffer.from(value, 'base64')
-  } catch {
-    throw new HttpError('Invalid signed evidence transaction', 400, 400)
-  }
-  if (!bytes.length || bytes.length > MAX_TRANSACTION_BYTES) {
-    throw new HttpError('Invalid signed evidence transaction', 400, 400)
-  }
-  try {
-    return Transaction.from(bytes)
-  } catch {
-    throw new HttpError('Invalid signed evidence transaction', 400, 400)
-  }
+  return parseSignedMemoTransaction(value)
 }
 
 export function assertSignedEvidenceTransaction(input: {
@@ -105,27 +77,5 @@ export function assertSignedEvidenceTransaction(input: {
   signerAddress: string
   messageHash: string
 }) {
-  const { transaction } = input
-  const signer = new PublicKey(input.signerAddress)
-  if (evidenceMessageHash(transaction) !== input.messageHash) {
-    throw new HttpError('Signed transaction message does not match the prepared evidence', 409, 409)
-  }
-  if (!transaction.feePayer?.equals(signer) || transaction.instructions.length !== 1) {
-    throw new HttpError('Signed transaction has an invalid evidence structure', 400, 400)
-  }
-  const instruction = transaction.instructions[0]
-  const validSigner = instruction.keys.length === 1 &&
-    instruction.keys[0].pubkey.equals(signer) &&
-    instruction.keys[0].isSigner
-  if (
-    !instruction.programId.equals(MEMO_PROGRAM_ID) ||
-    !validSigner ||
-    instruction.data.toString('utf8') !== input.memo
-  ) {
-    throw new HttpError('Signed transaction contains unexpected instructions', 400, 400)
-  }
-  if (!transaction.verifySignatures(true) || !transaction.signature) {
-    throw new HttpError('Evidence transaction signature is invalid', 400, 400)
-  }
-  return bs58.encode(transaction.signature)
+  return assertSignedMemoTransaction(input)
 }
