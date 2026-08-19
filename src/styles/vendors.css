@@ -184,9 +184,17 @@
   line-height: 1.45;
 }
 
-.markdown-editor-shell .w-md-editor {
+.markdown-editor-shell--fill .w-md-editor {
   height: 100% !important;
   min-height: 680px;
+  border: 0;
+  border-radius: 0;
+  background: var(--sv-bg-solid);
+  box-shadow: none;
+}
+
+.markdown-editor-shell--content-fit .w-md-editor {
+  min-height: 0;
   border: 0;
   border-radius: 0;
   background: var(--sv-bg-solid);

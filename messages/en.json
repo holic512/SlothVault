@@ -898,6 +898,8 @@
         "restoreDefaultLogo": "Restore Default"
       },
       "logo": {
+        "cardTitle": "System Logo",
+        "fieldLabel": "Current logo",
         "previewAlt": "System logo preview",
         "uploadHint": "JPG, PNG, GIF, and WebP are supported, up to 2MB. Save to apply the change.",
         "pendingDefault": "Default pending"

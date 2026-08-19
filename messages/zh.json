@@ -898,6 +898,8 @@
         "restoreDefaultLogo": "恢复默认"
       },
       "logo": {
+        "cardTitle": "系统 Logo",
+        "fieldLabel": "当前 Logo",
         "previewAlt": "系统 Logo 预览",
         "uploadHint": "支持 JPG、PNG、GIF、WebP，单个文件最大 2MB。上传后请点击保存以生效。",
         "pendingDefault": "待恢复默认"

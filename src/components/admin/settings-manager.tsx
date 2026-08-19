@@ -18,7 +18,7 @@ import { CircleHelp, ImageUp, KeyRound, RefreshCw, RotateCcw, Save, ServerCog, W
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 
-import { AdminPage, AdminPageActions } from '@/components/admin/admin-page'
+import { AdminPage } from '@/components/admin/admin-page'
 import { apiFetch } from '@/lib/api-client'
 
 type ConfigItem = {
@@ -138,7 +138,7 @@ function SettingsForm({ data }: { data: ConfigData }) {
         <span className="settings-field-label">
           <span>
             {sensitive ? <KeyRound size={13} /> : null}
-            <code>{config.key}</code>
+            {config.kind === 'image' ? t('logo.fieldLabel') : <code>{config.key}</code>}
           </span>
           {sensitive && config.configured ? <Tag color="success">Configured</Tag> : null}
         </span>
@@ -243,8 +243,11 @@ function SettingsForm({ data }: { data: ConfigData }) {
 
   return (
     <AdminPage>
-      <AdminPageActions>
-        <Space wrap>
+      <Tabs
+        className="settings-tabs"
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        tabBarExtraContent={<Space className="settings-tabs-actions" wrap size={6}>
           <Tooltip title={t('tips.content')}>
             <Button type="text" icon={<CircleHelp size={15} />} aria-label={t('tips.title')}>
               {t('tips.title')}
@@ -277,13 +280,7 @@ function SettingsForm({ data }: { data: ConfigData }) {
           >
             {t('actions.save')}
           </Button>
-        </Space>
-      </AdminPageActions>
-
-      <Tabs
-        className="settings-tabs"
-        activeKey={activeTab}
-        onChange={setActiveTab}
+        </Space>}
         items={tabs.map((tab) => ({
           key: tab.key,
           label: <span className="settings-tab-label">{tab.icon}<span>{tab.label}</span></span>,
@@ -296,7 +293,7 @@ function SettingsForm({ data }: { data: ConfigData }) {
               </div>
             </div>
             {tab.key === 'rpc' ? <Alert className="settings-rpc-notice" showIcon type="info" message={t('tabs.rpc.noticeTitle')} description={t('tabs.rpc.noticeDescription')} action={<Button size="small" loading={networkTestMutation.isPending} onClick={() => networkTestMutation.mutate()}>{t('tabs.rpc.test')}</Button>} /> : null}
-            {tab.configs.length ? <Card className="settings-card" title={<span className="settings-card-title">{tab.icon}{t('tabs.fieldsCount', { count: tab.configs.length })}</span>}><div className="settings-fields">{tab.configs.map(renderConfig)}</div></Card> : <Empty description={t('empty')} />}
+            {tab.configs.length ? <Card className="settings-card" title={<span className="settings-card-title">{tab.icon}{tab.key === 'branding' ? t('logo.cardTitle') : t('tabs.fieldsCount', { count: tab.configs.length })}</span>}><div className="settings-fields">{tab.configs.map(renderConfig)}</div></Card> : <Empty description={t('empty')} />}
           </section>,
         }))}
       />

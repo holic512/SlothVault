@@ -4,8 +4,8 @@
  * @file markdown-content-editor.tsx
  * @project SlothVault
  * @module Mixed Document Editing Surface
- * @description Provides a fast Markdown workflow with safe HTML layout snippets, exact public-preview rendering, image upload, visible content constraints, and optional host toolbar content.
- * @logic Keep the editor controlled, insert reusable mixed-content structures at the selection, validate pasted/dropped images, share the sanitized viewer for preview parity, and let host workflows consolidate their title and actions into the editor header.
+ * @description Provides a fast Markdown workflow with safe HTML layout snippets, exact public-preview rendering, image upload, visible content constraints, optional host toolbar content, and a content-fit layout option.
+ * @logic Keep the editor controlled, insert reusable mixed-content structures at the selection, validate pasted/dropped images, share the sanitized viewer for preview parity, let host workflows consolidate their title and actions into the editor header, and grow content-fit surfaces without a fixed maximum height.
  * @dependencies @uiw/react-md-editor, next/dynamic, next-intl, next-themes, lucide-react, MarkdownView
  * @index_tags markdown,html,editor,preview,upload,validation,accessibility
  * @author holic512
@@ -57,6 +57,7 @@ export function MarkdownContentEditor({
   onChange,
   onUpload,
   readOnly = false,
+  fitContent = false,
   header,
   headerActions,
 }: {
@@ -64,6 +65,7 @@ export function MarkdownContentEditor({
   onChange: (value: string) => void
   onUpload: (files: File[]) => Promise<string[]>
   readOnly?: boolean
+  fitContent?: boolean
   header?: ReactNode
   headerActions?: ReactNode
 }) {
@@ -80,6 +82,11 @@ export function MarkdownContentEditor({
   const statusId = `${editorId}-status`
   const stats = useMemo(() => getDocumentContentStats(value), [value])
   const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale])
+  const editorHeight = useMemo(() => {
+    if (!fitContent) return 680
+    const lineCount = Math.max(value.split(/\r?\n/).length, 4)
+    return lineCount * 26 + 96
+  }, [fitContent, value])
 
   const fileIssueMessage = (issue: DocumentImageConstraintIssue) => {
     switch (issue.code) {
@@ -280,7 +287,7 @@ export function MarkdownContentEditor({
 
   return (
     <div
-      className="markdown-editor-shell"
+      className={`markdown-editor-shell ${fitContent ? 'markdown-editor-shell--content-fit' : 'markdown-editor-shell--fill'}`}
       data-color-mode={resolvedTheme === 'light' ? 'light' : 'dark'}
       data-uploading={uploading || undefined}
     >
@@ -338,7 +345,7 @@ export function MarkdownContentEditor({
       <MDEditor
         value={value}
         onChange={(nextValue) => handleValueChange(nextValue || '')}
-        height={680}
+        height={editorHeight}
         preview="live"
         visibleDragbar={false}
         commands={readOnly ? [] : editorCommands}
