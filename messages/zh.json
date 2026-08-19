@@ -859,6 +859,24 @@
         "branding": "系统品牌",
         "evidence": "交易存证网络"
       },
+      "tabs": {
+        "branding": {
+          "label": "品牌与外观",
+          "description": "管理应用在公开页面与后台中使用的系统标识。"
+        },
+        "policy": {
+          "label": "存证策略",
+          "description": "控制新存证的默认网络，以及正式和测试凭证是否可办理。"
+        },
+        "rpc": {
+          "label": "RPC 节点",
+          "description": "为 Mainnet 与 Devnet 配置主、备用服务端节点。",
+          "noticeTitle": "敏感服务端配置",
+          "noticeDescription": "已保存的节点地址不会回显；仅在连接故障时才会切换至备用节点。",
+          "test": "检测节点"
+        },
+        "fieldsCount": "{count} 项设置"
+      },
       "configDesc": {
         "SYSTEM_LOGO_FILE_PATH": "上传后保存；恢复默认将重新使用内置 Logo",
         "SOLANA_DEFAULT_NETWORK": "新存证默认选择的网络",

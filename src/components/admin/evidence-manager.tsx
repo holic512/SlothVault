@@ -10,7 +10,7 @@
  * @index_tags admin,evidence,solana,wallet,receipts,reconciliation
  * @author holic512
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useWallet } from '@solana/wallet-adapter-react'
@@ -20,17 +20,14 @@ import {
   App,
   Button,
   Card,
-  Col,
   Descriptions,
   Drawer,
   Empty,
   Form,
   Input,
-  Row,
   Segmented,
   Select,
   Space,
-  Statistic,
   Table,
   Tag,
   Timeline,
@@ -47,7 +44,6 @@ import {
   FlaskConical,
   RefreshCw,
   Search,
-  ServerCog,
   WalletCards,
 } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
@@ -192,23 +188,7 @@ export function EvidenceManager() {
     queryFn: () => apiFetch<{ list: PublishedVersion[] }>('/api/admin/mm/projectVersion?pageSize=100&includeProject=1&orderBy=updatedAt&order=desc'),
   })
 
-  const counts = useMemo(() => {
-    const value = { formal: 0, test: 0, pending: 0, failed: 0 }
-    for (const item of query.data?.summary || []) {
-      if (item.status === 2 && item.network === 'mainnet') value.formal += item.count
-      if (item.status === 2 && item.network === 'devnet') value.test += item.count
-      if (item.status === 0 || item.status === 1) value.pending += item.count
-      if (item.status === -1) value.failed += item.count
-    }
-    return value
-  }, [query.data?.summary])
-
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['release-evidence'] })
-  const networkTest = useMutation({
-    mutationFn: () => apiFetch('/api/admin/evidence/networks/test', { method: 'POST', body: '{}' }),
-    onSuccess: async () => { message.success('RPC 检测完成'); await refresh() },
-    onError: (error) => message.error(evidenceErrorMessage(error)),
-  })
   const reconcile = useMutation({
     mutationFn: (id: string) => apiFetch(`/api/admin/evidence/${id}/reconcile`, { method: 'POST', body: '{}' }),
     onSuccess: async () => { message.success('链上状态已重新核验'); await refresh() },
@@ -300,17 +280,15 @@ export function EvidenceManager() {
       title: '版本',
       render: (_, row) => <div><strong>{row.projectName}</strong><br /><Typography.Text type="secondary">{row.version}</Typography.Text></div>,
     },
-    { title: '版本哈希', width: 150, render: (_, row) => <Tooltip title={row.releaseHash}><code>{compact(row.releaseHash)}</code></Tooltip> },
     {
       title: '网络', width: 115, render: (_, row) => row.network === 'devnet'
         ? <Tag icon={<FlaskConical size={12} />} color="warning">测试凭证</Tag>
         : <Tag icon={<BadgeCheck size={12} />} color="success">正式凭证</Tag>,
     },
     { title: '状态', width: 105, render: (_, row) => <Tag color={STATUS[row.status as keyof typeof STATUS]?.color} icon={STATUS[row.status as keyof typeof STATUS]?.icon}>{STATUS[row.status as keyof typeof STATUS]?.label || row.status}</Tag> },
-    { title: '签名钱包', width: 150, render: (_, row) => <Tooltip title={row.signerAddress}><code>{compact(row.signerAddress)}</code></Tooltip> },
-    { title: '交易签名', width: 160, render: (_, row) => row.transactionSignature ? <Tooltip title={row.transactionSignature}><code>{compact(row.transactionSignature)}</code></Tooltip> : '—' },
+    { title: '交易编号', width: 190, render: (_, row) => row.transactionSignature ? <Tooltip title={row.transactionSignature}><code>{compact(row.transactionSignature)}</code></Tooltip> : '—' },
     {
-      title: '操作', width: 150, fixed: 'right', render: (_, row) => <Space size={2}>
+      title: '操作', width: 170, fixed: 'right', render: (_, row) => <Space size={2}>
         <Button type="link" onClick={() => setSelected(row)}>详情</Button>
         {row.status === -1 ? <Button type="link" onClick={() => openIssue({ projectVersionId: Number(row.projectVersionId), network: row.network })}>重试</Button> : null}
         {row.status === 0 || row.status === 1 ? <Button type="link" loading={reconcile.isPending} onClick={() => reconcile.mutate(row.id)}>对账</Button> : null}
@@ -323,47 +301,25 @@ export function EvidenceManager() {
     <AdminPageActions>
       <Space wrap>
         <WalletMultiButton />
-        <Button icon={<ServerCog size={15} />} loading={networkTest.isPending} onClick={() => networkTest.mutate()}>检测 RPC</Button>
         <Button icon={<RefreshCw size={15} />} loading={query.isFetching} onClick={() => void query.refetch()}>刷新</Button>
         <Button type="primary" icon={<FileSignature size={15} />} onClick={() => openIssue()}>办理存证</Button>
       </Space>
     </AdminPageActions>
 
-    <section className="evidence-hero">
-      <div><span className="evidence-kicker">RELEASE NOTARY</span><h1>交易存证</h1><p>以当前钱包签署版本完整哈希。凭证是一份可核验的链上回执，不代表 NFT、版权归属或可转移资产。</p></div>
-      <FileSignature size={42} />
-    </section>
-
-    <Row gutter={[12, 12]} className="evidence-metrics">
-      <Col xs={12} lg={6}><Card><Statistic title="正式凭证" value={counts.formal} prefix={<BadgeCheck size={18} />} /></Card></Col>
-      <Col xs={12} lg={6}><Card><Statistic title="测试凭证" value={counts.test} prefix={<FlaskConical size={18} />} /></Card></Col>
-      <Col xs={12} lg={6}><Card><Statistic title="待确认" value={counts.pending} prefix={<Clock3 size={18} />} /></Card></Col>
-      <Col xs={12} lg={6}><Card><Statistic title="失败待处理" value={counts.failed} prefix={<CircleAlert size={18} />} /></Card></Col>
-    </Row>
-
-    <Card size="small" title="网络健康" extra={<Typography.Text type="secondary">只在连接故障时使用备用 RPC</Typography.Text>}>
-      <Space wrap>
-        {(query.data?.networks || []).map((item) => <Tag
-          key={item.network}
-          color={!item.enabled ? 'default' : item.health?.primary.ok || item.health?.fallback.ok ? 'success' : item.health ? 'error' : 'processing'}
-        >
-          {item.network === 'mainnet' ? 'Mainnet' : 'Devnet'} · {!item.enabled ? '已禁用' : item.health?.primary.ok ? '主 RPC 正常' : item.health?.fallback.ok ? '备用 RPC 正常' : item.health ? '连接异常' : '等待检测'}
-        </Tag>)}
-      </Space>
-    </Card>
-
-    <Card className="evidence-ledger">
+    <Card className="evidence-ledger" title="版本存证" extra={<Typography.Text type="secondary">{query.data?.total || 0} 条记录</Typography.Text>}>
       <div className="evidence-toolbar">
-        <Segmented options={[{ label: '全部存证', value: 'all' }, { label: '当前钱包', value: 'wallet', icon: <WalletCards size={14} /> }]} value={scope} onChange={(value) => { setScope(value as 'all' | 'wallet'); setPage(1) }} />
+        <Segmented options={[{ label: '全部', value: 'all' }, { label: '我的钱包', value: 'wallet', icon: <WalletCards size={14} /> }]} value={scope} onChange={(value) => { setScope(value as 'all' | 'wallet'); setPage(1) }} />
         <Space wrap>
-          <Select allowClear placeholder="网络" value={network} onChange={setNetwork} options={[{ value: 'mainnet', label: 'Mainnet · 正式' }, { value: 'devnet', label: 'Devnet · 测试' }]} />
-          <Select allowClear placeholder="状态" value={status} onChange={setStatus} options={Object.entries(STATUS).map(([value, item]) => ({ value: Number(value), label: item.label }))} />
-          <Input allowClear prefix={<Search size={14} />} placeholder="搜索交易签名" value={signature} onChange={(event) => setSignature(event.target.value)} />
+          <Select allowClear placeholder="网络" value={network} onChange={(value) => { setNetwork(value); setPage(1) }} options={[{ value: 'mainnet', label: 'Mainnet · 正式' }, { value: 'devnet', label: 'Devnet · 测试' }]} />
+          <Select allowClear placeholder="状态" value={status} onChange={(value) => { setStatus(value); setPage(1) }} options={Object.entries(STATUS).map(([value, item]) => ({ value: Number(value), label: item.label }))} />
+          <Input allowClear prefix={<Search size={14} />} placeholder="交易编号" value={signature} onChange={(event) => { setSignature(event.target.value); setPage(1) }} />
         </Space>
       </div>
+      {query.isError ? <Alert showIcon type="error" message="存证记录加载失败" description={evidenceErrorMessage(query.error)} action={<Button size="small" onClick={() => void query.refetch()}>重试</Button>} /> : null}
       {scope === 'wallet' && !signer ? <Alert showIcon type="info" message="连接钱包后，将只显示本站由该地址签署的凭证；不会扫描钱包的全部链上历史。" /> : null}
       <Table rowKey="id" size="small" loading={query.isLoading} dataSource={query.data?.list || []} columns={columns} scroll={{ x: 1080 }} pagination={{ current: page, pageSize: 20, total: query.data?.total || 0, showSizeChanger: false, onChange: setPage }} />
       <div className="evidence-mobile-list">
+        {!query.isLoading && (query.data?.list.length || 0) === 0 ? <Empty description="暂无存证记录" /> : null}
         {(query.data?.list || []).map((row) => <article className="evidence-mobile-card" key={row.id}>
           <div><strong>{row.projectName} / {row.version}</strong><Tag color={row.network === 'devnet' ? 'warning' : 'success'}>{row.network === 'devnet' ? '测试凭证' : '正式存证'}</Tag></div>
           <code title={row.releaseHash || ''}>{compact(row.releaseHash, 14, 10)}</code>
@@ -398,6 +354,7 @@ export function EvidenceManager() {
       void cancelPrepared('The evidence drawer was closed before signing')
     }} extra={<WalletMultiButton />}>
       <Alert showIcon type="info" message="发布与存证相互独立" description="这里只能选择已经发布且完整性校验通过的版本。拒签或 RPC 故障不会撤销版本发布。" />
+      {versionsQuery.isError ? <Alert showIcon type="error" message="可存证版本加载失败" description={evidenceErrorMessage(versionsQuery.error)} action={<Button size="small" onClick={() => void versionsQuery.refetch()}>重试</Button>} /> : null}
       <Form form={form} layout="vertical" initialValues={{ projectVersionId: initialVersionId ? Number(initialVersionId) : undefined }} onFinish={(values) => prepare.mutate(values)}>
         <Form.Item name="projectVersionId" label="已发布版本" rules={[{ required: true }]}>
           <Select

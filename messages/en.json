@@ -859,6 +859,24 @@
         "branding": "System Branding",
         "evidence": "Evidence Networks"
       },
+      "tabs": {
+        "branding": {
+          "label": "Branding",
+          "description": "Manage the system identity used across the public site and administration console."
+        },
+        "policy": {
+          "label": "Evidence Policy",
+          "description": "Control the default network for new evidence and which credentials can be issued."
+        },
+        "rpc": {
+          "label": "RPC Nodes",
+          "description": "Configure primary and fallback server-side nodes for Mainnet and Devnet.",
+          "noticeTitle": "Sensitive server-side configuration",
+          "noticeDescription": "Saved node URLs are never shown again; the fallback is used only after a connection failure.",
+          "test": "Test nodes"
+        },
+        "fieldsCount": "{count} settings"
+      },
       "configDesc": {
         "SYSTEM_LOGO_FILE_PATH": "Saved after upload; restoring the default uses the bundled logo again",
         "SOLANA_DEFAULT_NETWORK": "Default network for new evidence",

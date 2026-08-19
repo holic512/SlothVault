@@ -4,8 +4,8 @@
  * @file settings-manager.tsx
  * @project SlothVault
  * @module System Settings Administration
- * @description Provides grouped Ant Design configuration controls, including managed system-logo uploads, that do not echo stored secrets.
- * @logic Load known configuration metadata, stage uploaded logo paths with changed keys, submit one atomic batch, and re-read process-independent runtime values.
+ * @description Provides tabbed configuration controls for branding, evidence policy, and protected RPC endpoints without echoing stored secrets.
+ * @logic Load known configuration metadata, partition settings by operational risk, stage uploaded logo paths with changed keys, submit one atomic batch, and re-read process-independent runtime values.
  * @dependencies Ant Design, React Query, next-intl, Next navigation, api-client
  * @index_tags admin,settings,branding,logo,secrets,configuration,transaction
  * @author holic512
@@ -13,8 +13,8 @@
 import { useMemo, useState } from 'react'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, App, Button, Card, Empty, Image, Input, Segmented, Skeleton, Space, Switch, Tag, Tooltip, Typography, Upload } from 'antd'
-import { Boxes, CircleHelp, ImageUp, KeyRound, RefreshCw, RotateCcw, Save, Waypoints } from 'lucide-react'
+import { Alert, App, Button, Card, Empty, Image, Input, Segmented, Skeleton, Space, Switch, Tabs, Tag, Tooltip, Typography, Upload } from 'antd'
+import { CircleHelp, ImageUp, KeyRound, RefreshCw, RotateCcw, Save, ServerCog, Waypoints } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 
@@ -73,6 +73,7 @@ function SettingsForm({ data }: { data: ConfigData }) {
   )
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>(initialPreviewUrls)
   const [uploadingLogoKey, setUploadingLogoKey] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState('branding')
 
   const changedKeys = Object.keys(values).filter((key) => values[key] !== initialValues[key])
   const saveMutation = useMutation({
@@ -128,6 +129,118 @@ function SettingsForm({ data }: { data: ConfigData }) {
     }
   }
 
+  const renderConfig = (config: ConfigItem) => {
+    const sensitive =
+      config.sensitive ??
+      (config.key.includes('SECRET') || config.key.endsWith('_KEY'))
+    return (
+      <label key={config.key} className="settings-field">
+        <span className="settings-field-label">
+          <span>
+            {sensitive ? <KeyRound size={13} /> : null}
+            <code>{config.key}</code>
+          </span>
+          {sensitive && config.configured ? <Tag color="success">Configured</Tag> : null}
+        </span>
+        <Typography.Text type="secondary">
+          {t(`configDesc.${config.key}`)}
+        </Typography.Text>
+        {config.kind === 'boolean' ? (
+          <Switch
+            checked={values[config.key] === 'true'}
+            checkedChildren="启用"
+            unCheckedChildren="禁用"
+            onChange={(checked) => setValues((current) => ({ ...current, [config.key]: String(checked) }))}
+          />
+        ) : config.kind === 'network' ? (
+          <Segmented
+            value={values[config.key]}
+            options={[{ value: 'devnet', label: 'Devnet · 测试' }, { value: 'mainnet', label: 'Mainnet · 正式' }]}
+            onChange={(value) => setValues((current) => ({ ...current, [config.key]: String(value) }))}
+          />
+        ) : config.kind === 'image' ? (
+          <div className="settings-logo-control">
+            <Image
+              className="settings-logo-preview"
+              src={previewUrls[config.key] || '/logo.png'}
+              alt={t('logo.previewAlt')}
+              preview={false}
+            />
+            <Space wrap>
+              <Upload
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                maxCount={1}
+                showUploadList={false}
+                beforeUpload={(file) => {
+                  void uploadSystemLogo(config.key, file)
+                  return false
+                }}
+              >
+                <Button icon={<ImageUp size={15} />} loading={uploadingLogoKey === config.key}>
+                  {t('actions.uploadLogo')}
+                </Button>
+              </Upload>
+              <Button
+                disabled={!values[config.key]}
+                onClick={() => {
+                  setValues((current) => ({ ...current, [config.key]: '' }))
+                  setPreviewUrls((current) => ({ ...current, [config.key]: '/logo.png' }))
+                }}
+              >
+                {t('actions.restoreDefaultLogo')}
+              </Button>
+              {config.isCustom && !values[config.key] ? <Tag color="warning">{t('logo.pendingDefault')}</Tag> : null}
+            </Space>
+            <Typography.Text type="secondary">
+              {t('logo.uploadHint')}
+            </Typography.Text>
+          </div>
+        ) : sensitive ? (
+          <Input.Password
+            visibilityToggle
+            value={values[config.key] || ''}
+            placeholder={config.configured ? '留空以保留已保存地址' : config.defaultValue || 'https://…'}
+            onChange={(event) => setValues((current) => ({ ...current, [config.key]: event.target.value }))}
+          />
+        ) : (
+          <Input
+            value={values[config.key] || ''}
+            placeholder={config.defaultValue || t('placeholder')}
+            onChange={(event) => setValues((current) => ({ ...current, [config.key]: event.target.value }))}
+          />
+        )}
+      </label>
+    )
+  }
+
+  const brandingConfigs = data.groups.find((group) => group.key === 'branding')?.configs || []
+  const evidenceConfigs = data.groups.find((group) => group.key === 'evidence')?.configs || []
+  const policyConfigs = evidenceConfigs.filter((config) => !config.key.includes('_RPC_'))
+  const rpcConfigs = evidenceConfigs.filter((config) => config.key.includes('_RPC_'))
+  const tabs = [
+    {
+      key: 'branding',
+      label: t('tabs.branding.label'),
+      description: t('tabs.branding.description'),
+      icon: <ImageUp size={16} />,
+      configs: brandingConfigs,
+    },
+    {
+      key: 'policy',
+      label: t('tabs.policy.label'),
+      description: t('tabs.policy.description'),
+      icon: <Waypoints size={16} />,
+      configs: policyConfigs,
+    },
+    {
+      key: 'rpc',
+      label: t('tabs.rpc.label'),
+      description: t('tabs.rpc.description'),
+      icon: <ServerCog size={16} />,
+      configs: rpcConfigs,
+    },
+  ]
+
   return (
     <AdminPage>
       <AdminPageActions>
@@ -146,13 +259,6 @@ function SettingsForm({ data }: { data: ConfigData }) {
             }}
           >
             {t('actions.reset')}
-          </Button>
-          <Button
-            icon={<Waypoints size={15} />}
-            loading={networkTestMutation.isPending}
-            onClick={() => networkTestMutation.mutate()}
-          >
-            检测 RPC
           </Button>
           <Button
             icon={<RefreshCw size={15} />}
@@ -174,110 +280,26 @@ function SettingsForm({ data }: { data: ConfigData }) {
         </Space>
       </AdminPageActions>
 
-      <div className="settings-grid">
-        {data.groups.length ? (
-          data.groups.map((group) => (
-            <Card
-              key={group.key}
-              className="settings-card"
-              title={
-                <span className="settings-card-title">
-                  {group.key === 'evidence' ? <Waypoints size={17} /> : group.key === 'branding' ? <ImageUp size={17} /> : <Boxes size={17} />}
-                  {t(`groups.${group.key}`)}
-                </span>
-              }
-            >
-              <div className="settings-fields">
-                {group.configs.map((config) => {
-                  const sensitive =
-                    config.sensitive ??
-                    (config.key.includes('SECRET') || config.key.endsWith('_KEY'))
-                  return (
-                    <label key={config.key} className="settings-field">
-                      <span className="settings-field-label">
-                        <span>
-                          {sensitive ? <KeyRound size={13} /> : null}
-                          <code>{config.key}</code>
-                        </span>
-                        {sensitive && config.configured ? <Tag color="success">Configured</Tag> : null}
-                      </span>
-                      <Typography.Text type="secondary">
-                        {t(`configDesc.${config.key}`)}
-                      </Typography.Text>
-                      {config.kind === 'boolean' ? (
-                        <Switch
-                          checked={values[config.key] === 'true'}
-                          checkedChildren="启用"
-                          unCheckedChildren="禁用"
-                          onChange={(checked) => setValues((current) => ({ ...current, [config.key]: String(checked) }))}
-                        />
-                      ) : config.kind === 'network' ? (
-                        <Segmented
-                          value={values[config.key]}
-                          options={[{ value: 'devnet', label: 'Devnet · 测试' }, { value: 'mainnet', label: 'Mainnet · 正式' }]}
-                          onChange={(value) => setValues((current) => ({ ...current, [config.key]: String(value) }))}
-                        />
-                      ) : config.kind === 'image' ? (
-                        <div className="settings-logo-control">
-                          <Image
-                            className="settings-logo-preview"
-                            src={previewUrls[config.key] || '/logo.png'}
-                            alt={t('logo.previewAlt')}
-                            preview={false}
-                          />
-                          <Space wrap>
-                            <Upload
-                              accept="image/png,image/jpeg,image/gif,image/webp"
-                              maxCount={1}
-                              showUploadList={false}
-                              beforeUpload={(file) => {
-                                void uploadSystemLogo(config.key, file)
-                                return false
-                              }}
-                            >
-                              <Button icon={<ImageUp size={15} />} loading={uploadingLogoKey === config.key}>
-                                {t('actions.uploadLogo')}
-                              </Button>
-                            </Upload>
-                            <Button
-                              disabled={!values[config.key]}
-                              onClick={() => {
-                                setValues((current) => ({ ...current, [config.key]: '' }))
-                                setPreviewUrls((current) => ({ ...current, [config.key]: '/logo.png' }))
-                              }}
-                            >
-                              {t('actions.restoreDefaultLogo')}
-                            </Button>
-                            {config.isCustom && !values[config.key] ? <Tag color="warning">{t('logo.pendingDefault')}</Tag> : null}
-                          </Space>
-                          <Typography.Text type="secondary">
-                            {t('logo.uploadHint')}
-                          </Typography.Text>
-                        </div>
-                      ) : sensitive ? (
-                        <Input.Password
-                          visibilityToggle
-                          value={values[config.key] || ''}
-                          placeholder={config.configured ? '留空以保留已保存地址' : config.defaultValue || 'https://…'}
-                          onChange={(event) => setValues((current) => ({ ...current, [config.key]: event.target.value }))}
-                        />
-                      ) : (
-                        <Input
-                          value={values[config.key] || ''}
-                          placeholder={config.defaultValue || t('placeholder')}
-                          onChange={(event) => setValues((current) => ({ ...current, [config.key]: event.target.value }))}
-                        />
-                      )}
-                    </label>
-                  )
-                })}
+      <Tabs
+        className="settings-tabs"
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={tabs.map((tab) => ({
+          key: tab.key,
+          label: <span className="settings-tab-label">{tab.icon}<span>{tab.label}</span></span>,
+          children: <section className="settings-tab-panel">
+            <div className="settings-tab-heading">
+              <span className="settings-tab-icon">{tab.icon}</span>
+              <div>
+                <Typography.Title level={4}>{tab.label}</Typography.Title>
+                <Typography.Text type="secondary">{tab.description}</Typography.Text>
               </div>
-            </Card>
-          ))
-        ) : (
-          <Empty description={t('empty')} />
-        )}
-      </div>
+            </div>
+            {tab.key === 'rpc' ? <Alert className="settings-rpc-notice" showIcon type="info" message={t('tabs.rpc.noticeTitle')} description={t('tabs.rpc.noticeDescription')} action={<Button size="small" loading={networkTestMutation.isPending} onClick={() => networkTestMutation.mutate()}>{t('tabs.rpc.test')}</Button>} /> : null}
+            {tab.configs.length ? <Card className="settings-card" title={<span className="settings-card-title">{tab.icon}{t('tabs.fieldsCount', { count: tab.configs.length })}</span>}><div className="settings-fields">{tab.configs.map(renderConfig)}</div></Card> : <Empty description={t('empty')} />}
+          </section>,
+        }))}
+      />
     </AdminPage>
   )
 }
