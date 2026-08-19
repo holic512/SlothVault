@@ -306,7 +306,7 @@ export function EvidenceManager() {
       </Space>
     </AdminPageActions>
 
-    <Card className="evidence-ledger" title="版本存证" extra={<Typography.Text type="secondary">{query.data?.total || 0} 条记录</Typography.Text>}>
+    <Card className="evidence-ledger admin-table-card" title="版本存证" extra={<Typography.Text type="secondary">{query.data?.total || 0} 条记录</Typography.Text>}>
       <div className="evidence-toolbar">
         <Segmented options={[{ label: '全部', value: 'all' }, { label: '我的钱包', value: 'wallet', icon: <WalletCards size={14} /> }]} value={scope} onChange={(value) => { setScope(value as 'all' | 'wallet'); setPage(1) }} />
         <Space wrap>

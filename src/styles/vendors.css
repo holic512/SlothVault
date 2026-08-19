@@ -193,12 +193,25 @@
   box-shadow: none;
 }
 
-.markdown-editor-shell--content-fit .w-md-editor {
+.markdown-editor-shell--container-fill {
+  display: flex;
+  flex-direction: column;
+}
+
+.markdown-editor-shell--container-fill .w-md-editor {
+  height: auto !important;
   min-height: 0;
+  flex: 1;
   border: 0;
   border-radius: 0;
   background: var(--sv-bg-solid);
   box-shadow: none;
+}
+
+.markdown-editor-shell--container-fill .w-md-editor-content {
+  height: auto;
+  min-height: 0;
+  flex: 1;
 }
 
 .markdown-editor-shell .w-md-editor-toolbar {

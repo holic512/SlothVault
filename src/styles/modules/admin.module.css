@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Administrator Experience Styles
  * @description Scopes the administration shell, managers, editors, settings, backup, Solana, and dashboard surfaces.
- * @logic Compose dense management workflows under the authenticated admin layout and switch to a Drawer on compact screens.
+ * @logic Compose dense management workflows under the authenticated admin layout, allocate full-height editor surfaces inside the padded main content, and switch to a Drawer on compact screens.
  * @dependencies SlothVault design tokens, feature markup
  * @index_tags css-module,admin,dashboard,editor,responsive
  * @author holic512
@@ -16,8 +16,17 @@
 .root {
   --sv-admin-border: color-mix(in srgb, var(--sv-border) 74%, transparent);
 
+  height: 100vh;
   min-height: 100vh;
+  overflow: hidden;
   background: transparent !important;
+}
+
+@supports (height: 100dvh) {
+  .root {
+    height: 100dvh;
+    min-height: 100dvh;
+  }
 }
 
 .root :global(.admin-sider) {
@@ -132,6 +141,8 @@
 
 .root :global(.admin-main-layout) {
   min-width: 0;
+  min-height: 0;
+  height: 100%;
   background: transparent !important;
 }
 
@@ -189,15 +200,51 @@
   line-height: 30px;
 }
 
+.root :global(.admin-header-actions) {
+  display: inline-flex;
+  height: var(--sv-admin-control-height);
+  align-items: center;
+}
+
+.root :global(.admin-header-actions) > :global(.ant-space-item) {
+  display: flex;
+  align-items: center;
+}
+
+.root :global(.admin-header-actions) :global(.ant-btn) {
+  display: inline-flex;
+  width: var(--sv-admin-control-height);
+  height: var(--sv-admin-control-height);
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.root :global(.admin-header-actions) :global(.ant-btn-icon),
+.root :global(.admin-header-actions) :global(.ant-btn-icon) svg {
+  display: block;
+  line-height: 1;
+}
+
 .root :global(.admin-content) {
+  display: flex;
+  min-height: 0;
   min-width: 0;
+  flex: 1;
+  overflow: hidden;
   padding: 12px;
 }
 
 .root :global(.admin-page-stack) {
   display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
   flex-direction: column;
   gap: var(--sv-admin-space);
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .root :global(.admin-page-actions) {
@@ -220,12 +267,61 @@
 }
 
 .root :global(.admin-table-card) {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 0;
+  flex-direction: column;
   overflow: hidden;
   padding: 0;
   border: 1px solid var(--sv-admin-border);
   border-radius: var(--sv-admin-radius) !important;
   background: var(--sv-bg-solid) !important;
   box-shadow: none;
+}
+
+.root :global(.admin-table-card) > :global(.ant-card-head) {
+  flex: 0 0 auto;
+}
+
+.root :global(.admin-table-card) > :global(.ant-card-body) {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.root :global(.admin-table-card) > :global(.ant-table-wrapper),
+.root :global(.admin-table-card) > :global(.ant-card-body) > :global(.ant-table-wrapper) {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.root :global(.admin-table-card) :global(.ant-spin-nested-loading),
+.root :global(.admin-table-card) :global(.ant-spin-container),
+.root :global(.admin-table-card) :global(.ant-table),
+.root :global(.admin-table-card) :global(.ant-table-container),
+.root :global(.admin-table-card) :global(.ant-table-content) {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.root :global(.admin-table-card) :global(.ant-table-content) {
+  overflow: auto;
+}
+
+.root :global(.admin-table-card) :global(.ant-table-thead > tr > th) {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--sv-bg-solid) !important;
+}
+
+.root :global(.admin-table-card) :global(.ant-pagination) {
+  flex: 0 0 auto;
 }
 
 .root :global(.admin-table-card) :global(.ant-table) {
@@ -685,6 +781,8 @@
 
 .root :global(.managed-markdown-page) {
   display: flex;
+  width: 100%;
+  min-height: 100%;
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--sv-admin-border);
@@ -746,6 +844,20 @@
   background: color-mix(in srgb, var(--sv-bg-solid) 97%, transparent);
 }
 
+.root :global(.settings-tabs) {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.root :global(.settings-tabs) > :global(.ant-tabs-content-holder),
+.root :global(.settings-tabs) :global(.ant-tabs-content),
+.root :global(.settings-tabs) :global(.ant-tabs-tabpane-active) {
+  min-height: 0;
+  flex: 1;
+}
+
 .root :global(.settings-tabs) > :global(.ant-tabs-nav) > :global(.ant-tabs-nav-wrap) {
   min-width: 0;
 }
@@ -781,7 +893,10 @@
 }
 
 .root :global(.settings-tab-panel) {
-  display: grid;
+  display: flex;
+  min-height: 0;
+  height: 100%;
+  flex-direction: column;
   gap: 12px;
   padding-top: 16px;
 }
@@ -818,6 +933,8 @@
 }
 
 .root :global(.settings-card) {
+  min-height: 0;
+  flex: 1;
   border: 1px solid var(--sv-admin-border) !important;
   background: color-mix(in srgb, var(--sv-bg-solid) 97%, transparent) !important;
   box-shadow: none;
@@ -927,14 +1044,24 @@
 
 .root :global(.backup-grid) {
   display: grid;
+  min-height: 0;
+  flex: 1;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
 .root :global(.backup-card-next) {
+  min-height: 0;
   border: 1px solid var(--sv-admin-border) !important;
   background: color-mix(in srgb, var(--sv-bg-solid) 97%, transparent) !important;
   box-shadow: none;
+}
+
+.root :global(.backup-card-next) > :global(.ant-card-body) {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
 }
 
 .root :global(.backup-card-next):global(.is-danger) {
@@ -981,6 +1108,7 @@
 .root :global(.backup-card-actions) {
   display: grid;
   gap: 6px;
+  margin-top: auto;
   padding-top: 10px;
 }
 
@@ -1238,6 +1366,7 @@
 
   .root :global(.backup-grid) {
     grid-template-columns: 1fr;
+    grid-template-rows: repeat(3, minmax(0, 1fr));
   }
 
   .root :global(.backup-card-next):global(.is-danger) {

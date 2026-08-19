@@ -189,7 +189,7 @@ function HomepageDraft({
           setDraft(value)
         }}
         onUpload={uploadImages}
-        fitContent
+        fillContainer
         header={(
           <div className="managed-markdown-heading">
             {projectId ? (
