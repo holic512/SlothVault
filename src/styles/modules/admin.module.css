@@ -15,6 +15,7 @@
 
 .root {
   --sv-admin-border: color-mix(in srgb, var(--sv-border) 74%, transparent);
+  --sv-admin-shell-height: 46px;
 
   height: 100vh;
   min-height: 100vh;
@@ -48,11 +49,12 @@
 .root :global(.admin-brand) {
   display: flex;
   align-items: center;
-  min-height: 54px;
-  gap: 8px;
-  padding: 0 14px;
+  min-height: var(--sv-admin-shell-height);
+  gap: 7px;
+  padding: 0 11px;
   border-bottom: 1px solid var(--sv-admin-border);
   color: var(--sv-text);
+  font-size: 13px;
   font-weight: 750;
   letter-spacing: -0.03em;
   text-decoration: none;
@@ -65,8 +67,8 @@
 }
 
 .root :global(.admin-brand) img {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   filter: var(--sv-logo-filter);
 }
 
@@ -82,25 +84,34 @@
   flex: 1;
   min-height: 0;
   overflow: hidden auto;
-  padding: 8px 6px;
+  padding: 5px 4px;
   border-inline-end: 0 !important;
   background: transparent !important;
 }
 
 .root :global(.admin-menu) :global(.ant-menu-item) {
-  height: 34px;
-  margin-block: 2px;
+  height: 32px;
+  margin-block: 1px;
+  line-height: 32px;
   border-radius: var(--sv-admin-radius);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 
+.root :global(.admin-menu:not(.ant-menu-inline-collapsed)) :global(.ant-menu-item) {
+  padding-inline: 9px !important;
+}
+
+.root :global(.admin-menu) :global(.ant-menu-item-icon + span) {
+  margin-inline-start: 8px;
+}
+
 .root :global(.admin-menu) :global(.ant-menu-item-group) + :global(.ant-menu-item-group) {
-  margin-top: 7px;
+  margin-top: 4px;
 }
 
 .root :global(.admin-menu) :global(.ant-menu-item-group-title) {
-  padding: 8px 8px 3px !important;
+  padding: 6px 9px 2px !important;
   color: var(--sv-text-muted) !important;
   font-size: 10px;
   font-weight: 750;
@@ -118,12 +129,12 @@
 }
 
 .root :global(.admin-sider):global(.ant-layout-sider-collapsed) :global(.admin-menu) :global(.ant-menu-item-group) + :global(.ant-menu-item-group) {
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .root :global(.admin-collapse) {
   display: flex;
-  min-height: 40px;
+  min-height: 34px;
   align-items: center;
   justify-content: center;
   gap: 8px;
@@ -132,6 +143,7 @@
   background: transparent;
   color: var(--sv-text-muted);
   cursor: pointer;
+  font-size: 12px;
 }
 
 .root :global(.admin-collapse):hover {
@@ -151,10 +163,10 @@
   top: 0;
   z-index: var(--sv-z-header);
   display: flex;
-  height: 54px !important;
+  height: var(--sv-admin-shell-height) !important;
   align-items: center;
   justify-content: space-between;
-  padding: 0 14px !important;
+  padding: 0 10px !important;
   border-bottom: 1px solid var(--sv-admin-border);
   background: color-mix(in srgb, var(--sv-bg) 90%, transparent) !important;
   backdrop-filter: blur(14px);
@@ -165,9 +177,9 @@
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 7px;
+  gap: 5px;
   color: var(--sv-text-muted);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1;
 }
 
@@ -175,7 +187,7 @@
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .root :global(.admin-breadcrumb) a {
@@ -232,7 +244,7 @@
   min-width: 0;
   flex: 1;
   overflow: hidden;
-  padding: 12px;
+  padding: 10px;
 }
 
 .root :global(.admin-content:has(> .note-editor-page)) {
@@ -667,16 +679,6 @@
   color: var(--sv-text-muted);
 }
 
-.root :global(.note-workspace-path) {
-  overflow: hidden;
-  padding: 0 4px;
-  color: var(--sv-text-muted);
-  font-size: 11px;
-  line-height: 16px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .root :global(.note-mobile-tabs),
 .root :global(.note-compact-revision-control) {
   display: none;
@@ -892,23 +894,44 @@
   opacity: 1;
 }
 
-.root :global(.note-writing-toolbar) {
+.root :global(.note-writing-header) {
   display: flex;
-  min-height: 42px;
+  min-width: 0;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--sv-admin-border);
+  gap: 10px;
 }
 
-.root :global(.note-writing-toolbar) > div {
+.root :global(.note-writing-version) {
   display: flex;
+  min-width: 0;
+  flex: 0 1 auto;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
-.root :global(.note-writing-toolbar) :global(.ant-typography) {
+.root :global(.note-writing-version) :global(.ant-tag) {
+  margin-inline-end: 0;
+}
+
+.root :global(.note-writing-divider) {
+  width: 1px;
+  height: 24px;
+  flex: 0 0 auto;
+  background: var(--sv-admin-border);
+}
+
+.root :global(.note-writing-header) :global(.document-editor-mode) {
+  flex: 0 1 auto;
+}
+
+.root :global(.note-writing-header) :global(.document-editor-mode) small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.root :global(.note-writing-header) :global(.ant-typography),
+.root :global(.note-writing-actions) :global(.ant-typography) {
   font-size: 11px;
 }
 
@@ -1641,12 +1664,7 @@
     display: none;
   }
 
-  .root :global(.note-writing-toolbar) {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .root :global(.note-writing-toolbar) > :global(.ant-space) {
-    justify-content: space-between;
+  .root :global(.note-writing-header) {
+    width: 100%;
   }
 }

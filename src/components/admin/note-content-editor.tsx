@@ -30,6 +30,7 @@ import {
 } from 'antd'
 import {
   BookOpenText,
+  Braces,
   ChevronRight,
   CloudUpload,
   FilePenLine,
@@ -492,15 +493,6 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
     return <Alert showIcon type="error" message={contentT('messages.fetchNoteFailed')} description={deepNoteQuery.error.message} />
   }
 
-  const path = [
-    projectsQuery.data?.list.find((item) => item.id === currentProjectId)?.projectName
-      || deepNoteQuery.data?.category?.projectVersion?.project?.projectName,
-    selectedVersion?.version,
-    selectedNote?.category?.categoryName
-      || categoriesQuery.data?.list.find((item) => item.id === currentCategoryId)?.categoryName,
-    selectedNote?.noteTitle,
-  ].filter(Boolean)
-
   const emptyStep = !currentProjectId
     ? { icon: <FolderTree size={32} />, text: t('empty.project'), action: t('empty.manageProjects'), run: () => router.push('/admin/mm/projects'), disabled: false }
     : !currentVersionId
@@ -555,7 +547,6 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
         </Space>
       </div>
 
-      {path.length ? <div className="note-workspace-path">{path.join(' / ')}</div> : null}
       <div className="note-mobile-tabs" role="tablist" aria-label={t('mobileNavigation')}>
         {(['tree', 'versions', 'content'] as MobilePane[]).map((pane) => (
           <button key={pane} type="button" className={mobilePane === pane ? 'is-active' : ''} onClick={() => setMobilePane(pane)}>
@@ -685,6 +676,7 @@ function RevisionEditor({ item, readOnly, onDirtyChange, onSaved }: {
   onSaved: (item: NoteContent) => void
 }) {
   const contentT = useTranslations('AdminMM.notes.content')
+  const documentT = useTranslations('DocumentEditor')
   const { message } = App.useApp()
   const [draft, setDraft] = useState(item.content)
   const [savedDraft, setSavedDraft] = useState(item.content)
@@ -759,12 +751,30 @@ function RevisionEditor({ item, readOnly, onDirtyChange, onSaved }: {
   }
 
   return <>
-    <div className="note-writing-toolbar">
-      <div><Tag color={item.isPrimary ? 'gold' : 'default'}>{item.isPrimary ? contentT('setPrimary') : item.versionNote || contentT('unnamedVersion')}</Tag>{lastSavedAt ? <Typography.Text type="secondary">{contentT('saved')} {lastSavedAt.toLocaleTimeString()}</Typography.Text> : null}</div>
-      <Space><Typography.Text type="secondary">{contentT('saveHint')}</Typography.Text><Button type="primary" icon={<Save size={14} />} loading={saving} disabled={readOnly || draft === savedDraft} onClick={() => void save(false)}>{contentT('save')}</Button></Space>
-    </div>
     <MarkdownContentEditor
       fillContainer
+      header={(
+        <div className="note-writing-header">
+          <div className="note-writing-version">
+            <Tag color={item.isPrimary ? 'gold' : 'default'}>{item.isPrimary ? contentT('setPrimary') : item.versionNote || contentT('unnamedVersion')}</Tag>
+            {lastSavedAt ? <Typography.Text type="secondary">{contentT('saved')} {lastSavedAt.toLocaleTimeString()}</Typography.Text> : null}
+          </div>
+          <span className="note-writing-divider" aria-hidden="true" />
+          <div className="document-editor-mode">
+            <span className="document-editor-mode-icon" aria-hidden="true"><Braces size={15} /></span>
+            <span>
+              <strong>{documentT('title')}</strong>
+              <small>{documentT('description')}</small>
+            </span>
+          </div>
+        </div>
+      )}
+      headerActions={(
+        <Space size={6} className="note-writing-actions">
+          <Typography.Text type="secondary">{contentT('saveHint')}</Typography.Text>
+          <Button type="primary" icon={<Save size={14} />} loading={saving} disabled={readOnly || draft === savedDraft} onClick={() => void save(false)}>{contentT('save')}</Button>
+        </Space>
+      )}
       value={draft}
       onChange={(value) => {
         draftRef.current = value

@@ -14,7 +14,18 @@
 }
 
 .admin-mobile-drawer .ant-drawer-header {
+  min-height: 46px;
+  padding: 0 12px;
   border-bottom-color: var(--sv-border);
+}
+
+.admin-mobile-drawer .ant-drawer-title {
+  font-size: 13px !important;
+  font-weight: 750 !important;
+}
+
+.admin-mobile-drawer .ant-drawer-body {
+  padding: 5px 4px !important;
 }
 
 .mobile-nav-drawer .ant-drawer-content {
@@ -55,6 +66,34 @@
 .admin-mobile-menu {
   border-inline-end: 0 !important;
   background: transparent !important;
+}
+
+.admin-mobile-menu .ant-menu-item {
+  height: 32px !important;
+  margin-block: 1px !important;
+  padding-inline: 9px !important;
+  border-radius: var(--sv-admin-radius);
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  line-height: 32px !important;
+}
+
+.admin-mobile-menu .ant-menu-item-icon + span {
+  margin-inline-start: 8px;
+}
+
+.admin-mobile-menu .ant-menu-item-group + .ant-menu-item-group {
+  margin-top: 4px;
+}
+
+.admin-mobile-menu .ant-menu-item-group-title {
+  padding: 6px 9px 2px !important;
+  color: var(--sv-text-muted) !important;
+  font-size: 10px !important;
+  font-weight: 750 !important;
+  letter-spacing: 0.1em;
+  line-height: 1.2 !important;
+  text-transform: uppercase;
 }
 
 .markdown-editor-shell {

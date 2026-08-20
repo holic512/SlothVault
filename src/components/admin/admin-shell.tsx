@@ -59,17 +59,17 @@ export function AdminShell({ children, branding }: { children: ReactNode; brandi
 
   const menuRoutes = useMemo<AdminMenuRoute[]>(
     () => [
-      { group: 'overview', key: '/admin/mm', icon: <PanelsTopLeft size={17} />, label: t('menu.dashboard') },
-      { group: 'content', key: '/admin/mm/homepage', icon: <House size={17} />, label: t('menu.homepage') },
-      { group: 'content', key: '/admin/mm/projects', icon: <Blocks size={17} />, label: t('menu.projects') },
-      { group: 'content', key: '/admin/mm/notes', icon: <BookOpenText size={17} />, label: t('menu.notes') },
-      { group: 'content', key: '/admin/mm/files', icon: <FileStack size={17} />, label: t('menu.files') },
-      { group: 'users', key: '/admin/mm/users', icon: <Users size={17} />, label: t('menu.users') },
-      { group: 'users', key: '/admin/mm/contracts', icon: <FileSignature size={17} />, label: t('menu.contracts') },
-      { group: 'users', key: '/admin/mm/gift-cards', icon: <TicketCheck size={17} />, label: t('menu.giftCards') },
-      { group: 'system', key: '/admin/mm/evidence', icon: <ArchiveRestore size={17} />, label: t('menu.solana') },
-      { group: 'system', key: '/admin/mm/backup', icon: <ArchiveRestore size={17} />, label: t('menu.backup') },
-      { group: 'system', key: '/admin/mm/settings', icon: <Settings size={17} />, label: t('menu.settings') },
+      { group: 'overview', key: '/admin/mm', icon: <PanelsTopLeft size={16} />, label: t('menu.dashboard') },
+      { group: 'content', key: '/admin/mm/homepage', icon: <House size={16} />, label: t('menu.homepage') },
+      { group: 'content', key: '/admin/mm/projects', icon: <Blocks size={16} />, label: t('menu.projects') },
+      { group: 'content', key: '/admin/mm/notes', icon: <BookOpenText size={16} />, label: t('menu.notes') },
+      { group: 'content', key: '/admin/mm/files', icon: <FileStack size={16} />, label: t('menu.files') },
+      { group: 'users', key: '/admin/mm/users', icon: <Users size={16} />, label: t('menu.users') },
+      { group: 'users', key: '/admin/mm/contracts', icon: <FileSignature size={16} />, label: t('menu.contracts') },
+      { group: 'users', key: '/admin/mm/gift-cards', icon: <TicketCheck size={16} />, label: t('menu.giftCards') },
+      { group: 'system', key: '/admin/mm/evidence', icon: <ArchiveRestore size={16} />, label: t('menu.solana') },
+      { group: 'system', key: '/admin/mm/backup', icon: <ArchiveRestore size={16} />, label: t('menu.backup') },
+      { group: 'system', key: '/admin/mm/settings', icon: <Settings size={16} />, label: t('menu.settings') },
     ],
     [t],
   )
@@ -108,8 +108,8 @@ export function AdminShell({ children, branding }: { children: ReactNode; brandi
     <Layout className={`${adminStyles.root} admin-layout`}>
       <Sider
         className="admin-sider"
-        width={208}
-        collapsedWidth={56}
+        width={184}
+        collapsedWidth={48}
         collapsible
         collapsed={collapsed}
         trigger={null}
@@ -131,7 +131,7 @@ export function AdminShell({ children, branding }: { children: ReactNode; brandi
           onClick={() => setCollapsed((value) => !value)}
           aria-label={collapsed ? t('sidebar.expand') : t('sidebar.collapse')}
         >
-          {collapsed ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}
+          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
           {!collapsed ? <span>{t('sidebar.collapse')}</span> : null}
         </button>
       </Sider>
@@ -167,7 +167,7 @@ export function AdminShell({ children, branding }: { children: ReactNode; brandi
         className="admin-mobile-drawer"
         title={t('title')}
         placement="left"
-        size={248}
+        size={228}
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
       >
