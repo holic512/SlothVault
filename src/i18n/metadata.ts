@@ -19,7 +19,6 @@ export type PageTitleKey =
   | 'accountProfile'
   | 'accountSecurity'
   | 'adminBackup'
-  | 'adminCategories'
   | 'adminContracts'
   | 'adminDashboard'
   | 'adminEvidence'

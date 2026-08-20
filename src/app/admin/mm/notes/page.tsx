@@ -1,4 +1,4 @@
-import { NotesManager } from '@/components/admin/notes-manager'
+import { NoteContentEditor } from '@/components/admin/note-content-editor'
 import { createPageMetadata } from '@/i18n/metadata'
 
 export async function generateMetadata() {
@@ -6,5 +6,5 @@ export async function generateMetadata() {
 }
 
 export default function NotesPage() {
-  return <NotesManager />
+  return <NoteContentEditor />
 }

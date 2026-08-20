@@ -12,6 +12,10 @@ import { requireAdminSession } from '@/server/auth/session'
 import { defineRoute } from '@/server/http/handler'
 import { apiOk } from '@/server/http/response'
 import { listReleaseEvidence } from '@/server/services/release-evidence'
+import {
+  NOTE_CONTENT_EVIDENCE_SUBJECT,
+  PROJECT_VERSION_EVIDENCE_SUBJECT,
+} from '@/server/services/note-content-evidence-protocol'
 
 function positiveInt(value: string | null, fallback?: number) {
   if (!value) return fallback
@@ -27,12 +31,17 @@ export const GET = defineRoute(async (request) => {
   const network = query.get('network')
   const statusText = query.get('status')
   const status = statusText === null || statusText === '' ? undefined : Number(statusText)
+  const subjectTypeText = query.get('subjectType')
+  const subjectType = subjectTypeText === NOTE_CONTENT_EVIDENCE_SUBJECT || subjectTypeText === PROJECT_VERSION_EVIDENCE_SUBJECT
+    ? subjectTypeText
+    : undefined
   if (network && network !== 'mainnet' && network !== 'devnet') {
     return apiOk(await listReleaseEvidence({ page: 1, pageSize: 20, network: undefined }))
   }
   return apiOk(await listReleaseEvidence({
     projectId: positiveInt(query.get('projectId')),
     projectVersionId: positiveInt(query.get('projectVersionId')),
+    subjectType,
     network: (network || undefined) as 'mainnet' | 'devnet' | undefined,
     status: Number.isInteger(status) ? status : undefined,
     signerAddress: query.get('signerAddress')?.trim() || undefined,

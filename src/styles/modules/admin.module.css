@@ -235,6 +235,10 @@
   padding: 12px;
 }
 
+.root :global(.admin-content:has(> .note-editor-page)) {
+  padding: 0;
+}
+
 .root :global(.admin-page-stack) {
   display: flex;
   width: 100%;
@@ -252,6 +256,21 @@
   min-height: var(--sv-admin-control-height);
   align-items: center;
   justify-content: flex-end;
+}
+
+.root :global(.admin-page-actions) :global(.ant-space) {
+  align-items: stretch;
+}
+
+.root :global(.admin-page-actions) :global(.ant-space-item) {
+  display: flex;
+}
+
+.root :global(.admin-page-actions) :global(.ant-btn),
+.root :global(.admin-toolbar-card) > :global(.ant-btn) {
+  min-inline-size: 104px;
+  justify-content: center;
+  box-shadow: none !important;
 }
 
 .root :global(.admin-toolbar-card) {
@@ -352,9 +371,27 @@
 }
 
 .root :global(.ant-input-affix-wrapper) {
+  height: var(--sv-admin-control-height);
   min-height: var(--sv-admin-control-height);
   padding-block: 3px;
   border-radius: var(--sv-admin-radius);
+}
+
+.root :global(.ant-input-affix-wrapper) :global(input.ant-input) {
+  height: auto;
+  min-height: 0;
+  padding-block: 0;
+}
+
+.root :global(.ant-input-search) {
+  height: var(--sv-admin-control-height);
+  align-items: stretch;
+}
+
+.root :global(.ant-input-search) :global(.ant-input-affix-wrapper),
+.root :global(.ant-input-search) :global(.ant-input-search-btn) {
+  height: 100%;
+  min-height: 0;
 }
 
 .root :global(textarea.ant-input) {
@@ -517,9 +554,13 @@
 
 .root :global(.note-editor-page) {
   display: flex;
-  min-height: calc(100vh - 82px);
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
   flex-direction: column;
   gap: 8px;
+  overflow: hidden;
 }
 
 .root :global(.note-editor-topbar) {
@@ -565,7 +606,7 @@
   display: grid;
   min-height: 0;
   flex: 1;
-  grid-template-columns: minmax(230px, 280px) minmax(190px, 220px) minmax(480px, 1fr);
+  grid-template-columns: minmax(220px, 260px) minmax(180px, 210px) minmax(0, 1fr);
   overflow: hidden;
   border: 1px solid var(--sv-admin-border);
   border-radius: var(--sv-admin-radius);
@@ -601,6 +642,44 @@
   display: flex;
   flex-direction: column;
   background: var(--sv-bg-solid);
+  overflow: hidden;
+}
+
+.root :global(.note-writing-panel) > :global(.markdown-editor-shell--container-fill) {
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.root :global(.note-context-selectors) {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+}
+
+.root :global(.note-context-selectors) > :global(.ant-select) {
+  width: clamp(150px, 16vw, 230px);
+}
+
+.root :global(.note-context-selectors) > svg {
+  flex: 0 0 auto;
+  color: var(--sv-text-muted);
+}
+
+.root :global(.note-workspace-path) {
+  overflow: hidden;
+  padding: 0 4px;
+  color: var(--sv-text-muted);
+  font-size: 11px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.root :global(.note-mobile-tabs),
+.root :global(.note-compact-revision-control) {
+  display: none;
 }
 
 .root :global(.note-panel-header) {
@@ -626,6 +705,14 @@
   border-bottom: 1px solid var(--sv-admin-border);
 }
 
+.root :global(.note-deleted-toggle) {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--sv-text-muted);
+  font-size: 11px;
+}
+
 .root :global(.note-tree-scroll) {
   min-height: 0;
   flex: 1;
@@ -643,34 +730,96 @@
   gap: 5px;
 }
 
-.root :global(.note-tree-scroll) :global(.ant-tree) {
-  background: transparent;
-  font-size: 13px;
-}
-
-.root :global(.note-tree-scroll) :global(.ant-tree-node-content-wrapper) {
-  min-width: 0;
+.root :global(.note-tree-category) {
+  margin-bottom: 6px;
+  border: 1px solid transparent;
   border-radius: var(--sv-admin-radius);
 }
 
-.root :global(.note-tree-title) {
+.root :global(.note-tree-category):global(.is-selected) {
+  border-color: rgb(var(--sv-primary-rgb), 0.2);
+  background: rgb(var(--sv-primary-rgb), 0.045);
+}
+
+.root :global(.note-tree-category):global(.is-deleted),
+.root :global(.note-tree-note-row):global(.is-deleted),
+.root :global(.note-revision-card):global(.is-deleted) {
+  opacity: 0.58;
+}
+
+.root :global(.note-tree-category-row),
+.root :global(.note-tree-note-row) {
   display: flex;
   min-width: 0;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 3px;
 }
 
-.root :global(.note-tree-title) > span:first-child {
+.root :global(.note-tree-category-row) > button:first-child,
+.root :global(.note-tree-note-row) > button:first-child {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 6px;
+  border: 0;
+  background: transparent;
+  color: var(--sv-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.root :global(.note-tree-category-row) > button:first-child > span,
+.root :global(.note-tree-note-row) > button:first-child > span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.root :global(.note-tree-title) :global(.ant-tag) {
+.root :global(.note-tree-notes) {
+  padding: 0 3px 4px 17px;
+}
+
+.root :global(.note-tree-note-row) {
+  border-radius: 5px;
+}
+
+.root :global(.note-tree-note-row):global(.is-active) {
+  background: rgb(var(--sv-primary-rgb), 0.11);
+}
+
+.root :global(.note-tree-note-row) :global(.ant-tag) {
   margin: 0;
   font-size: 10px;
   line-height: 17px;
+}
+
+.root :global(.note-tree-actions) {
+  display: flex;
+  flex: 0 0 auto;
+  opacity: 0;
+}
+
+.root :global(.note-tree-category-row):hover :global(.note-tree-actions),
+.root :global(.note-tree-note-row):hover :global(.note-tree-actions),
+.root :global(.note-tree-category):global(.is-selected) > :global(.note-tree-category-row) :global(.note-tree-actions),
+.root :global(.note-tree-note-row):global(.is-active) :global(.note-tree-actions) {
+  opacity: 1;
+}
+
+.root :global(.note-tree-inline-create) {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 2px 5px;
+  padding: 5px;
+  border: 0;
+  background: transparent;
+  color: var(--sv-primary);
+  cursor: pointer;
+  font-size: 11px;
 }
 
 .root :global(.note-revision-card) {
@@ -765,7 +914,8 @@
 
 .root :global(.note-editor-empty) {
   display: grid;
-  min-height: 520px;
+  min-height: 0;
+  flex: 1;
   place-content: center;
   justify-items: center;
   gap: 13px;
@@ -773,6 +923,28 @@
   background:
     radial-gradient(circle at 50% 42%, rgb(var(--sv-primary-rgb), 0.1), transparent 28%),
     var(--sv-bg-solid);
+}
+
+.root :global(.note-dialog-fields) {
+  display: grid;
+  gap: 16px;
+}
+
+.root :global(.note-dialog-fields) > label {
+  display: grid;
+  gap: 6px;
+  color: var(--sv-text-muted);
+  font-size: 12px;
+}
+
+.root :global(.note-dialog-fields) :global(.ant-input-number) {
+  width: 100%;
+}
+
+.root :global(.note-dialog-fields) > :global(.note-dialog-switch) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .root :global(.note-editor-empty) svg {
@@ -1236,6 +1408,30 @@
   font-weight: 650;
 }
 
+@media (max-width: 1180px) {
+  .root :global(.note-editor-workspace) {
+    grid-template-columns: minmax(220px, 250px) minmax(0, 1fr);
+  }
+
+  .root :global(.note-revision-panel) {
+    display: none;
+  }
+
+  .root :global(.note-compact-revision-control) {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 9px;
+    border-bottom: 1px solid var(--sv-admin-border);
+    background: var(--sv-bg-soft);
+  }
+
+  .root :global(.note-compact-revision-control) > :global(.ant-select) {
+    min-width: 0;
+    flex: 1;
+  }
+}
+
 @media (max-width: 900px) {
   .root :global(.admin-header-actions) :global(.sloth-wallet-button):global(.wallet-adapter-button) {
     display: none;
@@ -1378,26 +1574,71 @@
     flex-direction: column;
   }
 
-  .root :global(.note-editor-workspace) {
-    grid-template-columns: 1fr;
-    overflow: visible;
-  }
-
-  .root :global(.note-library-panel) {
-    max-height: 360px;
-    border-right: 0;
-    border-bottom: 1px solid var(--sv-border);
-  }
-
-  .root :global(.note-revision-panel) {
-    max-height: 360px;
-    border-right: 0;
-    border-bottom: 1px solid var(--sv-border);
-  }
-
   .root :global(.note-editor-topbar) {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .root :global(.note-context-selectors) {
+    flex-wrap: wrap;
+  }
+
+  .root :global(.note-context-selectors) > :global(.ant-select) {
+    width: min(100%, 240px);
+    flex: 1 1 170px;
+  }
+
+  .root :global(.note-context-selectors) > svg {
+    display: none;
+  }
+
+  .root :global(.note-mobile-tabs) {
+    display: flex;
+    padding: 3px;
+    border: 1px solid var(--sv-admin-border);
+    border-radius: var(--sv-admin-radius);
+    background: var(--sv-bg-soft);
+  }
+
+  .root :global(.note-mobile-tabs) > button {
+    min-height: 32px;
+    flex: 1;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--sv-text-muted);
+    cursor: pointer;
+  }
+
+  .root :global(.note-mobile-tabs) > button:global(.is-active) {
+    background: var(--sv-bg-solid);
+    color: var(--sv-primary);
+    box-shadow: var(--sv-shadow-xs);
+  }
+
+  .root :global(.note-editor-workspace) {
+    display: block;
+    overflow: hidden;
+  }
+
+  .root :global(.note-library-panel),
+  .root :global(.note-revision-panel),
+  .root :global(.note-writing-panel) {
+    display: none;
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    border: 0;
+  }
+
+  .root :global(.note-editor-workspace[data-mobile-pane="tree"] .note-library-panel),
+  .root :global(.note-editor-workspace[data-mobile-pane="versions"] .note-revision-panel),
+  .root :global(.note-editor-workspace[data-mobile-pane="content"] .note-writing-panel) {
+    display: flex;
+  }
+
+  .root :global(.note-compact-revision-control) {
+    display: none;
   }
 
   .root :global(.note-writing-toolbar) {

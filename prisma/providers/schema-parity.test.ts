@@ -59,6 +59,16 @@ function readReleaseMigration(provider: (typeof providers)[number]) {
   )
 }
 
+function readNoteContentEvidenceMigration(provider: (typeof providers)[number]) {
+  return readFileSync(
+    resolve(
+      process.cwd(),
+      `prisma/providers/${provider}/migrations/20260820000000_note_content_evidence/migration.sql`,
+    ),
+    'utf8',
+  )
+}
+
 function modelBlocks(schema: string) {
   return new Map(
     [...schema.matchAll(/model\s+(\w+)\s*\{([\s\S]*?)\n\}/g)].map((match) => [
@@ -108,7 +118,13 @@ describe('provider schema parity', () => {
     expect(models.get('ProjectVersion')).toContain('releaseHash String? @unique')
     expect(models.get('ProjectVersion')).toContain('manifestVersion Int? @map("manifest_version")')
     expect(models.get('ProjectVersion')).toContain('publishedAt DateTime? @map("published_at")')
+    expect(models.get('NoteContent')).toContain('evidenceId String? @unique')
     expect(models.get('ReleaseCredential')).toContain('projectVersionId Int @map("project_version_id")')
+    expect(models.get('ReleaseCredential')).toContain('noteContentId Int? @map("note_content_id")')
+    expect(models.get('ReleaseCredential')).toContain('subjectType String @default("PROJECT_VERSION")')
+    expect(models.get('ReleaseCredential')).toContain('subjectId String @map("subject_id")')
+    expect(models.get('ReleaseCredential')).toContain('subjectHash String @map("subject_hash")')
+    expect(models.get('ReleaseCredential')).toContain('@@unique([subjectType, subjectId, network]')
     expect(models.get('ReleaseCredential')).toContain('transactionSignature String? @unique')
     expect(models.get('ReleaseCredentialAttempt')).toContain('lastValidBlockHeight BigInt @map("last_valid_block_height")')
     expect(models.get('Contract')).toContain('contractId String @unique')
@@ -190,5 +206,18 @@ describe('provider schema parity', () => {
     expect(migration).toContain('manifest_version')
     expect(migration).toContain('published_at')
     expect(migration).toMatch(/SET\s+[`"]status[`"]\s*=\s*0/i)
+  })
+
+  it.each(providers)('%s migrates one evidence ledger to stable note-content subjects', (provider) => {
+    const migration = readNoteContentEvidenceMigration(provider)
+
+    expect(migration).toContain('evidence_id')
+    expect(migration).toContain('note_content_id')
+    expect(migration).toContain('subject_type')
+    expect(migration).toContain('subject_id')
+    expect(migration).toContain('subject_hash')
+    expect(migration).toContain('subject_manifest_version')
+    expect(migration).toContain('uq_release_credential_subject_network')
+    expect(migration).not.toContain('CREATE UNIQUE INDEX "uq_release_credential_version_network"')
   })
 })

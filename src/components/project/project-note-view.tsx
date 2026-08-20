@@ -2,8 +2,8 @@
  * @file project-note-view.tsx
  * @project SlothVault
  * @module Public Article Reader
- * @description Renders immutable public Markdown releases with navigation, manifest identity, authorship, and version-level transaction evidence.
- * @logic Display the release hash and one shared evidence receipt set for every article in the version, clearly distinguishing Mainnet formal records from Devnet tests.
+ * @description Renders immutable public Markdown releases with navigation, authorship, exact content-version evidence, and legacy release evidence.
+ * @logic Display content evidence only for the selected public primary revision while retaining the shared legacy release receipt set for compatibility.
  * @dependencies next-intl/server, MarkdownView
  * @index_tags article,reader,release,evidence,transaction,public
  * @author holic512
@@ -41,6 +41,13 @@ type NoteData = {
     transactionSignature: string
     signerAddress: string
     network: string
+    finalizedAt: string
+  }>
+  noteEvidence: Array<{
+    transactionSignature: string
+    signerAddress: string
+    network: string
+    contentHash: string
     finalizedAt: string
   }>
 }
@@ -128,6 +135,23 @@ export async function ProjectNoteView({
                 <code title={credential.transactionSignature}>
                   {credential.transactionSignature.slice(0, 12)}…{credential.transactionSignature.slice(-8)}
                 </code>
+              </div>
+              <div className="docs-copyright-links">
+                <Link href={`/evidence/${credential.transactionSignature}`}>
+                  核验凭证<ExternalLink size={12} />
+                </Link>
+              </div>
+            </aside>
+          ))}
+          {note.noteEvidence.map((credential) => (
+            <aside className="docs-copyright-proof" aria-label="本文内容版本存证" key={credential.transactionSignature}>
+              <span className="docs-copyright-mark">
+                {credential.network === 'devnet' ? <FlaskConical size={18} /> : <BadgeCheck size={18} />}
+              </span>
+              <div className="docs-copyright-copy">
+                <strong>{credential.network === 'devnet' ? '本文测试存证 · Devnet' : '本文内容版本存证 · Mainnet'}</strong>
+                <span>此凭证仅绑定当前公开主内容版本。</span>
+                <code title={credential.contentHash}>{credential.contentHash}</code>
               </div>
               <div className="docs-copyright-links">
                 <Link href={`/evidence/${credential.transactionSignature}`}>

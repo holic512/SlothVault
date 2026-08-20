@@ -67,7 +67,7 @@ export const getPublicUserProfile = cache(async (username: string) => {
               manifestVersion: true,
               publishedAt: true,
               releaseCredentials: {
-                where: { status: 2 },
+                where: { status: 2, subjectType: 'PROJECT_VERSION' },
                 select: { id: true },
                 take: 1,
               },

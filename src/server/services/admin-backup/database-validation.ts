@@ -84,7 +84,7 @@ export function validateBackupRelations(data: BackupData) {
   const projectMenus = mapById('projectMenu', data.projectMenus)
   const projectHomes = mapById('projectHome', data.projectHomes)
   const noteInfos = mapById('noteInfo', data.noteInfos)
-  mapById('noteContent', data.noteContents)
+  const noteContents = mapById('noteContent', data.noteContents)
   const fileManagements = mapById('fileManagement', data.fileManagements)
   mapById('systemConfig', data.systemConfigs)
   mapById('systemHomepage', data.systemHomepages)
@@ -155,8 +155,49 @@ export function validateBackupRelations(data: BackupData) {
     assertReference(noteInfos, item.noteInfoId, 'noteInfoId')
   }
   for (const item of data.releaseCredentials) {
-    assertReference(projectVersions, item.projectVersionId, 'releaseCredential projectVersionId')
+    const version = projectVersions.get(item.projectVersionId)
+    if (!version) {
+      invalidBackup(`unknown releaseCredential projectVersionId ${item.projectVersionId}`)
+    }
     assertReference(users, item.issuerUserId, 'releaseCredential issuerUserId')
+
+    if (item.subjectType === 'NOTE_CONTENT') {
+      if (
+        !item.noteContentId ||
+        !item.subjectId ||
+        !item.subjectHash ||
+        item.subjectManifestVersion === null
+      ) {
+        invalidBackup(`releaseCredential ${item.id} has incomplete note-content subject metadata`)
+      }
+      const content = noteContents.get(item.noteContentId)
+      if (!content) {
+        invalidBackup(`unknown releaseCredential noteContentId ${item.noteContentId}`)
+      }
+      if (!content.evidenceId || content.evidenceId !== item.subjectId) {
+        invalidBackup(`releaseCredential ${item.id} does not match noteContent evidenceId`)
+      }
+      const note = noteInfos.get(content.noteInfoId)
+      const category = note ? categories.get(note.categoryId) : undefined
+      if (!note || !category || category.projectVersionId !== item.projectVersionId) {
+        invalidBackup(`releaseCredential ${item.id} note content belongs to another project version`)
+      }
+      continue
+    }
+
+    if (item.noteContentId !== null) {
+      invalidBackup(`project-version releaseCredential ${item.id} cannot reference note content`)
+    }
+    if (!version.releaseId || !version.releaseHash || version.manifestVersion === null) {
+      invalidBackup(`releaseCredential ${item.id} references an unpublished project version`)
+    }
+    if (
+      (item.subjectId !== null && item.subjectId !== version.releaseId) ||
+      (item.subjectHash !== null && item.subjectHash !== version.releaseHash) ||
+      (item.subjectManifestVersion !== null && item.subjectManifestVersion !== version.manifestVersion)
+    ) {
+      invalidBackup(`releaseCredential ${item.id} does not match project version release metadata`)
+    }
   }
   for (const item of data.releaseCredentialAttempts) {
     assertReference(releaseCredentials, item.credentialId, 'releaseCredentialAttempt credentialId')
@@ -275,9 +316,20 @@ export function validateBackupRelations(data: BackupData) {
     (item) => item.releaseHash,
   )
   assertUniqueField(
-    'releaseCredential version/network',
+    'noteContent evidenceId',
+    data.noteContents.filter(
+      (item): item is typeof item & { evidenceId: string } => item.evidenceId !== null,
+    ),
+    (item) => item.evidenceId,
+  )
+  assertUniqueField(
+    'releaseCredential subject/network',
     data.releaseCredentials,
-    (item) => `${item.projectVersionId}:${item.network}`,
+    (item) => {
+      const version = projectVersions.get(item.projectVersionId)
+      const subjectId = item.subjectId || version?.releaseId || ''
+      return `${item.subjectType}:${subjectId}:${item.network}`
+    },
   )
   assertUniqueField(
     'releaseCredential transactionSignature',

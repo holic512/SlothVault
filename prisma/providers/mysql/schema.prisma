@@ -228,6 +228,7 @@ model NoteInfo {
 model NoteContent {
   id          Int   @id @default(autoincrement())
   noteInfoId  Int   @map("note_info_id")
+  evidenceId  String?  @unique(map: "uq_docs_note_content_evidence_id") @map("evidence_id") @db.Char(36)
   content     String   @db.LongText
   versionNote String?  @map("version_note") @db.VarChar(255)
   isPrimary   Boolean  @default(false) @map("is_primary")
@@ -236,6 +237,7 @@ model NoteContent {
   updatedAt   DateTime @default(now()) @map("updated_at") @db.DateTime(3)
   isDeleted   Boolean  @default(false) @map("is_deleted")
   noteInfo    NoteInfo @relation(fields: [noteInfoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  releaseCredentials ReleaseCredential[]
 
   @@index([noteInfoId], map: "idx_docs_note_content_note_info_id")
   @@map("docs_note_content")
@@ -394,7 +396,12 @@ model SystemInstallation {
 model ReleaseCredential {
   id                   Int      @id @default(autoincrement())
   projectVersionId     Int      @map("project_version_id")
+  noteContentId        Int?     @map("note_content_id")
   issuerUserId         Int      @map("issuer_user_id")
+  subjectType          String   @default("PROJECT_VERSION") @map("subject_type") @db.VarChar(32)
+  subjectId            String   @map("subject_id") @db.Char(36)
+  subjectHash          String   @map("subject_hash") @db.Char(64)
+  subjectManifestVersion Int    @map("subject_manifest_version")
   network              String   @db.VarChar(20)
   signerAddress        String   @map("signer_address") @db.VarChar(64)
   memo                 String   @db.Text
@@ -408,10 +415,12 @@ model ReleaseCredential {
   createdAt             DateTime @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt             DateTime @default(now()) @map("updated_at") @db.DateTime(3)
   projectVersion        ProjectVersion @relation(fields: [projectVersionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  noteContent           NoteContent? @relation(fields: [noteContentId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   issuerUser            User @relation("ReleaseCredentialIssuer", fields: [issuerUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   attempts              ReleaseCredentialAttempt[]
 
-  @@unique([projectVersionId, network], map: "uq_release_credential_version_network")
+  @@unique([subjectType, subjectId, network], map: "uq_release_credential_subject_network")
+  @@index([noteContentId], map: "idx_release_credential_note_content")
   @@index([network, status], map: "idx_release_credential_network_status")
   @@index([signerAddress], map: "idx_release_credential_signer")
   @@map("release_credential")

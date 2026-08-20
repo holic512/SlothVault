@@ -169,7 +169,7 @@ async function requireVersion(projectId: number, versionId: number) {
     include: {
       project: { select: { isDeleted: true, status: true } },
       releaseCredentials: {
-        where: { status: 2 },
+        where: { status: 2, subjectType: 'PROJECT_VERSION' },
         orderBy: { finalizedAt: 'desc' },
         select: {
           network: true,
@@ -247,6 +247,21 @@ export async function getProjectNote(
         })
       : null
   )
+  const noteEvidence = await prisma.releaseCredential.findMany({
+    where: {
+      noteContentId: content.id,
+      subjectType: 'NOTE_CONTENT',
+      status: 2,
+    },
+    orderBy: { finalizedAt: 'desc' },
+    select: {
+      network: true,
+      transactionSignature: true,
+      signerAddress: true,
+      subjectHash: true,
+      finalizedAt: true,
+    },
+  })
 
   return {
     id: content.id.toString(),
@@ -269,6 +284,13 @@ export async function getProjectNote(
       network: credential.network,
       transactionSignature: credential.transactionSignature!,
       signerAddress: credential.signerAddress,
+      finalizedAt: credential.finalizedAt!,
+    })),
+    noteEvidence: noteEvidence.map((credential) => ({
+      network: credential.network,
+      transactionSignature: credential.transactionSignature!,
+      signerAddress: credential.signerAddress,
+      contentHash: credential.subjectHash!,
       finalizedAt: credential.finalizedAt!,
     })),
   }

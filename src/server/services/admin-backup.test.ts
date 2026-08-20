@@ -161,6 +161,50 @@ describe('database backup system branding compatibility', () => {
 })
 
 describe('database backup release compatibility', () => {
+  it('round-trips note-content evidence identity and validates its parent version', () => {
+    const data = backupWithReservation()
+    const evidenceId = '61785fd5-b940-48ae-9300-06c05dd49686'
+    data.users.push({
+      id: '7', username: 'admin', password: 'hash', passwordConfigured: true,
+      email: null, displayName: null, avatar: null, bio: null, role: 'ADMIN',
+      status: 1, pointsBalance: 0, walletAddress: null, lastLoginAt: null,
+      createdAt: timestamp, updatedAt: timestamp,
+    })
+    data.projectVersions.push({
+      id: '2', projectId: '1', version: 'published', description: null, weight: 1, status: 1,
+      releaseId, releaseHash: 'a'.repeat(64), manifestVersion: 1, publishedAt: timestamp,
+      createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
+    })
+    data.categories.push({
+      id: '3', projectVersionId: '2', categoryName: 'Guides', weight: 0, status: 1,
+      createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
+    })
+    data.noteInfos.push({
+      id: '4', categoryId: '3', authorId: '7', noteTitle: 'Start', weight: 0, status: 1,
+      createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
+    })
+    data.noteContents.push({
+      id: '5', noteInfoId: '4', evidenceId, content: '# Start', versionNote: 'v1',
+      isPrimary: true, status: 1, createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
+    })
+    data.releaseCredentials.push({
+      id: '30', projectVersionId: '2', noteContentId: '5', issuerUserId: '7',
+      subjectType: 'NOTE_CONTENT', subjectId: evidenceId, subjectHash: 'b'.repeat(64),
+      subjectManifestVersion: 1, network: 'devnet', signerAddress: '11111111111111111111111111111111',
+      memo: '{}', transactionSignature: null, status: 0, slot: null, blockTime: null,
+      feeLamports: null, finalizedAt: null, lastVerifiedAt: null, createdAt: timestamp, updatedAt: timestamp,
+    })
+
+    const parsed = parseDatabaseImportPayload({ data, version: '2.5.0' })
+    expect(parsed.data.noteContents[0].evidenceId).toBe(evidenceId)
+    expect(parsed.data.releaseCredentials[0]).toMatchObject({
+      subjectType: 'NOTE_CONTENT', subjectId: evidenceId, noteContentId: '5',
+    })
+
+    parsed.data.categories[0].projectVersionId = '999'
+    expect(() => parseDatabaseImportPayload({ data: parsed.data, version: '2.5.0' })).toThrow(/projectVersionId/)
+  })
+
   it('accepts a 2.2 credential and its attempt', () => {
     const data = backupWithReservation()
     data.users.push({
@@ -175,7 +219,9 @@ describe('database backup release compatibility', () => {
       createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
     })
     data.releaseCredentials.push({
-      id: '30', projectVersionId: '2', issuerUserId: '7', network: 'devnet',
+      id: '30', projectVersionId: '2', noteContentId: null, issuerUserId: '7',
+      subjectType: 'PROJECT_VERSION', subjectId: null, subjectHash: null,
+      subjectManifestVersion: null, network: 'devnet',
       signerAddress: '11111111111111111111111111111111', memo: '{}',
       transactionSignature: null, status: 0, slot: null, blockTime: null,
       feeLamports: null, finalizedAt: null, lastVerifiedAt: null,

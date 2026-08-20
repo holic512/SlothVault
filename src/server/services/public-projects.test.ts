@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
     projectVersion: { findFirst: vi.fn() },
     noteInfo: { findFirst: vi.fn() },
     noteContent: { findMany: vi.fn() },
+    releaseCredential: { findMany: vi.fn() },
     user: { findFirst: vi.fn() },
   },
 }))
@@ -76,6 +77,13 @@ describe('public project reading', () => {
       username: 'editor',
       displayName: 'Editor',
     })
+    mocks.prisma.releaseCredential.findMany.mockResolvedValue([{
+      network: 'mainnet',
+      transactionSignature: 'ContentSignature111111111111111111111111111',
+      signerAddress: 'Owner111111111111111111111111111111111111',
+      subjectHash: 'b'.repeat(64),
+      finalizedAt: issuedAt,
+    }])
     const result = await getProjectNote(4, 8, 12)
 
     expect(result).toEqual({
@@ -96,6 +104,16 @@ describe('public project reading', () => {
         network: 'devnet',
         finalizedAt: issuedAt,
       }],
+      noteEvidence: [{
+        transactionSignature: 'ContentSignature111111111111111111111111111',
+        signerAddress: 'Owner111111111111111111111111111111111111',
+        network: 'mainnet',
+        contentHash: 'b'.repeat(64),
+        finalizedAt: issuedAt,
+      }],
     })
+    expect(mocks.prisma.releaseCredential.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ noteContentId: 18, subjectType: 'NOTE_CONTENT' }),
+    }))
   })
 })

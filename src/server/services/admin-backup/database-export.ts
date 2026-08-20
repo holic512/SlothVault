@@ -276,10 +276,11 @@ export async function exportDatabaseBackup() {
       credentialId: credentialId.toString(),
       issuerUserId: issuerUserId.toString(),
     })),
-    releaseCredentials: snapshot.releaseCredentials.map(({ id, projectVersionId, issuerUserId, ...item }) => ({
+    releaseCredentials: snapshot.releaseCredentials.map(({ id, projectVersionId, noteContentId, issuerUserId, ...item }) => ({
       ...item,
       id: id.toString(),
       projectVersionId: projectVersionId.toString(),
+      noteContentId: noteContentId?.toString() ?? null,
       issuerUserId: issuerUserId.toString(),
     })),
     releaseCredentialAttempts: snapshot.releaseCredentialAttempts.map(({
@@ -305,7 +306,7 @@ export async function exportDatabaseBackup() {
   void _legacyCompressedNfts
 
   return {
-    version: '2.4.0',
+    version: '2.5.0',
     exportedAt,
     data: activeData,
   }

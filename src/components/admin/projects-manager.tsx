@@ -4,8 +4,8 @@
  * @file projects-manager.tsx
  * @project SlothVault
  * @module Project Administration
- * @description Provides administrator-only management for public article collections, immutable releases, manifests, and draft clones.
- * @logic Query collections, edit draft versions, publish after strict validation, operate release visibility, verify/copy/download release evidence, and clone frozen trees for the next revision.
+ * @description Provides administrator-only management for public article collections, immutable releases, manifests, draft clones, and unified content-editor entry points.
+ * @logic Query collections, open the linear content workspace, edit draft versions, publish after strict validation, operate release visibility, verify manifests, and clone frozen trees for the next revision.
  * @dependencies Ant Design, React Query, next-intl, api-client
  * @index_tags admin,projects,versions,crud
  * @author holic512
@@ -30,7 +30,7 @@ import {
   Upload,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { Boxes, Clipboard, Download, Ellipsis, Eye, EyeOff, FolderTree, GitFork, Home, ImageUp, NotebookTabs, Plus, RefreshCw, Rocket, RotateCcw, ShieldCheck, Trash2 } from 'lucide-react'
+import { BookOpenText, Boxes, Clipboard, Download, Ellipsis, Eye, EyeOff, GitFork, Home, ImageUp, Plus, RefreshCw, Rocket, RotateCcw, ShieldCheck, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 
@@ -219,8 +219,7 @@ export function ProjectsManager() {
                   { key: 'versions', icon: <Boxes size={14} />, label: t('operations.versionManage'), onClick: () => setVersionProject(row) },
                   { key: 'menu', icon: <Ellipsis size={14} />, label: t('operations.menuConfig'), onClick: () => setMenuProject(row) },
                   { key: 'home', icon: <Home size={14} />, label: t('operations.homeEdit'), onClick: () => router.push(`/admin/mm/projects/${row.id}/home`) },
-                  { key: 'categories', icon: <FolderTree size={14} />, label: t('operations.categoryManage'), disabled: !row.latestVersionId, onClick: () => router.push(`/admin/mm/categories?versionId=${row.latestVersionId}`) },
-                  { key: 'notes', icon: <NotebookTabs size={14} />, label: t('operations.noteManage'), onClick: () => router.push(`/admin/mm/notes?projectId=${row.id}`) },
+                  { key: 'content', icon: <BookOpenText size={14} />, label: t('operations.contentEdit'), onClick: () => router.push(`/admin/mm/notes?projectId=${row.id}${row.latestVersionId ? `&versionId=${row.latestVersionId}` : ''}`) },
                   { type: 'divider' },
                   row.isDeleted
                     ? { key: 'restore', icon: <RotateCcw size={14} />, label: t('operations.restore'), onClick: () => batchMutation.mutate({ action: 'restore', ids: [row.id] }) }
@@ -340,13 +339,6 @@ type VersionDto = {
   isDeleted: boolean
   createdAt: string
   updatedAt: string
-  evidence: Partial<Record<'mainnet' | 'devnet', {
-    status: number
-    transactionSignature: string | null
-    signerAddress: string
-    finalizedAt: string | null
-    test: boolean
-  }>>
 }
 
 function VersionManager({ project, onClose, onUpdated }: { project: ProjectDto | null; onClose: () => void; onUpdated: () => unknown }) {
@@ -388,16 +380,9 @@ function VersionManager({ project, onClose, onUpdated }: { project: ProjectDto |
   })
   const publish = useMutation({
     mutationFn: (id: string) => apiFetch(`/api/admin/mm/projectVersion/${id}/publish`, { method: 'POST' }),
-    onSuccess: async (_result, id) => {
+    onSuccess: async () => {
       message.success(vt('messages.published'))
       await refresh()
-      modal.confirm({
-        title: '版本已公开，是否立即办理交易存证？',
-        content: '存证与发布相互独立。你可以使用当前连接的钱包签署该版本哈希，也可以稍后从交易存证中心处理。',
-        okText: '立即存证',
-        cancelText: '稍后处理',
-        onOk: () => router.push(`/admin/mm/evidence?projectVersionId=${id}`),
-      })
     },
     onError: (error) => {
       const issues = error instanceof ApiClientError && error.data && typeof error.data === 'object' && 'issues' in error.data
@@ -503,21 +488,12 @@ function VersionManager({ project, onClose, onUpdated }: { project: ProjectDto |
               : '—',
           },
           {
-            title: '存证',
-            width: 145,
-            render: (_, row) => <Space size={2} wrap>
-              {row.evidence?.mainnet ? <Tag color={row.evidence.mainnet.status === 2 ? 'success' : 'processing'}>Mainnet</Tag> : null}
-              {row.evidence?.devnet ? <Tag color={row.evidence.devnet.status === 2 ? 'warning' : 'processing'}>Devnet 测试</Tag> : null}
-              {row.publishedAt && !row.evidence?.mainnet && !row.evidence?.devnet ? <Tag>未存证</Tag> : null}
-            </Space>,
-          },
-          {
             title: vt('table.actions'),
             width: 285,
             render: (_, row) => (
               <Space size={2}>
                 {!row.publishedAt ? <Button type="link" onClick={() => openVersionForm(row)}>{vt('actions.edit')}</Button> : null}
-                <Button type="link" onClick={() => router.push(`/admin/mm/categories?versionId=${row.id}`)}>{vt('actions.categories')}</Button>
+                <Button type="link" onClick={() => router.push(`/admin/mm/notes?projectId=${row.projectId}&versionId=${row.id}`)}>{vt('actions.content')}</Button>
                 {row.isDeleted ? (
                   <Button type="link" onClick={() => void restore(row.id)}>{vt('actions.restore')}</Button>
                 ) : row.publishedAt ? (

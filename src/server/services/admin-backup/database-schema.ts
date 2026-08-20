@@ -2,8 +2,8 @@
  * @file database-schema.ts
  * @project SlothVault
  * @module Admin Database Backup Schema
- * @description Defines the portable 2.3 database-backup shape with contract and version transaction evidence plus legacy cNFT input compatibility.
- * @logic Validate active collections strictly, retain frozen contract snapshots and evidence attempts, accept deprecated Tree/cNFT arrays only for ignore accounting, and retain prior import envelopes.
+ * @description Defines the portable 2.5 database-backup shape with contract, project-version, and note-content evidence plus legacy cNFT input compatibility.
+ * @logic Validate active collections strictly, retain stable note evidence identities and frozen evidence attempts, accept deprecated Tree/cNFT arrays only for ignore accounting, and retain prior import envelopes.
  * @dependencies Zod, Node path rules, backup constants
  * @index_tags admin,backup,database,schema,zod,portable
  * @author holic512
@@ -238,6 +238,7 @@ const noteInfoSchema = z.object({
 const noteContentSchema = z.object({
   id: idStringSchema,
   noteInfoId: idStringSchema,
+  evidenceId: z.string().uuid().nullable().optional().default(null),
   content: z.string(),
   versionNote: nullableString(255),
   isPrimary: z.boolean(),
@@ -328,7 +329,12 @@ const compressedNftSchema = z.object({
 const releaseCredentialSchema = z.object({
   id: idStringSchema,
   projectVersionId: idStringSchema,
+  noteContentId: nullableIdStringSchema.optional().default(null),
   issuerUserId: idStringSchema,
+  subjectType: z.enum(['PROJECT_VERSION', 'NOTE_CONTENT']).optional().default('PROJECT_VERSION'),
+  subjectId: z.string().uuid().nullable().optional().default(null),
+  subjectHash: z.string().regex(/^[a-f0-9]{64}$/).nullable().optional().default(null),
+  subjectManifestVersion: intSchema.positive().nullable().optional().default(null),
   network: z.enum(['mainnet', 'devnet']),
   signerAddress: nonEmptyString(64),
   memo: z.string(),
@@ -463,7 +469,7 @@ export const backupDataSchema = z.object({
 export const databaseImportPayloadSchema = z.object({
   data: backupDataSchema,
   mode: z.enum(['insert', 'overwrite']).optional().default('insert'),
-  version: z.enum(['2.0.0', '2.1.0', '2.2.0', '2.3.0', '2.4.0']).optional().default('2.0.0'),
+  version: z.enum(['2.0.0', '2.1.0', '2.2.0', '2.3.0', '2.4.0', '2.5.0']).optional().default('2.0.0'),
 }).strict()
 
 export type BackupData = z.infer<typeof backupDataSchema>

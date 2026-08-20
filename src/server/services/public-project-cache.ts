@@ -134,6 +134,10 @@ export function getCachedProjectNote(projectId: number, versionId: number, noteI
           ...item,
           finalizedAt: iso(item.finalizedAt),
         })),
+        noteEvidence: note.noteEvidence.map((item) => ({
+          ...item,
+          finalizedAt: iso(item.finalizedAt),
+        })),
       }
     },
     ['public-project-note', String(projectId), String(versionId), String(noteId)],

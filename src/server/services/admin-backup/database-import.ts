@@ -323,6 +323,7 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
       const created = await tx.noteContent.create({
         data: {
           noteInfoId: requiredMappedId(ids.noteInfos, item.noteInfoId, 'noteInfoId'),
+          evidenceId: item.evidenceId,
           content: item.content,
           versionNote: item.versionNote,
           isPrimary: version === '2.0.0' ? false : item.isPrimary,
@@ -484,10 +485,24 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
     }
 
     for (const item of data.releaseCredentials) {
+      const sourceVersion = data.projectVersions.find((version) => version.id === item.projectVersionId)
+      const subjectId = item.subjectId || sourceVersion?.releaseId
+      const subjectHash = item.subjectHash || sourceVersion?.releaseHash
+      const subjectManifestVersion = item.subjectManifestVersion || sourceVersion?.manifestVersion
+      if (!subjectId || !subjectHash || !subjectManifestVersion) {
+        throw new HttpError('Backup evidence subject metadata is incomplete', 409, 409)
+      }
       const record = await tx.releaseCredential.create({
         data: {
           projectVersionId: requiredMappedId(ids.projectVersions, item.projectVersionId, 'releaseCredential projectVersionId'),
+          noteContentId: item.noteContentId
+            ? requiredMappedId(ids.noteContents, item.noteContentId, 'releaseCredential noteContentId')
+            : null,
           issuerUserId: requiredMappedId(ids.users, item.issuerUserId, 'releaseCredential issuerUserId'),
+          subjectType: item.subjectType,
+          subjectId,
+          subjectHash,
+          subjectManifestVersion,
           network: item.network,
           signerAddress: item.signerAddress,
           memo: item.memo,

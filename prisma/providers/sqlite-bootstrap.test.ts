@@ -29,6 +29,7 @@ describe('SQLite provider bootstrap', () => {
         '20260812000000_project_version_releases',
         '20260813000000_release_transaction_evidence',
         '20260818000000_contract_evidence',
+        '20260820000000_note_content_evidence',
       ]) {
         bootstrapDatabase.exec(readFileSync(resolve(process.cwd(), `prisma/providers/sqlite/migrations/${migration}/migration.sql`), 'utf8'))
       }
@@ -49,6 +50,10 @@ describe('SQLite provider bootstrap', () => {
         data: {
           projectVersionId: version.id,
           issuerUserId: admin.id,
+          subjectType: 'PROJECT_VERSION',
+          subjectId: '90f98878-b654-4ad3-8f61-7b849ef03d49',
+          subjectHash: 'a'.repeat(64),
+          subjectManifestVersion: 1,
           network: 'devnet',
           signerAddress: '11111111111111111111111111111111',
           memo: '{}',
