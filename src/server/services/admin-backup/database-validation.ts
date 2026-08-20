@@ -78,6 +78,7 @@ export function validateBackupRelations(data: BackupData) {
   const pointTransactions = mapById('pointTransaction', data.pointTransactions)
   const giftCardBatches = mapById('giftCardBatch', data.giftCardBatches)
   const giftCards = mapById('giftCard', data.giftCards)
+  mapById('article', data.articles)
   const projects = mapById('project', data.projects)
   const projectVersions = mapById('projectVersion', data.projectVersions)
   const categories = mapById('category', data.categories)
@@ -107,6 +108,11 @@ export function validateBackupRelations(data: BackupData) {
   for (const item of giftCards.values()) {
     assertReference(giftCardBatches, item.batchId, 'giftCard batchId')
     if (item.redeemedById) assertReference(users, item.redeemedById, 'giftCard redeemedById')
+  }
+  for (const item of data.articles) {
+    if (item.status === 1 && (!item.publishedAt || item.isDeleted)) {
+      invalidBackup(`published article ${item.id} must be visible and have publishedAt`)
+    }
   }
 
   for (const item of data.projectVersions) {

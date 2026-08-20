@@ -9,6 +9,7 @@ const expectedTables = {
   PointTransaction: 'points_transaction',
   GiftCardBatch: 'points_gift_card_batch',
   GiftCard: 'points_gift_card',
+  Article: 'blog_article',
   Project: 'collections_project',
   ProjectMenu: 'collections_project_menu',
   ProjectHome: 'collections_project_home',
@@ -111,6 +112,8 @@ describe('provider schema parity', () => {
     expect(models.get('User')).toContain('walletAddress String? @unique')
     expect(models.get('PointTransaction')).toContain('balanceAfter Int @map("balance_after")')
     expect(models.get('GiftCard')).toContain('codeHash String @unique')
+    expect(models.get('Article')).toContain('publishedAt DateTime? @map("published_at")')
+    expect(models.get('Article')).toContain('@@index([status, isDeleted, publishedAt]')
     expect(models.get('NoteInfo')).toContain('contentRevision Int @default(0) @map("content_revision")')
     expect(models.get('NoteInfo')).toContain('authorId Int? @map("author_id")')
     expect(models.get('ProjectVersion')).toContain('documentRevision Int @default(0) @map("document_revision")')
@@ -144,6 +147,7 @@ describe('provider schema parity', () => {
       'PointTransaction',
       'GiftCardBatch',
       'GiftCard',
+      'Article',
       'Project',
       'ProjectMenu',
       'ProjectHome',
@@ -219,5 +223,19 @@ describe('provider schema parity', () => {
     expect(migration).toContain('subject_manifest_version')
     expect(migration).toContain('uq_release_credential_subject_network')
     expect(migration).not.toContain('CREATE UNIQUE INDEX "uq_release_credential_version_network"')
+  })
+
+  it.each(providers)('%s creates the independent article archive and public index', (provider) => {
+    const migration = readFileSync(
+      resolve(
+        process.cwd(),
+        `prisma/providers/${provider}/migrations/20260820120000_independent_articles/migration.sql`,
+      ),
+      'utf8',
+    )
+
+    expect(migration).toContain('blog_article')
+    expect(migration).toContain('published_at')
+    expect(migration).toContain('idx_blog_article_public')
   })
 })

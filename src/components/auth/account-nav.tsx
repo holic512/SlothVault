@@ -4,7 +4,7 @@
  * @file account-nav.tsx
  * @project SlothVault
  * @module Public Account Navigation
- * @description Provides conventional login and an identity-aware dropdown for account routes, public profiles, administrator navigation, and logout.
+ * @description Provides conventional login and an identity-aware dropdown for private account routes, administrator navigation, and logout.
  * @logic Resolve the shared session once, direct signed-in users to dedicated account sections, expose the console only to administrators, and revoke the session on logout.
  * @dependencies Ant Design, React Query, Next navigation, auth API
  * @index_tags navbar,account,dropdown,login,logout,admin
@@ -94,12 +94,6 @@ export function AccountNav({ compact = false }: { compact?: boolean }) {
             key: 'contracts',
             icon: <FileSignature size={15} />,
             label: <Link href="/account/contracts">我的合同</Link>,
-          },
-          { type: 'divider' as const },
-          {
-            key: 'public-profile',
-            icon: <CircleUserRound size={15} />,
-            label: <Link href={`/u/${user.username}`}>查看公开主页</Link>,
           },
           ...(user.role === 'ADMIN'
             ? [{

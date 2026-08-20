@@ -2,10 +2,10 @@
  * @file public-projects.ts
  * @project SlothVault
  * @module Public Project Reading
- * @description Centralizes public immutable release navigation, manifest metadata, article reads, and version transaction evidence.
- * @logic Require a visible published release, select its unique primary content, and expose the same finalized version evidence to every article in that release.
- * @dependencies Prisma project, document, user, and release credential models
- * @index_tags public-project,public-reader,versions,notes,author,evidence
+ * @description Centralizes public immutable project navigation, manifest metadata, document reads, and version transaction evidence.
+ * @logic Require a visible published release, select its unique primary content, and expose release evidence without coupling public project documents to user identities.
+ * @dependencies Prisma project, document, and release credential models
+ * @index_tags public-project,public-reader,versions,notes,evidence
  * @author holic512
  */
 import 'server-only'
@@ -228,7 +228,7 @@ export async function getProjectNote(
       status: 1,
       category: { projectVersionId: versionId, isDeleted: false, status: 1 },
     },
-    select: { id: true, authorId: true, noteTitle: true },
+    select: { id: true, noteTitle: true },
   })
   if (!note) throw new HttpError('Note not found', 404, 404)
 
@@ -239,14 +239,6 @@ export async function getProjectNote(
   const content = contents.length === 1 ? contents[0] : null
   if (!content) throw new HttpError('Note content not found', 404, 404)
 
-  const author = await (
-    note.authorId
-      ? prisma.user.findFirst({
-          where: { id: note.authorId, status: 1 },
-          select: { username: true, displayName: true },
-        })
-      : null
-  )
   const noteEvidence = await prisma.releaseCredential.findMany({
     where: {
       noteContentId: content.id,
@@ -274,12 +266,6 @@ export async function getProjectNote(
     releaseHash: version.releaseHash!,
     manifestVersion: version.manifestVersion!,
     publishedAt: version.publishedAt!,
-    author: author
-      ? {
-          username: author.username,
-          displayName: author.displayName,
-        }
-      : null,
     evidence: version.releaseCredentials.map((credential) => ({
       network: credential.network,
       transactionSignature: credential.transactionSignature!,

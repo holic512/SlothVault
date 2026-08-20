@@ -17,6 +17,7 @@ function backupWithReservation(options: {
     pointTransactions: [],
     giftCardBatches: [],
     giftCards: [],
+    articles: [],
     projects: [
       {
         id: '1',
@@ -157,6 +158,53 @@ describe('database backup system branding compatibility', () => {
 
     const parsed = parseDatabaseImportPayload({ data, mode: 'insert' }).data
     expect(parsed.systemConfigs[0].configValue).toBe(parsed.fileManagements[0].filePath)
+  })
+})
+
+describe('database backup independent article compatibility', () => {
+  it('defaults pre-2.6 backups to an empty article collection', () => {
+    const data = backupWithReservation()
+    const { articles, ...legacyData } = data
+    expect(articles).toEqual([])
+    expect(parseDatabaseImportPayload({ data: legacyData, version: '2.5.0' }).data.articles).toEqual([])
+  })
+
+  it('accepts visible and withdrawn 2.6 articles while rejecting an incomplete publication state', () => {
+    const data = backupWithReservation()
+    data.articles.push({
+      id: '40',
+      title: 'Independent article',
+      summary: null,
+      cover: null,
+      content: '# Body',
+      status: 1,
+      publishedAt: timestamp,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      isDeleted: false,
+    })
+    expect(parseDatabaseImportPayload({ data, version: '2.6.0' }).data.articles).toHaveLength(1)
+
+    data.articles[0].publishedAt = null
+    expect(() => parseDatabaseImportPayload({ data, version: '2.6.0' })).toThrow(/published article/)
+  })
+
+  it('rejects article covers outside the managed article-cover directory', () => {
+    const data = backupWithReservation()
+    data.articles.push({
+      id: '41',
+      title: 'Unsafe cover',
+      summary: null,
+      cover: 'https://example.com/cover.png',
+      content: '# Body',
+      status: 0,
+      publishedAt: null,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      isDeleted: false,
+    })
+
+    expect(() => parseDatabaseImportPayload({ data, version: '2.6.0' })).toThrow(/article-cover/)
   })
 })
 

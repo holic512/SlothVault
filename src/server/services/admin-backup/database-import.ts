@@ -12,6 +12,7 @@ import 'server-only'
 
 import { unitOfWork } from '@/server/database/unit-of-work'
 import { HttpError } from '@/server/http/errors'
+import { invalidatePublicArticleCache } from '@/server/services/public-article-cache'
 import { invalidatePublicProjectCache } from '@/server/services/public-project-cache'
 import {
   buildReleaseManifest,
@@ -104,6 +105,7 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
       pointTransactions: new Map<string, number>(),
       giftCardBatches: new Map<string, number>(),
       giftCards: new Map<string, number>(),
+      articles: new Map<string, number>(),
       projects: new Map<string, number>(),
       projectVersions: new Map<string, number>(),
       categories: new Map<string, number>(),
@@ -210,6 +212,23 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
         },
       })
       ids.giftCards.set(item.id, record.id)
+    }
+
+    for (const item of data.articles) {
+      const record = await tx.article.create({
+        data: {
+          title: item.title,
+          summary: item.summary,
+          cover: item.cover,
+          content: item.content,
+          status: item.status,
+          publishedAt: item.publishedAt ? new Date(item.publishedAt) : null,
+          createdAt: new Date(item.createdAt),
+          updatedAt: new Date(item.updatedAt),
+          isDeleted: item.isDeleted,
+        },
+      })
+      ids.articles.set(item.id, record.id)
     }
 
     for (const item of data.projects) {
@@ -573,6 +592,7 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
         pointTransactions: ids.pointTransactions.size,
         giftCardBatches: ids.giftCardBatches.size,
         giftCards: ids.giftCards.size,
+        articles: ids.articles.size,
         projects: ids.projects.size,
         projectVersions: ids.projectVersions.size,
         categories: ids.categories.size,
@@ -596,7 +616,7 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
       maxWait: DATABASE_TRANSACTION_MAX_WAIT_MS,
       timeout: DATABASE_TRANSACTION_TIMEOUT_MS,
     })
-    await invalidatePublicProjectCache()
+    await Promise.all([invalidatePublicArticleCache(), invalidatePublicProjectCache()])
     return result
   } catch (error) {
     if (hasDatabaseErrorCode(error, 'P2002')) {

@@ -1,15 +1,15 @@
 /**
  * @file project-note-view.tsx
  * @project SlothVault
- * @module Public Article Reader
- * @description Renders immutable public Markdown releases with navigation, authorship, exact content-version evidence, and legacy release evidence.
- * @logic Display content evidence only for the selected public primary revision while retaining the shared legacy release receipt set for compatibility.
+ * @module Public Project Document Reader
+ * @description Renders immutable public project documents with navigation, exact content-version evidence, and legacy release evidence.
+ * @logic Keep public project reading independent from user identity while displaying content evidence for the selected primary revision and legacy release receipts.
  * @dependencies next-intl/server, MarkdownView
- * @index_tags article,reader,release,evidence,transaction,public
+ * @index_tags project,document,reader,release,evidence,transaction,public
  * @author holic512
  */
 import { Typography } from 'antd'
-import { BadgeCheck, Download, ExternalLink, Fingerprint, FlaskConical, UserRound } from 'lucide-react'
+import { BadgeCheck, Download, ExternalLink, Fingerprint, FlaskConical } from 'lucide-react'
 import { getLocale, getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 
@@ -33,10 +33,6 @@ type NoteData = {
   releaseHash: string
   manifestVersion: number
   publishedAt: string
-  author: {
-    username: string
-    displayName: string | null
-  } | null
   evidence: Array<{
     transactionSignature: string
     signerAddress: string
@@ -65,7 +61,7 @@ export async function ProjectNoteView({
   sidebar: SidebarCategory[]
   note: NoteData
 }) {
-  const [locale, t] = await Promise.all([getLocale(), getTranslations('Article')])
+  const [locale, t] = await Promise.all([getLocale(), getTranslations('ProjectDocument')])
 
   return (
     <main className="docs-reader">
@@ -90,14 +86,6 @@ export async function ProjectNoteView({
       <article className="docs-article">
         <header className="docs-article-header">
           <div className="docs-article-meta">
-            {note.author ? (
-              <Link href={`/u/${note.author.username}`} className="docs-author-link">
-                <UserRound size={14} />
-                {note.author.displayName || note.author.username}
-              </Link>
-            ) : (
-              <span>{t('unknownAuthor')}</span>
-            )}
             <span>
               {t('updated', {
                 date: new Date(note.updatedAt).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US'),

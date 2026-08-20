@@ -4,8 +4,8 @@
  * @file public-navbar.tsx
  * @project SlothVault
  * @module Public Navigation
- * @description Provides the shared brand, article navigation, conventional account, locale, and theme controls for public pages.
- * @logic Highlight the current route, render the server-resolved system brand, and keep the account/theme actions inside a restrained responsive navigation shell.
+ * @description Provides shared homepage, independent article, project, account, locale, and theme navigation for public pages.
+ * @logic Highlight independent portal destinations precisely, render the server-resolved system brand, and keep account/theme actions inside a restrained responsive navigation shell.
  * @dependencies next/link, next-intl, account-nav, brand-logo, theme-controls
  * @index_tags navbar,public,navigation,branding,responsive
  * @author holic512
@@ -13,7 +13,7 @@
 import { useState } from 'react'
 
 import { Button, Drawer } from 'antd'
-import { BookOpenText, Menu } from 'lucide-react'
+import { FolderKanban, Menu, Newspaper } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -41,10 +41,17 @@ export function PublicNavbar({ branding }: { branding: SystemBranding }) {
             {t('home')}
           </Link>
           <Link
+            className={pathname.startsWith('/articles') ? 'is-active' : ''}
+            href="/articles"
+          >
+            <Newspaper size={15} />
+            {t('articles')}
+          </Link>
+          <Link
             className={pathname.startsWith('/project') ? 'is-active' : ''}
             href="/project/projectList"
           >
-            <BookOpenText size={15} />
+            <FolderKanban size={15} />
             {t('projects')}
           </Link>
         </div>
@@ -77,11 +84,19 @@ export function PublicNavbar({ branding }: { branding: SystemBranding }) {
             {t('home')}
           </Link>
           <Link
+            className={pathname.startsWith('/articles') ? 'is-active' : ''}
+            href="/articles"
+            onClick={() => setMobileOpen(false)}
+          >
+            <Newspaper size={17} />
+            {t('articles')}
+          </Link>
+          <Link
             className={pathname.startsWith('/project') ? 'is-active' : ''}
             href="/project/projectList"
             onClick={() => setMobileOpen(false)}
           >
-            <BookOpenText size={17} />
+            <FolderKanban size={17} />
             {t('projects')}
           </Link>
         </nav>

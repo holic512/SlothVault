@@ -2,7 +2,7 @@
  * @file admin-dashboard.ts
  * @project SlothVault
  * @module Admin Dashboard Service
- * @description Aggregates administration overview counts, user/point/card metrics, content health, file statistics, version evidence status, and recent activity.
+ * @description Aggregates administration overview counts, independent article and project health, user metrics, file statistics, evidence status, and recent activity.
  * @logic Query independent dashboard metrics concurrently, normalize aggregate values, calculate percentages, and map recent records to the stable API shape.
  * @dependencies Prisma user, content, file, session, and release credential models
  * @index_tags admin,dashboard,metrics,health,recent-activity
@@ -21,6 +21,8 @@ export async function getAdminDashboard() {
     totalPoints,
     totalGiftCards,
     redeemedGiftCards,
+    totalArticles,
+    publishedArticles,
     totalProjects,
     activeProjects,
     totalVersions,
@@ -36,6 +38,7 @@ export async function getAdminDashboard() {
     finalizedEvidence,
     failedEvidence,
     recentProjects,
+    recentArticles,
     recentNotes,
     recentSessions,
   ] = await Promise.all([
@@ -44,6 +47,8 @@ export async function getAdminDashboard() {
     prisma.user.aggregate({ _sum: { pointsBalance: true } }),
     prisma.giftCard.count(),
     prisma.giftCard.count({ where: { status: 2 } }),
+    prisma.article.count({ where: { isDeleted: false } }),
+    prisma.article.count({ where: { isDeleted: false, status: 1, publishedAt: { not: null } } }),
     prisma.project.count({ where: { isDeleted: false } }),
     prisma.project.count({ where: { isDeleted: false, status: 1 } }),
     prisma.projectVersion.count({ where: { isDeleted: false } }),
@@ -75,6 +80,18 @@ export async function getAdminDashboard() {
         status: true,
         createdAt: true,
         _count: { select: { versions: { where: { isDeleted: false } } } },
+      },
+    }),
+    prisma.article.findMany({
+      where: { isDeleted: false },
+      orderBy: { updatedAt: 'desc' },
+      take: 5,
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        publishedAt: true,
+        updatedAt: true,
       },
     }),
     prisma.noteInfo.findMany({
@@ -122,6 +139,7 @@ export async function getAdminDashboard() {
         totalPoints: totalPoints._sum.pointsBalance || 0,
       },
       giftCards: { total: totalGiftCards, redeemed: redeemedGiftCards },
+      articles: { total: totalArticles, published: publishedArticles },
       projects: { total: totalProjects, active: activeProjects },
       versions: { total: totalVersions, active: activeVersions },
       categories: { total: totalCategories, active: activeCategories },
@@ -147,6 +165,7 @@ export async function getAdminDashboard() {
     },
     health: {
       projectUtilization: percentage(activeProjects, totalProjects),
+      articlePublicationRate: percentage(publishedArticles, totalArticles),
       noteUtilization: percentage(activeNotes, totalNotes),
       categoryUtilization: percentage(activeCategories, totalCategories),
       evidenceFinalizationRate: percentage(finalizedEvidence, totalEvidence),
@@ -158,6 +177,13 @@ export async function getAdminDashboard() {
         status: project.status,
         versionCount: project._count.versions,
         createdAt: project.createdAt,
+      })),
+      articles: recentArticles.map((article) => ({
+        id: article.id,
+        title: article.title,
+        status: article.status,
+        publishedAt: article.publishedAt,
+        updatedAt: article.updatedAt,
       })),
       notes: recentNotes.map((note) => ({
         id: note.id,

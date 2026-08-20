@@ -1,7 +1,8 @@
 {
   "Nav": {
     "home": "首页",
-    "projects": "文章",
+    "articles": "文章",
+    "projects": "项目",
     "community": "加入交流群",
     "discord": "Discord",
     "github": "GitHub",
@@ -9,18 +10,33 @@
     "mobileNavigation": "移动端导航"
   },
   "ProjectsPage": {
-    "title": "公开文章库",
+    "title": "公开项目库",
     "loading": "加载中...",
     "error": "加载失败，请稍后重试",
     "empty": "暂无公开项目",
     "categories": "个分类"
   },
+  "ArticlesPage": {
+    "title": "文章",
+    "description": "独立于项目版本的长期写作，按首次发布时间归档。",
+    "count": "共 {count} 篇",
+    "read": "阅读全文",
+    "emptyTitle": "文章尚未发布",
+    "emptyDescription": "管理员发布第一篇文章后，它会出现在这里。",
+    "pagination": "文章分页",
+    "previous": "上一页",
+    "next": "下一页"
+  },
+  "ArticleDetail": {
+    "back": "返回文章",
+    "published": "发布于 {date}",
+    "updated": "更新于 {date}"
+  },
   "HomepageEmpty": {
     "title": "首页内容暂未发布",
     "description": "请联系管理员前往管理后台编辑并发布首页内容。"
   },
-  "Article": {
-    "unknownAuthor": "历史文章",
+  "ProjectDocument": {
     "updated": "更新于 {date}",
     "release": {
       "title": "项目版本完整性",
@@ -359,6 +375,8 @@
   },
   "PageTitles": {
     "home": "首页",
+    "articles": "文章",
+    "article": "{title}",
     "projects": "项目列表",
     "projectHome": "{projectName}",
     "projectDocs": "{projectName} - 文档",
@@ -372,6 +390,8 @@
     "accountSecurity": "安全与登录",
     "adminLogin": "管理员登录",
     "adminInit": "初始化管理员",
+    "adminArticles": "文章管理",
+    "adminArticleEdit": "文章编辑",
     "adminDashboard": "管理后台",
     "adminProjects": "项目管理",
     "adminContracts": "合同管理",
@@ -390,8 +410,6 @@
     "maintenance": "系统维护",
     "evidenceReceipt": "存证 {signature}",
     "contractEvidenceReceipt": "合同凭证 {signature}",
-    "userProfile": "{username} 的主页",
-    "userNotFound": "用户不存在",
     "siteName": "SlothVault"
   },
   "AdminMM": {
@@ -399,8 +417,9 @@
     "menu": {
       "dashboard": "仪表盘",
       "homepage": "首页管理",
+      "articles": "文章管理",
       "projects": "项目管理",
-      "notes": "笔记编辑",
+      "notes": "项目内容",
       "files": "文件管理",
       "users": "用户管理",
       "contracts": "合同管理",
@@ -414,6 +433,79 @@
       "content": "内容管理",
       "users": "用户与权益",
       "system": "系统与存证"
+    },
+    "articles": {
+      "filters": {
+        "keyword": "搜索文章标题或摘要",
+        "status": "发布状态",
+        "includeDeleted": "包含已删除"
+      },
+      "status": {
+        "draft": "草稿",
+        "published": "已发布",
+        "deleted": "已删除"
+      },
+      "actions": {
+        "refresh": "刷新",
+        "create": "新建文章",
+        "edit": "编辑",
+        "publish": "发布",
+        "withdraw": "撤回",
+        "restore": "恢复",
+        "delete": "删除",
+        "cancel": "取消"
+      },
+      "table": {
+        "article": "文章",
+        "noSummary": "未填写摘要，将从正文自动生成",
+        "status": "状态",
+        "publishedAt": "首次发布",
+        "updatedAt": "最近更新",
+        "operations": "操作"
+      },
+      "messages": {
+        "publishSuccess": "文章已发布",
+        "withdrawSuccess": "文章已撤回",
+        "restoreSuccess": "文章已恢复为草稿",
+        "deleteSuccess": "文章已删除",
+        "deleteTitle": "删除文章",
+        "deleteConfirm": "确认删除文章「{title}」？删除后可通过“包含已删除”恢复。"
+      },
+      "editor": {
+        "back": "返回文章列表",
+        "published": "已发布",
+        "draft": "草稿",
+        "unsaved": "有未保存的修改",
+        "delete": "删除",
+        "withdraw": "撤回",
+        "publish": "发布",
+        "save": "保存",
+        "title": "标题",
+        "summary": "摘要",
+        "summaryHint": "不填写时，公开列表会从正文自动生成 160 字摘要。",
+        "cover": "封面",
+        "coverFallback": "文章",
+        "uploadCover": "上传封面",
+        "replaceCover": "替换封面",
+        "removeCover": "移除",
+        "firstPublished": "首次发布时间",
+        "viewPublic": "查看公开文章",
+        "body": "文章正文",
+        "bodyHint": "Markdown 与公开预览",
+        "deletedTitle": "文章已删除",
+        "deletedDescription": "请返回文章列表，通过“包含已删除”筛选后恢复。",
+        "messages": {
+          "coverFailed": "封面上传失败",
+          "titleRequired": "请输入文章标题",
+          "saved": "文章已保存",
+          "saveFailed": "保存失败",
+          "publishSuccess": "文章已发布",
+          "withdrawSuccess": "文章已撤回",
+          "operationFailed": "操作失败",
+          "deleteTitle": "删除文章",
+          "deleteConfirm": "删除后文章将立即下线，可在文章列表中恢复。"
+        }
+      }
     },
     "projects": {
       "title": "项目管理",
@@ -837,6 +929,8 @@
         "SystemLogo": "系统 Logo",
         "ProjectAvatar": "项目头像",
         "UserAvatar": "用户头像",
+        "ArticleCover": "文章封面",
+        "ArticleAttachment": "文章图片",
         "NoteAttachment": "笔记附件",
         "HomeworkFile": "作业文件",
         "TempFile": "临时文件",
@@ -1040,6 +1134,11 @@
       "stats": {
         "users": "用户",
         "activeSessions": "活跃会话",
+        "articles": "文章",
+        "published": "已发布",
+        "draft": "草稿",
+        "status": "状态",
+        "updated": "更新",
         "projects": "项目",
         "active": "启用",
         "categories": "分类",
@@ -1052,12 +1151,14 @@
       },
       "health": {
         "title": "系统健康度",
+        "articlePublicationRate": "文章发布率",
         "projectUtilization": "项目启用率",
         "noteUtilization": "笔记启用率",
         "categoryUtilization": "分类启用率",
         "evidenceFinalizationRate": "存证确认率"
       },
       "recent": {
+        "articles": "最近更新的文章",
         "projects": "最近创建的项目",
         "notes": "最近创建的笔记",
         "sessions": "最近会话活动"

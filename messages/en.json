@@ -1,7 +1,8 @@
 {
   "Nav": {
     "home": "Home",
-    "projects": "Articles",
+    "articles": "Articles",
+    "projects": "Projects",
     "community": "Community",
     "discord": "Discord",
     "github": "GitHub",
@@ -9,18 +10,33 @@
     "mobileNavigation": "Mobile navigation"
   },
   "ProjectsPage": {
-    "title": "Publications",
+    "title": "Public Project Library",
     "loading": "Loading...",
     "error": "Failed to load, please try again later",
     "empty": "No public projects yet",
     "categories": "categories"
   },
+  "ArticlesPage": {
+    "title": "Articles",
+    "description": "Long-form writing published independently from versioned projects.",
+    "count": "{count} articles",
+    "read": "Read article",
+    "emptyTitle": "No articles published",
+    "emptyDescription": "The first article will appear here after an administrator publishes it.",
+    "pagination": "Article pagination",
+    "previous": "Previous",
+    "next": "Next"
+  },
+  "ArticleDetail": {
+    "back": "Back to articles",
+    "published": "Published {date}",
+    "updated": "Updated {date}"
+  },
   "HomepageEmpty": {
     "title": "Homepage content is not available yet",
     "description": "Please contact an administrator to edit and publish the homepage."
   },
-  "Article": {
-    "unknownAuthor": "Legacy article",
+  "ProjectDocument": {
     "updated": "Updated {date}",
     "release": {
       "title": "Project version integrity",
@@ -359,6 +375,8 @@
   },
   "PageTitles": {
     "home": "Home",
+    "articles": "Articles",
+    "article": "{title}",
     "projects": "Projects",
     "projectHome": "{projectName}",
     "projectDocs": "{projectName} - Docs",
@@ -372,6 +390,8 @@
     "accountSecurity": "Security & sign-in",
     "adminLogin": "Admin Login",
     "adminInit": "Initialize Admin",
+    "adminArticles": "Article Management",
+    "adminArticleEdit": "Article Editor",
     "adminDashboard": "Admin Dashboard",
     "adminProjects": "Project Management",
     "adminContracts": "Contract Management",
@@ -390,8 +410,6 @@
     "maintenance": "System maintenance",
     "evidenceReceipt": "Evidence {signature}",
     "contractEvidenceReceipt": "Contract evidence {signature}",
-    "userProfile": "{username}'s profile",
-    "userNotFound": "User not found",
     "siteName": "SlothVault"
   },
   "AdminMM": {
@@ -399,8 +417,9 @@
     "menu": {
       "dashboard": "Dashboard",
       "homepage": "Homepage Management",
+      "articles": "Article Management",
       "projects": "Project Management",
-      "notes": "Note Editor",
+      "notes": "Project Content",
       "files": "File Management",
       "users": "User Management",
       "contracts": "Contracts",
@@ -414,6 +433,79 @@
       "content": "Content",
       "users": "Users & Credits",
       "system": "System & Evidence"
+    },
+    "articles": {
+      "filters": {
+        "keyword": "Search article title or summary",
+        "status": "Publication status",
+        "includeDeleted": "Include deleted"
+      },
+      "status": {
+        "draft": "Draft",
+        "published": "Published",
+        "deleted": "Deleted"
+      },
+      "actions": {
+        "refresh": "Refresh",
+        "create": "New article",
+        "edit": "Edit",
+        "publish": "Publish",
+        "withdraw": "Withdraw",
+        "restore": "Restore",
+        "delete": "Delete",
+        "cancel": "Cancel"
+      },
+      "table": {
+        "article": "Article",
+        "noSummary": "No summary; a public excerpt will be generated from the body",
+        "status": "Status",
+        "publishedAt": "First published",
+        "updatedAt": "Updated",
+        "operations": "Actions"
+      },
+      "messages": {
+        "publishSuccess": "Article published",
+        "withdrawSuccess": "Article withdrawn",
+        "restoreSuccess": "Article restored as a draft",
+        "deleteSuccess": "Article deleted",
+        "deleteTitle": "Delete article",
+        "deleteConfirm": "Delete “{title}”? It can be restored by enabling the deleted filter."
+      },
+      "editor": {
+        "back": "Back to articles",
+        "published": "Published",
+        "draft": "Draft",
+        "unsaved": "Unsaved changes",
+        "delete": "Delete",
+        "withdraw": "Withdraw",
+        "publish": "Publish",
+        "save": "Save",
+        "title": "Title",
+        "summary": "Summary",
+        "summaryHint": "When empty, the public archive generates a 160-character excerpt from the body.",
+        "cover": "Cover",
+        "coverFallback": "Article",
+        "uploadCover": "Upload cover",
+        "replaceCover": "Replace cover",
+        "removeCover": "Remove",
+        "firstPublished": "First published",
+        "viewPublic": "View public article",
+        "body": "Article body",
+        "bodyHint": "Markdown with public preview",
+        "deletedTitle": "This article is deleted",
+        "deletedDescription": "Return to the article list, enable the deleted filter, and restore it there.",
+        "messages": {
+          "coverFailed": "Cover upload failed",
+          "titleRequired": "Enter an article title",
+          "saved": "Article saved",
+          "saveFailed": "Save failed",
+          "publishSuccess": "Article published",
+          "withdrawSuccess": "Article withdrawn",
+          "operationFailed": "Operation failed",
+          "deleteTitle": "Delete article",
+          "deleteConfirm": "The article will be taken offline immediately and can be restored from the article list."
+        }
+      }
     },
     "projects": {
       "title": "Project Management",
@@ -837,6 +929,8 @@
         "SystemLogo": "System Logo",
         "ProjectAvatar": "Project Avatar",
         "UserAvatar": "User Avatar",
+        "ArticleCover": "Article Cover",
+        "ArticleAttachment": "Article Image",
         "NoteAttachment": "Note Attachment",
         "HomeworkFile": "Homework File",
         "TempFile": "Temp File",
@@ -1040,6 +1134,11 @@
       "stats": {
         "users": "Users",
         "activeSessions": "Active Sessions",
+        "articles": "Articles",
+        "published": "Published",
+        "draft": "Draft",
+        "status": "Status",
+        "updated": "Updated",
         "projects": "Projects",
         "active": "Active",
         "categories": "Categories",
@@ -1052,12 +1151,14 @@
       },
       "health": {
         "title": "System Health",
+        "articlePublicationRate": "Article Publication Rate",
         "projectUtilization": "Project Utilization",
         "noteUtilization": "Note Utilization",
         "categoryUtilization": "Category Utilization",
         "evidenceFinalizationRate": "Evidence Finalization Rate"
       },
       "recent": {
+        "articles": "Recent Articles",
         "projects": "Recent Projects",
         "notes": "Recent Notes",
         "sessions": "Recent Sessions"

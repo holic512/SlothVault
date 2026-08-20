@@ -69,7 +69,7 @@ export function UserLoginForm() {
         <Typography.Text className="auth-kicker">Account</Typography.Text>
         <Typography.Title level={1}>登录 SlothVault</Typography.Title>
         <Typography.Paragraph type="secondary">
-          用普通账户阅读、管理个人主页和兑换积分。
+          用普通账户维护个人资料、处理合同和兑换积分。
         </Typography.Paragraph>
       </div>
 

@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     default: 'SlothVault',
     template: '%s · SlothVault',
   },
-  description: 'A public Web2 publishing system with personal profiles, points, gift cards, and optional Solana release transaction evidence.',
+  description: 'A public publishing system for independent articles, versioned projects, accounts, points, contracts, and optional Solana release evidence.',
   icons: { icon: '/favicon.ico' },
 }
 

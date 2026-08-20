@@ -25,6 +25,7 @@ import {
   House,
   LogOut,
   Menu as MenuIcon,
+  Newspaper,
   PanelsTopLeft,
   Settings,
   TicketCheck,
@@ -61,6 +62,7 @@ export function AdminShell({ children, branding }: { children: ReactNode; brandi
     () => [
       { group: 'overview', key: '/admin/mm', icon: <PanelsTopLeft size={16} />, label: t('menu.dashboard') },
       { group: 'content', key: '/admin/mm/homepage', icon: <House size={16} />, label: t('menu.homepage') },
+      { group: 'content', key: '/admin/mm/articles', icon: <Newspaper size={16} />, label: t('menu.articles') },
       { group: 'content', key: '/admin/mm/projects', icon: <Blocks size={16} />, label: t('menu.projects') },
       { group: 'content', key: '/admin/mm/notes', icon: <BookOpenText size={16} />, label: t('menu.notes') },
       { group: 'content', key: '/admin/mm/files', icon: <FileStack size={16} />, label: t('menu.files') },

@@ -88,7 +88,7 @@ export function AccountProfileView() {
         <div>
           <Typography.Text className="account-eyebrow">Profile</Typography.Text>
           <Typography.Title level={2}>个人资料</Typography.Title>
-          <Typography.Text type="secondary">这些信息会用于你的公开主页和账户菜单。</Typography.Text>
+          <Typography.Text type="secondary">这些信息仅用于账户识别、登录菜单和受保护的账户功能。</Typography.Text>
         </div>
       </div>
 

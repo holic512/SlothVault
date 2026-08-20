@@ -7,7 +7,6 @@ const mocks = vi.hoisted(() => ({
     noteInfo: { findFirst: vi.fn() },
     noteContent: { findMany: vi.fn() },
     releaseCredential: { findMany: vi.fn() },
-    user: { findFirst: vi.fn() },
   },
 }))
 
@@ -64,7 +63,6 @@ describe('public project reading', () => {
     })
     mocks.prisma.noteInfo.findFirst.mockResolvedValue({
       id: 12,
-      authorId: 3,
       noteTitle: 'A public essay',
     })
     mocks.prisma.noteContent.findMany.mockResolvedValue([{
@@ -73,10 +71,6 @@ describe('public project reading', () => {
       versionNote: 'First edition',
       updatedAt,
     }])
-    mocks.prisma.user.findFirst.mockResolvedValue({
-      username: 'editor',
-      displayName: 'Editor',
-    })
     mocks.prisma.releaseCredential.findMany.mockResolvedValue([{
       network: 'mainnet',
       transactionSignature: 'ContentSignature111111111111111111111111111',
@@ -97,7 +91,6 @@ describe('public project reading', () => {
       releaseHash: 'a'.repeat(64),
       manifestVersion: 1,
       publishedAt: new Date('2026-07-30T11:00:00.000Z'),
-      author: { username: 'editor', displayName: 'Editor' },
       evidence: [{
         transactionSignature: 'Signature1111111111111111111111111111111',
         signerAddress: 'Owner111111111111111111111111111111111111',

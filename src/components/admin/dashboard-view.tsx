@@ -1,7 +1,7 @@
 'use client'
 
 import { Alert, Button, Card, Col, Progress, Row, Space, Statistic, Table, Typography } from 'antd'
-import { ArchiveRestore, Blocks, BookOpenText, Coins, FileStack, FolderTree, RefreshCw, Users } from 'lucide-react'
+import { ArchiveRestore, Blocks, BookOpenText, Coins, FileStack, FolderTree, Newspaper, RefreshCw, Users } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
 
@@ -12,6 +12,7 @@ type DashboardData = {
   overview: {
     users: { total: number; activeSessions: number; totalPoints: number }
     giftCards: { total: number; redeemed: number }
+    articles: { total: number; published: number }
     projects: { total: number; active: number }
     versions: { total: number; active: number }
     categories: { total: number; active: number }
@@ -29,6 +30,13 @@ type DashboardData = {
       status: number
       versionCount: number
       createdAt: string
+    }>
+    articles: Array<{
+      id: string
+      title: string
+      status: number
+      publishedAt: string | null
+      updatedAt: string
     }>
     notes: Array<{
       id: string
@@ -65,6 +73,7 @@ export function DashboardView() {
   const stats = data
     ? [
         { title: t('stats.projects'), value: data.overview.projects.total, meta: `${data.overview.projects.active} ${t('stats.active')}`, icon: <Blocks /> },
+        { title: t('stats.articles'), value: data.overview.articles.total, meta: `${data.overview.articles.published} ${t('stats.published')}`, icon: <Newspaper /> },
         { title: 'Users', value: data.overview.users.total, meta: `${data.overview.users.activeSessions} active sessions`, icon: <Users /> },
         { title: 'Points', value: data.overview.users.totalPoints, meta: `${data.overview.giftCards.redeemed}/${data.overview.giftCards.total} cards redeemed`, icon: <Coins /> },
         { title: t('stats.categories'), value: data.overview.categories.total, meta: `${data.overview.categories.active} ${t('stats.active')}`, icon: <FolderTree /> },
@@ -98,7 +107,7 @@ export function DashboardView() {
 
       {data ? (
         <Row gutter={[10, 10]}>
-          <Col xs={24} xl={9}>
+          <Col xs={24} xl={8}>
             <Card title={t('health.title')} className="dashboard-panel">
               <div className="health-list">
                 {Object.entries(data.health).map(([key, value]) => (
@@ -110,7 +119,7 @@ export function DashboardView() {
               </div>
             </Card>
           </Col>
-          <Col xs={24} xl={15}>
+          <Col xs={24} xl={8}>
             <Card title={t('recent.projects')} className="dashboard-panel">
               <Table
                 size="small"
@@ -121,6 +130,21 @@ export function DashboardView() {
                   { title: t('stats.projects'), dataIndex: 'name' },
                   { title: t('stats.versions'), dataIndex: 'versionCount', width: 90 },
                   { title: 'Published', dataIndex: 'createdAt', width: 130, render: (value: string) => new Date(value).toLocaleDateString() },
+                ]}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} xl={8}>
+            <Card title={t('recent.articles')} className="dashboard-panel">
+              <Table
+                size="small"
+                rowKey="id"
+                pagination={false}
+                dataSource={data.recentActivity.articles}
+                columns={[
+                  { title: t('stats.articles'), dataIndex: 'title', ellipsis: true },
+                  { title: t('stats.status'), dataIndex: 'status', width: 82, render: (value: number) => value === 1 ? t('stats.published') : t('stats.draft') },
+                  { title: t('stats.updated'), dataIndex: 'updatedAt', width: 110, render: (value: string) => new Date(value).toLocaleDateString() },
                 ]}
               />
             </Card>

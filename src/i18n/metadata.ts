@@ -27,6 +27,8 @@ export type PageTitleKey =
   | 'adminHomepage'
   | 'adminInit'
   | 'adminLogin'
+  | 'adminArticleEdit'
+  | 'adminArticles'
   | 'adminNoteContent'
   | 'adminNotes'
   | 'adminProjectHome'
@@ -36,6 +38,8 @@ export type PageTitleKey =
   | 'adminUsers'
   | 'evidenceReceipt'
   | 'contractEvidenceReceipt'
+  | 'article'
+  | 'articles'
   | 'home'
   | 'install'
   | 'login'
@@ -45,8 +49,6 @@ export type PageTitleKey =
   | 'projectNote'
   | 'projects'
   | 'register'
-  | 'userProfile'
-  | 'userNotFound'
 
 export async function createPageMetadata(
   titleKey: PageTitleKey,

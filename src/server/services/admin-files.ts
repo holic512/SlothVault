@@ -55,6 +55,8 @@ export const BUSINESS_TYPE_CONFIG = {
   SystemLogo: { dir: 'system-logo', imagesOnly: true },
   ProjectAvatar: { dir: 'project-avatar', imagesOnly: true },
   UserAvatar: { dir: 'user-avatar', imagesOnly: true },
+  ArticleCover: { dir: 'article-cover', imagesOnly: true },
+  ArticleAttachment: { dir: 'article-attachment', imagesOnly: true },
   NoteAttachment: { dir: 'note-attachment', imagesOnly: false },
   HomeworkFile: { dir: 'homework', imagesOnly: false },
   ContractAttachment: { dir: 'contract-attachment', imagesOnly: false },

@@ -2,8 +2,8 @@
  * @file database-export.ts
  * @project SlothVault
  * @module Admin Database Backup Export
- * @description Exports a relation-closed portable 2.4 snapshot of content, accounts, contracts, configuration, and transaction evidence.
- * @logic Read one repeatable transaction snapshot, close relations, serialize evidence BigInts and frozen contract identity, then validate the portable result.
+ * @description Exports a relation-closed portable 2.6 snapshot of articles, project content, accounts, contracts, configuration, and transaction evidence.
+ * @logic Read one repeatable transaction snapshot, retain independent articles, close project relations, serialize evidence BigInts and frozen contract identity, then validate the portable result.
  * @dependencies database unit-of-work, Prisma, HTTP JSON serialization, backup schema and validation
  * @index_tags admin,backup,database,export,snapshot,relations
  * @author holic512
@@ -62,11 +62,12 @@ function relationClosedMenus<T extends {
 export async function exportDatabaseBackup() {
   const exportedAt = new Date().toISOString()
   const snapshot = await unitOfWork.execute(async (tx) => {
-    const [users, pointTransactions, giftCardBatches, giftCards] = await Promise.all([
+    const [users, pointTransactions, giftCardBatches, giftCards, articles] = await Promise.all([
       tx.user.findMany(),
       tx.pointTransaction.findMany(),
       tx.giftCardBatch.findMany(),
       tx.giftCard.findMany(),
+      tx.article.findMany({ where: { isDeleted: false } }),
     ])
     const projects = await tx.project.findMany({ where: { isDeleted: false } })
     const projectIds = projects.map((item) => item.id)
@@ -125,6 +126,7 @@ export async function exportDatabaseBackup() {
       pointTransactions,
       giftCardBatches,
       giftCards,
+      articles,
       projects,
       projectVersions,
       categories,
@@ -169,6 +171,10 @@ export async function exportDatabaseBackup() {
       id: id.toString(),
       batchId: batchId.toString(),
       redeemedById: redeemedById?.toString() ?? null,
+    })),
+    articles: snapshot.articles.map(({ id, ...item }) => ({
+      ...item,
+      id: id.toString(),
     })),
     projects: snapshot.projects.map(({ id, ...item }) => ({
       ...item,
@@ -306,7 +312,7 @@ export async function exportDatabaseBackup() {
   void _legacyCompressedNfts
 
   return {
-    version: '2.5.0',
+    version: '2.6.0',
     exportedAt,
     data: activeData,
   }

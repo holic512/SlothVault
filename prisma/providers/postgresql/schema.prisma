@@ -1,10 +1,10 @@
 // @file prisma/providers/postgresql/schema.prisma
 // @project SlothVault
 // @module PostgreSQL persistence model
-// @description Defines the flat, domain-prefixed PostgreSQL schema for publishing, user identity, contracts, points, gift cards, and transaction evidence.
-// @logic Preserve the provider-neutral logical model while applying PostgreSQL-native types and binding optional Solana evidence to immutable releases and frozen contracts.
+// @description Defines the flat, domain-prefixed PostgreSQL schema for independent articles, project publishing, user identity, contracts, points, gift cards, and transaction evidence.
+// @logic Preserve the provider-neutral article and project models while applying PostgreSQL-native types and binding optional Solana evidence only to immutable project releases and frozen contracts.
 // @dependencies Prisma ORM 7.3.0, @prisma/adapter-pg 7.3.0
-// @index_tags prisma, postgresql, schema, persistence, installation, contracts
+// @index_tags prisma, postgresql, schema, persistence, articles, projects, installation, contracts
 // @author holic512
 
 generator client {
@@ -113,6 +113,22 @@ model GiftCard {
   @@index([batchId, status], map: "idx_gift_card_batch_status")
   @@index([redeemedById], map: "idx_gift_card_redeemed_by")
   @@map("points_gift_card")
+}
+
+model Article {
+  id          Int       @id @default(autoincrement())
+  title       String    @db.VarChar(255)
+  summary     String?   @db.VarChar(500)
+  cover       String?   @db.VarChar(500)
+  content     String    @db.Text
+  status      Int       @default(0) @db.SmallInt
+  publishedAt DateTime? @map("published_at") @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+  isDeleted   Boolean   @default(false) @map("is_deleted")
+
+  @@index([status, isDeleted, publishedAt], map: "idx_blog_article_public")
+  @@map("blog_article")
 }
 
 model Project {

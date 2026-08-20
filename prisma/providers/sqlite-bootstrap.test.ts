@@ -30,6 +30,7 @@ describe('SQLite provider bootstrap', () => {
         '20260813000000_release_transaction_evidence',
         '20260818000000_contract_evidence',
         '20260820000000_note_content_evidence',
+        '20260820120000_independent_articles',
       ]) {
         bootstrapDatabase.exec(readFileSync(resolve(process.cwd(), `prisma/providers/sqlite/migrations/${migration}/migration.sql`), 'utf8'))
       }
@@ -43,6 +44,11 @@ describe('SQLite provider bootstrap', () => {
       const second = await prisma.project.create({ data: { projectName: 'second', weight: 0, status: 1 } })
       expect(first.id).toBe(1)
       expect(second.id).toBe(2)
+
+      const article = await prisma.article.create({
+        data: { title: 'Independent article', content: '# Body' },
+      })
+      expect(article).toMatchObject({ id: 1, status: 0, publishedAt: null, isDeleted: false })
 
       const admin = await prisma.user.create({ data: { username: 'admin', password: 'hash', role: 'ADMIN' } })
       const version = await prisma.projectVersion.create({ data: { projectId: first.id, version: 'v1', weight: 0, status: 0 } })

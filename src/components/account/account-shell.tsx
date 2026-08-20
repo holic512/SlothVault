@@ -14,7 +14,7 @@ import { createContext, useContext, type ReactNode } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
 import { Avatar, Button, Space, Typography } from 'antd'
-import { ArrowUpRight, Coins, FileSignature, KeyRound, LayoutDashboard, ShieldCheck, UserRound } from 'lucide-react'
+import { Coins, FileSignature, KeyRound, LayoutDashboard, ShieldCheck, UserRound } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -63,9 +63,6 @@ export function AccountShell({
             <Typography.Text type="secondary">@{user.username} · {user.role === 'ADMIN' ? '管理员' : '个人用户'}</Typography.Text>
           </div>
           <Space className="account-hero-actions" size={6}>
-            <Link href={`/u/${user.username}`}>
-              <Button icon={<ArrowUpRight size={15} />}>公开主页</Button>
-            </Link>
             {user.role === 'ADMIN' ? <Button type="primary" href="/admin/mm">管理后台</Button> : null}
           </Space>
         </section>
