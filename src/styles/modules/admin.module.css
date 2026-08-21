@@ -772,7 +772,12 @@
 }
 
 .root :global(.note-context-selectors) > :global(.ant-select) {
-  width: clamp(150px, 16vw, 230px);
+  width: clamp(128px, 13vw, 188px);
+}
+
+.root :global(.note-context-selectors) > :global(.ant-btn) {
+  padding-inline: 8px;
+  font-size: 12px;
 }
 
 .root :global(.note-context-selectors) > svg {
