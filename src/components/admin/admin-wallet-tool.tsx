@@ -5,36 +5,145 @@
  * @project SlothVault
  * @module Administrator Wallet Tool
  * @description Renders the route-scoped wallet connection control shared by administrator evidence workflows.
- * @logic Surface the current signing-wallet state in the admin header, delegate selection and connection to Wallet Adapter, and keep the control explicitly separate from administrator authentication.
- * @dependencies @solana/wallet-adapter-react, @solana/wallet-adapter-react-ui, next-intl, antd
+ * @logic Keep the server and initial browser markup identical before rendering extension-discovered wallet state, then manage header wallet selection, connection, and disconnection with the Wallet Adapter lifecycle without coupling it to administrator authentication.
+ * @dependencies React, @solana/wallet-adapter-react, next-intl
  * @index_tags admin,layout,solana,wallet,connection,header
  * @author holic512
  */
+import { createPortal } from 'react-dom'
+import { useEffect, useState } from 'react'
+
 import { useWallet } from '@solana/wallet-adapter-react'
-import { BaseWalletMultiButton } from '@solana/wallet-adapter-react-ui'
-import { Tooltip } from 'antd'
+import { WalletReadyState } from '@solana/wallet-adapter-base'
 import { useTranslations } from 'next-intl'
 
 export function AdminWalletTool() {
   const t = useTranslations('AdminMM.walletTool')
-  const { connected, connecting } = useWallet()
-  const state = connected ? 'is-connected' : connecting ? 'is-connecting' : 'is-idle'
+  const [isClientReady, setIsClientReady] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const { connected, connecting, publicKey, wallet, wallets, connect, disconnect, select } = useWallet()
+  const state = isClientReady && connected ? 'is-connected' : isClientReady && connecting ? 'is-connecting' : 'is-idle'
+  const availableWallets = wallets.filter(({ readyState }) => readyState === WalletReadyState.Installed)
+  const pickerWallets = availableWallets.length ? availableWallets : wallets
+
+  useEffect(() => {
+    setIsClientReady(true)
+  }, [])
+
+  useEffect(() => {
+    if (!pickerOpen) return
+
+    const closePicker = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPickerOpen(false)
+    }
+
+    window.addEventListener('keydown', closePicker)
+    return () => window.removeEventListener('keydown', closePicker)
+  }, [pickerOpen])
+
+  const copyAddress = async () => {
+    if (!publicKey) return
+    try {
+      await navigator.clipboard.writeText(publicKey.toBase58())
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1000)
+    } catch {
+      setCopied(false)
+    }
+  }
+
+  const selectWallet = (name: typeof wallets[number]['adapter']['name']) => {
+    select(name)
+    setPickerOpen(false)
+  }
+
+  const primaryLabel = !isClientReady
+    ? t('actions.select')
+    : connecting
+      ? t('actions.connecting')
+      : connected && publicKey
+        ? `${publicKey.toBase58().slice(0, 4)}..${publicKey.toBase58().slice(-4)}`
+        : wallet
+          ? t('actions.connect')
+          : t('actions.select')
+
+  const handlePrimaryAction = () => {
+    if (connecting) return
+    if (connected) {
+      setPickerOpen(true)
+      return
+    }
+    if (wallet) {
+      void connect().catch(() => undefined)
+      return
+    }
+    setPickerOpen(true)
+  }
 
   return (
-    <Tooltip title={t('hint')} placement="bottomRight">
+    <>
       <span className={`admin-wallet-tool ${state}`}>
-        <BaseWalletMultiButton
-          labels={{
-            'change-wallet': t('actions.change'),
-            connecting: t('actions.connecting'),
-            'copy-address': t('actions.copyAddress'),
-            copied: t('actions.copied'),
-            disconnect: t('actions.disconnect'),
-            'has-wallet': t('actions.connect'),
-            'no-wallet': t('actions.select'),
-          }}
-        />
+        <span className="wallet-adapter-dropdown">
+          <button
+            aria-expanded={pickerOpen}
+            className="wallet-adapter-button"
+            disabled={!isClientReady || connecting}
+            onClick={handlePrimaryAction}
+            type="button"
+          >
+            {isClientReady && wallet?.adapter.icon ? <i className="wallet-adapter-button-start-icon"><img alt="" src={wallet.adapter.icon} /></i> : null}
+            {primaryLabel}
+          </button>
+        </span>
       </span>
-    </Tooltip>
+
+      {isClientReady && pickerOpen
+        ? createPortal(
+            <div
+              aria-labelledby="admin-wallet-picker-title"
+              aria-modal="true"
+              className="admin-wallet-picker"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget) setPickerOpen(false)
+              }}
+              role="dialog"
+            >
+              <div className="admin-wallet-picker-surface">
+                <button aria-label={t('dialog.close')} className="admin-wallet-picker-close" onClick={() => setPickerOpen(false)} type="button">
+                  <span aria-hidden="true">×</span>
+                </button>
+                <div className="admin-wallet-picker-heading">
+                  <span>Solana</span>
+                  <h2 id="admin-wallet-picker-title">{t('dialog.title')}</h2>
+                  <p>{t('dialog.description')}</p>
+                </div>
+                {pickerWallets.length ? (
+                  <ul className="admin-wallet-picker-list">
+                    {pickerWallets.map(({ adapter, readyState }) => (
+                      <li key={adapter.name}>
+                        <button onClick={() => selectWallet(adapter.name)} type="button">
+                          <img alt="" src={adapter.icon} />
+                          <span>{adapter.name}</span>
+                          {readyState === WalletReadyState.Installed ? <small>{t('dialog.detected')}</small> : null}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="admin-wallet-picker-empty">{t('dialog.empty')}</p>
+                )}
+                {connected ? (
+                  <div className="admin-wallet-picker-actions">
+                    <button onClick={() => void copyAddress()} type="button">{copied ? t('actions.copied') : t('actions.copyAddress')}</button>
+                    <button onClick={() => { disconnect(); setPickerOpen(false) }} type="button">{t('actions.disconnect')}</button>
+                  </div>
+                ) : null}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   )
 }

@@ -444,6 +444,13 @@
         "copied": "Copied",
         "change": "Change wallet",
         "disconnect": "Disconnect"
+      },
+      "dialog": {
+        "title": "Choose a Solana wallet",
+        "description": "Confirm the connection request in your wallet extension after choosing.",
+        "detected": "Detected",
+        "empty": "No available wallet extension was detected",
+        "close": "Close wallet picker"
       }
     },
     "articles": {

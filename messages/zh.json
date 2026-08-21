@@ -444,6 +444,13 @@
         "copied": "已复制",
         "change": "切换钱包",
         "disconnect": "断开连接"
+      },
+      "dialog": {
+        "title": "选择 Solana 钱包",
+        "description": "选择后将在钱包扩展中确认连接请求。",
+        "detected": "已检测到",
+        "empty": "未检测到可用的钱包扩展",
+        "close": "关闭钱包选择"
       }
     },
     "articles": {
