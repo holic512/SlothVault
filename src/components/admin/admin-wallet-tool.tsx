@@ -5,7 +5,7 @@
  * @project SlothVault
  * @module Administrator Wallet Tool
  * @description Renders the route-scoped wallet connection control shared by administrator evidence workflows.
- * @logic Keep the server and initial browser markup identical before rendering extension-discovered wallet state, then manage header wallet selection, connection, and disconnection with the Wallet Adapter lifecycle without coupling it to administrator authentication.
+ * @logic Render wallet selection and connection state from the Wallet Adapter, mount the picker through a browser portal, and handle keyboard dismissal without coupling it to administrator authentication.
  * @dependencies React, @solana/wallet-adapter-react, next-intl
  * @index_tags admin,layout,solana,wallet,connection,header
  * @author holic512
@@ -19,17 +19,12 @@ import { useTranslations } from 'next-intl'
 
 export function AdminWalletTool() {
   const t = useTranslations('AdminMM.walletTool')
-  const [isClientReady, setIsClientReady] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const { connected, connecting, publicKey, wallet, wallets, connect, disconnect, select } = useWallet()
-  const state = isClientReady && connected ? 'is-connected' : isClientReady && connecting ? 'is-connecting' : 'is-idle'
+  const state = connected ? 'is-connected' : connecting ? 'is-connecting' : 'is-idle'
   const availableWallets = wallets.filter(({ readyState }) => readyState === WalletReadyState.Installed)
   const pickerWallets = availableWallets.length ? availableWallets : wallets
-
-  useEffect(() => {
-    setIsClientReady(true)
-  }, [])
 
   useEffect(() => {
     if (!pickerOpen) return
@@ -58,15 +53,13 @@ export function AdminWalletTool() {
     setPickerOpen(false)
   }
 
-  const primaryLabel = !isClientReady
-    ? t('actions.select')
-    : connecting
-      ? t('actions.connecting')
-      : connected && publicKey
-        ? `${publicKey.toBase58().slice(0, 4)}..${publicKey.toBase58().slice(-4)}`
-        : wallet
-          ? t('actions.connect')
-          : t('actions.select')
+  const primaryLabel = connecting
+    ? t('actions.connecting')
+    : connected && publicKey
+      ? `${publicKey.toBase58().slice(0, 4)}..${publicKey.toBase58().slice(-4)}`
+      : wallet
+        ? t('actions.connect')
+        : t('actions.select')
 
   const handlePrimaryAction = () => {
     if (connecting) return
@@ -88,17 +81,17 @@ export function AdminWalletTool() {
           <button
             aria-expanded={pickerOpen}
             className="wallet-adapter-button"
-            disabled={!isClientReady || connecting}
+            disabled={connecting}
             onClick={handlePrimaryAction}
             type="button"
           >
-            {isClientReady && wallet?.adapter.icon ? <i className="wallet-adapter-button-start-icon"><img alt="" src={wallet.adapter.icon} /></i> : null}
+            {wallet?.adapter.icon ? <i className="wallet-adapter-button-start-icon"><img alt="" src={wallet.adapter.icon} /></i> : null}
             {primaryLabel}
           </button>
         </span>
       </span>
 
-      {isClientReady && pickerOpen
+      {pickerOpen
         ? createPortal(
             <div
               aria-labelledby="admin-wallet-picker-title"

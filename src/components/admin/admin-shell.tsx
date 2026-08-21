@@ -5,8 +5,8 @@
  * @project SlothVault
  * @module Administrator Shell
  * @description Provides a responsive, grouped Ant Design navigation shell with an authenticated administrator header.
- * @logic Map routes into compact labeled sidebar groups and one breadcrumb model, render the server-resolved system brand, preserve collapse state locally, and mount the signing-wallet tool only for the evidence and contract workflows.
- * @dependencies antd, next/navigation, next-intl, brand-logo, theme-controls, wallet runtime
+ * @logic Map routes into compact labeled sidebar groups and one breadcrumb model, render the server-resolved system brand, preserve collapse state locally, and dynamically mount the client-only signing-wallet tool only for the evidence and contract workflows.
+ * @dependencies antd, next/dynamic, next/navigation, next-intl, brand-logo, theme-controls, wallet runtime
  * @index_tags admin,layout,navigation,sidebar,branding,menu-groups
  * @author holic512
  */
@@ -31,19 +31,38 @@ import {
   TicketCheck,
   Users,
 } from 'lucide-react'
+import dynamic from 'next/dynamic'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
 import { ThemeControls } from '@/components/theme/theme-controls'
 import { BrandLogo } from '@/components/shell/brand-logo'
-import { AdminWalletTool } from '@/components/admin/admin-wallet-tool'
 import { WalletRuntime } from '@/components/providers/wallet-runtime'
 import { apiFetch } from '@/lib/api-client'
 import adminStyles from '@/styles/modules/admin.module.css'
 import type { SystemBranding } from '@/types/branding'
 
 const { Header, Sider, Content } = Layout
+
+function AdminWalletToolFallback() {
+  const t = useTranslations('AdminMM.walletTool')
+
+  return (
+    <span className="admin-wallet-tool is-idle">
+      <span className="wallet-adapter-dropdown">
+        <button aria-expanded={false} className="wallet-adapter-button" disabled type="button">
+          {t('actions.select')}
+        </button>
+      </span>
+    </span>
+  )
+}
+
+const AdminWalletTool = dynamic(
+  () => import('@/components/admin/admin-wallet-tool').then(({ AdminWalletTool }) => AdminWalletTool),
+  { loading: AdminWalletToolFallback, ssr: false },
+)
 
 type AdminMenuGroup = 'overview' | 'content' | 'users' | 'system'
 type AdminMenuRoute = {
