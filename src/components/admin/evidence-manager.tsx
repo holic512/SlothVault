@@ -14,7 +14,6 @@ import { useEffect, useState } from 'react'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import {
   Alert,
   App,
@@ -369,7 +368,6 @@ export function EvidenceManager() {
   return <AdminPage>
     <AdminPageActions>
       <Space wrap>
-        <WalletMultiButton />
         <Button icon={<RefreshCw size={15} />} loading={query.isFetching} onClick={() => void query.refetch()}>刷新</Button>
         <Button type="primary" icon={<FileSignature size={15} />} onClick={() => openIssue()}>办理笔记存证</Button>
       </Space>
@@ -423,7 +421,7 @@ export function EvidenceManager() {
       setRetrySubject(null)
       form.resetFields()
       void cancelPrepared('The evidence drawer was closed before signing')
-    }} extra={<WalletMultiButton />}>
+    }}>
       <Alert showIcon type="info" message="发布与存证相互独立" description="新存证精确绑定已发布树中的一个笔记内容版本；该笔记的其他修订不会共享此凭证。" />
       {retrySubject ? <Alert showIcon type="warning" message="沿用原存证对象重试" description={retrySubject.subjectType === 'NOTE_CONTENT' ? `${retrySubject.projectName} / ${retrySubject.version} / ${retrySubject.noteTitle || '笔记'} / ${retrySubject.contentVersion || '未命名版本'}` : `${retrySubject.projectName} / ${retrySubject.version}（旧整版凭证）`} /> : null}
       {versionsQuery.isError || projectsQuery.isError ? <Alert showIcon type="error" message="可存证内容加载失败" description={evidenceErrorMessage(versionsQuery.error || projectsQuery.error)} /> : null}

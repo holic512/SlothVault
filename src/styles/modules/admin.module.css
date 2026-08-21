@@ -207,11 +207,6 @@
   white-space: nowrap;
 }
 
-.root :global(.admin-header-actions) :global(.sloth-wallet-button):global(.wallet-adapter-button) {
-  height: var(--sv-admin-control-height);
-  line-height: 30px;
-}
-
 .root :global(.admin-header-actions) {
   display: inline-flex;
   height: var(--sv-admin-control-height);
@@ -236,6 +231,112 @@
 .root :global(.admin-header-actions) :global(.ant-btn-icon) svg {
   display: block;
   line-height: 1;
+}
+
+.root :global(.admin-wallet-tool) {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.root :global(.admin-wallet-tool)::before {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 8px;
+  width: 5px;
+  height: 5px;
+  border: 1.5px solid var(--sv-bg-solid);
+  border-radius: 50%;
+  background: var(--sv-text-muted);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--sv-border-strong) 68%, transparent);
+  content: '';
+  pointer-events: none;
+  transform: translateY(-50%);
+  transition: background var(--sv-motion-fast) var(--sv-ease-standard), box-shadow var(--sv-motion-fast) var(--sv-ease-standard);
+}
+
+.root :global(.admin-wallet-tool.is-connecting)::before {
+  background: var(--sv-warning);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sv-warning) 16%, transparent);
+}
+
+.root :global(.admin-wallet-tool.is-connected)::before {
+  background: var(--sv-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sv-success) 16%, transparent);
+}
+
+.root :global(.admin-wallet-tool .wallet-adapter-dropdown) {
+  display: inline-flex;
+}
+
+.root :global(.admin-wallet-tool .wallet-adapter-button) {
+  display: inline-flex;
+  min-width: 112px;
+  height: var(--sv-admin-control-height);
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px 0 17px;
+  border: 1px solid var(--sv-admin-border);
+  border-radius: var(--sv-admin-radius);
+  background: color-mix(in srgb, var(--sv-bg-solid) 90%, var(--sv-bg-soft));
+  color: var(--sv-text);
+  font-family: var(--sv-font-body);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  transition: border-color var(--sv-motion-fast) var(--sv-ease-standard), background var(--sv-motion-fast) var(--sv-ease-standard), transform var(--sv-motion-fast) var(--sv-ease-standard);
+}
+
+.root :global(.admin-wallet-tool .wallet-adapter-button:not([disabled]):hover) {
+  border-color: color-mix(in srgb, var(--sv-primary) 38%, var(--sv-border-strong));
+  background: var(--sv-bg-soft);
+  transform: translateY(-1px);
+}
+
+.root :global(.admin-wallet-tool .wallet-adapter-button:focus-visible) {
+  outline: 2px solid color-mix(in srgb, var(--sv-primary) 40%, transparent);
+  outline-offset: 2px;
+}
+
+.root :global(.admin-wallet-tool .wallet-adapter-button-start-icon),
+.root :global(.admin-wallet-tool .wallet-adapter-button-start-icon img) {
+  width: 15px;
+  height: 15px;
+}
+
+.root :global(.admin-wallet-tool .wallet-adapter-button-start-icon) {
+  margin-right: 6px;
+}
+
+.root :global(.admin-wallet-tool .wallet-adapter-dropdown-list) {
+  z-index: calc(var(--sv-z-header) + 2);
+  min-width: 158px;
+  padding: 4px;
+  border: 1px solid var(--sv-admin-border);
+  border-radius: calc(var(--sv-admin-radius) + 2px);
+  background: var(--sv-bg-solid);
+  box-shadow: var(--sv-shadow-tight);
+  font-family: var(--sv-font-body);
+}
+
+.root :global(.admin-wallet-tool .wallet-adapter-dropdown-list-active) {
+  transform: translateY(6px);
+}
+
+.root :global(.admin-wallet-tool .wallet-adapter-dropdown-list-item) {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: calc(var(--sv-admin-radius) - 1px);
+  color: var(--sv-text);
+  font-family: var(--sv-font-body);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.root :global(.admin-wallet-tool .wallet-adapter-dropdown-list-item:not([disabled]):hover) {
+  background: var(--sv-bg-soft);
 }
 
 .root :global(.admin-content) {
@@ -1629,8 +1730,27 @@
 }
 
 @media (max-width: 900px) {
-  .root :global(.admin-header-actions) :global(.sloth-wallet-button):global(.wallet-adapter-button) {
+  .root :global(.admin-wallet-tool .wallet-adapter-button) {
+    width: var(--sv-admin-control-height);
+    min-width: var(--sv-admin-control-height);
+    padding: 0;
+    color: transparent;
+    font-size: 0;
+  }
+
+  .root :global(.admin-wallet-tool .wallet-adapter-button)::after {
+    color: var(--sv-primary-strong);
+    content: '◎';
+    font-size: 17px;
+    line-height: 1;
+  }
+
+  .root :global(.admin-wallet-tool .wallet-adapter-button-start-icon) {
     display: none;
+  }
+
+  .root :global(.admin-wallet-tool .wallet-adapter-dropdown-list) {
+    right: 0;
   }
 
   .root :global(.article-editor-layout) {

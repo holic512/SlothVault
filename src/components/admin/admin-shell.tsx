@@ -5,8 +5,8 @@
  * @project SlothVault
  * @module Administrator Shell
  * @description Provides a responsive, grouped Ant Design navigation shell with an authenticated administrator header.
- * @logic Map routes into compact labeled sidebar groups and one breadcrumb model, render the server-resolved system brand, preserve collapse state locally, and expose home/theme/logout actions while keeping wallet use inside the transaction-evidence center.
- * @dependencies antd, next/navigation, next-intl, brand-logo, theme-controls
+ * @logic Map routes into compact labeled sidebar groups and one breadcrumb model, render the server-resolved system brand, preserve collapse state locally, and mount the signing-wallet tool only for the evidence and contract workflows.
+ * @dependencies antd, next/navigation, next-intl, brand-logo, theme-controls, wallet runtime
  * @index_tags admin,layout,navigation,sidebar,branding,menu-groups
  * @author holic512
  */
@@ -37,6 +37,8 @@ import { usePathname, useRouter } from 'next/navigation'
 
 import { ThemeControls } from '@/components/theme/theme-controls'
 import { BrandLogo } from '@/components/shell/brand-logo'
+import { AdminWalletTool } from '@/components/admin/admin-wallet-tool'
+import { WalletRuntime } from '@/components/providers/wallet-runtime'
 import { apiFetch } from '@/lib/api-client'
 import adminStyles from '@/styles/modules/admin.module.css'
 import type { SystemBranding } from '@/types/branding'
@@ -99,6 +101,7 @@ export function AdminShell({ children, branding }: { children: ReactNode; brandi
       .filter((key) => pathname === key || (key !== '/admin/mm' && pathname.startsWith(`${key}/`)))
       .sort((a, b) => b.length - a.length)[0] || '/admin/mm'
   const currentLabel = menuRoutes.find((item) => item.key === selectedKey)?.label || t('title')
+  const walletEnabled = pathname === '/admin/mm/evidence' || pathname === '/admin/mm/contracts'
 
   const logout = async () => {
     await apiFetch('/api/admin/auth/logout', { method: 'POST', body: JSON.stringify({}) })
@@ -139,31 +142,27 @@ export function AdminShell({ children, branding }: { children: ReactNode; brandi
       </Sider>
 
       <Layout className="admin-main-layout">
-        <Header className="admin-header">
-          <div className="admin-header-leading">
-            <Button
-              className="admin-mobile-trigger"
-              aria-label={t('sidebar.openMobile')}
-              icon={<MenuIcon size={17} />}
-              onClick={() => setMobileOpen(true)}
-            />
-            <nav className="admin-breadcrumb" aria-label="Breadcrumb">
-              <Link href="/admin/mm">{t('title')}</Link>
-              <span aria-hidden="true">/</span>
-              <span aria-current="page">{currentLabel}</span>
-            </nav>
-          </div>
-          <Space size={6} className="admin-header-actions">
-            <Tooltip title={t('sidebar.home')}>
-              <Button aria-label={t('sidebar.home')} icon={<Home size={16} />} href="/" />
-            </Tooltip>
-            <ThemeControls />
-            <Tooltip title={t('sidebar.logout')}>
-              <Button aria-label={t('sidebar.logout')} icon={<LogOut size={16} />} onClick={() => void logout()} />
-            </Tooltip>
-          </Space>
-        </Header>
-        <Content className="admin-content">{children}</Content>
+        {walletEnabled ? (
+          <WalletRuntime>
+            <AdminWorkspace
+              currentLabel={currentLabel}
+              onOpenMobile={() => setMobileOpen(true)}
+              onLogout={() => void logout()}
+              walletEnabled
+            >
+              {children}
+            </AdminWorkspace>
+          </WalletRuntime>
+        ) : (
+          <AdminWorkspace
+            currentLabel={currentLabel}
+            onOpenMobile={() => setMobileOpen(true)}
+            onLogout={() => void logout()}
+            walletEnabled={false}
+          >
+            {children}
+          </AdminWorkspace>
+        )}
       </Layout>
       <Drawer
         className="admin-mobile-drawer"
@@ -186,4 +185,49 @@ export function AdminShell({ children, branding }: { children: ReactNode; brandi
       </Drawer>
     </Layout>
   )
+}
+
+function AdminWorkspace({
+  children,
+  currentLabel,
+  onOpenMobile,
+  onLogout,
+  walletEnabled,
+}: {
+  children: ReactNode
+  currentLabel: string
+  onOpenMobile: () => void
+  onLogout: () => void
+  walletEnabled: boolean
+}) {
+  const t = useTranslations('AdminMM')
+
+  return <>
+    <Header className="admin-header">
+      <div className="admin-header-leading">
+        <Button
+          className="admin-mobile-trigger"
+          aria-label={t('sidebar.openMobile')}
+          icon={<MenuIcon size={17} />}
+          onClick={onOpenMobile}
+        />
+        <nav className="admin-breadcrumb" aria-label="Breadcrumb">
+          <Link href="/admin/mm">{t('title')}</Link>
+          <span aria-hidden="true">/</span>
+          <span aria-current="page">{currentLabel}</span>
+        </nav>
+      </div>
+      <Space size={6} className="admin-header-actions">
+        {walletEnabled ? <AdminWalletTool /> : null}
+        <Tooltip title={t('sidebar.home')}>
+          <Button aria-label={t('sidebar.home')} icon={<Home size={16} />} href="/" />
+        </Tooltip>
+        <ThemeControls />
+        <Tooltip title={t('sidebar.logout')}>
+          <Button aria-label={t('sidebar.logout')} icon={<LogOut size={16} />} onClick={onLogout} />
+        </Tooltip>
+      </Space>
+    </Header>
+    <Content className="admin-content">{children}</Content>
+  </>
 }

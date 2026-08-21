@@ -434,6 +434,18 @@
       "users": "用户与权益",
       "system": "系统与存证"
     },
+    "walletTool": {
+      "hint": "仅用于链上存证签名，不影响后台登录权限",
+      "actions": {
+        "select": "选择钱包",
+        "connect": "连接钱包",
+        "connecting": "正在连接",
+        "copyAddress": "复制地址",
+        "copied": "已复制",
+        "change": "切换钱包",
+        "disconnect": "断开连接"
+      }
+    },
     "articles": {
       "filters": {
         "keyword": "搜索文章标题或摘要",

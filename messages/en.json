@@ -434,6 +434,18 @@
       "users": "Users & Credits",
       "system": "System & Evidence"
     },
+    "walletTool": {
+      "hint": "Used only for on-chain evidence signing; it does not affect administrator authentication.",
+      "actions": {
+        "select": "Select wallet",
+        "connect": "Connect wallet",
+        "connecting": "Connecting",
+        "copyAddress": "Copy address",
+        "copied": "Copied",
+        "change": "Change wallet",
+        "disconnect": "Disconnect"
+      }
+    },
     "articles": {
       "filters": {
         "keyword": "Search article title or summary",
