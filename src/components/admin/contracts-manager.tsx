@@ -331,7 +331,7 @@ export function ContractsManager() {
     <Drawer
       open={editorOpen}
       onClose={() => { setEditorOpen(false); setEditing(null); setAttachment(null); form.resetFields() }}
-      width={620}
+      size={620}
       title={editing ? '编辑合同草稿' : '新建合同草稿'}
       extra={<Button type="primary" loading={save.isPending} onClick={() => form.submit()}>保存草稿</Button>}
     >
@@ -357,11 +357,11 @@ export function ContractsManager() {
       </Form>
     </Drawer>
 
-    <Drawer open={Boolean(detail)} onClose={() => setDetail(null)} width={760} title="合同快照与签约审计">
+    <Drawer open={Boolean(detail)} onClose={() => setDetail(null)} size={760} title="合同快照与签约审计">
       {detail ? <ContractDetail contract={detail} admin /> : null}
     </Drawer>
 
-    <Drawer open={Boolean(evidenceTarget)} onClose={() => { setEvidenceTarget(null); setPrepared(null) }} width={580} title="管理员链上存证">
+    <Drawer open={Boolean(evidenceTarget)} onClose={() => { setEvidenceTarget(null); setPrepared(null) }} size={580} title="管理员链上存证">
       {evidenceTarget ? <>
         <Alert showIcon type="info" message="只有管理员钱包会签署链上交易" description="用户已通过 Web2 会话完成合同签约。Memo 仅写入合同哈希与链上核验字段，不包含正文、PDF 或身份信息。" />
         <Card className={contractStyles['evidence-card']} bordered={false}>
