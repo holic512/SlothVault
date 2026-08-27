@@ -155,6 +155,8 @@ flowchart LR
 | `SOLANA_DEVNET_RPC_FALLBACK` | Devnet 备用 RPC。 |
 | `NEXT_PUBLIC_SOLANA_RPC_URL` | 浏览器 Wallet Adapter 使用的公共集群地址。 |
 
+浏览器钱包通过 Solana Wallet Standard 自动发现，不需要为每个扩展单独引入 SDK。安装且启用 Solana 账户的兼容钱包（例如 OKX Wallet）会出现在钱包选择器中；当前签名、登录和存证协议均为 Solana，尚不包含 EVM/OKB Chain 地址或交易支持。
+
 上传文件不进入 `public/`。数据库 JSON 与上传 ZIP 可独立导出、严格校验并恢复；备份包含账户、密码哈希、内容、积分、卡密哈希和存证索引，应按敏感数据管理。
 
 ## 项目结构

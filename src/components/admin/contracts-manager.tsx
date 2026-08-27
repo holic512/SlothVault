@@ -6,20 +6,19 @@
  * @module Contract Administration
  * @description Provides the administrator workspace for drafting, issuing, inspecting, and anchoring one-to-one Web2 contracts.
  * @logic Keep editable drafts separate from frozen snapshots, let administrators inspect the exact user response timeline, and route a signed contract through the existing wallet transaction ceremony only after its Web2 signature succeeds.
- * @dependencies React Query, Ant Design, Solana Wallet Adapter, MarkdownView, contract APIs
+ * @dependencies React Query, Ant Design, use-solana-wallet, MarkdownView, contract APIs
  * @index_tags admin,contracts,drafts,web2-signature,solana,evidence,attachments
  * @author holic512
  */
 import { useMemo, useState } from 'react'
 
-import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Alert, Button, Card, Descriptions, Drawer, Form, Input, Select, Space, Table, Tag, Typography, Upload } from 'antd'
 import { BadgeCheck, FileCheck2, FilePenLine, FileSignature, Link2, Plus, RefreshCw, Send, ShieldCheck, UploadCloud, UserRound, XCircle } from 'lucide-react'
 
 import { AdminPage, AdminPageActions, AdminTablePanel, AdminToolbar } from '@/components/admin/admin-page'
-import { signEvidenceTransaction } from '@/components/admin/evidence-transaction'
 import { MarkdownView } from '@/components/markdown/markdown-view'
+import { useSolanaWallet } from '@/components/wallet/use-solana-wallet'
 import { apiFetch } from '@/lib/api-client'
 import contractStyles from '@/styles/modules/contracts.module.css'
 
@@ -115,8 +114,7 @@ function compact(value: string) {
 export function ContractsManager() {
   const { message, modal } = App.useApp()
   const queryClient = useQueryClient()
-  const { publicKey, signTransaction } = useWallet()
-  const { connection } = useConnection()
+  const wallet = useSolanaWallet()
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [keyword, setKeyword] = useState('')
@@ -193,10 +191,10 @@ export function ContractsManager() {
   })
   const prepareEvidence = useMutation({
     mutationFn: async (values: { network: 'mainnet' | 'devnet' }) => {
-      if (!publicKey) throw new Error('请先连接管理员钱包')
+      if (!wallet.address) throw new Error('请先连接管理员钱包')
       return apiFetch<Prepared>('/api/admin/contracts/evidence/prepare', {
         method: 'POST',
-        body: JSON.stringify({ contractId: Number(evidenceTarget!.id), network: values.network, signerAddress: publicKey.toBase58() }),
+        body: JSON.stringify({ contractId: Number(evidenceTarget!.id), network: values.network, signerAddress: wallet.address }),
       })
     },
     onSuccess: (result) => setPrepared(result),
@@ -204,12 +202,12 @@ export function ContractsManager() {
   })
   const submitEvidence = useMutation({
     mutationFn: async (next: Prepared) => {
-      if (!signTransaction || !publicKey || publicKey.toBase58() !== next.signerAddress) {
+      if (!wallet.canSignTransaction || wallet.address !== next.signerAddress) {
         throw new Error('当前钱包与待签合同凭证不一致')
       }
       let signedTransactionBase64: string
       try {
-        signedTransactionBase64 = await signEvidenceTransaction(next.transactionBase64, signTransaction)
+        signedTransactionBase64 = await wallet.signPreparedTransaction(next.transactionBase64)
       } catch (error) {
         await apiFetch(`/api/admin/contracts/evidence/attempts/${next.attemptId}/cancel`, {
           method: 'POST',
@@ -368,7 +366,7 @@ export function ContractsManager() {
           <Descriptions column={1} size="small" items={[
             { key: 'title', label: '合同', children: evidenceTarget.title },
             { key: 'hash', label: '合同摘要', children: <Typography.Text code copyable>{evidenceTarget.contractHash}</Typography.Text> },
-            { key: 'wallet', label: '当前钱包', children: publicKey ? <Typography.Text code>{publicKey.toBase58()}</Typography.Text> : '未连接' },
+            { key: 'wallet', label: '当前钱包', children: wallet.address ? <Typography.Text code>{wallet.address}</Typography.Text> : '未连接' },
           ]} />
         </Card>
         <Form form={evidenceForm} layout="vertical" onFinish={(values) => prepareEvidence.mutate(values)}>
@@ -377,9 +375,9 @@ export function ContractsManager() {
           </Form.Item>
           {prepared ? <Space direction="vertical" style={{ width: '100%' }}>
             <Alert type={prepared.network === 'mainnet' ? 'warning' : 'info'} showIcon message={prepared.network === 'mainnet' ? 'Mainnet 会消耗真实 SOL' : 'Devnet 仅用于测试'} description={`预计手续费 ${(prepared.feeLamports / 1_000_000_000).toFixed(9)} SOL；请求将在 ${new Date(prepared.expiresAt).toLocaleTimeString()} 失效。`} />
-            <Button block type="primary" icon={<ShieldCheck size={15} />} loading={submitEvidence.isPending} disabled={!signTransaction || publicKey?.toBase58() !== prepared.signerAddress} onClick={() => submitEvidence.mutate(prepared)}>确认哈希并请求管理员钱包签名</Button>
+            <Button block type="primary" icon={<ShieldCheck size={15} />} loading={submitEvidence.isPending} disabled={!wallet.canSignTransaction || wallet.address !== prepared.signerAddress} onClick={() => submitEvidence.mutate(prepared)}>确认哈希并请求管理员钱包签名</Button>
             <Button block onClick={() => setPrepared(null)}>返回修改</Button>
-          </Space> : <Button block type="primary" icon={<FileSignature size={15} />} loading={prepareEvidence.isPending} disabled={!publicKey || !connection} htmlType="submit">生成待签链上交易</Button>}
+          </Space> : <Button block type="primary" icon={<FileSignature size={15} />} loading={prepareEvidence.isPending} disabled={!wallet.address || !wallet.canSignTransaction} htmlType="submit">生成待签链上交易</Button>}
         </Form>
       </> : null}
     </Drawer>

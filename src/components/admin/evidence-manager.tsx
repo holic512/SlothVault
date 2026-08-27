@@ -6,14 +6,13 @@
  * @module Unified Evidence Administration
  * @description Provides one receipt ledger for legacy project-version and note-content evidence with cascaded content selection.
  * @logic Filter both evidence subjects, guide project-to-content signing for new records, and retain subject-aware retry and reconciliation beside each attempt timeline.
- * @dependencies React Query, Ant Design, Solana Wallet Adapter, release evidence APIs
+ * @dependencies React Query, Ant Design, use-solana-wallet, release evidence APIs
  * @index_tags admin,evidence,solana,wallet,receipts,reconciliation
  * @author holic512
  */
 import { useEffect, useState } from 'react'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useWallet } from '@solana/wallet-adapter-react'
 import {
   Alert,
   App,
@@ -47,7 +46,7 @@ import {
 } from 'lucide-react'
 
 import { AdminPage, AdminPageActions } from '@/components/admin/admin-page'
-import { signEvidenceTransaction } from '@/components/admin/evidence-transaction'
+import { useSolanaWallet } from '@/components/wallet/use-solana-wallet'
 import { apiFetch, ApiClientError } from '@/lib/api-client'
 
 type Network = 'mainnet' | 'devnet'
@@ -180,7 +179,7 @@ function evidenceErrorMessage(error: unknown) {
 export function EvidenceManager() {
   const queryClient = useQueryClient()
   const { message, modal } = App.useApp()
-  const wallet = useWallet()
+  const wallet = useSolanaWallet()
   const [scope, setScope] = useState<'all' | 'wallet'>('all')
   const [subjectType, setSubjectType] = useState<SubjectType | undefined>()
   const [network, setNetwork] = useState<Network | undefined>()
@@ -196,7 +195,7 @@ export function EvidenceManager() {
   const [issueCategoryId, setIssueCategoryId] = useState('')
   const [issueNoteId, setIssueNoteId] = useState('')
   const [form] = Form.useForm<{ noteContentId: number; network: Network }>()
-  const signer = wallet.publicKey?.toBase58() || ''
+  const signer = wallet.address || ''
 
   const query = useQuery({
     queryKey: ['release-evidence', scope, signer, subjectType, network, status, signature, page],
@@ -286,7 +285,7 @@ export function EvidenceManager() {
             onCancel: () => reject(new Error('已取消 Mainnet 签名')),
           }))
         }
-        signedTransactionBase64 = await signEvidenceTransaction(next.transactionBase64, wallet.signTransaction)
+        signedTransactionBase64 = await wallet.signPreparedTransaction(next.transactionBase64)
       } catch (error) {
         await apiFetch(`/api/admin/evidence/attempts/${next.attemptId}/cancel`, {
           method: 'POST',

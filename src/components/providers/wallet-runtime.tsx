@@ -5,7 +5,7 @@
  * @project SlothVault
  * @module Solana Wallet
  * @description Hosts the browser-only Solana Wallet Adapter provider hierarchy used by explicit wallet-capable flows.
- * @logic Resolve the configured RPC endpoint, let Wallet Standard discover compatible wallets, reconnect through its standard selected-wallet behavior when this scoped runtime remounts, and keep signing client-only without application-managed wallet state.
+ * @logic Resolve the configured RPC endpoint, let Wallet Standard discover compatible wallets (such as a compliant installed OKX Wallet Solana provider), reconnect with this application's selected-wallet key when the scoped runtime remounts, and keep signing client-only without application-managed wallet state.
  * @dependencies @solana/wallet-adapter-react, @solana/wallet-adapter-react-ui, @solana/web3.js
  * @index_tags solana,wallet,provider,client-only
  * @author holic512
@@ -30,7 +30,12 @@ export function WalletRuntime({ children }: { children: ReactNode }) {
 
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider wallets={wallets} autoConnect onError={onError}>
+      <WalletProvider
+        wallets={wallets}
+        autoConnect
+        localStorageKey="slothvault-solana-wallet"
+        onError={onError}
+      >
         <WalletModalProvider>{children}</WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>

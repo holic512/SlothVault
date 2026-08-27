@@ -6,19 +6,17 @@
  * @module Optional Wallet Login UI
  * @description Offers Solana address ownership as one optional login or account-binding method inside conventional account screens.
  * @logic Open wallet selection when disconnected, request a process-local one-time challenge, sign its exact message, verify it server-side, and refresh the ordinary cookie session.
- * @dependencies Solana Wallet Adapter, bs58, Ant Design, auth API
+ * @dependencies use-solana-wallet, Ant Design, auth API
  * @index_tags wallet,login,binding,optional-auth,client
  * @author holic512
  */
-import { useWallet } from '@solana/wallet-adapter-react'
-import { useWalletModal } from '@solana/wallet-adapter-react-ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { App, Button } from 'antd'
-import bs58 from 'bs58'
 import { WalletCards } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 import { WalletRuntime } from '@/components/providers/wallet-runtime'
+import { useSolanaWallet } from '@/components/wallet/use-solana-wallet'
 import { apiFetch } from '@/lib/api-client'
 import type { SessionUser } from '@/types/user'
 
@@ -50,27 +48,22 @@ function WalletLoginButtonContent({
   mode: 'login' | 'bind'
   redirectTo: string
 }) {
-  const { publicKey, connected, signMessage } = useWallet()
-  const { setVisible } = useWalletModal()
+  const wallet = useSolanaWallet()
   const queryClient = useQueryClient()
   const router = useRouter()
   const { message } = App.useApp()
 
   const mutation = useMutation({
     mutationFn: async () => {
-      if (!connected || !publicKey) {
-        setVisible(true)
+      if (!wallet.connected || !wallet.address) {
+        wallet.openWalletSelector()
         return null
       }
-      if (!signMessage) throw new Error('当前钱包不支持消息签名')
-      const address = publicKey.toBase58()
       const challenge = await apiFetch<Challenge>('/api/auth/wallet/challenge', {
         method: 'POST',
-        body: JSON.stringify({ address }),
+        body: JSON.stringify({ address: wallet.address }),
       })
-      const signature = bs58.encode(
-        await signMessage(new TextEncoder().encode(challenge.message)),
-      )
+      const { address, signature } = await wallet.signLoginMessage(challenge.message)
       return apiFetch<SessionUser>('/api/auth/wallet/verify', {
         method: 'POST',
         body: JSON.stringify({
@@ -97,7 +90,7 @@ function WalletLoginButtonContent({
       loading={mutation.isPending}
       onClick={() => mutation.mutate()}
     >
-      {!connected
+      {!wallet.connected
         ? '选择钱包'
         : mode === 'bind'
           ? '签名并绑定钱包地址'
