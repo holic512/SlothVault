@@ -17,6 +17,8 @@ export async function deleteBusinessData(tx: Prisma.TransactionClient) {
   const giftCardBatches = await tx.giftCardBatch.deleteMany({})
   const pointTransactions = await tx.pointTransaction.deleteMany({})
   const articles = await tx.article.deleteMany({})
+  const membershipGrants = await tx.membershipGrant.deleteMany({})
+  const membershipLevels = await tx.membershipLevel.deleteMany({})
   const contractAdminAudits = await tx.contractAdminAudit.deleteMany({})
   const contractCredentialAttempts = await tx.contractCredentialAttempt.deleteMany({})
   const contractCredentials = await tx.contractCredential.deleteMany({})
@@ -39,6 +41,8 @@ export async function deleteBusinessData(tx: Prisma.TransactionClient) {
     giftCardBatches: giftCardBatches.count,
     pointTransactions: pointTransactions.count,
     articles: articles.count,
+    membershipGrants: membershipGrants.count,
+    membershipLevels: membershipLevels.count,
     contractAdminAudits: contractAdminAudits.count,
     contractCredentialAttempts: contractCredentialAttempts.count,
     contractCredentials: contractCredentials.count,

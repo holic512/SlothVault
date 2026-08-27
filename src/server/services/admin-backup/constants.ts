@@ -37,6 +37,8 @@ export const BACKUP_COLLECTION_KEYS = [
   'pointTransactions',
   'giftCardBatches',
   'giftCards',
+  'membershipLevels',
+  'membershipGrants',
   'articles',
   'projects',
   'projectVersions',

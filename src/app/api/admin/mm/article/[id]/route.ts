@@ -26,6 +26,7 @@ const updateArticleSchema = z.object({
   summary: z.unknown().optional(),
   cover: z.unknown().optional(),
   content: z.unknown().optional(),
+  requiredMembershipLevelId: z.number().int().positive().safe().nullable().optional(),
   isDeleted: z.unknown().optional(),
 })
 

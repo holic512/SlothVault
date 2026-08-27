@@ -13,8 +13,8 @@
 import { useState } from 'react'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { App, Button, Form, Input, InputNumber, Modal, Select, Space, Table, Tag } from 'antd'
-import { Coins, KeyRound, Pencil, Plus, RefreshCw, Search, Trash2, UserRound } from 'lucide-react'
+import { App, Button, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Tag } from 'antd'
+import { Coins, Crown, KeyRound, Pencil, Plus, RefreshCw, Search, Trash2, UserRound } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { AdminPage, AdminPageActions, AdminTablePanel, AdminToolbar } from '@/components/admin/admin-page'
@@ -30,6 +30,12 @@ type UserRow = {
   pointsBalance: number
   walletAddress: string | null
   createdAt: string
+  currentMembership: {
+    id: string
+    name: string
+    rank: number
+    expiresAt: string | null
+  } | null
 }
 
 type UserFormValues = {
@@ -46,6 +52,32 @@ type PasswordFormValues = {
   confirmPassword: string
 }
 
+type MembershipFormValues = {
+  membershipLevelId: string
+  expiresAt?: string
+}
+
+type MembershipLevel = {
+  id: string
+  name: string
+  rank: number
+  pricePoints: number
+  validityDays: number | null
+  status: number
+}
+
+type UserMembershipData = {
+  currentMembership: UserRow['currentMembership']
+  grants: Array<{
+    id: string
+    membershipLevel: MembershipLevel
+    grantedAt: string
+    expiresAt: string | null
+    revokedAt: string | null
+    active: boolean
+  }>
+}
+
 export function UsersManager() {
   const t = useTranslations('AdminMM.users')
   const queryClient = useQueryClient()
@@ -56,10 +88,13 @@ export function UsersManager() {
   const [adjusting, setAdjusting] = useState<UserRow | null>(null)
   const [editing, setEditing] = useState<UserRow | null>(null)
   const [resettingPassword, setResettingPassword] = useState<UserRow | null>(null)
+  const [managingMembership, setManagingMembership] = useState<UserRow | null>(null)
+  const [membershipPermanent, setMembershipPermanent] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
   const [pointsForm] = Form.useForm<{ amount: number; description: string }>()
   const [userForm] = Form.useForm<UserFormValues>()
   const [passwordForm] = Form.useForm<PasswordFormValues>()
+  const [membershipForm] = Form.useForm<MembershipFormValues>()
 
   const query = useQuery({
     queryKey: ['admin-users', page, pageSize, keyword],
@@ -70,6 +105,15 @@ export function UsersManager() {
     },
   })
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+  const membershipLevelsQuery = useQuery({
+    queryKey: ['admin-membership-levels'],
+    queryFn: () => apiFetch<MembershipLevel[]>('/api/admin/mm/membership-levels?includeDisabled=1'),
+  })
+  const membershipQuery = useQuery({
+    queryKey: ['admin-user-membership', managingMembership?.id],
+    enabled: Boolean(managingMembership),
+    queryFn: () => apiFetch<UserMembershipData>(`/api/admin/mm/users/${managingMembership!.id}/membership`),
+  })
 
   const pointsMutation = useMutation({
     mutationFn: (values: { amount: number; description: string }) =>
@@ -139,6 +183,40 @@ export function UsersManager() {
     onError: (error) => message.error(error.message),
   })
 
+  const membershipMutation = useMutation({
+    mutationFn: (values: MembershipFormValues) => apiFetch<UserMembershipData>(
+      `/api/admin/mm/users/${managingMembership!.id}/membership`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({
+          membershipLevelId: Number(values.membershipLevelId),
+          expiresAt: membershipPermanent ? null : new Date(values.expiresAt!).toISOString(),
+        }),
+      },
+    ),
+    onSuccess: async () => {
+      message.success('会员权益已设置')
+      membershipForm.resetFields()
+      setMembershipPermanent(false)
+      await Promise.all([
+        refresh(),
+        queryClient.invalidateQueries({ queryKey: ['admin-user-membership', managingMembership?.id] }),
+      ])
+    },
+    onError: (error) => message.error(error.message),
+  })
+  const revokeMembershipMutation = useMutation({
+    mutationFn: () => apiFetch<UserMembershipData>(`/api/admin/mm/users/${managingMembership!.id}/membership`, { method: 'DELETE' }),
+    onSuccess: async () => {
+      message.success('会员权益已取消')
+      await Promise.all([
+        refresh(),
+        queryClient.invalidateQueries({ queryKey: ['admin-user-membership', managingMembership?.id] }),
+      ])
+    },
+    onError: (error) => message.error(error.message),
+  })
+
   const openCreate = () => {
     setEditing(null)
     userForm.setFieldsValue({ username: '', email: '', displayName: '', password: '', confirmPassword: '', status: 1 })
@@ -159,6 +237,11 @@ export function UsersManager() {
   const openPasswordReset = (user: UserRow) => {
     setResettingPassword(user)
     passwordForm.resetFields()
+  }
+  const openMembership = (user: UserRow) => {
+    setManagingMembership(user)
+    setMembershipPermanent(false)
+    membershipForm.resetFields()
   }
   const confirmDisable = (user: UserRow) => {
     modal.confirm({
@@ -233,6 +316,14 @@ export function UsersManager() {
             { title: t('table.wallet'), dataIndex: 'walletAddress', width: 100, render: (value) => value ? t('wallet.bound') : t('wallet.unbound') },
             { title: t('table.points'), dataIndex: 'pointsBalance', width: 100, align: 'right' },
             {
+              title: '会员等级',
+              dataIndex: 'currentMembership',
+              width: 170,
+              render: (value: UserRow['currentMembership']) => value
+                ? <span><Tag color="gold">Lv.{value.rank}</Tag>{value.name}<br /><small>{value.expiresAt ? `至 ${new Date(value.expiresAt).toLocaleDateString()}` : '永久有效'}</small></span>
+                : <Tag>普通用户</Tag>,
+            },
+            {
               title: t('table.status'),
               dataIndex: 'status',
               width: 100,
@@ -244,12 +335,13 @@ export function UsersManager() {
             {
               title: t('table.operations'),
               fixed: 'right',
-              width: 280,
+              width: 350,
               render: (_value, user) => (
                 <Space size={4}>
                   <Button type="link" icon={<Pencil size={14} />} onClick={() => openEdit(user)}>{t('operations.edit')}</Button>
                   <Button type="link" icon={<KeyRound size={14} />} onClick={() => openPasswordReset(user)}>{t('operations.password')}</Button>
                   <Button type="link" icon={<Coins size={14} />} onClick={() => setAdjusting(user)}>{t('operations.points')}</Button>
+                  <Button type="link" icon={<Crown size={14} />} onClick={() => openMembership(user)}>会员</Button>
                   {user.role !== 'ADMIN' && user.status === 1 ? (
                     <Button danger type="link" icon={<Trash2 size={14} />} onClick={() => confirmDisable(user)}>{t('operations.delete')}</Button>
                   ) : null}
@@ -315,6 +407,40 @@ export function UsersManager() {
             </Form.Item>
           ) : null}
         </Form>
+      </Modal>
+
+      <Modal
+        open={Boolean(managingMembership)}
+        title={`会员权益 · ${managingMembership?.displayName || managingMembership?.username || ''}`}
+        okText="设置会员"
+        cancelText="关闭"
+        confirmLoading={membershipMutation.isPending}
+        onCancel={() => { setManagingMembership(null); membershipForm.resetFields(); setMembershipPermanent(false) }}
+        onOk={() => membershipForm.submit()}
+        footer={(_origin, { OkBtn, CancelBtn }) => <Space><Button danger loading={revokeMembershipMutation.isPending} onClick={() => revokeMembershipMutation.mutate()}>取消全部权益</Button><CancelBtn /><OkBtn /></Space>}
+      >
+        <Space direction="vertical" size={12} className="full-width">
+          <div>
+            <strong>当前权益：</strong>{membershipQuery.data?.currentMembership ? <Tag color="gold">Lv.{membershipQuery.data.currentMembership.rank} {membershipQuery.data.currentMembership.name}</Tag> : '普通用户'}
+          </div>
+          <Form form={membershipForm} layout="vertical" onFinish={(values) => membershipMutation.mutate(values)}>
+            <Form.Item name="membershipLevelId" label="授予等级" rules={[{ required: true, message: '请选择会员等级' }]}>
+              <Select loading={membershipLevelsQuery.isLoading} options={(membershipLevelsQuery.data || []).map((level) => ({ value: level.id, label: `Lv.${level.rank} · ${level.name}${level.status === 0 ? '（已停用）' : ''}` }))} />
+            </Form.Item>
+            <Form.Item label="永久有效" valuePropName="checked">
+              <Switch checked={membershipPermanent} onChange={setMembershipPermanent} />
+            </Form.Item>
+            {!membershipPermanent ? (
+              <Form.Item name="expiresAt" label="到期时间" rules={[{ required: true, message: '请选择未来到期时间' }]}>
+                <Input type="datetime-local" />
+              </Form.Item>
+            ) : null}
+          </Form>
+          <div className="admin-membership-history">
+            <strong>授权记录</strong>
+            {membershipQuery.data?.grants.map((grant) => <div key={grant.id}><Tag color={grant.active ? 'success' : undefined}>Lv.{grant.membershipLevel.rank} {grant.membershipLevel.name}</Tag>{grant.revokedAt ? '已取消' : grant.expiresAt ? `至 ${new Date(grant.expiresAt).toLocaleString()}` : '永久有效'}</div>)}
+          </div>
+        </Space>
       </Modal>
 
       <Modal

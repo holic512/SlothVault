@@ -12,7 +12,7 @@
  */
 import { useQuery } from '@tanstack/react-query'
 import { Button, Card, Statistic, Tag, Typography } from 'antd'
-import { ArrowRight, Coins, KeyRound, ShieldCheck, UserRound, WalletCards } from 'lucide-react'
+import { ArrowRight, Coins, Crown, KeyRound, ShieldCheck, UserRound, WalletCards } from 'lucide-react'
 import Link from 'next/link'
 
 import { useAccountUser } from '@/components/account/account-shell'
@@ -58,6 +58,7 @@ export function AccountOverview() {
           <Link href="/account/profile"><UserRound size={16} /><span>编辑个人资料</span><ArrowRight size={15} /></Link>
           <Link href="/account/security"><ShieldCheck size={16} /><span>管理安全与登录</span><ArrowRight size={15} /></Link>
           <Link href="/account/points"><WalletCards size={16} /><span>兑换卡密与查看积分</span><ArrowRight size={15} /></Link>
+          <Link href="/account/membership"><Crown size={16} /><span>开通与管理会员权益</span><ArrowRight size={15} /></Link>
         </Card>
 
         <Card className="account-card account-overview-identity">

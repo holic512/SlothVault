@@ -29,6 +29,8 @@ type ArticleDto = {
   cover: string | null
   content: string
   status: number
+  requiredMembershipLevelId: string | null
+  requiredMembershipLevel: { id: string; name: string; rank: number } | null
   publishedAt: string | null
   createdAt: string
   updatedAt: string
@@ -127,6 +129,14 @@ export function ArticlesManager() {
         : row.status === 1
           ? <Tag color="green">{t('status.published')}</Tag>
           : <Tag color="gold">{t('status.draft')}</Tag>,
+    },
+    {
+      title: t('table.access'),
+      dataIndex: 'requiredMembershipLevel',
+      width: 150,
+      render: (value: ArticleDto['requiredMembershipLevel']) => value
+        ? <Tag color="gold">Lv.{value.rank} · {value.name}</Tag>
+        : <Tag color="green">{t('table.public')}</Tag>,
     },
     {
       title: t('table.publishedAt'),

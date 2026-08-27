@@ -32,6 +32,9 @@ import {
 
 const firstPublishedAt = new Date('2026-08-20T02:00:00.000Z')
 const createdAt = new Date('2026-08-20T01:00:00.000Z')
+const requiredMembershipLevelInclude = {
+  requiredMembershipLevel: { select: { id: true, name: true, rank: true } },
+}
 
 function articleRecord(overrides: Record<string, unknown> = {}) {
   return {
@@ -67,7 +70,9 @@ describe('administrator independent articles', () => {
         cover: '/uploads/article-cover/550e8400-e29b-41d4-a716-446655440000.webp',
         content: '# Body',
         status: 0,
+        requiredMembershipLevelId: null,
       },
+      include: requiredMembershipLevelInclude,
     })
     expect(mocks.invalidate).toHaveBeenCalledWith(8)
   })
@@ -80,6 +85,7 @@ describe('administrator independent articles', () => {
     expect(mocks.prisma.article.update).toHaveBeenCalledWith({
       where: { id: 8 },
       data: { status: 1, publishedAt: firstPublishedAt, updatedAt: expect.any(Date) },
+      include: requiredMembershipLevelInclude,
     })
   })
 
@@ -96,6 +102,7 @@ describe('administrator independent articles', () => {
     expect(mocks.prisma.article.update).toHaveBeenCalledWith({
       where: { id: 8 },
       data: { content: '# Revised', updatedAt: expect.any(Date) },
+      include: requiredMembershipLevelInclude,
     })
     expect(mocks.invalidate).toHaveBeenCalledWith(8)
   })
@@ -110,12 +117,14 @@ describe('administrator independent articles', () => {
     expect(mocks.prisma.article.update).toHaveBeenNthCalledWith(1, {
       where: { id: 8 },
       data: { status: 0, updatedAt: expect.any(Date) },
+      include: requiredMembershipLevelInclude,
     })
 
     await deleteAdminArticle(8)
     expect(mocks.prisma.article.update).toHaveBeenNthCalledWith(2, {
       where: { id: 8 },
       data: { isDeleted: true, status: 0, updatedAt: expect.any(Date) },
+      include: requiredMembershipLevelInclude,
     })
   })
 })

@@ -17,6 +17,8 @@ function backupWithReservation(options: {
     pointTransactions: [],
     giftCardBatches: [],
     giftCards: [],
+    membershipLevels: [],
+    membershipGrants: [],
     articles: [],
     projects: [
       {
@@ -178,6 +180,7 @@ describe('database backup independent article compatibility', () => {
       cover: null,
       content: '# Body',
       status: 1,
+      requiredMembershipLevelId: null,
       publishedAt: timestamp,
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -198,6 +201,7 @@ describe('database backup independent article compatibility', () => {
       cover: 'https://example.com/cover.png',
       content: '# Body',
       status: 0,
+      requiredMembershipLevelId: null,
       publishedAt: null,
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -205,6 +209,50 @@ describe('database backup independent article compatibility', () => {
     })
 
     expect(() => parseDatabaseImportPayload({ data, version: '2.6.0' })).toThrow(/article-cover/)
+  })
+})
+
+describe('database backup membership compatibility', () => {
+  it('defaults pre-2.7 backups to no membership data and public article access', () => {
+    const data = backupWithReservation()
+    const { membershipLevels, membershipGrants, ...legacyData } = data
+    expect(membershipLevels).toEqual([])
+    expect(membershipGrants).toEqual([])
+
+    const parsed = parseDatabaseImportPayload({ data: legacyData, version: '2.6.0' }).data
+    expect(parsed.membershipLevels).toEqual([])
+    expect(parsed.membershipGrants).toEqual([])
+  })
+
+  it('accepts levels, grants, and member-only article references as one relation-closed snapshot', () => {
+    const data = backupWithReservation()
+    data.users.push({
+      id: '7', username: 'admin', password: 'hash', passwordConfigured: true,
+      email: null, displayName: null, avatar: null, bio: null, role: 'ADMIN',
+      status: 1, pointsBalance: 20, walletAddress: null, lastLoginAt: null,
+      createdAt: timestamp, updatedAt: timestamp,
+    })
+    data.membershipLevels.push({
+      id: '11', name: 'VIP', rank: 1, pricePoints: 10, validityDays: 30,
+      status: 1, createdAt: timestamp, updatedAt: timestamp,
+    })
+    data.membershipGrants.push({
+      id: '12', userId: '7', membershipLevelId: '11', source: 'POINT_PURCHASE',
+      pointsCost: 10, grantedByUserId: null, grantedAt: timestamp,
+      expiresAt: '2026-08-20T00:00:00.000Z', revokedAt: null, revokedByUserId: null,
+    })
+    data.articles.push({
+      id: '13', title: 'Member article', summary: null, cover: null, content: '# Body',
+      status: 1, requiredMembershipLevelId: '11', publishedAt: timestamp,
+      createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
+    })
+
+    const parsed = parseDatabaseImportPayload({ data, version: '2.7.0' }).data
+    expect(parsed.membershipGrants[0].membershipLevelId).toBe('11')
+    expect(parsed.articles[0].requiredMembershipLevelId).toBe('11')
+
+    parsed.membershipLevels.push({ ...parsed.membershipLevels[0], id: '14' })
+    expect(() => parseDatabaseImportPayload({ data: parsed, version: '2.7.0' })).toThrow(/membershipLevel rank/)
   })
 })
 

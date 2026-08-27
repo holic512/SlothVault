@@ -78,6 +78,8 @@ export function validateBackupRelations(data: BackupData) {
   const pointTransactions = mapById('pointTransaction', data.pointTransactions)
   const giftCardBatches = mapById('giftCardBatch', data.giftCardBatches)
   const giftCards = mapById('giftCard', data.giftCards)
+  const membershipLevels = mapById('membershipLevel', data.membershipLevels)
+  const membershipGrants = mapById('membershipGrant', data.membershipGrants)
   mapById('article', data.articles)
   const projects = mapById('project', data.projects)
   const projectVersions = mapById('projectVersion', data.projectVersions)
@@ -109,9 +111,22 @@ export function validateBackupRelations(data: BackupData) {
     assertReference(giftCardBatches, item.batchId, 'giftCard batchId')
     if (item.redeemedById) assertReference(users, item.redeemedById, 'giftCard redeemedById')
   }
+  assertUniqueField('membershipLevel rank', data.membershipLevels, (item) => String(item.rank))
+  for (const item of membershipGrants.values()) {
+    assertReference(users, item.userId, 'membershipGrant userId')
+    assertReference(membershipLevels, item.membershipLevelId, 'membershipGrant membershipLevelId')
+    if (item.grantedByUserId) assertReference(users, item.grantedByUserId, 'membershipGrant grantedByUserId')
+    if (item.revokedByUserId) assertReference(users, item.revokedByUserId, 'membershipGrant revokedByUserId')
+    if (item.expiresAt && new Date(item.expiresAt).getTime() <= new Date(item.grantedAt).getTime()) {
+      invalidBackup(`membershipGrant ${item.id} expires before its grant time`)
+    }
+  }
   for (const item of data.articles) {
     if (item.status === 1 && (!item.publishedAt || item.isDeleted)) {
       invalidBackup(`published article ${item.id} must be visible and have publishedAt`)
+    }
+    if (item.requiredMembershipLevelId) {
+      assertReference(membershipLevels, item.requiredMembershipLevelId, 'article requiredMembershipLevelId')
     }
   }
 

@@ -30,14 +30,23 @@ type ArticleLike = {
   cover: string | null
   content: string
   status: number
+  requiredMembershipLevelId: number | null
   publishedAt: Date | null
   createdAt: Date
   updatedAt: Date
   isDeleted: boolean
+  requiredMembershipLevel?: { id: number; name: string; rank: number } | null
 }
 
 export function adminArticleDto(article: ArticleLike) {
-  return { ...article, id: article.id.toString() }
+  return {
+    ...article,
+    id: article.id.toString(),
+    requiredMembershipLevelId: article.requiredMembershipLevelId?.toString() ?? null,
+    requiredMembershipLevel: article.requiredMembershipLevel
+      ? { ...article.requiredMembershipLevel, id: article.requiredMembershipLevel.id.toString() }
+      : null,
+  }
 }
 
 function titleValue(value: unknown, required = true) {
@@ -82,6 +91,24 @@ function contentValue(value: unknown, required = true) {
   return value
 }
 
+function requiredMembershipLevelValue(value: unknown) {
+  if (value === undefined) return undefined
+  if (value === null) return null
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) {
+    throw new HttpError('Invalid required membership level', 400, 400)
+  }
+  return value
+}
+
+async function assertMembershipLevelExists(id: number | null | undefined) {
+  if (id === undefined || id === null) return
+  const level = await prisma.membershipLevel.findUnique({
+    where: { id },
+    select: { id: true },
+  })
+  if (!level) throw new HttpError('Membership level not found', 400, 400)
+}
+
 export async function listAdminArticles(input: {
   page: number
   pageSize: number
@@ -107,6 +134,7 @@ export async function listAdminArticles(input: {
       skip: input.skip,
       take: input.pageSize,
       orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+      include: { requiredMembershipLevel: { select: { id: true, name: true, rank: true } } },
     }),
   ])
 
@@ -123,7 +151,10 @@ export async function createAdminArticle(input: {
   summary?: unknown
   cover?: unknown
   content?: unknown
+  requiredMembershipLevelId?: unknown
 }) {
+  const requiredMembershipLevelId = requiredMembershipLevelValue(input.requiredMembershipLevelId)
+  await assertMembershipLevelExists(requiredMembershipLevelId)
   const article = await prisma.article.create({
     data: {
       title: titleValue(input.title)!,
@@ -131,14 +162,19 @@ export async function createAdminArticle(input: {
       cover: coverValue(input.cover) ?? null,
       content: contentValue(input.content ?? '')!,
       status: 0,
+      requiredMembershipLevelId: requiredMembershipLevelId ?? null,
     },
+    include: { requiredMembershipLevel: { select: { id: true, name: true, rank: true } } },
   })
   await invalidatePublicArticleCache(article.id)
   return adminArticleDto(article)
 }
 
 export async function getAdminArticle(id: number) {
-  const article = await prisma.article.findUnique({ where: { id } })
+  const article = await prisma.article.findUnique({
+    where: { id },
+    include: { requiredMembershipLevel: { select: { id: true, name: true, rank: true } } },
+  })
   if (!article) throw new HttpError('Article not found', 404, 404)
   return adminArticleDto(article)
 }
@@ -148,17 +184,23 @@ export async function updateAdminArticle(id: number, input: {
   summary?: unknown
   cover?: unknown
   content?: unknown
+  requiredMembershipLevelId?: unknown
   isDeleted?: unknown
 }) {
-  const data: Prisma.ArticleUpdateInput = { updatedAt: new Date() }
+  const data: Prisma.ArticleUncheckedUpdateInput = { updatedAt: new Date() }
   const title = titleValue(input.title, false)
   const summary = summaryValue(input.summary)
   const cover = coverValue(input.cover)
   const content = contentValue(input.content, false)
+  const requiredMembershipLevelId = requiredMembershipLevelValue(input.requiredMembershipLevelId)
   if (title !== undefined) data.title = title
   if (summary !== undefined) data.summary = summary
   if (cover !== undefined) data.cover = cover
   if (content !== undefined) data.content = content
+  if (requiredMembershipLevelId !== undefined) {
+    await assertMembershipLevelExists(requiredMembershipLevelId)
+    data.requiredMembershipLevelId = requiredMembershipLevelId
+  }
   if (input.isDeleted !== undefined) {
     if (input.isDeleted !== false) throw new HttpError('Invalid restore state', 400, 400)
     data.isDeleted = false
@@ -167,7 +209,11 @@ export async function updateAdminArticle(id: number, input: {
   if (Object.keys(data).length === 1) throw new HttpError('No fields to update', 400, 400)
 
   try {
-    const article = await prisma.article.update({ where: { id }, data })
+    const article = await prisma.article.update({
+      where: { id },
+      data,
+      include: { requiredMembershipLevel: { select: { id: true, name: true, rank: true } } },
+    })
     await invalidatePublicArticleCache(id)
     return adminArticleDto(article)
   } catch (error) {
@@ -181,6 +227,7 @@ export async function deleteAdminArticle(id: number) {
     const article = await prisma.article.update({
       where: { id },
       data: { isDeleted: true, status: 0, updatedAt: new Date() },
+      include: { requiredMembershipLevel: { select: { id: true, name: true, rank: true } } },
     })
     await invalidatePublicArticleCache(id)
     return adminArticleDto(article)
@@ -196,6 +243,7 @@ export async function publishAdminArticle(id: number) {
   if (!current.title.trim() || !current.content.trim()) {
     throw new HttpError('Title and content are required before publishing', 400, 400)
   }
+  await assertMembershipLevelExists(current.requiredMembershipLevelId)
 
   const article = await prisma.article.update({
     where: { id },
@@ -204,6 +252,7 @@ export async function publishAdminArticle(id: number) {
       publishedAt: current.publishedAt ?? new Date(),
       updatedAt: new Date(),
     },
+    include: { requiredMembershipLevel: { select: { id: true, name: true, rank: true } } },
   })
   await invalidatePublicArticleCache(id)
   return adminArticleDto(article)
@@ -216,6 +265,7 @@ export async function withdrawAdminArticle(id: number) {
   const article = await prisma.article.update({
     where: { id },
     data: { status: 0, updatedAt: new Date() },
+    include: { requiredMembershipLevel: { select: { id: true, name: true, rank: true } } },
   })
   await invalidatePublicArticleCache(id)
   return adminArticleDto(article)

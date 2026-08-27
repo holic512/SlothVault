@@ -10,6 +10,8 @@ const expectedTables = {
   GiftCardBatch: 'points_gift_card_batch',
   GiftCard: 'points_gift_card',
   Article: 'blog_article',
+  MembershipLevel: 'membership_level',
+  MembershipGrant: 'membership_grant',
   Project: 'collections_project',
   ProjectMenu: 'collections_project_menu',
   ProjectHome: 'collections_project_home',
@@ -114,6 +116,13 @@ describe('provider schema parity', () => {
     expect(models.get('GiftCard')).toContain('codeHash String @unique')
     expect(models.get('Article')).toContain('publishedAt DateTime? @map("published_at")')
     expect(models.get('Article')).toContain('@@index([status, isDeleted, publishedAt]')
+    expect(models.get('Article')).toContain('requiredMembershipLevelId Int? @map("required_membership_level_id")')
+    expect(models.get('MembershipLevel')).toContain('rank Int @unique')
+    expect(models.get('MembershipLevel')).toContain('pricePoints Int @map("price_points")')
+    expect(models.get('MembershipLevel')).toContain('validityDays Int? @map("validity_days")')
+    expect(models.get('MembershipGrant')).toContain('membershipLevelId Int @map("membership_level_id")')
+    expect(models.get('MembershipGrant')).toContain('expiresAt DateTime? @map("expires_at")')
+    expect(models.get('MembershipGrant')).toContain('revokedAt DateTime? @map("revoked_at")')
     expect(models.get('NoteInfo')).toContain('contentRevision Int @default(0) @map("content_revision")')
     expect(models.get('NoteInfo')).toContain('authorId Int? @map("author_id")')
     expect(models.get('ProjectVersion')).toContain('documentRevision Int @default(0) @map("document_revision")')
@@ -148,6 +157,8 @@ describe('provider schema parity', () => {
       'GiftCardBatch',
       'GiftCard',
       'Article',
+      'MembershipLevel',
+      'MembershipGrant',
       'Project',
       'ProjectMenu',
       'ProjectHome',
@@ -237,5 +248,21 @@ describe('provider schema parity', () => {
     expect(migration).toContain('blog_article')
     expect(migration).toContain('published_at')
     expect(migration).toContain('idx_blog_article_public')
+  })
+
+  it.each(providers)('%s migrates membership levels, grants, and article access requirements', (provider) => {
+    const migration = readFileSync(
+      resolve(
+        process.cwd(),
+        `prisma/providers/${provider}/migrations/20260827000000_membership_article_access/migration.sql`,
+      ),
+      'utf8',
+    )
+
+    expect(migration).toContain('membership_level')
+    expect(migration).toContain('membership_grant')
+    expect(migration).toContain('required_membership_level_id')
+    expect(migration).toContain('expires_at')
+    expect(migration).toContain('idx_membership_grant_user_active')
   })
 })

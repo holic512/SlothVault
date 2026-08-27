@@ -105,6 +105,8 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
       pointTransactions: new Map<string, number>(),
       giftCardBatches: new Map<string, number>(),
       giftCards: new Map<string, number>(),
+      membershipLevels: new Map<string, number>(),
+      membershipGrants: new Map<string, number>(),
       articles: new Map<string, number>(),
       projects: new Map<string, number>(),
       projectVersions: new Map<string, number>(),
@@ -166,6 +168,21 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
       ids.users.set(item.id, user.id)
     }
 
+    for (const item of data.membershipLevels) {
+      const level = await tx.membershipLevel.create({
+        data: {
+          name: item.name,
+          rank: item.rank,
+          pricePoints: item.pricePoints,
+          validityDays: item.validityDays,
+          status: item.status,
+          createdAt: new Date(item.createdAt),
+          updatedAt: new Date(item.updatedAt),
+        },
+      })
+      ids.membershipLevels.set(item.id, level.id)
+    }
+
     for (const item of data.pointTransactions) {
       const record = await tx.pointTransaction.create({
         data: {
@@ -214,6 +231,31 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
       ids.giftCards.set(item.id, record.id)
     }
 
+    for (const item of data.membershipGrants) {
+      const record = await tx.membershipGrant.create({
+        data: {
+          userId: requiredMappedId(ids.users, item.userId, 'membershipGrant userId'),
+          membershipLevelId: requiredMappedId(
+            ids.membershipLevels,
+            item.membershipLevelId,
+            'membershipGrant membershipLevelId',
+          ),
+          source: item.source,
+          pointsCost: item.pointsCost,
+          grantedByUserId: item.grantedByUserId
+            ? requiredMappedId(ids.users, item.grantedByUserId, 'membershipGrant grantedByUserId')
+            : null,
+          grantedAt: new Date(item.grantedAt),
+          expiresAt: item.expiresAt ? new Date(item.expiresAt) : null,
+          revokedAt: item.revokedAt ? new Date(item.revokedAt) : null,
+          revokedByUserId: item.revokedByUserId
+            ? requiredMappedId(ids.users, item.revokedByUserId, 'membershipGrant revokedByUserId')
+            : null,
+        },
+      })
+      ids.membershipGrants.set(item.id, record.id)
+    }
+
     for (const item of data.articles) {
       const record = await tx.article.create({
         data: {
@@ -222,6 +264,13 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
           cover: item.cover,
           content: item.content,
           status: item.status,
+          requiredMembershipLevelId: item.requiredMembershipLevelId
+            ? requiredMappedId(
+              ids.membershipLevels,
+              item.requiredMembershipLevelId,
+              'article requiredMembershipLevelId',
+            )
+            : null,
           publishedAt: item.publishedAt ? new Date(item.publishedAt) : null,
           createdAt: new Date(item.createdAt),
           updatedAt: new Date(item.updatedAt),
@@ -592,6 +641,8 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
         pointTransactions: ids.pointTransactions.size,
         giftCardBatches: ids.giftCardBatches.size,
         giftCards: ids.giftCards.size,
+        membershipLevels: ids.membershipLevels.size,
+        membershipGrants: ids.membershipGrants.size,
         articles: ids.articles.size,
         projects: ids.projects.size,
         projectVersions: ids.projectVersions.size,

@@ -50,6 +50,9 @@ model User {
   updatedAt              DateTime            @default(now()) @map("updated_at") @db.DateTime(3)
   Session                Session[]
   pointTransactions      PointTransaction[]
+  membershipGrants       MembershipGrant[] @relation("MembershipGrantUser")
+  grantedMembershipGrants MembershipGrant[] @relation("MembershipGrantGrantedBy")
+  revokedMembershipGrants MembershipGrant[] @relation("MembershipGrantRevokedBy")
   createdGiftCardBatches GiftCardBatch[]     @relation("GiftCardBatchCreator")
   redeemedGiftCards      GiftCard[]          @relation("GiftCardRedemption")
   releaseCredentials     ReleaseCredential[] @relation("ReleaseCredentialIssuer")
@@ -116,19 +119,59 @@ model GiftCard {
 }
 
 model Article {
-  id          Int       @id @default(autoincrement())
-  title       String    @db.VarChar(255)
-  summary     String?   @db.VarChar(500)
-  cover       String?   @db.VarChar(500)
-  content     String    @db.LongText
-  status      Int       @default(0) @db.SmallInt
-  publishedAt DateTime? @map("published_at") @db.DateTime(3)
-  createdAt   DateTime  @default(now()) @map("created_at") @db.DateTime(3)
-  updatedAt   DateTime  @default(now()) @map("updated_at") @db.DateTime(3)
-  isDeleted   Boolean   @default(false) @map("is_deleted")
+  id                        Int              @id @default(autoincrement())
+  title                     String           @db.VarChar(255)
+  summary                   String?          @db.VarChar(500)
+  cover                     String?          @db.VarChar(500)
+  content                   String           @db.LongText
+  status                    Int              @default(0) @db.SmallInt
+  requiredMembershipLevelId Int?             @map("required_membership_level_id")
+  publishedAt               DateTime?        @map("published_at") @db.DateTime(3)
+  createdAt                 DateTime         @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt                 DateTime         @default(now()) @map("updated_at") @db.DateTime(3)
+  isDeleted                 Boolean          @default(false) @map("is_deleted")
+  requiredMembershipLevel   MembershipLevel? @relation("ArticleRequiredMembershipLevel", fields: [requiredMembershipLevelId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([status, isDeleted, publishedAt], map: "idx_blog_article_public")
+  @@index([requiredMembershipLevelId], map: "idx_blog_article_required_membership_level")
   @@map("blog_article")
+}
+
+model MembershipLevel {
+  id               Int               @id @default(autoincrement())
+  name             String            @db.VarChar(80)
+  rank             Int               @unique(map: "uq_membership_level_rank") @db.SmallInt
+  pricePoints      Int               @map("price_points")
+  validityDays     Int?              @map("validity_days")
+  status           Int               @default(1) @db.SmallInt
+  createdAt        DateTime          @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt        DateTime          @default(now()) @map("updated_at") @db.DateTime(3)
+  grants           MembershipGrant[]
+  requiredArticles Article[]         @relation("ArticleRequiredMembershipLevel")
+
+  @@index([status, rank], map: "idx_membership_level_status_rank")
+  @@map("membership_level")
+}
+
+model MembershipGrant {
+  id                Int             @id @default(autoincrement())
+  userId            Int             @map("user_id")
+  membershipLevelId Int             @map("membership_level_id")
+  source            String          @db.VarChar(32)
+  pointsCost        Int?            @map("points_cost")
+  grantedByUserId   Int?            @map("granted_by_user_id")
+  grantedAt         DateTime        @default(now()) @map("granted_at") @db.DateTime(3)
+  expiresAt         DateTime?       @map("expires_at") @db.DateTime(3)
+  revokedAt         DateTime?       @map("revoked_at") @db.DateTime(3)
+  revokedByUserId   Int?            @map("revoked_by_user_id")
+  user              User            @relation("MembershipGrantUser", fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  membershipLevel   MembershipLevel @relation(fields: [membershipLevelId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  grantedByUser     User?           @relation("MembershipGrantGrantedBy", fields: [grantedByUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  revokedByUser     User?           @relation("MembershipGrantRevokedBy", fields: [revokedByUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([userId, revokedAt, expiresAt], map: "idx_membership_grant_user_active")
+  @@index([membershipLevelId], map: "idx_membership_grant_level")
+  @@map("membership_grant")
 }
 
 model Project {

@@ -15,6 +15,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { unitOfWork } from '@/server/database/unit-of-work'
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
+import { membershipSummaryFromGrants } from '@/server/services/membership'
 
 export const GIFT_CARD_STATUS = {
   DISABLED: 0,
@@ -25,6 +26,7 @@ export const GIFT_CARD_STATUS = {
 export const POINT_TRANSACTION_TYPE = {
   CARD_REDEEM: 'CARD_REDEEM',
   ADMIN_ADJUSTMENT: 'ADMIN_ADJUSTMENT',
+  MEMBERSHIP_PURCHASE: 'MEMBERSHIP_PURCHASE',
 } as const
 
 function normalizeGiftCardCode(code: string) {
@@ -207,6 +209,7 @@ export async function listUsers(input: {
   pageSize: number
   keyword?: string
 }) {
+  const now = new Date()
   const keyword = input.keyword?.trim()
   const where = keyword
     ? {
@@ -233,11 +236,25 @@ export async function listUsers(input: {
         pointsBalance: true,
         walletAddress: true,
         createdAt: true,
+        membershipGrants: {
+          where: {
+            revokedAt: null,
+            OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+          },
+          include: { membershipLevel: true },
+        },
       },
     }),
     prisma.user.count({ where }),
   ])
-  return { total, list: list.map((user) => ({ ...user, id: user.id.toString() })) }
+  return {
+    total,
+    list: list.map(({ membershipGrants, ...user }) => ({
+      ...user,
+      id: user.id.toString(),
+      currentMembership: membershipSummaryFromGrants(membershipGrants, now),
+    })),
+  }
 }
 
 export async function adjustUserPoints(input: {

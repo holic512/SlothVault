@@ -8,7 +8,7 @@
  * @index_tags article,archive,editorial,public,responsive
  * @author holic512
  */
-import { ArrowUpRight, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowUpRight, ChevronLeft, ChevronRight, LockKeyhole } from 'lucide-react'
 import { getLocale, getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 
@@ -24,6 +24,7 @@ type PublicArticleListItem = {
   cover: string | null
   publishedAt: string
   updatedAt: string
+  requiredMembershipLevel: { id: string; name: string; rank: number } | null
 }
 
 export async function PublicArticleListView({
@@ -69,6 +70,7 @@ export async function PublicArticleListView({
                   </div>
                   <h2>{featured.title}</h2>
                   <p>{featured.summary}</p>
+                  {featured.requiredMembershipLevel ? <span className="article-membership-badge"><LockKeyhole size={13} />{t('requiredLevel', { level: featured.requiredMembershipLevel.name })}</span> : null}
                   <span className="article-read-action">{t('read')}<ArrowUpRight size={16} /></span>
                 </div>
               </article>
@@ -87,6 +89,7 @@ export async function PublicArticleListView({
                         </div>
                         <h2>{article.title}</h2>
                         <p>{article.summary}</p>
+                        {article.requiredMembershipLevel ? <span className="article-membership-badge"><LockKeyhole size={13} />{t('requiredLevel', { level: article.requiredMembershipLevel.name })}</span> : null}
                       </div>
                     </article>
                   </Link>

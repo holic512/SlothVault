@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Admin Database Backup API
  * @description Exports a relation-closed active-business-data snapshot without authentication tables.
- * @logic Authenticate, read a relation-closed repeatable snapshot, preserve immutable releases and transaction evidence, convert BigInt values to strings, and return backup format 2.2.0.
+ * @logic Authenticate, read a relation-closed repeatable snapshot, preserve membership grants, immutable releases and transaction evidence, convert BigInt values to strings, and return backup format 2.7.0.
  * @dependencies admin session, HTTP response helpers, admin backup service
  * @index_tags api,admin,backup,database,export
  * @author holic512

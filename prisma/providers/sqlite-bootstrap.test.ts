@@ -31,6 +31,7 @@ describe('SQLite provider bootstrap', () => {
         '20260818000000_contract_evidence',
         '20260820000000_note_content_evidence',
         '20260820120000_independent_articles',
+        '20260827000000_membership_article_access',
       ]) {
         bootstrapDatabase.exec(readFileSync(resolve(process.cwd(), `prisma/providers/sqlite/migrations/${migration}/migration.sql`), 'utf8'))
       }
@@ -49,6 +50,15 @@ describe('SQLite provider bootstrap', () => {
         data: { title: 'Independent article', content: '# Body' },
       })
       expect(article).toMatchObject({ id: 1, status: 0, publishedAt: null, isDeleted: false })
+
+      const level = await prisma.membershipLevel.create({
+        data: { name: 'VIP', rank: 1, pricePoints: 10, validityDays: 30 },
+      })
+      const member = await prisma.user.create({ data: { username: 'member', password: 'hash' } })
+      const grant = await prisma.membershipGrant.create({
+        data: { userId: member.id, membershipLevelId: level.id, source: 'ADMIN_GRANT' },
+      })
+      expect(grant.id).toBe(1)
 
       const admin = await prisma.user.create({ data: { username: 'admin', password: 'hash', role: 'ADMIN' } })
       const version = await prisma.projectVersion.create({ data: { projectId: first.id, version: 'v1', weight: 0, status: 0 } })

@@ -13,7 +13,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { App, Alert, Button, Input, Skeleton, Space, Tag, Typography } from 'antd'
+import { App, Alert, Button, Input, Select, Skeleton, Space, Tag, Typography } from 'antd'
 import { ArrowLeft, EyeOff, ImagePlus, Rocket, Save, Trash2, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
@@ -29,6 +29,8 @@ type ArticleDto = {
   cover: string | null
   content: string
   status: number
+  requiredMembershipLevelId: string | null
+  requiredMembershipLevel: { id: string; name: string; rank: number } | null
   publishedAt: string | null
   createdAt: string
   updatedAt: string
@@ -36,6 +38,13 @@ type ArticleDto = {
 }
 
 type UploadedFile = { url: string | null }
+
+type MembershipLevel = {
+  id: string
+  name: string
+  rank: number
+  status: number
+}
 
 export function ArticleEditor({ articleId }: { articleId?: string }) {
   const t = useTranslations('AdminMM.articles.editor')
@@ -48,6 +57,7 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
   const [summary, setSummary] = useState('')
   const [cover, setCover] = useState<string | null>(null)
   const [content, setContent] = useState('')
+  const [requiredMembershipLevelId, setRequiredMembershipLevelId] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false)
 
@@ -57,6 +67,10 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
     queryFn: () => apiFetch<ArticleDto>(`/api/admin/mm/article/${articleId}`),
   })
   const article = query.data
+  const membershipLevelsQuery = useQuery({
+    queryKey: ['admin-membership-levels'],
+    queryFn: () => apiFetch<MembershipLevel[]>('/api/admin/mm/membership-levels?includeDisabled=1'),
+  })
 
   useEffect(() => {
     if (!article || hydratedId.current === article.id) return
@@ -65,6 +79,7 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
     setSummary(article.summary || '')
     setCover(article.cover)
     setContent(article.content)
+    setRequiredMembershipLevelId(article.requiredMembershipLevelId)
     setDirty(false)
   }, [article])
 
@@ -116,7 +131,13 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
         articleId ? `/api/admin/mm/article/${articleId}` : '/api/admin/mm/article',
         {
           method: articleId ? 'PUT' : 'POST',
-          body: JSON.stringify({ title: title.trim(), summary: summary.trim() || null, cover, content }),
+          body: JSON.stringify({
+            title: title.trim(),
+            summary: summary.trim() || null,
+            cover,
+            content,
+            requiredMembershipLevelId: requiredMembershipLevelId ? Number(requiredMembershipLevelId) : null,
+          }),
         },
       )
       setDirty(false)
@@ -203,6 +224,22 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
             <label htmlFor="article-summary">{t('summary')}</label>
             <Input.TextArea id="article-summary" value={summary} maxLength={500} showCount autoSize={{ minRows: 4, maxRows: 8 }} onChange={(event) => mark(setSummary, event.target.value)} />
             <Typography.Text type="secondary">{t('summaryHint')}</Typography.Text>
+          </div>
+          <div className="article-editor-field">
+            <label htmlFor="article-membership-level">{t('access')}</label>
+            <Select
+              id="article-membership-level"
+              allowClear
+              value={requiredMembershipLevelId || undefined}
+              placeholder={t('publicAccess')}
+              loading={membershipLevelsQuery.isLoading}
+              options={(membershipLevelsQuery.data || []).map((level) => ({
+                value: level.id,
+                label: `Lv.${level.rank} · ${level.name}${level.status === 0 ? ` (${t('levelDisabled')})` : ''}`,
+              }))}
+              onChange={(value) => mark(setRequiredMembershipLevelId, value || null)}
+            />
+            <Typography.Text type="secondary">{requiredMembershipLevelId ? t('memberOnlyHint') : t('publicAccessHint')}</Typography.Text>
           </div>
           <div className="article-editor-field">
             <label>{t('cover')}</label>

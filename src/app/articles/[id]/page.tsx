@@ -9,13 +9,18 @@
  * @author holic512
  */
 import type { Metadata } from 'next'
+import { cookies } from 'next/headers'
 import { notFound } from 'next/navigation'
 
 import { PublicArticleReaderView } from '@/components/article/public-article-reader-view'
 import { createPageMetadata } from '@/i18n/metadata'
 import { HttpError } from '@/server/http/errors'
+import { readSessionToken, SESSION_COOKIE } from '@/server/auth/session'
 import { getCachedPublicArticle } from '@/server/services/public-article-cache'
+import { resolvePublicArticleReader } from '@/server/services/public-articles'
 import { getSystemBranding } from '@/server/services/system-branding'
+
+export const dynamic = 'force-dynamic'
 
 function articleId(value: string) {
   if (!/^\d+$/.test(value)) return null
@@ -56,10 +61,24 @@ export default async function ArticlePage({
   const { id } = await params
   const article = await resolveArticle(id)
   if (!article) notFound()
+  const cookieStore = await cookies()
+  const session = await readSessionToken(cookieStore.get(SESSION_COOKIE)?.value)
+  const reader = await resolvePublicArticleReader(
+    {
+      ...article,
+      publishedAt: new Date(article.publishedAt),
+      updatedAt: new Date(article.updatedAt),
+    },
+    session ? { userId: session.userId, role: session.User.role } : null,
+  )
 
   return (
     <PublicArticleReaderView
-      article={article}
+      article={{
+        ...reader,
+        publishedAt: reader.publishedAt.toISOString(),
+        updatedAt: reader.updatedAt.toISOString(),
+      }}
       branding={await getSystemBranding()}
     />
   )

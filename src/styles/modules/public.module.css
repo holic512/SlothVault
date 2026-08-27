@@ -654,6 +654,47 @@
   padding: clamp(42px, 7vw, 88px) 0;
 }
 
+.root :global(.article-membership-badge) {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  margin-top: 12px;
+  color: var(--sv-primary-strong);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.root :global(.article-membership-lock) {
+  display: grid;
+  justify-items: start;
+  gap: 13px;
+  padding: clamp(28px, 5vw, 52px);
+  border: 1px solid color-mix(in srgb, var(--sv-primary) 28%, var(--sv-border));
+  border-radius: var(--sv-radius);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--sv-primary) 9%, var(--sv-bg-solid)), var(--sv-bg-solid));
+}
+
+.root :global(.article-membership-lock) h2,
+.root :global(.article-membership-lock) p {
+  margin: 0;
+}
+
+.root :global(.article-membership-lock) p {
+  color: var(--sv-text-muted);
+}
+
+.root :global(.article-membership-lock) a {
+  display: inline-flex;
+  padding: 9px 13px;
+  border-radius: var(--sv-radius-sm);
+  background: var(--sv-primary);
+  color: var(--sv-primary-contrast);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
 .root :global(.account-eyebrow) {
   color: var(--sv-text-muted) !important;
   font-size: 11px;
@@ -814,6 +855,68 @@
 
 .root :global(.account-route-card) :global(.ant-form-item) {
   margin-bottom: 14px;
+}
+
+.root :global(.membership-summary-grid) {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(220px, 0.7fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.root :global(.membership-current-card) h3:global(.ant-typography) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.root :global(.membership-points-card) h2:global(.ant-typography) {
+  margin: 0 0 6px;
+}
+
+.root :global(.membership-levels-card),
+.root :global(.membership-history-card) {
+  margin-bottom: 12px;
+}
+
+.root :global(.membership-level-grid) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+.root :global(.membership-level-card) {
+  display: grid;
+  gap: 12px;
+  min-height: 190px;
+  padding: 16px;
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-radius-sm);
+  background: var(--sv-bg-soft);
+}
+
+.root :global(.membership-level-card-heading),
+.root :global(.membership-level-duration),
+.root :global(.membership-level-price) {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.root :global(.membership-level-rank) {
+  color: var(--sv-text-muted);
+  font-family: var(--sv-font-mono);
+  font-size: 11px;
+}
+
+.root :global(.membership-level-price) {
+  font-size: 18px;
+}
+
+.root :global(.membership-level-duration) {
+  color: var(--sv-text-muted);
+  font-size: 12px;
 }
 
 .root :global(.account-card-title) {
@@ -1088,7 +1191,8 @@
   }
 
   .root :global(.account-security-grid),
-  .root :global(.account-points-summary) {
+  .root :global(.account-points-summary),
+  .root :global(.membership-summary-grid) {
     grid-template-columns: 1fr;
   }
 

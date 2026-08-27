@@ -12,7 +12,7 @@
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Avatar, Button, Dropdown } from 'antd'
-import { ChevronDown, CircleUserRound, Coins, FileSignature, LayoutDashboard, LogIn, LogOut, ShieldCheck, UserRound } from 'lucide-react'
+import { ChevronDown, CircleUserRound, Coins, Crown, FileSignature, LayoutDashboard, LogIn, LogOut, ShieldCheck, UserRound } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
@@ -89,6 +89,11 @@ export function AccountNav({ compact = false }: { compact?: boolean }) {
             key: 'points',
             icon: <Coins size={15} />,
             label: <Link href="/account/points">积分中心</Link>,
+          },
+          {
+            key: 'membership',
+            icon: <Crown size={15} />,
+            label: <Link href="/account/membership">会员中心</Link>,
           },
           {
             key: 'contracts',

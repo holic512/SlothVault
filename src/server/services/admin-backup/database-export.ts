@@ -2,8 +2,8 @@
  * @file database-export.ts
  * @project SlothVault
  * @module Admin Database Backup Export
- * @description Exports a relation-closed portable 2.6 snapshot of articles, project content, accounts, contracts, configuration, and transaction evidence.
- * @logic Read one repeatable transaction snapshot, retain independent articles, close project relations, serialize evidence BigInts and frozen contract identity, then validate the portable result.
+ * @description Exports a relation-closed portable 2.7 snapshot of membership entitlements, articles, project content, accounts, contracts, configuration, and transaction evidence.
+ * @logic Read one repeatable transaction snapshot, retain member access and independent articles, close project relations, serialize evidence BigInts and frozen contract identity, then validate the portable result.
  * @dependencies database unit-of-work, Prisma, HTTP JSON serialization, backup schema and validation
  * @index_tags admin,backup,database,export,snapshot,relations
  * @author holic512
@@ -62,11 +62,21 @@ function relationClosedMenus<T extends {
 export async function exportDatabaseBackup() {
   const exportedAt = new Date().toISOString()
   const snapshot = await unitOfWork.execute(async (tx) => {
-    const [users, pointTransactions, giftCardBatches, giftCards, articles] = await Promise.all([
+    const [
+      users,
+      pointTransactions,
+      giftCardBatches,
+      giftCards,
+      membershipLevels,
+      membershipGrants,
+      articles,
+    ] = await Promise.all([
       tx.user.findMany(),
       tx.pointTransaction.findMany(),
       tx.giftCardBatch.findMany(),
       tx.giftCard.findMany(),
+      tx.membershipLevel.findMany(),
+      tx.membershipGrant.findMany(),
       tx.article.findMany({ where: { isDeleted: false } }),
     ])
     const projects = await tx.project.findMany({ where: { isDeleted: false } })
@@ -126,6 +136,8 @@ export async function exportDatabaseBackup() {
       pointTransactions,
       giftCardBatches,
       giftCards,
+      membershipLevels,
+      membershipGrants,
       articles,
       projects,
       projectVersions,
@@ -172,9 +184,29 @@ export async function exportDatabaseBackup() {
       batchId: batchId.toString(),
       redeemedById: redeemedById?.toString() ?? null,
     })),
-    articles: snapshot.articles.map(({ id, ...item }) => ({
+    membershipLevels: snapshot.membershipLevels.map(({ id, ...item }) => ({
       ...item,
       id: id.toString(),
+    })),
+    membershipGrants: snapshot.membershipGrants.map(({
+      id,
+      userId,
+      membershipLevelId,
+      grantedByUserId,
+      revokedByUserId,
+      ...item
+    }) => ({
+      ...item,
+      id: id.toString(),
+      userId: userId.toString(),
+      membershipLevelId: membershipLevelId.toString(),
+      grantedByUserId: grantedByUserId?.toString() ?? null,
+      revokedByUserId: revokedByUserId?.toString() ?? null,
+    })),
+    articles: snapshot.articles.map(({ id, requiredMembershipLevelId, ...item }) => ({
+      ...item,
+      id: id.toString(),
+      requiredMembershipLevelId: requiredMembershipLevelId?.toString() ?? null,
     })),
     projects: snapshot.projects.map(({ id, ...item }) => ({
       ...item,
@@ -312,7 +344,7 @@ export async function exportDatabaseBackup() {
   void _legacyCompressedNfts
 
   return {
-    version: '2.6.0',
+    version: '2.7.0',
     exportedAt,
     data: activeData,
   }

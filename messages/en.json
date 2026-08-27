@@ -25,12 +25,17 @@
     "emptyDescription": "The first article will appear here after an administrator publishes it.",
     "pagination": "Article pagination",
     "previous": "Previous",
-    "next": "Next"
+    "next": "Next",
+    "requiredLevel": "{level} membership required"
   },
   "ArticleDetail": {
     "back": "Back to articles",
     "published": "Published {date}",
-    "updated": "Updated {date}"
+    "updated": "Updated {date}",
+    "lockedTitle": "This article requires membership access",
+    "lockedDescription": "Unlock {level} or a higher membership level to read the full article.",
+    "loginAction": "Sign in to view access",
+    "membershipAction": "Open membership center"
   },
   "HomepageEmpty": {
     "title": "Homepage content is not available yet",
@@ -386,6 +391,7 @@
     "account": "Account overview",
     "accountContracts": "My contracts",
     "accountPoints": "Points center",
+    "accountMembership": "Membership center",
     "accountProfile": "Profile",
     "accountSecurity": "Security & sign-in",
     "adminLogin": "Admin Login",
@@ -404,6 +410,7 @@
     "adminProjectHome": "Home Editor",
     "adminHomepage": "System Homepage Management",
     "adminUsers": "User Management",
+    "adminMembershipLevels": "Membership Levels",
     "adminGiftCards": "Gift Cards",
     "adminEvidence": "Transaction Evidence",
     "install": "Install",
@@ -422,6 +429,7 @@
       "notes": "Project Content",
       "files": "File Management",
       "users": "User Management",
+      "membershipLevels": "Membership Levels",
       "contracts": "Contracts",
       "giftCards": "Gift Cards",
       "solana": "Evidence System",
@@ -480,6 +488,8 @@
         "status": "Status",
         "publishedAt": "First published",
         "updatedAt": "Updated",
+        "access": "Access",
+        "public": "Public",
         "operations": "Actions"
       },
       "messages": {
@@ -502,6 +512,11 @@
         "title": "Title",
         "summary": "Summary",
         "summaryHint": "When empty, the public archive generates a 160-character excerpt from the body.",
+        "access": "Reading access",
+        "publicAccess": "Public reading (no membership required)",
+        "publicAccessHint": "Every visitor can read this article.",
+        "memberOnlyHint": "Only active members at the selected level or higher can read the body.",
+        "levelDisabled": "disabled",
         "cover": "Cover",
         "coverFallback": "Article",
         "uploadCover": "Upload cover",

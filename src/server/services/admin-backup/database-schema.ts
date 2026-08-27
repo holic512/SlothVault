@@ -2,8 +2,8 @@
  * @file database-schema.ts
  * @project SlothVault
  * @module Admin Database Backup Schema
- * @description Defines the portable 2.6 database-backup shape with independent articles, contracts, project-version evidence, and legacy cNFT input compatibility.
- * @logic Validate active collections strictly, retain standalone blog content and stable evidence identities, accept deprecated Tree/cNFT arrays only for ignore accounting, and retain prior import envelopes.
+ * @description Defines the portable 2.7 database-backup shape with membership entitlements, independent articles, contracts, project-version evidence, and legacy cNFT input compatibility.
+ * @logic Validate active collections strictly, retain member access and standalone blog content, accept deprecated Tree/cNFT arrays only for ignore accounting, and retain prior import envelopes.
  * @dependencies Zod, Node path rules, backup constants
  * @index_tags admin,backup,database,schema,zod,portable
  * @author holic512
@@ -160,6 +160,30 @@ const giftCardSchema = z.object({
   createdAt: dateStringSchema,
 }).strict()
 
+const membershipLevelSchema = z.object({
+  id: idStringSchema,
+  name: nonEmptyString(80),
+  rank: z.number().int().min(1).max(SMALL_INT_MAX),
+  pricePoints: intSchema.positive(),
+  validityDays: z.number().int().min(1).max(36_500).nullable(),
+  status: z.union([z.literal(0), z.literal(1)]),
+  createdAt: dateStringSchema,
+  updatedAt: dateStringSchema,
+}).strict()
+
+const membershipGrantSchema = z.object({
+  id: idStringSchema,
+  userId: idStringSchema,
+  membershipLevelId: idStringSchema,
+  source: z.enum(['POINT_PURCHASE', 'ADMIN_GRANT']),
+  pointsCost: intSchema.positive().nullable(),
+  grantedByUserId: nullableIdStringSchema,
+  grantedAt: dateStringSchema,
+  expiresAt: dateStringSchema.nullable(),
+  revokedAt: dateStringSchema.nullable(),
+  revokedByUserId: nullableIdStringSchema,
+}).strict()
+
 const articleCoverSchema = z.string()
   .max(500)
   .regex(
@@ -175,6 +199,7 @@ const articleSchema = z.object({
   cover: articleCoverSchema,
   content: z.string().max(500_000),
   status: z.union([z.literal(0), z.literal(1)]),
+  requiredMembershipLevelId: nullableIdStringSchema.optional().default(null),
   publishedAt: dateStringSchema.nullable(),
   createdAt: dateStringSchema,
   updatedAt: dateStringSchema,
@@ -467,6 +492,8 @@ export const backupDataSchema = z.object({
   pointTransactions: z.array(pointTransactionSchema).max(DATABASE_RECORD_LIMIT).default([]),
   giftCardBatches: z.array(giftCardBatchSchema).max(DATABASE_RECORD_LIMIT).default([]),
   giftCards: z.array(giftCardSchema).max(DATABASE_RECORD_LIMIT).default([]),
+  membershipLevels: z.array(membershipLevelSchema).max(DATABASE_RECORD_LIMIT).optional().default([]),
+  membershipGrants: z.array(membershipGrantSchema).max(DATABASE_RECORD_LIMIT).optional().default([]),
   articles: z.array(articleSchema).max(DATABASE_RECORD_LIMIT).optional().default([]),
   projects: z.array(projectSchema).max(DATABASE_RECORD_LIMIT),
   projectVersions: z.array(projectVersionSchema).max(DATABASE_RECORD_LIMIT),
@@ -491,7 +518,7 @@ export const backupDataSchema = z.object({
 export const databaseImportPayloadSchema = z.object({
   data: backupDataSchema,
   mode: z.enum(['insert', 'overwrite']).optional().default('insert'),
-  version: z.enum(['2.0.0', '2.1.0', '2.2.0', '2.3.0', '2.4.0', '2.5.0', '2.6.0']).optional().default('2.0.0'),
+  version: z.enum(['2.0.0', '2.1.0', '2.2.0', '2.3.0', '2.4.0', '2.5.0', '2.6.0', '2.7.0']).optional().default('2.0.0'),
 }).strict()
 
 export type BackupData = z.infer<typeof backupDataSchema>

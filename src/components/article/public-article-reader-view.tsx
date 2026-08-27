@@ -8,7 +8,7 @@
  * @index_tags article,blog,reader,public,markdown
  * @author holic512
  */
-import { ArrowLeft, Clock3 } from 'lucide-react'
+import { ArrowLeft, Clock3, LockKeyhole } from 'lucide-react'
 import { getLocale, getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 
@@ -27,9 +27,12 @@ export async function PublicArticleReaderView({
     title: string
     summary: string
     cover: string | null
-    content: string
+    content: string | null
     publishedAt: string
     updatedAt: string
+    requiredMembershipLevel: { id: string; name: string; rank: number } | null
+    locked: boolean
+    viewerAuthenticated: boolean
   }
   branding: SystemBranding
 }) {
@@ -58,7 +61,16 @@ export async function PublicArticleReaderView({
               {article.cover ? <ArticleCover cover={article.cover} title={article.title} className="article-reader-cover" eager /> : null}
             </header>
             <div className="article-reader-body content-container--reading">
-              <MarkdownView content={article.content} />
+              {article.locked ? (
+                <section className="article-membership-lock">
+                  <LockKeyhole size={24} />
+                  <h2>{t('lockedTitle')}</h2>
+                  <p>{t('lockedDescription', { level: article.requiredMembershipLevel?.name || '' })}</p>
+                  <Link href={article.viewerAuthenticated ? '/account/membership' : '/login'}>
+                    {article.viewerAuthenticated ? t('membershipAction') : t('loginAction')}
+                  </Link>
+                </section>
+              ) : <MarkdownView content={article.content || ''} />}
             </div>
           </article>
         </div>
