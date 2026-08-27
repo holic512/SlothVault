@@ -1,11 +1,13 @@
 # @file docker-compose.yml
 # @project SlothVault
-# @module Local container deployment
-# @description Runs the installable application with optional PostgreSQL or MySQL profile services.
-# @logic Persist configuration, SQLite data, and uploads while leaving the primary database selection to the web installer.
-# @dependencies Docker Compose, SlothVault image, optional PostgreSQL 16 or MySQL 8
-# @index_tags docker,compose,sqlite,mysql,postgresql,installer
+# @module SQLite container deployment
+# @description Runs the SQLite-specific SlothVault deployment with a mode-isolated local application data directory.
+# @logic Persist the complete application data root, opt into the Compose database bootstrap, and start no external database service.
+# @dependencies Docker Compose, SlothVault image, SQLite
+# @index_tags docker,compose,sqlite,bootstrap,persistence
 # @author holic512
+
+name: slothvault-sqlite
 
 services:
   slothvault:
@@ -13,55 +15,14 @@ services:
       context: .
       dockerfile: Dockerfile
     image: ${DOCKER_IMAGE:-holic512/slothvault:latest}
-    container_name: slothvault
     restart: unless-stopped
     ports:
       - "${PORT:-3000}:3000"
     volumes:
-      - ${CONFIG_DIR:-./docker-data/config}:/app/data/config
-      - ${DATABASE_DIR:-./docker-data/database}:/app/data/database
-      - ${UPLOADS_DIR:-./docker-data/uploads}:/app/data/uploads
+      - ${APP_DATA_DIR:-./docker-data/sqlite/app}:/app/data
     environment:
       APP_DATA_PATH: /app/data
       UPLOAD_STORAGE_PATH: /app/data/uploads
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
-
-  postgres:
-    profiles: ["postgres"]
-    image: postgres:16-alpine
-    container_name: slothvault-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-slothvault}
-      POSTGRES_USER: ${POSTGRES_USER:-slothvault}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-before-exposing}
-    volumes:
-      - ${POSTGRES_DATA_DIR:-./docker-data/postgres}:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "psql -U $${POSTGRES_USER} -d $${POSTGRES_DB} -c 'SELECT 1' >/dev/null 2>&1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
-
-  mysql:
-    profiles: ["mysql"]
-    image: mysql:8.0
-    container_name: slothvault-mysql
-    restart: unless-stopped
-    command:
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
-    environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-slothvault}
-      MYSQL_USER: ${MYSQL_USER:-slothvault}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change-me-before-exposing}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-root-before-exposing}
-    volumes:
-      - ${MYSQL_DATA_DIR:-./docker-data/mysql}:/var/lib/mysql
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$${MYSQL_ROOT_PASSWORD} --silent"]
-      interval: 10s
-      timeout: 5s
-      retries: 15
-      start_period: 20s
+      SLOTHVAULT_AUTO_BOOTSTRAP: "1"
+      SLOTHVAULT_BOOTSTRAP_PROVIDER: sqlite

@@ -1,0 +1,53 @@
+# @file docker-compose.postgresql.yml
+# @project SlothVault
+# @module PostgreSQL container deployment
+# @description Runs SlothVault with an isolated local PostgreSQL 16 service and persistent host directories.
+# @logic Initialize the database service from one Compose environment source, wait for its healthcheck, then auto-bootstrap the matching encrypted SlothVault connection.
+# @dependencies Docker Compose, SlothVault image, PostgreSQL 16
+# @index_tags docker,compose,postgresql,bootstrap,healthcheck,persistence
+# @author holic512
+
+name: slothvault-postgresql
+
+services:
+  slothvault:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${DOCKER_IMAGE:-holic512/slothvault:latest}
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - ${APP_DATA_DIR:-./docker-data/postgresql/app}:/app/data
+    environment:
+      APP_DATA_PATH: /app/data
+      UPLOAD_STORAGE_PATH: /app/data/uploads
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      SLOTHVAULT_AUTO_BOOTSTRAP: "1"
+      SLOTHVAULT_BOOTSTRAP_PROVIDER: postgresql
+      SLOTHVAULT_BOOTSTRAP_HOST: postgresql
+      SLOTHVAULT_BOOTSTRAP_PORT: "5432"
+      SLOTHVAULT_BOOTSTRAP_DATABASE: ${POSTGRES_DB:-slothvault}
+      SLOTHVAULT_BOOTSTRAP_USERNAME: ${POSTGRES_USER:-slothvault}
+      SLOTHVAULT_BOOTSTRAP_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the selected env file}
+      SLOTHVAULT_BOOTSTRAP_TLS_ENABLED: "false"
+    depends_on:
+      postgresql:
+        condition: service_healthy
+
+  postgresql:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-slothvault}
+      POSTGRES_USER: ${POSTGRES_USER:-slothvault}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the selected env file}
+    volumes:
+      - ${POSTGRES_DATA_DIR:-./docker-data/postgresql/database}:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s

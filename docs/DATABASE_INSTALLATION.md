@@ -1,6 +1,6 @@
 # 数据库安装与迁移指南
 
-SlothVault 的发布包同时包含 SQLite、MySQL 和 PostgreSQL 支持，但一个运行实例只使用首次安装时选定的一种主数据库。登录挑战与限流使用单实例进程内存；数据库连接、空库校验和首次迁移由 `/install` 完成，后续已提交迁移在服务启动时自动部署。
+SlothVault 的发布包同时包含 SQLite、MySQL 和 PostgreSQL 支持，但一个运行实例只使用首次安装时选定的一种主数据库。登录挑战与限流使用单实例进程内存；本地 Docker Compose 模式会自动完成数据库连接、空库校验和首次迁移，其他部署继续由 `/install` 完成，后续已提交迁移在服务启动时自动部署。
 
 ## 支持范围
 
@@ -14,38 +14,58 @@ SlothVault 的发布包同时包含 SQLite、MySQL 和 PostgreSQL 支持，但�
 
 ## Docker 部署
 
-### SQLite（默认）
+本地 Docker 部署由三个完整且独立的 Compose 文件组成。不要合并文件、启用 profile 或复用不同模式的数据目录；每次只启动一种模式。
+
+| 模式 | Compose 文件 | 服务 | 应用数据目录 | 数据库目录 |
+| --- | --- | --- | --- | --- |
+| SQLite | `docker-compose.yml` | `slothvault` | `./docker-data/sqlite/app` | 应用数据目录内的 `database/slothvault.db` |
+| MySQL | `docker-compose.mysql.yml` | `slothvault`、`mysql` | `./docker-data/mysql/app` | `./docker-data/mysql/database` |
+| PostgreSQL | `docker-compose.postgresql.yml` | `slothvault`、`postgresql` | `./docker-data/postgresql/app` | `./docker-data/postgresql/database` |
+
+每个 `app` 目录都包含 `config/`、`database/` 和 `uploads/`。其中 `config/` 持久化加密连接配置及默认生成的主密钥，`uploads/` 持久化受控上传文件；MySQL 和 PostgreSQL 的真正数据库数据位于各自独立的 `database` 目录。
+
+### SQLite
 
 ```bash
-cp .env.docker.example .env.docker
-docker compose --env-file .env.docker up -d --build
+cp .env.docker.sqlite.example .env.docker.sqlite
+docker compose --env-file .env.docker.sqlite up -d --build
 ```
 
-Compose 默认只启动 `slothvault`。访问 `http://localhost:3000/install` 并选择 SQLite；文件路径由服务端固定为 `/app/data/database/slothvault.db`，页面不能填写任意路径。
+SQLite Compose 只启动应用容器。它会使用固定路径 `/app/data/database/slothvault.db` 创建并初始化受管数据库；页面不能填写任意 SQLite 文件路径。
 
-### PostgreSQL profile
+### MySQL 8.0
 
-修改 `.env.docker` 的 `POSTGRES_DB`、`POSTGRES_USER` 和 `POSTGRES_PASSWORD`，然后运行：
+先复制示例并为应用账号和 MySQL root 账号设置不同的强密码：
 
 ```bash
-docker compose --env-file .env.docker --profile postgres up -d --build
-docker compose --env-file .env.docker ps
+cp .env.docker.mysql.example .env.docker.mysql
+# 编辑 .env.docker.mysql：设置 MYSQL_PASSWORD 和 MYSQL_ROOT_PASSWORD
+docker compose --env-file .env.docker.mysql -f docker-compose.mysql.yml up -d --build
+docker compose --env-file .env.docker.mysql -f docker-compose.mysql.yml ps
 ```
 
-数据库健康后，在安装页使用主机 `postgres`、端口 `5432` 以及相同的数据库、用户和密码。本地 Compose 网络通常不需要 TLS；外部数据库应遵循服务提供方的 TLS 要求。
+Compose 使用 MySQL 8.0、InnoDB、`utf8mb4` 和独立本地数据目录。应用会等待 MySQL 健康检查，再使用同一组 `MYSQL_DATABASE`、`MYSQL_USER` 和 `MYSQL_PASSWORD` 自动保存加密连接配置并初始化空库；部署者不需要在网页重复填写连接信息。
 
-### MySQL profile
+### PostgreSQL 16
 
-修改 `.env.docker` 的 `MYSQL_DATABASE`、`MYSQL_USER`、`MYSQL_PASSWORD` 和 `MYSQL_ROOT_PASSWORD`，然后运行：
+先复制示例并设置 PostgreSQL 应用账号密码：
 
 ```bash
-docker compose --env-file .env.docker --profile mysql up -d --build
-docker compose --env-file .env.docker ps
+cp .env.docker.postgresql.example .env.docker.postgresql
+# 编辑 .env.docker.postgresql：设置 POSTGRES_PASSWORD
+docker compose --env-file .env.docker.postgresql -f docker-compose.postgresql.yml up -d --build
+docker compose --env-file .env.docker.postgresql -f docker-compose.postgresql.yml ps
 ```
 
-数据库健康后，在安装页使用主机 `mysql`、端口 `3306` 和非 root 应用用户。Compose 使用 MySQL 8.0、InnoDB 默认存储引擎以及 `utf8mb4` 字符集。
+Compose 使用 PostgreSQL 16 和独立本地数据目录。应用会等待 PostgreSQL 健康检查，再使用同一组 `POSTGRES_DB`、`POSTGRES_USER` 和 `POSTGRES_PASSWORD` 自动保存加密连接配置并初始化空库；部署者不需要在网页重复填写连接信息。
 
-应用服务不会等待可选的 PostgreSQL/MySQL profile。首次安装前仍可显示安装页；已安装实例启动时会对当前 provider 执行已提交的 `prisma migrate deploy`，全部成功后才更新 schema revision。
+### 自动引导与首次管理员
+
+三份 Compose 文件都将 `SLOTHVAULT_AUTO_BOOTSTRAP=1` 传给应用。启动时应用只接受这组受控、命名空间隔离的 `SLOTHVAULT_BOOTSTRAP_*` 变量：它会校验 provider 与连接参数、拒绝非空目标库、以现有安装锁执行固定 provider 的迁移，并把配置加密写入 `app/config/database.enc`。迁移成功后状态为 `SCHEMA_READY`，访问 `http://localhost:3000/install` 时只会显示首位管理员创建步骤。
+
+已存在的配置必须与 Compose 推导出的 provider、主机、端口、数据库、账号和密码完全一致。配置不匹配、无法解密或目标库不为空时，应用会失败退出；不会覆盖配置、清空表或删除文件。`CONFIGURING` 状态会在下一次启动时使用相同连接恢复迁移，`SCHEMA_READY` 和 `INSTALLED` 则只执行正常的已提交迁移升级。运行时不会记录数据库密码或完整连接串，且启动参数在读取后从 Node.js 进程环境移除。
+
+Compose 内的 MySQL/PostgreSQL 连接固定为非 TLS，因为通信仅经过该 Compose 项目的内部网络。需要远程数据库、TLS 或自定义 CA 时，不要设置 `SLOTHVAULT_AUTO_BOOTSTRAP`，改用下方的网页安装器流程。
 
 ## 短期内存状态
 
@@ -75,7 +95,7 @@ docker compose --env-file .env.docker ps
 
 ## 空库与权限要求
 
-MySQL/PostgreSQL 的数据库必须由数据库管理员预先创建，并授予应用用户建立表、索引、外键以及读写业务数据所需权限。安装器不会创建数据库或数据库用户。
+网页安装器连接 MySQL/PostgreSQL 时，数据库必须由数据库管理员预先创建，并授予应用用户建立表、索引、外键以及读写业务数据所需权限；网页安装器不会创建数据库或数据库用户。独立 Docker Compose 的 MySQL/PostgreSQL 模式例外：官方数据库镜像根据同一份 Compose 环境变量创建本地数据库和应用账号。
 
 空库检查会枚举目标数据库中的用户表。只要发现任何用户表，初始化就会拒绝且不会执行 DDL；不能把旧版 SlothVault 数据库直接交给新安装器，也不能用 `prisma db push` 合并结构。
 
@@ -109,13 +129,13 @@ CA 内容随数据库配置一起加密，不会通过安装状态接口返回�
 
 `database.enc` 使用 AES-256-GCM 加密并以原子重命名写入；`installation.state` 用于区分真正首次部署与配置文件意外丢失。配置目录权限为 `0700`，配置、标记和密钥文件权限为 `0600`。数据库密码不会出现在状态接口或正常日志中。
 
-数据库连接只能通过安装页保存。以下旧变量不受支持，也不能绕过安装状态：
+未启用 Compose 自动引导时，数据库连接只能通过安装页保存。以下旧变量不受支持，也不能绕过安装状态：
 
 - `DATABASE_URL`
 - `DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USER`、`DB_PASSWORD`
 - `DB_WAIT_TIMEOUT`
 
-Compose 的 `POSTGRES_*` 与 `MYSQL_*` 仅用于启动可选数据库容器，不会注入应用服务。
+本地 Compose 模式会将经过校验的 `SLOTHVAULT_BOOTSTRAP_*` 参数临时注入应用服务，以加密写入同一模式的 `database.enc` 并完成首次 schema 初始化。它们不是远程数据库配置接口，应用不会回显密码，且读取后会从 Node.js 进程环境移除。`POSTGRES_*` 与 `MYSQL_*` 仍是对应官方数据库镜像的初始化参数。
 
 如果不提供 `ENCRYPTION_KEY`，请持久化并备份整个 `config` 目录。若通过环境提供密钥，则必须在所有重启中保持完全一致，并与配置卷一起备份。不能通过清空配置目录来修复一个已安装系统；这样会失去数据库绑定并可能破坏加密的 Solana 数据。
 
@@ -128,14 +148,16 @@ Compose 的 `POSTGRES_*` 与 `MYSQL_*` 仅用于启动可选数据库容器，�
 
 需要高可用、多副本或远程数据库时请选择 MySQL/PostgreSQL。
 
-## 旧 PostgreSQL 与 provider 切换
+## 旧 profile 部署与 provider 切换
 
-新版本只在空库安装，不自动接管旧 PostgreSQL 的四-schema 结构。迁移步骤：
+新的三模式 Compose 文件不会自动读取或移动旧 profile 方案的 `docker-data/config`、`docker-data/database`、`docker-data/mysql` 或 `docker-data/postgres`。先在升级本仓库或切换部署文件前，保留旧容器的 Compose 文件和运行环境，并完成备份；不要把旧目录挂载到新模式的 `app` 或 `database` 路径。
+
+切换旧部署或 provider 的安全步骤：
 
 1. 保持旧实例运行，在旧管理后台导出数据库 JSON 和上传 ZIP。
 2. 在旧实例导出 2.0–2.5 JSON；新版本会忽略并统计其中的 Tree/cNFT 与废弃 Filebase 配置，2.6 之前的备份按空文章集合导入。
 3. 备份旧 `ENCRYPTION_KEY`，它仍用于数据库配置加密。
-4. 使用目标 provider 和全新空库启动新实例，完成 `/install`，并创建新的管理员。
+4. 使用目标模式的全新本地目录启动新 Compose；自动引导完成后，在 `/install` 创建新的管理员。
 5. 登录新实例，导入数据库 JSON，再导入上传 ZIP。
 6. 抽查首页、独立文章、项目版本文档、文件、系统设置和版本交易存证记录。
 7. 验证完成前保留旧数据库、旧上传目录及两份导出文件。
@@ -148,6 +170,7 @@ Compose 的 `POSTGRES_*` 与 `MYSQL_*` 仅用于启动可选数据库容器，�
 | --- | --- |
 | `/install` 报目标非空 | 换用真正空库；不要授权安装器清表 |
 | 配置无法解密 | 恢复匹配的 `config` 卷和 `ENCRYPTION_KEY`；不要重新安装覆盖 |
+| Compose 启动时报配置不匹配 | 恢复与当前 `app/config` 配对的同一模式变量；不要改挂载目录或删除 `database.enc` |
 | 已安装数据库不可达 | 修复网络、DNS、TLS、数据库服务或账号权限，然后重试请求 |
 | SQLite 第二实例启动失败 | 保留一个实例；确认没有另一个进程持有同一 `database` 卷 |
 | 初始化中断 | 保留现场并重试状态检查；只有仍为 `CONFIGURING` 且 schema 未创建时才使用 reset |

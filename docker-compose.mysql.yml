@@ -1,0 +1,57 @@
+# @file docker-compose.mysql.yml
+# @project SlothVault
+# @module MySQL container deployment
+# @description Runs SlothVault with an isolated local MySQL 8.0 service and persistent host directories.
+# @logic Initialize the database service from one Compose environment source, wait for its healthcheck, then auto-bootstrap the matching encrypted SlothVault connection.
+# @dependencies Docker Compose, SlothVault image, MySQL 8.0
+# @index_tags docker,compose,mysql,bootstrap,healthcheck,persistence
+# @author holic512
+
+name: slothvault-mysql
+
+services:
+  slothvault:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${DOCKER_IMAGE:-holic512/slothvault:latest}
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - ${APP_DATA_DIR:-./docker-data/mysql/app}:/app/data
+    environment:
+      APP_DATA_PATH: /app/data
+      UPLOAD_STORAGE_PATH: /app/data/uploads
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      SLOTHVAULT_AUTO_BOOTSTRAP: "1"
+      SLOTHVAULT_BOOTSTRAP_PROVIDER: mysql
+      SLOTHVAULT_BOOTSTRAP_HOST: mysql
+      SLOTHVAULT_BOOTSTRAP_PORT: "3306"
+      SLOTHVAULT_BOOTSTRAP_DATABASE: ${MYSQL_DATABASE:-slothvault}
+      SLOTHVAULT_BOOTSTRAP_USERNAME: ${MYSQL_USER:-slothvault}
+      SLOTHVAULT_BOOTSTRAP_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in the selected env file}
+      SLOTHVAULT_BOOTSTRAP_TLS_ENABLED: "false"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-slothvault}
+      MYSQL_USER: ${MYSQL_USER:-slothvault}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in the selected env file}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in the selected env file}
+    volumes:
+      - ${MYSQL_DATA_DIR:-./docker-data/mysql/database}:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 20s

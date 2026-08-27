@@ -17,6 +17,18 @@ function normalizedPath(path: string) {
 }
 
 describe('Next runtime contract', () => {
+  const composeFileNames = [
+    'docker-compose.yml',
+    'docker-compose.mysql.yml',
+    'docker-compose.postgresql.yml',
+  ] as const
+
+  function readComposeFiles() {
+    return Object.fromEntries(
+      composeFileNames.map((fileName) => [fileName, readFileSync(join(root, fileName), 'utf8')]),
+    ) as Record<(typeof composeFileNames)[number], string>
+  }
+
   it('guards every non-authentication admin Route Handler', () => {
     const adminRoot = join(root, 'src', 'app', 'api', 'admin')
     const unguarded = walk(adminRoot)
@@ -99,7 +111,7 @@ describe('Next runtime contract', () => {
 
   it('uses the Next standalone and private upload Docker contract', () => {
     const dockerfile = readFileSync(join(root, 'Dockerfile'), 'utf8')
-    const compose = readFileSync(join(root, 'docker-compose.yml'), 'utf8')
+    const composeFiles = readComposeFiles()
     const entrypoint = readFileSync(join(root, 'docker-entrypoint.sh'), 'utf8')
     const sanitizer = readFileSync(
       join(root, 'scripts', 'sanitize-standalone.mjs'),
@@ -109,12 +121,23 @@ describe('Next runtime contract', () => {
       join(root, '.github', 'workflows', 'docker-build.yml'),
       'utf8',
     )
-    const deploymentSources = `${dockerfile}\n${compose}\n${entrypoint}`
+    const deploymentSources = `${dockerfile}\n${Object.values(composeFiles).join('\n')}\n${entrypoint}`
     expect(deploymentSources).not.toContain('/app/public/uploads')
     expect(deploymentSources).not.toContain('.output/server')
     expect(dockerfile).toContain('.next/standalone')
-    expect(compose).toContain('/app/data/uploads')
+    expect(composeFiles['docker-compose.yml']).toContain('name: slothvault-sqlite')
+    expect(composeFiles['docker-compose.yml']).toContain('/app/data')
+    expect(composeFiles['docker-compose.mysql.yml']).toContain('name: slothvault-mysql')
+    expect(composeFiles['docker-compose.mysql.yml']).toContain('condition: service_healthy')
+    expect(composeFiles['docker-compose.postgresql.yml']).toContain('name: slothvault-postgresql')
+    expect(composeFiles['docker-compose.postgresql.yml']).toContain('condition: service_healthy')
+    for (const compose of Object.values(composeFiles)) {
+      expect(compose).toContain('/app/data/uploads')
+      expect(compose).not.toContain('profiles:')
+      expect(compose).not.toContain('container_name:')
+    }
     expect(entrypoint).toContain('exec node server.js')
+    expect(entrypoint).toContain('SLOTHVAULT_AUTO_BOOTSTRAP')
     expect(sanitizer).toContain('removeSourceMaps(standaloneRoot)')
     expect(sanitizer).toContain('pruneSharpRuntimePackages(standaloneRoot)')
     expect(workflow).toContain('Inspect published image sizes')
@@ -122,7 +145,7 @@ describe('Next runtime contract', () => {
   })
 
   it('keeps the runtime free of the removed Redis service', () => {
-    const compose = readFileSync(join(root, 'docker-compose.yml'), 'utf8')
+    const composeFiles = readComposeFiles()
     const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
       dependencies: Record<string, string>
       scripts: Record<string, string>
@@ -135,8 +158,10 @@ describe('Next runtime contract', () => {
     expect(packageJson.scripts.dev).toBe('next dev')
     expect(packageJson.scripts).not.toHaveProperty('dev:services')
     expect(packageLock.packages).not.toHaveProperty('node_modules/redis')
-    expect(compose).not.toMatch(/^\s{2}redis:/m)
-    expect(compose).not.toContain('REDIS_')
+    for (const compose of Object.values(composeFiles)) {
+      expect(compose).not.toMatch(/^\s{2}redis:/m)
+      expect(compose).not.toContain('REDIS_')
+    }
   })
 
   it('persists signed release evidence before broadcast and removes the cNFT runtime', () => {

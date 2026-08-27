@@ -26,7 +26,7 @@ logs
 .env
 .env.*
 !.env.example
-!.env.docker.example
+!.env.docker.*.example
 
 # Prisma clients are generated from the three committed provider schemas.
 /generated/prisma-postgresql/

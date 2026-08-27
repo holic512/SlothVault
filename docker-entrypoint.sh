@@ -2,10 +2,10 @@
 # @file docker-entrypoint.sh
 # @project SlothVault
 # @module Container bootstrap
-# @description Prepares persistent application directories and starts the installable standalone server without requiring a database.
-# @logic Enforce application-managed database configuration, prepare private data mounts, then exec the Next.js standalone runtime.
-# @dependencies Next.js standalone server, APP_DATA_PATH
-# @index_tags docker, bootstrap, installer, persistence
+# @description Prepares persistent application directories and starts the standalone server for either the interactive installer or an opt-in Compose database bootstrap.
+# @logic Reject legacy database environment inputs, prepare private data mounts, preserve the isolated Compose bootstrap contract, then exec the Next.js standalone runtime.
+# @dependencies Next.js standalone server, APP_DATA_PATH, Compose bootstrap environment
+# @index_tags docker, bootstrap, installer, compose, persistence
 # @author holic512
 
 set -eu
@@ -46,7 +46,11 @@ chmod 700 \
     "$UPLOAD_STORAGE_PATH"
 
 log_info "Starting SlothVault on port ${PORT:-3000}"
-log_info "Open /install to configure SQLite, MySQL, or PostgreSQL"
+if [ "${SLOTHVAULT_AUTO_BOOTSTRAP:-}" = "1" ]; then
+    log_info "Compose database bootstrap is enabled; /install will only create the first administrator"
+else
+    log_info "Open /install to configure SQLite, MySQL, or PostgreSQL"
+fi
 
 cd /app
 exec node server.js

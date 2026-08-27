@@ -67,34 +67,42 @@ APP_DATA_PATH=./data UPLOAD_STORAGE_PATH=./data/uploads npm run dev
 
 ### Docker Compose
 
-```bash
-cp .env.docker.example .env.docker
-docker compose --env-file .env.docker up -d --build
-```
+Docker 部署按数据库模式拆分为三个独立 Compose 文件。每次启动只创建当前模式需要的服务和本地数据目录；Compose 会创建本地 MySQL/PostgreSQL 数据库或受管 SQLite 文件，并自动执行首次 schema 初始化。首次访问 [http://localhost:3000/install](http://localhost:3000/install) 时只需创建首位管理员。
 
-默认配置使用 SQLite，持久化位置如下：
+| 模式 | Compose 文件 | 启动命令 | 持久化目录 |
+| --- | --- | --- | --- |
+| SQLite | `docker-compose.yml` | `docker compose --env-file .env.docker.sqlite up -d --build` | `./docker-data/sqlite/app` |
+| MySQL 8.0 | `docker-compose.mysql.yml` | `docker compose --env-file .env.docker.mysql -f docker-compose.mysql.yml up -d --build` | `./docker-data/mysql/app`、`./docker-data/mysql/database` |
+| PostgreSQL 16 | `docker-compose.postgresql.yml` | `docker compose --env-file .env.docker.postgresql -f docker-compose.postgresql.yml up -d --build` | `./docker-data/postgresql/app`、`./docker-data/postgresql/database` |
 
-| 数据 | 默认位置 |
-| --- | --- |
-| 应用配置与密钥材料 | `./docker-data/config` |
-| SQLite 数据库 | `./docker-data/database` |
-| 受控上传文件 | `./docker-data/uploads` |
-
-如需其他数据库，可启用对应 profile：
-
-#### PostgreSQL 16
+#### SQLite
 
 ```bash
-docker compose --env-file .env.docker --profile postgres up -d --build
+cp .env.docker.sqlite.example .env.docker.sqlite
+docker compose --env-file .env.docker.sqlite up -d --build
 ```
 
 #### MySQL 8.0
 
+编辑 `.env.docker.mysql`，设置 `MYSQL_PASSWORD` 和 `MYSQL_ROOT_PASSWORD` 后运行：
+
 ```bash
-docker compose --env-file .env.docker --profile mysql up -d --build
+cp .env.docker.mysql.example .env.docker.mysql
+docker compose --env-file .env.docker.mysql -f docker-compose.mysql.yml up -d --build
 ```
 
-安装器中填写的容器主机名分别为 `postgres:5432` 与 `mysql:3306`。数据库容器只负责提供数据库服务，实际连接配置仍由安装器加密保存。
+#### PostgreSQL 16
+
+编辑 `.env.docker.postgresql`，设置 `POSTGRES_PASSWORD` 后运行：
+
+```bash
+cp .env.docker.postgresql.example .env.docker.postgresql
+docker compose --env-file .env.docker.postgresql -f docker-compose.postgresql.yml up -d --build
+```
+
+MySQL 与 PostgreSQL Compose 文件会等待数据库健康检查成功，再启动应用。每个模式的 `app` 目录同时包含加密数据库配置、上传文件和仅 SQLite 使用的数据库文件；服务器数据库另存于对应的 `database` 目录。不要复用不同模式的目录。
+
+Docker 本地模式固定使用容器网络内的非 TLS 连接。远程 MySQL/PostgreSQL 或需要 TLS/CA 的部署，继续使用网页安装器手工配置，详见[数据库安装与迁移指南](./docs/DATABASE_INSTALLATION.md)。
 
 ## 使用模型
 
