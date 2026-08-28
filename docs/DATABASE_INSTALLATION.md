@@ -36,7 +36,9 @@ SQLite 只启动应用容器，并使用固定路径 `/app/data/database/slothva
 
 ### 已有 Nginx 的反向代理
 
-部署包会通过宿主机 `PATH` 检测 `nginx`。检测到后，首次安装会询问是否配置反向代理；已有 SlothVault 实例可再次运行 `sudo python3 deploy/install.py`，在菜单中选择“配置或更新 Nginx 反向代理”。脚本不会安装 Nginx，也不会修改未由它生成的 Nginx 站点文件。
+部署包支持标准系统级 Nginx 与显式指定的官方 Docker Hub `nginx` 容器。明确不支持宝塔 Nginx、`/www/server/nginx`、`/www/server/panel/vhost/nginx`、宝塔/面板镜像、其他第三方面板托管的 Nginx，也不会自动改造或接管已有第三方 Nginx。脚本不会安装 Nginx、覆盖非 SlothVault 生成的同名站点文件、删除容器、重建容器或执行 `docker compose down`。
+
+默认 `--nginx-mode auto` 只从宿主机 `PATH` 检测系统级 Nginx，找不到时不会扫描 Docker 容器。系统级模式只使用 `/etc/nginx/sites-available` + `/etc/nginx/sites-enabled` 或 `/etc/nginx/conf.d`；检测到实际二进制或 Nginx 配置来源属于宝塔目录时会直接以中文错误拒绝。已有实例可再次运行 `sudo python3 deploy/install.py`，选择“配置或更新 Nginx 反向代理”。
 
 选择后，脚本会要求输入一个站点域名或 IPv4 地址及 Nginx HTTP 监听端口（默认 `80`），并执行以下受控流程：
 
@@ -48,12 +50,49 @@ SQLite 只启动应用容器，并使用固定路径 `/app/data/database/slothva
 
 该操作需要写入 `/etc/nginx`，请使用 `sudo python3 deploy/install.py`。HTTP 反向代理可以使用自定义监听端口；若要申请证书，请使用独立的“申请或更新 Let's Encrypt HTTPS 证书”菜单，它固定使用标准 `80` 和 `443` 端口。
 
+### 官方 Docker Nginx
+
+Docker 模式要求用户明确指定容器名，且只接受镜像引用 `nginx`、`library/nginx` 或 `docker.io/library/nginx`（允许 tag/digest）。不提供 `--nginx-config-dir`：脚本只从 `docker inspect` 的 bind mount 推导安全写入目标，优先处理 `宿主机目录 -> /etc/nginx/conf.d` 并写入 `<Source>/slothvault.conf`，其次处理 `宿主机目录 -> /etc/nginx` 并写入 `<Source>/conf.d/slothvault.conf`。named volume、没有配置 bind mount、软链接、路径穿越、非普通 `slothvault.conf` 都会被拒绝。
+
+Nginx 容器必须先启动，并与受管 SlothVault 服务共享一个非 host Docker 网络。脚本调用 `docker compose -f /data/slothvault/compose.yml ps -q slothvault` 取得应用容器后检查共同网络和 `slothvault` 别名；满足后配置固定生成 `proxy_pass http://slothvault:3000;`。Docker Nginx 中的 `127.0.0.1` 是容器自身，因此不会被作为回退上游；没有可靠共同网络时脚本停止，并提示先把 Nginx 容器连接到对应的 `slothvault-<provider>_default` 网络。
+
+```bash
+sudo python3 deploy/install.py \
+  --action nginx \
+  --nginx-mode docker \
+  --nginx-container slothvault-nginx
+```
+
+一个使用 SQLite 受管网络的官方容器示例：
+
+```yaml
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: slothvault-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /opt/slothvault/nginx/conf.d:/etc/nginx/conf.d:ro
+      - /data/slothvault/acme-challenge:/var/www/slothvault-acme:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    networks:
+      - slothvault-sqlite_default
+
+networks:
+  slothvault-sqlite_default:
+    external: true
+```
+
+配置目录在宿主机必须存在且可写；容器内可以使用只读挂载。脚本写入后只会运行 `docker exec slothvault-nginx nginx -t`、`docker exec slothvault-nginx nginx -T`、`docker exec slothvault-nginx nginx -s reload`。它不会调用宿主机 `nginx -t/-T` 或 `systemctl reload nginx` 作为 Docker 模式最终验证/重载。校验或重载失败时，脚本恢复原受管配置或删除本轮新文件，再次在容器内执行语法检查并重载恢复后的配置。
+
 ### Let's Encrypt HTTPS 与自动续约
 
 HTTPS 菜单采用 Certbot `certonly --webroot` HTTP-01 验证，部署包自己的 Nginx 配置是唯一配置来源，不使用会自动修改站点文件的 `certbot --nginx`。输入普通 DNS 域名（可输入多个，首个为主域名和证书目录名）、联系邮箱并确认 Let’s Encrypt 服务条款后，受管 Nginx 配置将按以下方式切换：
 
-1. 临时在 `80` 端口从 `/data/slothvault/acme-challenge` 提供 `/.well-known/acme-challenge/`，其余请求仍反代至本机应用。
-2. Certbot 成功签发后，HTTP 仅保留挑战路径，其他请求以 `301` 跳转至 HTTPS；Nginx 在 `443` 使用 `/etc/letsencrypt/live/<主域名>/fullchain.pem` 和 `privkey.pem` 反代 SlothVault。
+1. 临时在 `80` 端口从 `/data/slothvault/acme-challenge` 提供 `/.well-known/acme-challenge/`，其余请求仍反代至应用；系统级模式使用 `127.0.0.1:<端口>`，Docker 模式使用已验证的 `slothvault:3000`。
+2. Certbot 成功签发后，HTTP 仅保留挑战路径，其他请求以 `301` 跳转至 HTTPS；Nginx 在 `443` 使用 `/etc/letsencrypt/live/<主域名>/fullchain.pem` 和 `privkey.pem` 反代 SlothVault。Docker 模式使用 inspect 推导出的容器内证书路径。
 3. 在证书签发前，脚本会将 Compose 应用端口绑定到 `127.0.0.1`，由临时 HTTP 代理保持服务可达；这会阻止直接绕过 Nginx 的公网访问。若签发前的步骤失败，会恢复本轮受管 Nginx 和 Compose 改动；HTTPS 激活失败时会保留已签发证书并恢复可用的临时 HTTP 代理。
 
 只支持明确的普通 DNS 域名；不支持 IP、通配符、DNS-01 和自定义 CA。请在运行前确认各域名 A/AAAA 已指向此服务器，并在云安全组/防火墙中开放 TCP `80` 与 `443`。脚本会显示本机 DNS 解析结果，但不会通过公网 IP 自动比对替用户判断 DNS 指向。不会默认开启 HSTS。
@@ -61,6 +100,17 @@ HTTPS 菜单采用 Certbot `certonly --webroot` HTTP-01 验证，部署包自己
 未检测到 Certbot 时，脚本只会在 Debian/Ubuntu 使用 `apt-get update` + `apt-get install certbot`，或在 Fedora/RHEL 使用 `dnf install -y certbot`。其他发行版、缺少包管理器或 RHEL 软件源没有 Certbot 时会停止并要求管理员处理；不会自动添加第三方仓库或改用 Snap。
 
 成功后，脚本写入 Certbot deploy hook，使续约成功后重载 Nginx。若已有活动的 Certbot systemd timer 则复用；否则创建 `slothvault-certbot-renew.timer`，每天两次并使用随机延迟运行续约；没有 systemd 时生成 cron 后备任务。首次配置最后执行 `certbot renew --dry-run --run-deploy-hooks`。菜单“查看证书状态或立即尝试续约”会显示本实例主证书文件状态，并可执行一次实际的 `certbot renew` 检查；Certbot 会按其原生行为检查宿主机所有受管理证书。
+
+Docker HTTPS 在申请前还必须确认两个 bind mount：宿主机 `/data/slothvault/acme-challenge` 映射到容器的明确 ACME Webroot，以及完整宿主机 `/etc/letsencrypt` 映射到容器明确证书根目录（不能只挂载 `live`，因为证书文件会链接到 `archive`）。缺少任一挂载时会在签发前停止。Docker 模式的 Certbot deploy hook 仅执行已验证容器的 `docker exec <容器> nginx -s reload`，不调用 `systemctl`。
+
+```bash
+sudo python3 deploy/install.py \
+  --action https \
+  --nginx-mode docker \
+  --nginx-container slothvault-nginx
+```
+
+常见 Docker 排查命令：`docker inspect slothvault-nginx`、`docker exec slothvault-nginx nginx -t`、`docker exec slothvault-nginx nginx -T`、`docker network inspect slothvault-sqlite_default`。脚本不会自动修改这些挂载或连接网络。
 
 若使用 SELinux 且 Nginx 出现 `502 Bad Gateway`，部署者还需根据发行版安全策略允许 Nginx 连接本机上游服务。
 

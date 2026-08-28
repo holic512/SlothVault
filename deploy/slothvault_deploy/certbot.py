@@ -13,12 +13,13 @@ from __future__ import annotations
 
 import os
 import re
+import shlex
 import shutil
 import socket
 from pathlib import Path
 from typing import Iterable, Optional, Sequence
 
-from .nginx import NginxProxyConfig, validate_server_name
+from .nginx import DockerNginxManager, NginxManager, validate_server_name
 from .system import (
     InstallerError,
     command_succeeds,
@@ -172,7 +173,23 @@ def write_managed_host_file(path: Path, source: str, mode: int) -> None:
     write_text_atomically(path, source, mode)
 
 
-def renewal_hook_source(nginx_executable: str) -> str:
+def renewal_hook_source(nginx_manager: object) -> str:
+    if isinstance(nginx_manager, DockerNginxManager):
+        container_name = nginx_manager.container_name
+        docker = nginx_manager.docker
+        return """#!/bin/sh
+{marker}
+set -eu
+
+exec {docker} exec {container} nginx -s reload
+""".format(
+            marker=CERTBOT_HOOK_MARKER,
+            docker=shlex.quote(docker),
+            container=shlex.quote(container_name),
+        )
+    nginx_executable = (
+        nginx_manager.executable if isinstance(nginx_manager, NginxManager) else str(nginx_manager)
+    )
     return """#!/bin/sh
 {marker}
 set -eu
@@ -184,8 +201,8 @@ exec {nginx} -s reload
 """.format(marker=CERTBOT_HOOK_MARKER, nginx=nginx_executable)
 
 
-def install_renewal_deploy_hook(nginx_executable: str) -> None:
-    write_managed_host_file(RENEWAL_HOOK_PATH, renewal_hook_source(nginx_executable), 0o755)
+def install_renewal_deploy_hook(nginx_manager: object) -> None:
+    write_managed_host_file(RENEWAL_HOOK_PATH, renewal_hook_source(nginx_manager), 0o755)
     print_info("已配置证书续约成功后的 Nginx 重载 hook：{0}".format(RENEWAL_HOOK_PATH))
 
 

@@ -126,6 +126,10 @@ describe('Next runtime contract', () => {
       join(root, 'deploy', 'slothvault_deploy', 'certbot.py'),
       'utf8',
     )
+    const deploymentCli = readFileSync(
+      join(root, 'deploy', 'slothvault_deploy', 'cli.py'),
+      'utf8',
+    )
     const sanitizer = readFileSync(
       join(root, 'scripts', 'sanitize-standalone.mjs'),
       'utf8',
@@ -158,9 +162,23 @@ describe('Next runtime contract', () => {
     expect(deploymentCompose).toContain('127.0.0.1:{0}:3000')
     expect(deploymentNginx).toContain('proxy_set_header X-Forwarded-For')
     expect(deploymentNginx).toContain('return 301 https://$host$request_uri;')
+    expect(deploymentNginx).toContain('class SystemNginxManager')
+    expect(deploymentNginx).toContain('class DockerNginxManager')
+    expect(deploymentNginx).toContain('"inspect", "--type", "container", container_name')
+    expect(deploymentNginx).toContain('OFFICIAL_NGINX_IMAGES')
+    expect(deploymentNginx).toContain('Docker Nginx 必须把 /etc/nginx/conf.d 或 /etc/nginx')
+    expect(deploymentNginx).toContain('proxy_pass http://{1};')
+    expect(deploymentNginx).toContain('upstream_host="slothvault"')
+    expect(deploymentNginx).toContain('不支持宝塔或第三方面板托管 Nginx')
+    expect(deploymentCli).toContain('--nginx-mode')
+    expect(deploymentCli).toContain('--nginx-container')
+    expect(deploymentCli).toContain('ensure_shared_slothvault_network')
+    expect(deploymentCli).toContain('自动模式不会扫描或接管 Docker 容器')
     expect(deploymentCertbot).toContain('certonly')
     expect(deploymentCertbot).toContain('--webroot')
     expect(deploymentCertbot).toContain('slothvault-certbot-renew.timer')
+    expect(deploymentCertbot).toContain('DockerNginxManager')
+    expect(deploymentCertbot).toContain('exec {docker} exec {container} nginx -s reload')
     expect(`${deploymentEntrypoint}\n${deploymentCompose}\n${deploymentNginx}\n${deploymentCertbot}`).not.toContain(
       'import yaml',
     )

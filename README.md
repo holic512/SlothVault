@@ -87,11 +87,57 @@ sudo python3 deploy/install.py
 
 MySQL 与 PostgreSQL Compose 配置会等待数据库健康检查成功，再启动应用。应用目录保存加密数据库配置、上传文件和仅 SQLite 使用的数据库文件；服务器数据库始终存放在独立目录，不能与应用数据目录交叠。Docker 本地模式固定使用 Compose 内部网络的非 TLS 连接。
 
-若宿主机已安装 Nginx，脚本会检测到它并提供“配置 Nginx 反向代理”的选项；已部署实例也可随时在菜单中选择该操作。脚本不会自动安装 Nginx。确认后，它会在标准的 `/etc/nginx/sites-available` + `sites-enabled` 或 `/etc/nginx/conf.d` 目录创建仅由部署包管理的站点文件，先执行 `nginx -t` 与 `nginx -T` 验证，再重载或启动 Nginx。应用容器端口会改为仅监听 `127.0.0.1`，对外请求必须经 Nginx 转发，避免直接绕过反向代理。
+### Nginx 与 HTTPS
 
-菜单中的“申请或更新 Let's Encrypt HTTPS 证书”使用 HTTP-01 Webroot 验证，不会使用会自动改写站点文件的 `certbot --nginx`。输入一个或多个普通 DNS 域名（首个为主域名）、联系邮箱并确认服务条款后，脚本会让 Nginx 在公网 `80` 端口提供 ACME 验证；签发成功后，`80` 仅保留挑战路径，其余请求以 `301` 跳转至 `443` 上的 HTTPS 反向代理。脚本不会默认开启 HSTS。
+部署包支持两种、且仅支持两种 Nginx：标准目录中的系统级 Nginx，以及用户显式指定的官方 Docker Hub `nginx` 容器。明确不支持宝塔 Nginx、`/www/server/nginx`、`/www/server/panel/vhost/nginx`、宝塔/面板镜像和其他第三方面板托管的 Nginx；脚本不会猜测这些目录，也不会接管非 SlothVault 生成的 `slothvault.conf`。
 
-证书功能需要域名 A/AAAA 已指向服务器、TCP `80` 和 `443` 已在防火墙/安全组放行，并以 `sudo python3 deploy/install.py` 运行。缺少 Certbot 时，脚本仅会在 Debian/Ubuntu 使用 `apt-get`、在 Fedora/RHEL 使用 `dnf` 安装；不支持的发行版或缺少软件源时会停止并提示管理员处理，不会添加第三方仓库或改用 Snap。签发后会写入 Nginx 重载 hook，并复用已启用的 Certbot systemd timer；没有该 timer 时创建 SlothVault 自己的 systemd timer，缺少 systemd 时回退为 cron。首次设置会执行 `certbot renew --dry-run --run-deploy-hooks`，实际签发仍取决于真实 DNS、网络和 Let’s Encrypt 校验。若系统启用了 SELinux 且出现 Nginx `502`，还需要由系统管理员按发行版策略允许 Nginx 连接本机上游服务。
+默认的 `--nginx-mode auto` 保持兼容：只检测宿主机 `PATH` 中的系统级 `nginx`，不会扫描、发现或接管任意 Docker 容器。系统级模式仅管理 `/etc/nginx/sites-available` + `/etc/nginx/sites-enabled` 或 `/etc/nginx/conf.d` 下的受管站点文件；写入后执行宿主机 `nginx -t`、`nginx -T`，再用 `systemctl reload nginx` 或 `nginx -s reload` 重载。它会拒绝 Nginx 可执行文件或实际配置来源指向宝塔目录的情况。
+
+Docker 模式必须显式提供容器名。脚本只接受 `nginx`、`library/nginx` 或 `docker.io/library/nginx`（可带标签或 digest）的官方镜像，只从 `docker inspect` 确认的宿主机 bind mount 推导配置位置：优先 `<宿主机目录> -> /etc/nginx/conf.d`，其次 `<宿主机目录> -> /etc/nginx` 再使用其 `conf.d/slothvault.conf`。它不写容器临时文件，不接受 named volume 或任意 `--nginx-config-dir`，也不会执行 `docker rm`、重建容器、`docker compose down`、连接网络或接管已有第三方容器。
+
+Docker Nginx 必须与 SlothVault 应用容器共享 Compose 网络，且应用在共享网络中带有 `slothvault` 别名；通过预检后配置固定使用 `proxy_pass http://slothvault:3000;`。这避免把 Docker 容器自己的 `127.0.0.1` 误作宿主机。先启动 SlothVault，再使用以下命令配置 HTTP 反代：
+
+```bash
+sudo python3 deploy/install.py \
+  --action nginx \
+  --nginx-mode docker \
+  --nginx-container slothvault-nginx
+```
+
+一个 SQLite 实例的典型官方 Nginx 容器挂载如下；MySQL/PostgreSQL 时将 `slothvault-sqlite_default` 换为相应的 Compose 网络。`/opt/slothvault/nginx/conf.d` 必须对宿主机脚本可写，容器可只读挂载它。
+
+```yaml
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: slothvault-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /opt/slothvault/nginx/conf.d:/etc/nginx/conf.d:ro
+      - /data/slothvault/acme-challenge:/var/www/slothvault-acme:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    networks:
+      - slothvault-sqlite_default
+
+networks:
+  slothvault-sqlite_default:
+    external: true
+```
+
+菜单中的“申请或更新 Let's Encrypt HTTPS 证书”使用宿主机 Certbot 的 `certonly --webroot` HTTP-01 验证，不会使用会自动改写站点文件的 `certbot --nginx`。输入一个或多个普通 DNS 域名（首个为主域名）、联系邮箱并确认服务条款后，`80` 提供 ACME 验证，签发成功后其余 HTTP 请求 `301` 跳转至 `443`；不会默认开启 HSTS。Docker HTTPS 还要求上例中 `/data/slothvault/acme-challenge` 和完整 `/etc/letsencrypt` 都已 bind mount 到容器。脚本从 inspect 使用容器内路径渲染 ACME 与证书配置，因而不会把宿主机证书路径错误写入 Docker Nginx。
+
+```bash
+sudo python3 deploy/install.py \
+  --action https \
+  --nginx-mode docker \
+  --nginx-container slothvault-nginx
+```
+
+证书功能需要域名 A/AAAA 已指向服务器、TCP `80` 和 `443` 已在防火墙/安全组放行，并以 `sudo python3 deploy/install.py` 运行。缺少 Certbot 时，脚本仅会在 Debian/Ubuntu 使用 `apt-get`、在 Fedora/RHEL 使用 `dnf` 安装；不支持的发行版或缺少软件源时会停止并提示管理员处理，不会添加第三方仓库或改用 Snap。续约成功后系统级模式重载系统 Nginx，Docker 模式只执行经验证容器的 `docker exec <容器> nginx -s reload`；timer/cron 与首次 `certbot renew --dry-run --run-deploy-hooks` 保持一致。
+
+Docker 模式排查请优先执行 `docker inspect slothvault-nginx`、`docker exec slothvault-nginx nginx -t`、`docker exec slothvault-nginx nginx -T` 和 `docker network inspect slothvault-sqlite_default`。如果缺少配置、ACME、证书挂载或共同网络，脚本会在写入前停止；配置校验或重载失败时会恢复原有受管文件，并再次在容器内校验和重载恢复后的配置。若系统启用了 SELinux 且 Nginx 出现 `502`，还需要由系统管理员按发行版策略允许 Nginx 连接上游服务。
 
 未来更新不需要重新生成配置或迁移数据目录：再次运行脚本并选择“更新”，或执行：
 

@@ -13,7 +13,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 DEPLOY_ROOT = REPOSITORY_ROOT / "deploy"
 sys.path.insert(0, str(DEPLOY_ROOT))
 
-from slothvault_deploy import certbot, compose, nginx  # noqa: E402
+from slothvault_deploy import certbot, cli, compose, nginx  # noqa: E402
 from slothvault_deploy.system import InstallerError  # noqa: E402
 
 
@@ -78,6 +78,289 @@ class NginxRenderingTests(unittest.TestCase):
             )
             with self.assertRaises(InstallerError):
                 nginx.snapshot_nginx_site(proxy)
+
+
+class SystemNginxManagerTests(unittest.TestCase):
+    def test_system_site_path_contract_supports_standard_paths_and_rejects_missing_directories(self) -> None:
+        def standard_directories(path):
+            return str(path) in {"/etc/nginx/sites-available", "/etc/nginx/sites-enabled"}
+
+        with patch.object(nginx.Path, "is_dir", new=standard_directories):
+            config_path, enabled_path = nginx.nginx_site_paths()
+        self.assertEqual(config_path, Path("/etc/nginx/sites-available/slothvault.conf"))
+        self.assertEqual(enabled_path, Path("/etc/nginx/sites-enabled/slothvault.conf"))
+
+        with patch.object(nginx.Path, "is_dir", return_value=False):
+            with self.assertRaisesRegex(InstallerError, "未找到受支持"):
+                nginx.nginx_site_paths()
+
+    def test_standard_sites_available_manager_enables_only_its_site(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            available = root / "sites-available"
+            enabled = root / "sites-enabled"
+            available.mkdir()
+            enabled.mkdir()
+            manager = nginx.SystemNginxManager("/usr/sbin/nginx", available / "slothvault.conf", enabled / "slothvault.conf")
+            proxy = manager.proxy_config(3000, ("vault.example.com",))
+            with patch.object(manager, "validate_site"), patch.object(manager, "reload"):
+                nginx.apply_nginx_site(proxy, nginx.render_http_proxy_config(proxy))
+
+            self.assertTrue(proxy.config_path.is_file())
+            self.assertTrue(proxy.enabled_path.is_symlink())
+            self.assertEqual(proxy.enabled_path.resolve(), proxy.config_path.resolve())
+
+    def test_standard_conf_d_manager_does_not_create_enable_link(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = Path(directory) / "conf.d" / "slothvault.conf"
+            config_path.parent.mkdir()
+            manager = nginx.SystemNginxManager("/usr/sbin/nginx", config_path, None)
+            proxy = manager.proxy_config(3000, ("vault.example.com",))
+            with patch.object(manager, "validate_site"), patch.object(manager, "reload"):
+                nginx.apply_nginx_site(proxy, nginx.render_http_proxy_config(proxy))
+
+            self.assertTrue(config_path.is_file())
+            self.assertIsNone(proxy.enabled_path)
+
+    def test_baota_or_panel_nginx_is_rejected_before_writing_standard_paths(self) -> None:
+        with self.assertRaisesRegex(InstallerError, "不支持宝塔"):
+            nginx.ensure_supported_system_nginx("/www/server/nginx/sbin/nginx")
+
+
+class DockerNginxManagerTests(unittest.TestCase):
+    def docker_inspect(self, mounts=None, image="nginx:alpine", running=True, networks=None):
+        return {
+            "State": {"Running": running},
+            "Config": {"Image": image},
+            "Mounts": mounts or [],
+            "NetworkSettings": {"Networks": networks or {"slothvault_default": {}}},
+        }
+
+    def discover(self, inspect):
+        return patch.object(nginx.shutil, "which", return_value="/usr/bin/docker"), patch.object(
+            nginx, "_docker_container_inspect", return_value=inspect
+        ), patch.object(nginx.DockerNginxManager, "validate_syntax")
+
+    def test_missing_docker_container_is_reported(self) -> None:
+        with patch.object(nginx.shutil, "which", return_value="/usr/bin/docker"), patch.object(
+            nginx, "_docker_container_inspect", side_effect=InstallerError("Docker Nginx 容器不存在")
+        ):
+            with self.assertRaisesRegex(InstallerError, "不存在"):
+                nginx.DockerNginxManager.discover("nginx")
+
+    def test_stopped_and_non_official_containers_are_rejected(self) -> None:
+        stopped = self.docker_inspect(running=False)
+        with patch.object(nginx.shutil, "which", return_value="/usr/bin/docker"), patch.object(
+            nginx, "_docker_container_inspect", return_value=stopped
+        ):
+            with self.assertRaisesRegex(InstallerError, "未运行"):
+                nginx.DockerNginxManager.discover("nginx")
+
+        non_official = self.docker_inspect(image="baota/nginx:latest")
+        with patch.object(nginx.shutil, "which", return_value="/usr/bin/docker"), patch.object(
+            nginx, "_docker_container_inspect", return_value=non_official
+        ):
+            with self.assertRaisesRegex(InstallerError, "仅支持官方"):
+                nginx.DockerNginxManager.discover("nginx")
+
+    def test_docker_mode_requires_a_confirmed_configuration_bind_mount(self) -> None:
+        inspect = self.docker_inspect(mounts=[{"Type": "volume", "Source": "nginx", "Destination": "/etc/nginx/conf.d"}])
+        with patch.object(nginx.shutil, "which", return_value="/usr/bin/docker"), patch.object(
+            nginx, "_docker_container_inspect", return_value=inspect
+        ):
+            with self.assertRaisesRegex(InstallerError, "bind mount"):
+                nginx.DockerNginxManager.discover("nginx")
+
+    def test_docker_config_path_is_derived_from_conf_d_or_nginx_root_bind_mount(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            direct = root / "direct"
+            direct.mkdir()
+            direct_inspect = self.docker_inspect(
+                mounts=[{"Type": "bind", "Source": str(direct), "Destination": "/etc/nginx/conf.d"}]
+            )
+            with patch.object(nginx.shutil, "which", return_value="/usr/bin/docker"), patch.object(
+                nginx, "_docker_container_inspect", return_value=direct_inspect
+            ), patch.object(nginx.DockerNginxManager, "validate_syntax"):
+                direct_manager = nginx.DockerNginxManager.discover("nginx")
+            self.assertEqual(direct_manager.config_path, direct.resolve() / "slothvault.conf")
+
+            full = root / "full"
+            (full / "conf.d").mkdir(parents=True)
+            full_inspect = self.docker_inspect(
+                mounts=[{"Type": "bind", "Source": str(full), "Destination": "/etc/nginx"}]
+            )
+            with patch.object(nginx.shutil, "which", return_value="/usr/bin/docker"), patch.object(
+                nginx, "_docker_container_inspect", return_value=full_inspect
+            ), patch.object(nginx.DockerNginxManager, "validate_syntax"):
+                full_manager = nginx.DockerNginxManager.discover("nginx")
+            self.assertEqual(full_manager.config_path, full.resolve() / "conf.d" / "slothvault.conf")
+
+    def test_docker_config_target_refuses_symlink_escape(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config_directory = root / "conf"
+            outside = root / "outside.conf"
+            config_directory.mkdir()
+            (config_directory / "slothvault.conf").symlink_to(outside)
+            inspect = self.docker_inspect(
+                mounts=[{"Type": "bind", "Source": str(config_directory), "Destination": "/etc/nginx/conf.d"}]
+            )
+            with patch.object(nginx.shutil, "which", return_value="/usr/bin/docker"), patch.object(
+                nginx, "_docker_container_inspect", return_value=inspect
+            ):
+                with self.assertRaisesRegex(InstallerError, "普通文件"):
+                    nginx.DockerNginxManager.discover("nginx")
+
+    def test_docker_config_target_must_be_writable_before_any_file_is_created(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config_directory = Path(directory) / "conf"
+            config_directory.mkdir()
+            config_directory.chmod(0o555)
+            inspect = self.docker_inspect(
+                mounts=[{"Type": "bind", "Source": str(config_directory), "Destination": "/etc/nginx/conf.d"}]
+            )
+            try:
+                with patch.object(nginx.shutil, "which", return_value="/usr/bin/docker"), patch.object(
+                    nginx, "_docker_container_inspect", return_value=inspect
+                ):
+                    with self.assertRaisesRegex(InstallerError, "不可写"):
+                        nginx.DockerNginxManager.discover("nginx")
+            finally:
+                config_directory.chmod(0o755)
+
+    def docker_manager(self, config_path: Path) -> nginx.DockerNginxManager:
+        return nginx.DockerNginxManager(
+            "/usr/bin/docker",
+            "nginx",
+            self.docker_inspect(),
+            config_path,
+            nginx.DockerMount(config_path.parent, Path("/etc/nginx/conf.d")),
+        )
+
+    def test_docker_apply_uses_only_container_nginx_commands_and_slothvault_upstream(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = Path(directory) / "slothvault.conf"
+            manager = self.docker_manager(config_path)
+            proxy = manager.proxy_config(("vault.example.com",))
+            calls = []
+
+            def command_output(command, context="Nginx 配置检查"):
+                calls.append(tuple(command))
+                if command[-1] == "-T":
+                    return "http {0}".format(nginx.MANAGED_NGINX_MARKER)
+                return "ok"
+
+            with patch.object(nginx, "nginx_command_output", side_effect=command_output), patch.object(
+                nginx.shutil, "which", return_value="/usr/bin/systemctl"
+            ) as systemctl:
+                nginx.apply_nginx_site(proxy, nginx.render_http_proxy_config(proxy))
+
+            source = config_path.read_text(encoding="utf-8")
+            self.assertIn("proxy_pass http://slothvault:3000;", source)
+            self.assertNotIn("127.0.0.1", source)
+            self.assertEqual(
+                calls,
+                [
+                    ("/usr/bin/docker", "exec", "nginx", "nginx", "-t"),
+                    ("/usr/bin/docker", "exec", "nginx", "nginx", "-T"),
+                    ("/usr/bin/docker", "exec", "nginx", "nginx", "-s", "reload"),
+                ],
+            )
+            systemctl.assert_not_called()
+
+    def test_docker_validation_and_reload_failure_restore_prior_configuration(self) -> None:
+        for failure in ("-T", "reload"):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as directory:
+                config_path = Path(directory) / "slothvault.conf"
+                original = "{0}\n# previous\n".format(nginx.MANAGED_NGINX_MARKER)
+                config_path.write_text(original, encoding="utf-8")
+                manager = self.docker_manager(config_path)
+                proxy = manager.proxy_config(("vault.example.com",))
+                calls = []
+
+                def command_output(command, context="Nginx 配置检查"):
+                    calls.append(tuple(command))
+                    if failure == "-T" and command[-1] == "-T":
+                        raise InstallerError("Docker Nginx 最终配置检查失败")
+                    if failure == "reload" and command[-2:] == ("-s", "reload") and calls.count(tuple(command)) == 1:
+                        raise InstallerError("Docker Nginx 重载失败")
+                    if command[-1] == "-T":
+                        return nginx.MANAGED_NGINX_MARKER
+                    return "ok"
+
+                with patch.object(nginx, "nginx_command_output", side_effect=command_output):
+                    with self.assertRaises(InstallerError):
+                        nginx.apply_nginx_site(proxy, nginx.render_http_proxy_config(proxy))
+
+                self.assertEqual(config_path.read_text(encoding="utf-8"), original)
+                self.assertGreaterEqual(calls.count(("/usr/bin/docker", "exec", "nginx", "nginx", "-t")), 2)
+                self.assertGreaterEqual(calls.count(("/usr/bin/docker", "exec", "nginx", "nginx", "-s", "reload")), 1)
+
+    def test_docker_upstream_requires_shared_network_and_slothvault_alias(self) -> None:
+        manager = nginx.DockerNginxManager(
+            "/usr/bin/docker",
+            "nginx",
+            self.docker_inspect(networks={"slothvault_default": {}}),
+            Path("/tmp/slothvault.conf"),
+            nginx.DockerMount(Path("/tmp"), Path("/etc/nginx/conf.d")),
+        )
+        manager.ensure_shared_slothvault_network(
+            {"NetworkSettings": {"Networks": {"slothvault_default": {"Aliases": ["slothvault"]}}}}
+        )
+        with self.assertRaisesRegex(InstallerError, "没有共享"):
+            manager.ensure_shared_slothvault_network(
+                {"NetworkSettings": {"Networks": {"other_default": {"Aliases": ["slothvault"]}}}}
+            )
+        with self.assertRaisesRegex(InstallerError, "slothvault 别名"):
+            manager.ensure_shared_slothvault_network(
+                {"NetworkSettings": {"Networks": {"slothvault_default": {"Aliases": ["different"]}}}}
+            )
+
+    def test_docker_https_requires_acme_and_certificate_bind_mounts(self) -> None:
+        manager = self.docker_manager(Path("/tmp/slothvault.conf"))
+        with tempfile.TemporaryDirectory() as directory:
+            acme = Path(directory) / "acme-challenge"
+            acme.mkdir()
+            with self.assertRaisesRegex(InstallerError, "ACME Webroot"):
+                manager.https_container_paths(acme)
+
+    def test_docker_https_renders_container_acme_and_certificate_paths(self) -> None:
+        manager = self.docker_manager(Path("/tmp/slothvault.conf"))
+        proxy = manager.proxy_config(
+            ("vault.example.com",), certificate_root=Path("/container/letsencrypt")
+        )
+        source = nginx.render_https_proxy_config(proxy, Path("/container/acme"))
+        self.assertIn("root /container/acme;", source)
+        self.assertIn("/container/letsencrypt/live/vault.example.com/fullchain.pem", source)
+        self.assertNotIn("/etc/letsencrypt/live/vault.example.com/fullchain.pem", source)
+
+
+class CliNginxModeTests(unittest.TestCase):
+    def test_nginx_container_selects_docker_without_auto_scanning(self) -> None:
+        arguments = cli.parse_arguments(("--action", "nginx", "--nginx-container", "edge-nginx"))
+        self.assertEqual(cli.resolved_nginx_mode(arguments), "docker")
+
+    def test_system_mode_and_container_are_rejected_as_ambiguous(self) -> None:
+        arguments = cli.parse_arguments(
+            ("--action", "nginx", "--nginx-mode", "system", "--nginx-container", "edge-nginx")
+        )
+        with self.assertRaisesRegex(InstallerError, "不能与"):
+            cli.resolved_nginx_mode(arguments)
+
+
+class DockerCertbotHookTests(unittest.TestCase):
+    def test_docker_renewal_hook_reloads_only_the_selected_container(self) -> None:
+        manager = nginx.DockerNginxManager(
+            "/usr/bin/docker",
+            "edge-nginx",
+            {"Mounts": []},
+            Path("/tmp/slothvault.conf"),
+            nginx.DockerMount(Path("/tmp"), Path("/etc/nginx/conf.d")),
+        )
+        source = certbot.renewal_hook_source(manager)
+        self.assertIn("/usr/bin/docker exec edge-nginx nginx -s reload", source)
+        self.assertNotIn("systemctl", source)
 
 
 class CertbotTests(unittest.TestCase):

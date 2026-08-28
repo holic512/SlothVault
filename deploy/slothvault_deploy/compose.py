@@ -2,8 +2,8 @@
 @file deploy/slothvault_deploy/compose.py
 @project SlothVault
 @module Deployment Compose management
-@description Renders, validates and safely operates one private SQLite, MySQL or PostgreSQL Docker Compose deployment.
-@logic Collect provider-specific values, render a self-contained Compose file without a YAML dependency, and only mutate files carrying a SlothVault management marker.
+@description Renders, validates and safely operates one private SQLite, MySQL or PostgreSQL Docker Compose deployment and exposes its running application container for checked Docker-Nginx upstream resolution.
+@logic Collect provider-specific values, render a self-contained Compose file without a YAML dependency, only mutate files carrying a SlothVault management marker, and inspect the explicitly managed slothvault service without guessing Docker networks.
 @dependencies Python standard library, Docker Engine, Docker Compose v2
 @index_tags deployment,installer,docker,compose,sqlite,mysql,postgresql,persistence
 @author holic512
@@ -12,9 +12,11 @@
 from __future__ import annotations
 
 import getpass
+import json
 import os
 import re
 import secrets
+import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -406,6 +408,53 @@ def write_private_compose(config: DeploymentConfig) -> None:
 
 def compose_command(compose_path: Path, *arguments: str) -> tuple[str, ...]:
     return ("docker", "compose", "-f", str(compose_path), *arguments)
+
+
+def inspect_managed_application(compose_path: Path) -> dict[str, object]:
+    """Return the running managed slothvault container inspect record for Docker Nginx checks."""
+
+    require_managed_compose(compose_path)
+    try:
+        result = subprocess.run(
+            compose_command(compose_path, "ps", "-q", "slothvault"),
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except FileNotFoundError as error:
+        raise InstallerError("未找到 Docker 命令；无法检查 SlothVault 应用容器。") from error
+    if result.returncode != 0:
+        detail = "{0}\n{1}".format(result.stdout, result.stderr).strip()
+        raise InstallerError("无法读取 SlothVault 应用容器状态：{0}".format(detail[-1000:] or "没有输出"))
+    container_ids = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    if len(container_ids) != 1:
+        raise InstallerError(
+            "无法唯一定位正在运行的 SlothVault 应用容器；请先执行 docker compose -f {0} up -d。".format(
+                compose_path
+            )
+        )
+    try:
+        inspected = subprocess.run(
+            ("docker", "inspect", "--type", "container", container_ids[0]),
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except FileNotFoundError as error:
+        raise InstallerError("未找到 Docker 命令；无法检查 SlothVault 应用容器。") from error
+    if inspected.returncode != 0:
+        detail = "{0}\n{1}".format(inspected.stdout, inspected.stderr).strip()
+        raise InstallerError("无法检查 SlothVault 应用容器网络：{0}".format(detail[-1000:] or "没有输出"))
+    try:
+        payload = json.loads(inspected.stdout)
+    except json.JSONDecodeError as error:
+        raise InstallerError("无法解析 SlothVault 应用容器检查结果；拒绝生成 Docker Nginx 上游。") from error
+    if not isinstance(payload, list) or len(payload) != 1 or not isinstance(payload[0], dict):
+        raise InstallerError("SlothVault 应用容器检查结果格式无效；拒绝生成 Docker Nginx 上游。")
+    state = payload[0].get("State")
+    if not isinstance(state, dict) or state.get("Running") is not True:
+        raise InstallerError("SlothVault 应用容器未运行；请先启动部署后再配置 Docker Nginx。")
+    return payload[0]
 
 
 def require_managed_compose(compose_path: Path) -> None:
