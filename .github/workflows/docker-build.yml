@@ -1,10 +1,10 @@
 # @file .github/workflows/docker-build.yml
 # @project SlothVault
 # @module Container and source release delivery
-# @description Validates pull-request images and publishes the default-branch Docker image with per-platform size metrics plus a source-only GitHub Release.
-# @logic Capture the previous image size, build and inspect one multi-architecture standalone image, report compressed-size deltas, then refresh the idempotent source release.
-# @dependencies GitHub Actions, Docker Buildx, Docker Hub, Node.js, GitHub CLI
-# @index_tags github-actions,docker,standalone,image-size,release,source-archive,commit-log
+# @description Validates pull-request images and publishes the default-branch Docker image with per-platform size metrics plus a source GitHub Release and standalone host installer asset.
+# @logic Capture the previous image size, build and inspect one multi-architecture standalone image, report compressed-size deltas, then refresh the idempotent release and replace its installer asset.
+# @dependencies GitHub Actions, Docker Buildx, Docker Hub, Node.js, GitHub CLI, install.py
+# @index_tags github-actions,docker,standalone,image-size,release,source-archive,installer,commit-log
 # @author holic512
 
 name: Build Docker Image and Publish Release
@@ -141,12 +141,12 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Docker Compose Install" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "cp .env.docker.example .env.docker" >> $GITHUB_STEP_SUMMARY
-          echo "docker compose --env-file .env.docker up -d" >> $GITHUB_STEP_SUMMARY
+          echo "curl -fL https://github.com/${{ github.repository }}/releases/latest/download/install.py -o install.py" >> $GITHUB_STEP_SUMMARY
+          echo "python3 install.py" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   publish-release:
-    name: Publish source release
+    name: Publish source release and installer
     needs: build-and-push
     if: >-
       github.event_name == 'push' &&
@@ -193,7 +193,7 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "title=$title" >> "$GITHUB_OUTPUT"
 
-      - name: Create source-only GitHub Release
+      - name: Create source GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
@@ -210,6 +210,12 @@ jobs:
               --notes-file release-notes.md
           fi
 
+      - name: Upload host installer asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: gh release upload "$RELEASE_TAG" ./install.py --clobber
+
       - name: Generate release summary
         env:
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
@@ -218,4 +224,4 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "- Tag: \`$RELEASE_TAG\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Notes: first-parent commit log only." >> "$GITHUB_STEP_SUMMARY"
-          echo "- Assets: GitHub-generated source ZIP and tar.gz only; no build package was uploaded." >> "$GITHUB_STEP_SUMMARY"
+          echo "- Assets: GitHub-generated source ZIP and tar.gz, plus the standalone \`install.py\` host installer." >> "$GITHUB_STEP_SUMMARY"

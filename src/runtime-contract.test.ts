@@ -113,6 +113,7 @@ describe('Next runtime contract', () => {
     const dockerfile = readFileSync(join(root, 'Dockerfile'), 'utf8')
     const composeFiles = readComposeFiles()
     const entrypoint = readFileSync(join(root, 'docker-entrypoint.sh'), 'utf8')
+    const installer = readFileSync(join(root, 'install.py'), 'utf8')
     const sanitizer = readFileSync(
       join(root, 'scripts', 'sanitize-standalone.mjs'),
       'utf8',
@@ -138,6 +139,11 @@ describe('Next runtime contract', () => {
     }
     expect(entrypoint).toContain('exec node server.js')
     expect(entrypoint).toContain('SLOTHVAULT_AUTO_BOOTSTRAP')
+    expect(installer).toContain('from __future__ import annotations')
+    expect(installer).toContain('DEFAULT_ROOT = Path("/data/slothvault")')
+    expect(installer).toContain('compose_command')
+    expect(installer).not.toContain('import yaml')
+    expect(workflow).toContain('gh release upload "$RELEASE_TAG" ./install.py --clobber')
     expect(sanitizer).toContain('removeSourceMaps(standaloneRoot)')
     expect(sanitizer).toContain('pruneSharpRuntimePackages(standaloneRoot)')
     expect(workflow).toContain('Inspect published image sizes')

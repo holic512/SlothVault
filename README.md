@@ -67,42 +67,33 @@ APP_DATA_PATH=./data UPLOAD_STORAGE_PATH=./data/uploads npm run dev
 
 ### Docker Compose
 
-Docker 部署按数据库模式拆分为三个独立 Compose 文件。每次启动只创建当前模式需要的服务和本地数据目录；Compose 会创建本地 MySQL/PostgreSQL 数据库或受管 SQLite 文件，并自动执行首次 schema 初始化。首次访问 [http://localhost:3000/install](http://localhost:3000/install) 时只需创建首位管理员。
+正式 Linux 部署使用 Release 附件中的纯标准库宿主机脚本 `install.py`。它不需要源码目录、Node.js 或额外 Python 包：交互选择 SQLite、MySQL 或 PostgreSQL 后，会在部署根目录生成私有的 `/data/slothvault/compose.yml`，创建所选模式的持久化目录，拉取发布镜像并启动服务。首次 schema 初始化由应用自动完成；随后访问 [http://localhost:3000/install](http://localhost:3000/install) 创建首位管理员。
 
-| 模式 | Compose 文件 | 启动命令 | 持久化目录 |
-| --- | --- | --- | --- |
-| SQLite | `docker-compose.yml` | `docker compose --env-file .env.docker.sqlite up -d --build` | `./docker-data/sqlite/app` |
-| MySQL 8.0 | `docker-compose.mysql.yml` | `docker compose --env-file .env.docker.mysql -f docker-compose.mysql.yml up -d --build` | `./docker-data/mysql/app`、`./docker-data/mysql/database` |
-| PostgreSQL 16 | `docker-compose.postgresql.yml` | `docker compose --env-file .env.docker.postgresql -f docker-compose.postgresql.yml up -d --build` | `./docker-data/postgresql/app`、`./docker-data/postgresql/database` |
-
-#### SQLite
+前置条件：Linux 已安装 Docker Engine、Docker Compose v2 与 Python 3.8+。`install.py` 不会尝试根据发行版自动安装 Docker。若默认 `/data` 目录不可写，请使用 `sudo` 运行脚本，后续 Docker 命令也使用同一权限级别。
 
 ```bash
-cp .env.docker.sqlite.example .env.docker.sqlite
-docker compose --env-file .env.docker.sqlite up -d --build
+curl -fL https://github.com/holic512/SlothVault/releases/latest/download/install.py -o install.py
+python3 install.py
 ```
 
-#### MySQL 8.0
+脚本的默认路径如下；输入时可按需改为其他绝对路径。生成的 `compose.yml` 包含数据库凭据（若选择 MySQL/PostgreSQL），因此脚本会将其权限设为 `0600`；所有持久化目录为 `0700`。
 
-编辑 `.env.docker.mysql`，设置 `MYSQL_PASSWORD` 和 `MYSQL_ROOT_PASSWORD` 后运行：
+| 模式 | 应用数据目录（映射至 `/app/data`） | 数据库数据目录 |
+| --- | --- | --- |
+| SQLite | `/data/slothvault/data` | `/data/slothvault/data/database/slothvault.db` |
+| MySQL 8.0 | `/data/slothvault/data` | `/data/slothvault/mysql` |
+| PostgreSQL 16 | `/data/slothvault/data` | `/data/slothvault/postgresql` |
+
+MySQL 与 PostgreSQL Compose 配置会等待数据库健康检查成功，再启动应用。应用目录保存加密数据库配置、上传文件和仅 SQLite 使用的数据库文件；服务器数据库始终存放在独立目录，不能与应用数据目录交叠。Docker 本地模式固定使用 Compose 内部网络的非 TLS 连接。
+
+未来更新不需要重新生成配置或迁移数据目录：再次运行脚本并选择“更新”，或执行：
 
 ```bash
-cp .env.docker.mysql.example .env.docker.mysql
-docker compose --env-file .env.docker.mysql -f docker-compose.mysql.yml up -d --build
+docker compose -f /data/slothvault/compose.yml pull
+docker compose -f /data/slothvault/compose.yml up -d
 ```
 
-#### PostgreSQL 16
-
-编辑 `.env.docker.postgresql`，设置 `POSTGRES_PASSWORD` 后运行：
-
-```bash
-cp .env.docker.postgresql.example .env.docker.postgresql
-docker compose --env-file .env.docker.postgresql -f docker-compose.postgresql.yml up -d --build
-```
-
-MySQL 与 PostgreSQL Compose 文件会等待数据库健康检查成功，再启动应用。每个模式的 `app` 目录同时包含加密数据库配置、上传文件和仅 SQLite 使用的数据库文件；服务器数据库另存于对应的 `database` 目录。不要复用不同模式的目录。
-
-Docker 本地模式固定使用容器网络内的非 TLS 连接。远程 MySQL/PostgreSQL 或需要 TLS/CA 的部署，继续使用网页安装器手工配置，详见[数据库安装与迁移指南](./docs/DATABASE_INSTALLATION.md)。
+仓库仍保留三份 `docker-compose*.yml` 和示例环境文件，供从源码构建或本地开发使用；生产服务器推荐使用 Release 中的 `install.py`。远程 MySQL/PostgreSQL、TLS 或自定义 CA 的部署，继续使用网页安装器手工配置，详见[数据库安装与迁移指南](./docs/DATABASE_INSTALLATION.md)。
 
 ## 使用模型
 

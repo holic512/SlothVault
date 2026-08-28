@@ -14,50 +14,34 @@ SlothVault 的发布包同时包含 SQLite、MySQL 和 PostgreSQL 支持，但�
 
 ## Docker 部署
 
-本地 Docker 部署由三个完整且独立的 Compose 文件组成。不要合并文件、启用 profile 或复用不同模式的数据目录；每次只启动一种模式。
+发布版推荐使用 GitHub Release 附件中的 `install.py`。该文件只依赖 Python 3.8+ 标准库，运行在宿主机而不是应用容器中；它会选择 provider、生成唯一的 `/data/slothvault/compose.yml`、创建私有持久化目录，再调用已安装的 Docker Compose v2 拉取并启动发布镜像。脚本不安装 Docker Engine，也不覆盖已有的 Compose 文件或非空数据目录。
 
-| 模式 | Compose 文件 | 服务 | 应用数据目录 | 数据库目录 |
+```bash
+curl -fL https://github.com/holic512/SlothVault/releases/latest/download/install.py -o install.py
+python3 install.py
+```
+
+如 `/data` 需要管理员权限，请从一开始使用 `sudo python3 install.py`，并在后续 `docker compose` 维护命令中使用相同权限。首次启动后访问 `http://<服务器地址>:3000/install` 创建首位管理员。
+
+| 模式 | 服务 | 生成的 Compose 文件 | 应用数据目录 | 数据库目录 |
 | --- | --- | --- | --- | --- |
-| SQLite | `docker-compose.yml` | `slothvault` | `./docker-data/sqlite/app` | 应用数据目录内的 `database/slothvault.db` |
-| MySQL | `docker-compose.mysql.yml` | `slothvault`、`mysql` | `./docker-data/mysql/app` | `./docker-data/mysql/database` |
-| PostgreSQL | `docker-compose.postgresql.yml` | `slothvault`、`postgresql` | `./docker-data/postgresql/app` | `./docker-data/postgresql/database` |
+| SQLite | `slothvault` | `/data/slothvault/compose.yml` | `/data/slothvault/data` | 应用数据目录内的 `database/slothvault.db` |
+| MySQL | `slothvault`、`mysql` | `/data/slothvault/compose.yml` | `/data/slothvault/data` | `/data/slothvault/mysql` |
+| PostgreSQL | `slothvault`、`postgresql` | `/data/slothvault/compose.yml` | `/data/slothvault/data` | `/data/slothvault/postgresql` |
 
-每个 `app` 目录都包含 `config/`、`database/` 和 `uploads/`。其中 `config/` 持久化加密连接配置及默认生成的主密钥，`uploads/` 持久化受控上传文件；MySQL 和 PostgreSQL 的真正数据库数据位于各自独立的 `database` 目录。
+所有路径均可在脚本交互时替换为其他绝对路径。应用数据目录包含 `config/`、`database/`、`uploads/`；`config/` 持久化加密连接配置及默认生成的主密钥，`uploads/` 持久化受控上传文件。MySQL/PostgreSQL 的真实数据库数据必须位于独立目录，不能放入或覆盖应用数据目录。脚本将 `compose.yml` 设为 `0600`，将新建数据目录设为 `0700`，因为 MySQL/PostgreSQL 的 Compose 环境中含有数据库密码。
 
-### SQLite
+SQLite 只启动应用容器，并使用固定路径 `/app/data/database/slothvault.db` 创建并初始化受管数据库；页面不能填写任意 SQLite 文件路径。MySQL Compose 使用 MySQL 8.0、InnoDB、`utf8mb4`；PostgreSQL Compose 使用 PostgreSQL 16。两种服务器数据库都会先通过健康检查，应用才会使用同一组初始化参数自动保存加密连接配置并初始化空库。
 
-```bash
-cp .env.docker.sqlite.example .env.docker.sqlite
-docker compose --env-file .env.docker.sqlite up -d --build
-```
-
-SQLite Compose 只启动应用容器。它会使用固定路径 `/app/data/database/slothvault.db` 创建并初始化受管数据库；页面不能填写任意 SQLite 文件路径。
-
-### MySQL 8.0
-
-先复制示例并为应用账号和 MySQL root 账号设置不同的强密码：
+安装脚本提供“更新、启动、停止、状态”操作。更新只执行镜像拉取与 `up -d`，不会覆盖 Compose 配置或移动/删除持久化目录；也可以直接运行：
 
 ```bash
-cp .env.docker.mysql.example .env.docker.mysql
-# 编辑 .env.docker.mysql：设置 MYSQL_PASSWORD 和 MYSQL_ROOT_PASSWORD
-docker compose --env-file .env.docker.mysql -f docker-compose.mysql.yml up -d --build
-docker compose --env-file .env.docker.mysql -f docker-compose.mysql.yml ps
+docker compose -f /data/slothvault/compose.yml pull
+docker compose -f /data/slothvault/compose.yml up -d
+docker compose -f /data/slothvault/compose.yml ps
 ```
 
-Compose 使用 MySQL 8.0、InnoDB、`utf8mb4` 和独立本地数据目录。应用会等待 MySQL 健康检查，再使用同一组 `MYSQL_DATABASE`、`MYSQL_USER` 和 `MYSQL_PASSWORD` 自动保存加密连接配置并初始化空库；部署者不需要在网页重复填写连接信息。
-
-### PostgreSQL 16
-
-先复制示例并设置 PostgreSQL 应用账号密码：
-
-```bash
-cp .env.docker.postgresql.example .env.docker.postgresql
-# 编辑 .env.docker.postgresql：设置 POSTGRES_PASSWORD
-docker compose --env-file .env.docker.postgresql -f docker-compose.postgresql.yml up -d --build
-docker compose --env-file .env.docker.postgresql -f docker-compose.postgresql.yml ps
-```
-
-Compose 使用 PostgreSQL 16 和独立本地数据目录。应用会等待 PostgreSQL 健康检查，再使用同一组 `POSTGRES_DB`、`POSTGRES_USER` 和 `POSTGRES_PASSWORD` 自动保存加密连接配置并初始化空库；部署者不需要在网页重复填写连接信息。
+仓库内的 `docker-compose.yml`、`docker-compose.mysql.yml`、`docker-compose.postgresql.yml` 及 `.env.docker.*.example` 仍用于源码构建和本地开发。不要将该源码模式的相对 `docker-data/` 目录与 Release 安装脚本的 `/data/slothvault/` 部署混用。
 
 ### 自动引导与首次管理员
 
@@ -150,7 +134,7 @@ CA 内容随数据库配置一起加密，不会通过安装状态接口返回�
 
 ## 旧 profile 部署与 provider 切换
 
-新的三模式 Compose 文件不会自动读取或移动旧 profile 方案的 `docker-data/config`、`docker-data/database`、`docker-data/mysql` 或 `docker-data/postgres`。先在升级本仓库或切换部署文件前，保留旧容器的 Compose 文件和运行环境，并完成备份；不要把旧目录挂载到新模式的 `app` 或 `database` 路径。
+Release 安装脚本与仓库内的三种源码 Compose 模板都不会自动读取或移动旧 profile 方案的 `docker-data/config`、`docker-data/database`、`docker-data/mysql` 或 `docker-data/postgres`。先在升级本仓库或切换部署方式前，保留旧容器的 Compose 文件和运行环境，并完成备份；不要把旧目录挂载到新的应用或数据库数据路径。
 
 切换旧部署或 provider 的安全步骤：
 
