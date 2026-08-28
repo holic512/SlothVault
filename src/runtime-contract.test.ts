@@ -113,7 +113,19 @@ describe('Next runtime contract', () => {
     const dockerfile = readFileSync(join(root, 'Dockerfile'), 'utf8')
     const composeFiles = readComposeFiles()
     const entrypoint = readFileSync(join(root, 'docker-entrypoint.sh'), 'utf8')
-    const installer = readFileSync(join(root, 'install.py'), 'utf8')
+    const deploymentEntrypoint = readFileSync(join(root, 'deploy', 'install.py'), 'utf8')
+    const deploymentCompose = readFileSync(
+      join(root, 'deploy', 'slothvault_deploy', 'compose.py'),
+      'utf8',
+    )
+    const deploymentNginx = readFileSync(
+      join(root, 'deploy', 'slothvault_deploy', 'nginx.py'),
+      'utf8',
+    )
+    const deploymentCertbot = readFileSync(
+      join(root, 'deploy', 'slothvault_deploy', 'certbot.py'),
+      'utf8',
+    )
     const sanitizer = readFileSync(
       join(root, 'scripts', 'sanitize-standalone.mjs'),
       'utf8',
@@ -139,11 +151,21 @@ describe('Next runtime contract', () => {
     }
     expect(entrypoint).toContain('exec node server.js')
     expect(entrypoint).toContain('SLOTHVAULT_AUTO_BOOTSTRAP')
-    expect(installer).toContain('from __future__ import annotations')
-    expect(installer).toContain('DEFAULT_ROOT = Path("/data/slothvault")')
-    expect(installer).toContain('compose_command')
-    expect(installer).not.toContain('import yaml')
-    expect(workflow).toContain('gh release upload "$RELEASE_TAG" ./install.py --clobber')
+    expect(existsSync(join(root, 'install.py'))).toBe(false)
+    expect(deploymentEntrypoint).toContain('from slothvault_deploy.cli import main')
+    expect(deploymentCompose).toContain('DEFAULT_ROOT = Path("/data/slothvault")')
+    expect(deploymentCompose).toContain('compose_command')
+    expect(deploymentCompose).toContain('127.0.0.1:{0}:3000')
+    expect(deploymentNginx).toContain('proxy_set_header X-Forwarded-For')
+    expect(deploymentNginx).toContain('return 301 https://$host$request_uri;')
+    expect(deploymentCertbot).toContain('certonly')
+    expect(deploymentCertbot).toContain('--webroot')
+    expect(deploymentCertbot).toContain('slothvault-certbot-renew.timer')
+    expect(`${deploymentEntrypoint}\n${deploymentCompose}\n${deploymentNginx}\n${deploymentCertbot}`).not.toContain(
+      'import yaml',
+    )
+    expect(workflow).toContain('git archive --format=zip --prefix=deploy/')
+    expect(workflow).toContain('gh release upload "$RELEASE_TAG" ./slothvault-deploy.zip --clobber')
     expect(sanitizer).toContain('removeSourceMaps(standaloneRoot)')
     expect(sanitizer).toContain('pruneSharpRuntimePackages(standaloneRoot)')
     expect(workflow).toContain('Inspect published image sizes')

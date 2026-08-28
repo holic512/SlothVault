@@ -14,14 +14,15 @@ SlothVault 的发布包同时包含 SQLite、MySQL 和 PostgreSQL 支持，但�
 
 ## Docker 部署
 
-发布版推荐使用 GitHub Release 附件中的 `install.py`。该文件只依赖 Python 3.8+ 标准库，运行在宿主机而不是应用容器中；它会选择 provider、生成唯一的 `/data/slothvault/compose.yml`、创建私有持久化目录，再调用已安装的 Docker Compose v2 拉取并启动发布镜像。脚本不安装 Docker Engine，也不覆盖已有的 Compose 文件或非空数据目录。
+发布版推荐使用 GitHub Release 附件中的 `slothvault-deploy.zip`。解压出的 `deploy/` 目录只依赖 Python 3.8+ 标准库，运行在宿主机而不是应用容器中；它会选择 provider、生成唯一的 `/data/slothvault/compose.yml`、创建私有持久化目录，再调用已安装的 Docker Compose v2 拉取并启动发布镜像。部署包不安装 Docker Engine，也不覆盖已有的 Compose 文件或非空数据目录。
 
 ```bash
-curl -fL https://github.com/holic512/SlothVault/releases/latest/download/install.py -o install.py
-python3 install.py
+curl -fL https://github.com/holic512/SlothVault/releases/latest/download/slothvault-deploy.zip -o slothvault-deploy.zip
+python3 -m zipfile -e slothvault-deploy.zip .
+sudo python3 deploy/install.py
 ```
 
-如 `/data` 需要管理员权限，请从一开始使用 `sudo python3 install.py`，并在后续 `docker compose` 维护命令中使用相同权限。首次启动后访问 `http://<服务器地址>:3000/install` 创建首位管理员。
+如 `/data` 需要管理员权限，请从一开始使用 `sudo python3 deploy/install.py`，并在后续 `docker compose` 维护命令中使用相同权限。首次启动后访问实际服务地址的 `/install` 页面创建首位管理员。
 
 | 模式 | 服务 | 生成的 Compose 文件 | 应用数据目录 | 数据库目录 |
 | --- | --- | --- | --- | --- |
@@ -33,7 +34,37 @@ python3 install.py
 
 SQLite 只启动应用容器，并使用固定路径 `/app/data/database/slothvault.db` 创建并初始化受管数据库；页面不能填写任意 SQLite 文件路径。MySQL Compose 使用 MySQL 8.0、InnoDB、`utf8mb4`；PostgreSQL Compose 使用 PostgreSQL 16。两种服务器数据库都会先通过健康检查，应用才会使用同一组初始化参数自动保存加密连接配置并初始化空库。
 
-安装脚本提供“更新、启动、停止、状态”操作。更新只执行镜像拉取与 `up -d`，不会覆盖 Compose 配置或移动/删除持久化目录；也可以直接运行：
+### 已有 Nginx 的反向代理
+
+部署包会通过宿主机 `PATH` 检测 `nginx`。检测到后，首次安装会询问是否配置反向代理；已有 SlothVault 实例可再次运行 `sudo python3 deploy/install.py`，在菜单中选择“配置或更新 Nginx 反向代理”。脚本不会安装 Nginx，也不会修改未由它生成的 Nginx 站点文件。
+
+选择后，脚本会要求输入一个站点域名或 IPv4 地址及 Nginx HTTP 监听端口（默认 `80`），并执行以下受控流程：
+
+1. 仅在 `/etc/nginx/sites-available` + `/etc/nginx/sites-enabled` 或 `/etc/nginx/conf.d` 中生成 `slothvault.conf`；找不到这些标准目录时停止，不猜测或创建未知 Nginx 配置结构。
+2. 生成 `proxy_pass http://127.0.0.1:<SlothVault 端口>`、`proxy_http_version 1.1`、`Host`、`X-Real-IP`、`X-Forwarded-For`、`X-Forwarded-Proto` 和 `X-Forwarded-Host` 请求头。
+3. 使用 `nginx -t` 验证语法和文件引用，再用 `nginx -T` 确认生成的站点确实被主配置加载；任一步失败都会恢复本轮写入的站点配置或启用链接。
+4. 在 Nginx 已运行时重载服务；未运行时经用户再次确认后启动服务。
+5. 将 SlothVault 容器的宿主机端口绑定改为 `127.0.0.1:<端口>:3000`，然后重新创建容器，以阻止直接绕过 Nginx 的公网访问。
+
+该操作需要写入 `/etc/nginx`，请使用 `sudo python3 deploy/install.py`。HTTP 反向代理可以使用自定义监听端口；若要申请证书，请使用独立的“申请或更新 Let's Encrypt HTTPS 证书”菜单，它固定使用标准 `80` 和 `443` 端口。
+
+### Let's Encrypt HTTPS 与自动续约
+
+HTTPS 菜单采用 Certbot `certonly --webroot` HTTP-01 验证，部署包自己的 Nginx 配置是唯一配置来源，不使用会自动修改站点文件的 `certbot --nginx`。输入普通 DNS 域名（可输入多个，首个为主域名和证书目录名）、联系邮箱并确认 Let’s Encrypt 服务条款后，受管 Nginx 配置将按以下方式切换：
+
+1. 临时在 `80` 端口从 `/data/slothvault/acme-challenge` 提供 `/.well-known/acme-challenge/`，其余请求仍反代至本机应用。
+2. Certbot 成功签发后，HTTP 仅保留挑战路径，其他请求以 `301` 跳转至 HTTPS；Nginx 在 `443` 使用 `/etc/letsencrypt/live/<主域名>/fullchain.pem` 和 `privkey.pem` 反代 SlothVault。
+3. 在证书签发前，脚本会将 Compose 应用端口绑定到 `127.0.0.1`，由临时 HTTP 代理保持服务可达；这会阻止直接绕过 Nginx 的公网访问。若签发前的步骤失败，会恢复本轮受管 Nginx 和 Compose 改动；HTTPS 激活失败时会保留已签发证书并恢复可用的临时 HTTP 代理。
+
+只支持明确的普通 DNS 域名；不支持 IP、通配符、DNS-01 和自定义 CA。请在运行前确认各域名 A/AAAA 已指向此服务器，并在云安全组/防火墙中开放 TCP `80` 与 `443`。脚本会显示本机 DNS 解析结果，但不会通过公网 IP 自动比对替用户判断 DNS 指向。不会默认开启 HSTS。
+
+未检测到 Certbot 时，脚本只会在 Debian/Ubuntu 使用 `apt-get update` + `apt-get install certbot`，或在 Fedora/RHEL 使用 `dnf install -y certbot`。其他发行版、缺少包管理器或 RHEL 软件源没有 Certbot 时会停止并要求管理员处理；不会自动添加第三方仓库或改用 Snap。
+
+成功后，脚本写入 Certbot deploy hook，使续约成功后重载 Nginx。若已有活动的 Certbot systemd timer 则复用；否则创建 `slothvault-certbot-renew.timer`，每天两次并使用随机延迟运行续约；没有 systemd 时生成 cron 后备任务。首次配置最后执行 `certbot renew --dry-run --run-deploy-hooks`。菜单“查看证书状态或立即尝试续约”会显示本实例主证书文件状态，并可执行一次实际的 `certbot renew` 检查；Certbot 会按其原生行为检查宿主机所有受管理证书。
+
+若使用 SELinux 且 Nginx 出现 `502 Bad Gateway`，部署者还需根据发行版安全策略允许 Nginx 连接本机上游服务。
+
+安装脚本提供“更新、启动、停止、状态、配置或更新 Nginx 反向代理、申请或更新 Let's Encrypt HTTPS 证书、查看证书状态或立即尝试续约”操作。更新只执行镜像拉取与 `up -d`，不会覆盖 Compose 配置或移动/删除持久化目录；也可以直接运行：
 
 ```bash
 docker compose -f /data/slothvault/compose.yml pull

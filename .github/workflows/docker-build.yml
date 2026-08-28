@@ -1,10 +1,10 @@
 # @file .github/workflows/docker-build.yml
 # @project SlothVault
 # @module Container and source release delivery
-# @description Validates pull-request images and publishes the default-branch Docker image with per-platform size metrics plus a source GitHub Release and standalone host installer asset.
-# @logic Capture the previous image size, build and inspect one multi-architecture standalone image, report compressed-size deltas, then refresh the idempotent release and replace its installer asset.
-# @dependencies GitHub Actions, Docker Buildx, Docker Hub, Node.js, GitHub CLI, install.py
-# @index_tags github-actions,docker,standalone,image-size,release,source-archive,installer,commit-log
+# @description Validates pull-request images and publishes the default-branch Docker image with per-platform size metrics plus a source GitHub Release and self-contained host deployment ZIP.
+# @logic Capture the previous image size, build and inspect one multi-architecture standalone image, report compressed-size deltas, then refresh the idempotent release and replace its deploy directory archive.
+# @dependencies GitHub Actions, Docker Buildx, Docker Hub, Node.js, GitHub CLI, deploy/
+# @index_tags github-actions,docker,standalone,image-size,release,source-archive,deployment,zip,commit-log
 # @author holic512
 
 name: Build Docker Image and Publish Release
@@ -141,12 +141,13 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Docker Compose Install" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "curl -fL https://github.com/${{ github.repository }}/releases/latest/download/install.py -o install.py" >> $GITHUB_STEP_SUMMARY
-          echo "python3 install.py" >> $GITHUB_STEP_SUMMARY
+          echo "curl -fL https://github.com/${{ github.repository }}/releases/latest/download/slothvault-deploy.zip -o slothvault-deploy.zip" >> $GITHUB_STEP_SUMMARY
+          echo "python3 -m zipfile -e slothvault-deploy.zip ." >> $GITHUB_STEP_SUMMARY
+          echo "sudo python3 deploy/install.py" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   publish-release:
-    name: Publish source release and installer
+    name: Publish source release and deployment package
     needs: build-and-push
     if: >-
       github.event_name == 'push' &&
@@ -210,11 +211,14 @@ jobs:
               --notes-file release-notes.md
           fi
 
-      - name: Upload host installer asset
+      - name: Build deployment package archive
+        run: git archive --format=zip --prefix=deploy/ "${GITHUB_SHA}:deploy" -o slothvault-deploy.zip
+
+      - name: Upload host deployment package
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
-        run: gh release upload "$RELEASE_TAG" ./install.py --clobber
+        run: gh release upload "$RELEASE_TAG" ./slothvault-deploy.zip --clobber
 
       - name: Generate release summary
         env:
@@ -224,4 +228,4 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "- Tag: \`$RELEASE_TAG\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Notes: first-parent commit log only." >> "$GITHUB_STEP_SUMMARY"
-          echo "- Assets: GitHub-generated source ZIP and tar.gz, plus the standalone \`install.py\` host installer." >> "$GITHUB_STEP_SUMMARY"
+          echo "- Assets: GitHub-generated source ZIP and tar.gz, plus \`slothvault-deploy.zip\` containing the self-contained host deployment package." >> "$GITHUB_STEP_SUMMARY"

@@ -67,13 +67,14 @@ APP_DATA_PATH=./data UPLOAD_STORAGE_PATH=./data/uploads npm run dev
 
 ### Docker Compose
 
-正式 Linux 部署使用 Release 附件中的纯标准库宿主机脚本 `install.py`。它不需要源码目录、Node.js 或额外 Python 包：交互选择 SQLite、MySQL 或 PostgreSQL 后，会在部署根目录生成私有的 `/data/slothvault/compose.yml`，创建所选模式的持久化目录，拉取发布镜像并启动服务。首次 schema 初始化由应用自动完成；随后访问 [http://localhost:3000/install](http://localhost:3000/install) 创建首位管理员。
+正式 Linux 部署使用 Release 附件中的 `slothvault-deploy.zip`。它解压出独立的纯标准库部署包 `deploy/`，不需要源码目录、Node.js 或额外 Python 包：交互选择 SQLite、MySQL 或 PostgreSQL 后，会在部署根目录生成私有的 `/data/slothvault/compose.yml`，创建所选模式的持久化目录，拉取发布镜像并启动服务。首次 schema 初始化由应用自动完成；随后访问应用的 `/install` 页面创建首位管理员。
 
-前置条件：Linux 已安装 Docker Engine、Docker Compose v2 与 Python 3.8+。`install.py` 不会尝试根据发行版自动安装 Docker。若默认 `/data` 目录不可写，请使用 `sudo` 运行脚本，后续 Docker 命令也使用同一权限级别。
+前置条件：Linux 已安装 Docker Engine、Docker Compose v2 与 Python 3.8+。部署包不会尝试根据发行版自动安装 Docker。默认 `/data` 目录和 Nginx/证书配置需要管理员权限，建议从首次安装开始使用 `sudo`，后续 Docker 命令也使用同一权限级别。
 
 ```bash
-curl -fL https://github.com/holic512/SlothVault/releases/latest/download/install.py -o install.py
-python3 install.py
+curl -fL https://github.com/holic512/SlothVault/releases/latest/download/slothvault-deploy.zip -o slothvault-deploy.zip
+python3 -m zipfile -e slothvault-deploy.zip .
+sudo python3 deploy/install.py
 ```
 
 脚本的默认路径如下；输入时可按需改为其他绝对路径。生成的 `compose.yml` 包含数据库凭据（若选择 MySQL/PostgreSQL），因此脚本会将其权限设为 `0600`；所有持久化目录为 `0700`。
@@ -86,6 +87,12 @@ python3 install.py
 
 MySQL 与 PostgreSQL Compose 配置会等待数据库健康检查成功，再启动应用。应用目录保存加密数据库配置、上传文件和仅 SQLite 使用的数据库文件；服务器数据库始终存放在独立目录，不能与应用数据目录交叠。Docker 本地模式固定使用 Compose 内部网络的非 TLS 连接。
 
+若宿主机已安装 Nginx，脚本会检测到它并提供“配置 Nginx 反向代理”的选项；已部署实例也可随时在菜单中选择该操作。脚本不会自动安装 Nginx。确认后，它会在标准的 `/etc/nginx/sites-available` + `sites-enabled` 或 `/etc/nginx/conf.d` 目录创建仅由部署包管理的站点文件，先执行 `nginx -t` 与 `nginx -T` 验证，再重载或启动 Nginx。应用容器端口会改为仅监听 `127.0.0.1`，对外请求必须经 Nginx 转发，避免直接绕过反向代理。
+
+菜单中的“申请或更新 Let's Encrypt HTTPS 证书”使用 HTTP-01 Webroot 验证，不会使用会自动改写站点文件的 `certbot --nginx`。输入一个或多个普通 DNS 域名（首个为主域名）、联系邮箱并确认服务条款后，脚本会让 Nginx 在公网 `80` 端口提供 ACME 验证；签发成功后，`80` 仅保留挑战路径，其余请求以 `301` 跳转至 `443` 上的 HTTPS 反向代理。脚本不会默认开启 HSTS。
+
+证书功能需要域名 A/AAAA 已指向服务器、TCP `80` 和 `443` 已在防火墙/安全组放行，并以 `sudo python3 deploy/install.py` 运行。缺少 Certbot 时，脚本仅会在 Debian/Ubuntu 使用 `apt-get`、在 Fedora/RHEL 使用 `dnf` 安装；不支持的发行版或缺少软件源时会停止并提示管理员处理，不会添加第三方仓库或改用 Snap。签发后会写入 Nginx 重载 hook，并复用已启用的 Certbot systemd timer；没有该 timer 时创建 SlothVault 自己的 systemd timer，缺少 systemd 时回退为 cron。首次设置会执行 `certbot renew --dry-run --run-deploy-hooks`，实际签发仍取决于真实 DNS、网络和 Let’s Encrypt 校验。若系统启用了 SELinux 且出现 Nginx `502`，还需要由系统管理员按发行版策略允许 Nginx 连接本机上游服务。
+
 未来更新不需要重新生成配置或迁移数据目录：再次运行脚本并选择“更新”，或执行：
 
 ```bash
@@ -93,7 +100,7 @@ docker compose -f /data/slothvault/compose.yml pull
 docker compose -f /data/slothvault/compose.yml up -d
 ```
 
-仓库仍保留三份 `docker-compose*.yml` 和示例环境文件，供从源码构建或本地开发使用；生产服务器推荐使用 Release 中的 `install.py`。远程 MySQL/PostgreSQL、TLS 或自定义 CA 的部署，继续使用网页安装器手工配置，详见[数据库安装与迁移指南](./docs/DATABASE_INSTALLATION.md)。
+仓库仍保留三份 `docker-compose*.yml` 和示例环境文件，供从源码构建或本地开发使用；生产服务器推荐使用 Release 中的 `slothvault-deploy.zip`。远程 MySQL/PostgreSQL 或自定义 CA 的部署，继续使用网页安装器手工配置，详见[数据库安装与迁移指南](./docs/DATABASE_INSTALLATION.md)。
 
 ## 使用模型
 
