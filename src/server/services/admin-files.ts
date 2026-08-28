@@ -50,6 +50,11 @@ export const UPLOAD_ROOT = configuredUploadRoot
   : resolve(/* turbopackIgnore: true */ process.cwd(), 'data', 'uploads')
 const TRASH_DIRECTORY = '.trash'
 const IMAGE_PIXEL_LIMIT = 40_000_000
+export const IMAGE_VALIDATION_MAX_CONCURRENCY = 1
+export const IMAGE_VALIDATION_MAX_QUEUED_REQUESTS = 2
+
+let activeImageValidations = 0
+const queuedImageValidationStarts: Array<() => void> = []
 
 export const BUSINESS_TYPE_CONFIG = {
   SystemLogo: { dir: 'system-logo', imagesOnly: true },
@@ -115,6 +120,49 @@ type PreparedUpload = {
   filePath: string
   absolutePath: string
   buffer: Buffer
+}
+
+function acquireImageValidationSlot() {
+  return new Promise<() => void>((resolve, reject) => {
+    const start = () => {
+      activeImageValidations += 1
+      let released = false
+      resolve(() => {
+        if (released) return
+        released = true
+        activeImageValidations -= 1
+        queuedImageValidationStarts.shift()?.()
+      })
+    }
+
+    if (activeImageValidations < IMAGE_VALIDATION_MAX_CONCURRENCY) {
+      start()
+      return
+    }
+    if (queuedImageValidationStarts.length >= IMAGE_VALIDATION_MAX_QUEUED_REQUESTS) {
+      reject(
+        new HttpError(
+          'Image processing is busy, please retry',
+          503,
+          5034,
+          { reason: 'IMAGE_VALIDATION_CAPACITY' },
+        ),
+      )
+      return
+    }
+    queuedImageValidationStarts.push(start)
+  })
+}
+
+export async function withImageValidationCapacity<T>(
+  operation: () => Promise<T>,
+) {
+  const release = await acquireImageValidationSlot()
+  try {
+    return await operation()
+  } finally {
+    release()
+  }
 }
 
 export type UploadFilesOptions = {
@@ -230,20 +278,22 @@ async function ensureContainedDirectory(directory: string) {
 }
 
 async function validateImage(buffer: Buffer, extension: string, originalName: string) {
-  const expectedFormat = extension === 'jpg' ? 'jpeg' : extension
-  const options = {
-    animated: true,
-    failOn: 'warning' as const,
-    limitInputPixels: IMAGE_PIXEL_LIMIT,
-  }
+  return withImageValidationCapacity(async () => {
+    const expectedFormat = extension === 'jpg' ? 'jpeg' : extension
+    const options = {
+      animated: true,
+      failOn: 'warning' as const,
+      limitInputPixels: IMAGE_PIXEL_LIMIT,
+    }
 
-  try {
-    const metadata = await sharp(buffer, options).metadata()
-    if (metadata.format !== expectedFormat) throw new Error('Image format mismatch')
-    await sharp(buffer, options).toBuffer()
-  } catch {
-    throw new HttpError(`Invalid image file: ${originalName}`, 400, 400)
-  }
+    try {
+      const metadata = await sharp(buffer, options).metadata()
+      if (metadata.format !== expectedFormat) throw new Error('Image format mismatch')
+      await sharp(buffer, options).toBuffer()
+    } catch {
+      throw new HttpError(`Invalid image file: ${originalName}`, 400, 400)
+    }
+  })
 }
 
 function assertContentLength(request: Request) {

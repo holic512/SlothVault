@@ -25,3 +25,10 @@ coverage
 .cache
 .temp
 .tmp
+
+# Local test, release, and skill artifacts are not required by `npm run build`.
+tests
+playwright-report
+test-results
+skills
+deploy

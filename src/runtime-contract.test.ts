@@ -142,6 +142,7 @@ describe('Next runtime contract', () => {
     expect(deploymentSources).not.toContain('/app/public/uploads')
     expect(deploymentSources).not.toContain('.output/server')
     expect(dockerfile).toContain('.next/standalone')
+    expect(dockerfile).not.toContain('COPY --from=builder /app/.next/static ./.next/static')
     expect(composeFiles['docker-compose.yml']).toContain('name: slothvault-sqlite')
     expect(composeFiles['docker-compose.yml']).toContain('/app/data')
     expect(composeFiles['docker-compose.mysql.yml']).toContain('name: slothvault-mysql')

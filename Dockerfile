@@ -34,9 +34,9 @@ RUN --mount=type=cache,target=/app/.next/cache \
 FROM base AS runner
 
 # The standalone output already contains the traced application dependencies
-# and the exact Prisma CLI dependency closure added by the postbuild sanitizer.
+# plus static assets and the exact Prisma CLI dependency closure added by the
+# postbuild sanitizer.
 COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
 COPY docker-entrypoint.sh /usr/local/bin/
