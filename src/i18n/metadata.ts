@@ -16,6 +16,7 @@ export type PageTitleKey =
   | 'account'
   | 'accountContracts'
   | 'accountMembership'
+  | 'accountKnowledgeSkill'
   | 'accountPoints'
   | 'accountProfile'
   | 'accountSecurity'

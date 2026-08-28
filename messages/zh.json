@@ -392,6 +392,7 @@
     "accountContracts": "我的合同",
     "accountPoints": "积分中心",
     "accountMembership": "会员中心",
+    "accountKnowledgeSkill": "知识库打包 Skill",
     "accountProfile": "个人资料",
     "accountSecurity": "安全与登录",
     "adminLogin": "管理员登录",
@@ -427,6 +428,7 @@
       "articles": "文章管理",
       "projects": "项目管理",
       "notes": "项目内容",
+      "knowledgeImport": "知识库导入",
       "files": "文件管理",
       "users": "用户管理",
       "membershipLevels": "会员等级",
@@ -441,6 +443,61 @@
       "content": "内容管理",
       "users": "用户与权益",
       "system": "系统与存证"
+    },
+    "knowledgeImport": {
+      "eyebrow": "SKILL OUTPUT INTAKE",
+      "title": "导入知识库文章包",
+      "description": "将 Codex 等 AI 工具基于真实项目源码生成的 ZIP 导入为可编辑、可发布的项目文档。先验证包，再选择目标；导入始终创建或写入草稿，不会直接公开。",
+      "steps": {
+        "package": "选择文章包",
+        "target": "选择项目与版本",
+        "commit": "确认导入"
+      },
+      "package": {
+        "label": "Skill 输出 ZIP",
+        "hint": "仅接受 slothvault.knowledge-package v1；系统会校验目录、文章 Markdown 镜像与 SHA-256。",
+        "select": "选择 ZIP 并解析",
+        "replace": "更换文件",
+        "empty": "拖入或点击选择知识库 ZIP",
+        "emptyHint": "请先让知识库生成 Skill 完成项目包或单篇文章包。"
+      },
+      "preview": {
+        "kindProject": "项目知识库包",
+        "kindArticle": "单篇文章包",
+        "articles": "{count} 篇文章",
+        "references": "{count} 条源码引用",
+        "createdAt": "生成于 {date}",
+        "packageHash": "包哈希"
+      },
+      "target": {
+        "project": "目标项目",
+        "projectPlaceholder": "选择已有项目",
+        "version": "项目版本号",
+        "versionPlaceholder": "例如 1.9.0",
+        "versionHint": "项目包会以这个版本号创建新的草稿版本。",
+        "existingVersion": "目标草稿版本",
+        "existingVersionPlaceholder": "选择尚未发布的版本",
+        "articleHint": "单篇文章会写入该草稿版本；若包内分类不存在，系统会创建它。",
+        "noDraft": "所选项目没有可写入的草稿版本，请先创建版本或导入项目包。"
+      },
+      "actions": {
+        "inspect": "解析文章包",
+        "importProject": "创建草稿并导入",
+        "importArticle": "导入到草稿版本",
+        "openWorkspace": "打开内容编辑器",
+        "backProjects": "返回项目管理"
+      },
+      "messages": {
+        "inspectSuccess": "文章包已验证，请选择导入目标。",
+        "inspectFailed": "无法解析文章包",
+        "selectPackage": "请先选择并验证一个 ZIP 文件。",
+        "selectProject": "请选择目标项目。",
+        "selectVersion": "请填写项目版本号。",
+        "selectDraft": "请选择目标草稿版本。",
+        "importSuccess": "知识库内容已导入为草稿。",
+        "importFailed": "导入失败",
+        "projectMismatch": "文章包中的项目名称仅用于说明；实际归属由这里选择的项目决定。"
+      }
     },
     "walletTool": {
       "hint": "仅用于链上存证签名，不影响后台登录权限",
@@ -556,6 +613,7 @@
       "actions": {
         "search": "查询",
         "reset": "重置",
+        "importKnowledge": "导入知识库",
         "create": "新增项目",
         "batchDelete": "批量删除",
         "batchRestore": "批量恢复",

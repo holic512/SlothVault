@@ -1,10 +1,10 @@
 // @file prisma/providers/sqlite/schema.prisma
 // @project SlothVault
 // @module SQLite persistence model
-// @description Defines the flat, domain-prefixed SQLite schema for independent articles, project publishing, user identity, contracts, points, gift cards, and transaction evidence.
+// @description Defines the flat, domain-prefixed SQLite schema for independent articles, project publishing, imported knowledge packages, user identity, contracts, points, gift cards, and transaction evidence.
 // @logic Preserve the provider-neutral article and project models for single-instance deployments and bind optional Solana evidence only to immutable project releases and frozen contracts.
 // @dependencies Prisma ORM 7.3.0, @prisma/adapter-better-sqlite3 7.3.0
-// @index_tags prisma, sqlite, schema, persistence, articles, projects, installation, contracts
+// @index_tags prisma, sqlite, schema, persistence, articles, projects, knowledge-package, installation, contracts
 // @author holic512
 
 generator client {
@@ -243,6 +243,7 @@ model ProjectVersion {
   isDeleted        Boolean    @default(false) @map("is_deleted")
   project          Project    @relation(fields: [projectId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   categories       Category[]
+  knowledgePackages KnowledgePackage[]
   releaseCredentials ReleaseCredential[]
 
   @@index([projectId], map: "idx_collections_project_version_project_id")
@@ -278,6 +279,7 @@ model NoteInfo {
   isDeleted       Boolean       @default(false) @map("is_deleted")
   category        Category      @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   contents        NoteContent[]
+  knowledgeArticle KnowledgeArticle?
 
   @@index([categoryId], map: "idx_docs_note_info_category_id")
   @@index([authorId], map: "idx_docs_note_info_author_id")
@@ -300,6 +302,42 @@ model NoteContent {
 
   @@index([noteInfoId], map: "idx_docs_note_content_note_info_id")
   @@map("docs_note_content")
+}
+
+model KnowledgePackage {
+  id               Int            @id @default(autoincrement())
+  projectVersionId Int            @map("project_version_id")
+  packageKind      String         @map("package_kind")
+  title            String
+  summary          String?
+  schemaVersion    Int            @map("schema_version")
+  packageHash      String         @map("package_hash")
+  manifest         String
+  createdAt        DateTime       @default(now()) @map("created_at")
+  projectVersion   ProjectVersion @relation(fields: [projectVersionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  articles         KnowledgeArticle[]
+
+  @@index([projectVersionId], map: "idx_knowledge_package_project_version_id")
+  @@map("knowledge_package")
+}
+
+model KnowledgeArticle {
+  id                   Int              @id @default(autoincrement())
+  packageId            Int              @map("package_id")
+  noteInfoId           Int              @unique(map: "uq_knowledge_article_note_info_id") @map("note_info_id")
+  externalId           String           @map("external_id")
+  slug                 String
+  articleType          String           @map("article_type")
+  summary              String?
+  tagsJson             String           @map("tags_json")
+  sourceReferencesJson String           @map("source_references_json")
+  createdAt            DateTime         @default(now()) @map("created_at")
+  package              KnowledgePackage @relation(fields: [packageId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  noteInfo             NoteInfo         @relation(fields: [noteInfoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([packageId, externalId], map: "uq_knowledge_article_package_external_id")
+  @@index([packageId], map: "idx_knowledge_article_package_id")
+  @@map("knowledge_article")
 }
 
 model FileManagement {

@@ -30,7 +30,7 @@ import {
   Upload,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { BookOpenText, Boxes, Clipboard, Download, Ellipsis, Eye, EyeOff, GitFork, Home, ImageUp, Plus, RefreshCw, Rocket, RotateCcw, ShieldCheck, Trash2 } from 'lucide-react'
+import { BookOpenText, Boxes, Clipboard, Download, Ellipsis, Eye, EyeOff, GitFork, Home, ImageUp, Import, Plus, RefreshCw, Rocket, RotateCcw, ShieldCheck, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 
@@ -239,6 +239,7 @@ export function ProjectsManager() {
       <AdminPageActions>
         <Space>
           <Button icon={<RefreshCw size={15} />} onClick={() => void refresh()}>{t('actions.search')}</Button>
+          <Button icon={<Import size={15} />} onClick={() => router.push('/admin/mm/import')}>{t('actions.importKnowledge')}</Button>
           <Button type="primary" icon={<Plus size={15} />} onClick={openCreate}>{t('actions.create')}</Button>
         </Space>
       </AdminPageActions>

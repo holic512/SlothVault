@@ -1014,6 +1014,258 @@
   line-height: 1.5;
 }
 
+.root :global(.account-skill-route) {
+  display: grid;
+  gap: 12px;
+}
+
+.root :global(.account-skill-hero) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 18px;
+  padding: 20px;
+  border: 1px solid var(--sv-border-strong);
+  border-radius: var(--sv-radius);
+  background:
+    linear-gradient(115deg, color-mix(in srgb, var(--sv-primary) 8%, var(--sv-bg-solid)), transparent 52%),
+    var(--sv-bg-solid);
+  box-shadow: var(--sv-surface-shadow);
+}
+
+.root :global(.account-skill-hero) h2:global(.ant-typography) {
+  margin: 3px 0 7px;
+  font-size: clamp(1.7rem, 3.3vw, 2.45rem);
+}
+
+.root :global(.account-skill-hero) :global(.ant-typography) {
+  max-width: 680px;
+  margin-bottom: 0;
+  color: var(--sv-text-muted);
+  line-height: 1.7;
+}
+
+.root :global(.account-skill-signal) {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 2px 7px;
+  min-width: 116px;
+  padding: 10px 12px;
+  border: 1px solid var(--sv-border-strong);
+  border-radius: var(--sv-radius-sm);
+  background: color-mix(in srgb, var(--sv-bg-soft) 72%, transparent);
+  font-family: var(--sv-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.root :global(.account-skill-signal) svg {
+  grid-row: span 2;
+  color: var(--sv-primary-strong);
+}
+
+.root :global(.account-skill-signal) strong {
+  color: var(--sv-success);
+  font-family: var(--sv-font-body);
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
+.root :global(.account-skill-grid) {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(250px, 0.85fr);
+  gap: 12px;
+}
+
+.root :global(.account-skill-workflow-card) :global(.ant-card-body),
+.root :global(.account-skill-contract-card) :global(.ant-card-body),
+.root :global(.account-skill-package-card) :global(.ant-card-body) {
+  padding: 16px;
+}
+
+.root :global(.account-skill-steps) {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.root :global(.account-skill-steps) li {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 9px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--sv-border);
+}
+
+.root :global(.account-skill-steps) li:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.root :global(.account-skill-steps) li > span {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid var(--sv-border-strong);
+  border-radius: 50%;
+  color: var(--sv-primary-strong);
+  font-family: var(--sv-font-mono);
+  font-size: 10px;
+}
+
+.root :global(.account-skill-steps) strong {
+  font-size: 13px;
+}
+
+.root :global(.account-skill-steps) p {
+  margin: 2px 0 0;
+  color: var(--sv-text-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.root :global(.account-skill-limits) {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-bottom: 14px;
+}
+
+.root :global(.account-skill-limits) div {
+  display: grid;
+  gap: 2px;
+  padding: 10px;
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-radius-sm);
+  background: var(--sv-bg-soft);
+}
+
+.root :global(.account-skill-limits) strong {
+  font-family: var(--sv-font-display);
+  font-size: 19px;
+  letter-spacing: -0.035em;
+}
+
+.root :global(.account-skill-limits) span {
+  color: var(--sv-text-muted);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.root :global(.account-skill-checklist) {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--sv-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.root :global(.account-skill-checklist) li::marker {
+  color: var(--sv-primary-strong);
+}
+
+.root :global(.account-skill-package-grid) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.root :global(.account-skill-command-card) {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-radius-sm);
+  background: var(--sv-bg-soft);
+}
+
+.root :global(.account-skill-command-heading) {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.root :global(.account-skill-command-heading) > div {
+  display: grid;
+  gap: 2px;
+}
+
+.root :global(.account-skill-command-heading) strong {
+  font-size: 13px;
+}
+
+.root :global(.account-skill-command-heading) span {
+  color: var(--sv-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.root :global(.account-skill-command) {
+  min-width: 0;
+  margin: 0;
+  padding: 10px;
+  overflow: auto;
+  border: 1px solid color-mix(in srgb, var(--sv-code-bg) 72%, var(--sv-border));
+  border-radius: 5px;
+  background: var(--sv-code-bg);
+  color: var(--sv-code-text);
+  font-family: var(--sv-font-mono);
+  font-size: 11px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.root :global(.account-skill-validation-command) {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 12px;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--sv-border);
+  color: var(--sv-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.root :global(.account-skill-validation-command) svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.root :global(.account-skill-validation-command) code {
+  color: var(--sv-text);
+  font-family: var(--sv-font-mono);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.root :global(.account-skill-handoff-card) :global(.ant-card-body) {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+}
+
+.root :global(.account-skill-handoff-card) h4:global(.ant-typography) {
+  margin: 2px 0 5px;
+}
+
+.root :global(.account-skill-handoff-card) :global(.ant-typography-secondary) {
+  display: block;
+  max-width: 670px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
 .root :global(.account-security-grid),
 .root :global(.account-points-summary) {
   display: grid;
@@ -1190,6 +1442,25 @@
     width: 100%;
   }
 
+  .root :global(.account-skill-hero),
+  .root :global(.account-skill-grid),
+  .root :global(.account-skill-package-grid) {
+    grid-template-columns: 1fr;
+  }
+
+  .root :global(.account-skill-hero) {
+    align-items: start;
+  }
+
+  .root :global(.account-skill-signal) {
+    justify-self: start;
+  }
+
+  .root :global(.account-skill-handoff-card) :global(.ant-card-body) {
+    display: grid;
+    align-items: start;
+  }
+
   .root :global(.account-security-grid),
   .root :global(.account-points-summary),
   .root :global(.membership-summary-grid) {
@@ -1252,6 +1523,10 @@
   }
 
   .root :global(.account-overview-grid) {
+    grid-template-columns: 1fr;
+  }
+
+  .root :global(.account-skill-limits) {
     grid-template-columns: 1fr;
   }
 

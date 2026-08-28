@@ -392,6 +392,7 @@
     "accountContracts": "My contracts",
     "accountPoints": "Points center",
     "accountMembership": "Membership center",
+    "accountKnowledgeSkill": "Knowledge package Skill",
     "accountProfile": "Profile",
     "accountSecurity": "Security & sign-in",
     "adminLogin": "Admin Login",
@@ -427,6 +428,7 @@
       "articles": "Article Management",
       "projects": "Project Management",
       "notes": "Project Content",
+      "knowledgeImport": "Knowledge Import",
       "files": "File Management",
       "users": "User Management",
       "membershipLevels": "Membership Levels",
@@ -441,6 +443,61 @@
       "content": "Content",
       "users": "Users & Credits",
       "system": "System & Evidence"
+    },
+    "knowledgeImport": {
+      "eyebrow": "SKILL OUTPUT INTAKE",
+      "title": "Import knowledge article packages",
+      "description": "Import a ZIP generated from real project source by Codex or another AI tool as editable, publishable project documents. Packages are validated before a target is selected; imports always stay in draft state.",
+      "steps": {
+        "package": "Choose package",
+        "target": "Choose project and version",
+        "commit": "Confirm import"
+      },
+      "package": {
+        "label": "Skill output ZIP",
+        "hint": "Only slothvault.knowledge-package v1 is accepted. The system validates the tree, Markdown mirrors, and SHA-256 digests.",
+        "select": "Choose ZIP and inspect",
+        "replace": "Replace file",
+        "empty": "Drop or choose a knowledge ZIP",
+        "emptyHint": "Generate a project or single-article package with the knowledge-base Skill first."
+      },
+      "preview": {
+        "kindProject": "Project knowledge package",
+        "kindArticle": "Single article package",
+        "articles": "{count} articles",
+        "references": "{count} source references",
+        "createdAt": "Generated {date}",
+        "packageHash": "Package hash"
+      },
+      "target": {
+        "project": "Target project",
+        "projectPlaceholder": "Choose an existing project",
+        "version": "Project version",
+        "versionPlaceholder": "For example, 1.9.0",
+        "versionHint": "A project package creates a new draft with this version label.",
+        "existingVersion": "Target draft version",
+        "existingVersionPlaceholder": "Choose an unpublished version",
+        "articleHint": "The article is written into this draft; its category is created if absent.",
+        "noDraft": "The selected project has no writable draft. Create one or import a project package first."
+      },
+      "actions": {
+        "inspect": "Inspect package",
+        "importProject": "Create draft and import",
+        "importArticle": "Import into draft",
+        "openWorkspace": "Open content workspace",
+        "backProjects": "Back to project management"
+      },
+      "messages": {
+        "inspectSuccess": "The package is valid. Choose its import target.",
+        "inspectFailed": "The package could not be inspected",
+        "selectPackage": "Choose and inspect a ZIP first.",
+        "selectProject": "Choose a target project.",
+        "selectVersion": "Enter a project version.",
+        "selectDraft": "Choose a target draft version.",
+        "importSuccess": "Knowledge content was imported as a draft.",
+        "importFailed": "Import failed",
+        "projectMismatch": "The package project name is descriptive only; ownership is determined by the project selected here."
+      }
     },
     "walletTool": {
       "hint": "Used only for on-chain evidence signing; it does not affect administrator authentication.",
@@ -556,6 +613,7 @@
       "actions": {
         "search": "Search",
         "reset": "Reset",
+        "importKnowledge": "Import knowledge",
         "create": "New Project",
         "batchDelete": "Batch Delete",
         "batchRestore": "Batch Restore",
