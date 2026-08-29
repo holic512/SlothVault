@@ -27,10 +27,15 @@ env:
   REGISTRY: docker.io
   IMAGE_NAME: ${{ vars.DOCKER_IMAGE_NAME || 'holic512/slothvault' }}
   DOCKER_BUILD_RECORD_UPLOAD: "false"
+  BUILDKIT_PROGRESS: plain
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    # A normal multi-platform build completed in about 16 minutes. Stop a
+    # stuck Buildx/cache request with useful plain-text logs instead of waiting
+    # for the GitHub-hosted runner's 6-hour hard limit.
+    timeout-minutes: 45
     permissions:
       contents: read
 
@@ -80,8 +85,10 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=slothvault
-          cache-to: type=gha,scope=slothvault,mode=min,ignore-error=true
+          # Start with a fresh scope after the previous shared cache stalled.
+          # Bound cache API work; an export problem must not block publishing.
+          cache-from: type=gha,scope=slothvault-build-v2,timeout=5m
+          cache-to: type=gha,scope=slothvault-build-v2,mode=min,timeout=5m,ignore-error=true
           provenance: false
 
       - name: Inspect published image sizes
