@@ -393,9 +393,7 @@
 .admin-menu .ant-menu-item.ant-menu-item-selected,
 .admin-mobile-menu .ant-menu-item.ant-menu-item-selected {
   background: var(--sv-primary) !important;
-  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--sv-bg-solid) 88%, transparent);
   color: var(--sv-bg-solid) !important;
-  font-weight: 700 !important;
 }
 
 .admin-menu .ant-menu-item.ant-menu-item-selected .ant-menu-item-icon,
