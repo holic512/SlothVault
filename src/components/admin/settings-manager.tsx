@@ -5,9 +5,9 @@
  * @project SlothVault
  * @module System Settings Administration
  * @description Provides tabbed configuration controls for branding, evidence policy, protected RPC endpoints, and read-only system Release update status without echoing stored secrets.
- * @logic Load known configuration metadata, partition settings by operational risk, stage uploaded logo paths with changed keys, submit one atomic batch, re-read process-independent runtime values, and independently request display-only GitHub Release status.
+ * @logic Load known configuration metadata, partition settings by operational risk, stage uploaded logo and favicon paths with explicit synchronization choices, submit one atomic batch, re-read process-independent runtime values, and independently request display-only GitHub Release status.
  * @dependencies Ant Design, React Query, next-intl, Next navigation, api-client, system-update API
- * @index_tags admin,settings,branding,logo,secrets,configuration,transaction,system-update,release
+ * @index_tags admin,settings,branding,logo,favicon,secrets,configuration,transaction,system-update,release
  * @author holic512
  */
 import { useMemo, useState } from 'react'
@@ -30,10 +30,12 @@ type ConfigItem = {
   configured?: boolean
   previewUrl?: string
   isCustom?: boolean
-  kind?: 'boolean' | 'network' | 'url' | 'image'
+  kind?: 'boolean' | 'network' | 'url' | 'image' | 'icon'
 }
 type ConfigGroup = { key: string; label: string; configs: ConfigItem[] }
 type ConfigData = { configs: ConfigItem[]; groups: ConfigGroup[] }
+type UploadedBrandingFile = { filePath: string; url: string }
+type UploadedSystemLogo = { logo: UploadedBrandingFile; favicon: UploadedBrandingFile | null }
 type SystemUpdateStatus = 'UP_TO_DATE' | 'UPDATE_AVAILABLE' | 'LOCAL_NEWER' | 'UNVERSIONED' | 'HISTORY_INCOMPLETE' | 'CHECK_FAILED'
 type SystemRelease = {
   tag: string
@@ -53,6 +55,8 @@ type SystemUpdateInfo = {
   historyComplete: boolean
   error: string | null
 }
+
+const SYSTEM_FAVICON_CONFIG_KEY = 'SYSTEM_FAVICON_FILE_PATH'
 
 export function SettingsManager() {
   const t = useTranslations('AdminMM.settings')
@@ -80,18 +84,21 @@ function SettingsForm({ data }: { data: ConfigData }) {
   const t = useTranslations('AdminMM.settings')
   const queryClient = useQueryClient()
   const router = useRouter()
-  const { message } = App.useApp()
+  const { message, modal } = App.useApp()
   const initialValues = useMemo(
     () => Object.fromEntries(data.configs.map((config) => [config.key, config.value])),
     [data.configs],
   )
   const [values, setValues] = useState<Record<string, string>>(initialValues)
   const initialPreviewUrls = useMemo(
-    () => Object.fromEntries(data.configs.map((config) => [config.key, config.previewUrl || '/logo.png'])),
+    () => Object.fromEntries(data.configs.map((config) => [
+      config.key,
+      config.previewUrl || (config.kind === 'icon' ? '/favicon.ico' : '/logo.png'),
+    ])),
     [data.configs],
   )
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>(initialPreviewUrls)
-  const [uploadingLogoKey, setUploadingLogoKey] = useState<string | null>(null)
+  const [uploadingBrandingKey, setUploadingBrandingKey] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('branding')
 
   const changedKeys = Object.keys(values).filter((key) => values[key] !== initialValues[key])
@@ -128,24 +135,65 @@ function SettingsForm({ data }: { data: ConfigData }) {
     onError: (error) => message.error(error.message),
   })
 
-  const uploadSystemLogo = async (key: string, file: File) => {
+  const uploadSystemLogo = async (key: string, file: File, syncFavicon: boolean) => {
     const formData = new FormData()
     formData.append('file', file)
-    setUploadingLogoKey(key)
+    setUploadingBrandingKey(key)
     try {
-      const [uploaded] = await apiFetch<Array<{ filePath: string; url: string }>>(
-        '/api/admin/mm/file?businessType=SystemLogo',
+      const uploaded = await apiFetch<UploadedSystemLogo>(
+        `/api/admin/mm/branding/logo?syncFavicon=${syncFavicon}`,
         { method: 'POST', body: formData },
       )
-      if (!uploaded) throw new Error(t('messages.uploadFailed'))
-      setValues((current) => ({ ...current, [key]: uploaded.filePath }))
-      setPreviewUrls((current) => ({ ...current, [key]: uploaded.url }))
-      message.success(t('messages.uploadSuccess'))
+      setValues((current) => ({
+        ...current,
+        [key]: uploaded.logo.filePath,
+        ...(uploaded.favicon ? { [SYSTEM_FAVICON_CONFIG_KEY]: uploaded.favicon.filePath } : {}),
+      }))
+      setPreviewUrls((current) => ({
+        ...current,
+        [key]: uploaded.logo.url,
+        ...(uploaded.favicon ? { [SYSTEM_FAVICON_CONFIG_KEY]: uploaded.favicon.url } : {}),
+      }))
+      message.success(t(uploaded.favicon ? 'messages.logoAndFaviconUploadSuccess' : 'messages.uploadSuccess'))
     } catch (error) {
       message.error(error instanceof Error ? error.message : t('messages.uploadFailed'))
     } finally {
-      setUploadingLogoKey(null)
+      setUploadingBrandingKey(null)
     }
+  }
+
+  const uploadSystemFavicon = async (key: string, file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    setUploadingBrandingKey(key)
+    try {
+      const [uploaded] = await apiFetch<UploadedBrandingFile[]>(
+        '/api/admin/mm/file?businessType=SystemFavicon',
+        { method: 'POST', body: formData },
+      )
+      if (!uploaded) throw new Error(t('messages.faviconUploadFailed'))
+      setValues((current) => ({ ...current, [key]: uploaded.filePath }))
+      setPreviewUrls((current) => ({ ...current, [key]: uploaded.url }))
+      message.success(t('messages.faviconUploadSuccess'))
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : t('messages.faviconUploadFailed'))
+    } finally {
+      setUploadingBrandingKey(null)
+    }
+  }
+
+  const confirmLogoUpload = (key: string, file: File) => {
+    modal.confirm({
+      title: t('logo.syncConfirmTitle'),
+      content: t('logo.syncConfirmDescription'),
+      okText: t('logo.syncConfirmOk'),
+      cancelText: t('logo.syncConfirmCancel'),
+      closable: false,
+      keyboard: false,
+      maskClosable: false,
+      onOk: () => uploadSystemLogo(key, file, true),
+      onCancel: () => uploadSystemLogo(key, file, false),
+    })
   }
 
   const renderConfig = (config: ConfigItem) => {
@@ -157,7 +205,11 @@ function SettingsForm({ data }: { data: ConfigData }) {
         <span className="settings-field-label">
           <span>
             {sensitive ? <KeyRound size={13} /> : null}
-            {config.kind === 'image' ? t('logo.fieldLabel') : <code>{config.key}</code>}
+            {config.kind === 'image'
+              ? t('logo.fieldLabel')
+              : config.kind === 'icon'
+                ? t('favicon.fieldLabel')
+                : <code>{config.key}</code>}
           </span>
           {sensitive && config.configured ? <Tag color="success">Configured</Tag> : null}
         </span>
@@ -177,41 +229,45 @@ function SettingsForm({ data }: { data: ConfigData }) {
             options={[{ value: 'devnet', label: 'Devnet · 测试' }, { value: 'mainnet', label: 'Mainnet · 正式' }]}
             onChange={(value) => setValues((current) => ({ ...current, [config.key]: String(value) }))}
           />
-        ) : config.kind === 'image' ? (
+        ) : config.kind === 'image' || config.kind === 'icon' ? (
           <div className="settings-logo-control">
             <Image
               className="settings-logo-preview"
-              src={previewUrls[config.key] || '/logo.png'}
-              alt={t('logo.previewAlt')}
+              src={previewUrls[config.key] || (config.kind === 'icon' ? '/favicon.ico' : '/logo.png')}
+              alt={config.kind === 'icon' ? t('favicon.previewAlt') : t('logo.previewAlt')}
               preview={false}
             />
             <Space wrap>
               <Upload
-                accept="image/png,image/jpeg,image/gif,image/webp"
+                accept={config.kind === 'icon' ? '.ico,image/x-icon' : 'image/png,image/jpeg,image/gif,image/webp'}
                 maxCount={1}
                 showUploadList={false}
                 beforeUpload={(file) => {
-                  void uploadSystemLogo(config.key, file)
+                  if (config.kind === 'icon') void uploadSystemFavicon(config.key, file)
+                  else confirmLogoUpload(config.key, file)
                   return false
                 }}
               >
-                <Button icon={<ImageUp size={15} />} loading={uploadingLogoKey === config.key}>
-                  {t('actions.uploadLogo')}
+                <Button icon={<ImageUp size={15} />} loading={uploadingBrandingKey === config.key}>
+                  {config.kind === 'icon' ? t('actions.uploadFavicon') : t('actions.uploadLogo')}
                 </Button>
               </Upload>
               <Button
                 disabled={!values[config.key]}
                 onClick={() => {
                   setValues((current) => ({ ...current, [config.key]: '' }))
-                  setPreviewUrls((current) => ({ ...current, [config.key]: '/logo.png' }))
+                  setPreviewUrls((current) => ({
+                    ...current,
+                    [config.key]: config.kind === 'icon' ? '/favicon.ico' : '/logo.png',
+                  }))
                 }}
               >
-                {t('actions.restoreDefaultLogo')}
+                {config.kind === 'icon' ? t('actions.restoreDefaultFavicon') : t('actions.restoreDefaultLogo')}
               </Button>
-              {config.isCustom && !values[config.key] ? <Tag color="warning">{t('logo.pendingDefault')}</Tag> : null}
+              {config.isCustom && !values[config.key] ? <Tag color="warning">{config.kind === 'icon' ? t('favicon.pendingDefault') : t('logo.pendingDefault')}</Tag> : null}
             </Space>
             <Typography.Text type="secondary">
-              {t('logo.uploadHint')}
+              {config.kind === 'icon' ? t('favicon.uploadHint') : t('logo.uploadHint')}
             </Typography.Text>
           </div>
         ) : sensitive ? (
@@ -320,7 +376,7 @@ function SettingsForm({ data }: { data: ConfigData }) {
             </div>
             {tab.key === 'updates' ? <SystemUpdatePanel /> : <>
               {tab.key === 'rpc' ? <Alert className="settings-rpc-notice" showIcon type="info" message={t('tabs.rpc.noticeTitle')} description={t('tabs.rpc.noticeDescription')} action={<Button size="small" loading={networkTestMutation.isPending} onClick={() => networkTestMutation.mutate()}>{t('tabs.rpc.test')}</Button>} /> : null}
-              {tab.configs.length ? <Card className="settings-card" title={<span className="settings-card-title">{tab.icon}{tab.key === 'branding' ? t('logo.cardTitle') : t('tabs.fieldsCount', { count: tab.configs.length })}</span>}><div className="settings-fields">{tab.configs.map(renderConfig)}</div></Card> : <Empty description={t('empty')} />}
+              {tab.configs.length ? <Card className="settings-card" title={<span className="settings-card-title">{tab.icon}{tab.key === 'branding' ? t('branding.cardTitle') : t('tabs.fieldsCount', { count: tab.configs.length })}</span>}><div className="settings-fields">{tab.configs.map(renderConfig)}</div></Card> : <Empty description={t('empty')} />}
             </>}
           </section>,
         }))}

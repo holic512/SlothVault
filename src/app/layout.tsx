@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Application Shell
  * @description Defines the root Next.js document, metadata, locale provider, Ant Design SSR registry, and client providers.
- * @logic Resolve request preferences on the server, emit a hydration-safe color mode and visual style, and wrap every route once.
+ * @logic Resolve request preferences and the non-blocking managed favicon on the server, emit a hydration-safe color mode and visual style, and wrap every route once.
  * @dependencies next-intl, @ant-design/nextjs-registry, app-providers, app-style, global styles
  * @index_tags root-layout,metadata,providers,theme,style,ssr
  * @author holic512
@@ -29,6 +29,7 @@ import '@/styles/utilities.css'
 import '@/styles/vendors.css'
 
 import { AppProviders } from '@/components/providers/app-providers'
+import { getSystemBranding } from '@/server/services/system-branding'
 import {
   APP_THEME_COOKIE,
   DEFAULT_APP_THEME,
@@ -40,13 +41,16 @@ import {
   isAppStyle,
 } from '@/theme/app-style'
 
-export const metadata: Metadata = {
-  title: {
-    default: 'SlothVault',
-    template: '%s · SlothVault',
-  },
-  description: 'A public publishing system for independent articles, versioned projects, accounts, points, contracts, and optional Solana release evidence.',
-  icons: { icon: '/favicon.ico' },
+export async function generateMetadata(): Promise<Metadata> {
+  const branding = await getSystemBranding()
+  return {
+    title: {
+      default: 'SlothVault',
+      template: '%s · SlothVault',
+    },
+    description: 'A public publishing system for independent articles, versioned projects, accounts, points, contracts, and optional Solana release evidence.',
+    icons: { icon: branding.faviconUrl },
+  }
 }
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

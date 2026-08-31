@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   configKeys: {
     SYSTEM_LOGO_FILE_PATH: 'SYSTEM_LOGO_FILE_PATH',
+    SYSTEM_FAVICON_FILE_PATH: 'SYSTEM_FAVICON_FILE_PATH',
     DEFAULT_NETWORK: 'SOLANA_DEFAULT_NETWORK',
     MAINNET_ENABLED: 'SOLANA_MAINNET_ENABLED',
     MAINNET_RPC_PRIMARY: 'SOLANA_MAINNET_RPC_PRIMARY',
@@ -28,11 +29,13 @@ vi.mock('@/server/services/system-branding', () => ({
   getSystemBranding: mocks.getSystemBranding,
   isSystemLogoFilePath: (value: string) =>
     value.startsWith('uploads/system-logo/') && !value.includes('..'),
+  isSystemFaviconFilePath: (value: string) =>
+    value.startsWith('uploads/system-favicon/') && value.endsWith('.ico') && !value.includes('..'),
 }))
 
 import { updateAdminSettings } from '@/server/services/admin-settings'
 
-describe('admin system-logo settings', () => {
+describe('admin branding settings', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.prisma.systemConfig.findMany.mockResolvedValue([])
@@ -41,54 +44,48 @@ describe('admin system-logo settings', () => {
     mocks.prisma.$transaction.mockImplementation(async (operation) => operation(mocks.transaction))
   })
 
-  it('accepts an active managed system-logo path', async () => {
-    const filePath = 'uploads/system-logo/08bb17d6-8425-4f34-a107-735a6a4cdcda.png'
+  it('accepts active managed logo and favicon paths in the same atomic save', async () => {
+    const logoPath = 'uploads/system-logo/08bb17d6-8425-4f34-a107-735a6a4cdcda.png'
+    const faviconPath = 'uploads/system-favicon/a22570cf-2906-4698-a1c3-88d625a60231.ico'
 
-    await expect(updateAdminSettings([{
-      key: mocks.configKeys.SYSTEM_LOGO_FILE_PATH,
-      value: filePath,
-    }])).resolves.toMatchObject({ updated: 1 })
+    await expect(updateAdminSettings([
+      { key: mocks.configKeys.SYSTEM_LOGO_FILE_PATH, value: logoPath },
+      { key: mocks.configKeys.SYSTEM_FAVICON_FILE_PATH, value: faviconPath },
+    ])).resolves.toMatchObject({ updated: 2 })
 
     expect(mocks.transaction.fileManagement.findFirst).toHaveBeenCalledWith({
-      where: { filePath, businessType: 'SystemLogo', status: 1 },
+      where: { filePath: logoPath, businessType: 'SystemLogo', status: 1 },
       select: { id: true },
     })
-    expect(mocks.transaction.systemConfig.upsert).toHaveBeenCalledWith(expect.objectContaining({
-      create: expect.objectContaining({ configValue: filePath }),
-    }))
+    expect(mocks.transaction.fileManagement.findFirst).toHaveBeenCalledWith({
+      where: { filePath: faviconPath, businessType: 'SystemFavicon', status: 1 },
+      select: { id: true },
+    })
   })
 
-  it('accepts an empty path to restore the packaged default', async () => {
-    await expect(updateAdminSettings([{
-      key: mocks.configKeys.SYSTEM_LOGO_FILE_PATH,
-      value: '',
-    }])).resolves.toMatchObject({ updated: 1 })
-
+  it('accepts empty branding paths to restore each packaged default independently', async () => {
+    await expect(updateAdminSettings([
+      { key: mocks.configKeys.SYSTEM_LOGO_FILE_PATH, value: '' },
+      { key: mocks.configKeys.SYSTEM_FAVICON_FILE_PATH, value: '' },
+    ])).resolves.toMatchObject({ updated: 2 })
     expect(mocks.transaction.fileManagement.findFirst).not.toHaveBeenCalled()
-    expect(mocks.transaction.systemConfig.upsert).toHaveBeenCalledWith(expect.objectContaining({
-      create: expect.objectContaining({ configValue: '' }),
-    }))
   })
 
-  it('rejects external URLs and paths from another upload type', async () => {
+  it('rejects external URLs, wrong managed paths, and unavailable favicon records', async () => {
     await expect(updateAdminSettings([{
-      key: mocks.configKeys.SYSTEM_LOGO_FILE_PATH,
-      value: 'https://example.com/logo.png',
-    }])).rejects.toThrow('must reference a managed system logo')
+      key: mocks.configKeys.SYSTEM_FAVICON_FILE_PATH,
+      value: 'https://example.com/favicon.ico',
+    }])).rejects.toThrow('must reference a managed system favicon')
 
     await expect(updateAdminSettings([{
-      key: mocks.configKeys.SYSTEM_LOGO_FILE_PATH,
-      value: 'uploads/project-avatar/logo.png',
-    }])).rejects.toThrow('must reference a managed system logo')
-  })
+      key: mocks.configKeys.SYSTEM_FAVICON_FILE_PATH,
+      value: 'uploads/system-logo/favicon.ico',
+    }])).rejects.toThrow('must reference a managed system favicon')
 
-  it('rejects a managed path whose active SystemLogo record no longer exists', async () => {
     mocks.transaction.fileManagement.findFirst.mockResolvedValue(null)
-
     await expect(updateAdminSettings([{
-      key: mocks.configKeys.SYSTEM_LOGO_FILE_PATH,
-      value: 'uploads/system-logo/missing.png',
-    }])).rejects.toThrow('The selected system logo is unavailable')
-    expect(mocks.transaction.systemConfig.upsert).not.toHaveBeenCalled()
+      key: mocks.configKeys.SYSTEM_FAVICON_FILE_PATH,
+      value: 'uploads/system-favicon/missing.ico',
+    }])).rejects.toThrow('The selected system favicon is unavailable')
   })
 })

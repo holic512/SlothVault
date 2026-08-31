@@ -3,9 +3,9 @@
  * @project SlothVault
  * @module Admin Settings Service
  * @description Owns installed-system branding and fixed Solana evidence network profiles, masked RPC reads, validated writes, and database-backed refresh checks.
- * @logic Join stored rows with a typed registry, validate managed logo references without echoing RPC endpoints, reject invalid defaults or disabled default networks, and persist changes atomically.
+ * @logic Join stored rows with a typed registry, validate managed logo and favicon references without echoing RPC endpoints, reject invalid defaults or disabled default networks, and persist changes atomically.
  * @dependencies Prisma SystemConfig/FileManagement models, server/http/errors, system configuration and branding services
- * @index_tags admin,settings,branding,logo,solana,evidence,rpc,validation,transaction
+ * @index_tags admin,settings,branding,logo,favicon,solana,evidence,rpc,validation,transaction
  * @author holic512
  */
 import 'server-only'
@@ -15,6 +15,7 @@ import { prisma } from '@/server/prisma'
 import { CONFIG_KEYS } from '@/server/services/system-config'
 import {
   getSystemBranding,
+  isSystemFaviconFilePath,
   isSystemLogoFilePath,
 } from '@/server/services/system-branding'
 
@@ -25,6 +26,14 @@ export const ADMIN_CONFIG_DEFINITIONS = [
     kind: 'image',
     sensitive: false,
     description: 'Optional managed logo displayed across the installed system',
+    defaultValue: '',
+  },
+  {
+    key: CONFIG_KEYS.SYSTEM_FAVICON_FILE_PATH,
+    group: 'branding',
+    kind: 'icon',
+    sensitive: false,
+    description: 'Optional managed ICO favicon used in browser metadata',
     defaultValue: '',
   },
   {
@@ -117,6 +126,9 @@ function validateConfigValue(
   if (definition.kind === 'image' && value && !isSystemLogoFilePath(value)) {
     throw new HttpError(`${definition.key} must reference a managed system logo`, 400, 400)
   }
+  if (definition.kind === 'icon' && value && !isSystemFaviconFilePath(value)) {
+    throw new HttpError(`${definition.key} must reference a managed system favicon`, 400, 400)
+  }
   return value
 }
 
@@ -138,8 +150,16 @@ export async function listAdminSettings() {
       kind: definition.kind,
       sensitive: definition.sensitive,
       configured: Boolean(storedValue),
-      previewUrl: definition.kind === 'image' ? branding.logoUrl : undefined,
-      isCustom: definition.kind === 'image' ? branding.isCustom : undefined,
+      previewUrl: definition.kind === 'image'
+        ? branding.logoUrl
+        : definition.kind === 'icon'
+          ? branding.faviconUrl
+          : undefined,
+      isCustom: definition.kind === 'image'
+        ? branding.isCustom
+        : definition.kind === 'icon'
+          ? branding.isFaviconCustom
+          : undefined,
     }
   })
   return {
@@ -188,14 +208,30 @@ export async function updateAdminSettings(configs: AdminConfigChange[]) {
   }
 
   await prisma.$transaction(async (tx) => {
-    const logoPath = effective.get(CONFIG_KEYS.SYSTEM_LOGO_FILE_PATH) || ''
-    if (logoPath) {
-      const logo = await tx.fileManagement.findFirst({
-        where: { filePath: logoPath, businessType: 'SystemLogo', status: 1 },
+    const brandingFiles = [
+      {
+        filePath: effective.get(CONFIG_KEYS.SYSTEM_LOGO_FILE_PATH) || '',
+        businessType: 'SystemLogo',
+        label: 'system logo',
+      },
+      {
+        filePath: effective.get(CONFIG_KEYS.SYSTEM_FAVICON_FILE_PATH) || '',
+        businessType: 'SystemFavicon',
+        label: 'system favicon',
+      },
+    ] as const
+    for (const brandingFile of brandingFiles) {
+      if (!brandingFile.filePath) continue
+      const file = await tx.fileManagement.findFirst({
+        where: {
+          filePath: brandingFile.filePath,
+          businessType: brandingFile.businessType,
+          status: 1,
+        },
         select: { id: true },
       })
-      if (!logo) {
-        throw new HttpError('The selected system logo is unavailable', 400, 400)
+      if (!file) {
+        throw new HttpError(`The selected ${brandingFile.label} is unavailable`, 400, 400)
       }
     }
 

@@ -1019,6 +1019,7 @@
       },
       "businessType": {
         "SystemLogo": "System Logo",
+        "SystemFavicon": "System Favicon",
         "ProjectAvatar": "Project Avatar",
         "UserAvatar": "User Avatar",
         "ArticleCover": "Article Cover",
@@ -1167,6 +1168,7 @@
       },
       "configDesc": {
         "SYSTEM_LOGO_FILE_PATH": "Saved after upload; restoring the default uses the bundled logo again",
+        "SYSTEM_FAVICON_FILE_PATH": "Saved after upload; restoring the default uses the bundled favicon.ico again",
         "SOLANA_DEFAULT_NETWORK": "Default network for new evidence",
         "SOLANA_MAINNET_ENABLED": "Allow formal Mainnet evidence",
         "SOLANA_MAINNET_RPC_PRIMARY": "Mainnet primary server-only RPC",
@@ -1183,14 +1185,29 @@
         "refresh": "Refresh Cache",
         "reset": "Reset",
         "uploadLogo": "Upload Logo",
-        "restoreDefaultLogo": "Restore Default"
+        "restoreDefaultLogo": "Restore Default Logo",
+        "uploadFavicon": "Upload ICO",
+        "restoreDefaultFavicon": "Restore Default Icon"
+      },
+      "branding": {
+        "cardTitle": "System Branding Assets"
       },
       "logo": {
         "cardTitle": "System Logo",
         "fieldLabel": "Current logo",
         "previewAlt": "System logo preview",
         "uploadHint": "JPG, PNG, GIF, and WebP are supported, up to 2MB. Save to apply the change.",
-        "pendingDefault": "Default pending"
+        "pendingDefault": "Default pending",
+        "syncConfirmTitle": "Also update favicon.ico?",
+        "syncConfirmDescription": "The system will generate a favicon.ico with 16, 32, 48, and 64 pixel layers from the new logo. Both changes apply together after you save.",
+        "syncConfirmOk": "Sync icon",
+        "syncConfirmCancel": "Logo only"
+      },
+      "favicon": {
+        "fieldLabel": "Current site icon",
+        "previewAlt": "System site icon preview",
+        "uploadHint": "Only valid ICO files are accepted, up to 2MB. Save to apply the change.",
+        "pendingDefault": "Default icon pending"
       },
       "messages": {
         "loadFailed": "Failed to load configuration",
@@ -1200,7 +1217,10 @@
         "refreshFailed": "Failed to refresh cache",
         "requestFailed": "Request failed",
         "uploadSuccess": "Logo uploaded; save to apply it",
-        "uploadFailed": "Logo upload failed"
+        "uploadFailed": "Logo upload failed",
+        "logoAndFaviconUploadSuccess": "Logo and favicon.ico generated and uploaded; save to apply them",
+        "faviconUploadSuccess": "ICO icon uploaded; save to apply it",
+        "faviconUploadFailed": "ICO icon upload failed"
       }
     },
     "backup": {

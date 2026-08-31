@@ -79,6 +79,7 @@ export function FilesManager() {
 
   const businessTypeOptions = [
     'SystemLogo',
+    'SystemFavicon',
     'ProjectAvatar',
     'UserAvatar',
     'NoteAttachment',
@@ -321,8 +322,8 @@ export function FilesManager() {
             onChange={setUploadBusinessType}
           />
           <Upload.Dragger
-            multiple={uploadBusinessType !== 'SystemLogo'}
-            maxCount={uploadBusinessType === 'SystemLogo' ? 1 : 10}
+            multiple={uploadBusinessType !== 'SystemLogo' && uploadBusinessType !== 'SystemFavicon'}
+            maxCount={uploadBusinessType === 'SystemLogo' || uploadBusinessType === 'SystemFavicon' ? 1 : 10}
             beforeUpload={() => false}
             fileList={uploadFiles}
             onChange={({ fileList }) => setUploadFiles(fileList)}

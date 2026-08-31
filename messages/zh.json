@@ -1019,6 +1019,7 @@
       },
       "businessType": {
         "SystemLogo": "系统 Logo",
+        "SystemFavicon": "系统站点图标",
         "ProjectAvatar": "项目头像",
         "UserAvatar": "用户头像",
         "ArticleCover": "文章封面",
@@ -1167,6 +1168,7 @@
       },
       "configDesc": {
         "SYSTEM_LOGO_FILE_PATH": "上传后保存；恢复默认将重新使用内置 Logo",
+        "SYSTEM_FAVICON_FILE_PATH": "上传后保存；恢复默认将重新使用内置 favicon.ico",
         "SOLANA_DEFAULT_NETWORK": "新存证默认选择的网络",
         "SOLANA_MAINNET_ENABLED": "允许办理 Mainnet 正式存证",
         "SOLANA_MAINNET_RPC_PRIMARY": "Mainnet 主 RPC，仅服务端使用",
@@ -1183,14 +1185,29 @@
         "refresh": "刷新缓存",
         "reset": "重置",
         "uploadLogo": "上传 Logo",
-        "restoreDefaultLogo": "恢复默认"
+        "restoreDefaultLogo": "恢复默认 Logo",
+        "uploadFavicon": "上传 ICO",
+        "restoreDefaultFavicon": "恢复默认图标"
+      },
+      "branding": {
+        "cardTitle": "系统品牌资源"
       },
       "logo": {
         "cardTitle": "系统 Logo",
         "fieldLabel": "当前 Logo",
         "previewAlt": "系统 Logo 预览",
         "uploadHint": "支持 JPG、PNG、GIF、WebP，单个文件最大 2MB。上传后请点击保存以生效。",
-        "pendingDefault": "待恢复默认"
+        "pendingDefault": "待恢复默认",
+        "syncConfirmTitle": "是否同步更新 favicon.ico？",
+        "syncConfirmDescription": "同步后，系统会从新 Logo 自动生成 16、32、48 和 64 像素图层的 favicon.ico。两个更新都会在点击“保存”后同时生效。",
+        "syncConfirmOk": "同步更新图标",
+        "syncConfirmCancel": "仅更新 Logo"
+      },
+      "favicon": {
+        "fieldLabel": "当前站点图标",
+        "previewAlt": "系统站点图标预览",
+        "uploadHint": "仅支持有效的 ICO 文件，单个文件最大 2MB。上传后请点击保存以生效。",
+        "pendingDefault": "待恢复默认图标"
       },
       "messages": {
         "loadFailed": "加载配置失败",
@@ -1200,7 +1217,10 @@
         "refreshFailed": "刷新缓存失败",
         "requestFailed": "请求失败",
         "uploadSuccess": "Logo 已上传，等待保存",
-        "uploadFailed": "Logo 上传失败"
+        "uploadFailed": "Logo 上传失败",
+        "logoAndFaviconUploadSuccess": "Logo 与 favicon.ico 已生成并上传，等待保存",
+        "faviconUploadSuccess": "ICO 图标已上传，等待保存",
+        "faviconUploadFailed": "ICO 图标上传失败"
       }
     },
     "backup": {

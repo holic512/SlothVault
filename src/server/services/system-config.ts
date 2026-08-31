@@ -2,10 +2,10 @@
  * @file system-config.ts
  * @project SlothVault
  * @module Runtime System Configuration
- * @description Defines persisted system setting keys and resolves the fixed Mainnet and Devnet evidence profiles, protected RPC endpoints, defaults, and persisted health observations.
+ * @description Defines persisted system setting keys and resolves system branding, fixed Mainnet and Devnet evidence profiles, protected RPC endpoints, defaults, and persisted health observations.
  * @logic Keep shared setting keys stable, read profile settings from the installed database, fall back to environment or public cluster endpoints, keep disabled networks readable, and expose only masked endpoint summaries to administrators.
  * @dependencies Prisma SystemConfig model, @solana/web3.js
- * @index_tags config,branding,solana,evidence,rpc,failover,network-profile
+ * @index_tags config,branding,logo,favicon,solana,evidence,rpc,failover,network-profile
  * @author holic512
  */
 import 'server-only'
@@ -19,6 +19,7 @@ export type SolanaNetwork = 'mainnet' | 'devnet'
 
 export const CONFIG_KEYS = {
   SYSTEM_LOGO_FILE_PATH: 'SYSTEM_LOGO_FILE_PATH',
+  SYSTEM_FAVICON_FILE_PATH: 'SYSTEM_FAVICON_FILE_PATH',
   DEFAULT_NETWORK: 'SOLANA_DEFAULT_NETWORK',
   MAINNET_ENABLED: 'SOLANA_MAINNET_ENABLED',
   MAINNET_RPC_PRIMARY: 'SOLANA_MAINNET_RPC_PRIMARY',

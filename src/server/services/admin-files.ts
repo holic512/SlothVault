@@ -2,10 +2,10 @@
  * @file admin-files.ts
  * @project SlothVault
  * @module Admin File Storage
- * @description Owns managed-file queries, safe upload validation, stable DTOs, contained storage access, and compensating deletion workflows.
- * @logic Build provider-portable metadata filters, validate every multipart file before disk writes, persist metadata atomically, constrain physical paths to the upload root, and stage hard deletes until the database delete succeeds.
+ * @description Owns managed-file queries, safe upload validation, stable DTOs, contained storage access, generated branding artifacts, and compensating deletion workflows.
+ * @logic Build provider-portable metadata filters, validate every multipart file before disk writes, atomically persist source and derived branding files, constrain physical paths to the upload root, and stage hard deletes until the database delete succeeds.
  * @dependencies node:fs/promises, node:path, sharp, Prisma FileManagement model, server/http/errors
- * @index_tags admin,files,upload,filesystem,containment,sharp,transaction,hard-delete
+ * @index_tags admin,files,upload,filesystem,containment,sharp,branding,favicon,ico,transaction,hard-delete
  * @author holic512
  */
 import 'server-only'
@@ -37,9 +37,14 @@ import sharp from 'sharp'
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
 import { databaseTextContains, hasPrismaCode } from '@/server/services/admin-catalog'
+import {
+  createSystemFaviconIco,
+  validateSystemFaviconIco,
+} from '@/server/services/system-favicon'
 
 export const GENERAL_FILE_MAX_BYTES = 10 * 1024 * 1024
 export const AVATAR_FILE_MAX_BYTES = 2 * 1024 * 1024
+export const FAVICON_FILE_MAX_BYTES = 2 * 1024 * 1024
 export const REQUEST_FILE_MAX_COUNT = 10
 export const REQUEST_FILES_MAX_BYTES = 20 * 1024 * 1024
 export const REQUEST_CONTENT_LENGTH_MAX_BYTES = 25 * 1024 * 1024
@@ -58,6 +63,7 @@ const queuedImageValidationStarts: Array<() => void> = []
 
 export const BUSINESS_TYPE_CONFIG = {
   SystemLogo: { dir: 'system-logo', imagesOnly: true },
+  SystemFavicon: { dir: 'system-favicon', imagesOnly: false },
   ProjectAvatar: { dir: 'project-avatar', imagesOnly: true },
   UserAvatar: { dir: 'user-avatar', imagesOnly: true },
   ArticleCover: { dir: 'article-cover', imagesOnly: true },
@@ -75,6 +81,7 @@ export type BusinessType = keyof typeof BUSINESS_TYPE_CONFIG
 export const VALID_BUSINESS_TYPES = Object.keys(BUSINESS_TYPE_CONFIG) as BusinessType[]
 
 const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp'])
+const FAVICON_EXTENSIONS = new Set(['ico'])
 const SAFE_FILE_EXTENSIONS = new Set([
   ...IMAGE_EXTENSIONS,
   'pdf',
@@ -93,6 +100,7 @@ const CONTENT_TYPES: Record<string, string> = {
   png: 'image/png',
   gif: 'image/gif',
   webp: 'image/webp',
+  ico: 'image/x-icon',
   pdf: 'application/pdf',
   txt: 'text/plain; charset=utf-8',
   md: 'text/markdown; charset=utf-8',
@@ -120,6 +128,7 @@ type PreparedUpload = {
   filePath: string
   absolutePath: string
   buffer: Buffer
+  businessType: BusinessType
 }
 
 function acquireImageValidationSlot() {
@@ -330,13 +339,34 @@ async function readMultipartFiles(request: Request, maxFiles: number) {
   return files
 }
 
+function createPreparedUpload(
+  originalName: string,
+  extension: string,
+  businessType: BusinessType,
+  buffer: Buffer,
+): PreparedUpload {
+  const fileName = `${randomUUID()}.${extension}`
+  const filePath = `uploads/${BUSINESS_TYPE_CONFIG[businessType].dir}/${fileName}`
+  return {
+    originalName,
+    fileName,
+    filePath,
+    absolutePath: resolveWithinUploads(BUSINESS_TYPE_CONFIG[businessType].dir, fileName),
+    buffer,
+    businessType,
+  }
+}
+
 async function prepareUploads(files: File[], businessType: BusinessType) {
   const config = BUSINESS_TYPE_CONFIG[businessType]
   const maxFileSize =
     businessType === 'SystemLogo' ||
+    businessType === 'SystemFavicon' ||
     businessType === 'ProjectAvatar' ||
     businessType === 'UserAvatar'
-      ? AVATAR_FILE_MAX_BYTES
+      ? businessType === 'SystemFavicon'
+        ? FAVICON_FILE_MAX_BYTES
+        : AVATAR_FILE_MAX_BYTES
       : GENERAL_FILE_MAX_BYTES
   let totalSize = 0
   const prepared: PreparedUpload[] = []
@@ -358,7 +388,11 @@ async function prepareUploads(files: File[], businessType: BusinessType) {
     }
 
     const extension = extensionOf(originalName)
-    const allowedExtensions = config.imagesOnly ? IMAGE_EXTENSIONS : SAFE_FILE_EXTENSIONS
+    const allowedExtensions = businessType === 'SystemFavicon'
+      ? FAVICON_EXTENSIONS
+      : config.imagesOnly
+        ? IMAGE_EXTENSIONS
+        : SAFE_FILE_EXTENSIONS
     if (!extension || !allowedExtensions.has(extension)) {
       throw new HttpError(`File type is not allowed: ${originalName}`, 400, 400)
     }
@@ -368,16 +402,11 @@ async function prepareUploads(files: File[], businessType: BusinessType) {
     if (IMAGE_EXTENSIONS.has(extension)) {
       await validateImage(buffer, extension, originalName)
     }
+    if (businessType === 'SystemFavicon') {
+      validateSystemFaviconIco(buffer, originalName)
+    }
 
-    const fileName = `${randomUUID()}.${extension}`
-    const filePath = `uploads/${config.dir}/${fileName}`
-    prepared.push({
-      originalName,
-      fileName,
-      filePath,
-      absolutePath: resolveWithinUploads(config.dir, fileName),
-      buffer,
-    })
+    prepared.push(createPreparedUpload(originalName, extension, businessType, buffer))
   }
 
   return prepared
@@ -515,18 +544,15 @@ async function assertFileIsNotContractAttachment(id: number) {
   }
 }
 
-export async function uploadFiles(request: Request, options: UploadFilesOptions) {
-  const maxFiles = Math.min(
-    REQUEST_FILE_MAX_COUNT,
-    Math.max(1, options.maxFiles ?? REQUEST_FILE_MAX_COUNT),
-  )
-  const files = await readMultipartFiles(request, maxFiles)
-  const prepared = await prepareUploads(files, options.businessType)
-  const uploadDirectory = resolveWithinUploads(BUSINESS_TYPE_CONFIG[options.businessType].dir)
+async function persistPreparedUploads(prepared: PreparedUpload[]) {
+  if (!prepared.length) throw new HttpError('No files to upload', 400, 400)
   const writtenPaths: string[] = []
 
   try {
-    await ensureContainedDirectory(uploadDirectory)
+    const directories = Array.from(new Set(prepared.map((item) => (
+      resolveWithinUploads(BUSINESS_TYPE_CONFIG[item.businessType].dir)
+    ))))
+    await Promise.all(directories.map((directory) => ensureContainedDirectory(directory)))
     for (const item of prepared) {
       try {
         await writeFile(item.absolutePath, item.buffer, { flag: 'wx' })
@@ -549,7 +575,7 @@ export async function uploadFiles(request: Request, options: UploadFilesOptions)
               fileName: item.fileName,
               filePath: item.filePath,
               fileSize: BigInt(item.buffer.length),
-              businessType: options.businessType,
+              businessType: item.businessType,
               status: 1,
             },
           }),
@@ -563,11 +589,49 @@ export async function uploadFiles(request: Request, options: UploadFilesOptions)
   }
 }
 
+export async function uploadFiles(request: Request, options: UploadFilesOptions) {
+  const maxFiles = Math.min(
+    REQUEST_FILE_MAX_COUNT,
+    Math.max(1, options.maxFiles ?? REQUEST_FILE_MAX_COUNT),
+  )
+  return persistPreparedUploads(
+    await prepareUploads(await readMultipartFiles(request, maxFiles), options.businessType),
+  )
+}
+
 export async function uploadAdminFiles(request: Request, options: UploadFilesOptions) {
   return (await uploadFiles(request, {
     ...options,
-    maxFiles: options.businessType === 'SystemLogo' ? 1 : options.maxFiles,
+    maxFiles:
+      options.businessType === 'SystemLogo' || options.businessType === 'SystemFavicon'
+        ? 1
+        : options.maxFiles,
   })).map(uploadedFileDto)
+}
+
+export async function uploadSystemLogo(
+  request: Request,
+  syncFavicon: boolean,
+) {
+  const [logo] = await prepareUploads(await readMultipartFiles(request, 1), 'SystemLogo')
+  if (!logo) throw new HttpError('未检测到上传文件', 400, 400)
+
+  const prepared = [logo]
+  if (syncFavicon) {
+    const originalName = `${logo.originalName.replace(/\.[^.]+$/, '') || 'favicon'}.ico`
+    const ico = await createSystemFaviconIco(logo.buffer)
+    prepared.push(createPreparedUpload(originalName, 'ico', 'SystemFavicon', ico))
+  }
+
+  const records = await persistPreparedUploads(prepared)
+  const uploadedLogo = records.find((record) => record.businessType === 'SystemLogo')
+  const uploadedFavicon = records.find((record) => record.businessType === 'SystemFavicon')
+  if (!uploadedLogo) throw new HttpError('System logo upload failed', 500, 500)
+
+  return {
+    logo: uploadedFileDto(uploadedLogo),
+    favicon: uploadedFavicon ? uploadedFileDto(uploadedFavicon) : null,
+  }
 }
 
 export async function uploadAdminProjectAvatar(request: Request) {
@@ -734,7 +798,7 @@ export async function inspectPublicUpload(pathSegments: string[]) {
   const fileName = basename(absolutePath)
   const extension = extensionOf(fileName)
   const contentType = CONTENT_TYPES[extension] || 'application/octet-stream'
-  const inline = IMAGE_EXTENSIONS.has(extension) || extension === 'pdf' || extension === 'txt' || extension === 'md'
+  const inline = IMAGE_EXTENSIONS.has(extension) || extension === 'ico' || extension === 'pdf' || extension === 'txt' || extension === 'md'
 
   return {
     absolutePath,
