@@ -139,7 +139,14 @@ sudo python3 deploy/install.py \
 
 Docker 模式排查请优先执行 `docker inspect slothvault-nginx`、`docker exec slothvault-nginx nginx -t`、`docker exec slothvault-nginx nginx -T` 和 `docker network inspect slothvault-sqlite_default`。如果缺少配置、ACME、证书挂载或共同网络，脚本会在写入前停止；配置校验或重载失败时会恢复原有受管文件，并再次在容器内校验和重载恢复后的配置。若系统启用了 SELinux 且 Nginx 出现 `502`，还需要由系统管理员按发行版策略允许 Nginx 连接上游服务。
 
-未来更新不需要重新生成配置或迁移数据目录：再次运行脚本并选择“更新”，或执行：
+未来更新不需要重新生成配置或迁移数据目录。发布部署包中的脚本会显示自身版本、运行中应用版本、GitHub 最新正式 Release，以及本次跨版本升级包含的提交日志。先检查，再按提示确认更新：
+
+```bash
+sudo python3 deploy/install.py --action check-update
+sudo python3 deploy/install.py --action update
+```
+
+应用更新仅拉取并重启 `compose.yml` 中已声明的镜像，持久化数据保持不变；如果脚本本身落后，输出会提示下载最新部署包，脚本不会自行覆盖。仍可在确认需要绕过版本检查时使用以下 Docker Compose 命令：
 
 ```bash
 docker compose -f /data/slothvault/compose.yml pull

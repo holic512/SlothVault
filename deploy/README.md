@@ -14,7 +14,14 @@ sudo python3 deploy/install.py
 
 首次安装选择 SQLite、MySQL 或 PostgreSQL 后，脚本会创建私有持久化目录和 `/data/slothvault/compose.yml`，再拉取并启动发布镜像。默认应用数据目录为 `/data/slothvault/data`；MySQL、PostgreSQL 数据分别位于 `/data/slothvault/mysql`、`/data/slothvault/postgresql`。Compose 文件权限为 `0600`，持久化数据目录权限为 `0700`。
 
-安装菜单完全使用中文，提供安装、更新、启动、停止、状态、Nginx HTTP 反代、Let’s Encrypt HTTPS 与立即续约操作。以后更新只需再次运行同一条 Python 脚本并选择“拉取最新镜像并更新现有实例”。
+安装菜单完全使用中文，提供安装、检查更新、更新、启动、停止、状态、Nginx HTTP 反代、Let’s Encrypt HTTPS 与立即续约操作。检查更新会比较部署脚本、运行中的应用镜像和 GitHub 最新正式 Release，并按版本顺序显示遗漏 Release 的提交日志。以后可先检查，再确认拉取新镜像：
+
+```bash
+sudo python3 deploy/install.py --action check-update
+sudo python3 deploy/install.py --action update
+```
+
+脚本本身落后时只会给出最新部署包的下载地址，不会自动覆盖正在运行的 Python 文件。
 
 ## Nginx 与 HTTPS
 

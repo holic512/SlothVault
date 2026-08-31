@@ -1,10 +1,10 @@
 # @file .github/workflows/docker-build.yml
 # @project SlothVault
 # @module Container and source release delivery
-# @description Validates pull-request images and publishes the default-branch Docker image with per-platform size metrics plus a source GitHub Release and self-contained host deployment ZIP.
-# @logic Capture the previous image size, build and inspect one multi-architecture standalone image, report compressed-size deltas, then refresh the idempotent release and replace its deploy directory archive.
+# @description Validates pull-request images and publishes the default-branch Docker image with per-platform size metrics, one immutable build identity, a source GitHub Release, and a self-contained host deployment ZIP.
+# @logic Generate one version/build/SHA identity before building, embed it in the multi-architecture image and deployment ZIP, report compressed-size deltas, then refresh the idempotent Release with first-parent commit logs.
 # @dependencies GitHub Actions, Docker Buildx, Docker Hub, Node.js, GitHub CLI, deploy/
-# @index_tags github-actions,docker,standalone,image-size,release,source-archive,deployment,zip,commit-log
+# @index_tags github-actions,docker,standalone,image-size,release,build-identity,source-archive,deployment,zip,commit-log
 # @author holic512
 
 name: Build Docker Image and Publish Release
@@ -42,6 +42,15 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7.0.1
+
+      - name: Prepare immutable release identity
+        id: release-identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v${version}-build.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -85,6 +94,11 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            SLOTHVAULT_APP_VERSION=${{ steps.release-identity.outputs.version }}
+            SLOTHVAULT_RELEASE_TAG=${{ steps.release-identity.outputs.tag }}
+            SLOTHVAULT_RELEASE_COMMIT_SHA=${{ github.sha }}
+            SLOTHVAULT_RELEASE_REPOSITORY=holic512/SlothVault
           # Start with a fresh scope after the previous shared cache stalled.
           # Bound cache API work; an export problem must not block publishing.
           cache-from: type=gha,scope=slothvault-build-v2,timeout=5m
@@ -169,14 +183,23 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Prepare immutable release identity
+        id: release-identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v${version}-build.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+
       - name: Generate release commit log
         id: release
         shell: bash
         run: |
           set -euo pipefail
 
-          version="$(node -p "require('./package.json').version")"
-          tag="v${version}-build.${GITHUB_RUN_NUMBER}"
+          version="${{ steps.release-identity.outputs.version }}"
+          tag="${{ steps.release-identity.outputs.tag }}"
           title="SlothVault ${version} · Build ${GITHUB_RUN_NUMBER}"
           previous_tag=""
 
@@ -219,7 +242,39 @@ jobs:
           fi
 
       - name: Build deployment package archive
-        run: git archive --format=zip --prefix=deploy/ "${GITHUB_SHA}:deploy" -o slothvault-deploy.zip
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_REPOSITORY: holic512/SlothVault
+          RELEASE_COMMIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          package_root="$RUNNER_TEMP/slothvault-deploy-package"
+          rm -rf "$package_root"
+          mkdir -p "$package_root/deploy"
+          git archive "${GITHUB_SHA}:deploy" | tar -x -C "$package_root/deploy"
+          export RELEASE_METADATA_PATH="$package_root/deploy/slothvault_deploy/release_metadata.py"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          source = (
+              '"""Generated immutable Release identity for a SlothVault deployment package."""\n'
+              "from __future__ import annotations\n\n"
+              "RELEASE_TAG = {0!r}\n"
+              "RELEASE_COMMIT_SHA = {1!r}\n"
+              "RELEASE_REPOSITORY = {2!r}\n"
+          ).format(
+              os.environ["RELEASE_TAG"],
+              os.environ["RELEASE_COMMIT_SHA"],
+              os.environ["RELEASE_REPOSITORY"],
+          )
+          Path(os.environ["RELEASE_METADATA_PATH"]).write_text(source, encoding="utf-8")
+          PY
+          (
+            cd "$package_root"
+            zip -qr "$GITHUB_WORKSPACE/slothvault-deploy.zip" deploy
+          )
 
       - name: Upload host deployment package
         env:

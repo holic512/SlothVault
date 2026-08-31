@@ -13,7 +13,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 DEPLOY_ROOT = REPOSITORY_ROOT / "deploy"
 sys.path.insert(0, str(DEPLOY_ROOT))
 
-from slothvault_deploy import certbot, cli, compose, nginx  # noqa: E402
+from slothvault_deploy import certbot, cli, compose, nginx, release  # noqa: E402
 from slothvault_deploy.system import InstallerError  # noqa: E402
 
 
@@ -40,6 +40,156 @@ class ComposeRenderingTests(unittest.TestCase):
                 "# Managed by SlothVault install.py\nservices: {}\n", encoding="utf-8"
             )
             compose.require_managed_compose(compose_path)
+
+
+class ReleaseUpdateTests(unittest.TestCase):
+    class Response:
+        def __init__(self, payload):
+            self.payload = payload
+
+        def read(self):
+            import json
+
+            return json.dumps(self.payload).encode("utf-8")
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            return False
+
+    @staticmethod
+    def release_payload(tag, notes=""):
+        return {
+            "tag_name": tag,
+            "name": "SlothVault {0}".format(tag),
+            "target_commitish": "{0}-sha".format(tag),
+            "published_at": "2026-08-31T00:00:00.000Z",
+            "html_url": "https://github.com/holic512/SlothVault/releases/tag/{0}".format(tag),
+            "body": notes,
+            "draft": False,
+            "prerelease": False,
+        }
+
+    def managed_root(self):
+        directory = tempfile.TemporaryDirectory()
+        root = Path(directory.name)
+        (root / "compose.yml").write_text(
+            "# Managed by SlothVault deploy installer\nservices: {}\n", encoding="utf-8"
+        )
+        return directory, root
+
+    def test_release_tags_compare_semver_before_build_number(self):
+        current = release.parse_release_tag("v2.0.0-build.75")
+        newer_build = release.parse_release_tag("v2.0.0-build.76")
+        newer_minor = release.parse_release_tag("v2.1.0-build.1")
+
+        self.assertIsNotNone(current)
+        self.assertEqual(release.compare_release_versions(newer_build, current), 1)
+        self.assertEqual(release.compare_release_versions(newer_minor, newer_build), 1)
+        self.assertIsNone(release.parse_release_tag("v2.0-build.76"))
+
+    def test_fetches_and_orders_all_missing_release_logs(self):
+        payload = [
+            self.release_payload("v2.0.0-build.77", "newest"),
+            self.release_payload("v2.0.0-build.76", "middle"),
+            self.release_payload("v2.0.0-build.75", "installed"),
+            {**self.release_payload("v2.0.0-build.78"), "prerelease": True},
+        ]
+
+        releases = release.fetch_published_releases(
+            "holic512/SlothVault",
+            "v2.0.0-build.75",
+            opener=lambda request, timeout: self.Response(payload),
+        )
+
+        self.assertEqual([item.tag for item in releases], ["v2.0.0-build.77", "v2.0.0-build.76", "v2.0.0-build.75"])
+        self.assertEqual(releases[1].notes, "middle")
+
+    def test_reads_application_identity_only_from_the_managed_container(self):
+        tag, commit_sha, image = release.application_identity({
+            "Config": {
+                "Image": "holic512/slothvault:latest",
+                "Env": ["SLOTHVAULT_RELEASE_TAG=v2.0.0-build.76", "SLOTHVAULT_RELEASE_COMMIT_SHA=abc123"],
+                "Labels": {},
+            }
+        })
+
+        self.assertEqual((tag, commit_sha, image), ("v2.0.0-build.76", "abc123", "holic512/slothvault:latest"))
+        self.assertTrue(release.is_official_image(image))
+        self.assertFalse(release.is_official_image("example.com/custom/slothvault:latest"))
+
+    def test_update_requires_confirmation_and_rechecks_target_release(self):
+        package, root = self.managed_root()
+        try:
+            latest = release.PublishedRelease(
+                tag="v2.0.0-build.76",
+                title="SlothVault v2.0.0-build.76",
+                commit_sha="latest-sha",
+                published_at=None,
+                html_url="https://github.com/holic512/SlothVault/releases/tag/v2.0.0-build.76",
+                notes="- `abc` update",
+            )
+            initial = release.DeploymentUpdateCheck(
+                repository="holic512/SlothVault",
+                script_tag="v2.0.0-build.76",
+                script_commit_sha="latest-sha",
+                application_tag="v2.0.0-build.75",
+                application_commit_sha="previous-sha",
+                application_image="holic512/slothvault:latest",
+                latest=latest,
+                missing_releases=(latest,),
+                history_complete=True,
+                status="APPLICATION_UPDATE_AVAILABLE",
+                error=None,
+                application_update_available=True,
+                script_update_available=False,
+            )
+            verified = release.DeploymentUpdateCheck(
+                **{**initial.__dict__, "application_tag": latest.tag, "status": "UP_TO_DATE", "missing_releases": (), "application_update_available": False}
+            )
+            with patch.object(release, "check_deployment_update", side_effect=[initial, verified]), patch.object(
+                release, "prompt_yes_no", return_value=True
+            ), patch.object(release, "run_command") as run_command:
+                release.update_managed_application(root)
+
+            self.assertEqual(
+                [call[0][0] for call in run_command.call_args_list],
+                [
+                    ("docker", "compose", "-f", str(root / "compose.yml"), "pull"),
+                    ("docker", "compose", "-f", str(root / "compose.yml"), "up", "-d"),
+                    ("docker", "compose", "-f", str(root / "compose.yml"), "ps"),
+                ],
+            )
+        finally:
+            package.cleanup()
+
+    def test_current_release_does_not_pull_or_restart(self):
+        package, root = self.managed_root()
+        try:
+            current = release.DeploymentUpdateCheck(
+                repository="holic512/SlothVault",
+                script_tag="v2.0.0-build.76",
+                script_commit_sha="latest-sha",
+                application_tag="v2.0.0-build.76",
+                application_commit_sha="latest-sha",
+                application_image="holic512/slothvault:latest",
+                latest=None,
+                missing_releases=(),
+                history_complete=True,
+                status="UP_TO_DATE",
+                error=None,
+                application_update_available=False,
+                script_update_available=False,
+            )
+            with patch.object(release, "check_deployment_update", return_value=current), patch.object(
+                release, "run_command"
+            ) as run_command:
+                release.update_managed_application(root)
+
+            run_command.assert_not_called()
+        finally:
+            package.cleanup()
 
 
 class NginxRenderingTests(unittest.TestCase):

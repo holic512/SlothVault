@@ -1116,7 +1116,54 @@
           "noticeDescription": "Saved node URLs are never shown again; the fallback is used only after a connection failure.",
           "test": "Test nodes"
         },
+        "updates": {
+          "label": "System Updates",
+          "description": "View the running version, published GitHub version, and commit logs included in an upgrade."
+        },
         "fieldsCount": "{count} settings"
+      },
+      "updates": {
+        "cardTitle": "Release Version and Update Logs",
+        "notice": "This page only checks and displays update status. Run the SlothVault deployment script on the host server to update the image.",
+        "checkedAt": "Checked: {date}",
+        "logsTitle": "Commit logs in this upgrade",
+        "fields": {
+          "installedVersion": "Running application version",
+          "installedCommit": "Running commit",
+          "latestVersion": "Latest published version",
+          "latestCommit": "Latest commit",
+          "publishedAt": "Published at",
+          "repository": "Update repository"
+        },
+        "status": {
+          "UP_TO_DATE": "Current formal release is up to date",
+          "UPDATE_AVAILABLE": "A formal update is available",
+          "LOCAL_NEWER": "The running application is newer than the latest formal release",
+          "UNVERSIONED": "The running application has no comparable release identity",
+          "HISTORY_INCOMPLETE": "An update is available, but the full history cannot be confirmed",
+          "CHECK_FAILED": "GitHub update status is temporarily unavailable"
+        },
+        "errors": {
+          "RELEASE_SOURCE_NOT_FOUND": "No published GitHub Release is available.",
+          "RELEASE_RATE_LIMITED": "The GitHub API is rate limited; try again later.",
+          "RELEASE_REQUEST_TIMEOUT": "The GitHub request timed out; check server networking and try again.",
+          "RELEASE_CHECK_FAILED": "GitHub Release information could not be read; try again later."
+        },
+        "actions": {
+          "check": "Check for updates",
+          "retry": "Retry",
+          "openLatest": "View latest release on GitHub",
+          "openRelease": "View this release"
+        },
+        "values": {
+          "unavailable": "Unavailable",
+          "noNotes": "This Release has no commit log."
+        },
+        "messages": {
+          "loadFailed": "Failed to load update status",
+          "historyIncomplete": "The running version was not found in the fetched formal Release history. The update status is indicative, but the complete cumulative log cannot be shown.",
+          "empty": "No update status is available"
+        }
       },
       "configDesc": {
         "SYSTEM_LOGO_FILE_PATH": "Saved after upload; restoring the default uses the bundled logo again",

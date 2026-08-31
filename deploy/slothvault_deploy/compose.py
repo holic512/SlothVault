@@ -506,14 +506,9 @@ def operate_existing(action: str, root: Path) -> None:
     compose_path = root / COMPOSE_FILE_NAME
     require_managed_compose(compose_path)
     commands = {
-        "update": (("pull",), ("up", "-d"), ("ps",)),
         "start": (("up", "-d"), ("ps",)),
         "stop": (("stop",),),
         "status": (("ps",),),
     }
     for command in commands[action]:
         run_command(compose_command(compose_path, *command))
-    if action == "update":
-        from .system import print_info
-
-        print_info("已更新 {0} 中声明的镜像，持久化数据已保留。".format(compose_path))

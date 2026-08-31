@@ -1233,6 +1233,21 @@
   margin: 0;
 }
 
+.root :global(.settings-update-notice) {
+  margin: 0;
+}
+
+.root :global(.settings-update-card) {
+  overflow: hidden;
+}
+
+.root :global(.settings-update-notes) {
+  max-width: 100%;
+  margin: 0 !important;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 .root :global(.settings-card) {
   min-height: 0;
   flex: 1;

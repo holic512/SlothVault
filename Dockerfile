@@ -3,10 +3,10 @@
 # @file Dockerfile
 # @project SlothVault
 # @module Production container image
-# @description Builds a compact database-independent Next.js standalone image containing all supported Prisma providers and installer migrations without diagnostic source maps or foreign libc binaries.
-# @logic Cache dependency/build stages, sanitize the traced standalone runtime and Prisma CLI closure for the target Alpine platform, then prepare persistent application directories.
+# @description Builds a compact database-independent Next.js standalone image containing all supported Prisma providers, installer migrations, and immutable Release metadata without diagnostic source maps or foreign libc binaries.
+# @logic Cache dependency/build stages, sanitize the traced standalone runtime and Prisma CLI closure for the target Alpine platform, attach CI build identity as OCI labels and runtime environment, then prepare persistent application directories.
 # @dependencies Node.js 24.18.1 LTS Alpine, Next.js standalone, Prisma 7
-# @index_tags docker, standalone, prisma, sqlite, mysql, postgresql
+# @index_tags docker, standalone, prisma, sqlite, mysql, postgresql, release, build-identity
 # @author holic512
 
 FROM node:24.18.1-alpine AS base
@@ -33,6 +33,15 @@ RUN --mount=type=cache,target=/app/.next/cache \
 
 FROM base AS runner
 
+ARG SLOTHVAULT_RELEASE_TAG
+ARG SLOTHVAULT_RELEASE_COMMIT_SHA
+ARG SLOTHVAULT_RELEASE_REPOSITORY
+ARG SLOTHVAULT_APP_VERSION
+
+LABEL org.opencontainers.image.version="${SLOTHVAULT_RELEASE_TAG}" \
+    org.opencontainers.image.revision="${SLOTHVAULT_RELEASE_COMMIT_SHA}" \
+    org.opencontainers.image.source="https://github.com/${SLOTHVAULT_RELEASE_REPOSITORY}"
+
 # The standalone output already contains the traced application dependencies
 # plus static assets and the exact Prisma CLI dependency closure added by the
 # postbuild sanitizer.
@@ -52,7 +61,11 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     PORT=3000 \
     APP_DATA_PATH=/app/data \
-    UPLOAD_STORAGE_PATH=/app/data/uploads
+    UPLOAD_STORAGE_PATH=/app/data/uploads \
+    SLOTHVAULT_RELEASE_TAG=${SLOTHVAULT_RELEASE_TAG} \
+    SLOTHVAULT_RELEASE_COMMIT_SHA=${SLOTHVAULT_RELEASE_COMMIT_SHA} \
+    SLOTHVAULT_RELEASE_REPOSITORY=${SLOTHVAULT_RELEASE_REPOSITORY} \
+    SLOTHVAULT_APP_VERSION=${SLOTHVAULT_APP_VERSION}
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["start"]

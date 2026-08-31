@@ -2,10 +2,10 @@
 @file deploy/slothvault_deploy/cli.py
 @project SlothVault
 @module Deployment command-line interface
-@description Provides the Chinese interactive menu that coordinates Docker Compose installation with safely selected system or official Docker Nginx reverse proxying and Let’s Encrypt certificate operations.
-@logic Resolve one explicit Nginx management mode per action, preserve existing managed state, verify Docker upstream networking before rendering it, and sequence Compose, Nginx and Certbot changes so high-risk writes have a recoverable path.
-@dependencies Python standard library, Docker Engine, Docker Compose v2, optional host Nginx and Certbot
-@index_tags deployment,installer,cli,menu,compose,nginx,docker,https,certbot
+@description Provides the Chinese interactive menu that coordinates Docker Compose installation, Release update checks, safely selected system or official Docker Nginx reverse proxying, and Let’s Encrypt certificate operations.
+@logic Resolve one explicit Nginx management mode per action, compare immutable deployed builds before updating, preserve existing managed state, verify Docker upstream networking before rendering it, and sequence Compose, Nginx and Certbot changes so high-risk writes have a recoverable path.
+@dependencies Python standard library, Docker Engine, Docker Compose v2, GitHub Releases REST API, optional host Nginx and Certbot
+@index_tags deployment,installer,cli,menu,compose,release,update,github,nginx,docker,https,certbot
 @author holic512
 """
 
@@ -62,6 +62,7 @@ from .nginx import (
     validate_container_name,
     validate_server_name,
 )
+from .release import check_deployment_update, print_update_check, update_managed_application
 from .system import (
     InstallerError,
     check_docker,
@@ -77,7 +78,7 @@ from .system import (
 )
 
 
-ACTIONS = ("install", "update", "start", "stop", "status", "nginx", "https", "renew")
+ACTIONS = ("install", "update", "check-update", "start", "stop", "status", "nginx", "https", "renew")
 NGINX_MODES = ("auto", "system", "docker")
 
 
@@ -93,6 +94,7 @@ def prompt_action(default: Optional[str] = None) -> str:
         "6": "nginx",
         "7": "https",
         "8": "renew",
+        "9": "check-update",
     }
     print("\n请选择操作：")
     print("  1) 安装新实例并生成 compose.yml")
@@ -103,6 +105,7 @@ def prompt_action(default: Optional[str] = None) -> str:
     print("  6) 配置或更新 Nginx 反向代理")
     print("  7) 申请或更新 Let's Encrypt HTTPS 证书")
     print("  8) 查看证书状态或立即尝试续约")
+    print("  9) 检查系统更新与提交日志")
     while True:
         try:
             selected = input("操作 [1]: ").strip() or "1"
@@ -111,7 +114,7 @@ def prompt_action(default: Optional[str] = None) -> str:
         action = choices.get(selected)
         if action:
             return action
-        print_error("请输入 1 到 8 的数字")
+        print_error("请输入 1 到 9 的数字")
 
 
 def prompt_http_server_name() -> str:
@@ -431,6 +434,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             configure_https(arguments, root)
         elif action == "renew":
             certificate_status_or_renew(arguments, root)
+        elif action == "check-update":
+            print_update_check(check_deployment_update(root))
+        elif action == "update":
+            update_managed_application(root)
         else:
             operate_existing(action, root)
         return 0

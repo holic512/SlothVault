@@ -183,7 +183,12 @@ describe('Next runtime contract', () => {
     expect(`${deploymentEntrypoint}\n${deploymentCompose}\n${deploymentNginx}\n${deploymentCertbot}`).not.toContain(
       'import yaml',
     )
-    expect(workflow).toContain('git archive --format=zip --prefix=deploy/')
+    expect(dockerfile).toContain('SLOTHVAULT_RELEASE_TAG')
+    expect(dockerfile).toContain('org.opencontainers.image.revision')
+    expect(workflow).toContain('Prepare immutable release identity')
+    expect(workflow).toContain('SLOTHVAULT_RELEASE_COMMIT_SHA=${{ github.sha }}')
+    expect(workflow).toContain('release_metadata.py')
+    expect(workflow).toContain('git archive "${GITHUB_SHA}:deploy" | tar -x')
     expect(workflow).toContain('gh release upload "$RELEASE_TAG" ./slothvault-deploy.zip --clobber')
     expect(sanitizer).toContain('removeSourceMaps(standaloneRoot)')
     expect(sanitizer).toContain('pruneSharpRuntimePackages(standaloneRoot)')

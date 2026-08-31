@@ -1116,7 +1116,54 @@
           "noticeDescription": "已保存的节点地址不会回显；仅在连接故障时才会切换至备用节点。",
           "test": "检测节点"
         },
+        "updates": {
+          "label": "系统更新",
+          "description": "查看当前运行版本、GitHub 正式发布版本和本次升级包含的提交日志。"
+        },
         "fieldsCount": "{count} 项设置"
+      },
+      "updates": {
+        "cardTitle": "发布版本与更新日志",
+        "notice": "此页面只检查并展示更新状态。请在部署服务器上运行 SlothVault 部署脚本完成镜像更新。",
+        "checkedAt": "检查时间：{date}",
+        "logsTitle": "本次升级的提交日志",
+        "fields": {
+          "installedVersion": "当前应用版本",
+          "installedCommit": "当前提交",
+          "latestVersion": "最新发布版本",
+          "latestCommit": "最新提交",
+          "publishedAt": "发布时间",
+          "repository": "更新仓库"
+        },
+        "status": {
+          "UP_TO_DATE": "当前已是最新正式版本",
+          "UPDATE_AVAILABLE": "发现可安装的正式更新",
+          "LOCAL_NEWER": "当前应用版本比远程正式发布版本更新",
+          "UNVERSIONED": "当前应用未嵌入可比较的发布标识",
+          "HISTORY_INCOMPLETE": "发现更新，但无法确认完整历史日志",
+          "CHECK_FAILED": "暂时无法检查 GitHub 更新"
+        },
+        "errors": {
+          "RELEASE_SOURCE_NOT_FOUND": "未找到可用的正式 GitHub Release。",
+          "RELEASE_RATE_LIMITED": "GitHub API 当前限流，请稍后重试。",
+          "RELEASE_REQUEST_TIMEOUT": "连接 GitHub 超时，请检查服务器网络后重试。",
+          "RELEASE_CHECK_FAILED": "无法读取 GitHub Release 信息，请稍后重试。"
+        },
+        "actions": {
+          "check": "检查更新",
+          "retry": "重试",
+          "openLatest": "在 GitHub 查看最新发布",
+          "openRelease": "查看此版本发布页"
+        },
+        "values": {
+          "unavailable": "不可用",
+          "noNotes": "该 Release 未提供提交日志。"
+        },
+        "messages": {
+          "loadFailed": "加载更新状态失败",
+          "historyIncomplete": "当前版本不在已获取的正式 Release 历史中，更新状态可供参考，但无法展示完整累计日志。",
+          "empty": "暂无更新状态"
+        }
       },
       "configDesc": {
         "SYSTEM_LOGO_FILE_PATH": "上传后保存；恢复默认将重新使用内置 Logo",
