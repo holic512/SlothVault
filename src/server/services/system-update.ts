@@ -2,7 +2,7 @@
  * @file system-update.ts
  * @project SlothVault
  * @module System Release Update Service
- * @description Resolves the running application's immutable build identity and compares it with published SlothVault GitHub Releases.
+ * @description Resolves the running application's release identity and compares it with published SlothVault GitHub Releases.
  * @logic Parse release tags deterministically, fetch and cache only successful public release listings, retain the ordered upgrade path when known, and convert remote failures into a stable display state.
  * @dependencies Node.js fetch, package.json runtime metadata, GitHub Releases REST API
  * @index_tags system-update,release,github,version,cache,admin
@@ -13,7 +13,7 @@ import 'server-only'
 import packageJson from '../../../package.json'
 
 const OFFICIAL_REPOSITORY = 'holic512/SlothVault'
-const RELEASE_TAG_PATTERN = /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-build\.(0|[1-9]\d*)$/
+const RELEASE_TAG_PATTERN = /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-build\.(0|[1-9]\d*))?$/
 const RELEASES_PER_PAGE = 100
 const MAX_RELEASE_PAGES = 10
 const CACHE_TTL_MS = 15 * 60 * 1000
@@ -22,7 +22,7 @@ export type ReleaseVersion = {
   major: number
   minor: number
   patch: number
-  build: number
+  build: number | null
   tag: string
 }
 
@@ -105,16 +105,19 @@ export function parseReleaseTag(value: string | null | undefined): ReleaseVersio
     major: Number(major),
     minor: Number(minor),
     patch: Number(patch),
-    build: Number(build),
+    build: build === undefined ? null : Number(build),
     tag: value.trim(),
   }
 }
 
 export function compareReleaseVersions(left: ReleaseVersion, right: ReleaseVersion) {
-  for (const key of ['major', 'minor', 'patch', 'build'] as const) {
+  for (const key of ['major', 'minor', 'patch'] as const) {
     if (left[key] !== right[key]) return left[key] > right[key] ? 1 : -1
   }
-  return 0
+  if (left.build === right.build) return 0
+  if (left.build === null) return 1
+  if (right.build === null) return -1
+  return left.build > right.build ? 1 : -1
 }
 
 function validGitHubRelease(value: unknown): SystemRelease | null {

@@ -1,10 +1,10 @@
 # @file .github/workflows/docker-build.yml
 # @project SlothVault
 # @module Container and source release delivery
-# @description Validates pull-request images and publishes the default-branch linux/amd64 Docker image with its size metric, an immutable commit-derived version, a source GitHub Release, and a self-contained host deployment ZIP.
-# @logic Derive the release version from the package major-version anchor and first-parent commit count, build only linux/amd64, embed the identity in the image and deployment ZIP, then refresh the idempotent Release with first-parent commit logs.
+# @description Validates pull-request images and publishes the default-branch linux/amd64 Docker image with its size metric, a commit-derived release version, a source GitHub Release, and a self-contained host deployment ZIP.
+# @logic Derive the release version from the package major-version anchor and first-parent commit count, build only linux/amd64, embed the version and source commit in the image and deployment ZIP, then refresh the idempotent Release with first-parent commit logs.
 # @dependencies GitHub Actions, Docker Buildx, Docker Hub, Node.js, GitHub CLI, deploy/
-# @index_tags github-actions,docker,standalone,image-size,release,build-identity,source-archive,deployment,zip,commit-log
+# @index_tags github-actions,docker,standalone,image-size,release,version,source-archive,deployment,zip,commit-log
 # @author holic512
 
 name: Build Docker Image and Publish Release
@@ -32,8 +32,7 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    # A normal multi-platform build completed in about 16 minutes. Stop a
-    # stuck Buildx/cache request with useful plain-text logs instead of waiting
+    # Stop a stuck Buildx/cache request with useful plain-text logs instead of waiting
     # for the GitHub-hosted runner's 6-hour hard limit.
     timeout-minutes: 45
     permissions:
@@ -194,7 +193,7 @@ jobs:
 
           version="${{ steps.release-identity.outputs.version }}"
           tag="${{ steps.release-identity.outputs.tag }}"
-          title="SlothVault ${version} · Build ${GITHUB_RUN_NUMBER}"
+          title="SlothVault ${version}"
           previous_tag=""
 
           while IFS= read -r candidate; do

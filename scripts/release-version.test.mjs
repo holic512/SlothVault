@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   findMajorVersionBaseline,
   parseSemanticVersion,
+  releaseTagForVersion,
   releaseVersionForCommitCount,
 } from './release-version.mjs'
 
@@ -20,6 +21,10 @@ describe('release version resolution', () => {
     expect(releaseVersionForCommitCount(2, 21)).toBe('2.1.0')
     expect(releaseVersionForCommitCount(2, 42)).toBe('2.2.0')
     expect(releaseVersionForCommitCount(2, 210_021)).toBe('2.10001.0')
+  })
+
+  it('uses only a plain semantic version in the release tag', () => {
+    expect(releaseTagForVersion('2.2.13')).toBe('v2.2.13')
   })
 
   it('uses the commit that introduced the current major version as the reset point', () => {

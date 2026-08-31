@@ -25,19 +25,19 @@ from .compose import COMPOSE_FILE_NAME, compose_command, inspect_managed_applica
 from .system import InstallerError, print_info, prompt_yes_no, run_command
 
 
-RELEASE_TAG_PATTERN = re.compile(r"^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-build\.(0|[1-9]\d*)$")
+RELEASE_TAG_PATTERN = re.compile(r"^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-build\.(0|[1-9]\d*))?$")
 RELEASES_PER_PAGE = 100
 MAX_RELEASE_PAGES = 10
 REQUEST_TIMEOUT_SECONDS = 8
 OFFICIAL_IMAGES = ("holic512/slothvault", "docker.io/holic512/slothvault")
 
 
-@dataclass(frozen=True, order=True)
+@dataclass(frozen=True)
 class ReleaseVersion:
     major: int
     minor: int
     patch: int
-    build: int
+    build: Optional[int]
     tag: str
 
 
@@ -83,14 +83,33 @@ def parse_release_tag(value: Optional[str]) -> Optional[ReleaseVersion]:
     match = RELEASE_TAG_PATTERN.fullmatch(tag)
     if match is None:
         return None
-    major, minor, patch, build = (int(item) for item in match.groups())
-    return ReleaseVersion(major, minor, patch, build, tag)
+    major, minor, patch = (int(item) for item in match.groups()[:3])
+    build = match.group(4)
+    return ReleaseVersion(major, minor, patch, int(build) if build is not None else None, tag)
 
 
 def compare_release_versions(left: ReleaseVersion, right: ReleaseVersion) -> int:
-    left_value = (left.major, left.minor, left.patch, left.build)
-    right_value = (right.major, right.minor, right.patch, right.build)
-    return (left_value > right_value) - (left_value < right_value)
+    left_value = (left.major, left.minor, left.patch)
+    right_value = (right.major, right.minor, right.patch)
+    if left_value != right_value:
+        return (left_value > right_value) - (left_value < right_value)
+    if left.build == right.build:
+        return 0
+    if left.build is None:
+        return 1
+    if right.build is None:
+        return -1
+    return (left.build > right.build) - (left.build < right.build)
+
+
+def _release_sort_key(version: ReleaseVersion) -> tuple[int, int, int, int, int]:
+    return (
+        version.major,
+        version.minor,
+        version.patch,
+        1 if version.build is None else 0,
+        version.build if version.build is not None else 0,
+    )
 
 
 def _release_from_payload(value: object) -> Optional[PublishedRelease]:
@@ -119,7 +138,7 @@ def _release_from_payload(value: object) -> Optional[PublishedRelease]:
 def _sort_newest_first(releases: Iterable[PublishedRelease]) -> list[PublishedRelease]:
     return sorted(
         releases,
-        key=lambda item: parse_release_tag(item.tag) or ReleaseVersion(0, 0, 0, 0, item.tag),
+        key=lambda item: _release_sort_key(parse_release_tag(item.tag) or ReleaseVersion(0, 0, 0, None, item.tag)),
         reverse=True,
     )
 
@@ -308,7 +327,7 @@ def check_deployment_update(root: Path) -> DeploymentUpdateCheck:
                 and (release_version := parse_release_tag(release.tag))
                 and compare_release_versions(release_version, application_version) > 0
             ),
-            key=lambda item: parse_release_tag(item.tag) or ReleaseVersion(0, 0, 0, 0, item.tag),
+            key=lambda item: _release_sort_key(parse_release_tag(item.tag) or ReleaseVersion(0, 0, 0, None, item.tag)),
         )
     )
     application_update_available = application_comparison is not None and application_comparison < 0

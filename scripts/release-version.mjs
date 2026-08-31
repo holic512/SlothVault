@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Release Version Resolution
  * @description Synchronizes and validates a deterministic package release version from the manually selected major component and first-parent Git history.
- * @logic Use the commit that introduced the current major as the epoch, map later first-parent commits to patch values 1 through 20 and then unbounded minor increments, write the next version before committing, validate the committed version in GitHub Actions, and append the workflow run number as an immutable build identity.
+ * @logic Use the commit that introduced the current major as the epoch, map later first-parent commits to patch values 1 through 20 and then unbounded minor increments, write the next version before committing, validate the committed version in GitHub Actions, and derive a plain vM.m.p release tag.
  * @dependencies Node.js node:child_process, node:fs/promises, Git
  * @index_tags release,version,semver,github-actions,git-history,docker
  * @author holic512
@@ -42,6 +42,11 @@ export function releaseVersionForCommitCount(major, commitsSinceBaseline) {
   const minor = Math.floor(commitsSinceBaseline / PATCH_CYCLE_SIZE)
   const patch = commitsSinceBaseline % PATCH_CYCLE_SIZE
   return `${major}.${minor}.${patch}`
+}
+
+export function releaseTagForVersion(version) {
+  parseSemanticVersion(version)
+  return `v${version}`
 }
 
 export function findMajorVersionBaseline(history, major) {
@@ -85,13 +90,9 @@ function packageVersionHistory() {
 export async function resolveReleaseIdentity({
   packageJsonPath = new URL('../package.json', import.meta.url),
   commit = process.env.GITHUB_SHA || 'HEAD',
-  runNumber = process.env.GITHUB_RUN_NUMBER,
 } = {}) {
   const packageJson = JSON.parse(await readFile(packageJsonPath, 'utf8'))
   const packageVersion = parseSemanticVersion(packageJson.version)
-  if (!/^(0|[1-9]\d*)$/.test(String(runNumber))) {
-    throw new Error('GITHUB_RUN_NUMBER must be a non-negative integer')
-  }
 
   const baseline = findMajorVersionBaseline(packageVersionHistory(), packageVersion.major)
   const commitsSinceBaseline = integerVersionPart(
@@ -109,7 +110,7 @@ export async function resolveReleaseIdentity({
     baseline,
     commitsSinceBaseline,
     version,
-    tag: `v${version}-build.${runNumber}`,
+    tag: releaseTagForVersion(version),
   }
 }
 

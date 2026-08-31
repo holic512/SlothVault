@@ -57,16 +57,20 @@ describe('system update release metadata', () => {
     else process.env.SLOTHVAULT_APP_VERSION = originalEnvironment.appVersion
   })
 
-  it('parses and orders release tags by semver and then build number', () => {
+  it('parses plain release tags and legacy build suffixes in release order', () => {
     const current = parseReleaseTag('v2.0.0-build.75')
     const newerBuild = parseReleaseTag('v2.0.0-build.76')
+    const plainRelease = parseReleaseTag('v2.0.0')
     const newerMinor = parseReleaseTag('v2.1.0-build.1')
 
     expect(current).not.toBeNull()
     expect(newerBuild).not.toBeNull()
+    expect(plainRelease).not.toBeNull()
     expect(newerMinor).not.toBeNull()
     expect(compareReleaseVersions(newerBuild!, current!)).toBe(1)
+    expect(compareReleaseVersions(plainRelease!, newerBuild!)).toBe(1)
     expect(compareReleaseVersions(newerMinor!, newerBuild!)).toBe(1)
+    expect(plainRelease?.build).toBeNull()
     expect(parseReleaseTag('v2.0-build.76')).toBeNull()
     expect(parseReleaseTag('v2.0.0-build.-1')).toBeNull()
   })
