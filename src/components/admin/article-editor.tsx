@@ -18,6 +18,7 @@ import { ArrowLeft, EyeOff, ImagePlus, Rocket, Save, Trash2, X } from 'lucide-re
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 
+import { AdminPage } from '@/components/admin/admin-page'
 import { MarkdownContentEditor } from '@/components/admin/markdown-content-editor'
 import { ArticleCover } from '@/components/article/article-cover'
 import { apiFetch } from '@/lib/api-client'
@@ -188,10 +189,22 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
     })
   }
 
-  if (articleId && query.isLoading) return <Skeleton active />
-  if (articleId && query.isError) return <Alert type="error" showIcon message={query.error.message} />
+  if (articleId && query.isLoading) {
+    return (
+      <AdminPage>
+        <div className="admin-editor-loading"><Skeleton active /></div>
+      </AdminPage>
+    )
+  }
+  if (articleId && query.isError) {
+    return <AdminPage><Alert type="error" showIcon message={query.error.message} /></AdminPage>
+  }
   if (article?.isDeleted) {
-    return <Alert type="warning" showIcon message={t('deletedTitle')} description={t('deletedDescription')} />
+    return (
+      <AdminPage>
+        <Alert type="warning" showIcon message={t('deletedTitle')} description={t('deletedDescription')} />
+      </AdminPage>
+    )
   }
 
   const published = article?.status === 1

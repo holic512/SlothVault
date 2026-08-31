@@ -18,6 +18,7 @@ import { ArrowLeft, Save } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 
+import { AdminPage } from '@/components/admin/admin-page'
 import { MarkdownContentEditor } from '@/components/admin/markdown-content-editor'
 import { ApiClientError, apiFetch } from '@/lib/api-client'
 
@@ -57,16 +58,22 @@ export function HomepageEditor({ projectId }: { projectId?: string }) {
   })
 
   if (resourceQuery.isLoading || (projectId && projectQuery.isLoading)) {
-    return <div className="admin-editor-loading"><Skeleton active paragraph={{ rows: 12 }} /></div>
+    return (
+      <AdminPage>
+        <div className="admin-editor-loading"><Skeleton active paragraph={{ rows: 12 }} /></div>
+      </AdminPage>
+    )
   }
   if (resourceQuery.isError || projectQuery.isError) {
     return (
-      <Alert
-        showIcon
-        type="error"
-        message={t('messages.loadFailed')}
-        description={resourceQuery.error?.message || projectQuery.error?.message}
-      />
+      <AdminPage>
+        <Alert
+          showIcon
+          type="error"
+          message={t('messages.loadFailed')}
+          description={resourceQuery.error?.message || projectQuery.error?.message}
+        />
+      </AdminPage>
     )
   }
 

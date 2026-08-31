@@ -59,13 +59,15 @@ export function DashboardView() {
 
   if (query.isError) {
     return (
-      <Alert
-        type="error"
-        showIcon
-        message={t('messages.loadFailed')}
-        description={query.error.message}
-        action={<Button onClick={() => void query.refetch()}>{t('actions.refresh')}</Button>}
-      />
+      <AdminPage>
+        <Alert
+          type="error"
+          showIcon
+          message={t('messages.loadFailed')}
+          description={query.error.message}
+          action={<Button onClick={() => void query.refetch()}>{t('actions.refresh')}</Button>}
+        />
+      </AdminPage>
     )
   }
 

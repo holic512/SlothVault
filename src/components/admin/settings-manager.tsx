@@ -66,10 +66,18 @@ export function SettingsManager() {
   })
 
   if (query.isLoading) {
-    return <div className="admin-editor-loading"><Skeleton active paragraph={{ rows: 10 }} /></div>
+    return (
+      <AdminPage>
+        <div className="admin-editor-loading"><Skeleton active paragraph={{ rows: 10 }} /></div>
+      </AdminPage>
+    )
   }
   if (query.isError) {
-    return <Alert showIcon type="error" message={t('messages.loadFailed')} description={query.error.message} />
+    return (
+      <AdminPage>
+        <Alert showIcon type="error" message={t('messages.loadFailed')} description={query.error.message} />
+      </AdminPage>
+    )
   }
 
   return (
