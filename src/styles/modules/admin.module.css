@@ -1241,6 +1241,11 @@
   overflow: hidden;
 }
 
+.root :global(.settings-update-next-release) {
+  border-color: color-mix(in srgb, var(--sv-primary-strong) 26%, var(--sv-admin-border)) !important;
+  background: color-mix(in srgb, var(--sv-primary-strong) 5%, var(--sv-bg-solid)) !important;
+}
+
 .root :global(.settings-update-notes) {
   max-width: 100%;
   margin: 0 !important;

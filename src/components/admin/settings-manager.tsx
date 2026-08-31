@@ -4,8 +4,8 @@
  * @file settings-manager.tsx
  * @project SlothVault
  * @module System Settings Administration
- * @description Provides tabbed configuration controls for branding, evidence policy, protected RPC endpoints, and read-only system Release update status without echoing stored secrets.
- * @logic Load known configuration metadata, partition settings by operational risk, stage uploaded logo and favicon paths with explicit synchronization choices, submit one atomic batch, re-read process-independent runtime values, and independently request display-only GitHub Release status.
+ * @description Provides tabbed configuration controls for branding, evidence policy, protected RPC endpoints, and the one immediately next read-only system Release update without echoing stored secrets.
+ * @logic Load known configuration metadata, partition settings by operational risk, stage uploaded logo and favicon paths with explicit synchronization choices, submit one atomic batch, re-read process-independent runtime values, and independently request one safe adjacent GitHub Release update step.
  * @dependencies Ant Design, React Query, next-intl, Next navigation, api-client, system-update API
  * @index_tags admin,settings,branding,logo,favicon,secrets,configuration,transaction,system-update,release
  * @author holic512
@@ -13,7 +13,7 @@
 import { useMemo, useState } from 'react'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, App, Button, Card, Collapse, Descriptions, Empty, Image, Input, Segmented, Skeleton, Space, Switch, Tabs, Tag, Tooltip, Typography, Upload } from 'antd'
+import { Alert, App, Button, Card, Descriptions, Empty, Image, Input, Segmented, Skeleton, Space, Switch, Tabs, Tag, Tooltip, Typography, Upload } from 'antd'
 import { CircleHelp, ImageUp, KeyRound, RefreshCw, RotateCcw, Save, ServerCog, Waypoints } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
@@ -50,8 +50,7 @@ type SystemUpdateInfo = {
   status: SystemUpdateStatus
   repository: string
   installed: { packageVersion: string; tag: string | null; commitSha: string | null }
-  latest: SystemRelease | null
-  missingReleases: SystemRelease[]
+  nextRelease: SystemRelease | null
   historyComplete: boolean
   error: string | null
 }
@@ -446,36 +445,29 @@ function SystemUpdatePanel() {
           <Descriptions.Item label={t('updates.fields.installedCommit')}>
             <Typography.Text code>{data.installed.commitSha?.slice(0, 12) || t('updates.values.unavailable')}</Typography.Text>
           </Descriptions.Item>
-          <Descriptions.Item label={t('updates.fields.latestVersion')}>
-            <Typography.Text code>{data.latest?.tag || t('updates.values.unavailable')}</Typography.Text>
+          <Descriptions.Item label={t('updates.fields.nextVersion')}>
+            <Typography.Text code>{data.nextRelease?.tag || t('updates.values.unavailable')}</Typography.Text>
           </Descriptions.Item>
-          <Descriptions.Item label={t('updates.fields.latestCommit')}>
-            <Typography.Text code>{data.latest?.commitSha?.slice(0, 12) || t('updates.values.unavailable')}</Typography.Text>
+          <Descriptions.Item label={t('updates.fields.nextCommit')}>
+            <Typography.Text code>{data.nextRelease?.commitSha?.slice(0, 12) || t('updates.values.unavailable')}</Typography.Text>
           </Descriptions.Item>
           <Descriptions.Item label={t('updates.fields.publishedAt')}>
-            {date(data.latest?.publishedAt || null)}
+            {date(data.nextRelease?.publishedAt || null)}
           </Descriptions.Item>
           <Descriptions.Item label={t('updates.fields.repository')}>
             <Typography.Text code>{data.repository}</Typography.Text>
           </Descriptions.Item>
         </Descriptions>
-        {data.latest ? <Typography.Link href={data.latest.htmlUrl} target="_blank" rel="noreferrer">{t('updates.actions.openLatest')}</Typography.Link> : null}
         {!data.historyComplete && data.status !== 'CHECK_FAILED' ? <Alert showIcon type="warning" message={t('updates.messages.historyIncomplete')} /> : null}
         {data.error ? <Typography.Text type="secondary">{t(`updates.errors.${data.error}`)}</Typography.Text> : null}
-        {data.missingReleases.length ? <>
-          <Typography.Title level={5} style={{ margin: 0 }}>{t('updates.logsTitle')}</Typography.Title>
-          <Collapse
-            items={data.missingReleases.map((release) => ({
-              key: release.tag,
-              label: <Space size={8} wrap><Typography.Text strong>{release.tag}</Typography.Text><Typography.Text type="secondary">{release.title}</Typography.Text></Space>,
-              children: <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                <Typography.Text type="secondary">{date(release.publishedAt)} · {release.commitSha?.slice(0, 12) || t('updates.values.unavailable')}</Typography.Text>
-                <Typography.Paragraph className="settings-update-notes">{release.notes || t('updates.values.noNotes')}</Typography.Paragraph>
-                <Typography.Link href={release.htmlUrl} target="_blank" rel="noreferrer">{t('updates.actions.openRelease')}</Typography.Link>
-              </Space>,
-            }))}
-          />
-        </> : null}
+        {data.nextRelease ? <Card className="settings-update-next-release" size="small" title={<span className="settings-card-title"><RefreshCw size={15} />{t('updates.nextRelease.title')}</span>}>
+          <Space direction="vertical" size={8} style={{ width: '100%' }}>
+            <Space size={8} wrap><Typography.Text strong code>{data.nextRelease.tag}</Typography.Text><Typography.Text type="secondary">{data.nextRelease.title}</Typography.Text></Space>
+            <Typography.Text type="secondary">{date(data.nextRelease.publishedAt)} · {data.nextRelease.commitSha?.slice(0, 12) || t('updates.values.unavailable')}</Typography.Text>
+            <Typography.Paragraph className="settings-update-notes">{data.nextRelease.notes || t('updates.values.noNotes')}</Typography.Paragraph>
+            <Typography.Link href={data.nextRelease.htmlUrl} target="_blank" rel="noreferrer">{t('updates.actions.openRelease')}</Typography.Link>
+          </Space>
+        </Card> : null}
       </Space>
     </Card>
   </>

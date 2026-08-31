@@ -1119,27 +1119,26 @@
         },
         "updates": {
           "label": "System Updates",
-          "description": "View the running version, published GitHub version, and commit logs included in an upgrade."
+          "description": "View the running version and the one immediately next formal upgrade."
         },
         "fieldsCount": "{count} settings"
       },
       "updates": {
-        "cardTitle": "Release Version and Update Logs",
-        "notice": "This page only checks and displays update status. Run the SlothVault deployment script on the host server to update the image.",
+        "cardTitle": "Step-by-step Updates",
+        "notice": "This page shows only the immediately next formal release. Run the SlothVault deployment script on the host server to update the image one Release at a time.",
         "checkedAt": "Checked: {date}",
-        "logsTitle": "Commit logs in this upgrade",
         "fields": {
           "installedVersion": "Running application version",
           "installedCommit": "Running commit",
-          "latestVersion": "Latest published version",
-          "latestCommit": "Latest commit",
+          "nextVersion": "Next formal release",
+          "nextCommit": "Next commit",
           "publishedAt": "Published at",
           "repository": "Update repository"
         },
         "status": {
           "UP_TO_DATE": "Current formal release is up to date",
           "UPDATE_AVAILABLE": "A formal update is available",
-          "LOCAL_NEWER": "The running application is newer than the latest formal release",
+          "LOCAL_NEWER": "The running application is newer than the fetched formal releases",
           "UNVERSIONED": "The running application has no comparable release identity",
           "HISTORY_INCOMPLETE": "An update is available, but the full history cannot be confirmed",
           "CHECK_FAILED": "GitHub update status is temporarily unavailable"
@@ -1153,8 +1152,10 @@
         "actions": {
           "check": "Check for updates",
           "retry": "Retry",
-          "openLatest": "View latest release on GitHub",
           "openRelease": "View this release"
+        },
+        "nextRelease": {
+          "title": "Next upgrade contents"
         },
         "values": {
           "unavailable": "Unavailable",

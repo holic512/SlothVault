@@ -2,8 +2,8 @@
 @file deploy/slothvault_deploy/release.py
 @project SlothVault
 @module Deployment release update checks
-@description Compares the packaged deployment script and its managed SlothVault container with published official GitHub Releases.
-@logic Parse immutable release tags, fetch only published release records through the public API, retain the ordered upgrade path when possible, and keep remote or legacy-image failures explicit before any Docker update is attempted.
+@description Compares the packaged deployment script and its managed SlothVault container with their immediately next published official GitHub Releases.
+@logic Parse immutable release tags, fetch only published release records through the public API, select one adjacent upgrade target only when its history is known, pin the managed Compose image to that target, and keep remote or legacy-image failures explicit before any Docker update is attempted.
 @dependencies Python standard library, Docker Compose v2, GitHub Releases REST API
 @index_tags deployment,update,release,github,version,docker,commit-log
 @author holic512
@@ -21,7 +21,13 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from . import RELEASE_COMMIT_SHA, RELEASE_REPOSITORY, RELEASE_TAG
-from .compose import COMPOSE_FILE_NAME, compose_command, inspect_managed_application, require_managed_compose
+from .compose import (
+    COMPOSE_FILE_NAME,
+    compose_command,
+    inspect_managed_application,
+    pin_managed_application_image,
+    require_managed_compose,
+)
 from .system import InstallerError, print_info, prompt_yes_no, run_command
 
 
@@ -59,8 +65,8 @@ class DeploymentUpdateCheck:
     application_tag: Optional[str]
     application_commit_sha: Optional[str]
     application_image: Optional[str]
-    latest: Optional[PublishedRelease]
-    missing_releases: tuple[PublishedRelease, ...]
+    next_application_release: Optional[PublishedRelease]
+    next_script_release: Optional[PublishedRelease]
     history_complete: bool
     status: str
     error: Optional[str]
@@ -143,6 +149,23 @@ def _sort_newest_first(releases: Iterable[PublishedRelease]) -> list[PublishedRe
     )
 
 
+def next_release_after(version: ReleaseVersion, releases: Iterable[PublishedRelease]) -> Optional[PublishedRelease]:
+    """Return the one published Release immediately after a known version."""
+
+    newer_releases = [
+        release
+        for release in releases
+        if (release_version := parse_release_tag(release.tag))
+        and compare_release_versions(release_version, version) > 0
+    ]
+    if not newer_releases:
+        return None
+    return min(
+        newer_releases,
+        key=lambda item: _release_sort_key(parse_release_tag(item.tag) or ReleaseVersion(0, 0, 0, None, item.tag)),
+    )
+
+
 def _release_check_error_for_status(status: int) -> ReleaseCheckError:
     if status == 404:
         return ReleaseCheckError("RELEASE_SOURCE_NOT_FOUND")
@@ -155,12 +178,14 @@ def fetch_published_releases(
     repository: str,
     installed_tag: Optional[str],
     *,
+    additional_tags: Iterable[Optional[str]] = (),
     opener: Any = urlopen,
 ) -> list[PublishedRelease]:
-    """Read enough public GitHub Release pages to locate the installed release when known."""
+    """Read enough public GitHub Release pages to locate every known local Release."""
 
     releases: list[PublishedRelease] = []
-    found_installed = False
+    required_tags = {tag for tag in (installed_tag, *additional_tags) if tag}
+    found_tags = set()
     try:
         for page in range(1, MAX_RELEASE_PAGES + 1):
             request = Request(
@@ -178,8 +203,8 @@ def fetch_published_releases(
                 raise ReleaseCheckError("RELEASE_CHECK_FAILED")
             page_releases = [release for release in (_release_from_payload(item) for item in payload) if release]
             releases.extend(page_releases)
-            found_installed = found_installed or any(release.tag == installed_tag for release in page_releases)
-            if not installed_tag or found_installed or len(payload) < RELEASES_PER_PAGE:
+            found_tags.update(release.tag for release in page_releases if release.tag in required_tags)
+            if not required_tags or found_tags == required_tags or len(payload) < RELEASES_PER_PAGE:
                 break
     except HTTPError as error:
         raise _release_check_error_for_status(error.code) from error
@@ -267,7 +292,7 @@ def _status_for(
 
 
 def check_deployment_update(root: Path) -> DeploymentUpdateCheck:
-    """Compare the managed application and this package with the latest published Release without writing state."""
+    """Compare the managed application and this package with their next published Release without writing state."""
 
     compose_path = root / COMPOSE_FILE_NAME
     require_managed_compose(compose_path)
@@ -284,9 +309,15 @@ def check_deployment_update(root: Path) -> DeploymentUpdateCheck:
     custom_image = application_problem is None and not is_official_image(application_image)
     application_version = parse_release_tag(application_tag) if not custom_image else None
     script_version = parse_release_tag(RELEASE_TAG)
+    application_release_tag = application_version.tag if application_version else None
+    script_release_tag = script_version.tag if script_version else None
 
     try:
-        releases = fetch_published_releases(RELEASE_REPOSITORY, application_tag if application_version else None)
+        releases = fetch_published_releases(
+            RELEASE_REPOSITORY,
+            application_release_tag,
+            additional_tags=(script_release_tag,),
+        )
     except ReleaseCheckError as error:
         return DeploymentUpdateCheck(
             repository=RELEASE_REPOSITORY,
@@ -295,8 +326,8 @@ def check_deployment_update(root: Path) -> DeploymentUpdateCheck:
             application_tag=application_tag,
             application_commit_sha=application_commit_sha,
             application_image=application_image,
-            latest=None,
-            missing_releases=(),
+            next_application_release=None,
+            next_script_release=None,
             history_complete=False,
             status=_status_for(
                 application_update_available=False,
@@ -312,26 +343,17 @@ def check_deployment_update(root: Path) -> DeploymentUpdateCheck:
             script_update_available=False,
         )
 
-    latest = releases[0]
-    latest_version = parse_release_tag(latest.tag)
+    latest_release = releases[0]
+    latest_version = parse_release_tag(latest_release.tag)
     assert latest_version is not None
     application_comparison = compare_release_versions(application_version, latest_version) if application_version else None
     script_comparison = compare_release_versions(script_version, latest_version) if script_version else None
-    history_complete = application_tag is not None and any(release.tag == application_tag for release in releases)
-    missing_releases = tuple(
-        sorted(
-            (
-                release
-                for release in releases
-                if application_version
-                and (release_version := parse_release_tag(release.tag))
-                and compare_release_versions(release_version, application_version) > 0
-            ),
-            key=lambda item: _release_sort_key(parse_release_tag(item.tag) or ReleaseVersion(0, 0, 0, None, item.tag)),
-        )
-    )
-    application_update_available = application_comparison is not None and application_comparison < 0
-    script_update_available = script_comparison is not None and script_comparison < 0
+    history_complete = application_release_tag is not None and any(release.tag == application_release_tag for release in releases)
+    script_history_complete = script_release_tag is not None and any(release.tag == script_release_tag for release in releases)
+    next_application_release = next_release_after(application_version, releases) if application_version and history_complete else None
+    next_script_release = next_release_after(script_version, releases) if script_version and script_history_complete else None
+    application_update_available = next_application_release is not None
+    script_update_available = next_script_release is not None
     return DeploymentUpdateCheck(
         repository=RELEASE_REPOSITORY,
         script_tag=RELEASE_TAG,
@@ -339,8 +361,8 @@ def check_deployment_update(root: Path) -> DeploymentUpdateCheck:
         application_tag=application_tag,
         application_commit_sha=application_commit_sha,
         application_image=application_image,
-        latest=latest,
-        missing_releases=missing_releases,
+        next_application_release=next_application_release,
+        next_script_release=next_script_release,
         history_complete=history_complete,
         status=_status_for(
             application_update_available=application_update_available,
@@ -365,67 +387,83 @@ def _display_commit(commit_sha: Optional[str]) -> str:
     return commit_sha[:12] if commit_sha else "不可用"
 
 
+def release_image_reference(image: str, release_tag: str) -> str:
+    """Replace an official image's mutable tag or digest with one Release tag."""
+
+    version = parse_release_tag(release_tag)
+    if version is None or not is_official_image(image):
+        raise InstallerError("无法为非官方或无效的 SlothVault 镜像生成逐版本更新目标。")
+    without_digest = image.split("@", 1)[0]
+    repository = without_digest.rsplit(":", 1)[0] if ":" in without_digest else without_digest
+    return "{0}:{1}".format(repository, version.tag)
+
+
 def print_update_check(check: DeploymentUpdateCheck) -> None:
-    """Print the human-readable read-only update result and its plain-text Release logs."""
+    """Print the human-readable read-only update result and one adjacent Release log."""
 
     print_info("部署脚本版本：{0}（提交 {1}）".format(_display_tag(check.script_tag), _display_commit(check.script_commit_sha)))
     print_info("当前应用版本：{0}（提交 {1}）".format(_display_tag(check.application_tag), _display_commit(check.application_commit_sha)))
     if check.application_image:
         print_info("当前应用镜像：{0}".format(check.application_image))
-    if check.latest is not None:
-        print_info("最新正式版本：{0}（提交 {1}）".format(check.latest.tag, _display_commit(check.latest.commit_sha)))
-        print_info("发布地址：{0}".format(check.latest.html_url))
+    if check.next_application_release is not None:
+        print_info(
+            "下一个可安装版本：{0}（提交 {1}）".format(
+                check.next_application_release.tag,
+                _display_commit(check.next_application_release.commit_sha),
+            )
+        )
+        print_info("发布地址：{0}".format(check.next_application_release.html_url))
     if check.error:
         print_info("更新检查未完成：{0}".format(check.error))
     print_info("更新状态：{0}".format(check.status))
-    if check.script_update_available:
+    if check.next_script_release is not None:
         print_info(
-            "部署脚本存在新版本；请下载最新部署包后手动解压运行："
-            " https://github.com/{0}/releases/latest/download/slothvault-deploy.zip".format(check.repository)
+            "部署脚本可更新至下一个版本 {0}；请下载对应部署包后手动解压运行："
+            " https://github.com/{1}/releases/download/{0}/slothvault-deploy.zip".format(
+                check.next_script_release.tag,
+                check.repository,
+            )
         )
-    if check.latest and check.missing_releases:
-        print_info("本次升级包含以下提交日志：")
-        for release in check.missing_releases:
-            print("\n[{0}] {1}".format(release.tag, release.title))
-            print(release.notes or "（该 Release 未提供提交日志）")
-            print(release.html_url)
-    if check.latest and not check.history_complete and check.application_tag:
-        print_info("当前应用版本不在已获取的正式 Release 历史中，无法确认完整累计日志。")
+    if check.next_application_release is not None:
+        release = check.next_application_release
+        print_info("下一步升级提交日志：")
+        print("\n[{0}] {1}".format(release.tag, release.title))
+        print(release.notes or "（该 Release 未提供提交日志）")
+        print(release.html_url)
+    if not check.history_complete and check.application_tag:
+        print_info("当前应用版本不在已获取的正式 Release 历史中，无法安全确定下一个升级版本。")
 
 
 def update_managed_application(root: Path) -> None:
-    """Run a confirmed Docker image update and verify that the managed application reached the target release."""
+    """Advance a confirmed managed application by exactly one published Release."""
 
     initial = check_deployment_update(root)
     print_update_check(initial)
     compose_path = root / COMPOSE_FILE_NAME
-    if initial.application_update_available:
-        if not prompt_yes_no("确认拉取最新 SlothVault 镜像并重启受管应用", default=False):
+    target_release = initial.next_application_release
+    if target_release is not None:
+        if not initial.application_image:
+            raise InstallerError("无法读取当前应用镜像，无法安全执行逐版本更新。")
+        target_image = release_image_reference(initial.application_image, target_release.tag)
+        if not prompt_yes_no("确认拉取 {0} 并重启受管应用".format(target_release.tag), default=False):
             print_info("已取消更新，未拉取镜像或重启容器。")
             return
+        pin_managed_application_image(compose_path, target_image)
     elif initial.status == "UP_TO_DATE":
         print_info("当前应用已是最新正式版本，不拉取镜像或重启容器。")
         return
     else:
-        if not prompt_yes_no("当前版本无法可靠比较，是否仍按原方式拉取镜像并重启受管应用", default=False):
-            print_info("已取消更新，未拉取镜像或重启容器。")
-            return
+        print_info("当前版本无法安全确定下一个 Release；不会拉取 latest 镜像或重启容器。")
+        return
 
     for command in (("pull",), ("up", "-d"), ("ps",)):
         run_command(compose_command(compose_path, *command))
 
     verified = check_deployment_update(root)
-    if initial.application_update_available and initial.latest and (verified.error or verified.application_tag != initial.latest.tag):
+    if verified.error or verified.application_tag != target_release.tag:
         raise InstallerError(
             "镜像更新命令已执行，但运行中的应用未确认达到目标版本 {0}；请检查容器日志和镜像拉取结果。".format(
-                initial.latest.tag
+                target_release.tag
             )
         )
-    if initial.application_update_available:
-        print_info("已更新并确认运行中的应用达到 {0}；持久化数据已保留。".format(initial.latest.tag))
-        return
-    print_info(
-        "已执行 {0} 中声明镜像的 pull/up；由于更新前版本不可可靠比较，未声明应用已达到特定 Release。".format(
-            compose_path
-        )
-    )
+    print_info("已更新并确认运行中的应用达到 {0}；持久化数据已保留。".format(target_release.tag))

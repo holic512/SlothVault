@@ -75,7 +75,8 @@ class ReleaseUpdateTests(unittest.TestCase):
         directory = tempfile.TemporaryDirectory()
         root = Path(directory.name)
         (root / "compose.yml").write_text(
-            "# Managed by SlothVault deploy installer\nservices: {}\n", encoding="utf-8"
+            "# Managed by SlothVault deploy installer\nservices:\n  slothvault:\n    image: \"holic512/slothvault:latest\"\n",
+            encoding="utf-8",
         )
         return directory, root
 
@@ -89,7 +90,7 @@ class ReleaseUpdateTests(unittest.TestCase):
         self.assertEqual(release.compare_release_versions(newer_minor, newer_build), 1)
         self.assertIsNone(release.parse_release_tag("v2.0-build.76"))
 
-    def test_fetches_and_orders_all_missing_release_logs(self):
+    def test_selects_only_the_adjacent_release_when_multiple_newer_releases_exist(self):
         payload = [
             self.release_payload("v2.0.0-build.77", "newest"),
             self.release_payload("v2.0.0-build.76", "middle"),
@@ -104,7 +105,12 @@ class ReleaseUpdateTests(unittest.TestCase):
         )
 
         self.assertEqual([item.tag for item in releases], ["v2.0.0-build.77", "v2.0.0-build.76", "v2.0.0-build.75"])
-        self.assertEqual(releases[1].notes, "middle")
+        current = release.parse_release_tag("v2.0.0-build.75")
+        self.assertIsNotNone(current)
+        next_release = release.next_release_after(current, releases)
+        self.assertIsNotNone(next_release)
+        self.assertEqual(next_release.tag, "v2.0.0-build.76")
+        self.assertEqual(next_release.notes, "middle")
 
     def test_reads_application_identity_only_from_the_managed_container(self):
         tag, commit_sha, image = release.application_identity({
@@ -122,10 +128,10 @@ class ReleaseUpdateTests(unittest.TestCase):
     def test_update_requires_confirmation_and_rechecks_target_release(self):
         package, root = self.managed_root()
         try:
-            latest = release.PublishedRelease(
+            next_release = release.PublishedRelease(
                 tag="v2.0.0-build.76",
                 title="SlothVault v2.0.0-build.76",
-                commit_sha="latest-sha",
+                commit_sha="next-sha",
                 published_at=None,
                 html_url="https://github.com/holic512/SlothVault/releases/tag/v2.0.0-build.76",
                 notes="- `abc` update",
@@ -137,8 +143,8 @@ class ReleaseUpdateTests(unittest.TestCase):
                 application_tag="v2.0.0-build.75",
                 application_commit_sha="previous-sha",
                 application_image="holic512/slothvault:latest",
-                latest=latest,
-                missing_releases=(latest,),
+                next_application_release=next_release,
+                next_script_release=None,
                 history_complete=True,
                 status="APPLICATION_UPDATE_AVAILABLE",
                 error=None,
@@ -146,11 +152,11 @@ class ReleaseUpdateTests(unittest.TestCase):
                 script_update_available=False,
             )
             verified = release.DeploymentUpdateCheck(
-                **{**initial.__dict__, "application_tag": latest.tag, "status": "UP_TO_DATE", "missing_releases": (), "application_update_available": False}
+                **{**initial.__dict__, "application_tag": next_release.tag, "status": "UP_TO_DATE", "next_application_release": None, "application_update_available": False}
             )
             with patch.object(release, "check_deployment_update", side_effect=[initial, verified]), patch.object(
                 release, "prompt_yes_no", return_value=True
-            ), patch.object(release, "run_command") as run_command:
+            ), patch.object(compose, "run_command") as validate_compose, patch.object(release, "run_command") as run_command:
                 release.update_managed_application(root)
 
             self.assertEqual(
@@ -161,6 +167,8 @@ class ReleaseUpdateTests(unittest.TestCase):
                     ("docker", "compose", "-f", str(root / "compose.yml"), "ps"),
                 ],
             )
+            validate_compose.assert_called_once_with(("docker", "compose", "-f", str(root / "compose.yml"), "config"))
+            self.assertIn('image: "holic512/slothvault:v2.0.0-build.76"', (root / "compose.yml").read_text(encoding="utf-8"))
         finally:
             package.cleanup()
 
@@ -174,8 +182,8 @@ class ReleaseUpdateTests(unittest.TestCase):
                 application_tag="v2.0.0-build.76",
                 application_commit_sha="latest-sha",
                 application_image="holic512/slothvault:latest",
-                latest=None,
-                missing_releases=(),
+                next_application_release=None,
+                next_script_release=None,
                 history_complete=True,
                 status="UP_TO_DATE",
                 error=None,
@@ -188,6 +196,34 @@ class ReleaseUpdateTests(unittest.TestCase):
                 release.update_managed_application(root)
 
             run_command.assert_not_called()
+        finally:
+            package.cleanup()
+
+    def test_unverifiable_release_does_not_fall_back_to_the_latest_image(self):
+        package, root = self.managed_root()
+        try:
+            unknown = release.DeploymentUpdateCheck(
+                repository="holic512/SlothVault",
+                script_tag="v2.0.0-build.76",
+                script_commit_sha="latest-sha",
+                application_tag=None,
+                application_commit_sha=None,
+                application_image="holic512/slothvault:latest",
+                next_application_release=None,
+                next_script_release=None,
+                history_complete=False,
+                status="UNVERIFIABLE",
+                error=None,
+                application_update_available=False,
+                script_update_available=False,
+            )
+            with patch.object(release, "check_deployment_update", return_value=unknown), patch.object(
+                release, "run_command"
+            ) as run_command:
+                release.update_managed_application(root)
+
+            run_command.assert_not_called()
+            self.assertIn('image: "holic512/slothvault:latest"', (root / "compose.yml").read_text(encoding="utf-8"))
         finally:
             package.cleanup()
 

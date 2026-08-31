@@ -1119,27 +1119,26 @@
         },
         "updates": {
           "label": "系统更新",
-          "description": "查看当前运行版本、GitHub 正式发布版本和本次升级包含的提交日志。"
+          "description": "查看当前运行版本与唯一的下一个正式升级版本。"
         },
         "fieldsCount": "{count} 项设置"
       },
       "updates": {
-        "cardTitle": "发布版本与更新日志",
-        "notice": "此页面只检查并展示更新状态。请在部署服务器上运行 SlothVault 部署脚本完成镜像更新。",
+        "cardTitle": "逐版本更新",
+        "notice": "此页面每次只展示紧邻的下一个正式版本。请在部署服务器上运行 SlothVault 部署脚本逐版本完成镜像更新。",
         "checkedAt": "检查时间：{date}",
-        "logsTitle": "本次升级的提交日志",
         "fields": {
           "installedVersion": "当前应用版本",
           "installedCommit": "当前提交",
-          "latestVersion": "最新发布版本",
-          "latestCommit": "最新提交",
+          "nextVersion": "下一个正式版本",
+          "nextCommit": "下一个提交",
           "publishedAt": "发布时间",
           "repository": "更新仓库"
         },
         "status": {
           "UP_TO_DATE": "当前已是最新正式版本",
           "UPDATE_AVAILABLE": "发现可安装的正式更新",
-          "LOCAL_NEWER": "当前应用版本比远程正式发布版本更新",
+          "LOCAL_NEWER": "当前应用版本比已获取的正式发布版本更新",
           "UNVERSIONED": "当前应用未嵌入可比较的发布标识",
           "HISTORY_INCOMPLETE": "发现更新，但无法确认完整历史日志",
           "CHECK_FAILED": "暂时无法检查 GitHub 更新"
@@ -1153,8 +1152,10 @@
         "actions": {
           "check": "检查更新",
           "retry": "重试",
-          "openLatest": "在 GitHub 查看最新发布",
           "openRelease": "查看此版本发布页"
+        },
+        "nextRelease": {
+          "title": "下一步升级内容"
         },
         "values": {
           "unavailable": "不可用",

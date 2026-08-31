@@ -2,8 +2,8 @@
 @file deploy/slothvault_deploy/compose.py
 @project SlothVault
 @module Deployment Compose management
-@description Renders, validates and safely operates one private SQLite, MySQL or PostgreSQL Docker Compose deployment and exposes its running application container for checked Docker-Nginx upstream resolution.
-@logic Collect provider-specific values, render a self-contained Compose file without a YAML dependency, only mutate files carrying a SlothVault management marker, and inspect the explicitly managed slothvault service without guessing Docker networks.
+@description Renders, validates and safely operates one private SQLite, MySQL or PostgreSQL Docker Compose deployment, including safely pinning its managed application image to a requested Release.
+@logic Collect provider-specific values, render a self-contained Compose file without a YAML dependency, only mutate files carrying a SlothVault management marker, validate a targeted application-image rewrite through Docker Compose, and inspect the explicitly managed slothvault service without guessing Docker networks.
 @dependencies Python standard library, Docker Engine, Docker Compose v2
 @index_tags deployment,installer,docker,compose,sqlite,mysql,postgresql,persistence
 @author holic512
@@ -48,6 +48,9 @@ VALID_ENCRYPTION_KEY = re.compile(r"^[A-Za-z0-9_-]{43}$")
 PUBLISHED_PORT_PATTERN = re.compile(
     r'^(?P<indent>\s*)-\s+"(?:(?P<host>127\.0\.0\.1):)?(?P<port>\d{1,5}):3000"\s*$',
     re.MULTILINE,
+)
+MANAGED_APPLICATION_IMAGE_PATTERN = re.compile(
+    r"(?ms)^  slothvault:\s*\n(?:(?!^  [A-Za-z0-9_-]+:).)*?^(?P<indent>    )image:\s*(?P<image>[^\r\n#]+?)\s*(?:#.*)?$"
 )
 PROVIDERS = ("sqlite", "mysql", "postgresql")
 
@@ -466,6 +469,30 @@ def require_managed_compose(compose_path: Path) -> None:
         raise InstallerError("无法读取脚本生成的 Compose 文件：{0}".format(compose_path)) from error
     if not any(marker in source for marker in MANAGED_COMPOSE_MARKERS):
         raise InstallerError("为保护现有部署，脚本拒绝操作不是由它生成的 Compose 文件：{0}".format(compose_path))
+
+
+def pin_managed_application_image(compose_path: Path, image: str) -> None:
+    """Set the generated slothvault service to one validated immutable image tag."""
+
+    require_managed_compose(compose_path)
+    target_image = validate_image(image)
+    try:
+        source = compose_path.read_text(encoding="utf-8")
+        original_mode = compose_path.stat().st_mode & 0o777
+    except OSError as error:
+        raise InstallerError("无法读取 Compose 文件：{0}".format(compose_path)) from error
+    match = MANAGED_APPLICATION_IMAGE_PATTERN.search(source)
+    if match is None:
+        raise InstallerError("无法从受管 Compose 文件识别 SlothVault 应用镜像；请使用当前安装脚本重新部署。")
+
+    replacement = "{0}image: {1}".format(match.group("indent"), yaml_string(target_image))
+    updated_source = "{0}{1}{2}".format(source[: match.start("indent")], replacement, source[match.end() :])
+    write_text_atomically(compose_path, updated_source, original_mode)
+    try:
+        run_command(compose_command(compose_path, "config"))
+    except InstallerError:
+        write_text_atomically(compose_path, source, original_mode)
+        raise
 
 
 def read_published_application_port(compose_path: Path) -> tuple[str, int, bool]:

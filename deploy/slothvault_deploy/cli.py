@@ -98,14 +98,14 @@ def prompt_action(default: Optional[str] = None) -> str:
     }
     print("\n请选择操作：")
     print("  1) 安装新实例并生成 compose.yml")
-    print("  2) 拉取最新镜像并更新现有实例")
+    print("  2) 拉取下一个版本镜像并更新现有实例")
     print("  3) 启动现有实例")
     print("  4) 停止现有实例（保留持久化数据）")
     print("  5) 查看现有实例状态")
     print("  6) 配置或更新 Nginx 反向代理")
     print("  7) 申请或更新 Let's Encrypt HTTPS 证书")
     print("  8) 查看证书状态或立即尝试续约")
-    print("  9) 检查系统更新与提交日志")
+    print("  9) 检查下一个系统更新与提交日志")
     while True:
         try:
             selected = input("操作 [1]: ").strip() or "1"

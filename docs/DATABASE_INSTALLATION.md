@@ -114,12 +114,11 @@ sudo python3 deploy/install.py \
 
 若使用 SELinux 且 Nginx 出现 `502 Bad Gateway`，部署者还需根据发行版安全策略允许 Nginx 连接本机上游服务。
 
-安装脚本提供“更新、启动、停止、状态、配置或更新 Nginx 反向代理、申请或更新 Let's Encrypt HTTPS 证书、查看证书状态或立即尝试续约”操作。更新只执行镜像拉取与 `up -d`，不会覆盖 Compose 配置或移动/删除持久化目录；也可以直接运行：
+安装脚本提供“更新、启动、停止、状态、配置或更新 Nginx 反向代理、申请或更新 Let's Encrypt HTTPS 证书、查看证书状态或立即尝试续约”操作。更新会先确定紧邻的下一个正式 Release，将受管 Compose 中的官方镜像标签固定为该版本，再执行镜像拉取与 `up -d`；即使远程还有更高版本，也不会拉取 `latest` 跳过中间版本。此操作不会改动端口、数据库、持久化目录或其他 Compose 配置。请通过脚本执行更新，不要直接对仍指向 `latest` 的旧 Compose 文件运行 `pull`：
 
 ```bash
-docker compose -f /data/slothvault/compose.yml pull
-docker compose -f /data/slothvault/compose.yml up -d
-docker compose -f /data/slothvault/compose.yml ps
+sudo python3 deploy/install.py --action check-update
+sudo python3 deploy/install.py --action update
 ```
 
 仓库内的 `docker-compose.yml`、`docker-compose.mysql.yml`、`docker-compose.postgresql.yml` 及 `.env.docker.*.example` 仍用于源码构建和本地开发。不要将该源码模式的相对 `docker-data/` 目录与 Release 安装脚本的 `/data/slothvault/` 部署混用。

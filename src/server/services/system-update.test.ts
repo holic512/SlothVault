@@ -75,7 +75,7 @@ describe('system update release metadata', () => {
     expect(parseReleaseTag('v2.0.0-build.-1')).toBeNull()
   })
 
-  it('returns all skipped official releases from oldest to newest', async () => {
+  it('returns only the immediately next official release when several newer Releases exist', async () => {
     mockReleaseResponse([
       release('v2.0.0-build.77', 'newest commit'),
       release('v2.0.0-build.76', 'middle commit'),
@@ -90,12 +90,9 @@ describe('system update release metadata', () => {
       status: 'UPDATE_AVAILABLE',
       historyComplete: true,
       installed: { tag: 'v2.0.0-build.75', commitSha: 'installed-sha' },
-      latest: { tag: 'v2.0.0-build.77' },
+      nextRelease: { tag: 'v2.0.0-build.76' },
     })
-    expect(result.missingReleases.map((item) => item.tag)).toEqual([
-      'v2.0.0-build.76',
-      'v2.0.0-build.77',
-    ])
+    expect(result.nextRelease?.notes).toBe('middle commit')
   })
 
   it('does not cache GitHub check failures', async () => {
@@ -157,8 +154,7 @@ describe('system update release metadata', () => {
 
     await expect(getSystemUpdateInfo()).resolves.toMatchObject({
       status: 'UNVERSIONED',
-      latest: { tag: 'v2.0.0-build.76' },
-      missingReleases: [],
+      nextRelease: null,
       historyComplete: false,
     })
   })
@@ -169,7 +165,7 @@ describe('system update release metadata', () => {
 
     await expect(getSystemUpdateInfo()).resolves.toMatchObject({
       status: 'LOCAL_NEWER',
-      missingReleases: [],
+      nextRelease: null,
     })
   })
 
@@ -179,7 +175,7 @@ describe('system update release metadata', () => {
     await expect(getSystemUpdateInfo()).resolves.toMatchObject({
       status: 'HISTORY_INCOMPLETE',
       historyComplete: false,
-      missingReleases: [{ tag: 'v2.0.0-build.76' }],
+      nextRelease: null,
     })
   })
 })
