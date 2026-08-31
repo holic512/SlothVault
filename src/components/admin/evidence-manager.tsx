@@ -17,7 +17,6 @@ import {
   Alert,
   App,
   Button,
-  Card,
   Descriptions,
   Drawer,
   Empty,
@@ -45,7 +44,7 @@ import {
   WalletCards,
 } from 'lucide-react'
 
-import { AdminPage, AdminPageActions } from '@/components/admin/admin-page'
+import { AdminPage, AdminPageActions, AdminTablePanel, AdminToolbar } from '@/components/admin/admin-page'
 import { useSolanaWallet } from '@/components/wallet/use-solana-wallet'
 import { apiFetch, ApiClientError } from '@/lib/api-client'
 
@@ -372,16 +371,22 @@ export function EvidenceManager() {
       </Space>
     </AdminPageActions>
 
-    <Card className="evidence-ledger admin-table-card" title="存证总账" extra={<Typography.Text type="secondary">{query.data?.total || 0} 条记录</Typography.Text>}>
-      <div className="evidence-toolbar">
+    <AdminToolbar className="evidence-toolbar">
+      <div className="evidence-toolbar-primary">
+        <div className="evidence-toolbar-heading">
+          <Typography.Text strong>存证总账</Typography.Text>
+          <Typography.Text type="secondary">{query.data?.total || 0} 条记录</Typography.Text>
+        </div>
         <Segmented options={[{ label: '全部', value: 'all' }, { label: '我的钱包', value: 'wallet', icon: <WalletCards size={14} /> }]} value={scope} onChange={(value) => { setScope(value as 'all' | 'wallet'); setPage(1) }} />
-        <Space wrap>
+      </div>
+      <Space className="evidence-toolbar-filters" wrap>
           <Select allowClear placeholder="对象类型" value={subjectType} onChange={(value) => { setSubjectType(value); setPage(1) }} options={[{ value: 'NOTE_CONTENT', label: '笔记内容' }, { value: 'PROJECT_VERSION', label: '整版发布（兼容）' }]} />
           <Select allowClear placeholder="网络" value={network} onChange={(value) => { setNetwork(value); setPage(1) }} options={[{ value: 'mainnet', label: 'Mainnet · 正式' }, { value: 'devnet', label: 'Devnet · 测试' }]} />
           <Select allowClear placeholder="状态" value={status} onChange={(value) => { setStatus(value); setPage(1) }} options={Object.entries(STATUS).map(([value, item]) => ({ value: Number(value), label: item.label }))} />
           <Input allowClear prefix={<Search size={14} />} placeholder="交易编号" value={signature} onChange={(event) => { setSignature(event.target.value); setPage(1) }} />
-        </Space>
-      </div>
+      </Space>
+    </AdminToolbar>
+    <AdminTablePanel className="evidence-ledger">
       {query.isError ? <Alert showIcon type="error" message="存证记录加载失败" description={evidenceErrorMessage(query.error)} action={<Button size="small" onClick={() => void query.refetch()}>重试</Button>} /> : null}
       {scope === 'wallet' && !signer ? <Alert showIcon type="info" message="连接钱包后，将只显示本站由该地址签署的凭证；不会扫描钱包的全部链上历史。" /> : null}
       <Table rowKey="id" size="small" loading={query.isLoading} dataSource={query.data?.list || []} columns={columns} scroll={{ x: 1080 }} pagination={{ current: page, pageSize: 20, total: query.data?.total || 0, showSizeChanger: false, onChange: setPage }} />
@@ -394,7 +399,7 @@ export function EvidenceManager() {
           <Space><Button size="small" onClick={() => setSelected(row)}>详情</Button>{row.status === -1 ? <Button size="small" onClick={() => openIssue(row)}>重试</Button> : null}{row.status === 0 || row.status === 1 ? <Button size="small" onClick={() => reconcile.mutate(row.id)}>对账</Button> : null}{row.transactionSignature ? <Button size="small" href={`/evidence/${row.transactionSignature}`}>核验</Button> : null}</Space>
         </article>)}
       </div>
-    </Card>
+    </AdminTablePanel>
 
     <Drawer title="存证办理回执" width={560} open={Boolean(selected)} onClose={() => setSelected(null)}>
       {selected ? <>

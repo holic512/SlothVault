@@ -1462,10 +1462,39 @@
 
 .root :global(.evidence-toolbar) {
   display: flex;
-  gap: 14px;
+  gap: 8px;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+}
+
+.root :global(.evidence-toolbar-primary),
+.root :global(.evidence-toolbar-heading),
+.root :global(.evidence-toolbar-filters) {
+  display: flex;
+  align-items: center;
+}
+
+.root :global(.evidence-toolbar-primary) {
+  min-width: 0;
+  gap: 12px;
+}
+
+.root :global(.evidence-toolbar-heading) {
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.root :global(.evidence-toolbar-heading) :global(.ant-typography:first-child) {
+  font-size: 13px;
+}
+
+.root :global(.evidence-toolbar-heading) :global(.ant-typography-secondary) {
+  font-size: 12px;
+}
+
+.root :global(.evidence-toolbar-filters) {
+  justify-content: flex-end;
+  gap: 7px !important;
 }
 
 .root :global(.evidence-toolbar) :global(.ant-input-affix-wrapper) {
@@ -1784,19 +1813,38 @@
     flex-direction: column;
   }
 
-  .root :global(.evidence-toolbar) > :global(.ant-space),
+  .root :global(.evidence-toolbar-primary),
+  .root :global(.evidence-toolbar-filters),
   .root :global(.evidence-toolbar) :global(.ant-select),
   .root :global(.evidence-toolbar) :global(.ant-input-affix-wrapper) {
     width: 100%;
   }
 
-  .root :global(.evidence-ledger) > :global(.ant-card-body) > :global(.ant-table-wrapper) {
+  .root :global(.evidence-toolbar-primary) {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .root :global(.evidence-toolbar-heading) {
+    justify-content: space-between;
+  }
+
+  .root :global(.evidence-toolbar-filters) {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .root :global(.evidence-ledger) > :global(.ant-table-wrapper) {
     display: none;
   }
 
   .root :global(.evidence-mobile-list) {
     display: grid;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
     gap: 10px;
+    padding: 10px;
   }
 
   .root :global(.evidence-mobile-card) {
