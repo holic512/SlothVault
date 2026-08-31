@@ -1,8 +1,8 @@
 # @file .github/workflows/docker-build.yml
 # @project SlothVault
 # @module Container and source release delivery
-# @description Validates pull-request images and publishes the default-branch Docker image with per-platform size metrics, one immutable build identity, a source GitHub Release, and a self-contained host deployment ZIP.
-# @logic Generate one version/build/SHA identity before building, embed it in the multi-architecture image and deployment ZIP, report compressed-size deltas, then refresh the idempotent Release with first-parent commit logs.
+# @description Validates pull-request images and publishes the default-branch linux/amd64 Docker image with its size metric, an immutable commit-derived version, a source GitHub Release, and a self-contained host deployment ZIP.
+# @logic Derive the release version from the package major-version anchor and first-parent commit count, build only linux/amd64, embed the identity in the image and deployment ZIP, then refresh the idempotent Release with first-parent commit logs.
 # @dependencies GitHub Actions, Docker Buildx, Docker Hub, Node.js, GitHub CLI, deploy/
 # @index_tags github-actions,docker,standalone,image-size,release,build-identity,source-archive,deployment,zip,commit-log
 # @author holic512
@@ -42,18 +42,15 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: Prepare immutable release identity
         id: release-identity
         shell: bash
         run: |
           set -euo pipefail
-          version="$(node -p "require('./package.json').version")"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "tag=v${version}-build.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+          node scripts/release-version.mjs --github-output "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -91,8 +88,10 @@ jobs:
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
+          platforms: linux/amd64
+          tags: |
+            ${{ steps.meta.outputs.tags }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.release-identity.outputs.tag }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             SLOTHVAULT_APP_VERSION=${{ steps.release-identity.outputs.version }}
@@ -119,9 +118,7 @@ jobs:
           AMD64_BYTES: ${{ steps.image-size.outputs.amd64_bytes }}
           AMD64_MIB: ${{ steps.image-size.outputs.amd64_mib }}
           AMD64_PREVIOUS_BYTES: ${{ steps.previous-size.outputs.amd64_bytes }}
-          ARM64_BYTES: ${{ steps.image-size.outputs.arm64_bytes }}
-          ARM64_MIB: ${{ steps.image-size.outputs.arm64_mib }}
-          ARM64_PREVIOUS_BYTES: ${{ steps.previous-size.outputs.arm64_bytes }}
+          RELEASE_IMAGE_TAG: ${{ steps.release-identity.outputs.tag }}
         run: |
           size_delta() {
             current="$1"
@@ -148,17 +145,16 @@ jobs:
             echo "| Platform | Size | Change |" >> $GITHUB_STEP_SUMMARY
             echo "| --- | ---: | ---: |" >> $GITHUB_STEP_SUMMARY
             echo "| linux/amd64 | ${AMD64_MIB} MiB (${AMD64_BYTES} bytes) | $(size_delta "$AMD64_BYTES" "$AMD64_PREVIOUS_BYTES") |" >> $GITHUB_STEP_SUMMARY
-            echo "| linux/arm64 | ${ARM64_MIB} MiB (${ARM64_BYTES} bytes) | $(size_delta "$ARM64_BYTES" "$ARM64_PREVIOUS_BYTES") |" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Image Tags" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${RELEASE_IMAGE_TAG}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Architecture" >> $GITHUB_STEP_SUMMARY
           echo "- linux/amd64" >> $GITHUB_STEP_SUMMARY
-          echo "- linux/arm64" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Docker Compose Install" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
@@ -188,9 +184,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          version="$(node -p "require('./package.json').version")"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "tag=v${version}-build.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          node scripts/release-version.mjs --github-output "$GITHUB_OUTPUT"
 
       - name: Generate release commit log
         id: release

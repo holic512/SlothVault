@@ -2,8 +2,8 @@
  * @file scripts/docker-image-size.mjs
  * @project SlothVault
  * @module Container Release Metrics
- * @description Reads a pushed OCI image index and reports compressed layer sizes for the supported deployment platforms.
- * @logic Inspect the index and each platform manifest through Buildx, total compressed layer bytes, and optionally publish stable GitHub Actions outputs.
+ * @description Reads a pushed OCI image manifest or index and reports compressed layer sizes for the supported deployment platform.
+ * @logic Inspect the linux/amd64 manifest through Buildx, total its compressed layer bytes, and optionally publish stable GitHub Actions outputs.
  * @dependencies Docker Buildx, node:child_process, node:fs/promises
  * @index_tags docker,buildx,oci,manifest,image-size,github-actions
  * @author holic512
@@ -12,7 +12,12 @@ import { spawnSync } from 'node:child_process'
 import { appendFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 
-const supportedPlatforms = ['linux/amd64', 'linux/arm64']
+const supportedPlatforms = ['linux/amd64']
+
+function digestFromReference(imageReference) {
+  const digestStart = imageReference.lastIndexOf('@sha256:')
+  return digestStart >= 0 ? imageReference.slice(digestStart + 1) : null
+}
 
 export function compressedLayerBytes(manifest) {
   return (manifest.layers ?? []).reduce(
@@ -23,6 +28,15 @@ export function compressedLayerBytes(manifest) {
 
 export async function inspectPlatformSizes(imageReference, inspectRaw) {
   const index = JSON.parse(await inspectRaw(imageReference))
+  if (Array.isArray(index.layers)) {
+    return {
+      'linux/amd64': {
+        bytes: compressedLayerBytes(index),
+        digest: digestFromReference(imageReference),
+        layers: index.layers.length,
+      },
+    }
+  }
   const repositoryReference = imageReference.includes('@sha256:')
     ? imageReference.slice(0, imageReference.indexOf('@sha256:'))
     : imageReference

@@ -7,16 +7,12 @@ import {
 } from './docker-image-size.mjs'
 
 describe('Docker image size reporter', () => {
-  it('totals compressed layers for each supported platform', async () => {
+  it('totals compressed layers for the supported platform', async () => {
     const index = {
       manifests: [
         {
           digest: 'sha256:amd64',
           platform: { architecture: 'amd64', os: 'linux' },
-        },
-        {
-          digest: 'sha256:arm64',
-          platform: { architecture: 'arm64', os: 'linux' },
         },
         {
           digest: 'sha256:attestation',
@@ -26,14 +22,25 @@ describe('Docker image size reporter', () => {
     }
     const manifests = {
       'image@example@sha256:amd64': { layers: [{ size: 10 }, { size: 20 }] },
-      'image@example@sha256:arm64': { layers: [{ size: 40 }, { size: 2 }] },
     }
     const inspectRaw = async (reference) =>
       JSON.stringify(reference === 'image@example' ? index : manifests[reference])
 
     await expect(inspectPlatformSizes('image@example', inspectRaw)).resolves.toEqual({
       'linux/amd64': { bytes: 30, digest: 'sha256:amd64', layers: 2 },
-      'linux/arm64': { bytes: 42, digest: 'sha256:arm64', layers: 2 },
+    })
+  })
+
+  it('reads a single-platform image manifest without an index', async () => {
+    const manifest = {
+      layers: [{ size: 10 }, { size: 20 }],
+    }
+    const inspectRaw = async () => JSON.stringify(manifest)
+
+    await expect(
+      inspectPlatformSizes('image@example@sha256:amd64', inspectRaw),
+    ).resolves.toEqual({
+      'linux/amd64': { bytes: 30, digest: 'sha256:amd64', layers: 2 },
     })
   })
 
@@ -55,10 +62,6 @@ describe('Docker image size reporter', () => {
               digest: 'sha256:amd64',
               platform: { architecture: 'amd64', os: 'linux' },
             },
-            {
-              digest: 'sha256:arm64',
-              platform: { architecture: 'arm64', os: 'linux' },
-            },
           ],
         })
       }
@@ -69,7 +72,6 @@ describe('Docker image size reporter', () => {
     expect(references).toEqual([
       'registry.example/app@sha256:index',
       'registry.example/app@sha256:amd64',
-      'registry.example/app@sha256:arm64',
     ])
   })
 
