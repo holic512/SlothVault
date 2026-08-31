@@ -32,6 +32,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+import { formatAdminError } from '@/lib/admin-localization'
 import { apiFetch } from '@/lib/api-client'
 
 export type MenuProject = { id: string; projectName: string }
@@ -67,6 +68,7 @@ export function ProjectMenuManager({
   onClose: () => void
 }) {
   const t = useTranslations('AdminMM.projectMenu')
+  const errorT = useTranslations('AdminMM.errors')
   const queryClient = useQueryClient()
   const { message, modal } = App.useApp()
   const [includeDeleted, setIncludeDeleted] = useState(false)
@@ -104,7 +106,7 @@ export function ProjectMenuManager({
       form.resetFields()
       await refresh()
     },
-    onError: (error) => message.error(error.message),
+    onError: (error) => message.error(formatAdminError(error, errorT)),
   })
 
   const openForm = (menu?: MenuDto, parentId: string | null = null) => {

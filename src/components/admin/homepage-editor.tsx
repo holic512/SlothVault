@@ -15,11 +15,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Alert, Button, Skeleton, Space, Tag, Typography } from 'antd'
 import { ArrowLeft, Save } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 
 import { AdminPage } from '@/components/admin/admin-page'
 import { MarkdownContentEditor } from '@/components/admin/markdown-content-editor'
+import { formatAdminDate, formatAdminError } from '@/lib/admin-localization'
 import { ApiClientError, apiFetch } from '@/lib/api-client'
 
 type HomepageDto = {
@@ -36,6 +37,7 @@ type UploadedFile = { url: string }
 
 export function HomepageEditor({ projectId }: { projectId?: string }) {
   const t = useTranslations('AdminMM.homepage')
+  const errorT = useTranslations('AdminMM.errors')
   const projectQuery = useQuery({
     queryKey: ['admin-project-home-project', projectId],
     enabled: Boolean(projectId),
@@ -71,7 +73,7 @@ export function HomepageEditor({ projectId }: { projectId?: string }) {
           showIcon
           type="error"
           message={t('messages.loadFailed')}
-          description={resourceQuery.error?.message || projectQuery.error?.message}
+          description={formatAdminError(resourceQuery.error || projectQuery.error, errorT)}
         />
       </AdminPage>
     )
@@ -97,6 +99,8 @@ function HomepageDraft({
   initialResource: HomepageDto | null
 }) {
   const t = useTranslations('AdminMM.homepage')
+  const errorT = useTranslations('AdminMM.errors')
+  const locale = useLocale()
   const tDocument = useTranslations('DocumentEditor')
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -137,13 +141,13 @@ function HomepageDraft({
         )
         if (!silent) message.success(t('messages.saveSuccess'))
       } catch (error) {
-        message.error(error instanceof Error ? error.message : t('messages.saveFailed'))
+        message.error(formatAdminError(error, errorT))
       } finally {
         savingRef.current = false
         setSaving(false)
       }
     },
-    [message, projectId, queryClient, resource, savedDraft, t],
+    [errorT, message, projectId, queryClient, resource, savedDraft, t],
   )
 
   useEffect(() => {
@@ -181,7 +185,7 @@ function HomepageDraft({
       })
       return uploaded.map((file) => file.url)
     } catch (error) {
-      message.error(error instanceof Error ? error.message : t('messages.saveFailed'))
+      message.error(formatAdminError(error, errorT))
       return []
     }
   }
@@ -214,11 +218,11 @@ function HomepageDraft({
         )}
         headerActions={(
           <Space size={6}>
-            {dirty ? <Tag color="warning">Unsaved</Tag> : null}
+            {dirty ? <Tag color="warning">{t('messages.unsaved')}</Tag> : null}
             {lastSavedAt ? (
-              <Typography.Text type="secondary">{lastSavedAt.toLocaleTimeString()}</Typography.Text>
+              <Typography.Text type="secondary">{formatAdminDate(locale, lastSavedAt)}</Typography.Text>
             ) : null}
-            <Typography.Text type="secondary">Ctrl/⌘ + S</Typography.Text>
+            <Typography.Text type="secondary">{t('messages.saveShortcut')}</Typography.Text>
             <Button
               type="primary"
               icon={<Save size={14} />}

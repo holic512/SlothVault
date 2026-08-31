@@ -29,6 +29,7 @@ import { useLocale, useTranslations } from 'next-intl'
 
 import { MarkdownView } from '@/components/markdown/markdown-view'
 import { useResolvedAppTheme } from '@/components/providers/app-theme-context'
+import { formatAdminError } from '@/lib/admin-localization'
 import {
   DOCUMENT_CONTENT_MAX_CHARACTERS,
   type DocumentImageConstraintIssue,
@@ -70,6 +71,7 @@ export function MarkdownContentEditor({
   headerActions?: ReactNode
 }) {
   const t = useTranslations('DocumentEditor')
+  const errorT = useTranslations('AdminMM.errors')
   const locale = useLocale()
   const resolvedTheme = useResolvedAppTheme()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -143,10 +145,7 @@ export function MarkdownContentEditor({
         setNotice({ tone: 'warning', text: t('messages.partialUpload') })
       }
     } catch (error) {
-      setNotice({
-        tone: 'error',
-        text: error instanceof Error ? error.message : t('messages.uploadFailed'),
-      })
+      setNotice({ tone: 'error', text: formatAdminError(error, errorT) })
     } finally {
       setUploading(false)
       if (inputRef.current) inputRef.current.value = ''

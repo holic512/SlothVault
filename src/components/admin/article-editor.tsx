@@ -15,12 +15,13 @@ import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Alert, Button, Input, Select, Skeleton, Space, Tag, Typography } from 'antd'
 import { ArrowLeft, EyeOff, ImagePlus, Rocket, Save, Trash2, X } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 
 import { AdminPage } from '@/components/admin/admin-page'
 import { MarkdownContentEditor } from '@/components/admin/markdown-content-editor'
 import { ArticleCover } from '@/components/article/article-cover'
+import { formatAdminDate, formatAdminError } from '@/lib/admin-localization'
 import { apiFetch } from '@/lib/api-client'
 
 type ArticleDto = {
@@ -49,6 +50,8 @@ type MembershipLevel = {
 
 export function ArticleEditor({ articleId }: { articleId?: string }) {
   const t = useTranslations('AdminMM.articles.editor')
+  const errorT = useTranslations('AdminMM.errors')
+  const locale = useLocale()
   const router = useRouter()
   const queryClient = useQueryClient()
   const { message, modal } = App.useApp()
@@ -114,7 +117,7 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
       if (!uploaded?.url) throw new Error(t('messages.coverFailed'))
       mark(setCover, uploaded.url)
     } catch (error) {
-      message.error(error instanceof Error ? error.message : t('messages.coverFailed'))
+      message.error(formatAdminError(error, errorT))
     } finally {
       setBusy(false)
       if (coverInput.current) coverInput.current.value = ''
@@ -148,7 +151,7 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
       if (!articleId) router.replace(`/admin/mm/articles/${saved.id}`)
       return saved
     } catch (error) {
-      message.error(error instanceof Error ? error.message : t('messages.saveFailed'))
+      message.error(formatAdminError(error, errorT))
       return null
     } finally {
       setBusy(false)
@@ -168,7 +171,7 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
       await queryClient.invalidateQueries({ queryKey: ['admin-articles'] })
       message.success(t(`messages.${action}Success`))
     } catch (error) {
-      message.error(error instanceof Error ? error.message : t('messages.operationFailed'))
+      message.error(formatAdminError(error, errorT))
     } finally {
       setBusy(false)
     }
@@ -197,7 +200,7 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
     )
   }
   if (articleId && query.isError) {
-    return <AdminPage><Alert type="error" showIcon message={query.error.message} /></AdminPage>
+    return <AdminPage><Alert type="error" showIcon message={formatAdminError(query.error, errorT)} /></AdminPage>
   }
   if (article?.isDeleted) {
     return (
@@ -275,7 +278,7 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
           {published && article?.publishedAt ? (
             <div className="article-editor-publication">
               <span>{t('firstPublished')}</span>
-              <strong>{new Date(article.publishedAt).toLocaleString()}</strong>
+              <strong>{formatAdminDate(locale, article.publishedAt)}</strong>
               <a href={`/articles/${article.id}`} target="_blank" rel="noreferrer">{t('viewPublic')}</a>
             </div>
           ) : null}

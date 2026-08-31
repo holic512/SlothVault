@@ -234,7 +234,7 @@ function AdminWorkspace({
           icon={<MenuIcon size={17} />}
           onClick={onOpenMobile}
         />
-        <nav className="admin-breadcrumb" aria-label="Breadcrumb">
+        <nav className="admin-breadcrumb" aria-label={t('sidebar.breadcrumb')}>
           <Link href="/admin/mm">{t('title')}</Link>
           <span aria-hidden="true">/</span>
           <span aria-current="page">{currentLabel}</span>

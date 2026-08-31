@@ -15,10 +15,11 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, App, Button, Card, Descriptions, Empty, Image, Input, Segmented, Skeleton, Space, Switch, Tabs, Tag, Tooltip, Typography, Upload } from 'antd'
 import { CircleHelp, ImageUp, KeyRound, RefreshCw, RotateCcw, Save, ServerCog, Waypoints } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 
 import { AdminPage } from '@/components/admin/admin-page'
+import { formatAdminDate, formatAdminError } from '@/lib/admin-localization'
 import { apiFetch } from '@/lib/api-client'
 
 type ConfigItem = {
@@ -59,6 +60,7 @@ const SYSTEM_FAVICON_CONFIG_KEY = 'SYSTEM_FAVICON_FILE_PATH'
 
 export function SettingsManager() {
   const t = useTranslations('AdminMM.settings')
+  const errorT = useTranslations('AdminMM.errors')
   const query = useQuery({
     queryKey: ['admin-system-config'],
     queryFn: () => apiFetch<ConfigData>('/api/admin/mm/config'),
@@ -74,7 +76,7 @@ export function SettingsManager() {
   if (query.isError) {
     return (
       <AdminPage>
-        <Alert showIcon type="error" message={t('messages.loadFailed')} description={query.error.message} />
+        <Alert showIcon type="error" message={t('messages.loadFailed')} description={formatAdminError(query.error, errorT)} />
       </AdminPage>
     )
   }
@@ -89,6 +91,7 @@ export function SettingsManager() {
 
 function SettingsForm({ data }: { data: ConfigData }) {
   const t = useTranslations('AdminMM.settings')
+  const errorT = useTranslations('AdminMM.errors')
   const queryClient = useQueryClient()
   const router = useRouter()
   const { message, modal } = App.useApp()
@@ -122,7 +125,7 @@ function SettingsForm({ data }: { data: ConfigData }) {
       await queryClient.invalidateQueries({ queryKey: ['admin-system-config'] })
       router.refresh()
     },
-    onError: (error) => message.error(error.message),
+    onError: (error) => message.error(formatAdminError(error, errorT)),
   })
   const refreshMutation = useMutation({
     mutationFn: () =>
@@ -134,12 +137,12 @@ function SettingsForm({ data }: { data: ConfigData }) {
       message.success(t('messages.refreshSuccess'))
       await queryClient.invalidateQueries({ queryKey: ['admin-system-config'] })
     },
-    onError: (error) => message.error(error.message),
+    onError: (error) => message.error(formatAdminError(error, errorT)),
   })
   const networkTestMutation = useMutation({
     mutationFn: () => apiFetch('/api/admin/evidence/networks/test', { method: 'POST', body: '{}' }),
-    onSuccess: () => message.success('RPC 主备端点检测完成'),
-    onError: (error) => message.error(error.message),
+    onSuccess: () => message.success(t('messages.networkTestSuccess')),
+    onError: (error) => message.error(formatAdminError(error, errorT)),
   })
 
   const uploadSystemLogo = async (key: string, file: File, syncFavicon: boolean) => {
@@ -163,7 +166,7 @@ function SettingsForm({ data }: { data: ConfigData }) {
       }))
       message.success(t(uploaded.favicon ? 'messages.logoAndFaviconUploadSuccess' : 'messages.uploadSuccess'))
     } catch (error) {
-      message.error(error instanceof Error ? error.message : t('messages.uploadFailed'))
+      message.error(formatAdminError(error, errorT))
     } finally {
       setUploadingBrandingKey(null)
     }
@@ -183,7 +186,7 @@ function SettingsForm({ data }: { data: ConfigData }) {
       setPreviewUrls((current) => ({ ...current, [key]: uploaded.url }))
       message.success(t('messages.faviconUploadSuccess'))
     } catch (error) {
-      message.error(error instanceof Error ? error.message : t('messages.faviconUploadFailed'))
+      message.error(formatAdminError(error, errorT))
     } finally {
       setUploadingBrandingKey(null)
     }
@@ -218,7 +221,7 @@ function SettingsForm({ data }: { data: ConfigData }) {
                 ? t('favicon.fieldLabel')
                 : <code>{config.key}</code>}
           </span>
-          {sensitive && config.configured ? <Tag color="success">Configured</Tag> : null}
+          {sensitive && config.configured ? <Tag color="success">{t('configured')}</Tag> : null}
         </span>
         <Typography.Text type="secondary">
           {t(`configDesc.${config.key}`)}
@@ -226,14 +229,14 @@ function SettingsForm({ data }: { data: ConfigData }) {
         {config.kind === 'boolean' ? (
           <Switch
             checked={values[config.key] === 'true'}
-            checkedChildren="启用"
-            unCheckedChildren="禁用"
+            checkedChildren={t('enabled')}
+            unCheckedChildren={t('disabled')}
             onChange={(checked) => setValues((current) => ({ ...current, [config.key]: String(checked) }))}
           />
         ) : config.kind === 'network' ? (
           <Segmented
             value={values[config.key]}
-            options={[{ value: 'devnet', label: 'Devnet · 测试' }, { value: 'mainnet', label: 'Mainnet · 正式' }]}
+            options={[{ value: 'devnet', label: t('network.devnet') }, { value: 'mainnet', label: t('network.mainnet') }]}
             onChange={(value) => setValues((current) => ({ ...current, [config.key]: String(value) }))}
           />
         ) : config.kind === 'image' || config.kind === 'icon' ? (
@@ -281,7 +284,7 @@ function SettingsForm({ data }: { data: ConfigData }) {
           <Input.Password
             visibilityToggle
             value={values[config.key] || ''}
-            placeholder={config.configured ? '留空以保留已保存地址' : config.defaultValue || 'https://…'}
+            placeholder={config.configured ? t('placeholderConfigured') : config.defaultValue || 'https://…'}
             onChange={(event) => setValues((current) => ({ ...current, [config.key]: event.target.value }))}
           />
         ) : (
@@ -394,6 +397,8 @@ function SettingsForm({ data }: { data: ConfigData }) {
 
 function SystemUpdatePanel() {
   const t = useTranslations('AdminMM.settings')
+  const errorT = useTranslations('AdminMM.errors')
+  const locale = useLocale()
   const query = useQuery({
     queryKey: ['admin-system-update'],
     queryFn: () => apiFetch<SystemUpdateInfo>('/api/admin/mm/system-update'),
@@ -405,7 +410,7 @@ function SystemUpdatePanel() {
       showIcon
       type="error"
       message={t('updates.messages.loadFailed')}
-      description={query.error.message}
+      description={formatAdminError(query.error, errorT)}
       action={<Button size="small" onClick={() => void query.refetch()}>{t('updates.actions.retry')}</Button>}
     />
   }
@@ -421,7 +426,7 @@ function SystemUpdatePanel() {
     CHECK_FAILED: 'error',
   }
   const version = (tag: string | null, fallback: string) => tag || fallback
-  const date = (value: string | null) => value ? new Date(value).toLocaleString() : t('updates.values.unavailable')
+  const date = (value: string | null) => value ? formatAdminDate(locale, value) : t('updates.values.unavailable')
 
   return <>
     <Alert

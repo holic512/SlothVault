@@ -654,7 +654,8 @@
         "weight": "Weight",
         "status": "Status",
         "cancel": "Cancel",
-        "save": "Save"
+        "save": "Save",
+        "uploadAvatar": "Upload avatar"
       },
       "validation": {
         "projectNameRequired": "Please enter project name"
@@ -691,7 +692,8 @@
         "actions": { "edit": "Edit", "content": "Edit Content", "restore": "Restore", "hide": "Hide release", "show": "Restore release", "copyHash": "Copy hash", "manifest": "Download manifest", "integrity": "Verify integrity", "clone": "Clone to draft", "release": "Release", "publish": "Publish", "delete": "Delete" },
         "form": { "newTitle": "New version", "editTitle": "Edit version", "version": "Version label", "description": "Description", "weight": "Weight", "status": "Status" },
         "clone": { "title": "Clone {version} to draft", "version": "New version label" },
-        "messages": { "saved": "Saved", "published": "Version published", "publishValidationFailed": "Publish validation failed", "restored": "Release restored", "hidden": "Release hidden", "integrityVerified": "Release integrity verified", "integrityFailed": "Release integrity failed", "manifestFailed": "Manifest download failed", "cloned": "Draft cloned", "hashCopied": "Hash copied", "copyFailed": "Unable to copy hash" }
+        "messages": { "saved": "Saved", "published": "Version published", "publishValidationFailed": "Publish validation failed", "restored": "Release restored", "hidden": "Release hidden", "integrityVerified": "Release integrity verified", "integrityFailed": "Release integrity failed", "manifestFailed": "Manifest download failed", "cloned": "Draft cloned", "hashCopied": "Hash copied", "copyFailed": "Unable to copy hash" },
+        "validation": { "projectInactive": "The parent project must be enabled", "noEnabledCategory": "At least one enabled category is required", "categoryNoEnabledNote": "Every enabled category needs at least one enabled note", "notePrimaryCount": "Every enabled note must have exactly one primary content version", "notePrimaryDisabled": "A note's primary content version must be enabled", "notePrimaryEmpty": "A note's primary content version cannot be empty", "metadataIncomplete": "Release metadata is incomplete", "manifestUnsupported": "This release uses an unsupported manifest version", "hashMismatch": "The saved release hash no longer matches the current content", "unknown": "The release content did not pass validation" }
       }
     },
     "projectMenu": {
@@ -1179,6 +1181,11 @@
         "SOLANA_DEVNET_RPC_FALLBACK": "Devnet fallback for connection failures"
       },
       "placeholder": "Enter configuration value",
+      "placeholderConfigured": "Leave empty to keep the saved address",
+      "configured": "Configured",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "network": { "devnet": "Devnet · Test", "mainnet": "Mainnet · Formal" },
       "unsavedChanges": "Unsaved changes",
       "empty": "No configuration items found",
       "actions": {
@@ -1221,7 +1228,8 @@
         "uploadFailed": "Logo upload failed",
         "logoAndFaviconUploadSuccess": "Logo and favicon.ico generated and uploaded; save to apply them",
         "faviconUploadSuccess": "ICO icon uploaded; save to apply it",
-        "faviconUploadFailed": "ICO icon upload failed"
+        "faviconUploadFailed": "ICO icon upload failed",
+        "networkTestSuccess": "Primary and fallback RPC endpoints tested"
       }
     },
     "backup": {
@@ -1288,8 +1296,13 @@
     "dashboard": {
       "title": "Dashboard",
       "desc": "System overview and data statistics",
+      "eyebrow": "OPERATIONS COMMAND CENTER",
+      "rangeLabel": "Trend time range",
+      "range": "Last {days} days",
+      "generatedAt": "Updated {date}",
       "actions": {
-        "refresh": "Refresh Data"
+        "refresh": "Refresh Data",
+        "openEvidence": "Open evidence ledger"
       },
       "stats": {
         "users": "Users",
@@ -1305,12 +1318,35 @@
         "notes": "Notes",
         "versions": "Versions",
         "files": "Files",
+        "points": "Points",
         "evidence": "Evidence",
         "minted": "Finalized",
         "pending": "Pending"
       },
+      "metrics": {
+        "title": "Key operations metrics",
+        "users": "{count} new users in {days} days",
+        "sessions": "Currently valid signed-in sessions",
+        "projects": "{active} active · {versions} versions · {count} new",
+        "content": "{published} published · {notes} notes · {count} newly published",
+        "categories": "{active} active · {notes} active notes",
+        "points": "{redeemed}/{total} gift cards redeemed",
+        "files": "{count} managed files",
+        "evidence": "{finalized} finalized · {pending} pending"
+      },
+      "trend": {
+        "title": "Operations activity",
+        "description": "Daily movement across the last {days} days",
+        "accessible": "Operations activity trend for users, projects, articles, and notes",
+        "empty": "No operations activity exists in this time range",
+        "users": "New users",
+        "projects": "Projects created",
+        "articles": "Articles published",
+        "notes": "Notes created"
+      },
       "health": {
         "title": "System Health",
+        "description": "Content readiness and evidence completion",
         "articlePublicationRate": "Article Publication Rate",
         "projectUtilization": "Project Utilization",
         "noteUtilization": "Note Utilization",
@@ -1318,14 +1354,46 @@
         "evidenceFinalizationRate": "Evidence Finalization Rate"
       },
       "recent": {
+        "title": "Recent activity",
+        "description": "Latest project, content, and session changes",
         "articles": "Recent Articles",
         "projects": "Recent Projects",
         "notes": "Recent Notes",
-        "sessions": "Recent Sessions"
+        "sessions": "Recent Sessions",
+        "types": {
+          "project": "Project created",
+          "article": "Article updated",
+          "note": "Note created",
+          "session": "Session created"
+        },
+        "status": {
+          "active": "Active",
+          "expired": "Expired",
+          "revoked": "Revoked"
+        }
       },
       "files": {
         "typeDistribution": "File Type Distribution",
-        "files": "files"
+        "files": "files",
+        "description": "{count} managed files at present",
+        "type": "{type}"
+      },
+      "evidence": {
+        "title": "On-chain evidence status",
+        "description": "In-flight items require ongoing attention",
+        "finalized": "Finalized",
+        "pending": "Pending",
+        "failed": "Failed"
+      },
+      "attention": {
+        "title": "Needs attention",
+        "description": "Operations items that require follow-up",
+        "failedTitle": "{count} evidence records failed",
+        "failedDescription": "Inspect the failure and retry or reconcile the record.",
+        "pendingTitle": "{count} evidence records pending",
+        "pendingDescription": "Wait for finality or reconcile the record manually.",
+        "clearTitle": "Nothing requires attention",
+        "clearDescription": "Evidence is healthy; keep monitoring subsequent operations changes."
       },
       "status": {
         "active": "Active",
@@ -1336,8 +1404,179 @@
       "messages": {
         "loading": "Loading...",
         "loadFailed": "Load failed",
+        "loadFailedDescription": "Operations data is temporarily unavailable. Refresh and try again.",
         "noData": "No data"
       }
+    },
+    "errors": {
+      "generic": "The operation could not be completed. Please try again later.",
+      "unauthorized": "Your current session cannot perform this action. Sign in again and retry.",
+      "invalidRequest": "The submitted data is invalid. Check it and try again.",
+      "requestTooLarge": "The submitted content is too large. Reduce the file or request scope and retry.",
+      "maintenance": "The system is under maintenance or its database is temporarily unavailable. Try again later.",
+      "rpcUnavailable": "The blockchain service is temporarily unavailable. Try again later or reconcile the record afterwards.",
+      "walletInsufficient": "The signing wallet does not have enough balance to pay the evidence fee.",
+      "invalidWallet": "The wallet address is invalid. Reconnect the correct wallet.",
+      "notFound": "The requested resource does not exist or has been removed.",
+      "conflict": "The resource state has changed. Refresh and try again.",
+      "serviceUnavailable": "The service is temporarily unavailable. Please try again later."
+    },
+    "evidenceManager": {
+      "status": {
+        "failed": "Failed",
+        "awaitingSignature": "Awaiting signature",
+        "confirming": "Awaiting confirmation",
+        "finalized": "Finalized",
+        "unknown": "Unknown status"
+      },
+      "subject": {
+        "noteContent": "Note content",
+        "projectVersion": "Published release",
+        "legacyProjectVersion": "Published release (legacy)",
+        "noteFallback": "Note",
+        "unnamedVersion": "Unnamed version",
+        "noHash": "No hash",
+        "primaryVersion": "★ Primary · "
+      },
+      "network": {
+        "label": "Network",
+        "mainnet": "Mainnet · formal evidence",
+        "mainnetCredential": "Formal credential",
+        "mainnetWithCost": "Mainnet · formal evidence (uses real SOL)",
+        "devnet": "Devnet · test credential",
+        "devnetCredential": "Test credential",
+        "disabled": " (disabled)"
+      },
+      "actions": {
+        "refresh": "Refresh",
+        "issue": "Issue note evidence",
+        "details": "Details",
+        "retry": "Retry",
+        "reconcile": "Reconcile",
+        "verify": "Verify",
+        "openExplorer": "View in Solana Explorer",
+        "backToEdit": "Back to edit",
+        "prepare": "Validate and prepare transaction",
+        "sign": "Confirm receipt and request wallet signature",
+        "retryLoad": "Retry"
+      },
+      "toolbar": {
+        "ledger": "Evidence ledger",
+        "recordCount": "{count} records",
+        "all": "All",
+        "myWallet": "My wallet",
+        "subjectType": "Subject type",
+        "status": "Status",
+        "transaction": "Transaction signature"
+      },
+      "table": {
+        "subject": "Evidence subject",
+        "network": "Network",
+        "status": "Status",
+        "transaction": "Transaction signature",
+        "actions": "Actions",
+        "emptyTransaction": "—"
+      },
+      "messages": {
+        "reconciled": "On-chain status rechecked",
+        "submitted": "Transaction submitted; the system will continue awaiting finality",
+        "cancelPending": "The unsigned request will expire automatically.",
+        "loadFailed": "Failed to load evidence records",
+        "walletScope": "After connecting a wallet, only credentials signed by that address in this service are shown. The wallet's full chain history is not scanned.",
+        "empty": "No evidence records yet",
+        "selectWallet": "Connect the wallet that will sign first",
+        "walletChanged": "The current wallet changed; validate and prepare the transaction again",
+        "mainnetCancelled": "Mainnet signature cancelled",
+        "networkDisabled": "This network is disabled. Choose another enabled network or adjust it in System Settings.",
+        "integrityFailed": "Release integrity validation failed. Fix the mismatch between the version content and published hash first.",
+        "failure": "Evidence issuance failed"
+      },
+      "receipt": {
+        "title": "Evidence issuance receipt",
+        "subject": "Evidence subject",
+        "contentHash": "Content version hash",
+        "releaseHash": "Published release hash",
+        "networkTrust": "Network trust level",
+        "wallet": "Signing wallet",
+        "transaction": "Public signature",
+        "notGenerated": "Not generated yet",
+        "timeline": "Issuance timeline"
+      },
+      "drawer": {
+        "retryTitle": "Retry evidence",
+        "issueTitle": "Issue note-content evidence",
+        "independentTitle": "Publishing and evidence are independent",
+        "independentDescription": "New evidence binds exactly one note-content version in the published tree. Other revisions of that note do not share this credential.",
+        "retryTitleAlert": "Retry the original evidence subject",
+        "legacyRetry": "{project} / {version} (legacy release credential)",
+        "loadOptionsFailed": "Failed to load issuable content",
+        "project": "Project",
+        "selectProject": "Select project",
+        "publishedVersion": "Published project version",
+        "selectPublishedVersion": "Select published project version",
+        "category": "Category",
+        "selectCategory": "Select category",
+        "note": "Note",
+        "selectNote": "Select note",
+        "contentVersion": "Content version",
+        "selectContentVersion": "Select a content version for this note",
+        "network": "Evidence network",
+        "preparedTitle": "Content hash, parent release, and wallet balance all passed validation",
+        "preparedDescription": "Review every receipt field below. Your wallet signature window opens only after confirmation.",
+        "signer": "Signing wallet / Fee payer",
+        "notConnected": "Not connected",
+        "source": "Source hierarchy",
+        "balance": "Wallet balance",
+        "estimatedFee": "Estimated fee",
+        "finalMemo": "Final memo",
+        "walletChangedTitle": "Connected wallet changed",
+        "walletChangedDescription": "To prevent signing the wrong transaction, select the version and prepare it again.",
+        "mainnetConfirmTitle": "Use real SOL to issue formal evidence?",
+        "mainnetConfirmDescription": "Estimated fee: {fee} SOL. Mainnet evidence becomes this service's formal credential.",
+        "mainnetConfirm": "Confirm signature"
+      },
+      "contentStatus": {
+        "enabled": "Enabled",
+        "disabled": "Disabled"
+      },
+      "units": {
+        "lamports": "{value} lamports"
+      }
+    },
+    "membershipLevels": {
+      "actions": { "refresh": "Refresh", "create": "New membership level", "edit": "Edit", "save": "Save", "cancel": "Cancel" },
+      "messages": { "created": "Membership level created", "updated": "Membership level updated" },
+      "table": { "level": "Level", "rank": "Rank", "pricePoints": "Point price", "validity": "Validity", "status": "Status", "updatedAt": "Updated", "operations": "Actions" },
+      "level": "Lv.{rank}",
+      "validityDays": "{count} days",
+      "permanent": "Permanent",
+      "status": { "available": "Available", "disabled": "Disabled", "disabledWithRetention": "Disabled (existing benefits retained)" },
+      "dialog": { "createTitle": "New membership level", "editTitle": "Edit membership level" },
+      "form": { "name": "Level name", "rank": "Rank (higher rank grants more access)", "pricePoints": "Point price", "validityDays": "Validity in days (empty means permanent)", "status": "Sales status" }
+    },
+    "giftCards": {
+      "actions": { "refresh": "Refresh", "create": "Issue gift cards", "generate": "Generate codes", "cancel": "Cancel", "confirmSaved": "I saved them", "copyAll": "Copy all codes" },
+      "messages": { "codesCopied": "Gift card codes copied" },
+      "table": { "batch": "Batch", "points": "Value", "quantity": "Quantity", "redemption": "Redemption", "expiresAt": "Expires", "issuer": "Issuer" },
+      "pointsValue": "{value} points",
+      "permanent": "No expiry",
+      "dialog": { "createTitle": "Issue point gift cards", "codesTitle": "Gift cards generated", "codesDescription": "Only hashes are stored. The plaintext codes cannot be viewed again after this dialog closes." },
+      "form": { "name": "Batch name", "points": "Points per card", "quantity": "Quantity", "expiresAt": "Expiry time (optional)" }
+    },
+    "contracts": {
+      "status": { "cancelled": "Cancelled", "declined": "Declined", "draft": "Draft", "pending": "Awaiting signature", "signed": "Signed", "unknown": "Unknown" },
+      "credentialStatus": { "failed": "Failed", "awaitingWallet": "Awaiting wallet signature", "confirming": "Confirming on-chain", "anchored": "Anchored on-chain" },
+      "audit": { "DRAFT_CREATED": "Draft created", "DRAFT_UPDATED": "Draft updated", "ISSUED": "Contract issued and frozen", "CANCELLED": "Contract cancelled", "EVIDENCE_PREPARED": "Prepared on-chain transaction", "EVIDENCE_SUBMITTED": "Submitted on-chain transaction", "EVIDENCE_RECONCILED": "Reconciled on-chain status", "EVIDENCE_ATTEMPT_CANCELLED": "Cancelled wallet signature request" },
+      "actions": { "refresh": "Refresh", "create": "New contract", "details": "Details", "edit": "Edit", "issue": "Issue", "cancel": "Cancel", "evidence": "Anchor on-chain", "reconcile": "Reconcile", "saveDraft": "Save draft", "uploadPdf": "Upload PDF", "removeAttachment": "Remove draft attachment", "back": "Back to edit", "prepare": "Prepare on-chain transaction", "sign": "Confirm hash and request administrator wallet signature" },
+      "messages": { "draftSaved": "Contract draft saved", "draftCreated": "Contract draft created", "issued": "Contract frozen and sent to the selected user", "cancelled": "Contract cancelled", "submitted": "Transaction submitted; the system will continue verifying finality", "reconciled": "On-chain status rechecked", "attachmentUploaded": "PDF attachment uploaded and will be linked when the draft is saved", "connectWallet": "Connect the administrator wallet first", "walletMismatch": "The current wallet does not match the prepared contract credential" },
+      "filters": { "keyword": "Search contract title", "allStatus": "All statuses" },
+      "table": { "contract": "Contract", "subject": "Signing user", "status": "Status", "evidenceStatus": "On-chain status", "issuedAt": "Issued", "operations": "Actions" },
+      "empty": "—",
+      "notIssued": "Not issued",
+      "drawer": { "create": "New contract draft", "edit": "Edit contract draft", "detail": "Contract snapshot and signature audit", "evidence": "Administrator on-chain evidence" },
+      "form": { "subject": "Signing user", "selectSubject": "Choose user", "subjectRequired": "Choose one active user", "title": "Contract title", "titlePlaceholder": "For example: Service confirmation agreement", "body": "Authoritative contract body (Markdown)", "bodyPlaceholder": "This body is frozen and hashed with SHA-256 when issued.", "attachment": "PDF attachment (optional)", "attachmentHint": "The PDF is a protected frozen attachment; the body above remains the authoritative contract content.", "network": "Evidence network" },
+      "dialog": { "issueTitle": "Issue contract", "issueContent": "The body and PDF attachment will be frozen, then the selected user can sign from the account center.", "issueOk": "Freeze and send", "cancelTitle": "Cancel contract", "cancelContent": "A cancelled contract cannot be restored or edited.", "cancelOk": "Confirm cancellation", "adminWallet": "Only the administrator wallet signs the on-chain transaction", "adminWalletDescription": "The user signed the contract through a Web2 session. The Memo contains only contract-hash and verification fields, never the body, PDF, or identity data.", "mainnetFee": "Mainnet consumes real SOL", "devnetTest": "Devnet is for testing only", "feeExpires": "Estimated fee: {fee} SOL; this request expires at {date}." },
+      "detail": { "frozen": "FROZEN CONTRACT", "state": "State", "id": "Contract ID", "bodyHash": "Body SHA-256", "rootHash": "Contract root hash", "pendingRootHash": "Generated after the user signs", "attachment": "PDF attachment", "none": "None", "issuedAt": "Issued", "signedAt": "Signed", "notSigned": "Not signed", "declined": "User declined the contract", "web2Audit": "Web2 signing audit", "session": "Session reference", "ip": "Client IP", "userAgent": "User-Agent", "adminAudit": "Administrator audit", "mainnetCredential": "Mainnet credential", "devnetCredential": "Devnet test credential", "noSignature": "No transaction signature has been generated", "openVerification": "Open public verification", "contract": "Contract", "summary": "Contract digest", "wallet": "Current wallet", "notConnected": "Not connected", "selectedPdf": "Selected {size} KB PDF" }
     },
     "users": {
       "filters": {
@@ -1353,6 +1592,7 @@
         "role": "Role",
         "wallet": "Wallet",
         "points": "Points",
+        "membership": "Membership",
         "status": "Status",
         "createdAt": "Created At",
         "operations": "Operations"
@@ -1379,6 +1619,7 @@
         "edit": "Edit",
         "password": "Reset Password",
         "points": "Adjust Points",
+        "membership": "Membership",
         "delete": "Delete"
       },
       "dialog": {
@@ -1404,6 +1645,8 @@
         "deleteNotice": "Deleting disables the account and revokes every session; historical data is retained.",
         "deleted": "User disabled",
         "adjustedPoints": "Points adjusted and recorded in the ledger",
+        "membershipSet": "Membership benefits set",
+        "membershipRevoked": "Membership benefits revoked",
         "signedOut": "Your administrator password was reset. Please sign in again."
       },
       "validation": {
@@ -1411,6 +1654,24 @@
         "email": "Enter a valid email address",
         "password": "Password must contain at least 8 characters",
         "confirmPassword": "Passwords do not match"
+      },
+      "membership": {
+        "dialogTitle": "Membership · {name}",
+        "set": "Set membership",
+        "close": "Close",
+        "revokeAll": "Revoke all benefits",
+        "current": "Current benefit: ",
+        "regular": "Regular user",
+        "grantLevel": "Grant level",
+        "selectLevel": "Choose a membership level",
+        "permanent": "Permanent",
+        "expiresAt": "Expiry time",
+        "selectFutureExpiry": "Choose a future expiry time",
+        "history": "Grant history",
+        "revoked": "Revoked",
+        "until": "Until {date}",
+        "disabled": "Disabled",
+        "level": "Lv.{rank}"
       }
     },
     "homepage": {
@@ -1429,13 +1690,16 @@
         "saveFailed": "Save failed",
         "loadFailed": "Load failed",
         "noChanges": "Content has not changed",
-        "contentRequired": "Content is required"
+        "contentRequired": "Content is required",
+        "unsaved": "Unsaved changes",
+        "saveShortcut": "Ctrl/⌘ + S"
       }
     },
     "sidebar": {
       "expand": "Expand Sidebar",
       "collapse": "Collapse Sidebar",
       "openMobile": "Open admin navigation",
+      "breadcrumb": "Breadcrumb navigation",
       "home": "Go to homepage",
       "logout": "Sign out"
     },

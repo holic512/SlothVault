@@ -36,6 +36,7 @@ import {
 import { useTranslations } from 'next-intl'
 
 import { AdminPage } from '@/components/admin/admin-page'
+import { formatAdminError } from '@/lib/admin-localization'
 import { apiFetch } from '@/lib/api-client'
 
 type ImportMode = 'insert' | 'overwrite'
@@ -51,17 +52,9 @@ function downloadBlob(blob: Blob, fileName: string) {
   URL.revokeObjectURL(url)
 }
 
-async function responseError(response: Response) {
-  try {
-    const payload = (await response.json()) as { message?: string }
-    return payload.message || response.statusText
-  } catch {
-    return response.statusText || 'Request failed'
-  }
-}
-
 export function BackupManager() {
   const t = useTranslations('AdminMM.backup')
+  const errorT = useTranslations('AdminMM.errors')
   const { message, modal } = App.useApp()
   const [databaseMode, setDatabaseMode] = useState<ImportMode>('insert')
   const [filesMode, setFilesMode] = useState<ImportMode>('insert')
@@ -81,7 +74,7 @@ export function BackupManager() {
       )
       message.success(t('messages.dbExportSuccess'))
     } catch (error) {
-      message.error(error instanceof Error ? error.message : t('messages.dbExportFailed'))
+      message.error(formatAdminError(error, errorT))
     } finally {
       setBusy(null)
     }
@@ -106,7 +99,7 @@ export function BackupManager() {
         })
         message.success(t('messages.dbImportSuccess'))
       } catch (error) {
-        message.error(error instanceof Error ? error.message : t('messages.dbImportFailed'))
+        message.error(formatAdminError(error, errorT))
       } finally {
         setBusy(null)
       }
@@ -129,14 +122,14 @@ export function BackupManager() {
       const response = await fetch('/api/admin/mm/backup/files-export', {
         credentials: 'same-origin',
       })
-      if (!response.ok) throw new Error(await responseError(response))
+      if (!response.ok) throw new Error('FILES_EXPORT_FAILED')
       downloadBlob(
         await response.blob(),
         `slothvault-uploads-${new Date().toISOString().replaceAll(':', '-')}.zip`,
       )
       message.success(t('messages.filesExportSuccess'))
     } catch (error) {
-      message.error(error instanceof Error ? error.message : t('messages.filesExportFailed'))
+      message.error(formatAdminError(error, errorT))
     } finally {
       setBusy(null)
     }
@@ -159,7 +152,7 @@ export function BackupManager() {
         })
         message.success(t('messages.filesImportSuccess'))
       } catch (error) {
-        message.error(error instanceof Error ? error.message : t('messages.filesImportFailed'))
+        message.error(formatAdminError(error, errorT))
       } finally {
         setBusy(null)
       }
@@ -191,7 +184,7 @@ export function BackupManager() {
       setResetPhrase('')
       message.success(t('messages.resetSuccess'))
     } catch (error) {
-      message.error(error instanceof Error ? error.message : t('messages.resetFailed'))
+      message.error(formatAdminError(error, errorT))
     } finally {
       setBusy(null)
     }

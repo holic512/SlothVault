@@ -45,10 +45,11 @@ import {
   Star,
   Trash2,
 } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 import { MarkdownContentEditor } from '@/components/admin/markdown-content-editor'
+import { formatAdminDate, formatAdminError } from '@/lib/admin-localization'
 import { apiFetch } from '@/lib/api-client'
 
 type Project = { id: string; projectName: string }
@@ -129,6 +130,8 @@ function pageUrl(projectId: string, versionId: string, categoryId = '') {
 export function NoteContentEditor({ noteId }: { noteId?: string }) {
   const t = useTranslations('AdminMM.notes.workspace')
   const contentT = useTranslations('AdminMM.notes.content')
+  const errorT = useTranslations('AdminMM.errors')
+  const locale = useLocale()
   const router = useRouter()
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
@@ -350,7 +353,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
       setEntityDialog(null)
       message.success(editing ? t('saved') : t('created'))
     } catch (error) {
-      message.error(error instanceof Error ? error.message : t('operationFailed'))
+      message.error(formatAdminError(error, errorT))
     } finally {
       setBusy(false)
     }
@@ -381,7 +384,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
         await refreshWorkspace()
         message.success(deleted ? t('restored') : t('deleted'))
       } catch (error) {
-        message.error(error instanceof Error ? error.message : t('operationFailed'))
+        message.error(formatAdminError(error, errorT))
       }
     }
     if (deleted) return execute()
@@ -410,7 +413,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
       router.push(pageUrl(currentProjectId, created.id))
       message.success(t('versionCreated'))
     } catch (error) {
-      message.error(error instanceof Error ? error.message : t('operationFailed'))
+      message.error(formatAdminError(error, errorT))
     } finally {
       setBusy(false)
     }
@@ -438,7 +441,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
       await queryClient.invalidateQueries({ queryKey: ['admin-note-contents', selectedNoteId] })
       message.success(editing ? t('saved') : t('revisionCreated'))
     } catch (error) {
-      message.error(error instanceof Error ? error.message : t('operationFailed'))
+      message.error(formatAdminError(error, errorT))
     } finally {
       setBusy(false)
     }
@@ -453,7 +456,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
       await queryClient.invalidateQueries({ queryKey: ['admin-note-contents', selectedNoteId] })
       message.success(t('saved'))
     } catch (error) {
-      message.error(error instanceof Error ? error.message : t('operationFailed'))
+      message.error(formatAdminError(error, errorT))
     }
   }
   const toggleRevisionDeleted = async (item: NoteContent) => {
@@ -490,7 +493,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
     return <div className="admin-editor-loading"><Skeleton active paragraph={{ rows: 12 }} /></div>
   }
   if (deepNoteQuery.isError) {
-    return <Alert showIcon type="error" message={contentT('messages.fetchNoteFailed')} description={deepNoteQuery.error.message} />
+    return <Alert showIcon type="error" message={contentT('messages.fetchNoteFailed')} description={formatAdminError(deepNoteQuery.error, errorT)} />
   }
 
   const emptyStep = !currentProjectId
@@ -607,7 +610,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
               <button key={item.id} type="button" className={`note-revision-card ${selectedContent?.id === item.id ? 'is-active' : ''} ${item.isDeleted ? 'is-deleted' : ''}`} onClick={() => chooseRevision(item.id)}>
                 <span className="note-revision-copy">
                   <strong>{item.isPrimary ? <Star size={13} fill="currentColor" /> : null}{item.versionNote || contentT('unnamedVersion')}</strong>
-                  <small>{item.status === 1 ? t('enabled') : t('disabled')} · {new Date(item.updatedAt).toLocaleString()}</small>
+                  <small>{item.status === 1 ? t('enabled') : t('disabled')} · {formatAdminDate(locale, item.updatedAt)}</small>
                 </span>
                 <span className="note-revision-actions" onClick={(event) => event.stopPropagation()}>
                   {!item.isDeleted ? <Button type="text" size="small" icon={<Pencil size={12} />} disabled={readOnly} onClick={() => setRevisionDialog({ mode: 'edit', id: item.id, versionNote: item.versionNote || '', status: item.status })} /> : null}
@@ -677,6 +680,8 @@ function RevisionEditor({ item, readOnly, onDirtyChange, onSaved }: {
 }) {
   const contentT = useTranslations('AdminMM.notes.content')
   const documentT = useTranslations('DocumentEditor')
+  const errorT = useTranslations('AdminMM.errors')
+  const locale = useLocale()
   const { message } = App.useApp()
   const [draft, setDraft] = useState(item.content)
   const [savedDraft, setSavedDraft] = useState(item.content)
@@ -707,12 +712,12 @@ function RevisionEditor({ item, readOnly, onDirtyChange, onSaved }: {
       onDirtyChange(draftRef.current !== contentToSave)
       if (!silent) message.success(contentT('messages.saveSuccess'))
     } catch (error) {
-      message.error(error instanceof Error ? error.message : contentT('messages.saveFailed'))
+      message.error(formatAdminError(error, errorT))
     } finally {
       savingRef.current = false
       setSaving(false)
     }
-  }, [contentT, item.id, message, onDirtyChange, onSaved])
+  }, [contentT, errorT, item.id, message, onDirtyChange, onSaved])
 
   useEffect(() => {
     if (readOnly || draft === savedDraft) return
@@ -745,7 +750,7 @@ function RevisionEditor({ item, readOnly, onDirtyChange, onSaved }: {
       const uploaded = await apiFetch<UploadedFile[]>('/api/admin/mm/file?businessType=NoteAttachment', { method: 'POST', body: formData })
       return uploaded.map((file) => file.url)
     } catch (error) {
-      message.error(error instanceof Error ? error.message : contentT('messages.uploadFailed'))
+      message.error(formatAdminError(error, errorT))
       return []
     }
   }
@@ -757,7 +762,7 @@ function RevisionEditor({ item, readOnly, onDirtyChange, onSaved }: {
         <div className="note-writing-header">
           <div className="note-writing-version">
             <Tag color={item.isPrimary ? 'gold' : 'default'}>{item.isPrimary ? contentT('setPrimary') : item.versionNote || contentT('unnamedVersion')}</Tag>
-            {lastSavedAt ? <Typography.Text type="secondary">{contentT('saved')} {lastSavedAt.toLocaleTimeString()}</Typography.Text> : null}
+            {lastSavedAt ? <Typography.Text type="secondary">{contentT('saved')} {formatAdminDate(locale, lastSavedAt)}</Typography.Text> : null}
           </div>
           <span className="note-writing-divider" aria-hidden="true" />
           <div className="document-editor-mode">

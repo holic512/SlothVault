@@ -33,10 +33,11 @@ import {
   Import,
   ShieldCheck,
 } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 
 import { AdminPage, AdminPageActions } from '@/components/admin/admin-page'
+import { formatAdminBytes, formatAdminDate, formatAdminError } from '@/lib/admin-localization'
 import { apiFetch } from '@/lib/api-client'
 import importStyles from '@/styles/modules/knowledge-import.module.css'
 
@@ -74,13 +75,10 @@ type ImportResult = {
   articleCount: number
 }
 
-function formatBytes(value: number) {
-  if (value < 1024 * 1024) return `${Math.max(1, Math.ceil(value / 1024))} KB`
-  return `${(value / 1024 / 1024).toFixed(1)} MB`
-}
-
 export function KnowledgeImportManager() {
   const t = useTranslations('AdminMM.knowledgeImport')
+  const errorT = useTranslations('AdminMM.errors')
+  const locale = useLocale()
   const router = useRouter()
   const { message } = App.useApp()
   const [file, setFile] = useState<File | null>(null)
@@ -144,7 +142,7 @@ export function KnowledgeImportManager() {
       setResult(null)
       message.success(t('messages.inspectSuccess'))
     } catch (error) {
-      message.error(error instanceof Error ? error.message : t('messages.inspectFailed'))
+      message.error(formatAdminError(error, errorT))
     } finally {
       setInspecting(false)
     }
@@ -182,7 +180,7 @@ export function KnowledgeImportManager() {
       setResult(imported)
       message.success(t('messages.importSuccess'))
     } catch (error) {
-      message.error(error instanceof Error ? error.message : t('messages.importFailed'))
+      message.error(formatAdminError(error, errorT))
     } finally {
       setImporting(false)
     }
@@ -223,7 +221,7 @@ export function KnowledgeImportManager() {
             <h2>{t('steps.package')}</h2>
             <p>{t('package.hint')}</p>
           </div>
-          {file ? <Tag color="orange">{formatBytes(file.size)}</Tag> : null}
+          {file ? <Tag color="orange">{formatAdminBytes(locale, file.size)}</Tag> : null}
         </div>
         <Upload.Dragger
           className={importStyles.dropzone}
@@ -333,6 +331,7 @@ export function KnowledgeImportManager() {
 
 function PackagePreviewCard({ preview }: { preview: PackagePreview }) {
   const t = useTranslations('AdminMM.knowledgeImport')
+  const locale = useLocale()
   const referenceCount = preview.categories
     .flatMap((category) => category.articles)
     .reduce((count, article) => count + article.sourceReferenceCount, 0)
@@ -344,7 +343,7 @@ function PackagePreviewCard({ preview }: { preview: PackagePreview }) {
           <span className={importStyles['drop-icon']}><BookOpenText size={18} /></span>
           <div>
             <strong>{preview.title}</strong>
-            <span>{preview.projectName} · {t('preview.createdAt', { date: new Date(preview.createdAt).toLocaleString() })}</span>
+            <span>{preview.projectName} · {t('preview.createdAt', { date: formatAdminDate(locale, preview.createdAt) })}</span>
           </div>
         </div>
         <Tag color={preview.kind === 'project' ? 'blue' : 'gold'}>

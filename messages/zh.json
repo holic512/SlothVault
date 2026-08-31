@@ -654,7 +654,8 @@
         "weight": "权重",
         "status": "状态",
         "cancel": "取消",
-        "save": "保存"
+        "save": "保存",
+        "uploadAvatar": "上传头像"
       },
       "validation": {
         "projectNameRequired": "请输入项目名称"
@@ -691,7 +692,8 @@
         "actions": { "edit": "编辑", "content": "编辑内容", "restore": "恢复", "hide": "隐藏发布", "show": "恢复发布", "copyHash": "复制哈希", "manifest": "下载 manifest", "integrity": "校验完整性", "clone": "克隆为草稿", "release": "发布操作", "publish": "发布", "delete": "删除" },
         "form": { "newTitle": "新建版本", "editTitle": "编辑版本", "version": "版本标签", "description": "描述", "weight": "权重", "status": "状态" },
         "clone": { "title": "将 {version} 克隆为草稿", "version": "新版本标签" },
-        "messages": { "saved": "已保存", "published": "版本已发布", "publishValidationFailed": "发布校验未通过", "restored": "发布已恢复", "hidden": "发布已隐藏", "integrityVerified": "发布完整性校验通过", "integrityFailed": "发布完整性校验失败", "manifestFailed": "manifest 下载失败", "cloned": "已克隆为草稿", "hashCopied": "哈希已复制", "copyFailed": "无法复制哈希" }
+        "messages": { "saved": "已保存", "published": "版本已发布", "publishValidationFailed": "发布校验未通过", "restored": "发布已恢复", "hidden": "发布已隐藏", "integrityVerified": "发布完整性校验通过", "integrityFailed": "发布完整性校验失败", "manifestFailed": "manifest 下载失败", "cloned": "已克隆为草稿", "hashCopied": "哈希已复制", "copyFailed": "无法复制哈希" },
+        "validation": { "projectInactive": "所属项目必须处于启用状态", "noEnabledCategory": "至少需要一个启用的分类", "categoryNoEnabledNote": "每个启用分类至少需要一篇启用笔记", "notePrimaryCount": "每篇启用笔记必须恰好有一个主内容版本", "notePrimaryDisabled": "笔记的主内容版本必须处于启用状态", "notePrimaryEmpty": "笔记的主内容版本不能为空", "metadataIncomplete": "发布元数据不完整", "manifestUnsupported": "该发布使用了不受支持的 manifest 版本", "hashMismatch": "已保存的发布哈希与当前内容不一致", "unknown": "发布内容未通过校验" }
       }
     },
     "projectMenu": {
@@ -1179,6 +1181,11 @@
         "SOLANA_DEVNET_RPC_FALLBACK": "Devnet 备用 RPC，仅在网络故障时切换"
       },
       "placeholder": "请输入配置值",
+      "placeholderConfigured": "留空以保留已保存地址",
+      "configured": "已配置",
+      "enabled": "启用",
+      "disabled": "禁用",
+      "network": { "devnet": "Devnet · 测试", "mainnet": "Mainnet · 正式" },
       "unsavedChanges": "有未保存的更改",
       "empty": "暂无配置项",
       "actions": {
@@ -1221,7 +1228,8 @@
         "uploadFailed": "Logo 上传失败",
         "logoAndFaviconUploadSuccess": "Logo 与 favicon.ico 已生成并上传，等待保存",
         "faviconUploadSuccess": "ICO 图标已上传，等待保存",
-        "faviconUploadFailed": "ICO 图标上传失败"
+        "faviconUploadFailed": "ICO 图标上传失败",
+        "networkTestSuccess": "RPC 主备端点检测完成"
       }
     },
     "backup": {
@@ -1288,8 +1296,13 @@
     "dashboard": {
       "title": "仪表盘",
       "desc": "系统概览与数据统计",
+      "eyebrow": "运营指挥台",
+      "rangeLabel": "趋势时间范围",
+      "range": "近 {days} 天",
+      "generatedAt": "更新于 {date}",
       "actions": {
-        "refresh": "刷新数据"
+        "refresh": "刷新数据",
+        "openEvidence": "查看存证总账"
       },
       "stats": {
         "users": "用户",
@@ -1305,12 +1318,35 @@
         "notes": "笔记",
         "versions": "版本",
         "files": "文件",
+        "points": "积分",
         "evidence": "交易存证",
         "minted": "已确认",
         "pending": "待处理"
       },
+      "metrics": {
+        "title": "运营关键指标",
+        "users": "近 {days} 天新增 {count} 位用户",
+        "sessions": "当前有效登录会话",
+        "projects": "{active} 个已启用 · {versions} 个版本 · 新增 {count}",
+        "content": "{published} 篇已发布 · {notes} 篇笔记 · 新发布 {count}",
+        "categories": "{active} 个已启用 · {notes} 篇启用笔记",
+        "points": "已兑换 {redeemed}/{total} 张卡密",
+        "files": "已管理 {count} 个文件",
+        "evidence": "{finalized} 已确认 · {pending} 待处理"
+      },
+      "trend": {
+        "title": "运营活动趋势",
+        "description": "最近 {days} 天的日粒度变化",
+        "accessible": "用户、项目、文章和笔记的运营活动趋势图",
+        "empty": "所选时间范围内还没有运营活动",
+        "users": "新增用户",
+        "projects": "创建项目",
+        "articles": "发布文章",
+        "notes": "创建笔记"
+      },
       "health": {
         "title": "系统健康度",
+        "description": "内容可用性与存证完成率",
         "articlePublicationRate": "文章发布率",
         "projectUtilization": "项目启用率",
         "noteUtilization": "笔记启用率",
@@ -1318,14 +1354,46 @@
         "evidenceFinalizationRate": "存证确认率"
       },
       "recent": {
+        "title": "最近活动",
+        "description": "项目、内容与会话的最新变更",
         "articles": "最近更新的文章",
         "projects": "最近创建的项目",
         "notes": "最近创建的笔记",
-        "sessions": "最近会话活动"
+        "sessions": "最近会话活动",
+        "types": {
+          "project": "创建项目",
+          "article": "更新文章",
+          "note": "创建笔记",
+          "session": "创建会话"
+        },
+        "status": {
+          "active": "活跃",
+          "expired": "已过期",
+          "revoked": "已撤销"
+        }
       },
       "files": {
         "typeDistribution": "文件类型分布",
-        "files": "个文件"
+        "files": "个文件",
+        "description": "当前共管理 {count} 个文件",
+        "type": "{type}"
+      },
+      "evidence": {
+        "title": "链上存证状态",
+        "description": "处理中的任务需要持续关注",
+        "finalized": "已确认",
+        "pending": "待处理",
+        "failed": "失败"
+      },
+      "attention": {
+        "title": "需要关注",
+        "description": "需要后续处理的运营事项",
+        "failedTitle": "{count} 条存证失败",
+        "failedDescription": "请检查失败原因后重试或对账",
+        "pendingTitle": "{count} 条存证待处理",
+        "pendingDescription": "等待网络最终确认或手动对账",
+        "clearTitle": "当前没有待处理事项",
+        "clearDescription": "存证状态正常，继续关注后续运营变化"
       },
       "status": {
         "active": "活跃",
@@ -1336,8 +1404,179 @@
       "messages": {
         "loading": "加载中...",
         "loadFailed": "加载失败",
+        "loadFailedDescription": "暂时无法读取运营数据，请稍后刷新重试。",
         "noData": "暂无数据"
       }
+    },
+    "errors": {
+      "generic": "操作未能完成，请稍后重试。",
+      "unauthorized": "当前会话无权执行此操作，请重新登录后再试。",
+      "invalidRequest": "提交的数据无效，请检查后重试。",
+      "requestTooLarge": "提交内容过大，请缩小文件或请求范围后重试。",
+      "maintenance": "系统正在维护或数据库暂不可用，请稍后重试。",
+      "rpcUnavailable": "链上服务暂时不可用，请稍后重试或随后进行对账。",
+      "walletInsufficient": "签名钱包余额不足，无法支付存证费用。",
+      "invalidWallet": "钱包地址无效，请重新连接正确的钱包。",
+      "notFound": "请求的资源不存在或已被移除。",
+      "conflict": "当前资源状态已变化，请刷新后重试。",
+      "serviceUnavailable": "服务暂时不可用，请稍后重试。"
+    },
+    "evidenceManager": {
+      "status": {
+        "failed": "失败",
+        "awaitingSignature": "待签名",
+        "confirming": "待确认",
+        "finalized": "已确认",
+        "unknown": "未知状态"
+      },
+      "subject": {
+        "noteContent": "笔记内容",
+        "projectVersion": "整版发布",
+        "legacyProjectVersion": "整版发布（兼容）",
+        "noteFallback": "笔记",
+        "unnamedVersion": "未命名版本",
+        "noHash": "无哈希",
+        "primaryVersion": "★ 主版本 · "
+      },
+      "network": {
+        "label": "网络",
+        "mainnet": "Mainnet · 正式存证",
+        "mainnetCredential": "正式凭证",
+        "mainnetWithCost": "Mainnet · 正式存证（消耗真实 SOL）",
+        "devnet": "Devnet · 测试凭证",
+        "devnetCredential": "测试凭证",
+        "disabled": "（已禁用）"
+      },
+      "actions": {
+        "refresh": "刷新",
+        "issue": "办理笔记存证",
+        "details": "详情",
+        "retry": "重试",
+        "reconcile": "对账",
+        "verify": "核验",
+        "openExplorer": "在 Solana Explorer 查看",
+        "backToEdit": "返回修改",
+        "prepare": "校验内容并生成待签交易",
+        "sign": "确认回执内容并请求钱包签名",
+        "retryLoad": "重试"
+      },
+      "toolbar": {
+        "ledger": "存证总账",
+        "recordCount": "{count} 条记录",
+        "all": "全部",
+        "myWallet": "我的钱包",
+        "subjectType": "对象类型",
+        "status": "状态",
+        "transaction": "交易编号"
+      },
+      "table": {
+        "subject": "存证对象",
+        "network": "网络",
+        "status": "状态",
+        "transaction": "交易编号",
+        "actions": "操作",
+        "emptyTransaction": "—"
+      },
+      "messages": {
+        "reconciled": "链上状态已重新核验",
+        "submitted": "交易已提交，系统将持续等待最终确认",
+        "cancelPending": "未签请求将在到期后自动失效。",
+        "loadFailed": "存证记录加载失败",
+        "walletScope": "连接钱包后，将只显示本站由该地址签署的凭证；不会扫描钱包的全部链上历史。",
+        "empty": "暂无存证记录",
+        "selectWallet": "请先连接用于签名的钱包",
+        "walletChanged": "当前钱包已变化，请重新校验并生成待签交易",
+        "mainnetCancelled": "已取消 Mainnet 签名",
+        "networkDisabled": "该网络已禁用，请选择其他已启用网络或前往系统设置调整。",
+        "integrityFailed": "版本完整性校验失败，请先修复版本内容与发布哈希的不一致。",
+        "failure": "存证办理失败"
+      },
+      "receipt": {
+        "title": "存证办理回执",
+        "subject": "存证对象",
+        "contentHash": "内容版本哈希",
+        "releaseHash": "整版发布哈希",
+        "networkTrust": "网络可信级别",
+        "wallet": "签名钱包",
+        "transaction": "公开编号",
+        "notGenerated": "尚未生成",
+        "timeline": "办理时间线"
+      },
+      "drawer": {
+        "retryTitle": "重试存证",
+        "issueTitle": "办理笔记内容版本存证",
+        "independentTitle": "发布与存证相互独立",
+        "independentDescription": "新存证精确绑定已发布树中的一个笔记内容版本；该笔记的其他修订不会共享此凭证。",
+        "retryTitleAlert": "沿用原存证对象重试",
+        "legacyRetry": "{project} / {version}（旧整版凭证）",
+        "loadOptionsFailed": "可存证内容加载失败",
+        "project": "项目",
+        "selectProject": "选择项目",
+        "publishedVersion": "已发布项目版本",
+        "selectPublishedVersion": "选择已发布项目版本",
+        "category": "分类",
+        "selectCategory": "选择分类",
+        "note": "笔记",
+        "selectNote": "选择笔记",
+        "contentVersion": "内容版本",
+        "selectContentVersion": "选择该笔记的内容版本",
+        "network": "存证网络",
+        "preparedTitle": "内容哈希、父级发布与钱包余额校验通过",
+        "preparedDescription": "请逐项核对以下回执内容。点击确认后才会打开钱包签名窗口。",
+        "signer": "签名钱包 / Fee Payer",
+        "notConnected": "未连接",
+        "source": "来源层级",
+        "balance": "钱包余额",
+        "estimatedFee": "预计费用",
+        "finalMemo": "最终 Memo",
+        "walletChangedTitle": "当前连接钱包已变化",
+        "walletChangedDescription": "为防止误签，请重新选择版本并生成待签交易。",
+        "mainnetConfirmTitle": "确认使用真实 SOL 办理正式存证？",
+        "mainnetConfirmDescription": "预计费用 {fee} SOL。Mainnet 存证将作为本站正式凭证。",
+        "mainnetConfirm": "确认签名"
+      },
+      "contentStatus": {
+        "enabled": "启用",
+        "disabled": "停用"
+      },
+      "units": {
+        "lamports": "{value} lamports"
+      }
+    },
+    "membershipLevels": {
+      "actions": { "refresh": "刷新", "create": "新建会员等级", "edit": "编辑", "save": "保存", "cancel": "取消" },
+      "messages": { "created": "会员等级已创建", "updated": "会员等级已更新" },
+      "table": { "level": "等级", "rank": "排序值", "pricePoints": "积分价格", "validity": "有效期", "status": "状态", "updatedAt": "更新时间", "operations": "操作" },
+      "level": "Lv.{rank}",
+      "validityDays": "{count} 天",
+      "permanent": "永久有效",
+      "status": { "available": "可购买", "disabled": "已停用", "disabledWithRetention": "已停用（保留现有权益）" },
+      "dialog": { "createTitle": "新建会员等级", "editTitle": "编辑会员等级" },
+      "form": { "name": "等级名称", "rank": "排序值（越高权限越高）", "pricePoints": "积分价格", "validityDays": "有效天数（留空表示永久）", "status": "销售状态" }
+    },
+    "giftCards": {
+      "actions": { "refresh": "刷新", "create": "发行卡密", "generate": "生成卡密", "cancel": "取消", "confirmSaved": "我已保存", "copyAll": "复制全部卡密" },
+      "messages": { "codesCopied": "卡密已复制" },
+      "table": { "batch": "批次", "points": "面值", "quantity": "数量", "redemption": "兑换进度", "expiresAt": "到期时间", "issuer": "发行人" },
+      "pointsValue": "{value} 积分",
+      "permanent": "长期有效",
+      "dialog": { "createTitle": "发行积分卡密", "codesTitle": "卡密已生成", "codesDescription": "系统只保存哈希；关闭后无法再次查看这些明文卡密。" },
+      "form": { "name": "批次名称", "points": "单卡积分", "quantity": "发行数量", "expiresAt": "到期时间（可选）" }
+    },
+    "contracts": {
+      "status": { "cancelled": "已取消", "declined": "已拒签", "draft": "草稿", "pending": "待签约", "signed": "已签约", "unknown": "未知" },
+      "credentialStatus": { "failed": "失败", "awaitingWallet": "待钱包签名", "confirming": "链上确认中", "anchored": "已上链" },
+      "audit": { "DRAFT_CREATED": "创建草稿", "DRAFT_UPDATED": "更新草稿", "ISSUED": "发起并冻结合同", "CANCELLED": "取消合同", "EVIDENCE_PREPARED": "生成待签链上交易", "EVIDENCE_SUBMITTED": "提交链上交易", "EVIDENCE_RECONCILED": "核验链上状态", "EVIDENCE_ATTEMPT_CANCELLED": "取消钱包签名请求" },
+      "actions": { "refresh": "刷新", "create": "新建合同", "details": "详情", "edit": "编辑", "issue": "发起", "cancel": "取消", "evidence": "上链存证", "reconcile": "对账", "saveDraft": "保存草稿", "uploadPdf": "上传 PDF", "removeAttachment": "移除草稿附件关联", "back": "返回修改", "prepare": "生成待签链上交易", "sign": "确认哈希并请求管理员钱包签名" },
+      "messages": { "draftSaved": "合同草稿已保存", "draftCreated": "合同草稿已创建", "issued": "合同已冻结并发送给指定用户", "cancelled": "合同已取消", "submitted": "交易已提交，系统将持续核验最终状态", "reconciled": "链上状态已重新核验", "attachmentUploaded": "PDF 附件已上传，保存草稿后将被关联", "connectWallet": "请先连接管理员钱包", "walletMismatch": "当前钱包与待签合同凭证不一致" },
+      "filters": { "keyword": "搜索合同标题", "allStatus": "全部状态" },
+      "table": { "contract": "合同", "subject": "签约用户", "status": "状态", "evidenceStatus": "链上状态", "issuedAt": "发起时间", "operations": "操作" },
+      "empty": "—",
+      "notIssued": "未发起",
+      "drawer": { "create": "新建合同草稿", "edit": "编辑合同草稿", "detail": "合同快照与签约审计", "evidence": "管理员链上存证" },
+      "form": { "subject": "签约用户", "selectSubject": "选择用户", "subjectRequired": "请选择一名已启用用户", "title": "合同标题", "titlePlaceholder": "例如：服务确认协议", "body": "权威合同正文（Markdown）", "bodyPlaceholder": "此正文会在发起时冻结并计算 SHA-256。", "attachment": "PDF 附件（可选）", "attachmentHint": "PDF 是受保护的冻结附件；合同权威内容始终是上方正文。", "network": "存证网络" },
+      "dialog": { "issueTitle": "发起合同", "issueContent": "发起后正文和 PDF 附件将被冻结，指定用户可在账户中心签约。", "issueOk": "冻结并发送", "cancelTitle": "取消合同", "cancelContent": "取消后不能恢复或编辑该合同。", "cancelOk": "确认取消", "adminWallet": "只有管理员钱包会签署链上交易", "adminWalletDescription": "用户已通过 Web2 会话完成合同签约。Memo 仅写入合同哈希与链上核验字段，不包含正文、PDF 或身份信息。", "mainnetFee": "Mainnet 会消耗真实 SOL", "devnetTest": "Devnet 仅用于测试", "feeExpires": "预计手续费 {fee} SOL；请求将在 {date} 失效。" },
+      "detail": { "frozen": "已冻结合同", "state": "状态", "id": "合同编号", "bodyHash": "正文 SHA-256", "rootHash": "合同根哈希", "pendingRootHash": "待用户签约后生成", "attachment": "PDF 附件", "none": "无", "issuedAt": "发起时间", "signedAt": "签约时间", "notSigned": "未签约", "declined": "用户已拒签", "web2Audit": "Web2 签约审计", "session": "会话引用", "ip": "客户端 IP", "userAgent": "User-Agent", "adminAudit": "管理员操作审计", "mainnetCredential": "Mainnet 凭证", "devnetCredential": "Devnet 测试凭证", "noSignature": "尚未生成交易签名", "openVerification": "打开公开核验页", "contract": "合同", "summary": "合同摘要", "wallet": "当前钱包", "notConnected": "未连接", "selectedPdf": "已选择 {size} KB PDF" }
     },
     "users": {
       "filters": {
@@ -1353,6 +1592,7 @@
         "role": "身份",
         "wallet": "钱包",
         "points": "积分",
+        "membership": "会员等级",
         "status": "状态",
         "createdAt": "创建时间",
         "operations": "操作"
@@ -1379,6 +1619,7 @@
         "edit": "编辑",
         "password": "重置密码",
         "points": "调整积分",
+        "membership": "会员权益",
         "delete": "删除"
       },
       "dialog": {
@@ -1404,6 +1645,8 @@
         "deleteNotice": "删除会停用账号并注销所有会话，历史数据会保留。",
         "deleted": "用户已停用",
         "adjustedPoints": "积分已调整并写入流水",
+        "membershipSet": "会员权益已设置",
+        "membershipRevoked": "会员权益已取消",
         "signedOut": "当前管理员密码已重置，请重新登录"
       },
       "validation": {
@@ -1411,6 +1654,24 @@
         "email": "请输入有效邮箱地址",
         "password": "密码至少需要 8 位",
         "confirmPassword": "两次输入的密码不一致"
+      },
+      "membership": {
+        "dialogTitle": "会员权益 · {name}",
+        "set": "设置会员",
+        "close": "关闭",
+        "revokeAll": "取消全部权益",
+        "current": "当前权益：",
+        "regular": "普通用户",
+        "grantLevel": "授予等级",
+        "selectLevel": "请选择会员等级",
+        "permanent": "永久有效",
+        "expiresAt": "到期时间",
+        "selectFutureExpiry": "请选择未来到期时间",
+        "history": "授权记录",
+        "revoked": "已取消",
+        "until": "至 {date}",
+        "disabled": "已停用",
+        "level": "Lv.{rank}"
       }
     },
     "homepage": {
@@ -1429,13 +1690,16 @@
         "saveFailed": "保存失败",
         "loadFailed": "加载失败",
         "noChanges": "内容没有变化",
-        "contentRequired": "内容不能为空"
+        "contentRequired": "内容不能为空",
+        "unsaved": "有未保存的修改",
+        "saveShortcut": "Ctrl/⌘ + S"
       }
     },
     "sidebar": {
       "expand": "展开侧边栏",
       "collapse": "收起侧边栏",
       "openMobile": "打开后台导航",
+      "breadcrumb": "面包屑导航",
       "home": "返回首页",
       "logout": "退出登录"
     },

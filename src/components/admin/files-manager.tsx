@@ -29,9 +29,10 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import type { UploadFile } from 'antd/es/upload/interface'
 import { FileArchive, FileImage, RefreshCw, Trash2, UploadCloud } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 
 import { AdminPage, AdminPageActions } from '@/components/admin/admin-page'
+import { formatAdminBytes, formatAdminDate, formatAdminError } from '@/lib/admin-localization'
 import { apiFetch } from '@/lib/api-client'
 
 type FileDto = {
@@ -54,16 +55,10 @@ function isImage(file: FileDto) {
   return imageExtensions.has(extension)
 }
 
-function formatFileSize(raw: string) {
-  const bytes = Number(raw)
-  if (!Number.isFinite(bytes)) return raw
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / 1024 / 1024).toFixed(2)} MB`
-}
-
 export function FilesManager() {
   const t = useTranslations('AdminMM.files')
+  const errorT = useTranslations('AdminMM.errors')
+  const locale = useLocale()
   const queryClient = useQueryClient()
   const { message, modal } = App.useApp()
   const [page, setPage] = useState(1)
@@ -119,7 +114,7 @@ export function FilesManager() {
       setUploadFiles([])
       await refresh()
     },
-    onError: (error) => message.error(error.message),
+    onError: (error) => message.error(formatAdminError(error, errorT)),
   })
 
   const batchDelete = () => {
@@ -178,7 +173,7 @@ export function FilesManager() {
       title: t('table.fileSize'),
       dataIndex: 'fileSize',
       width: 105,
-      render: (value) => formatFileSize(value),
+      render: (value) => formatAdminBytes(locale, value),
     },
     {
       title: t('table.businessType'),
@@ -205,7 +200,7 @@ export function FilesManager() {
       title: t('table.uploadTime'),
       dataIndex: 'createTime',
       width: 170,
-      render: (value) => new Date(value).toLocaleString(),
+      render: (value) => formatAdminDate(locale, value),
     },
     {
       title: t('table.operations'),

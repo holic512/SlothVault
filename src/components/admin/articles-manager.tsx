@@ -16,10 +16,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Button, Input, Select, Space, Switch, Table, Tag, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { EyeOff, FilePenLine, Plus, RefreshCw, Rocket, RotateCcw, Trash2 } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 
 import { AdminPage, AdminPageActions, AdminTablePanel } from '@/components/admin/admin-page'
+import { formatAdminDate, formatAdminError } from '@/lib/admin-localization'
 import { apiFetch } from '@/lib/api-client'
 
 type ArticleDto = {
@@ -46,6 +47,8 @@ type ArticleListData = {
 
 export function ArticlesManager() {
   const t = useTranslations('AdminMM.articles')
+  const errorT = useTranslations('AdminMM.errors')
+  const locale = useLocale()
   const router = useRouter()
   const queryClient = useQueryClient()
   const { message, modal } = App.useApp()
@@ -87,7 +90,7 @@ export function ArticlesManager() {
       message.success(t(`messages.${variables.action}Success`))
       await refresh()
     },
-    onError: (error) => message.error(error.message),
+    onError: (error) => message.error(formatAdminError(error, errorT)),
   })
 
   const confirmDelete = (article: ArticleDto) => {
@@ -148,7 +151,7 @@ export function ArticlesManager() {
       title: t('table.updatedAt'),
       dataIndex: 'updatedAt',
       width: 170,
-      render: (value) => new Date(value).toLocaleString(),
+      render: (value) => formatAdminDate(locale, value),
     },
     {
       title: t('table.operations'),

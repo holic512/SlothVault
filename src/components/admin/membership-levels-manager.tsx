@@ -15,8 +15,10 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Button, Form, Input, InputNumber, Modal, Select, Space, Table, Tag, Typography } from 'antd'
 import { Coins, Crown, Pencil, Plus, RefreshCw } from 'lucide-react'
+import { useLocale, useTranslations } from 'next-intl'
 
 import { AdminPage, AdminPageActions, AdminTablePanel } from '@/components/admin/admin-page'
+import { formatAdminDate, formatAdminError, formatAdminNumber } from '@/lib/admin-localization'
 import { apiFetch } from '@/lib/api-client'
 
 type MembershipLevel = {
@@ -39,6 +41,9 @@ type LevelForm = {
 }
 
 export function MembershipLevelsManager() {
+  const t = useTranslations('AdminMM.membershipLevels')
+  const errorT = useTranslations('AdminMM.errors')
+  const locale = useLocale()
   const queryClient = useQueryClient()
   const { message } = App.useApp()
   const [editing, setEditing] = useState<MembershipLevel | null>(null)
@@ -60,14 +65,14 @@ export function MembershipLevelsManager() {
       )
     },
     onSuccess: async () => {
-      message.success(editing ? '会员等级已更新' : '会员等级已创建')
+      message.success(editing ? t('messages.updated') : t('messages.created'))
       setOpen(false)
       setEditing(null)
       form.resetFields()
       await queryClient.invalidateQueries({ queryKey: ['admin-membership-levels'] })
       await queryClient.invalidateQueries({ queryKey: ['admin-articles'] })
     },
-    onError: (error) => message.error(error.message),
+    onError: (error) => message.error(formatAdminError(error, errorT)),
   })
 
   const openCreate = () => {
@@ -91,8 +96,8 @@ export function MembershipLevelsManager() {
     <AdminPage>
       <AdminPageActions>
         <Space>
-          <Button icon={<RefreshCw size={15} />} loading={levelsQuery.isFetching} onClick={() => void levelsQuery.refetch()}>刷新</Button>
-          <Button type="primary" icon={<Plus size={15} />} onClick={openCreate}>新建会员等级</Button>
+          <Button icon={<RefreshCw size={15} />} loading={levelsQuery.isFetching} onClick={() => void levelsQuery.refetch()}>{t('actions.refresh')}</Button>
+          <Button type="primary" icon={<Plus size={15} />} onClick={openCreate}>{t('actions.create')}</Button>
         </Space>
       </AdminPageActions>
 
@@ -104,32 +109,32 @@ export function MembershipLevelsManager() {
           pagination={false}
           scroll={{ x: 760 }}
           columns={[
-            { title: '等级', dataIndex: 'name', render: (_value, level) => <Space><Tag color="gold"><Crown size={13} />Lv.{level.rank}</Tag><Typography.Text strong>{level.name}</Typography.Text></Space> },
-            { title: '排序值', dataIndex: 'rank', width: 100 },
-            { title: '积分价格', dataIndex: 'pricePoints', width: 130, align: 'right', render: (value) => <Space size={3}><Coins size={14} />{value}</Space> },
-            { title: '有效期', dataIndex: 'validityDays', width: 130, render: (value) => value ? `${value} 天` : '永久有效' },
-            { title: '状态', dataIndex: 'status', width: 110, render: (value) => value === 1 ? <Tag color="success">可购买</Tag> : <Tag>已停用</Tag> },
-            { title: '更新时间', dataIndex: 'updatedAt', width: 170, render: (value) => new Date(value).toLocaleString() },
-            { title: '操作', fixed: 'right', width: 100, render: (_value, level) => <Button type="link" icon={<Pencil size={14} />} onClick={() => openEdit(level)}>编辑</Button> },
+            { title: t('table.level'), dataIndex: 'name', render: (_value, level) => <Space><Tag color="gold"><Crown size={13} />{t('level', { rank: level.rank })}</Tag><Typography.Text strong>{level.name}</Typography.Text></Space> },
+            { title: t('table.rank'), dataIndex: 'rank', width: 100 },
+            { title: t('table.pricePoints'), dataIndex: 'pricePoints', width: 130, align: 'right', render: (value) => <Space size={3}><Coins size={14} />{formatAdminNumber(locale, value)}</Space> },
+            { title: t('table.validity'), dataIndex: 'validityDays', width: 130, render: (value) => value ? t('validityDays', { count: formatAdminNumber(locale, value) }) : t('permanent') },
+            { title: t('table.status'), dataIndex: 'status', width: 110, render: (value) => value === 1 ? <Tag color="success">{t('status.available')}</Tag> : <Tag>{t('status.disabled')}</Tag> },
+            { title: t('table.updatedAt'), dataIndex: 'updatedAt', width: 170, render: (value) => formatAdminDate(locale, value) },
+            { title: t('table.operations'), fixed: 'right', width: 100, render: (_value, level) => <Button type="link" icon={<Pencil size={14} />} onClick={() => openEdit(level)}>{t('actions.edit')}</Button> },
           ]}
         />
       </AdminTablePanel>
 
       <Modal
         open={open}
-        title={editing ? '编辑会员等级' : '新建会员等级'}
-        okText="保存"
-        cancelText="取消"
+        title={editing ? t('dialog.editTitle') : t('dialog.createTitle')}
+        okText={t('actions.save')}
+        cancelText={t('actions.cancel')}
         confirmLoading={saveMutation.isPending}
         onCancel={() => { setOpen(false); setEditing(null) }}
         onOk={() => form.submit()}
       >
         <Form form={form} layout="vertical" onFinish={(values) => saveMutation.mutate(values)}>
-          <Form.Item name="name" label="等级名称" rules={[{ required: true, max: 80 }]}><Input maxLength={80} /></Form.Item>
-          <Form.Item name="rank" label="排序值（越高权限越高）" rules={[{ required: true }]}><InputNumber min={1} max={32767} className="full-width" /></Form.Item>
-          <Form.Item name="pricePoints" label="积分价格" rules={[{ required: true }]}><InputNumber min={1} max={1000000} className="full-width" /></Form.Item>
-          <Form.Item name="validityDays" label="有效天数（留空表示永久）"><InputNumber min={1} max={36500} className="full-width" /></Form.Item>
-          <Form.Item name="status" label="销售状态"><Select options={[{ value: 1, label: '可购买' }, { value: 0, label: '已停用（保留现有权益）' }]} /></Form.Item>
+          <Form.Item name="name" label={t('form.name')} rules={[{ required: true, max: 80 }]}><Input maxLength={80} /></Form.Item>
+          <Form.Item name="rank" label={t('form.rank')} rules={[{ required: true }]}><InputNumber min={1} max={32767} className="full-width" /></Form.Item>
+          <Form.Item name="pricePoints" label={t('form.pricePoints')} rules={[{ required: true }]}><InputNumber min={1} max={1000000} className="full-width" /></Form.Item>
+          <Form.Item name="validityDays" label={t('form.validityDays')}><InputNumber min={1} max={36500} className="full-width" /></Form.Item>
+          <Form.Item name="status" label={t('form.status')}><Select options={[{ value: 1, label: t('status.available') }, { value: 0, label: t('status.disabledWithRetention') }]} /></Form.Item>
         </Form>
       </Modal>
     </AdminPage>

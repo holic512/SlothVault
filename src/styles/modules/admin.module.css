@@ -2,15 +2,92 @@
  * @file admin.module.css
  * @project SlothVault
  * @module Administrator Experience Styles
- * @description Scopes the administration shell, managers, editors, settings, backup, Solana, and dashboard surfaces.
- * @logic Compose dense management workflows under the authenticated admin layout, allocate full-height editor surfaces inside the padded main content, and switch to a Drawer on compact screens.
- * @dependencies SlothVault design tokens, feature markup
- * @index_tags css-module,admin,dashboard,editor,responsive
+ * @description Scopes the administration shell, managers, editors, settings, backup, Solana, and the operations-dashboard analytics surfaces.
+ * @logic Compose dense management workflows under the authenticated admin layout, derive semantic dashboard colors from theme tokens, allocate full-height editor surfaces inside padded content, and retain readable charts and activity flows on compact screens.
+ * @dependencies SlothVault design tokens, administration feature markup
+ * @index_tags css-module,admin,dashboard,analytics,semantic-colors,editor,responsive
  * @author holic512
  */
 
 .root :global(.admin-mobile-trigger) {
   display: none !important;
+}
+
+@media (max-width: 1180px) {
+  .root :global(.dashboard-metric-grid) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .root :global(.dashboard-secondary-grid) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .root :global(.dashboard-attention-panel) {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 900px) {
+  .root :global(.dashboard-toolbar),
+  .root :global(.dashboard-primary-grid) {
+    grid-template-columns: 1fr;
+  }
+
+  .root :global(.dashboard-toolbar) {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .root :global(.dashboard-toolbar-actions) {
+    justify-content: flex-start;
+  }
+
+  .root :global(.dashboard-generated-at) {
+    text-align: left;
+  }
+}
+
+@media (max-width: 640px) {
+  .root :global(.dashboard-metric-grid),
+  .root :global(.dashboard-secondary-grid),
+  .root :global(.dashboard-loading-panels) {
+    grid-template-columns: 1fr;
+  }
+
+  .root :global(.dashboard-attention-panel) {
+    grid-column: auto;
+  }
+
+  .root :global(.dashboard-metric-card) {
+    min-height: 128px;
+  }
+
+  .root :global(.dashboard-toolbar-actions) :global(.ant-segmented),
+  .root :global(.dashboard-toolbar-actions) :global(.ant-btn) {
+    flex: 1;
+  }
+
+  .root :global(.dashboard-chart-stage) svg {
+    height: 220px;
+  }
+
+  .root :global(.dashboard-activity-item) {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .root :global(.dashboard-activity-item) time {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .root :global(.dashboard-activity-status) {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .root :global(.dashboard-activity-arrow) {
+    display: none;
+  }
 }
 
 .root {
@@ -1517,73 +1594,645 @@
   display: none;
 }
 
-.root :global(.metric-card) {
-  height: 100%;
-  border: 1px solid var(--sv-admin-border) !important;
-  background: color-mix(in srgb, var(--sv-bg-solid) 97%, transparent) !important;
-  box-shadow: none;
+.root :global(.admin-dashboard-page) {
+  --sv-dashboard-users: color-mix(in srgb, var(--sv-primary) 74%, rgb(56 151 240));
+  --sv-dashboard-projects: color-mix(in srgb, var(--sv-primary) 62%, rgb(35 166 139));
+  --sv-dashboard-content: color-mix(in srgb, var(--sv-primary) 46%, rgb(214 129 50));
+  --sv-dashboard-notes: color-mix(in srgb, var(--sv-primary) 34%, rgb(182 94 189));
+  --sv-dashboard-health: color-mix(in srgb, var(--sv-primary) 64%, rgb(46 167 123));
+  --sv-dashboard-danger: rgb(212 94 88);
+  --sv-dashboard-warning: rgb(197 136 47);
+
+  gap: 14px;
+}
+
+.root :global(.dashboard-toolbar) {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 4px 2px 2px;
+}
+
+.root :global(.dashboard-toolbar-copy) {
+  display: grid;
+  gap: 5px;
+}
+
+.root :global(.dashboard-eyebrow) {
+  color: var(--sv-primary);
+  font-size: 10px;
+  font-weight: 780;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.root :global(.dashboard-toolbar-copy) :global(.ant-typography) {
+  margin: 0;
+}
+
+.root :global(.dashboard-toolbar-copy) :global(h3.ant-typography) {
+  color: var(--sv-text);
+  font-family: var(--sv-font-display);
+  font-size: 24px;
+  letter-spacing: -.045em;
+  line-height: 1;
+}
+
+.root :global(.dashboard-toolbar-actions) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.root :global(.dashboard-toolbar-actions) :global(.ant-segmented) {
+  border: 1px solid var(--sv-admin-border);
+  background: color-mix(in srgb, var(--sv-bg-soft) 68%, transparent);
+}
+
+.root :global(.dashboard-generated-at) {
+  width: 100%;
+  font-size: 11px;
+  text-align: right;
+}
+
+.root :global(.dashboard-metric-grid) {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.root :global(.dashboard-metric-card) {
+  display: grid;
+  min-height: 146px;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 6px;
+  padding: 14px;
+  overflow: hidden;
+  border: 1px solid var(--sv-admin-border);
+  border-radius: calc(var(--sv-admin-radius) + 2px);
+  background: linear-gradient(136deg, color-mix(in srgb, var(--sv-bg-solid) 97%, transparent), color-mix(in srgb, var(--sv-bg-soft) 46%, transparent));
+  color: var(--sv-text);
+  text-decoration: none;
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.root :global(.dashboard-metric-card):hover {
+  border-color: color-mix(in srgb, var(--sv-primary) 42%, var(--sv-admin-border));
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--sv-text) 8%, transparent);
+  transform: translateY(-2px);
+}
+
+.root :global(.dashboard-metric-topline) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.root :global(.dashboard-metric-icon) {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, currentcolor 22%, transparent);
+  border-radius: 11px;
+  background: color-mix(in srgb, currentcolor 9%, transparent);
+}
+
+.root :global(.dashboard-metric-arrow) {
+  color: var(--sv-text-muted);
+  font-size: 16px;
+  transition: transform .18s ease;
+}
+
+.root :global(.dashboard-metric-card):hover :global(.dashboard-metric-arrow) {
+  color: currentcolor;
+  transform: translate(2px, -2px);
+}
+
+.root :global(.dashboard-metric-label),
+.root :global(.dashboard-metric-meta) {
+  color: var(--sv-text-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.root :global(.dashboard-metric-value) {
+  align-self: center;
+  color: var(--sv-text);
+  font-size: clamp(22px, 2vw, 30px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.055em;
+  line-height: 1;
+}
+
+.root :global(.dashboard-metric-card.is-users) {
+  color: var(--sv-dashboard-users);
+}
+
+.root :global(.dashboard-metric-card.is-sessions) {
+  color: var(--sv-dashboard-health);
+}
+
+.root :global(.dashboard-metric-card.is-projects) {
+  color: var(--sv-dashboard-projects);
+}
+
+.root :global(.dashboard-metric-card.is-content) {
+  color: var(--sv-dashboard-content);
+}
+
+.root :global(.dashboard-metric-card.is-categories) {
+  color: var(--sv-dashboard-notes);
+}
+
+.root :global(.dashboard-metric-card.is-points) {
+  color: var(--sv-dashboard-warning);
+}
+
+.root :global(.dashboard-metric-card.is-files) {
+  color: color-mix(in srgb, var(--sv-primary) 58%, rgb(94 130 205));
+}
+
+.root :global(.dashboard-metric-card.is-evidence) {
+  color: color-mix(in srgb, var(--sv-primary) 42%, rgb(44 155 137));
+}
+
+.root :global(.dashboard-metric-card) :global(.dashboard-metric-label),
+.root :global(.dashboard-metric-card) :global(.dashboard-metric-meta),
+.root :global(.dashboard-metric-card) :global(.dashboard-metric-value) {
+  color: var(--sv-text);
+}
+
+.root :global(.dashboard-metric-card) :global(.dashboard-metric-meta) {
+  color: color-mix(in srgb, var(--sv-text-muted) 92%, transparent);
+}
+
+.root :global(.dashboard-primary-grid),
+.root :global(.dashboard-secondary-grid) {
+  display: grid;
+  gap: 10px;
+}
+
+.root :global(.dashboard-primary-grid) {
+  grid-template-columns: minmax(0, 1.76fr) minmax(250px, .84fr);
+}
+
+.root :global(.dashboard-secondary-grid) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .root :global(.dashboard-panel) {
   height: 100%;
+  overflow: hidden;
   border: 1px solid var(--sv-admin-border) !important;
+  border-radius: calc(var(--sv-admin-radius) + 2px) !important;
   background: color-mix(in srgb, var(--sv-bg-solid) 97%, transparent) !important;
   box-shadow: none;
 }
 
-.root :global(.metric-card-inner) {
-  width: 100%;
-  margin-bottom: 10px;
+.root :global(.dashboard-panel) :global(.ant-card-head) {
+  min-height: 58px;
+  padding: 0 14px;
+  border-bottom-color: var(--sv-admin-border);
 }
 
-.root :global(.metric-card-inner) :global(.ant-statistic) {
-  flex: 1;
+.root :global(.dashboard-panel) :global(.ant-card-head-title) {
+  padding: 11px 0;
+  white-space: normal;
 }
 
-.root :global(.metric-card) :global(.ant-statistic-title) {
+.root :global(.dashboard-panel) :global(.ant-card-body) {
+  padding: 14px;
+}
+
+.root :global(.dashboard-panel-title) {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.root :global(.dashboard-panel-title) > span:first-child {
+  display: grid;
+  width: 29px;
+  height: 29px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--sv-primary) 10%, transparent);
+  color: var(--sv-primary);
+}
+
+.root :global(.dashboard-panel-title) > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.root :global(.dashboard-panel-title) strong {
+  color: var(--sv-text);
   font-size: 12px;
+  font-weight: 760;
+}
+
+.root :global(.dashboard-panel-title) small {
+  overflow: hidden;
+  color: var(--sv-text-muted);
+  font-size: 10px;
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.root :global(.dashboard-trend-chart) {
+  display: grid;
+  gap: 12px;
+}
+
+.root :global(.dashboard-trend-legend) {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.root :global(.dashboard-trend-toggle) {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 7px;
+  border: 1px solid color-mix(in srgb, currentcolor 19%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, currentcolor 7%, transparent);
+  color: var(--sv-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.root :global(.dashboard-trend-toggle) > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentcolor;
+}
+
+.root :global(.dashboard-trend-toggle.is-muted) {
+  border-color: var(--sv-admin-border);
+  background: transparent;
+  color: var(--sv-text-muted);
+}
+
+.root :global(.dashboard-trend-toggle.is-users),
+.root :global(.dashboard-chart-line.is-users),
+.root :global(.dashboard-chart-dot.is-users) {
+  color: var(--sv-dashboard-users);
+  stroke: var(--sv-dashboard-users);
+}
+
+.root :global(.dashboard-trend-toggle.is-projects),
+.root :global(.dashboard-chart-line.is-projects),
+.root :global(.dashboard-chart-dot.is-projects) {
+  color: var(--sv-dashboard-projects);
+  stroke: var(--sv-dashboard-projects);
+}
+
+.root :global(.dashboard-trend-toggle.is-content),
+.root :global(.dashboard-chart-line.is-content),
+.root :global(.dashboard-chart-dot.is-content) {
+  color: var(--sv-dashboard-content);
+  stroke: var(--sv-dashboard-content);
+}
+
+.root :global(.dashboard-trend-toggle.is-notes),
+.root :global(.dashboard-chart-line.is-notes),
+.root :global(.dashboard-chart-dot.is-notes) {
+  color: var(--sv-dashboard-notes);
+  stroke: var(--sv-dashboard-notes);
+}
+
+.root :global(.dashboard-chart-stage) {
+  position: relative;
+  min-height: 232px;
+}
+
+.root :global(.dashboard-chart-stage) svg {
+  display: block;
+  width: 100%;
+  height: 248px;
+  overflow: visible;
+}
+
+.root :global(.dashboard-chart-grid) {
+  stroke: var(--sv-admin-border);
+  stroke-dasharray: 3 5;
+  stroke-width: 1;
+}
+
+.root :global(.dashboard-chart-axis) {
+  fill: var(--sv-text-muted);
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.root :global(.dashboard-chart-line) {
+  fill: none;
+  stroke-width: 2.35;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.root :global(.dashboard-chart-dot) {
+  fill: var(--sv-bg-solid);
+  stroke-width: 1.65;
+}
+
+.root :global(.dashboard-chart-empty) {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 6px;
+  background: color-mix(in srgb, var(--sv-bg-solid) 76%, transparent);
+  color: var(--sv-text-muted);
+  font-size: 11px;
+}
+
+.root :global(.dashboard-health-list),
+.root :global(.dashboard-distribution-list),
+.root :global(.dashboard-attention-list) {
+  display: grid;
+  gap: 13px;
+}
+
+.root :global(.dashboard-health-row) {
+  display: grid;
+  gap: 5px;
+}
+
+.root :global(.dashboard-health-row) > div,
+.root :global(.dashboard-distribution-row) > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.root :global(.dashboard-health-row) span,
+.root :global(.dashboard-distribution-row) span {
+  color: var(--sv-text-muted);
+  font-size: 11px;
   font-weight: 650;
 }
 
-.root :global(.metric-card) :global(.ant-statistic-content) {
-  font-size: 26px;
-  font-weight: 720;
-  letter-spacing: -0.04em;
-}
-
-.root :global(.metric-icon) {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid rgb(var(--sv-primary-rgb), 0.2);
-  border-radius: var(--sv-admin-radius);
-  border-color: var(--sv-admin-border);
-  background: var(--sv-bg-soft);
+.root :global(.dashboard-health-row) strong,
+.root :global(.dashboard-distribution-row) strong {
   color: var(--sv-text);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
-.root :global(.metric-icon) svg {
-  width: 18px;
-  height: 18px;
+.root :global(.dashboard-health-row) :global(.ant-progress-inner) {
+  background: color-mix(in srgb, var(--sv-bg-soft) 84%, transparent);
 }
 
-.root :global(.health-list) {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.root :global(.health-row) {
+.root :global(.dashboard-distribution-row) {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  gap: 5px 9px;
+}
+
+.root :global(.dashboard-distribution-row) > div,
+.root :global(.dashboard-distribution-track) {
+  grid-column: 1;
+}
+
+.root :global(.dashboard-distribution-row) small {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  color: var(--sv-text-muted);
+  font-size: 10px;
+  text-align: right;
+}
+
+.root :global(.dashboard-distribution-track) {
+  display: block;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--sv-bg-soft);
+}
+
+.root :global(.dashboard-distribution-track) > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--sv-primary), var(--sv-dashboard-projects));
+}
+
+.root :global(.dashboard-evidence-summary) {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 7px;
 }
 
-.root :global(.health-row) > span {
+.root :global(.dashboard-evidence-status) {
+  display: grid;
+  gap: 7px;
+  padding: 11px 8px;
+  border: 1px solid color-mix(in srgb, currentcolor 18%, var(--sv-admin-border));
+  border-radius: 10px;
+  background: color-mix(in srgb, currentcolor 7%, transparent);
+  color: var(--sv-text);
+  text-align: center;
+  text-decoration: none;
+}
+
+.root :global(.dashboard-evidence-status) span {
   color: var(--sv-text-muted);
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 650;
+}
+
+.root :global(.dashboard-evidence-status) strong {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.04em;
+}
+
+.root :global(.dashboard-evidence-status.is-success) { color: var(--sv-dashboard-health); }
+.root :global(.dashboard-evidence-status.is-warning) { color: var(--sv-dashboard-warning); }
+.root :global(.dashboard-evidence-status.is-danger) { color: var(--sv-dashboard-danger); }
+
+.root :global(.dashboard-evidence-status) span,
+.root :global(.dashboard-evidence-status) strong { color: inherit; }
+
+.root :global(.dashboard-panel-link) {
+  display: flex;
+  margin-top: 14px;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--sv-primary);
+  font-size: 11px;
+  font-weight: 720;
+  text-decoration: none;
+}
+
+.root :global(.dashboard-attention-item),
+.root :global(.dashboard-all-clear) {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 9px;
+  border: 1px solid var(--sv-admin-border);
+  border-radius: 10px;
+  color: var(--sv-text);
+  text-decoration: none;
+}
+
+.root :global(.dashboard-attention-item) > span:nth-child(2),
+.root :global(.dashboard-all-clear) > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.root :global(.dashboard-attention-item) strong,
+.root :global(.dashboard-all-clear) strong {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.root :global(.dashboard-attention-item) small,
+.root :global(.dashboard-all-clear) small {
+  color: var(--sv-text-muted);
+  font-size: 10px;
+}
+
+.root :global(.dashboard-attention-item.is-danger) {
+  color: var(--sv-dashboard-danger);
+}
+
+.root :global(.dashboard-attention-item.is-warning) {
+  color: var(--sv-dashboard-warning);
+}
+
+.root :global(.dashboard-attention-item) strong,
+.root :global(.dashboard-attention-item) small {
+  color: var(--sv-text);
+}
+
+.root :global(.dashboard-attention-item) small {
+  color: var(--sv-text-muted);
+}
+
+.root :global(.dashboard-all-clear) {
+  grid-template-columns: auto minmax(0, 1fr);
+  min-height: 106px;
+  border-color: color-mix(in srgb, var(--sv-dashboard-health) 30%, var(--sv-admin-border));
+  background: color-mix(in srgb, var(--sv-dashboard-health) 7%, transparent);
+  color: var(--sv-dashboard-health);
+}
+
+.root :global(.dashboard-all-clear) strong {
+  color: var(--sv-text);
+}
+
+.root :global(.dashboard-activity-list) {
+  display: grid;
+}
+
+.root :global(.dashboard-activity-item) {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(118px, auto) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 55px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--sv-admin-border);
+  color: var(--sv-text);
+  text-decoration: none;
+}
+
+.root :global(.dashboard-activity-item:last-child) {
+  border-bottom: 0;
+}
+
+.root :global(.dashboard-activity-icon) {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--sv-bg-soft);
+  color: var(--sv-primary);
+}
+
+.root :global(.dashboard-activity-icon.is-project) {
+  color: var(--sv-dashboard-projects);
+}
+
+.root :global(.dashboard-activity-icon.is-article) {
+  color: var(--sv-dashboard-content);
+}
+
+.root :global(.dashboard-activity-icon.is-note) {
+  color: var(--sv-dashboard-notes);
+}
+
+.root :global(.dashboard-activity-icon.is-session) {
+  color: var(--sv-dashboard-users);
+}
+
+.root :global(.dashboard-activity-copy) {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.root :global(.dashboard-activity-copy) strong,
+.root :global(.dashboard-activity-copy) small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.root :global(.dashboard-activity-copy) strong {
+  font-size: 12px;
+}
+
+.root :global(.dashboard-activity-copy) small,
+.root :global(.dashboard-activity-item) time {
+  color: var(--sv-text-muted);
+  font-size: 10px;
+}
+
+.root :global(.dashboard-activity-item) time {
+  font-variant-numeric: tabular-nums;
+}
+
+.root :global(.dashboard-activity-status) {
+  margin: 0;
+  font-size: 10px;
+}
+
+.root :global(.dashboard-activity-status.is-active) { color: var(--sv-dashboard-health); }
+.root :global(.dashboard-activity-status.is-expired) { color: var(--sv-dashboard-warning); }
+.root :global(.dashboard-activity-status.is-revoked) { color: var(--sv-dashboard-danger); }
+
+.root :global(.dashboard-activity-arrow) { color: var(--sv-text-muted); }
+
+.root :global(.dashboard-loading-panels) {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 10px;
 }
 
 .root :global(.admin-article-cell) {

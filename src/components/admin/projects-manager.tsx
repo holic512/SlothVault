@@ -31,9 +31,10 @@ import {
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { BookOpenText, Boxes, Clipboard, Download, Ellipsis, Eye, EyeOff, GitFork, Home, ImageUp, Import, Plus, RefreshCw, Rocket, RotateCcw, ShieldCheck, Trash2 } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 
+import { formatAdminDate, formatAdminError } from '@/lib/admin-localization'
 import { apiFetch, ApiClientError } from '@/lib/api-client'
 import { AdminPage, AdminPageActions } from '@/components/admin/admin-page'
 import { ProjectMenuManager } from '@/components/admin/project-menu-manager'
@@ -57,6 +58,8 @@ type ProjectForm = Pick<ProjectDto, 'projectName' | 'weight' | 'status'> & { ava
 
 export function ProjectsManager() {
   const t = useTranslations('AdminMM.projects')
+  const errorT = useTranslations('AdminMM.errors')
+  const locale = useLocale()
   const router = useRouter()
   const queryClient = useQueryClient()
   const { message, modal } = App.useApp()
@@ -98,7 +101,7 @@ export function ProjectsManager() {
       form.resetFields()
       await refresh()
     },
-    onError: (error) => message.error(error.message),
+    onError: (error) => message.error(formatAdminError(error, errorT)),
   })
 
   const batchMutation = useMutation({
@@ -112,7 +115,7 @@ export function ProjectsManager() {
       setSelectedIds([])
       await refresh()
     },
-    onError: (error) => message.error(error.message),
+    onError: (error) => message.error(formatAdminError(error, errorT)),
   })
 
   const openCreate = () => {
@@ -164,7 +167,7 @@ export function ProjectsManager() {
       form.setFieldValue('avatar', uploaded.url)
       message.success(t('messages.saveSuccess'))
     } catch (error) {
-      message.error(error instanceof Error ? error.message : t('messages.submitFailed'))
+      message.error(formatAdminError(error, errorT))
     } finally {
       setUploadingAvatar(false)
     }
@@ -204,7 +207,7 @@ export function ProjectsManager() {
         title: t('table.updatedAt'),
         dataIndex: 'updatedAt',
         width: 170,
-        render: (value) => new Date(value).toLocaleString(),
+        render: (value) => formatAdminDate(locale, value),
       },
       {
         title: t('table.operations'),
@@ -308,7 +311,7 @@ export function ProjectsManager() {
                 }}
               >
                 <Button loading={uploadingAvatar} icon={<ImageUp size={14} />}>
-                  Upload
+                  {t('dialog.uploadAvatar')}
                 </Button>
               </Upload>
             </Space.Compact>
@@ -344,6 +347,7 @@ type VersionDto = {
 
 function VersionManager({ project, onClose, onUpdated }: { project: ProjectDto | null; onClose: () => void; onUpdated: () => unknown }) {
   const vt = useTranslations('AdminMM.projects.versionRelease')
+  const errorT = useTranslations('AdminMM.errors')
   const router = useRouter()
   const queryClient = useQueryClient()
   const { message, modal } = App.useApp()
@@ -377,7 +381,7 @@ function VersionManager({ project, onClose, onUpdated }: { project: ProjectDto |
         }),
       }),
     onSuccess: async () => { message.success(vt('messages.saved')); setFormOpen(false); setEditing(null); await refresh() },
-    onError: (error) => message.error(error.message),
+    onError: (error) => message.error(formatAdminError(error, errorT)),
   })
   const publish = useMutation({
     mutationFn: (id: string) => apiFetch(`/api/admin/mm/projectVersion/${id}/publish`, { method: 'POST' }),
@@ -390,11 +394,22 @@ function VersionManager({ project, onClose, onUpdated }: { project: ProjectDto |
         ? (error.data as { issues?: Array<{ code: string; message: string }> }).issues || []
         : []
       if (issues.length) {
+        const issueKey: Record<string, 'projectInactive' | 'noEnabledCategory' | 'categoryNoEnabledNote' | 'notePrimaryCount' | 'notePrimaryDisabled' | 'notePrimaryEmpty' | 'metadataIncomplete' | 'manifestUnsupported' | 'hashMismatch'> = {
+          PROJECT_INACTIVE: 'projectInactive',
+          NO_ENABLED_CATEGORY: 'noEnabledCategory',
+          CATEGORY_NO_ENABLED_NOTE: 'categoryNoEnabledNote',
+          NOTE_PRIMARY_COUNT: 'notePrimaryCount',
+          NOTE_PRIMARY_DISABLED: 'notePrimaryDisabled',
+          NOTE_PRIMARY_EMPTY: 'notePrimaryEmpty',
+          RELEASE_METADATA_INCOMPLETE: 'metadataIncomplete',
+          MANIFEST_VERSION_UNSUPPORTED: 'manifestUnsupported',
+          RELEASE_HASH_MISMATCH: 'hashMismatch',
+        }
         modal.error({
           title: vt('messages.publishValidationFailed'),
-          content: <ul>{issues.map((item) => <li key={`${item.code}:${item.message}`}><strong>{item.code}</strong> · {item.message}</li>)}</ul>,
+          content: <ul>{issues.map((item) => <li key={item.code}>{vt(`validation.${issueKey[item.code] || 'unknown'}`)}</li>)}</ul>,
         })
-      } else message.error(error.message)
+      } else message.error(formatAdminError(error, errorT))
     },
   })
   const setVisibility = async (row: VersionDto, status: 0 | 1) => {
@@ -413,7 +428,20 @@ function VersionManager({ project, onClose, onUpdated }: { project: ProjectDto |
       title: result.valid ? vt('messages.integrityVerified') : vt('messages.integrityFailed'),
       content: result.valid
         ? <code className="release-hash-block">{result.computedHash}</code>
-        : <ul>{result.issues.map((item) => <li key={`${item.code}:${item.message}`}>{item.code} · {item.message}</li>)}</ul>,
+        : <ul>{result.issues.map((item) => {
+          const issueKey: Record<string, 'projectInactive' | 'noEnabledCategory' | 'categoryNoEnabledNote' | 'notePrimaryCount' | 'notePrimaryDisabled' | 'notePrimaryEmpty' | 'metadataIncomplete' | 'manifestUnsupported' | 'hashMismatch'> = {
+            PROJECT_INACTIVE: 'projectInactive',
+            NO_ENABLED_CATEGORY: 'noEnabledCategory',
+            CATEGORY_NO_ENABLED_NOTE: 'categoryNoEnabledNote',
+            NOTE_PRIMARY_COUNT: 'notePrimaryCount',
+            NOTE_PRIMARY_DISABLED: 'notePrimaryDisabled',
+            NOTE_PRIMARY_EMPTY: 'notePrimaryEmpty',
+            RELEASE_METADATA_INCOMPLETE: 'metadataIncomplete',
+            MANIFEST_VERSION_UNSUPPORTED: 'manifestUnsupported',
+            RELEASE_HASH_MISMATCH: 'hashMismatch',
+          }
+          return <li key={item.code}>{vt(`validation.${issueKey[item.code] || 'unknown'}`)}</li>
+        })}</ul>,
     })
   }
   const downloadManifest = async (row: VersionDto) => {
@@ -441,7 +469,7 @@ function VersionManager({ project, onClose, onUpdated }: { project: ProjectDto |
         body: JSON.stringify({ ...values, description: values.description || null }),
       }),
     onSuccess: async () => { message.success(vt('messages.cloned')); setCloneSource(null); await refresh() },
-    onError: (error) => message.error(error.message),
+    onError: (error) => message.error(formatAdminError(error, errorT)),
   })
   const restore = async (id: string) => {
     await apiFetch('/api/admin/mm/projectVersion/batch', { method: 'POST', body: JSON.stringify({ action: 'restore', ids: [id] }) })
@@ -503,8 +531,8 @@ function VersionManager({ project, onClose, onUpdated }: { project: ProjectDto |
                       ? { key: 'hide', icon: <EyeOff size={14} />, label: vt('actions.hide'), onClick: () => void setVisibility(row, 0) }
                       : { key: 'show', icon: <Eye size={14} />, label: vt('actions.show'), onClick: () => void setVisibility(row, 1) },
                     { key: 'copy', icon: <Clipboard size={14} />, label: vt('actions.copyHash'), onClick: () => void navigator.clipboard.writeText(row.releaseHash || '').then(() => message.success(vt('messages.hashCopied'))).catch(() => message.error(vt('messages.copyFailed'))) },
-                    { key: 'manifest', icon: <Download size={14} />, label: vt('actions.manifest'), onClick: () => void downloadManifest(row).catch((error) => message.error(error.message)) },
-                    { key: 'integrity', icon: <ShieldCheck size={14} />, label: vt('actions.integrity'), onClick: () => void verifyIntegrity(row).catch((error) => message.error(error.message)) },
+                    { key: 'manifest', icon: <Download size={14} />, label: vt('actions.manifest'), onClick: () => void downloadManifest(row).catch((error) => message.error(formatAdminError(error, errorT))) },
+                    { key: 'integrity', icon: <ShieldCheck size={14} />, label: vt('actions.integrity'), onClick: () => void verifyIntegrity(row).catch((error) => message.error(formatAdminError(error, errorT))) },
                     { key: 'clone', icon: <GitFork size={14} />, label: vt('actions.clone'), onClick: () => openClone(row) },
                   ] }}>
                     <Button icon={<Ellipsis size={15} />}>{vt('actions.release')}</Button>
