@@ -258,4 +258,4 @@ npm run build
 
 ## 许可证
 
-仓库当前未包含 `LICENSE` 文件。对外分发前请先明确许可证与使用条款。
+SlothVault 自身源码采用 [MIT License](./LICENSE) 授权。第三方依赖按其各自许可证执行。
