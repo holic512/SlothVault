@@ -19,8 +19,6 @@ const expectedTables = {
   Category: 'collections_category',
   NoteInfo: 'docs_note_info',
   NoteContent: 'docs_note_content',
-  KnowledgePackage: 'knowledge_package',
-  KnowledgeArticle: 'knowledge_article',
   FileManagement: 'files_file_management',
   Contract: 'contract',
   ContractAdminAudit: 'contract_admin_audit',
@@ -69,6 +67,16 @@ function readNoteContentEvidenceMigration(provider: (typeof providers)[number]) 
     resolve(
       process.cwd(),
       `prisma/providers/${provider}/migrations/20260820000000_note_content_evidence/migration.sql`,
+    ),
+    'utf8',
+  )
+}
+
+function readKnowledgePackageRemovalMigration(provider: (typeof providers)[number]) {
+  return readFileSync(
+    resolve(
+      process.cwd(),
+      `prisma/providers/${provider}/migrations/20260911000000_remove_knowledge_package_import/migration.sql`,
     ),
     'utf8',
   )
@@ -133,10 +141,8 @@ describe('provider schema parity', () => {
     expect(models.get('ProjectVersion')).toContain('manifestVersion Int? @map("manifest_version")')
     expect(models.get('ProjectVersion')).toContain('publishedAt DateTime? @map("published_at")')
     expect(models.get('NoteContent')).toContain('evidenceId String? @unique')
-    expect(models.get('KnowledgePackage')).toContain('projectVersionId Int @map("project_version_id")')
-    expect(models.get('KnowledgePackage')).toContain('packageHash String @map("package_hash")')
-    expect(models.get('KnowledgeArticle')).toContain('noteInfoId Int @unique')
-    expect(models.get('KnowledgeArticle')).toContain('sourceReferencesJson String @map("source_references_json")')
+    expect(models.has('KnowledgePackage')).toBe(false)
+    expect(models.has('KnowledgeArticle')).toBe(false)
     expect(models.get('ReleaseCredential')).toContain('projectVersionId Int @map("project_version_id")')
     expect(models.get('ReleaseCredential')).toContain('noteContentId Int? @map("note_content_id")')
     expect(models.get('ReleaseCredential')).toContain('subjectType String @default("PROJECT_VERSION")')
@@ -172,8 +178,6 @@ describe('provider schema parity', () => {
       'Category',
       'NoteInfo',
       'NoteContent',
-      'KnowledgePackage',
-      'KnowledgeArticle',
       'FileManagement',
       'SystemConfig',
       'SystemHomepage',
@@ -274,19 +278,17 @@ describe('provider schema parity', () => {
     expect(migration).toContain('idx_membership_grant_user_active')
   })
 
-  it.each(providers)('%s migrates importable knowledge package metadata', (provider) => {
-    const migration = readFileSync(
-      resolve(
-        process.cwd(),
-        `prisma/providers/${provider}/migrations/20260828000000_knowledge_package_import/migration.sql`,
-      ),
-      'utf8',
-    )
+  it.each(providers)('%s removes obsolete knowledge package data and tables', (provider) => {
+    const migration = readKnowledgePackageRemovalMigration(provider)
 
-    expect(migration).toContain('knowledge_package')
+    expect(migration).toContain('knowledge_package_project_versions_to_remove')
+    expect(migration).toContain('release_credential')
+    expect(migration).toContain('docs_note_content')
+    expect(migration).toContain('docs_note_info')
+    expect(migration).toContain('collections_project_version')
     expect(migration).toContain('knowledge_article')
-    expect(migration).toContain('project_version_id')
-    expect(migration).toContain('note_info_id')
-    expect(migration).toContain('source_references_json')
+    expect(migration).toContain('knowledge_package')
+    expect(migration).toMatch(/DROP(?: TEMPORARY)? TABLE .*knowledge_article/i)
+    expect(migration).toMatch(/DROP TABLE .*knowledge_package/i)
   })
 })

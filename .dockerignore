@@ -26,9 +26,8 @@ coverage
 .temp
 .tmp
 
-# Local test, release, and skill artifacts are not required by `npm run build`.
+# Local test and release artifacts are not required by `npm run build`.
 tests
 playwright-report
 test-results
-skills
 deploy
