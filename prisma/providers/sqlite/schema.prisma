@@ -1,10 +1,10 @@
 // @file prisma/providers/sqlite/schema.prisma
 // @project SlothVault
 // @module SQLite persistence model
-// @description Defines the flat, domain-prefixed SQLite schema for independent articles, project publishing, user identity, contracts, points, gift cards, and transaction evidence.
-// @logic Preserve the provider-neutral article and project models for single-instance deployments and bind optional Solana evidence only to immutable project releases and frozen contracts.
+// @description Defines the flat, domain-prefixed SQLite schema for independent articles, project publishing, user identity, revocable MCP API keys, contracts, points, gift cards, and transaction evidence.
+// @logic Preserve the provider-neutral article, project, identity, and MCP key models for single-instance deployments and bind optional Solana evidence only to immutable project releases and frozen contracts.
 // @dependencies Prisma ORM 7.3.0, @prisma/adapter-better-sqlite3 7.3.0
-// @index_tags prisma, sqlite, schema, persistence, articles, projects, installation, contracts
+// @index_tags prisma, sqlite, schema, persistence, articles, projects, mcp, api-key, installation, contracts
 // @author holic512
 
 generator client {
@@ -62,9 +62,28 @@ model User {
   contractCredentials   ContractCredential[] @relation("ContractCredentialIssuer")
   contractCredentialAttempts ContractCredentialAttempt[] @relation("ContractCredentialAttemptIssuer")
   contractAdminAudits  ContractAdminAudit[] @relation("ContractAdminAuditActor")
+  mcpApiKeys          McpApiKey[]
 
   @@index([role, status], map: "idx_auth_user_role_status")
   @@map("auth_user")
+}
+
+model McpApiKey {
+  id         Int       @id @default(autoincrement())
+  userId     Int       @map("user_id")
+  publicId   String    @unique(map: "uq_mcp_api_key_public_id") @map("public_id")
+  secretHash String    @map("secret_hash")
+  name       String
+  status     Int       @default(1)
+  expiresAt  DateTime? @map("expires_at")
+  lastUsedAt DateTime? @map("last_used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @default(now()) @map("updated_at")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId, status], map: "idx_mcp_api_key_user_status")
+  @@index([status, expiresAt], map: "idx_mcp_api_key_status_expires")
+  @@map("mcp_api_key")
 }
 
 model PointTransaction {

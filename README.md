@@ -180,10 +180,14 @@ flowchart LR
     Browser["浏览器"] --> Public["文章 / 项目阅读"]
     Browser --> Account["账户与积分"]
     Browser --> Admin["管理后台"]
+    McpClient["管理员 MCP Client"] --> Mcp["MCP /mcp"]
 
     Public --> Routes["Next.js App Router + Route Handlers"]
     Account --> Routes
     Admin --> Routes
+    Mcp --> McpKey["MCP Key 鉴权"]
+    Mcp --> Services
+    McpKey --> Prisma
 
     Routes --> Services["服务层"]
     Services --> Prisma["按安装配置选择的 Prisma Client"]
@@ -215,6 +219,10 @@ flowchart LR
 | `NEXT_PUBLIC_SOLANA_RPC_URL` | 浏览器 Wallet Adapter 使用的公共集群地址。 |
 
 浏览器钱包通过 Solana Wallet Standard 自动发现，不需要为每个扩展单独引入 SDK。安装且启用 Solana 账户的兼容钱包（例如 OKX Wallet）会出现在钱包选择器中；当前签名、登录和存证协议均为 Solana，尚不包含 EVM/OKB Chain 地址或交易支持。
+
+## 管理员 MCP
+
+系统内置管理员 MCP Streamable HTTP 入口 `POST /mcp`，通过独立、可撤销的管理员 MCP Key 鉴权，不复用网页 Cookie Session。第一阶段提供 Key 的创建、查询、启用、禁用、删除以及只读项目列表 Tool；完整接入方式见 [管理员 MCP 接入说明](./docs/MCP_ADMIN.md)。
 
 上传文件不进入 `public/`。数据库 JSON 与上传 ZIP 可独立导出、严格校验并恢复；备份包含账户、密码哈希、内容、积分、卡密哈希和存证索引，应按敏感数据管理。
 

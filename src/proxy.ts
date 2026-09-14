@@ -3,9 +3,9 @@
  * @project SlothVault
  * @module Installation Gate
  * @description Redirects browser page requests to installation or maintenance before the selected database is available.
- * @logic Read the encrypted bootstrap state in the Node.js proxy runtime, keep assets and APIs untouched, and prevent installed or broken instances from reopening the installer.
+ * @logic Read the encrypted bootstrap state in the Node.js proxy runtime, keep assets, website APIs, and MCP protocol requests untouched, and prevent installed or broken instances from reopening the installer.
  * @dependencies next/server, database/installation-state
- * @index_tags next-proxy,installer,redirect,maintenance
+ * @index_tags next-proxy,installer,redirect,maintenance,mcp
  * @author holic512
  */
 import type { NextRequest } from 'next/server'
@@ -34,5 +34,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|logo.png|robots.txt|uploads).*)'],
+  matcher: ['/((?!api|mcp|_next/static|_next/image|favicon.ico|logo.png|robots.txt|uploads).*)'],
 }

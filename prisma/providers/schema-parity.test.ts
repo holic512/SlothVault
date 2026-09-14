@@ -6,6 +6,7 @@ const providers = ['postgresql', 'mysql', 'sqlite'] as const
 const expectedTables = {
   Session: 'auth_session',
   User: 'auth_user',
+  McpApiKey: 'mcp_api_key',
   PointTransaction: 'points_transaction',
   GiftCardBatch: 'points_gift_card_batch',
   GiftCard: 'points_gift_card',
@@ -82,6 +83,16 @@ function readKnowledgePackageRemovalMigration(provider: (typeof providers)[numbe
   )
 }
 
+function readMcpApiKeyMigration(provider: (typeof providers)[number]) {
+  return readFileSync(
+    resolve(
+      process.cwd(),
+      `prisma/providers/${provider}/migrations/20260914000000_mcp_api_keys/migration.sql`,
+    ),
+    'utf8',
+  )
+}
+
 function modelBlocks(schema: string) {
   return new Map(
     [...schema.matchAll(/model\s+(\w+)\s*\{([\s\S]*?)\n\}/g)].map((match) => [
@@ -122,6 +133,10 @@ describe('provider schema parity', () => {
     expect(models.get('User')).toContain('passwordConfigured Boolean @default(true) @map("password_configured")')
     expect(models.get('User')).toContain('pointsBalance Int @default(0) @map("points_balance")')
     expect(models.get('User')).toContain('walletAddress String? @unique')
+    expect(models.get('User')).toContain('mcpApiKeys McpApiKey[]')
+    expect(models.get('McpApiKey')).toContain('publicId String @unique')
+    expect(models.get('McpApiKey')).toContain('secretHash String @map("secret_hash")')
+    expect(models.get('McpApiKey')).toContain('lastUsedAt DateTime? @map("last_used_at")')
     expect(models.get('PointTransaction')).toContain('balanceAfter Int @map("balance_after")')
     expect(models.get('GiftCard')).toContain('codeHash String @unique')
     expect(models.get('Article')).toContain('publishedAt DateTime? @map("published_at")')
@@ -165,6 +180,7 @@ describe('provider schema parity', () => {
     const models = modelBlocks(readSchema(provider))
     const autoIncrementModels = [
       'User',
+      'McpApiKey',
       'PointTransaction',
       'GiftCardBatch',
       'GiftCard',
@@ -290,5 +306,15 @@ describe('provider schema parity', () => {
     expect(migration).toContain('knowledge_package')
     expect(migration).toMatch(/DROP(?: TEMPORARY)? TABLE .*knowledge_article/i)
     expect(migration).toMatch(/DROP TABLE .*knowledge_package/i)
+  })
+
+  it.each(providers)('%s migrates revocable MCP API keys', (provider) => {
+    const migration = readMcpApiKeyMigration(provider)
+
+    expect(migration).toContain('mcp_api_key')
+    expect(migration).toContain('public_id')
+    expect(migration).toContain('secret_hash')
+    expect(migration).toContain('last_used_at')
+    expect(migration).toContain('idx_mcp_api_key_user_status')
   })
 })
