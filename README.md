@@ -222,7 +222,7 @@ flowchart LR
 
 ## 管理员 MCP
 
-系统内置管理员 MCP Streamable HTTP 入口 `POST /mcp`，通过独立、可撤销的管理员 MCP Key 鉴权，不复用网页 Cookie Session。第一阶段提供 Key 的创建、查询、启用、禁用、删除以及只读项目列表 Tool；完整接入方式见 [管理员 MCP 接入说明](./docs/MCP_ADMIN.md)。
+系统内置管理员 MCP Streamable HTTP 入口 `POST /mcp`，通过独立、可撤销的管理员 MCP Key 鉴权，不复用网页 Cookie Session。MCP server `2.0.0` 提供项目、版本草稿、分类、笔记和正文共 20 个 Tool，以及创建项目草稿、整理笔记和发布前检查 3 个 Prompt。所有文档树写入仅限未发布版本；发布、撤回、删除、恢复和可见性调整仍由网页后台确认。完整接入方式见 [管理员 MCP 接入说明](./docs/MCP_ADMIN.md)。
 
 上传文件不进入 `public/`。数据库 JSON 与上传 ZIP 可独立导出、严格校验并恢复；备份包含账户、密码哈希、内容、积分、卡密哈希和存证索引，应按敏感数据管理。
 

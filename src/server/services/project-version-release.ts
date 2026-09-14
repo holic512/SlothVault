@@ -2,10 +2,10 @@
  * @file project-version-release.ts
  * @project SlothVault
  * @module Project Version Release
- * @description Defines canonical release manifests and owns atomic project-version publication, visibility, integrity, cloning, and write freezing.
- * @logic Serialize draft writes through a version revision lock, validate the enabled document tree, publish one immutable release identity, rebuild it for verification, and clone frozen trees into new drafts.
+ * @description Defines canonical release manifests and owns read-only draft preflight, atomic publication, visibility, integrity, cloning, and write freezing.
+ * @logic Serialize draft writes through a version revision lock, share publishability validation with non-mutating preflight, publish one immutable release identity, rebuild it for verification, and clone frozen trees into new drafts.
  * @dependencies node:crypto, Prisma transactions, database unit-of-work, public project cache
- * @index_tags project-version,release,manifest,sha256,publication,integrity,clone,transaction
+ * @index_tags project-version,release,manifest,sha256,publication,preflight,integrity,clone,transaction
  * @author holic512
  */
 import 'server-only'
@@ -59,7 +59,9 @@ export type ReleaseTreeSource = {
   version: string
   description: string | null
   weight: number
-  project: { id: number; isDeleted: boolean }
+  publishedAt: Date | null
+  isDeleted: boolean
+  project: { id: number; status: number; isDeleted: boolean }
   categories: Array<{
     id: number
     categoryName: string
@@ -273,6 +275,25 @@ export function buildReleaseManifest(
   return { manifest, bytes, hash: sha256(bytes), issues: [] }
 }
 
+function inactiveProjectIssues(project: ReleaseTreeSource['project']) {
+  if (!project.isDeleted && project.status === 1) return []
+  return [
+    issue(
+      'PROJECT_INACTIVE',
+      'project',
+      project.id,
+      'Parent project must be enabled and undeleted',
+    ),
+  ]
+}
+
+function buildPublishableRelease(source: ReleaseTreeSource, releaseId: string): BuiltRelease {
+  const built = buildReleaseManifest(source, releaseId)
+  const issues = [...inactiveProjectIssues(source.project), ...built.issues].sort(issueCompare)
+  if (issues.length > 0) return { manifest: null, bytes: null, hash: null, issues }
+  return built
+}
+
 export async function loadReleaseTree(
   reader: DatabaseReader,
   projectVersionId: number,
@@ -284,7 +305,9 @@ export async function loadReleaseTree(
       version: true,
       description: true,
       weight: true,
-      project: { select: { id: true, isDeleted: true } },
+      publishedAt: true,
+      isDeleted: true,
+      project: { select: { id: true, status: true, isDeleted: true } },
       categories: {
         select: {
           id: true,
@@ -454,14 +477,11 @@ export async function publishProjectVersion(projectVersionId: number) {
     if (initial.project.isDeleted || initial.project.status !== 1) {
       throw new HttpError('Project version is not ready to publish', 422, 422, {
         reason: 'RELEASE_VALIDATION_FAILED',
-        issues: [
-          issue(
-            'PROJECT_INACTIVE',
-            'project',
-            initial.projectId,
-            'Parent project must be enabled and undeleted',
-          ),
-        ],
+        issues: inactiveProjectIssues({
+          id: initial.projectId,
+          status: initial.project.status,
+          isDeleted: initial.project.isDeleted,
+        }),
       })
     }
 
@@ -495,21 +515,18 @@ export async function publishProjectVersion(projectVersionId: number) {
     if (activeProject.count === 0) {
       throw new HttpError('Project version is not ready to publish', 422, 422, {
         reason: 'RELEASE_VALIDATION_FAILED',
-        issues: [
-          issue(
-            'PROJECT_INACTIVE',
-            'project',
-            initial.projectId,
-            'Parent project must be enabled and undeleted',
-          ),
-        ],
+        issues: inactiveProjectIssues({
+          id: initial.projectId,
+          status: 0,
+          isDeleted: false,
+        }),
       })
     }
     const source = await loadReleaseTree(tx, projectVersionId)
     if (!source) throw new HttpError('ProjectVersion not found', 404, 404)
 
     const releaseId = randomUUID()
-    const built = buildReleaseManifest(source, releaseId)
+    const built = buildPublishableRelease(source, releaseId)
     if (!built.manifest || !built.hash) {
       throw new HttpError('Project version is not ready to publish', 422, 422, {
         reason: 'RELEASE_VALIDATION_FAILED',
@@ -551,6 +568,28 @@ export async function publishProjectVersion(projectVersionId: number) {
   })
   await invalidatePublicProjectCache(result.projectId)
   return releaseDto(result)
+}
+
+const DRAFT_CHECK_RELEASE_ID = '00000000-0000-0000-0000-000000000000'
+
+export async function checkDraftProjectVersion(projectVersionId: number) {
+  const source = await loadReleaseTree(prisma, projectVersionId)
+  if (!source || source.isDeleted) {
+    throw new HttpError('ProjectVersion not found', 404, 404)
+  }
+  if (source.publishedAt) {
+    throw new HttpError('Published project version is frozen', 409, 409, {
+      reason: 'VERSION_FROZEN',
+      projectVersionId: String(projectVersionId),
+    })
+  }
+
+  const built = buildPublishableRelease(source, DRAFT_CHECK_RELEASE_ID)
+  return {
+    projectVersionId: String(projectVersionId),
+    ready: built.issues.length === 0,
+    issues: built.issues,
+  }
 }
 
 export async function setProjectVersionVisibility(projectVersionId: number, status: 0 | 1) {

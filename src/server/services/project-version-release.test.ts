@@ -1,13 +1,21 @@
 import { createHash } from 'node:crypto'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+const mocks = vi.hoisted(() => ({ findUnique: vi.fn() }))
+
+vi.mock('@/server/prisma', () => ({
+  prisma: { projectVersion: { findUnique: mocks.findUnique } },
+}))
 
 import {
   buildReleaseManifest,
+  checkDraftProjectVersion,
   type ReleaseTreeSource,
 } from '@/server/services/project-version-release'
 
 const releaseId = '550e8400-e29b-41d4-a716-446655440000'
+const timestamp = new Date('2026-09-14T00:00:00.000Z')
 
 function source(): ReleaseTreeSource {
   return {
@@ -15,7 +23,9 @@ function source(): ReleaseTreeSource {
     version: '版本 "一"',
     description: null,
     weight: 12,
-    project: { id: 99, isDeleted: false },
+    publishedAt: null,
+    isDeleted: false,
+    project: { id: 99, status: 1, isDeleted: false },
     categories: [
       {
         id: 8,
@@ -142,5 +152,42 @@ describe('project release manifest v1', () => {
       'CATEGORY_NO_ENABLED_NOTE',
       'NOTE_PRIMARY_DISABLED',
     ])
+  })
+})
+
+describe('draft publication preflight', () => {
+  it('returns ready without issuing a release write for a valid draft', async () => {
+    mocks.findUnique.mockResolvedValue(source())
+    await expect(checkDraftProjectVersion(1)).resolves.toEqual({
+      projectVersionId: '1',
+      ready: true,
+      issues: [],
+    })
+    expect(mocks.findUnique).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns the shared release issues as a normal non-ready result', async () => {
+    const invalid = source()
+    invalid.project.status = 0
+    invalid.categories[0].noteInfos[0].contents[0].content = '   '
+    mocks.findUnique.mockResolvedValue(invalid)
+
+    const result = await checkDraftProjectVersion(1)
+    expect(result.ready).toBe(false)
+    expect(result.issues.map((item) => item.code)).toEqual([
+      'NOTE_PRIMARY_EMPTY',
+      'PROJECT_INACTIVE',
+    ])
+  })
+
+  it('rejects published versions instead of checking mutable release readiness', async () => {
+    const published = source()
+    published.publishedAt = timestamp
+    mocks.findUnique.mockResolvedValue(published)
+
+    await expect(checkDraftProjectVersion(1)).rejects.toMatchObject({
+      status: 409,
+      data: { reason: 'VERSION_FROZEN', projectVersionId: '1' },
+    })
   })
 })

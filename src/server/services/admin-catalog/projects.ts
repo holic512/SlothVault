@@ -2,10 +2,10 @@
  * @file projects.ts
  * @project SlothVault
  * @module Admin Project Administration
- * @description Implements project listing, creation, lookup, updates, soft deletion, and batch actions.
- * @logic Build Prisma filters, keep projects publicly readable, map stable DTOs, and translate missing records consistently.
+ * @description Implements project listing, creation, lookup, ordinary administration, MCP metadata boundaries, soft deletion, and batch actions.
+ * @logic Build Prisma filters, map stable DTOs, atomically keep released project names and avatars outside MCP writes, invalidate public ordering changes, and translate missing records consistently.
  * @dependencies server/prisma, server/http/errors, catalog values, catalog DTOs
- * @index_tags admin,catalog,project,crud,batch
+ * @index_tags admin,catalog,project,crud,batch,mcp,metadata-boundary
  * @author holic512
  */
 import 'server-only'
@@ -134,6 +134,73 @@ export async function updateAdminProject(
     if (hasPrismaCode(error, 'P2025')) throw new HttpError('Not Found', 404, 404)
     throw error
   }
+}
+
+export async function updateAdminProjectMetadataFromMcp(
+  id: number,
+  input: {
+    projectName?: unknown
+    avatar?: unknown
+    weight?: unknown
+  },
+) {
+  const data: Prisma.ProjectUpdateManyMutationInput = { updatedAt: new Date() }
+
+  if (typeof input.projectName === 'string') {
+    const projectName = input.projectName.trim()
+    if (!projectName) throw new HttpError('Invalid projectName', 400, 400)
+    data.projectName = projectName
+  }
+  if (input.avatar !== undefined) {
+    if (input.avatar !== null && typeof input.avatar !== 'string') {
+      throw new HttpError('Invalid avatar', 400, 400)
+    }
+    data.avatar = input.avatar
+  }
+  const weight = optionalIntegerValue(input.weight)
+  if (weight !== null) data.weight = weight
+  if (Object.keys(data).length === 1) throw new HttpError('No fields to update', 400, 400)
+
+  const changesPublishedMetadata = data.projectName !== undefined || data.avatar !== undefined
+  const updated = await prisma.project.updateMany({
+    where: {
+      id,
+      isDeleted: false,
+      ...(changesPublishedMetadata
+        ? { versions: { none: { publishedAt: { not: null } } } }
+        : {}),
+    },
+    data,
+  })
+  if (updated.count !== 1) {
+    const project = await prisma.project.findUnique({
+      where: { id },
+      select: {
+        isDeleted: true,
+        versions: {
+          where: { publishedAt: { not: null } },
+          select: { id: true },
+          take: 1,
+        },
+      },
+    })
+    if (!project || project.isDeleted) throw new HttpError('Not Found', 404, 404)
+    if (changesPublishedMetadata && project.versions.length > 0) {
+      throw new HttpError('Published project name and avatar must be changed in the web admin', 409, 409, {
+        reason: 'PROJECT_METADATA_LIVE',
+        projectId: String(id),
+      })
+    }
+    throw new HttpError('Project metadata update conflict', 409, 409, {
+      reason: 'PROJECT_METADATA_WRITE_CONFLICT',
+      projectId: String(id),
+    })
+  }
+
+  const project = await prisma.project.findUnique({ where: { id } })
+  if (!project) throw new HttpError('Not Found', 404, 404)
+  await invalidatePublicProjectCache(id)
+  return projectDto(project)
 }
 
 export async function deleteAdminProject(id: number) {

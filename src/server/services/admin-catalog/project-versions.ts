@@ -2,8 +2,8 @@
  * @file project-versions.ts
  * @project SlothVault
  * @module Admin Project Version Administration
- * @description Implements draft project-version listing, mutations, batch actions, and project-scoped queries around immutable releases.
- * @logic Normalize new versions to drafts, serialize mutable writes through the version lock, route published visibility changes through the release service, and reject mixed frozen batches atomically.
+ * @description Implements project-version listing and detail reads, draft mutations, batch actions, and project-scoped queries around immutable releases.
+ * @logic Normalize new versions to drafts, expose stable version lookup, serialize mutable writes through the version lock, route published visibility changes through the release service, and reject mixed frozen batches atomically.
  * @dependencies server/prisma, server/http/errors, catalog values, catalog DTOs, project-version release service
  * @index_tags admin,catalog,project-version,crud,batch
  * @author holic512
@@ -101,6 +101,15 @@ export async function createAdminProjectVersion(input: {
     },
     include: { project: true },
   })
+  return projectVersionDto(projectVersion)
+}
+
+export async function getAdminProjectVersion(id: number) {
+  const projectVersion = await prisma.projectVersion.findUnique({
+    where: { id },
+    include: { project: true },
+  })
+  if (!projectVersion) throw new HttpError('Not Found', 404, 404)
   return projectVersionDto(projectVersion)
 }
 

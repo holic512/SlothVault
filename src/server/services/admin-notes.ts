@@ -2,10 +2,10 @@
  * @file admin-notes.ts
  * @project SlothVault
  * @module Admin Notes
- * @description Owns draft-only note metadata queries and serialized NoteContent primary-version mutations for administration APIs.
- * @logic Lock every owning project version before metadata or content writes, lock cross-version moves in stable order, increment note revisions, and normalize undeleted contents to exactly one primary in the same serializable transaction.
+ * @description Owns draft-only note metadata, full or lightweight NoteContent queries, and serialized primary-version mutations for administration APIs and MCP.
+ * @logic Keep history listings free of Markdown payloads, lock every owning project version before writes, lock cross-version moves in stable order, increment note revisions, and normalize undeleted contents to exactly one primary in the same serializable transaction.
  * @dependencies server/prisma, admin-catalog parsing, Prisma NoteInfo/NoteContent models, server/http/errors, project-version release service
- * @index_tags admin,notes,note-content,service,transaction,revision-lock,primary-version
+ * @index_tags admin,mcp,notes,note-content,service,transaction,revision-lock,primary-version
  * @author holic512
  */
 import 'server-only'
@@ -69,6 +69,8 @@ type NoteContentLike = {
   updatedAt: Date
   isDeleted: boolean
 }
+
+type NoteContentVersionLike = Omit<NoteContentLike, 'content'>
 
 export type CreateNoteContentInput = {
   noteInfoId: number
@@ -145,6 +147,19 @@ export function noteContentDto(item: NoteContentLike) {
     id: item.id.toString(),
     noteInfoId: item.noteInfoId.toString(),
     content: item.content,
+    versionNote: item.versionNote,
+    isPrimary: item.isPrimary,
+    status: item.status,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+    isDeleted: item.isDeleted,
+  }
+}
+
+export function noteContentVersionDto(item: NoteContentVersionLike) {
+  return {
+    id: item.id.toString(),
+    noteInfoId: item.noteInfoId.toString(),
     versionNote: item.versionNote,
     isPrimary: item.isPrimary,
     status: item.status,
@@ -623,6 +638,31 @@ export async function listAdminNoteContents(noteInfoId: number, includeDeleted: 
     orderBy: [{ isPrimary: 'desc' }, { createdAt: 'desc' }],
   })
   return { list: list.map(noteContentDto) }
+}
+
+export async function listAdminNoteContentVersions(noteInfoId: number) {
+  await requireActiveNoteInfo(noteInfoId)
+  const list = await prisma.noteContent.findMany({
+    where: { noteInfoId, isDeleted: false },
+    select: {
+      id: true,
+      noteInfoId: true,
+      versionNote: true,
+      isPrimary: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+      isDeleted: true,
+    },
+    orderBy: [{ isPrimary: 'desc' }, { createdAt: 'desc' }],
+  })
+  return { list: list.map(noteContentVersionDto) }
+}
+
+export async function getAdminNoteContent(id: number) {
+  const item = await prisma.noteContent.findUnique({ where: { id } })
+  if (!item) throw new HttpError('Not Found', 404, 404)
+  return noteContentDto(item)
 }
 
 export async function createAdminNoteContent(input: {
