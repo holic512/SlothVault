@@ -29,6 +29,7 @@ export type PageTitleKey =
   | 'adminInit'
   | 'adminLogin'
   | 'adminMembershipLevels'
+  | 'adminMcpKeys'
   | 'adminArticleEdit'
   | 'adminArticles'
   | 'adminNoteContent'

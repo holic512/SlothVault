@@ -411,6 +411,7 @@
     "adminHomepage": "系统首页管理",
     "adminUsers": "用户管理",
     "adminMembershipLevels": "会员等级管理",
+    "adminMcpKeys": "MCP Key 管理",
     "adminGiftCards": "卡密管理",
     "adminEvidence": "交易存证",
     "install": "安装",
@@ -434,6 +435,7 @@
       "giftCards": "卡密管理",
       "solana": "存证系统",
       "backup": "备份管理",
+      "mcpKeys": "MCP Key",
       "settings": "系统设置"
     },
     "menuGroups": {
@@ -1615,6 +1617,65 @@
         "until": "至 {date}",
         "disabled": "已停用",
         "level": "Lv.{rank}"
+      }
+    },
+    "mcpKeys": {
+      "securityNotice": {
+        "title": "仅管理当前管理员账户的 MCP Key",
+        "description": "此页面不会显示其他账户的 Key。禁用当前管理员账户、禁用 Key 或到达有效期后，对应 Key 都会立即无法访问 MCP。"
+      },
+      "actions": {
+        "refresh": "刷新",
+        "create": "创建 MCP Key",
+        "enable": "启用",
+        "disable": "停用",
+        "delete": "删除",
+        "cancel": "取消",
+        "copy": "复制 Key",
+        "confirmSaved": "我已安全保存"
+      },
+      "table": {
+        "name": "名称",
+        "keyHint": "Key 标识",
+        "status": "状态",
+        "expiresAt": "到期时间",
+        "lastUsedAt": "最后使用",
+        "createdAt": "创建时间",
+        "operations": "操作"
+      },
+      "status": {
+        "active": "已启用",
+        "disabled": "已停用",
+        "expired": "已过期"
+      },
+      "neverExpires": "永不过期",
+      "empty": "当前账户还没有 MCP Key",
+      "form": {
+        "name": "Key 名称",
+        "namePlaceholder": "例如：本地 Codex 工作区",
+        "expiresAt": "到期时间（可选）",
+        "expiresAtHint": "留空表示永不过期；已过期的 Key 不能重新启用。"
+      },
+      "validation": {
+        "name": "请输入不超过 80 个字符的 Key 名称",
+        "expiresAt": "请选择未来的到期时间"
+      },
+      "dialog": {
+        "createTitle": "创建 MCP Key",
+        "revealTitle": "立即安全保存 MCP Key",
+        "revealWarning": "该完整 Key 只会显示这一次",
+        "revealDescription": "关闭此窗口后，系统不会再次展示完整 Key。请复制到受信任的 MCP 客户端或密码管理器；如遗失，请删除并创建新的 Key。",
+        "keyValue": "新创建的 MCP Key"
+      },
+      "messages": {
+        "loadFailed": "读取 MCP Key 失败",
+        "enabled": "MCP Key 已启用",
+        "disabled": "MCP Key 已停用",
+        "deleted": "MCP Key 已删除",
+        "deleteTitle": "删除 MCP Key",
+        "deleteConfirm": "确认永久删除 MCP Key「{name}」？已配置此 Key 的 MCP 客户端将立即无法访问。",
+        "copied": "MCP Key 已复制",
+        "copyFailed": "无法自动复制，请手动复制 Key"
       }
     },
     "homepage": {

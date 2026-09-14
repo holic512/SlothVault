@@ -411,6 +411,7 @@
     "adminHomepage": "System Homepage Management",
     "adminUsers": "User Management",
     "adminMembershipLevels": "Membership Levels",
+    "adminMcpKeys": "MCP Key Management",
     "adminGiftCards": "Gift Cards",
     "adminEvidence": "Transaction Evidence",
     "install": "Install",
@@ -434,6 +435,7 @@
       "giftCards": "Gift Cards",
       "solana": "Evidence System",
       "backup": "Backup Management",
+      "mcpKeys": "MCP Keys",
       "settings": "System Settings"
     },
     "menuGroups": {
@@ -1615,6 +1617,65 @@
         "until": "Until {date}",
         "disabled": "Disabled",
         "level": "Lv.{rank}"
+      }
+    },
+    "mcpKeys": {
+      "securityNotice": {
+        "title": "Manage only this administrator account's MCP Keys",
+        "description": "This page never lists other accounts' Keys. Disabling this administrator account, disabling a Key, or reaching its expiry immediately prevents that Key from accessing MCP."
+      },
+      "actions": {
+        "refresh": "Refresh",
+        "create": "Create MCP Key",
+        "enable": "Enable",
+        "disable": "Disable",
+        "delete": "Delete",
+        "cancel": "Cancel",
+        "copy": "Copy Key",
+        "confirmSaved": "I saved it securely"
+      },
+      "table": {
+        "name": "Name",
+        "keyHint": "Key ID",
+        "status": "Status",
+        "expiresAt": "Expires",
+        "lastUsedAt": "Last used",
+        "createdAt": "Created",
+        "operations": "Actions"
+      },
+      "status": {
+        "active": "Active",
+        "disabled": "Disabled",
+        "expired": "Expired"
+      },
+      "neverExpires": "Never expires",
+      "empty": "This account does not have any MCP Keys yet",
+      "form": {
+        "name": "Key name",
+        "namePlaceholder": "For example: Local Codex workspace",
+        "expiresAt": "Expiry time (optional)",
+        "expiresAtHint": "Leave empty for no expiry. An expired Key cannot be enabled again."
+      },
+      "validation": {
+        "name": "Enter a Key name with at most 80 characters",
+        "expiresAt": "Choose a future expiry time"
+      },
+      "dialog": {
+        "createTitle": "Create MCP Key",
+        "revealTitle": "Save your MCP Key now",
+        "revealWarning": "The complete Key is displayed only once",
+        "revealDescription": "After you close this window, the system cannot show the complete Key again. Copy it to a trusted MCP client or password manager; if it is lost, delete it and create a new Key.",
+        "keyValue": "New MCP Key"
+      },
+      "messages": {
+        "loadFailed": "Failed to load MCP Keys",
+        "enabled": "MCP Key enabled",
+        "disabled": "MCP Key disabled",
+        "deleted": "MCP Key deleted",
+        "deleteTitle": "Delete MCP Key",
+        "deleteConfirm": "Permanently delete MCP Key “{name}”? MCP clients configured with it will immediately lose access.",
+        "copied": "MCP Key copied",
+        "copyFailed": "Could not copy automatically. Copy the Key manually."
       }
     },
     "homepage": {
