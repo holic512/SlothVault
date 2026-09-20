@@ -30,7 +30,7 @@ Tool count: **55**
 | `content.file.list` | `content.file` | read | idempotent | - |
 | `content.file.get` | `content.file` | read | idempotent | managed-file:read |
 | `content.file.upload` | `content.file` | write | non-idempotent | - |
-| `content.note.content.list_versions` | `content.note.content` | write | non-idempotent | - |
+| `content.note.content.list_versions` | `content.note.content` | read | idempotent | - |
 | `content.note.content.get` | `content.note.content` | read | idempotent | - |
 | `content.note.content.create_draft` | `content.note.content` | write | non-idempotent | - |
 | `content.note.content.update_draft` | `content.note.content` | write | non-idempotent | - |

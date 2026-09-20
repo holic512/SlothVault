@@ -20,6 +20,25 @@ function readToolNames() {
   return [...readToolSource().matchAll(/defineTool\(\s*'([^']+)'/g)].map((match) => match[1])
 }
 
+/** Reads the risk and idempotency declared by each Tool's annotations constant. */
+function readToolMetadata() {
+  const metadataByAnnotation = {
+    READ_ONLY_ANNOTATIONS: { risk: 'read', idempotency: 'idempotent' },
+    CREATE_ANNOTATIONS: { risk: 'write', idempotency: 'non-idempotent' },
+    UPDATE_ANNOTATIONS: { risk: 'write', idempotency: 'non-idempotent' },
+  } as const
+  const source = readToolSource()
+  const matches = [...source.matchAll(/defineTool\(\s*'([^']+)'/g)]
+  return matches.map((match, index) => {
+    const declarationSource = source.slice(match.index, matches[index + 1]?.index ?? source.length)
+    const annotations = [...declarationSource.matchAll(/annotations:\s*([A-Z][A-Z0-9_]*)/g)]
+    expect(annotations, `Tool ${match[1]} annotations`).toHaveLength(1)
+    const annotationName = annotations[0][1] as keyof typeof metadataByAnnotation
+    expect(metadataByAnnotation[annotationName], `Tool ${match[1]} annotations`).toBeDefined()
+    return { name: match[1], ...metadataByAnnotation[annotationName] }
+  })
+}
+
 describe('MCP declaration registry contract', () => {
   it('keeps the complete 55-tool registry unique and adapter-only', () => {
     const names = readToolNames()
@@ -94,7 +113,10 @@ describe('MCP declaration registry contract', () => {
     const document = fs.readFileSync(path.join(mcpDirectory, '..', '..', '..', 'docs', 'MCP_REGISTRY.md'), 'utf8')
     expect(document).toContain('Tool count: **55**')
     expect(document).toContain('Resource count: **2**')
-    for (const name of readToolNames()) expect(document).toContain(`\`${name}\``)
+    for (const { name, risk, idempotency } of readToolMetadata()) {
+      const domain = name.split('.').slice(0, -1).join('.')
+      expect(document).toContain(`| \`${name}\` | \`${domain}\` | ${risk} | ${idempotency} |`)
+    }
   })
 
   it('keeps the existing error mapping baseline wired into the adapter', () => {

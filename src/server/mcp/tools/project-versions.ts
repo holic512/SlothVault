@@ -10,6 +10,8 @@
  */
 import 'server-only'
 
+import { Buffer } from 'node:buffer'
+
 import { z } from 'zod'
 import { collectMcpToolDefinitions, type McpToolDefinition } from '@/server/mcp/registry'
 
@@ -261,7 +263,7 @@ export const projectVersionToolDefinitions: McpToolDefinition[] = collectMcpTool
       return {
         releaseId: result.releaseId,
         releaseHash: result.releaseHash,
-        manifest: JSON.parse(result.bytes.toString('utf8')) as Record<string, unknown>,
+        manifest: JSON.parse(Buffer.from(result.bytes).toString('utf8')) as Record<string, unknown>,
       }
     }),
   )

@@ -194,7 +194,12 @@ type McpJsonResponse = {
     structuredContent: { list: Array<Record<string, unknown>> }
     isError?: boolean
     content: Array<{ text: string }>
-    contents: Array<{ uri: string; name?: string; mimeType?: string; blob?: string }>
+    contents: Array<{
+      uri: string
+      mimeType?: string
+      blob?: string
+      _meta?: Record<string, unknown>
+    }>
     messages: Array<{ content: { text: string } }>
   }
 }
@@ -267,9 +272,9 @@ describe('administrator MCP server', () => {
     })
     expect(read.result.contents).toEqual([expect.objectContaining({
       uri: 'slothvault://managed-file/44',
-      name: 'guide.md',
       mimeType: 'text/markdown; charset=utf-8',
       blob: Buffer.from('# Guide').toString('base64'),
+      _meta: { 'slothvault/file-name': 'guide.md' },
     })])
   })
 
@@ -283,6 +288,7 @@ describe('administrator MCP server', () => {
       },
     })
     expect(rejected.result.isError).toBe(true)
+    expect(rejected.result).not.toHaveProperty('structuredContent')
     expect(mocks.uploadAdminFileBuffer).not.toHaveBeenCalled()
   })
 

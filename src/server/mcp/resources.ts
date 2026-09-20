@@ -17,6 +17,7 @@ import { ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { HttpError } from '@/server/http/errors'
 import {
   collectMcpResourceDefinitions,
+  MCP_RESOURCE_FILE_NAME_META_KEY,
   registerMcpResourceDefinitions,
   type McpResourceDefinition,
 } from '@/server/mcp/registry'
@@ -67,9 +68,9 @@ export const adminMcpResourceDefinitions: McpResourceDefinition[] = collectMcpRe
       return {
         contents: [{
           uri: uri.href,
-          name: file.originalName,
           mimeType: managedFileContentType(file.originalName),
           blob: Buffer.from(buffer).toString('base64'),
+          _meta: { [MCP_RESOURCE_FILE_NAME_META_KEY]: file.originalName },
         }],
       }
     },
@@ -99,9 +100,9 @@ export const adminMcpResourceDefinitions: McpResourceDefinition[] = collectMcpRe
       return {
         contents: [{
           uri: uri.href,
-          name: attachment.originalName,
           mimeType: 'application/pdf',
           blob: Buffer.from(attachment.buffer).toString('base64'),
+          _meta: { [MCP_RESOURCE_FILE_NAME_META_KEY]: attachment.originalName },
         }],
       }
     },

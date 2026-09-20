@@ -100,6 +100,8 @@ slothvault://contract-attachment/{contractId}
 
 每次 `resources/read` 都会重新验证当前 MCP Key。托管文件 Resource 只读取状态有效且非合同附件的文件；合同附件 Resource 通过合同授权 Service 返回原始文件名、`application/pdf` 和 blob，不暴露合同附件公共 URL。已删除、失效、缺失或业务类型不匹配的文件会返回受控错误。
 
+Resource 内容遵循标准 MCP `ReadResourceResult`：二进制数据位于 `blob`，原始文件名位于 `_meta["slothvault/file-name"]`，不使用非标准的顶层 `name` 字段。
+
 ## 工作流 Prompt
 
 | Prompt | 用途 |

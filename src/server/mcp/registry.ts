@@ -13,8 +13,16 @@ import 'server-only'
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 
-import type { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js'
-import type { CallToolResult, ToolAnnotations } from '@modelcontextprotocol/sdk/types.js'
+import type {
+  McpServer,
+  ResourceMetadata,
+  ResourceTemplate,
+} from '@modelcontextprotocol/sdk/server/mcp.js'
+import type {
+  CallToolResult,
+  ReadResourceResult,
+  ToolAnnotations,
+} from '@modelcontextprotocol/sdk/types.js'
 import { z, type ZodType } from 'zod'
 
 import { HttpError } from '@/server/http/errors'
@@ -24,6 +32,9 @@ import { mcpErrorResult } from './tools/common'
 
 export type McpRisk = 'read' | 'write' | 'sensitive'
 export type McpIdempotency = 'idempotent' | 'non-idempotent' | 'unknown'
+export const MCP_RESOURCE_FILE_NAME_META_KEY = 'slothvault/file-name'
+
+type McpOutputSchema = ZodType<Record<string, unknown>>
 
 export interface McpRequestContext {
   principal: McpPrincipal
@@ -44,9 +55,8 @@ export interface McpToolConfig {
   title: string
   description: string
   inputSchema: ZodType
-  outputSchema?: ZodType
+  outputSchema: McpOutputSchema
   annotations?: ToolAnnotations
-  [key: string]: unknown
 }
 
 export interface McpToolDefinition extends McpToolMetadata {
@@ -54,7 +64,7 @@ export interface McpToolDefinition extends McpToolMetadata {
   title: string
   description: string
   inputSchema: ZodType
-  outputSchema: ZodType
+  outputSchema: McpOutputSchema
   annotations?: ToolAnnotations
   config: McpToolConfig
   handler: (args: Record<string, unknown>, context: McpRequestContext) => Promise<CallToolResult>
@@ -68,34 +78,27 @@ export interface McpToolDefinitionRecorder {
   ): void
 }
 
-type SdkToolConfig = Parameters<McpServer['registerTool']>[1]
-type SdkResourceConfig = Parameters<McpServer['registerResource']>[2]
-
 export interface McpResourceDefinition {
   name: string
   template: ResourceTemplate
-  config: Record<string, unknown>
+  config: ResourceMetadata
   uriTemplate: string
   resourceGroup: 'managed-file' | 'contract-attachment'
   mimeType: string
   maxNameLength: number
   maxBytes: number
-  handler: (uri: URL, variables: Record<string, string | string[]>, context: McpRequestContext) => Promise<{
-    contents: Array<{
-      uri: string
-      name?: string
-      mimeType?: string
-      blob?: string
-      text?: string
-    }>
-  }>
+  handler: (
+    uri: URL,
+    variables: Record<string, string | string[]>,
+    context: McpRequestContext,
+  ) => Promise<ReadResourceResult>
 }
 
 export interface McpResourceDefinitionRecorder {
   defineResource(
     name: string,
     template: ResourceTemplate,
-    config: Record<string, unknown>,
+    config: ResourceMetadata,
     metadata: Pick<
       McpResourceDefinition,
       'uriTemplate' | 'resourceGroup' | 'mimeType' | 'maxNameLength' | 'maxBytes'
@@ -154,7 +157,7 @@ export function collectMcpToolDefinitions(
         title: config.title,
         description: config.description,
         inputSchema: config.inputSchema,
-        outputSchema: config.outputSchema as ZodType,
+        outputSchema: config.outputSchema,
         annotations: config.annotations,
         config,
         handler: async (args, context) => handler(args as z.infer<typeof config.inputSchema>, context),
@@ -176,7 +179,7 @@ export function registerMcpToolDefinitions(
   for (const definition of definitions) {
     server.registerTool(
       definition.name,
-      definition.config as SdkToolConfig,
+      definition.config,
       async (args, extra) => {
         const context = createMcpRequestContext(principal, extra)
         try {
@@ -239,7 +242,7 @@ export function registerMcpResourceDefinitions(
     server.registerResource(
       definition.name,
       definition.template,
-      { ...definition.config, mimeType: definition.mimeType } as SdkResourceConfig,
+      { ...definition.config, mimeType: definition.mimeType },
       async (uri, variables, extra) => {
         const context = createMcpRequestContext(principal, extra)
         try {
@@ -331,10 +334,12 @@ function validateResourceResult(
   definition: McpResourceDefinition,
 ) {
   for (const content of result.contents) {
+    const fileName = content._meta?.[MCP_RESOURCE_FILE_NAME_META_KEY]
     if (
-      !content.name ||
-      content.name.length > definition.maxNameLength ||
-      /[\\/\0]/.test(content.name)
+      typeof fileName !== 'string' ||
+      !fileName ||
+      fileName.length > definition.maxNameLength ||
+      /[\\/\0]/.test(fileName)
     ) {
       throw new Error(`Resource filename is invalid for ${definition.name}`)
     }
@@ -346,7 +351,7 @@ function validateResourceResult(
       throw new Error(`Resource MIME type mismatch for ${definition.name}`)
     }
     if (!content.mimeType) throw new Error(`Resource MIME type is missing for ${definition.name}`)
-    if (content.blob && Buffer.byteLength(content.blob, 'base64') > definition.maxBytes) {
+    if ('blob' in content && Buffer.byteLength(content.blob, 'base64') > definition.maxBytes) {
       throw new Error(`Resource exceeds the configured size limit for ${definition.name}`)
     }
   }

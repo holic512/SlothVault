@@ -165,7 +165,6 @@ export function mcpErrorResult(error: unknown, toolName: string): CallToolResult
     }
     return {
       content: [{ type: 'text', text: JSON.stringify(failure) }],
-      structuredContent: failure,
       isError: true,
     }
   }
@@ -181,7 +180,6 @@ export function mcpErrorResult(error: unknown, toolName: string): CallToolResult
   }
   return {
     content: [{ type: 'text', text: JSON.stringify(failure) }],
-    structuredContent: failure,
     isError: true,
   }
 }
