@@ -57,7 +57,7 @@ export function UserLoginForm() {
       router.replace('/account')
       router.refresh()
     } catch (error) {
-      setErrorText(error instanceof Error ? error.message : '登录失败')
+      message.error(error instanceof Error ? error.message : '登录失败')
     } finally {
       setSubmitting(false)
     }
@@ -73,7 +73,7 @@ export function UserLoginForm() {
         </Typography.Paragraph>
       </div>
 
-      {errorText ? <Alert className="auth-alert" type="error" showIcon message={errorText} /> : null}
+      {errorText ? <Alert className="auth-alert" type="error" showIcon title={errorText} /> : null}
 
       <Form<LoginValues>
         layout="vertical"

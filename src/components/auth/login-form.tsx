@@ -90,7 +90,7 @@ export function LoginForm() {
       message.success(t('form.submit'))
       router.replace('/admin/mm')
     } catch (error) {
-      setErrorText(error instanceof Error ? error.message : t('status.error'))
+      message.error(error instanceof Error ? error.message : t('status.error'))
     }
   }
 
@@ -102,7 +102,7 @@ export function LoginForm() {
         <Typography.Paragraph type="secondary">{t('hero.desc')}</Typography.Paragraph>
       </div>
 
-      {errorText ? <Alert className="auth-alert" type="error" showIcon message={errorText} /> : null}
+      {errorText ? <Alert className="auth-alert" type="error" showIcon title={errorText} /> : null}
 
       <Form form={form} layout="vertical" requiredMark={false} onFinish={submit} disabled={checking}>
         <Form.Item name="username" rules={[{ required: true, message: t('status.required') }]}> 
