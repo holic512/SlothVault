@@ -146,7 +146,7 @@ export function McpKeysManager() {
         showIcon
         type="info"
         icon={<KeyRound size={16} />}
-        message={t('securityNotice.title')}
+        title={t('securityNotice.title')}
         description={t('securityNotice.description')}
       />
 
@@ -161,7 +161,7 @@ export function McpKeysManager() {
         <Alert
           showIcon
           type="error"
-          message={t('messages.loadFailed')}
+          title={t('messages.loadFailed')}
           description={formatAdminError(query.error, errorT)}
         />
       ) : (
@@ -289,7 +289,7 @@ export function McpKeysManager() {
         onOk={() => setRevealedKey(null)}
         onCancel={() => setRevealedKey(null)}
       >
-        <Alert showIcon type="warning" message={t('dialog.revealWarning')} description={t('dialog.revealDescription')} />
+        <Alert showIcon type="warning" title={t('dialog.revealWarning')} description={t('dialog.revealDescription')} />
         <Typography.Paragraph className="admin-mcp-key-value">
           <Input.TextArea aria-label={t('dialog.keyValue')} autoSize={{ minRows: 3, maxRows: 5 }} readOnly value={revealedKey || ''} />
         </Typography.Paragraph>
