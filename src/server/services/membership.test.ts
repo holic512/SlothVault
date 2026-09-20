@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   invalidate: vi.fn(),
@@ -63,8 +63,14 @@ function grant(overrides: Record<string, unknown> = {}) {
 
 describe('membership entitlements', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.useFakeTimers()
+    vi.setSystemTime(now)
+    vi.resetAllMocks()
     mocks.execute.mockImplementation((operation) => operation(mocks.transaction))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('selects the highest active grant and falls back after a higher grant expires', () => {
@@ -113,7 +119,7 @@ describe('membership entitlements', () => {
         membershipLevelId: 2,
         source: 'POINT_PURCHASE',
         pointsCost: 30,
-        expiresAt: expect.any(Date),
+        expiresAt: new Date('2026-10-10T00:00:00.000Z'),
       }),
     }))
     expect(mocks.transaction.pointTransaction.create).toHaveBeenCalledWith({
@@ -132,8 +138,52 @@ describe('membership entitlements', () => {
     mocks.transaction.membershipLevel.findUnique.mockResolvedValue(level({ id: 1, rank: 1 }))
     mocks.transaction.membershipGrant.findMany.mockResolvedValue([grant()])
 
-    await expect(purchaseMembership({ userId: 8, membershipLevelId: 1 })).rejects.toThrow(/lower membership level/)
+    await expect(purchaseMembership({ userId: 8, membershipLevelId: 1 })).rejects.toMatchObject({
+      message: 'Cannot purchase a lower membership level while a higher level is active',
+      status: 409,
+      code: 409,
+    })
     expect(mocks.transaction.membershipGrant.create).not.toHaveBeenCalled()
+    expect(mocks.transaction.user.update).not.toHaveBeenCalled()
+    expect(mocks.transaction.pointTransaction.create).not.toHaveBeenCalled()
+  })
+
+  it('allows a lower-level purchase after the higher entitlement expires', async () => {
+    vi.setSystemTime(new Date('2026-09-11T00:00:00.000Z'))
+    const basic = level({ id: 1, name: 'Basic', rank: 1, pricePoints: 10, validityDays: 7 })
+    const created = grant({
+      id: 10,
+      membershipLevelId: 1,
+      pointsCost: 10,
+      grantedAt: new Date('2026-09-11T00:00:00.000Z'),
+      expiresAt: new Date('2026-09-18T00:00:00.000Z'),
+      membershipLevel: basic,
+    })
+    mocks.transaction.user.findUnique.mockResolvedValue({ id: 8, pointsBalance: 80 })
+    mocks.transaction.membershipLevel.findUnique.mockResolvedValue(basic)
+    mocks.transaction.membershipGrant.findMany.mockResolvedValue([grant()])
+    mocks.transaction.membershipGrant.create.mockResolvedValue(created)
+    mocks.transaction.user.update.mockResolvedValue({ pointsBalance: 70 })
+
+    await expect(purchaseMembership({ userId: 8, membershipLevelId: 1 })).resolves.toMatchObject({
+      pointsBalance: 70,
+      membership: { id: '1', rank: 1 },
+      grant: { id: '10', pointsCost: 10 },
+    })
+    expect(mocks.transaction.membershipGrant.create).toHaveBeenCalledTimes(1)
+    expect(mocks.transaction.user.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 8 },
+      data: expect.objectContaining({ pointsBalance: { decrement: 10 } }),
+    }))
+    expect(mocks.transaction.pointTransaction.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: 8,
+        amount: -10,
+        balanceAfter: 70,
+        type: 'MEMBERSHIP_PURCHASE',
+        referenceId: '10',
+      }),
+    })
   })
 
   it('replaces active grants before an administrator-issued entitlement', async () => {
