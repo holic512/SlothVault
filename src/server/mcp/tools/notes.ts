@@ -10,8 +10,9 @@
  */
 import 'server-only'
 
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
+
+import { collectMcpToolDefinitions, type McpToolDefinition } from '@/server/mcp/registry'
 
 import {
   createAdminNote,
@@ -19,7 +20,6 @@ import {
   listAdminNotes,
   updateAdminNote,
 } from '@/server/services/admin-notes'
-import type { McpPrincipal } from '@/server/services/mcp-api-keys'
 
 import {
   CREATE_ANNOTATIONS,
@@ -92,8 +92,8 @@ const updateNoteSchema = z.strictObject({
   { message: '至少提供一个需要更新的笔记字段。' },
 )
 
-export function registerNoteTools(server: McpServer, principal: McpPrincipal) {
-  server.registerTool(
+export const noteToolDefinitions: McpToolDefinition[] = collectMcpToolDefinitions((server) => {
+  server.defineTool(
     'content.note.list',
     {
       title: '列出笔记',
@@ -144,7 +144,7 @@ export function registerNoteTools(server: McpServer, principal: McpPrincipal) {
     })),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.note.get',
     {
       title: '读取笔记',
@@ -157,7 +157,7 @@ export function registerNoteTools(server: McpServer, principal: McpPrincipal) {
       getAdminNote(mcpId(noteId, 'noteId'))),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.note.create',
     {
       title: '创建笔记',
@@ -171,17 +171,17 @@ export function registerNoteTools(server: McpServer, principal: McpPrincipal) {
       outputSchema: noteOutputSchema,
       annotations: CREATE_ANNOTATIONS,
     },
-    async ({ categoryId, noteTitle, weight, status }) =>
+    async ({ categoryId, noteTitle, weight, status }, context) =>
       runMcpTool('content.note.create', async () => createAdminNote({
         categoryId,
-        authorId: principal.userId,
+        authorId: context.principal.userId,
         noteTitle,
         weight,
         status,
       })),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.note.update',
     {
       title: '更新笔记草稿',
@@ -196,4 +196,4 @@ export function registerNoteTools(server: McpServer, principal: McpPrincipal) {
         { categoryId, noteTitle, weight, status },
       )),
   )
-}
+})

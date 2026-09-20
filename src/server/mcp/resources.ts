@@ -12,13 +12,20 @@ import 'server-only'
 
 import { Buffer } from 'node:buffer'
 
-import { ResourceTemplate, type McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js'
 
 import { HttpError } from '@/server/http/errors'
+import {
+  collectMcpResourceDefinitions,
+  registerMcpResourceDefinitions,
+  type McpResourceDefinition,
+} from '@/server/mcp/registry'
 import { parseJsonDecimalId } from '@/server/services/admin-catalog'
 import { managedFileContentType, readManagedFile } from '@/server/services/admin-files'
 import { readAuthorizedContractAttachment } from '@/server/services/contracts'
 import type { McpPrincipal } from '@/server/services/mcp-api-keys'
+
+import resourceCatalog from './resource-catalog.json'
 
 /** Converts one Resource template variable into a validated database identifier. */
 function resourceId(value: string | string[], label: string) {
@@ -26,13 +33,31 @@ function resourceId(value: string | string[], label: string) {
   return parseJsonDecimalId(value, label)
 }
 
-export function registerAdminMcpResources(server: McpServer, principal: McpPrincipal) {
-  server.registerResource(
-    'managed-file',
-    new ResourceTemplate('slothvault://managed-file/{id}', { list: undefined }),
+/** Resolves one required Resource catalog entry. */
+function resourceCatalogEntry(name: string) {
+  const entry = resourceCatalog.find((item) => item.name === name)
+  if (!entry) throw new Error(`Missing MCP Resource catalog entry: ${name}`)
+  return entry
+}
+
+const managedFileResource = resourceCatalogEntry('managed-file')
+const contractAttachmentResource = resourceCatalogEntry('contract-attachment')
+
+/** Contains the protected administrator Resource declaration list. */
+export const adminMcpResourceDefinitions: McpResourceDefinition[] = collectMcpResourceDefinitions((server) => {
+  server.defineResource(
+    managedFileResource.name,
+    new ResourceTemplate(managedFileResource.uriTemplate, { list: undefined }),
     {
       title: 'SlothVault 托管文件',
       description: '读取一个有效的非合同托管文件。',
+    },
+    {
+      uriTemplate: managedFileResource.uriTemplate,
+      resourceGroup: managedFileResource.resourceGroup as McpResourceDefinition['resourceGroup'],
+      mimeType: managedFileResource.mimeType,
+      maxNameLength: managedFileResource.maxNameLength,
+      maxBytes: managedFileResource.maxBytes,
     },
     async (uri, { id }) => {
       const { file, buffer } = await readManagedFile(resourceId(id, 'fileId'))
@@ -50,18 +75,25 @@ export function registerAdminMcpResources(server: McpServer, principal: McpPrinc
     },
   )
 
-  server.registerResource(
-    'contract-attachment',
-    new ResourceTemplate('slothvault://contract-attachment/{contractId}', { list: undefined }),
+  server.defineResource(
+    contractAttachmentResource.name,
+    new ResourceTemplate(contractAttachmentResource.uriTemplate, { list: undefined }),
     {
       title: 'SlothVault 合同附件',
       description: '通过当前管理员身份读取一个私有合同 PDF 附件。',
       mimeType: 'application/pdf',
     },
-    async (uri, { contractId }) => {
+    {
+      uriTemplate: contractAttachmentResource.uriTemplate,
+      resourceGroup: contractAttachmentResource.resourceGroup as McpResourceDefinition['resourceGroup'],
+      mimeType: contractAttachmentResource.mimeType,
+      maxNameLength: contractAttachmentResource.maxNameLength,
+      maxBytes: contractAttachmentResource.maxBytes,
+    },
+    async (uri, { contractId }, context) => {
       const attachment = await readAuthorizedContractAttachment({
         id: resourceId(contractId, 'contractId'),
-        userId: principal.userId,
+        userId: context.principal.userId,
         isAdmin: true,
       })
       return {
@@ -74,4 +106,12 @@ export function registerAdminMcpResources(server: McpServer, principal: McpPrinc
       }
     },
   )
+})
+
+/** Registers all protected Resources through the shared declaration adapter. */
+export function registerAdminMcpResources(
+  server: Parameters<typeof registerMcpResourceDefinitions>[0],
+  principal: McpPrincipal,
+) {
+  registerMcpResourceDefinitions(server, adminMcpResourceDefinitions, principal)
 }

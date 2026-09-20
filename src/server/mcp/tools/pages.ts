@@ -10,8 +10,9 @@
  */
 import 'server-only'
 
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
+
+import { collectMcpToolDefinitions, type McpToolDefinition } from '@/server/mcp/registry'
 
 import { DOCUMENT_CONTENT_MAX_CHARACTERS } from '@/lib/document-content'
 import {
@@ -89,8 +90,8 @@ const menuValuesSchema = {
   status: statusSchema.default(1),
 }
 
-export function registerPageTools(server: McpServer) {
-  server.registerTool(
+export const pageToolDefinitions: McpToolDefinition[] = collectMcpToolDefinitions((server) => {
+  server.defineTool(
     'content.project.home.list',
     {
       title: '列出项目主页',
@@ -112,7 +113,7 @@ export function registerPageTools(server: McpServer) {
       })),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.project.home.get',
     {
       title: '读取项目主页',
@@ -125,7 +126,7 @@ export function registerPageTools(server: McpServer) {
       getProjectHome(mcpId(projectHomeId, 'projectHomeId'))),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.project.home.create',
     {
       title: '创建项目主页',
@@ -142,7 +143,7 @@ export function registerPageTools(server: McpServer) {
       createProjectHome(mcpId(projectId, 'projectId'), { content, status })),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.project.home.update',
     {
       title: '更新项目主页',
@@ -162,7 +163,7 @@ export function registerPageTools(server: McpServer) {
       updateProjectHome(mcpId(projectHomeId, 'projectHomeId'), { content, status })),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.project.menu.list',
     {
       title: '列出项目菜单',
@@ -183,7 +184,7 @@ export function registerPageTools(server: McpServer) {
     })),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.project.menu.get',
     {
       title: '读取项目菜单',
@@ -196,7 +197,7 @@ export function registerPageTools(server: McpServer) {
       getProjectMenu(mcpId(menuId, 'menuId'))),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.project.menu.create',
     {
       title: '创建项目菜单',
@@ -212,7 +213,7 @@ export function registerPageTools(server: McpServer) {
       )),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.project.menu.update',
     {
       title: '更新项目菜单',
@@ -241,7 +242,7 @@ export function registerPageTools(server: McpServer) {
       )),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.homepage.get',
     {
       title: '读取系统首页',
@@ -253,7 +254,7 @@ export function registerPageTools(server: McpServer) {
     async () => runMcpTool('content.homepage.get', getSystemHomepage),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.homepage.create',
     {
       title: '创建系统首页',
@@ -269,7 +270,7 @@ export function registerPageTools(server: McpServer) {
       createSystemHomepage({ content, status })),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.homepage.update',
     {
       title: '更新系统首页',
@@ -288,4 +289,4 @@ export function registerPageTools(server: McpServer) {
     async ({ homepageId, content, status }) => runMcpTool('content.homepage.update', async () =>
       updateSystemHomepage(mcpId(homepageId, 'homepageId'), { content, status })),
   )
-}
+})

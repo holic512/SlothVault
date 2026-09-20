@@ -10,8 +10,9 @@
  */
 import 'server-only'
 
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
+
+import { collectMcpToolDefinitions, type McpToolDefinition } from '@/server/mcp/registry'
 
 import { DOCUMENT_CONTENT_MAX_CHARACTERS } from '@/lib/document-content'
 import {
@@ -58,8 +59,8 @@ const updateContentSchema = z.strictObject({
   { message: '至少提供 content、versionNote 或 status 之一。' },
 )
 
-export function registerNoteContentTools(server: McpServer) {
-  server.registerTool(
+export const noteContentToolDefinitions: McpToolDefinition[] = collectMcpToolDefinitions((server) => {
+  server.defineTool(
     'content.note.content.list_versions',
     {
       title: '列出笔记正文版本',
@@ -72,7 +73,7 @@ export function registerNoteContentTools(server: McpServer) {
       listAdminNoteContentVersions(mcpId(noteId, 'noteId'))),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.note.content.get',
     {
       title: '读取笔记正文',
@@ -85,7 +86,7 @@ export function registerNoteContentTools(server: McpServer) {
       getAdminNoteContent(mcpId(noteContentId, 'noteContentId'))),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.note.content.create_draft',
     {
       title: '创建笔记正文草稿',
@@ -109,7 +110,7 @@ export function registerNoteContentTools(server: McpServer) {
       })),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.note.content.update_draft',
     {
       title: '更新笔记正文草稿',
@@ -125,7 +126,7 @@ export function registerNoteContentTools(server: McpServer) {
       )),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.note.content.set_primary',
     {
       title: '设置主正文草稿',
@@ -137,4 +138,4 @@ export function registerNoteContentTools(server: McpServer) {
     async ({ noteContentId }) => runMcpTool('content.note.content.set_primary', async () =>
       updateAdminNoteContent(mcpId(noteContentId, 'noteContentId'), { isPrimary: true })),
   )
-}
+})

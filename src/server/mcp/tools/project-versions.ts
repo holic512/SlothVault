@@ -10,8 +10,8 @@
  */
 import 'server-only'
 
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
+import { collectMcpToolDefinitions, type McpToolDefinition } from '@/server/mcp/registry'
 
 import { HttpError } from '@/server/http/errors'
 import {
@@ -78,8 +78,8 @@ const orderBySchema = z.enum([
   'updatedAt',
 ]).default('updatedAt')
 
-export function registerProjectVersionTools(server: McpServer) {
-  server.registerTool(
+export const projectVersionToolDefinitions: McpToolDefinition[] = collectMcpToolDefinitions((server) => {
+  server.defineTool(
     'content.project.version.list',
     {
       title: '列出项目版本',
@@ -114,7 +114,7 @@ export function registerProjectVersionTools(server: McpServer) {
       })),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.project.version.get',
     {
       title: '读取项目版本',
@@ -129,7 +129,7 @@ export function registerProjectVersionTools(server: McpServer) {
       getAdminProjectVersion(mcpId(projectVersionId, 'projectVersionId'))),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.project.version.create_draft',
     {
       title: '创建项目版本草稿',
@@ -152,7 +152,7 @@ export function registerProjectVersionTools(server: McpServer) {
       })),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.project.version.clone',
     {
       title: '从发布版本创建草稿',
@@ -193,7 +193,7 @@ export function registerProjectVersionTools(server: McpServer) {
       }),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.project.version.check_draft',
     {
       title: '检查版本草稿发布就绪状态',
@@ -212,7 +212,7 @@ export function registerProjectVersionTools(server: McpServer) {
       checkDraftProjectVersion(mcpId(projectVersionId, 'projectVersionId'))),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.project.version.integrity',
     {
       title: '检查发布版本完整性',
@@ -243,7 +243,7 @@ export function registerProjectVersionTools(server: McpServer) {
     }),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.project.version.manifest',
     {
       title: '读取发布版本清单',
@@ -252,7 +252,7 @@ export function registerProjectVersionTools(server: McpServer) {
       outputSchema: z.object({
         releaseId: z.string(),
         releaseHash: z.string(),
-        manifest: z.record(z.string(), z.unknown()),
+        manifest: z.object({}).passthrough(),
       }),
       annotations: READ_ONLY_ANNOTATIONS,
     },
@@ -265,4 +265,4 @@ export function registerProjectVersionTools(server: McpServer) {
       }
     }),
   )
-}
+})

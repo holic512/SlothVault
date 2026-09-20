@@ -10,8 +10,9 @@
  */
 import 'server-only'
 
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
+
+import { collectMcpToolDefinitions, type McpToolDefinition } from '@/server/mcp/registry'
 
 import {
   createAdminProject,
@@ -63,8 +64,8 @@ const updateProjectMetadataSchema = z.strictObject({
   { message: '至少提供 projectName、avatar 或 weight 之一。' },
 )
 
-export function registerProjectTools(server: McpServer) {
-  server.registerTool(
+export const projectToolDefinitions: McpToolDefinition[] = collectMcpToolDefinitions((server) => {
+  server.defineTool(
     'content.project.list',
     {
       title: '列出管理员项目',
@@ -94,7 +95,7 @@ export function registerProjectTools(server: McpServer) {
       })),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.project.get',
     {
       title: '读取项目详情',
@@ -109,7 +110,7 @@ export function registerProjectTools(server: McpServer) {
       getAdminProject(mcpId(projectId, 'projectId'))),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.project.create',
     {
       title: '创建项目草稿外壳',
@@ -126,7 +127,7 @@ export function registerProjectTools(server: McpServer) {
       createAdminProject({ projectName, avatar, weight, status: 1 })),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.project.update',
     {
       title: '更新项目元数据',
@@ -141,4 +142,4 @@ export function registerProjectTools(server: McpServer) {
         { projectName, avatar, weight },
       )),
   )
-}
+})

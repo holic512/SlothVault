@@ -10,8 +10,9 @@
  */
 import 'server-only'
 
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
+
+import { collectMcpToolDefinitions, type McpToolDefinition } from '@/server/mcp/registry'
 
 import { DOCUMENT_CONTENT_MAX_CHARACTERS } from '@/lib/document-content'
 import {
@@ -78,8 +79,8 @@ const updateArticleSchema = z.strictObject({
   { message: '至少提供一个需要更新的文章字段。' },
 )
 
-export function registerArticleTools(server: McpServer) {
-  server.registerTool(
+export const articleToolDefinitions: McpToolDefinition[] = collectMcpToolDefinitions((server) => {
+  server.defineTool(
     'content.article.list',
     {
       title: '列出文章',
@@ -107,7 +108,7 @@ export function registerArticleTools(server: McpServer) {
       })),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.article.get',
     {
       title: '读取文章',
@@ -120,7 +121,7 @@ export function registerArticleTools(server: McpServer) {
       getAdminArticle(mcpId(articleId, 'articleId'))),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.article.create',
     {
       title: '创建文章草稿',
@@ -141,7 +142,7 @@ export function registerArticleTools(server: McpServer) {
       })),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.article.update',
     {
       title: '更新文章内容',
@@ -164,4 +165,4 @@ export function registerArticleTools(server: McpServer) {
         },
       )),
   )
-}
+})

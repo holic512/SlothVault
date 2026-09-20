@@ -10,8 +10,9 @@
  */
 import 'server-only'
 
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
+
+import { collectMcpToolDefinitions, type McpToolDefinition } from '@/server/mcp/registry'
 
 import { HttpError } from '@/server/http/errors'
 import { getAdminDashboard } from '@/server/services/admin-dashboard'
@@ -29,36 +30,161 @@ import { getManagedUserMembership, listMembershipLevels } from '@/server/service
 
 import {
   decimalIdSchema,
+  isoDateSchema,
+  jsonObjectSchema,
   mcpId,
   pageSchema,
   pageSizeSchema,
+  paginatedListSchema,
   paginationOutputShape,
   READ_ONLY_ANNOTATIONS,
   runMcpTool,
 } from './common'
 
-const objectOutputSchema = z.record(z.string(), z.unknown())
-const listOutputSchema = z.object({
-  list: z.array(objectOutputSchema),
+const membershipSummarySchema = z.object({
+  id: decimalIdSchema,
+  name: z.string(),
+  rank: z.number().int(),
+  expiresAt: isoDateSchema.nullable(),
+  source: z.string(),
+})
+const userOutputSchema = z.object({
+  id: decimalIdSchema,
+  username: z.string(),
+  email: z.string().nullable(),
+  displayName: z.string().nullable(),
+  role: z.number().int(),
+  status: z.number().int(),
+  pointsBalance: z.number().int(),
+  walletAddress: z.string().nullable(),
+  createdAt: isoDateSchema,
+  currentMembership: membershipSummarySchema.nullable(),
+})
+const membershipLevelSchema = z.object({
+  id: decimalIdSchema,
+  name: z.string(),
+  rank: z.number().int(),
+  pricePoints: z.number().int(),
+  validityDays: z.number().int().nullable(),
+  status: z.number().int(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+})
+const membershipGrantSchema = z.object({
+  id: decimalIdSchema,
+  membershipLevel: membershipLevelSchema,
+  source: z.string(),
+  pointsCost: z.number().int(),
+  grantedByUserId: decimalIdSchema.nullable(),
+  grantedAt: isoDateSchema,
+  expiresAt: isoDateSchema.nullable(),
+  revokedAt: isoDateSchema.nullable(),
+  revokedByUserId: decimalIdSchema.nullable(),
+  active: z.boolean(),
+})
+const userMembershipSchema = z.object({
+  currentMembership: membershipSummarySchema.nullable(),
+  grants: z.array(membershipGrantSchema),
+})
+const pointTransactionSchema = z.object({
+  id: decimalIdSchema,
+  amount: z.number().int(),
+  balanceAfter: z.number().int(),
+  type: z.string(),
+  description: z.string().nullable(),
+  createdAt: isoDateSchema,
+})
+const pointTransactionListSchema = z.object({
+  pointsBalance: z.number().int(),
+  list: z.array(pointTransactionSchema),
   ...paginationOutputShape,
 })
-
+const giftCardBatchSchema = z.object({
+  id: decimalIdSchema,
+  name: z.string(),
+  points: z.number().int(),
+  quantity: z.number().int(),
+  redeemed: z.number().int(),
+  status: z.number().int(),
+  expiresAt: isoDateSchema.nullable(),
+  createdBy: z.string(),
+  createdAt: isoDateSchema,
+})
+const contractSchema = z.object({
+  id: decimalIdSchema,
+  contractId: z.string(),
+  title: z.string(),
+  body: z.string(),
+  bodyHash: z.string(),
+  contractHash: z.string().nullable(),
+  attachment: z.object({ id: decimalIdSchema, originalName: z.string(), fileSize: z.string() }).nullable(),
+  status: z.number().int(),
+  issuedAt: isoDateSchema.nullable(),
+  signedAt: isoDateSchema.nullable(),
+  declinedAt: isoDateSchema.nullable(),
+  declineReason: z.string().nullable(),
+  cancelledAt: isoDateSchema.nullable(),
+  issuer: z.object({ id: decimalIdSchema, username: z.string(), displayName: z.string().nullable() }),
+  subject: z.object({ id: decimalIdSchema, username: z.string(), displayName: z.string().nullable() }),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+  credentials: z.array(jsonObjectSchema),
+  signedAudit: jsonObjectSchema.nullable().optional(),
+  adminAudit: z.array(jsonObjectSchema).optional(),
+})
+const evidenceSchema = z.object({
+  id: decimalIdSchema,
+  subjectType: z.string(),
+  subjectId: z.string(),
+  subjectHash: z.string(),
+  projectVersionId: decimalIdSchema,
+  projectId: decimalIdSchema,
+  projectName: z.string(),
+  version: z.string(),
+  versionVisible: z.boolean(),
+  subjectVisible: z.boolean(),
+  network: z.string(),
+  signerAddress: z.string(),
+  transactionSignature: z.string().nullable(),
+  status: z.number().int(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+  attempts: z.array(jsonObjectSchema),
+})
+const dashboardSchema = z.object({
+  range: z.object({ days: z.number().int(), start: z.string(), end: z.string(), generatedAt: isoDateSchema }),
+  overview: jsonObjectSchema,
+  periodTotals: z.object({ users: z.number().int(), projects: z.number().int(), articles: z.number().int(), notes: z.number().int() }),
+  trend: z.array(jsonObjectSchema),
+  health: jsonObjectSchema,
+  recentActivity: jsonObjectSchema,
+})
+const settingsSchema = z.object({ configs: z.array(jsonObjectSchema), groups: z.array(jsonObjectSchema) })
+const systemUpdateSchema = z.object({
+  checkedAt: isoDateSchema,
+  status: z.enum(['UP_TO_DATE', 'UPDATE_AVAILABLE', 'LOCAL_NEWER', 'UNVERSIONED', 'HISTORY_INCOMPLETE', 'CHECK_FAILED']),
+  repository: z.string(),
+  installed: jsonObjectSchema,
+  nextRelease: jsonObjectSchema.nullable(),
+  historyComplete: z.boolean(),
+  error: z.string().nullable(),
+})
 const evidenceStatusSchema = z.number().int().min(-32_768).max(32_767).optional()
 
-export function registerAdminReadTools(server: McpServer) {
-  server.registerTool(
+export const adminReadToolDefinitions: McpToolDefinition[] = collectMcpToolDefinitions((server) => {
+  server.defineTool(
     'admin.dashboard.get',
     {
       title: '读取管理员仪表盘',
       description: '读取管理员运营概览、趋势、健康度和脱敏的近期活动。该工具只读。',
       inputSchema: z.strictObject({ range: z.union([z.literal(7), z.literal(30), z.literal(90)]).default(30) }),
-      outputSchema: objectOutputSchema,
+      outputSchema: dashboardSchema,
       annotations: READ_ONLY_ANNOTATIONS,
     },
     async ({ range }) => runMcpTool('admin.dashboard.get', async () => getAdminDashboard({ range })),
   )
 
-  server.registerTool(
+  server.defineTool(
     'admin.user.list',
     {
       title: '列出用户',
@@ -68,7 +194,7 @@ export function registerAdminReadTools(server: McpServer) {
         pageSize: pageSizeSchema,
         keyword: z.string().trim().max(120).default(''),
       }),
-      outputSchema: listOutputSchema,
+      outputSchema: paginatedListSchema(userOutputSchema),
       annotations: READ_ONLY_ANNOTATIONS,
     },
     async ({ page, pageSize, keyword }) => runMcpTool('admin.user.list', async () => {
@@ -77,25 +203,25 @@ export function registerAdminReadTools(server: McpServer) {
     }),
   )
 
-  server.registerTool(
+  server.defineTool(
     'admin.user.get',
     {
       title: '读取用户',
       description: '按用户 ID 读取用户资料摘要和当前会员状态，不返回密码或 Session。该工具只读。',
       inputSchema: z.strictObject({ userId: decimalIdSchema }),
-      outputSchema: objectOutputSchema,
+      outputSchema: userOutputSchema,
       annotations: READ_ONLY_ANNOTATIONS,
     },
     async ({ userId }) => runMcpTool('admin.user.get', async () => getManagedUser(mcpId(userId, 'userId'))),
   )
 
-  server.registerTool(
+  server.defineTool(
     'admin.membership.level.list',
     {
       title: '列出会员等级',
       description: '读取会员等级及积分价格，不修改会员配置。该工具只读。',
       inputSchema: z.strictObject({ includeDisabled: z.boolean().default(true) }),
-      outputSchema: z.object({ list: z.array(objectOutputSchema) }),
+      outputSchema: z.object({ list: z.array(membershipLevelSchema) }),
       annotations: READ_ONLY_ANNOTATIONS,
     },
     async ({ includeDisabled }) => runMcpTool('admin.membership.level.list', async () => ({
@@ -103,20 +229,20 @@ export function registerAdminReadTools(server: McpServer) {
     })),
   )
 
-  server.registerTool(
+  server.defineTool(
     'admin.user.membership.get',
     {
       title: '读取用户会员',
       description: '读取用户当前会员和历史授予记录，不授予或撤销会员。该工具只读。',
       inputSchema: z.strictObject({ userId: decimalIdSchema }),
-      outputSchema: objectOutputSchema,
+      outputSchema: userMembershipSchema,
       annotations: READ_ONLY_ANNOTATIONS,
     },
     async ({ userId }) => runMcpTool('admin.user.membership.get', async () =>
       getManagedUserMembership(mcpId(userId, 'userId'))),
   )
 
-  server.registerTool(
+  server.defineTool(
     'admin.points.transaction.list',
     {
       title: '列出用户积分流水',
@@ -126,7 +252,7 @@ export function registerAdminReadTools(server: McpServer) {
         page: pageSchema,
         pageSize: pageSizeSchema,
       }),
-      outputSchema: objectOutputSchema,
+      outputSchema: pointTransactionListSchema,
       annotations: READ_ONLY_ANNOTATIONS,
     },
     async ({ userId, page, pageSize }) => runMcpTool('admin.points.transaction.list', async () => ({
@@ -136,13 +262,13 @@ export function registerAdminReadTools(server: McpServer) {
     })),
   )
 
-  server.registerTool(
+  server.defineTool(
     'admin.gift_card.batch.list',
     {
       title: '列出卡密批次',
       description: '读取卡密批次统计，不返回明文卡密且不发行卡密。该工具只读。',
       inputSchema: z.strictObject({ page: pageSchema, pageSize: pageSizeSchema }),
-      outputSchema: objectOutputSchema,
+      outputSchema: paginatedListSchema(giftCardBatchSchema),
       annotations: READ_ONLY_ANNOTATIONS,
     },
     async ({ page, pageSize }) => runMcpTool('admin.gift_card.batch.list', async () => ({
@@ -152,7 +278,7 @@ export function registerAdminReadTools(server: McpServer) {
     })),
   )
 
-  server.registerTool(
+  server.defineTool(
     'admin.contract.list',
     {
       title: '列出合同',
@@ -163,27 +289,27 @@ export function registerAdminReadTools(server: McpServer) {
         keyword: z.string().trim().max(120).default(''),
         status: z.number().int().min(-32_768).max(32_767).optional(),
       }),
-      outputSchema: listOutputSchema,
+      outputSchema: paginatedListSchema(contractSchema),
       annotations: READ_ONLY_ANNOTATIONS,
     },
     async ({ page, pageSize, keyword, status }) => runMcpTool('admin.contract.list', async () =>
       listAdminContracts({ page, pageSize, keyword: keyword.trim(), status })),
   )
 
-  server.registerTool(
+  server.defineTool(
     'admin.contract.get',
     {
       title: '读取合同',
       description: '按合同 ID 读取冻结字段和管理员审计摘要，不改变合同状态。该工具只读。',
       inputSchema: z.strictObject({ contractId: decimalIdSchema }),
-      outputSchema: objectOutputSchema,
+      outputSchema: contractSchema,
       annotations: READ_ONLY_ANNOTATIONS,
     },
     async ({ contractId }) => runMcpTool('admin.contract.get', async () =>
       getAdminContract(mcpId(contractId, 'contractId'))),
   )
 
-  server.registerTool(
+  server.defineTool(
     'admin.contract.attachment.get',
     {
       title: '读取合同附件资源',
@@ -203,7 +329,7 @@ export function registerAdminReadTools(server: McpServer) {
     }),
   )
 
-  server.registerTool(
+  server.defineTool(
     'admin.evidence.list',
     {
       title: '列出链上存证',
@@ -217,7 +343,13 @@ export function registerAdminReadTools(server: McpServer) {
         status: evidenceStatusSchema,
         transactionSignature: z.string().trim().max(200).optional(),
       }),
-      outputSchema: objectOutputSchema,
+      outputSchema: z.object({
+        list: z.array(evidenceSchema),
+        ...paginationOutputShape,
+        summary: z.array(jsonObjectSchema),
+        defaultNetwork: z.string(),
+        networks: z.array(jsonObjectSchema),
+      }),
       annotations: READ_ONLY_ANNOTATIONS,
     },
     async ({ page, pageSize, projectId, projectVersionId, network, status, transactionSignature }) =>
@@ -232,40 +364,40 @@ export function registerAdminReadTools(server: McpServer) {
       })),
   )
 
-  server.registerTool(
+  server.defineTool(
     'admin.evidence.get',
     {
       title: '读取链上存证',
       description: '按存证记录 ID 读取数据库索引和状态，不执行链上核验。该工具只读。',
       inputSchema: z.strictObject({ evidenceId: decimalIdSchema }),
-      outputSchema: objectOutputSchema,
+      outputSchema: evidenceSchema,
       annotations: READ_ONLY_ANNOTATIONS,
     },
     async ({ evidenceId }) => runMcpTool('admin.evidence.get', async () =>
       getAdminReleaseEvidence(mcpId(evidenceId, 'evidenceId'))),
   )
 
-  server.registerTool(
+  server.defineTool(
     'admin.settings.get',
     {
       title: '读取系统设置',
       description: '读取已脱敏的系统配置和品牌状态，不返回敏感 RPC 地址。该工具只读。',
       inputSchema: z.strictObject({}),
-      outputSchema: objectOutputSchema,
+      outputSchema: settingsSchema,
       annotations: READ_ONLY_ANNOTATIONS,
     },
     async () => runMcpTool('admin.settings.get', listAdminSettings),
   )
 
-  server.registerTool(
+  server.defineTool(
     'admin.system.update.get',
     {
       title: '读取系统更新信息',
       description: '读取已安装版本和可用发布信息，不执行更新。该工具只读。',
       inputSchema: z.strictObject({}),
-      outputSchema: objectOutputSchema,
+      outputSchema: systemUpdateSchema,
       annotations: READ_ONLY_ANNOTATIONS,
     },
     async () => runMcpTool('admin.system.update.get', getSystemUpdateInfo),
   )
-}
+})

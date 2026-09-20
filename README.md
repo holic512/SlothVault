@@ -222,7 +222,7 @@ flowchart LR
 
 ## 管理员 MCP
 
-系统内置管理员 MCP Streamable HTTP 入口 `POST /mcp`，通过独立、可撤销的管理员 MCP Key 鉴权，不复用网页 Cookie Session。MCP server `3.0.0` 提供 55 个按领域分层的 Tool，覆盖日常内容编辑、文章、项目主页、菜单、系统首页、托管文件上传，以及账户、会员、积分、卡密、合同、存证、设置和系统更新的安全只读查询；同时提供创建项目草稿、整理笔记和发布前检查 3 个 Prompt。普通文件下载统一通过受保护 Resource URI，发布、撤回、删除、恢复、批量和其他高风险操作仍由网页后台确认。完整接入方式见 [管理员 MCP 接入说明](./docs/MCP_ADMIN.md)。
+系统内置管理员 MCP Streamable HTTP 入口 `POST /mcp`，通过独立、可撤销的管理员 MCP Key 鉴权，不复用网页 Cookie Session。MCP server `3.0.0` 的 Tool、Resource 和风险边界由声明式注册表统一管理，Prompt 引用受契约测试约束；完整清单见 [MCP Registry](./docs/MCP_REGISTRY.md)，接入方式见 [管理员 MCP 接入说明](./docs/MCP_ADMIN.md)。普通文件下载统一通过受保护 Resource URI，发布、撤回、删除、恢复、批量和其他高风险操作仍由网页后台确认。
 
 上传文件不进入 `public/`。数据库 JSON 与上传 ZIP 可独立导出、严格校验并恢复；备份包含账户、密码哈希、内容、积分、卡密哈希和存证索引，应按敏感数据管理。
 

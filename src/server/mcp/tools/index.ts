@@ -10,28 +10,33 @@
  */
 import 'server-only'
 
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-
 import type { McpPrincipal } from '@/server/services/mcp-api-keys'
+import { registerMcpToolDefinitions, type McpToolDefinition } from '@/server/mcp/registry'
 
-import { registerCategoryTools } from './categories'
-import { registerFileTools } from './files'
-import { registerArticleTools } from './articles'
-import { registerAdminReadTools } from './admin-read'
-import { registerNoteContentTools } from './note-content'
-import { registerNoteTools } from './notes'
-import { registerPageTools } from './pages'
-import { registerProjectVersionTools } from './project-versions'
-import { registerProjectTools } from './projects'
+import { categoryToolDefinitions } from './categories'
+import { fileToolDefinitions } from './files'
+import { articleToolDefinitions } from './articles'
+import { adminReadToolDefinitions } from './admin-read'
+import { noteContentToolDefinitions } from './note-content'
+import { noteToolDefinitions } from './notes'
+import { pageToolDefinitions } from './pages'
+import { projectVersionToolDefinitions } from './project-versions'
+import { projectToolDefinitions } from './projects'
 
-export function registerAdminMcpTools(server: McpServer, principal: McpPrincipal) {
-  registerProjectTools(server)
-  registerProjectVersionTools(server)
-  registerCategoryTools(server)
-  registerNoteTools(server, principal)
-  registerNoteContentTools(server)
-  registerArticleTools(server)
-  registerPageTools(server)
-  registerFileTools(server)
-  registerAdminReadTools(server)
+/** Contains the complete administrator Tool declaration list. */
+export const adminMcpToolDefinitions: McpToolDefinition[] = [
+  ...projectToolDefinitions,
+  ...projectVersionToolDefinitions,
+  ...categoryToolDefinitions,
+  ...noteToolDefinitions,
+  ...noteContentToolDefinitions,
+  ...articleToolDefinitions,
+  ...pageToolDefinitions,
+  ...fileToolDefinitions,
+  ...adminReadToolDefinitions,
+]
+
+/** Registers every administrator Tool through the single declaration adapter. */
+export function registerAdminMcpTools(server: Parameters<typeof registerMcpToolDefinitions>[0], principal: McpPrincipal) {
+  registerMcpToolDefinitions(server, adminMcpToolDefinitions, principal)
 }

@@ -12,8 +12,9 @@ import 'server-only'
 
 import { Buffer } from 'node:buffer'
 
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
+
+import { collectMcpToolDefinitions, type McpToolDefinition } from '@/server/mcp/registry'
 
 import { HttpError } from '@/server/http/errors'
 import {
@@ -85,8 +86,8 @@ function decodeBase64(value: string, maxBytes: number) {
   return buffer
 }
 
-export function registerFileTools(server: McpServer) {
-  server.registerTool(
+export const fileToolDefinitions: McpToolDefinition[] = collectMcpToolDefinitions((server) => {
+  server.defineTool(
     'content.file.list',
     {
       title: '列出托管文件',
@@ -115,7 +116,7 @@ export function registerFileTools(server: McpServer) {
     }),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.file.get',
     {
       title: '读取托管文件元数据',
@@ -136,7 +137,7 @@ export function registerFileTools(server: McpServer) {
     }),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.file.upload',
     {
       title: '上传托管文件',
@@ -162,4 +163,4 @@ export function registerFileTools(server: McpServer) {
         }
       }),
   )
-}
+})

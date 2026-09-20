@@ -44,6 +44,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Verify generated MCP registry documentation
+        run: node scripts/generate-mcp-docs.mjs --check
+
       - name: Prepare immutable release identity
         id: release-identity
         shell: bash

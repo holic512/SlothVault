@@ -10,8 +10,9 @@
  */
 import 'server-only'
 
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
+
+import { collectMcpToolDefinitions, type McpToolDefinition } from '@/server/mcp/registry'
 
 import {
   createAdminCategory,
@@ -82,8 +83,8 @@ const updateCategorySchema = z.strictObject({
   { message: '至少提供一个需要更新的分类字段。' },
 )
 
-export function registerCategoryTools(server: McpServer) {
-  server.registerTool(
+export const categoryToolDefinitions: McpToolDefinition[] = collectMcpToolDefinitions((server) => {
+  server.defineTool(
     'content.category.list',
     {
       title: '列出分类',
@@ -123,7 +124,7 @@ export function registerCategoryTools(server: McpServer) {
       })),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.category.create',
     {
       title: '创建分类',
@@ -146,7 +147,7 @@ export function registerCategoryTools(server: McpServer) {
       })),
   )
 
-  server.registerTool(
+  server.defineTool(
     'content.category.update',
     {
       title: '更新分类草稿',
@@ -161,4 +162,4 @@ export function registerCategoryTools(server: McpServer) {
         { projectVersionId, categoryName, weight, status },
       )),
   )
-}
+})

@@ -50,30 +50,7 @@ Authorization: Bearer svmcp_<public-id>.<secret>
 
 MCP server identity 为 `slothvault-admin-mcp@3.0.0`。3.0 使用点号分层命名，所有 2.0 Tool 名称均已停用且不保留别名；升级后应同步修改客户端保存的 Tool 名称。当前注册表共 55 个 Tool。
 
-| 领域 | Tool | 作用 |
-| --- | --- | --- |
-| 项目 | `content.project.list` / `content.project.get` | 分页读取项目或读取项目管理员详情。 |
-| 项目 | `content.project.create` / `content.project.update` | 创建项目或执行受草稿规则约束的元数据更新。 |
-| 版本 | `content.project.version.list` / `content.project.version.get` | 分页读取版本或读取版本发布字段。 |
-| 版本 | `content.project.version.create_draft` | 创建空的未发布版本草稿。 |
-| 版本 | `content.project.version.clone` | 从同项目的未删除发布版本复制文档树到新草稿。 |
-| 版本 | `content.project.version.check_draft` / `content.project.version.integrity` | 只读执行发布就绪校验或完整性校验。 |
-| 版本 | `content.project.version.manifest` | 读取已发布版本的规范 JSON 清单。 |
-| 分类 | `content.category.list` / `content.category.create` / `content.category.update` | 读取、创建或更新草稿版本分类。 |
-| 笔记 | `content.note.list` / `content.note.get` / `content.note.create` / `content.note.update` | 读取、创建或更新草稿版本笔记。 |
-| 正文 | `content.note.content.list_versions` / `content.note.content.get` | 读取正文历史摘要或完整 Markdown。 |
-| 正文 | `content.note.content.create_draft` / `content.note.content.update_draft` / `content.note.content.set_primary` | 创建、修改或切换正文主版本。 |
-| 文章 | `content.article.list` / `content.article.get` / `content.article.create` / `content.article.update` | 日常读取和编辑文章标题、摘要、封面、正文及会员等级引用；不执行发布生命周期。 |
-| 项目主页 | `content.project.home.list` / `content.project.home.get` / `content.project.home.create` / `content.project.home.update` | 读取、创建或更新项目主页。 |
-| 项目菜单 | `content.project.menu.list` / `content.project.menu.get` / `content.project.menu.create` / `content.project.menu.update` | 读取、创建或更新两级项目菜单。 |
-| 系统首页 | `content.homepage.get` / `content.homepage.create` / `content.homepage.update` | 读取、创建或更新系统首页。 |
-| 文件 | `content.file.list` / `content.file.get` / `content.file.upload` | 读取托管文件元数据或上传单个受限内容文件。 |
-| 后台只读 | `admin.dashboard.get` / `admin.user.list` / `admin.user.get` | 仪表盘和脱敏用户资料查询。 |
-| 后台只读 | `admin.membership.level.list` / `admin.user.membership.get` | 会员等级和用户会员查询。 |
-| 后台只读 | `admin.points.transaction.list` / `admin.gift_card.batch.list` | 积分流水和卡密批次统计查询，不返回明文卡密。 |
-| 后台只读 | `admin.contract.list` / `admin.contract.get` / `admin.contract.attachment.get` | 合同查询；附件通过受保护 Resource 读取。 |
-| 后台只读 | `admin.evidence.list` / `admin.evidence.get` | 只读查询数据库存证索引，不访问链上 RPC。 |
-| 后台只读 | `admin.settings.get` / `admin.system.update.get` | 脱敏设置和版本信息查询，不写设置、不执行更新。 |
+完整 Tool/Resource 清单、领域、风险、幂等性、URI、文件名和大小上限由注册表生成：[MCP Registry 清单](./MCP_REGISTRY.md)。修改 `src/server/mcp/tools/` 或 `src/server/mcp/resource-catalog.json` 后运行 `npm run mcp:docs`；CI 使用 `npm run mcp:docs:check` 阻止文档过期。
 
 所有 ID 参数都必须是正十进制字符串，例如：
 

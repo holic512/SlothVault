@@ -1,6 +1,6 @@
 {
   "name": "slothvault",
-  "version": "2.3.7",
+  "version": "2.3.8",
   "private": true,
   "type": "module",
   "engines": {
@@ -14,6 +14,8 @@
     "lint": "eslint .",
     "lint:styles": "stylelint \"src/**/*.css\"",
     "typecheck": "tsc --noEmit",
+    "mcp:docs": "node scripts/generate-mcp-docs.mjs",
+    "mcp:docs:check": "node scripts/generate-mcp-docs.mjs --check",
     "test": "vitest run",
     "test:visual": "playwright test",
     "test:visual:update": "playwright test --update-snapshots",

@@ -11,7 +11,7 @@
 import 'server-only'
 
 import type { CallToolResult, ToolAnnotations } from '@modelcontextprotocol/sdk/types.js'
-import { z } from 'zod'
+import { z, type ZodType } from 'zod'
 
 import { HttpError } from '@/server/http/errors'
 import { toJsonSafe } from '@/server/http/response'
@@ -30,12 +30,36 @@ export const decimalIdSchema = z.string()
 export const databaseIntegerSchema = z.number().int()
   .min(MIN_DATABASE_INTEGER)
   .max(MAX_DATABASE_ID)
+export const mcpIdSchema = decimalIdSchema
+export const moneySchema = z.string().regex(/^-?\d+(?:\.\d{1,2})?$/, '金额必须是最多两位小数的十进制字符串。')
 
 export const statusSchema = z.union([z.literal(0), z.literal(1)])
 export const orderSchema = z.enum(['asc', 'desc']).default('desc')
 export const pageSchema = z.number().int().min(1).max(10_000).default(1)
 export const pageSizeSchema = z.number().int().min(1).max(50).default(20)
 export const isoDateSchema = z.iso.datetime()
+export const jsonObjectSchema = z.object({}).passthrough()
+
+export const MCP_SENSITIVE_FIELD_NAMES = [
+  'password',
+  'passwordHash',
+  'token',
+  'accessToken',
+  'refreshToken',
+  'sessionToken',
+  'sessionId',
+  'secret',
+  'secretHash',
+  'apiKey',
+  'apiKeyHash',
+  'codeHash',
+  'privateKey',
+  'mnemonic',
+  'rawKey',
+  'ip',
+  'userAgent',
+] as const
+const SENSITIVE_FIELD_NAMES = new Set<string>(MCP_SENSITIVE_FIELD_NAMES)
 
 export const paginationOutputShape = {
   page: z.number().int(),
@@ -68,6 +92,38 @@ export function mcpId(value: string, label: string) {
   return parseJsonDecimalId(value, label)
 }
 
+export const paginationInputSchema = z.strictObject({ page: pageSchema, pageSize: pageSizeSchema })
+export const mcpErrorSchema = z.object({
+  error: z.object({
+    status: z.number().int(),
+    code: z.number().int(),
+    message: z.string(),
+    data: z.unknown().nullable(),
+  }),
+})
+
+/** Builds the canonical paginated list response schema for one public DTO. */
+export function paginatedListSchema<T extends ZodType>(itemSchema: T) {
+  return z.object({ list: z.array(itemSchema), ...paginationOutputShape })
+}
+
+/** Removes credentials and private key material from values before MCP serialization. */
+export function redactMcpSensitiveFields<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(redactMcpSensitiveFields) as unknown as T
+  if (!value || typeof value !== 'object') return value
+  if (value instanceof Date) return value
+  const redacted: Record<string, unknown> = {}
+  for (const [key, item] of Object.entries(value)) {
+    if (SENSITIVE_FIELD_NAMES.has(key)) continue
+    redacted[key] = /(?:^id$|Id$)/.test(key) &&
+      (typeof item === 'number' || typeof item === 'bigint')
+      ? item.toString()
+      : redactMcpSensitiveFields(item)
+  }
+  return redacted as unknown as T
+}
+
+/** Selects only documented conflict details from an HttpError payload. */
 function safeHttpErrorData(data: unknown) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return null
   const record = data as Record<string, unknown>
@@ -97,7 +153,7 @@ function safeHttpErrorData(data: unknown) {
   return Object.keys(safe).length > 0 ? safe : null
 }
 
-function errorToolResult(error: unknown, toolName: string): CallToolResult {
+export function mcpErrorResult(error: unknown, toolName: string): CallToolResult {
   if (error instanceof HttpError) {
     const failure = {
       error: {
@@ -135,12 +191,12 @@ export async function runMcpTool(
   operation: () => Promise<Record<string, unknown>>,
 ): Promise<CallToolResult> {
   try {
-    const safe = toJsonSafe(await operation())
+    const safe = toJsonSafe(redactMcpSensitiveFields(await operation()))
     return {
       content: [{ type: 'text', text: JSON.stringify(safe) }],
       structuredContent: safe,
     }
   } catch (error) {
-    return errorToolResult(error, toolName)
+    return mcpErrorResult(error, toolName)
   }
 }
