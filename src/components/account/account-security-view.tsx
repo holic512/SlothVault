@@ -13,6 +13,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { App, Button, Card, Form, Input, Tag, Typography } from 'antd'
 import { KeyRound, ShieldCheck, WalletCards } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 
 import { useAccountUser } from '@/components/account/account-shell'
@@ -26,6 +27,7 @@ type PasswordValues = {
 }
 
 export function AccountSecurityView() {
+  const t = useTranslations('Account.security')
   const user = useAccountUser()
   const router = useRouter()
   const { message } = App.useApp()
@@ -37,7 +39,7 @@ export function AccountSecurityView() {
         body: JSON.stringify({ currentPassword: values.currentPassword, newPassword: values.newPassword }),
       }),
     onSuccess: () => {
-      message.success('密码已更新，请重新登录')
+      message.success(t('updated'))
       router.replace('/login')
       router.refresh()
     },
@@ -48,51 +50,51 @@ export function AccountSecurityView() {
     <div className="account-route">
       <div className="account-route-heading">
         <div>
-          <Typography.Text className="account-eyebrow">Security</Typography.Text>
-          <Typography.Title level={2}>安全与登录</Typography.Title>
-          <Typography.Text type="secondary">管理密码和可选的钱包登录方式。</Typography.Text>
+          <Typography.Text className="account-eyebrow">{t('kicker')}</Typography.Text>
+          <Typography.Title level={2}>{t('title')}</Typography.Title>
+          <Typography.Text type="secondary">{t('description')}</Typography.Text>
         </div>
       </div>
 
       <div className="account-security-grid">
-        <Card className="account-card account-route-card" title={<span className="account-card-title"><KeyRound size={16} />密码</span>}>
+        <Card className="account-card account-route-card" title={<span className="account-card-title"><KeyRound size={16} />{t('passwordTitle')}</span>}>
           <Form form={passwordForm} layout="vertical" onFinish={(values) => passwordMutation.mutate(values)}>
             {user.passwordConfigured ? (
-              <Form.Item name="currentPassword" label="当前密码" rules={[{ required: true, message: '请输入当前密码' }]}>
+              <Form.Item name="currentPassword" label={t('currentPassword')} rules={[{ required: true, message: t('currentPasswordRequired') }]}>
                 <Input.Password prefix={<KeyRound size={14} />} autoComplete="current-password" />
               </Form.Item>
             ) : null}
-            <Form.Item name="newPassword" label={user.passwordConfigured ? '新密码' : '设置登录密码'} rules={[{ required: true }, { min: 8, message: '密码至少需要 8 位' }]}>
+            <Form.Item name="newPassword" label={user.passwordConfigured ? t('newPassword') : t('setPassword')} rules={[{ required: true }, { min: 8, message: t('passwordMin') }]}>
               <Input.Password prefix={<KeyRound size={14} />} autoComplete="new-password" />
             </Form.Item>
             <Form.Item
               name="confirmPassword"
-              label="确认新密码"
+              label={t('confirmPassword')}
               dependencies={['newPassword']}
               rules={[{ required: true }, ({ getFieldValue }) => ({
                 validator: async (_, value) => {
                   if (value === getFieldValue('newPassword')) return
-                  throw new Error('两次输入的密码不一致')
+                  throw new Error(t('passwordMismatch'))
                 },
               })]}
             >
               <Input.Password prefix={<KeyRound size={14} />} autoComplete="new-password" />
             </Form.Item>
-            <Button type="primary" htmlType="submit" loading={passwordMutation.isPending}>{user.passwordConfigured ? '修改密码' : '设置密码'}</Button>
+            <Button type="primary" htmlType="submit" loading={passwordMutation.isPending}>{user.passwordConfigured ? t('changePassword') : t('setPassword')}</Button>
           </Form>
         </Card>
 
-        <Card className="account-card account-route-card" title={<span className="account-card-title"><WalletCards size={16} />钱包登录</span>}>
+        <Card className="account-card account-route-card" title={<span className="account-card-title"><WalletCards size={16} />{t('walletTitle')}</span>}>
           {user.walletAddress ? (
             <div className="account-wallet-bound">
-              <Tag color="success">已绑定</Tag>
+              <Tag color="success">{t('bound')}</Tag>
               <Typography.Paragraph copyable={{ text: user.walletAddress }} className="mono-ellipsis">{user.walletAddress}</Typography.Paragraph>
-              <Typography.Text type="secondary">绑定的钱包可用于登录，也可用于管理员的交易存证签名。</Typography.Text>
+              <Typography.Text type="secondary">{t('walletBoundHint')}</Typography.Text>
             </div>
           ) : (
             <div className="account-wallet-empty">
               <ShieldCheck size={20} />
-              <Typography.Text>钱包是可选的第二登录方式。</Typography.Text>
+              <Typography.Text>{t('walletEmptyHint')}</Typography.Text>
               <WalletLoginButton mode="bind" redirectTo="/account/security" />
             </div>
           )}

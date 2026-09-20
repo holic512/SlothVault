@@ -14,12 +14,14 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Avatar, Button, Dropdown } from 'antd'
 import { ChevronDown, CircleUserRound, Coins, Crown, FileSignature, LayoutDashboard, LogIn, LogOut, ShieldCheck, UserRound } from 'lucide-react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 
 import { ApiClientError, apiFetch } from '@/lib/api-client'
 import type { SessionUser } from '@/types/user'
 
 export function AccountNav({ compact = false }: { compact?: boolean }) {
+  const t = useTranslations('Account.nav')
   const router = useRouter()
   const queryClient = useQueryClient()
   const query = useQuery({
@@ -38,7 +40,7 @@ export function AccountNav({ compact = false }: { compact?: boolean }) {
   if (!query.data) {
     return (
       <Button icon={<LogIn size={16} />} href="/login">
-        {compact ? null : '登录'}
+        {compact ? null : t('login')}
       </Button>
     )
   }
@@ -73,45 +75,45 @@ export function AccountNav({ compact = false }: { compact?: boolean }) {
           {
             key: 'overview',
             icon: <LayoutDashboard size={15} />,
-            label: <Link href="/account">账户概览</Link>,
+            label: <Link href="/account">{t('overview')}</Link>,
           },
           {
             key: 'profile',
             icon: <UserRound size={15} />,
-            label: <Link href="/account/profile">个人资料</Link>,
+            label: <Link href="/account/profile">{t('profile')}</Link>,
           },
           {
             key: 'security',
             icon: <ShieldCheck size={15} />,
-            label: <Link href="/account/security">安全与登录</Link>,
+            label: <Link href="/account/security">{t('security')}</Link>,
           },
           {
             key: 'points',
             icon: <Coins size={15} />,
-            label: <Link href="/account/points">积分中心</Link>,
+            label: <Link href="/account/points">{t('points')}</Link>,
           },
           {
             key: 'membership',
             icon: <Crown size={15} />,
-            label: <Link href="/account/membership">会员中心</Link>,
+            label: <Link href="/account/membership">{t('membership')}</Link>,
           },
           {
             key: 'contracts',
             icon: <FileSignature size={15} />,
-            label: <Link href="/account/contracts">我的合同</Link>,
+            label: <Link href="/account/contracts">{t('contracts')}</Link>,
           },
           ...(user.role === 'ADMIN'
             ? [{
                 key: 'admin',
                 icon: <LayoutDashboard size={15} />,
-                label: <Link href="/admin/mm">管理后台</Link>,
+                label: <Link href="/admin/mm">{t('admin')}</Link>,
               }]
             : []),
           { type: 'divider' as const },
           {
             key: 'logout',
             icon: <LogOut size={15} />,
-            label: '退出登录',
+            label: t('logout'),
             onClick: () => void logout(),
           },
         ],

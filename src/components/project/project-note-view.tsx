@@ -113,37 +113,37 @@ export async function ProjectNoteView({
             </div>
           </aside>
           {note.evidence.map((credential) => (
-            <aside className="docs-copyright-proof" aria-label="版本交易存证" key={credential.transactionSignature}>
+            <aside className="docs-copyright-proof" aria-label={t('evidence.release.label')} key={credential.transactionSignature}>
               <span className="docs-copyright-mark">
                 {credential.network === 'devnet' ? <FlaskConical size={18} /> : <BadgeCheck size={18} />}
               </span>
               <div className="docs-copyright-copy">
-                <strong>{credential.network === 'devnet' ? '测试存证 · Devnet' : '正式存证 · Mainnet'}</strong>
-                <span>签名钱包已对本版本完整哈希进行 Solana Memo 存证。</span>
+                <strong>{credential.network === 'devnet' ? t('evidence.release.devnet') : t('evidence.release.mainnet')}</strong>
+                <span>{t('evidence.release.description')}</span>
                 <code title={credential.transactionSignature}>
                   {credential.transactionSignature.slice(0, 12)}…{credential.transactionSignature.slice(-8)}
                 </code>
               </div>
               <div className="docs-copyright-links">
                 <Link href={`/evidence/${credential.transactionSignature}`}>
-                  核验凭证<ExternalLink size={12} />
+                  {t('evidence.verify')}<ExternalLink size={12} />
                 </Link>
               </div>
             </aside>
           ))}
           {note.noteEvidence.map((credential) => (
-            <aside className="docs-copyright-proof" aria-label="本文内容版本存证" key={credential.transactionSignature}>
+            <aside className="docs-copyright-proof" aria-label={t('evidence.content.label')} key={credential.transactionSignature}>
               <span className="docs-copyright-mark">
                 {credential.network === 'devnet' ? <FlaskConical size={18} /> : <BadgeCheck size={18} />}
               </span>
               <div className="docs-copyright-copy">
-                <strong>{credential.network === 'devnet' ? '本文测试存证 · Devnet' : '本文内容版本存证 · Mainnet'}</strong>
-                <span>此凭证仅绑定当前公开主内容版本。</span>
+                <strong>{credential.network === 'devnet' ? t('evidence.content.devnet') : t('evidence.content.mainnet')}</strong>
+                <span>{t('evidence.content.description')}</span>
                 <code title={credential.contentHash}>{credential.contentHash}</code>
               </div>
               <div className="docs-copyright-links">
                 <Link href={`/evidence/${credential.transactionSignature}`}>
-                  核验凭证<ExternalLink size={12} />
+                  {t('evidence.verify')}<ExternalLink size={12} />
                 </Link>
               </div>
             </aside>

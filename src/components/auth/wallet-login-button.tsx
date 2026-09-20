@@ -13,6 +13,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { App, Button } from 'antd'
 import { WalletCards } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 
 import { WalletRuntime } from '@/components/providers/wallet-runtime'
@@ -48,6 +49,7 @@ function WalletLoginButtonContent({
   mode: 'login' | 'bind'
   redirectTo: string
 }) {
+  const t = useTranslations('UserAuth.wallet')
   const wallet = useSolanaWallet()
   const queryClient = useQueryClient()
   const router = useRouter()
@@ -75,7 +77,7 @@ function WalletLoginButtonContent({
     },
     onSuccess: async (user) => {
       if (!user) return
-      message.success(mode === 'bind' ? '钱包地址已绑定' : '登录成功')
+      message.success(mode === 'bind' ? t('bound') : t('loginSuccess'))
       await queryClient.invalidateQueries({ queryKey: ['session-user'] })
       router.replace(redirectTo)
       router.refresh()
@@ -91,10 +93,10 @@ function WalletLoginButtonContent({
       onClick={() => mutation.mutate()}
     >
       {!wallet.connected
-        ? '选择钱包'
+        ? t('select')
         : mode === 'bind'
-          ? '签名并绑定钱包地址'
-          : '使用钱包地址登录'}
+          ? t('bind')
+          : t('login')}
     </Button>
   )
 }

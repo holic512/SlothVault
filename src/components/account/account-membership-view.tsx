@@ -13,6 +13,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Button, Card, Descriptions, Empty, Space, Table, Tag, Typography } from 'antd'
 import { CalendarClock, Check, Coins, Crown, Infinity, LockKeyhole, ShoppingCart } from 'lucide-react'
+import { useLocale, useTranslations } from 'next-intl'
 
 import { apiFetch } from '@/lib/api-client'
 
@@ -49,11 +50,9 @@ type MembershipData = {
   grants: MembershipGrant[]
 }
 
-function expiryLabel(expiresAt: string | null) {
-  return expiresAt ? new Date(expiresAt).toLocaleString() : '永久有效'
-}
-
 export function AccountMembershipView() {
+  const t = useTranslations('Account.membership')
+  const locale = useLocale()
   const queryClient = useQueryClient()
   const { message, modal } = App.useApp()
   const membershipQuery = useQuery({
@@ -66,7 +65,7 @@ export function AccountMembershipView() {
       { method: 'POST', body: JSON.stringify({ membershipLevelId: Number(membershipLevelId) }) },
     ),
     onSuccess: async () => {
-      message.success('会员权益已开通')
+      message.success(t('purchased'))
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['account-membership'] }),
         queryClient.invalidateQueries({ queryKey: ['account-points'] }),
@@ -76,13 +75,14 @@ export function AccountMembershipView() {
     onError: (error) => message.error(error.message),
   })
   const data = membershipQuery.data
+  const expiryLabel = (expiresAt: string | null) => expiresAt ? new Date(expiresAt).toLocaleString(locale) : t('permanent')
 
   const confirmPurchase = (level: MembershipLevel) => {
     modal.confirm({
-      title: `开通 ${level.name}`,
-      content: `将扣除 ${level.pricePoints} 积分${level.validityDays ? `，有效期 ${level.validityDays} 天` : '，永久有效'}。`,
-      okText: '确认开通',
-      cancelText: '取消',
+      title: t('purchaseTitle', { name: level.name }),
+      content: level.validityDays ? t('purchaseDuration', { points: level.pricePoints, days: level.validityDays }) : t('purchasePermanent', { points: level.pricePoints }),
+      okText: t('confirm'),
+      cancelText: t('cancel'),
       onOk: () => purchaseMutation.mutateAsync(level.id),
     })
   }
@@ -91,36 +91,36 @@ export function AccountMembershipView() {
     <div className="account-route membership-route">
       <div className="account-route-heading">
         <div>
-          <Typography.Text className="account-eyebrow">Membership</Typography.Text>
-          <Typography.Title level={2}>会员中心</Typography.Title>
-          <Typography.Text type="secondary">使用积分开通等级，解锁对应文章阅读权限。</Typography.Text>
+          <Typography.Text className="account-eyebrow">{t('kicker')}</Typography.Text>
+          <Typography.Title level={2}>{t('title')}</Typography.Title>
+          <Typography.Text type="secondary">{t('description')}</Typography.Text>
         </div>
       </div>
 
       <div className="membership-summary-grid">
         <Card className="account-card membership-current-card" loading={membershipQuery.isLoading}>
           <Space direction="vertical" size={10} className="full-width">
-            <Typography.Text type="secondary">当前会员权益</Typography.Text>
+            <Typography.Text type="secondary">{t('current')}</Typography.Text>
             {data?.currentMembership ? (
               <>
                 <Typography.Title level={3}><Crown size={20} /> {data.currentMembership.name}</Typography.Title>
                 <Descriptions size="small" column={1}>
-                  <Descriptions.Item label="等级">Lv.{data.currentMembership.rank}</Descriptions.Item>
-                  <Descriptions.Item label="有效期">{expiryLabel(data.currentMembership.expiresAt)}</Descriptions.Item>
+                  <Descriptions.Item label={t('level')}>Lv.{data.currentMembership.rank}</Descriptions.Item>
+                  <Descriptions.Item label={t('validity')}>{expiryLabel(data.currentMembership.expiresAt)}</Descriptions.Item>
                 </Descriptions>
               </>
             ) : (
-              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="当前没有有效会员权益" />
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('noCurrent')} />
             )}
           </Space>
         </Card>
-        <Card className="account-card membership-points-card" title={<span className="account-card-title"><Coins size={16} />可用积分</span>} loading={membershipQuery.isLoading}>
+        <Card className="account-card membership-points-card" title={<span className="account-card-title"><Coins size={16} />{t('availablePoints')}</span>} loading={membershipQuery.isLoading}>
           <Typography.Title level={2}>{data?.pointsBalance ?? 0}</Typography.Title>
-          <Typography.Text type="secondary">积分会在购买成功后即时扣除。</Typography.Text>
+          <Typography.Text type="secondary">{t('pointsHint')}</Typography.Text>
         </Card>
       </div>
 
-      <Card className="account-card membership-levels-card" title="可开通等级" loading={membershipQuery.isLoading}>
+      <Card className="account-card membership-levels-card" title={t('availableLevels')} loading={membershipQuery.isLoading}>
         {data?.levels.length ? (
           <div className="membership-level-grid">
             {data.levels.map((level) => {
@@ -133,9 +133,9 @@ export function AccountMembershipView() {
                     <span className="membership-level-rank">Lv.{level.rank}</span>
                     <Tag color="gold"><Crown size={13} />{level.name}</Tag>
                   </div>
-                  <strong className="membership-level-price"><Coins size={17} />{level.pricePoints} 积分</strong>
+                  <strong className="membership-level-price"><Coins size={17} />{t('price', { points: level.pricePoints })}</strong>
                   <span className="membership-level-duration">
-                    {level.validityDays ? <><CalendarClock size={14} />有效 {level.validityDays} 天</> : <><Infinity size={14} />永久有效</>}
+                    {level.validityDays ? <><CalendarClock size={14} />{t('duration', { days: level.validityDays })}</> : <><Infinity size={14} />{t('permanent')}</>}
                   </span>
                   <Button
                     type="primary"
@@ -144,16 +144,16 @@ export function AccountMembershipView() {
                     loading={purchaseMutation.isPending && purchaseMutation.variables === level.id}
                     onClick={() => confirmPurchase(level)}
                   >
-                    {permanentCurrent ? '已永久拥有' : lowerThanCurrent ? '当前等级更高' : insufficient ? '积分不足' : '积分开通'}
+                    {permanentCurrent ? t('owned') : lowerThanCurrent ? t('higherLevel') : insufficient ? t('insufficient') : t('purchase')}
                   </Button>
                 </section>
               )
             })}
           </div>
-        ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="管理员尚未配置可购买会员等级" />}
+        ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('noLevels')} />}
       </Card>
 
-      <Card className="account-card membership-history-card" title={<span className="account-card-title"><LockKeyhole size={16} />会员授权记录</span>}>
+      <Card className="account-card membership-history-card" title={<span className="account-card-title"><LockKeyhole size={16} />{t('history')}</span>}>
         <Table<MembershipGrant>
           rowKey="id"
           size="small"
@@ -162,11 +162,11 @@ export function AccountMembershipView() {
           pagination={{ pageSize: 10, hideOnSinglePage: true }}
           scroll={{ x: 720 }}
           columns={[
-            { title: '等级', dataIndex: ['membershipLevel', 'name'], render: (_value, item) => <Space><Tag color="gold">Lv.{item.membershipLevel.rank}</Tag>{item.membershipLevel.name}</Space> },
-            { title: '来源', dataIndex: 'source', render: (value) => value === 'POINT_PURCHASE' ? '积分购买' : '管理员授予' },
-            { title: '授予时间', dataIndex: 'grantedAt', render: (value) => new Date(value).toLocaleString() },
-            { title: '到期时间', dataIndex: 'expiresAt', render: (value) => expiryLabel(value) },
-            { title: '状态', dataIndex: 'active', render: (_value, item) => item.revokedAt ? <Tag>已取消</Tag> : item.active ? <Tag color="success">有效</Tag> : <Tag color="warning">已过期</Tag> },
+            { title: t('table.level'), dataIndex: ['membershipLevel', 'name'], render: (_value, item) => <Space><Tag color="gold">Lv.{item.membershipLevel.rank}</Tag>{item.membershipLevel.name}</Space> },
+            { title: t('table.source'), dataIndex: 'source', render: (value) => value === 'POINT_PURCHASE' ? t('table.purchase') : t('table.granted') },
+            { title: t('table.grantedAt'), dataIndex: 'grantedAt', render: (value) => new Date(value).toLocaleString(locale) },
+            { title: t('table.expiresAt'), dataIndex: 'expiresAt', render: (value) => expiryLabel(value) },
+            { title: t('table.status'), dataIndex: 'active', render: (_value, item) => item.revokedAt ? <Tag>{t('table.revoked')}</Tag> : item.active ? <Tag color="success">{t('table.active')}</Tag> : <Tag color="warning">{t('table.expired')}</Tag> },
           ]}
         />
       </Card>

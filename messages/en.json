@@ -48,6 +48,21 @@
       "published": "Published {date}",
       "scope": "This hash covers the version manifest and logical Markdown content, not attachment bytes or the current contents of external URLs.",
       "download": "Download manifest"
+    },
+    "evidence": {
+      "verify": "Verify receipt",
+      "release": {
+        "label": "Release transaction evidence",
+        "devnet": "Test evidence · Devnet",
+        "mainnet": "Verified evidence · Mainnet",
+        "description": "The signing wallet recorded the complete hash of this version in a Solana Memo."
+      },
+      "content": {
+        "label": "Document-content version evidence",
+        "devnet": "Document test evidence · Devnet",
+        "mainnet": "Document-content evidence · Mainnet",
+        "description": "This receipt is bound only to the current public primary content version."
+      }
     }
   },
   "DocumentEditor": {
@@ -1710,5 +1725,224 @@
     "header": {
       "backHome": "Back to Home"
     }
+  },
+  "UserAuth": {
+    "login": {
+      "kicker": "Account",
+      "title": "Sign in to SlothVault",
+      "description": "Use your account to manage your profile, review contracts, and redeem points.",
+      "sessionReadFailed": "Could not read your sign-in status",
+      "success": "Signed in successfully",
+      "failed": "Sign-in failed",
+      "identifier": "Username or email",
+      "identifierRequired": "Enter your username or email",
+      "password": "Password",
+      "passwordRequired": "Enter your password",
+      "remember": "Keep me signed in for 30 days",
+      "submit": "Sign in",
+      "or": "or",
+      "noAccount": "Don't have an account? ",
+      "register": "Create an account"
+    },
+    "register": {
+      "kicker": "New account",
+      "title": "Create your account",
+      "description": "A wallet is optional; your username and password are the default way to sign in.",
+      "success": "Account created",
+      "failed": "Registration failed",
+      "username": "Username",
+      "usernameRequired": "Enter a username",
+      "usernameFormat": "Use 3–32 letters, numbers, or underscores",
+      "displayName": "Display name (optional)",
+      "email": "Email (optional)",
+      "emailInvalid": "Enter a valid email address",
+      "password": "Password",
+      "passwordMin": "Password must be at least 8 characters",
+      "confirmPassword": "Confirm password",
+      "confirmPasswordRequired": "Enter your password again",
+      "passwordMismatch": "The passwords do not match",
+      "submit": "Create account and sign in",
+      "hasAccount": "Already have an account? ",
+      "login": "Back to sign in"
+    },
+    "wallet": {
+      "bound": "Wallet address linked",
+      "loginSuccess": "Signed in successfully",
+      "select": "Choose a wallet",
+      "bind": "Sign and link wallet address",
+      "login": "Sign in with wallet"
+    }
+  },
+  "Account": {
+    "nav": {
+      "login": "Sign in",
+      "overview": "Account overview",
+      "profile": "Profile",
+      "security": "Security and sign-in",
+      "points": "Points",
+      "membership": "Membership",
+      "contracts": "My contracts",
+      "admin": "Admin console",
+      "logout": "Sign out"
+    },
+    "shell": {
+      "kicker": "Account workspace",
+      "overview": "Account overview",
+      "profile": "Profile",
+      "security": "Security and sign-in",
+      "contracts": "My contracts",
+      "points": "Points",
+      "membership": "Membership",
+      "administrator": "Administrator",
+      "user": "User",
+      "admin": "Admin console",
+      "navigationLabel": "Account navigation",
+      "privacyNotice": "Your account data and sign-in credentials are visible only to you."
+    },
+    "overview": {
+      "kicker": "Overview",
+      "title": "Account overview",
+      "description": "Manage your profile, security, and points from here.",
+      "points": "Current points",
+      "viewPoints": "View points history",
+      "quickLinks": "Quick links",
+      "status": {
+        "title": "Account status",
+        "password": "Sign-in password",
+        "wallet": "Wallet address",
+        "role": "Account role",
+        "configured": "Configured",
+        "notConfigured": "Not configured",
+        "bound": "Linked",
+        "notBound": "Not linked",
+        "administrator": "Administrator",
+        "user": "User"
+      },
+      "actions": {
+        "profile": "Edit your profile",
+        "security": "Manage security and sign-in",
+        "points": "Redeem codes and view points",
+        "membership": "Manage membership benefits"
+      },
+      "identity": {
+        "title": "Your account is managed in dedicated routes",
+        "description": "Profile, security, and points stay separate, and changes are immediately reflected in the account menu."
+      }
+    },
+    "profile": {
+      "kicker": "Profile",
+      "title": "Profile",
+      "description": "This information is used only for account recognition, the sign-in menu, and protected account features.",
+      "saved": "Profile saved",
+      "avatarUpdated": "Avatar updated",
+      "avatarReset": "Avatar restored to the default",
+      "displayName": "Display name",
+      "email": "Email",
+      "emailInvalid": "Enter a valid email address",
+      "avatar": "Avatar",
+      "uploadAvatar": "Upload avatar",
+      "resetAvatar": "Restore default avatar",
+      "avatarHint": "JPG, PNG, GIF, and WebP are supported. Maximum file size: 2 MB.",
+      "bio": "Bio",
+      "save": "Save profile"
+    },
+    "security": {
+      "kicker": "Security",
+      "title": "Security and sign-in",
+      "description": "Manage your password and optional wallet sign-in.",
+      "updated": "Password updated. Please sign in again.",
+      "passwordTitle": "Password",
+      "currentPassword": "Current password",
+      "currentPasswordRequired": "Enter your current password",
+      "newPassword": "New password",
+      "setPassword": "Set sign-in password",
+      "passwordMin": "Password must be at least 8 characters",
+      "confirmPassword": "Confirm new password",
+      "passwordMismatch": "The passwords do not match",
+      "changePassword": "Change password",
+      "walletTitle": "Wallet sign-in",
+      "bound": "Linked",
+      "walletBoundHint": "Your linked wallet can sign in and can also sign transaction evidence for administrators.",
+      "walletEmptyHint": "A wallet is an optional second sign-in method."
+    },
+    "points": {
+      "kicker": "Points",
+      "title": "Points",
+      "description": "Redeem gift codes and review every points change.",
+      "redeemed": "Redeemed {points} points",
+      "current": "Current points",
+      "redeemTitle": "Redeem a gift code",
+      "codeRequired": "Enter a gift code",
+      "redeem": "Redeem points",
+      "history": "Points history",
+      "table": {
+        "time": "Time",
+        "description": "Description",
+        "defaultDescription": "Points adjustment",
+        "change": "Change",
+        "balance": "Balance"
+      }
+    },
+    "membership": {
+      "kicker": "Membership",
+      "title": "Membership",
+      "description": "Use points to unlock levels and their article-reading benefits.",
+      "purchased": "Membership benefits activated",
+      "purchaseTitle": "Activate {name}",
+      "purchaseDuration": "{points} points will be deducted. Valid for {days} days.",
+      "purchasePermanent": "{points} points will be deducted. Valid permanently.",
+      "confirm": "Activate",
+      "cancel": "Cancel",
+      "current": "Current membership benefits",
+      "level": "Level",
+      "validity": "Validity",
+      "permanent": "Permanent",
+      "noCurrent": "No active membership benefits",
+      "availablePoints": "Available points",
+      "pointsHint": "Points are deducted immediately after a successful purchase.",
+      "availableLevels": "Available levels",
+      "price": "{points} points",
+      "duration": "Valid for {days} days",
+      "owned": "Owned permanently",
+      "higherLevel": "Your current level is higher",
+      "insufficient": "Not enough points",
+      "purchase": "Activate with points",
+      "noLevels": "No purchasable membership levels have been configured",
+      "history": "Membership grant history",
+      "table": {
+        "level": "Level",
+        "source": "Source",
+        "purchase": "Points purchase",
+        "granted": "Granted by administrator",
+        "grantedAt": "Granted at",
+        "expiresAt": "Expires at",
+        "status": "Status",
+        "revoked": "Revoked",
+        "active": "Active",
+        "expired": "Expired"
+      }
+    }
+  },
+  "Evidence": {
+    "live": {
+      "action": "Verify transaction on-chain",
+      "passed": "Verification passed",
+      "notPassed": "Not verified yet",
+      "failed": "Live verification failed",
+      "releaseVerified": "The on-chain transaction, this site's evidence protocol, version hash, and signing wallet all match.",
+      "releaseUnverified": "Live on-chain verification could not be completed. This does not downgrade a receipt's confirmed local status.",
+      "contractVerified": "The on-chain transaction, contract tamper-evidence protocol, contract digest, and administrator signing wallet all match.",
+      "contractUnverified": "Live on-chain verification could not be completed. This does not disclose the contract body or signer identity."
+    }
+  },
+  "Maintenance": {
+    "kicker": "SYSTEM MAINTENANCE",
+    "title": "Database configuration requires maintenance",
+    "description": "The installation wizard will not reopen automatically. Check the persistent configuration volume, master key, and database availability.",
+    "unavailable": "Database configuration is unavailable"
+  },
+  "MarkdownView": {
+    "unavailableTitle": "Document unavailable",
+    "contentTooLarge": "This content exceeds the safe display limit of {limit} characters. Ask an administrator to shorten or split the document."
   }
 }

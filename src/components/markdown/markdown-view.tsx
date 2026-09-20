@@ -15,6 +15,7 @@ import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import type { Options as SanitizeSchema } from 'rehype-sanitize'
 import rehypeSlug from 'rehype-slug'
 import remarkGfm from 'remark-gfm'
+import { useTranslations } from 'next-intl'
 
 import {
   DOCUMENT_CONTENT_MAX_CHARACTERS,
@@ -75,14 +76,15 @@ const sanitizeSchema = {
 } satisfies SanitizeSchema
 
 export function MarkdownView({ content, className = '' }: { content: string; className?: string }) {
+  const t = useTranslations('MarkdownView')
   const articleClassName = `${markdownStyles.root} ${className}`.trim()
   if (!isDocumentContentWithinLimit(content)) {
     return (
       <article className={articleClassName} data-document-error="content-too-large" role="alert">
         <div className="sloth-callout sloth-callout-warning">
-          <strong>文档暂时无法展示 / Document unavailable</strong>
+          <strong>{t('unavailableTitle')}</strong>
           <p>
-            内容超过 {DOCUMENT_CONTENT_MAX_CHARACTERS.toLocaleString()} 字符的安全展示限制，请联系管理员精简或拆分文档。
+            {t('contentTooLarge', { limit: DOCUMENT_CONTENT_MAX_CHARACTERS.toLocaleString() })}
           </p>
         </div>
       </article>

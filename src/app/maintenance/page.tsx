@@ -13,6 +13,7 @@ import { Alert, Card, Typography } from 'antd'
 import { AuthFrame } from '@/components/auth/auth-frame'
 import { createPageMetadata } from '@/i18n/metadata'
 import { readRuntimeInstallationPublicStatus } from '@/server/database/runtime-health'
+import { getTranslations } from 'next-intl/server'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,20 +23,21 @@ export async function generateMetadata() {
 
 export default async function MaintenancePage() {
   const status = await readRuntimeInstallationPublicStatus()
+  const t = await getTranslations('Maintenance')
   return (
     <AuthFrame>
       <Card className="auth-card" variant="borderless">
         <div className="auth-heading">
-          <Typography.Text className="auth-kicker">SYSTEM MAINTENANCE</Typography.Text>
-          <Typography.Title level={1}>数据库配置需要维护</Typography.Title>
+          <Typography.Text className="auth-kicker">{t('kicker')}</Typography.Text>
+          <Typography.Title level={1}>{t('title')}</Typography.Title>
           <Typography.Paragraph type="secondary">
-            系统不会自动重新开放安装向导。请检查持久化配置卷、主密钥和数据库可用性。
+            {t('description')}
           </Typography.Paragraph>
         </div>
         <Alert
           type="error"
           showIcon
-          message={status.error || 'Database configuration is unavailable'}
+          title={status.error || t('unavailable')}
         />
       </Card>
     </AuthFrame>

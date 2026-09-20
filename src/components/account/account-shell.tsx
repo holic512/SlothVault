@@ -16,21 +16,13 @@ import { useQuery } from '@tanstack/react-query'
 import { Avatar, Button, Space, Typography } from 'antd'
 import { Coins, Crown, FileSignature, KeyRound, LayoutDashboard, ShieldCheck, UserRound } from 'lucide-react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { usePathname } from 'next/navigation'
 
 import { apiFetch } from '@/lib/api-client'
 import type { SessionUser } from '@/types/user'
 
 const AccountUserContext = createContext<SessionUser | null>(null)
-
-const accountSections = [
-  { href: '/account', label: '账户概览', icon: LayoutDashboard },
-  { href: '/account/profile', label: '个人资料', icon: UserRound },
-  { href: '/account/security', label: '安全与登录', icon: ShieldCheck },
-  { href: '/account/contracts', label: '我的合同', icon: FileSignature },
-  { href: '/account/points', label: '积分中心', icon: Coins },
-  { href: '/account/membership', label: '会员中心', icon: Crown },
-]
 
 export function useAccountUser() {
   const user = useContext(AccountUserContext)
@@ -45,7 +37,16 @@ export function AccountShell({
   initialUser: SessionUser
   children: ReactNode
 }) {
+  const t = useTranslations('Account.shell')
   const pathname = usePathname()
+  const accountSections = [
+    { href: '/account', label: t('overview'), icon: LayoutDashboard },
+    { href: '/account/profile', label: t('profile'), icon: UserRound },
+    { href: '/account/security', label: t('security'), icon: ShieldCheck },
+    { href: '/account/contracts', label: t('contracts'), icon: FileSignature },
+    { href: '/account/points', label: t('points'), icon: Coins },
+    { href: '/account/membership', label: t('membership'), icon: Crown },
+  ]
   const sessionQuery = useQuery({
     queryKey: ['session-user'],
     queryFn: () => apiFetch<SessionUser | null>('/api/auth/session'),
@@ -59,17 +60,17 @@ export function AccountShell({
         <section className="account-hero account-hero--workspace">
           <Avatar size={54} src={user.avatar || undefined} icon={<UserRound />} />
           <div>
-            <Typography.Text className="account-eyebrow">Account workspace</Typography.Text>
+            <Typography.Text className="account-eyebrow">{t('kicker')}</Typography.Text>
             <Typography.Title level={1}>{user.displayName || user.username}</Typography.Title>
-            <Typography.Text type="secondary">@{user.username} · {user.role === 'ADMIN' ? '管理员' : '个人用户'}</Typography.Text>
+            <Typography.Text type="secondary">@{user.username} · {user.role === 'ADMIN' ? t('administrator') : t('user')}</Typography.Text>
           </div>
           <Space className="account-hero-actions" size={6}>
-            {user.role === 'ADMIN' ? <Button type="primary" href="/admin/mm">管理后台</Button> : null}
+            {user.role === 'ADMIN' ? <Button type="primary" href="/admin/mm">{t('admin')}</Button> : null}
           </Space>
         </section>
 
         <div className="account-workspace">
-          <aside className="account-section-rail" aria-label="账户功能导航">
+          <aside className="account-section-rail" aria-label={t('navigationLabel')}>
             <nav className="account-section-nav">
               {accountSections.map(({ href, label, icon: Icon }) => (
                 <Link key={href} href={href} className={pathname === href ? 'is-active' : ''}>
@@ -80,7 +81,7 @@ export function AccountShell({
             </nav>
             <div className="account-section-rail-note">
               <KeyRound size={14} />
-              <span>账户数据与登录凭据仅对本人可见。</span>
+              <span>{t('privacyNotice')}</span>
             </div>
           </aside>
           <section className="account-route-content">{children}</section>

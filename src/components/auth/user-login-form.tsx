@@ -15,6 +15,7 @@ import { useEffect, useState } from 'react'
 import { LockOutlined, UserOutlined } from '@ant-design/icons'
 import { Alert, App, Button, Card, Checkbox, Divider, Form, Input, Typography } from 'antd'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 
 import { WalletLoginButton } from '@/components/auth/wallet-login-button'
@@ -28,6 +29,7 @@ type LoginValues = {
 }
 
 export function UserLoginForm() {
+  const t = useTranslations('UserAuth.login')
   const router = useRouter()
   const { message } = App.useApp()
   const [errorText, setErrorText] = useState('')
@@ -40,10 +42,10 @@ export function UserLoginForm() {
       })
       .catch((error) => {
         if (!(error instanceof ApiClientError) || error.status !== 401) {
-          setErrorText(error instanceof Error ? error.message : '无法读取登录状态')
+          setErrorText(error instanceof Error ? error.message : t('sessionReadFailed'))
         }
       })
-  }, [router])
+  }, [router, t])
 
   const submit = async (values: LoginValues) => {
     setSubmitting(true)
@@ -53,11 +55,11 @@ export function UserLoginForm() {
         method: 'POST',
         body: JSON.stringify(values),
       })
-      message.success('登录成功')
+      message.success(t('success'))
       router.replace('/account')
       router.refresh()
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '登录失败')
+      message.error(error instanceof Error ? error.message : t('failed'))
     } finally {
       setSubmitting(false)
     }
@@ -66,10 +68,10 @@ export function UserLoginForm() {
   return (
     <Card className="auth-card auth-card--user" variant="borderless">
       <div className="auth-heading auth-heading--editorial">
-        <Typography.Text className="auth-kicker">Account</Typography.Text>
-        <Typography.Title level={1}>登录 SlothVault</Typography.Title>
+        <Typography.Text className="auth-kicker">{t('kicker')}</Typography.Text>
+        <Typography.Title level={1}>{t('title')}</Typography.Title>
         <Typography.Paragraph type="secondary">
-          用普通账户维护个人资料、处理合同和兑换积分。
+          {t('description')}
         </Typography.Paragraph>
       </div>
 
@@ -81,24 +83,24 @@ export function UserLoginForm() {
         initialValues={{ remember: false }}
         onFinish={(values) => void submit(values)}
       >
-        <Form.Item name="identifier" rules={[{ required: true, message: '请输入用户名或邮箱' }]}>
-          <Input prefix={<UserOutlined />} placeholder="用户名或邮箱" autoComplete="username" />
+        <Form.Item name="identifier" rules={[{ required: true, message: t('identifierRequired') }]}>
+          <Input prefix={<UserOutlined />} placeholder={t('identifier')} autoComplete="username" />
         </Form.Item>
-        <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
-          <Input.Password prefix={<LockOutlined />} placeholder="密码" autoComplete="current-password" />
+        <Form.Item name="password" rules={[{ required: true, message: t('passwordRequired') }]}>
+          <Input.Password prefix={<LockOutlined />} placeholder={t('password')} autoComplete="current-password" />
         </Form.Item>
         <Form.Item name="remember" valuePropName="checked">
-          <Checkbox>保持登录 30 天</Checkbox>
+          <Checkbox>{t('remember')}</Checkbox>
         </Form.Item>
         <Button block type="primary" htmlType="submit" loading={submitting}>
-          登录
+          {t('submit')}
         </Button>
       </Form>
 
-      <Divider plain>或</Divider>
+      <Divider plain>{t('or')}</Divider>
       <WalletLoginButton />
       <Typography.Paragraph className="auth-footnote" type="secondary">
-        还没有账户？<Link href="/register">注册个人账户</Link>
+        {t('noAccount')}<Link href="/register">{t('register')}</Link>
       </Typography.Paragraph>
     </Card>
   )

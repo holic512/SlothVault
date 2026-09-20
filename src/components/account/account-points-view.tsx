@@ -13,6 +13,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Button, Card, Form, Input, Statistic, Table, Typography } from 'antd'
 import { Coins, Ticket } from 'lucide-react'
+import { useLocale, useTranslations } from 'next-intl'
 
 import { useAccountUser } from '@/components/account/account-shell'
 import { apiFetch } from '@/lib/api-client'
@@ -33,6 +34,8 @@ type PointsData = {
 }
 
 export function AccountPointsView() {
+  const t = useTranslations('Account.points')
+  const locale = useLocale()
   const user = useAccountUser()
   const queryClient = useQueryClient()
   const { message } = App.useApp()
@@ -48,7 +51,7 @@ export function AccountPointsView() {
         body: JSON.stringify(values),
       }),
     onSuccess: async (result) => {
-      message.success(`已兑换 ${result.pointsAdded} 积分`)
+      message.success(t('redeemed', { points: result.pointsAdded }))
       redeemForm.resetFields()
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['account-points'] }),
@@ -63,27 +66,27 @@ export function AccountPointsView() {
     <div className="account-route">
       <div className="account-route-heading">
         <div>
-          <Typography.Text className="account-eyebrow">Points</Typography.Text>
-          <Typography.Title level={2}>积分中心</Typography.Title>
-          <Typography.Text type="secondary">兑换卡密并查看每一笔积分变动。</Typography.Text>
+          <Typography.Text className="account-eyebrow">{t('kicker')}</Typography.Text>
+          <Typography.Title level={2}>{t('title')}</Typography.Title>
+          <Typography.Text type="secondary">{t('description')}</Typography.Text>
         </div>
       </div>
 
       <div className="account-points-summary">
         <Card className="account-card account-overview-balance">
-          <Statistic title="当前积分" value={pointsBalance} prefix={<Coins size={17} />} />
+          <Statistic title={t('current')} value={pointsBalance} prefix={<Coins size={17} />} />
         </Card>
-        <Card className="account-card account-route-card" title={<span className="account-card-title"><Ticket size={16} />兑换卡密</span>}>
+        <Card className="account-card account-route-card" title={<span className="account-card-title"><Ticket size={16} />{t('redeemTitle')}</span>}>
           <Form form={redeemForm} layout="vertical" onFinish={(values) => redeemMutation.mutate(values)}>
-            <Form.Item name="code" rules={[{ required: true, message: '请输入卡密' }]}>
+            <Form.Item name="code" rules={[{ required: true, message: t('codeRequired') }]}>
               <Input placeholder="SV-XXXXX-XXXXX-XXXXX-XXXXX" />
             </Form.Item>
-            <Button htmlType="submit" loading={redeemMutation.isPending}>兑换积分</Button>
+            <Button htmlType="submit" loading={redeemMutation.isPending}>{t('redeem')}</Button>
           </Form>
         </Card>
       </div>
 
-      <Card className="account-card account-ledger-card" title="积分记录">
+      <Card className="account-card account-ledger-card" title={t('history')}>
         <Table<PointEntry>
           rowKey="id"
           size="small"
@@ -92,10 +95,10 @@ export function AccountPointsView() {
           pagination={false}
           scroll={{ x: 660 }}
           columns={[
-            { title: '时间', dataIndex: 'createdAt', width: 176, render: (value) => new Date(value).toLocaleString() },
-            { title: '说明', dataIndex: 'description', render: (value) => value || '积分变动' },
-            { title: '变动', dataIndex: 'amount', width: 100, align: 'right', render: (value) => <strong>{value > 0 ? `+${value}` : value}</strong> },
-            { title: '余额', dataIndex: 'balanceAfter', width: 100, align: 'right' },
+            { title: t('table.time'), dataIndex: 'createdAt', width: 176, render: (value) => new Date(value).toLocaleString(locale) },
+            { title: t('table.description'), dataIndex: 'description', render: (value) => value || t('table.defaultDescription') },
+            { title: t('table.change'), dataIndex: 'amount', width: 100, align: 'right', render: (value) => <strong>{value > 0 ? `+${value}` : value}</strong> },
+            { title: t('table.balance'), dataIndex: 'balanceAfter', width: 100, align: 'right' },
           ]}
         />
       </Card>

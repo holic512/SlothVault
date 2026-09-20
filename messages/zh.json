@@ -48,6 +48,21 @@
       "published": "发布于 {date}",
       "scope": "此哈希证明版本 manifest 与 Markdown 逻辑内容，不包含附件二进制或外部 URL 当前内容。",
       "download": "下载 manifest"
+    },
+    "evidence": {
+      "verify": "核验凭证",
+      "release": {
+        "label": "版本交易存证",
+        "devnet": "测试存证 · Devnet",
+        "mainnet": "正式存证 · Mainnet",
+        "description": "签名钱包已对本版本完整哈希进行 Solana Memo 存证。"
+      },
+      "content": {
+        "label": "本文内容版本存证",
+        "devnet": "本文测试存证 · Devnet",
+        "mainnet": "本文内容版本存证 · Mainnet",
+        "description": "此凭证仅绑定当前公开主内容版本。"
+      }
     }
   },
   "DocumentEditor": {
@@ -1710,5 +1725,224 @@
     "header": {
       "backHome": "返回主页"
     }
+  },
+  "UserAuth": {
+    "login": {
+      "kicker": "账户",
+      "title": "登录 SlothVault",
+      "description": "使用普通账户维护个人资料、处理合同和兑换积分。",
+      "sessionReadFailed": "无法读取登录状态",
+      "success": "登录成功",
+      "failed": "登录失败",
+      "identifier": "用户名或邮箱",
+      "identifierRequired": "请输入用户名或邮箱",
+      "password": "密码",
+      "passwordRequired": "请输入密码",
+      "remember": "保持登录 30 天",
+      "submit": "登录",
+      "or": "或",
+      "noAccount": "还没有账户？",
+      "register": "注册个人账户"
+    },
+    "register": {
+      "kicker": "新账户",
+      "title": "创建个人账户",
+      "description": "钱包不是必需条件；用户名和密码就是默认登录方式。",
+      "success": "账户已创建",
+      "failed": "注册失败",
+      "username": "用户名",
+      "usernameRequired": "请输入用户名",
+      "usernameFormat": "使用 3–32 位字母、数字或下划线",
+      "displayName": "显示名称（可选）",
+      "email": "邮箱（可选）",
+      "emailInvalid": "邮箱格式不正确",
+      "password": "密码",
+      "passwordMin": "密码至少需要 8 位",
+      "confirmPassword": "确认密码",
+      "confirmPasswordRequired": "请再次输入密码",
+      "passwordMismatch": "两次输入的密码不一致",
+      "submit": "注册并登录",
+      "hasAccount": "已有账户？",
+      "login": "返回登录"
+    },
+    "wallet": {
+      "bound": "钱包地址已绑定",
+      "loginSuccess": "登录成功",
+      "select": "选择钱包",
+      "bind": "签名并绑定钱包地址",
+      "login": "使用钱包地址登录"
+    }
+  },
+  "Account": {
+    "nav": {
+      "login": "登录",
+      "overview": "账户概览",
+      "profile": "个人资料",
+      "security": "安全与登录",
+      "points": "积分中心",
+      "membership": "会员中心",
+      "contracts": "我的合同",
+      "admin": "管理后台",
+      "logout": "退出登录"
+    },
+    "shell": {
+      "kicker": "账户工作区",
+      "overview": "账户概览",
+      "profile": "个人资料",
+      "security": "安全与登录",
+      "contracts": "我的合同",
+      "points": "积分中心",
+      "membership": "会员中心",
+      "administrator": "管理员",
+      "user": "个人用户",
+      "admin": "管理后台",
+      "navigationLabel": "账户功能导航",
+      "privacyNotice": "账户数据与登录凭据仅对本人可见。"
+    },
+    "overview": {
+      "kicker": "概览",
+      "title": "账户概览",
+      "description": "从这里进入资料、安全和积分功能。",
+      "points": "当前积分",
+      "viewPoints": "查看积分记录",
+      "quickLinks": "快捷入口",
+      "status": {
+        "title": "账户状态",
+        "password": "登录密码",
+        "wallet": "钱包地址",
+        "role": "账户身份",
+        "configured": "已设置",
+        "notConfigured": "待设置",
+        "bound": "已绑定",
+        "notBound": "未绑定",
+        "administrator": "管理员",
+        "user": "个人用户"
+      },
+      "actions": {
+        "profile": "编辑个人资料",
+        "security": "管理安全与登录",
+        "points": "兑换卡密与查看积分",
+        "membership": "开通与管理会员权益"
+      },
+      "identity": {
+        "title": "你的账户由独立路由管理",
+        "description": "资料、安全和积分互不干扰，操作结果会立即同步到账户菜单。"
+      }
+    },
+    "profile": {
+      "kicker": "资料",
+      "title": "个人资料",
+      "description": "这些信息仅用于账户识别、登录菜单和受保护的账户功能。",
+      "saved": "个人资料已保存",
+      "avatarUpdated": "头像已更新",
+      "avatarReset": "头像已恢复为默认",
+      "displayName": "显示名称",
+      "email": "邮箱",
+      "emailInvalid": "请输入有效邮箱地址",
+      "avatar": "头像",
+      "uploadAvatar": "上传头像",
+      "resetAvatar": "恢复默认头像",
+      "avatarHint": "支持 JPG、PNG、GIF、WebP，单个文件最大 2MB。",
+      "bio": "个人简介",
+      "save": "保存资料"
+    },
+    "security": {
+      "kicker": "安全",
+      "title": "安全与登录",
+      "description": "管理密码和可选的钱包登录方式。",
+      "updated": "密码已更新，请重新登录",
+      "passwordTitle": "密码",
+      "currentPassword": "当前密码",
+      "currentPasswordRequired": "请输入当前密码",
+      "newPassword": "新密码",
+      "setPassword": "设置登录密码",
+      "passwordMin": "密码至少需要 8 位",
+      "confirmPassword": "确认新密码",
+      "passwordMismatch": "两次输入的密码不一致",
+      "changePassword": "修改密码",
+      "walletTitle": "钱包登录",
+      "bound": "已绑定",
+      "walletBoundHint": "绑定的钱包可用于登录，也可用于管理员的交易存证签名。",
+      "walletEmptyHint": "钱包是可选的第二登录方式。"
+    },
+    "points": {
+      "kicker": "积分",
+      "title": "积分中心",
+      "description": "兑换卡密并查看每一笔积分变动。",
+      "redeemed": "已兑换 {points} 积分",
+      "current": "当前积分",
+      "redeemTitle": "兑换卡密",
+      "codeRequired": "请输入卡密",
+      "redeem": "兑换积分",
+      "history": "积分记录",
+      "table": {
+        "time": "时间",
+        "description": "说明",
+        "defaultDescription": "积分变动",
+        "change": "变动",
+        "balance": "余额"
+      }
+    },
+    "membership": {
+      "kicker": "会员",
+      "title": "会员中心",
+      "description": "使用积分开通等级，解锁对应文章阅读权限。",
+      "purchased": "会员权益已开通",
+      "purchaseTitle": "开通 {name}",
+      "purchaseDuration": "将扣除 {points} 积分，有效期 {days} 天。",
+      "purchasePermanent": "将扣除 {points} 积分，永久有效。",
+      "confirm": "确认开通",
+      "cancel": "取消",
+      "current": "当前会员权益",
+      "level": "等级",
+      "validity": "有效期",
+      "permanent": "永久有效",
+      "noCurrent": "当前没有有效会员权益",
+      "availablePoints": "可用积分",
+      "pointsHint": "积分会在购买成功后即时扣除。",
+      "availableLevels": "可开通等级",
+      "price": "{points} 积分",
+      "duration": "有效 {days} 天",
+      "owned": "已永久拥有",
+      "higherLevel": "当前等级更高",
+      "insufficient": "积分不足",
+      "purchase": "积分开通",
+      "noLevels": "管理员尚未配置可购买会员等级",
+      "history": "会员授权记录",
+      "table": {
+        "level": "等级",
+        "source": "来源",
+        "purchase": "积分购买",
+        "granted": "管理员授予",
+        "grantedAt": "授予时间",
+        "expiresAt": "到期时间",
+        "status": "状态",
+        "revoked": "已取消",
+        "active": "有效",
+        "expired": "已过期"
+      }
+    }
+  },
+  "Evidence": {
+    "live": {
+      "action": "实时核验链上交易",
+      "passed": "核验通过",
+      "notPassed": "暂未通过",
+      "failed": "实时核验失败",
+      "releaseVerified": "链上交易与本站存证协议、版本哈希和签名钱包完全一致。",
+      "releaseUnverified": "当前未能完成实时链上核验；已确认凭证的本地状态不会因此被降级。",
+      "contractVerified": "链上交易与本站合同防篡改协议、合同摘要和管理员签名钱包完全一致。",
+      "contractUnverified": "当前未能完成实时链上核验；这不会公开合同正文或签约身份。"
+    }
+  },
+  "Maintenance": {
+    "kicker": "系统维护",
+    "title": "数据库配置需要维护",
+    "description": "系统不会自动重新开放安装向导。请检查持久化配置卷、主密钥和数据库可用性。",
+    "unavailable": "数据库配置不可用"
+  },
+  "MarkdownView": {
+    "unavailableTitle": "文档暂时无法展示",
+    "contentTooLarge": "内容超过 {limit} 字符的安全展示限制，请联系管理员精简或拆分文档。"
   }
 }

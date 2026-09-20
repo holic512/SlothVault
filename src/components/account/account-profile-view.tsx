@@ -15,6 +15,7 @@ import { useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { App, Avatar, Button, Card, Form, Input, Space, Typography, Upload } from 'antd'
 import { ImageUp, Save, Trash2, UserRound } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 import { useAccountUser } from '@/components/account/account-shell'
 import { apiFetch } from '@/lib/api-client'
@@ -27,6 +28,7 @@ type ProfileValues = {
 }
 
 export function AccountProfileView() {
+  const t = useTranslations('Account.profile')
   const user = useAccountUser()
   const queryClient = useQueryClient()
   const { message } = App.useApp()
@@ -52,7 +54,7 @@ export function AccountProfileView() {
       }),
     onSuccess: (nextUser) => {
       queryClient.setQueryData(['session-user'], nextUser)
-      message.success('个人资料已保存')
+      message.success(t('saved'))
     },
     onError: (error) => message.error(error.message),
   })
@@ -68,7 +70,7 @@ export function AccountProfileView() {
     },
     onSuccess: (nextUser) => {
       queryClient.setQueryData(['session-user'], nextUser)
-      message.success('头像已更新')
+      message.success(t('avatarUpdated'))
     },
     onError: (error) => message.error(error.message),
   })
@@ -77,7 +79,7 @@ export function AccountProfileView() {
     mutationFn: () => apiFetch<SessionUser>('/api/account/profile/avatar', { method: 'DELETE' }),
     onSuccess: (nextUser) => {
       queryClient.setQueryData(['session-user'], nextUser)
-      message.success('头像已恢复为默认')
+      message.success(t('avatarReset'))
     },
     onError: (error) => message.error(error.message),
   })
@@ -86,19 +88,19 @@ export function AccountProfileView() {
     <div className="account-route">
       <div className="account-route-heading">
         <div>
-          <Typography.Text className="account-eyebrow">Profile</Typography.Text>
-          <Typography.Title level={2}>个人资料</Typography.Title>
-          <Typography.Text type="secondary">这些信息仅用于账户识别、登录菜单和受保护的账户功能。</Typography.Text>
+          <Typography.Text className="account-eyebrow">{t('kicker')}</Typography.Text>
+          <Typography.Title level={2}>{t('title')}</Typography.Title>
+          <Typography.Text type="secondary">{t('description')}</Typography.Text>
         </div>
       </div>
 
       <Card className="account-card account-route-card">
         <Form form={form} layout="vertical" onFinish={(values) => saveMutation.mutate(values)}>
           <div className="account-form-grid">
-            <Form.Item name="displayName" label="显示名称"><Input prefix={<UserRound size={14} />} maxLength={80} /></Form.Item>
-            <Form.Item name="email" label="邮箱" rules={[{ type: 'email', message: '请输入有效邮箱地址' }]}><Input /></Form.Item>
+            <Form.Item name="displayName" label={t('displayName')}><Input prefix={<UserRound size={14} />} maxLength={80} /></Form.Item>
+            <Form.Item name="email" label={t('email')} rules={[{ type: 'email', message: t('emailInvalid') }]}><Input /></Form.Item>
           </div>
-          <Form.Item label="头像">
+          <Form.Item label={t('avatar')}>
             <Space wrap size={12}>
               <Avatar size={68} src={user.avatar || undefined} icon={<UserRound />} />
               <Space orientation="vertical" size={6}>
@@ -112,7 +114,7 @@ export function AccountProfileView() {
                   }}
                 >
                   <Button icon={<ImageUp size={15} />} loading={uploadAvatarMutation.isPending}>
-                    上传头像
+                    {t('uploadAvatar')}
                   </Button>
                 </Upload>
                 <Button
@@ -123,16 +125,16 @@ export function AccountProfileView() {
                   loading={removeAvatarMutation.isPending}
                   onClick={() => removeAvatarMutation.mutate()}
                 >
-                  恢复默认头像
+                  {t('resetAvatar')}
                 </Button>
-                <Typography.Text type="secondary">支持 JPG、PNG、GIF、WebP，单个文件最大 2MB。</Typography.Text>
+                <Typography.Text type="secondary">{t('avatarHint')}</Typography.Text>
               </Space>
             </Space>
           </Form.Item>
-          <Form.Item name="bio" label="个人简介">
+          <Form.Item name="bio" label={t('bio')}>
             <Input.TextArea rows={4} maxLength={2_000} showCount />
           </Form.Item>
-          <Button type="primary" htmlType="submit" icon={<Save size={15} />} loading={saveMutation.isPending}>保存资料</Button>
+          <Button type="primary" htmlType="submit" icon={<Save size={15} />} loading={saveMutation.isPending}>{t('save')}</Button>
         </Form>
       </Card>
     </div>
