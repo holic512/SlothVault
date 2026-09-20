@@ -65,7 +65,7 @@ const updateProjectMetadataSchema = z.strictObject({
 
 export function registerProjectTools(server: McpServer) {
   server.registerTool(
-    'project.list',
+    'content.project.list',
     {
       title: '列出管理员项目',
       description: '分页读取未删除项目及其最新已发布版本摘要。该工具只读。',
@@ -80,7 +80,7 @@ export function registerProjectTools(server: McpServer) {
       }),
       annotations: READ_ONLY_ANNOTATIONS,
     },
-    async ({ page, pageSize, keyword }) => runMcpTool('project.list', async () =>
+    async ({ page, pageSize, keyword }) => runMcpTool('content.project.list', async () =>
       listAdminProjects({
         page,
         pageSize,
@@ -95,7 +95,7 @@ export function registerProjectTools(server: McpServer) {
   )
 
   server.registerTool(
-    'project.get',
+    'content.project.get',
     {
       title: '读取项目详情',
       description: '按 ID 读取一个管理员项目，包括状态和删除标记。该工具只读。',
@@ -105,12 +105,12 @@ export function registerProjectTools(server: McpServer) {
       outputSchema: projectOutputSchema,
       annotations: READ_ONLY_ANNOTATIONS,
     },
-    async ({ projectId }) => runMcpTool('project.get', async () =>
+    async ({ projectId }) => runMcpTool('content.project.get', async () =>
       getAdminProject(mcpId(projectId, 'projectId'))),
   )
 
   server.registerTool(
-    'project.create',
+    'content.project.create',
     {
       title: '创建项目草稿外壳',
       description: '创建启用的项目外壳。项目在存在已发布版本前不会出现在公开项目列表。',
@@ -122,12 +122,12 @@ export function registerProjectTools(server: McpServer) {
       outputSchema: projectOutputSchema,
       annotations: CREATE_ANNOTATIONS,
     },
-    async ({ projectName, avatar, weight }) => runMcpTool('project.create', async () =>
+    async ({ projectName, avatar, weight }) => runMcpTool('content.project.create', async () =>
       createAdminProject({ projectName, avatar, weight, status: 1 })),
   )
 
   server.registerTool(
-    'project.update_metadata',
+    'content.project.update',
     {
       title: '更新项目元数据',
       description: '更新项目名称、头像或权重。已有发布版本时仅允许修改权重。',
@@ -136,7 +136,7 @@ export function registerProjectTools(server: McpServer) {
       annotations: UPDATE_ANNOTATIONS,
     },
     async ({ projectId, projectName, avatar, weight }) =>
-      runMcpTool('project.update_metadata', async () => updateAdminProjectMetadataFromMcp(
+      runMcpTool('content.project.update', async () => updateAdminProjectMetadataFromMcp(
         mcpId(projectId, 'projectId'),
         { projectName, avatar, weight },
       )),

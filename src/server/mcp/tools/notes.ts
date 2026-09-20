@@ -94,7 +94,7 @@ const updateNoteSchema = z.strictObject({
 
 export function registerNoteTools(server: McpServer, principal: McpPrincipal) {
   server.registerTool(
-    'note.list',
+    'content.note.list',
     {
       title: '列出笔记',
       description: '分页读取未删除笔记、父级摘要和正文版本数量。该工具只读。',
@@ -125,7 +125,7 @@ export function registerNoteTools(server: McpServer, principal: McpPrincipal) {
       status,
       orderBy,
       order,
-    }) => runMcpTool('note.list', async () => listAdminNotes({
+    }) => runMcpTool('content.note.list', async () => listAdminNotes({
       page,
       pageSize,
       skip: (page - 1) * pageSize,
@@ -145,7 +145,7 @@ export function registerNoteTools(server: McpServer, principal: McpPrincipal) {
   )
 
   server.registerTool(
-    'note.get',
+    'content.note.get',
     {
       title: '读取笔记',
       description: '按 ID 读取笔记元数据和完整父级摘要。该工具只读，不返回正文。',
@@ -153,12 +153,12 @@ export function registerNoteTools(server: McpServer, principal: McpPrincipal) {
       outputSchema: noteOutputSchema,
       annotations: READ_ONLY_ANNOTATIONS,
     },
-    async ({ noteId }) => runMcpTool('note.get', async () =>
+    async ({ noteId }) => runMcpTool('content.note.get', async () =>
       getAdminNote(mcpId(noteId, 'noteId'))),
   )
 
   server.registerTool(
-    'note.create',
+    'content.note.create',
     {
       title: '创建笔记',
       description: '在草稿版本的分类中创建笔记，作者固定为当前 MCP 管理员。',
@@ -172,7 +172,7 @@ export function registerNoteTools(server: McpServer, principal: McpPrincipal) {
       annotations: CREATE_ANNOTATIONS,
     },
     async ({ categoryId, noteTitle, weight, status }) =>
-      runMcpTool('note.create', async () => createAdminNote({
+      runMcpTool('content.note.create', async () => createAdminNote({
         categoryId,
         authorId: principal.userId,
         noteTitle,
@@ -182,7 +182,7 @@ export function registerNoteTools(server: McpServer, principal: McpPrincipal) {
   )
 
   server.registerTool(
-    'note.update',
+    'content.note.update',
     {
       title: '更新笔记草稿',
       description: '修改笔记元数据或移动到另一个分类；所有相关项目版本都必须未发布。',
@@ -191,7 +191,7 @@ export function registerNoteTools(server: McpServer, principal: McpPrincipal) {
       annotations: UPDATE_ANNOTATIONS,
     },
     async ({ noteId, categoryId, noteTitle, weight, status }) =>
-      runMcpTool('note.update', async () => updateAdminNote(
+      runMcpTool('content.note.update', async () => updateAdminNote(
         mcpId(noteId, 'noteId'),
         { categoryId, noteTitle, weight, status },
       )),

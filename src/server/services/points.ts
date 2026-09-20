@@ -257,6 +257,38 @@ export async function listUsers(input: {
   }
 }
 
+export async function getManagedUser(userId: number) {
+  const now = new Date()
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      username: true,
+      email: true,
+      displayName: true,
+      role: true,
+      status: true,
+      pointsBalance: true,
+      walletAddress: true,
+      createdAt: true,
+      membershipGrants: {
+        where: {
+          revokedAt: null,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
+        include: { membershipLevel: true },
+      },
+    },
+  })
+  if (!user) throw new HttpError('User not found', 404, 404)
+  const { membershipGrants, ...profile } = user
+  return {
+    ...profile,
+    id: profile.id.toString(),
+    currentMembership: membershipSummaryFromGrants(membershipGrants, now),
+  }
+}
+
 export async function adjustUserPoints(input: {
   adminId: number
   userId: number

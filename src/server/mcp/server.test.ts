@@ -10,6 +10,23 @@ const mocks = vi.hoisted(() => ({
   createAdminNoteContent: vi.fn(), getAdminNoteContent: vi.fn(),
   listAdminNoteContentVersions: vi.fn(), updateAdminNoteContent: vi.fn(),
   checkDraftProjectVersion: vi.fn(), cloneProjectVersion: vi.fn(),
+  getProjectVersionIntegrity: vi.fn(), getProjectVersionManifest: vi.fn(),
+  createAdminArticle: vi.fn(), getAdminArticle: vi.fn(),
+  listAdminArticles: vi.fn(), updateAdminArticle: vi.fn(),
+  createProjectHome: vi.fn(), createProjectMenu: vi.fn(), createSystemHomepage: vi.fn(),
+  getProjectHome: vi.fn(), getProjectMenu: vi.fn(), getSystemHomepage: vi.fn(),
+  listProjectHomes: vi.fn(), listProjectMenus: vi.fn(), updateProjectHome: vi.fn(),
+  updateProjectMenu: vi.fn(), updateSystemHomepage: vi.fn(),
+  getAdminFile: vi.fn(), listAdminFiles: vi.fn(), uploadAdminFileBuffer: vi.fn(),
+  readManagedFile: vi.fn(), managedFileContentType: vi.fn(),
+  getAdminDashboard: vi.fn(), listAdminSettings: vi.fn(),
+  getManagedUser: vi.fn(), listGiftCardBatches: vi.fn(),
+  listUserPointTransactions: vi.fn(), listUsers: vi.fn(),
+  getManagedUserMembership: vi.fn(), listMembershipLevels: vi.fn(),
+  getAdminContract: vi.fn(), listAdminContracts: vi.fn(),
+  readAuthorizedContractAttachment: vi.fn(),
+  getAdminReleaseEvidence: vi.fn(), listReleaseEvidence: vi.fn(),
+  getSystemUpdateInfo: vi.fn(),
 }))
 
 vi.mock('@/server/services/admin-catalog', () => ({
@@ -43,6 +60,74 @@ vi.mock('@/server/services/admin-notes', () => ({
 vi.mock('@/server/services/project-version-release', () => ({
   checkDraftProjectVersion: mocks.checkDraftProjectVersion,
   cloneProjectVersion: mocks.cloneProjectVersion,
+  getProjectVersionIntegrity: mocks.getProjectVersionIntegrity,
+  getProjectVersionManifest: mocks.getProjectVersionManifest,
+}))
+
+vi.mock('@/server/services/admin-articles', () => ({
+  createAdminArticle: mocks.createAdminArticle,
+  getAdminArticle: mocks.getAdminArticle,
+  listAdminArticles: mocks.listAdminArticles,
+  updateAdminArticle: mocks.updateAdminArticle,
+}))
+
+vi.mock('@/server/services/admin-content', () => ({
+  createProjectHome: mocks.createProjectHome,
+  createProjectMenu: mocks.createProjectMenu,
+  createSystemHomepage: mocks.createSystemHomepage,
+  getProjectHome: mocks.getProjectHome,
+  getProjectMenu: mocks.getProjectMenu,
+  getSystemHomepage: mocks.getSystemHomepage,
+  listProjectHomes: mocks.listProjectHomes,
+  listProjectMenus: mocks.listProjectMenus,
+  updateProjectHome: mocks.updateProjectHome,
+  updateProjectMenu: mocks.updateProjectMenu,
+  updateSystemHomepage: mocks.updateSystemHomepage,
+}))
+
+vi.mock('@/server/services/admin-files', () => ({
+  AVATAR_FILE_MAX_BYTES: 2 * 1024 * 1024,
+  GENERAL_FILE_MAX_BYTES: 10 * 1024 * 1024,
+  getAdminFile: mocks.getAdminFile,
+  listAdminFiles: mocks.listAdminFiles,
+  uploadAdminFileBuffer: mocks.uploadAdminFileBuffer,
+  readManagedFile: mocks.readManagedFile,
+  managedFileContentType: mocks.managedFileContentType,
+}))
+
+vi.mock('@/server/services/admin-dashboard', () => ({
+  getAdminDashboard: mocks.getAdminDashboard,
+}))
+
+vi.mock('@/server/services/admin-settings', () => ({
+  listAdminSettings: mocks.listAdminSettings,
+}))
+
+vi.mock('@/server/services/points', () => ({
+  getManagedUser: mocks.getManagedUser,
+  listGiftCardBatches: mocks.listGiftCardBatches,
+  listUserPointTransactions: mocks.listUserPointTransactions,
+  listUsers: mocks.listUsers,
+}))
+
+vi.mock('@/server/services/membership', () => ({
+  getManagedUserMembership: mocks.getManagedUserMembership,
+  listMembershipLevels: mocks.listMembershipLevels,
+}))
+
+vi.mock('@/server/services/contracts', () => ({
+  getAdminContract: mocks.getAdminContract,
+  listAdminContracts: mocks.listAdminContracts,
+  readAuthorizedContractAttachment: mocks.readAuthorizedContractAttachment,
+}))
+
+vi.mock('@/server/services/release-evidence', () => ({
+  getAdminReleaseEvidence: mocks.getAdminReleaseEvidence,
+  listReleaseEvidence: mocks.listReleaseEvidence,
+}))
+
+vi.mock('@/server/services/system-update', () => ({
+  getSystemUpdateInfo: mocks.getSystemUpdateInfo,
 }))
 
 import { createAdminMcpServer } from '@/server/mcp/server'
@@ -103,11 +188,13 @@ async function handle(message: Record<string, unknown>) {
 type McpJsonResponse = {
   result: {
     serverInfo: { name: string; version: string }
-    tools: Array<{ name: string; outputSchema?: unknown }>
+    tools: Array<{ name: string; inputSchema?: unknown; outputSchema?: unknown }>
     prompts: Array<{ name: string }>
+    resourceTemplates: Array<{ name: string; uriTemplate: string }>
     structuredContent: { list: Array<Record<string, unknown>> }
     isError?: boolean
     content: Array<{ text: string }>
+    contents: Array<{ uri: string; name?: string; mimeType?: string; blob?: string }>
     messages: Array<{ content: { text: string } }>
   }
 }
@@ -118,7 +205,7 @@ async function resultOf(message: Record<string, unknown>) {
 }
 
 describe('administrator MCP server', () => {
-  it('publishes the 2.0 identity and exactly the twenty draft-management tools', async () => {
+  it('publishes the 3.0 identity and the complete safe daily-management tool registry', async () => {
     const initialize = await resultOf({
       jsonrpc: '2.0', id: 1, method: 'initialize',
       params: {
@@ -127,22 +214,76 @@ describe('administrator MCP server', () => {
       },
     })
     expect(initialize).toMatchObject({
-      result: { serverInfo: { name: 'slothvault-admin-mcp', version: '2.0.0' } },
+      result: { serverInfo: { name: 'slothvault-admin-mcp', version: '3.0.0' } },
     })
 
     const listed = await resultOf({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} })
     const names = listed.result.tools.map((tool: { name: string }) => tool.name)
     expect(names).toEqual([
-      'project.list', 'project.get', 'project.create', 'project.update_metadata',
-      'project_version.list', 'project_version.get', 'project_version.create_draft',
-      'project_version.check_draft', 'category.list', 'category.create', 'category.update',
-      'note.list', 'note.get', 'note.create', 'note.update', 'note_content.list_versions',
-      'note_content.get', 'note_content.create_draft', 'note_content.update_draft',
-      'note_content.set_primary_draft',
+      'content.project.list', 'content.project.get', 'content.project.create', 'content.project.update',
+      'content.project.version.list', 'content.project.version.get', 'content.project.version.create_draft',
+      'content.project.version.clone', 'content.project.version.check_draft',
+      'content.project.version.integrity', 'content.project.version.manifest',
+      'content.category.list', 'content.category.create', 'content.category.update',
+      'content.note.list', 'content.note.get', 'content.note.create', 'content.note.update',
+      'content.note.content.list_versions', 'content.note.content.get',
+      'content.note.content.create_draft', 'content.note.content.update_draft',
+      'content.note.content.set_primary',
+      'content.article.list', 'content.article.get', 'content.article.create', 'content.article.update',
+      'content.project.home.list', 'content.project.home.get', 'content.project.home.create',
+      'content.project.home.update', 'content.project.menu.list', 'content.project.menu.get',
+      'content.project.menu.create', 'content.project.menu.update',
+      'content.homepage.get', 'content.homepage.create', 'content.homepage.update',
+      'content.file.list', 'content.file.get', 'content.file.upload',
+      'admin.dashboard.get', 'admin.user.list', 'admin.user.get',
+      'admin.membership.level.list', 'admin.user.membership.get',
+      'admin.points.transaction.list', 'admin.gift_card.batch.list',
+      'admin.contract.list', 'admin.contract.get', 'admin.contract.attachment.get',
+      'admin.evidence.list', 'admin.evidence.get', 'admin.settings.get', 'admin.system.update.get',
     ])
     expect(names).not.toContain('admin_project_list')
-    expect(names.some((name: string) => /publish|withdraw|delete|restore|batch/.test(name))).toBe(false)
+    expect(names.some((name: string) =>
+      /(?:^|\.)(?:publish|withdraw|delete|restore|password|adjust|issue|submit|reconcile|reset|backup)(?:\.|$)/.test(name),
+    )).toBe(false)
+    expect(listed.result.tools.every((tool: { inputSchema?: unknown }) => tool.inputSchema)).toBe(true)
     expect(listed.result.tools.every((tool: { outputSchema?: unknown }) => tool.outputSchema)).toBe(true)
+  })
+
+  it('publishes protected managed-file and contract-attachment resource templates', async () => {
+    const listed = await resultOf({ jsonrpc: '2.0', id: 21, method: 'resources/templates/list', params: {} })
+    expect(listed.result.resourceTemplates).toEqual([
+      expect.objectContaining({ name: 'managed-file', uriTemplate: 'slothvault://managed-file/{id}' }),
+      expect.objectContaining({ name: 'contract-attachment', uriTemplate: 'slothvault://contract-attachment/{contractId}' }),
+    ])
+
+    mocks.readManagedFile.mockResolvedValue({
+      file: { originalName: 'guide.md', businessType: 'Markdown', status: 1 },
+      buffer: Buffer.from('# Guide'),
+    })
+    mocks.managedFileContentType.mockReturnValue('text/markdown; charset=utf-8')
+    const read = await resultOf({
+      jsonrpc: '2.0', id: 22, method: 'resources/read',
+      params: { uri: 'slothvault://managed-file/44' },
+    })
+    expect(read.result.contents).toEqual([expect.objectContaining({
+      uri: 'slothvault://managed-file/44',
+      name: 'guide.md',
+      mimeType: 'text/markdown; charset=utf-8',
+      blob: Buffer.from('# Guide').toString('base64'),
+    })])
+  })
+
+  it('rejects invalid Base64 before delegating a file upload', async () => {
+    mocks.uploadAdminFileBuffer.mockClear()
+    const rejected = await resultOf({
+      jsonrpc: '2.0', id: 23, method: 'tools/call',
+      params: {
+        name: 'content.file.upload',
+        arguments: { originalName: 'guide.md', businessType: 'Markdown', contentBase64: 'not-base64' },
+      },
+    })
+    expect(rejected.result.isError).toBe(true)
+    expect(mocks.uploadAdminFileBuffer).not.toHaveBeenCalled()
   })
 
   it('delegates project listing and returns validated structured content', async () => {
@@ -152,7 +293,7 @@ describe('administrator MCP server', () => {
     })
     const called = await resultOf({
       jsonrpc: '2.0', id: 3, method: 'tools/call',
-      params: { name: 'project.list', arguments: { page: 2, pageSize: 5, keyword: ' Docs ' } },
+      params: { name: 'content.project.list', arguments: { page: 2, pageSize: 5, keyword: ' Docs ' } },
     })
 
     expect(mocks.listAdminProjects).toHaveBeenCalledWith({
@@ -170,7 +311,7 @@ describe('administrator MCP server', () => {
     mocks.createAdminNote.mockResolvedValue(note())
     const called = await resultOf({
       jsonrpc: '2.0', id: 4, method: 'tools/call',
-      params: { name: 'note.create', arguments: { categoryId: '21', noteTitle: 'Getting Started' } },
+      params: { name: 'content.note.create', arguments: { categoryId: '21', noteTitle: 'Getting Started' } },
     })
     expect(called.result.isError).not.toBe(true)
     expect(mocks.createAdminNote).toHaveBeenCalledWith({
@@ -181,7 +322,7 @@ describe('administrator MCP server', () => {
     const rejected = await resultOf({
       jsonrpc: '2.0', id: 5, method: 'tools/call',
       params: {
-        name: 'note.create',
+        name: 'content.note.create',
         arguments: { categoryId: '21', noteTitle: 'Forged', authorId: '99' },
       },
     })
@@ -192,7 +333,7 @@ describe('administrator MCP server', () => {
   it('rejects invalid IDs and oversized content before service delegation', async () => {
     const invalidId = await resultOf({
       jsonrpc: '2.0', id: 51, method: 'tools/call',
-      params: { name: 'project.get', arguments: { projectId: '0' } },
+      params: { name: 'content.project.get', arguments: { projectId: '0' } },
     })
     expect(invalidId.result.isError).toBe(true)
     expect(mocks.getAdminProject).not.toHaveBeenCalled()
@@ -200,7 +341,7 @@ describe('administrator MCP server', () => {
     const oversized = await resultOf({
       jsonrpc: '2.0', id: 52, method: 'tools/call',
       params: {
-        name: 'note_content.create_draft',
+        name: 'content.note.content.create_draft',
         arguments: { noteId: '31', content: 'x'.repeat(500_001) },
       },
     })
@@ -216,7 +357,7 @@ describe('administrator MCP server', () => {
     }))
     const called = await resultOf({
       jsonrpc: '2.0', id: 53, method: 'tools/call',
-      params: { name: 'project.get', arguments: { projectId: '9' } },
+      params: { name: 'content.project.get', arguments: { projectId: '9' } },
     })
     expect(called.result.isError).toBe(true)
     const errorText = called.result.content[0].text
@@ -233,7 +374,7 @@ describe('administrator MCP server', () => {
     mocks.createAdminProjectVersion.mockResolvedValue(draft)
     await resultOf({
       jsonrpc: '2.0', id: 6, method: 'tools/call',
-      params: { name: 'project_version.create_draft', arguments: { projectId: '9', version: 'v2' } },
+      params: { name: 'content.project.version.create_draft', arguments: { projectId: '9', version: 'v2' } },
     })
     expect(mocks.createAdminProjectVersion).toHaveBeenCalledWith({
       projectId: '9', version: 'v2', description: null, weight: 0,
@@ -247,7 +388,7 @@ describe('administrator MCP server', () => {
     await resultOf({
       jsonrpc: '2.0', id: 7, method: 'tools/call',
       params: {
-        name: 'project_version.create_draft',
+        name: 'content.project.version.clone',
         arguments: { projectId: '9', sourceVersionId: '11', version: 'v2' },
       },
     })
@@ -260,7 +401,7 @@ describe('administrator MCP server', () => {
     const rejected = await resultOf({
       jsonrpc: '2.0', id: 71, method: 'tools/call',
       params: {
-        name: 'project_version.create_draft',
+        name: 'content.project.version.clone',
         arguments: { projectId: '9', sourceVersionId: '13', version: 'v2' },
       },
     })
@@ -277,7 +418,7 @@ describe('administrator MCP server', () => {
     })
     const called = await resultOf({
       jsonrpc: '2.0', id: 8, method: 'tools/call',
-      params: { name: 'note_content.list_versions', arguments: { noteId: '31' } },
+      params: { name: 'content.note.content.list_versions', arguments: { noteId: '31' } },
     })
     expect(called.result.structuredContent.list[0]).not.toHaveProperty('content')
     expect(mocks.listAdminNoteContentVersions).toHaveBeenCalledWith(31)
@@ -299,7 +440,7 @@ describe('administrator MCP server', () => {
       },
     })
     const text = prompt.result.messages[0].content.text
-    expect(text).toContain('project_version.check_draft')
+    expect(text).toContain('content.project.version.check_draft')
     expect(text).not.toMatch(/admin_project_list|\.publish|\.delete|\.restore/)
   })
 })

@@ -60,7 +60,7 @@ const updateContentSchema = z.strictObject({
 
 export function registerNoteContentTools(server: McpServer) {
   server.registerTool(
-    'note_content.list_versions',
+    'content.note.content.list_versions',
     {
       title: '列出笔记正文版本',
       description: '列出未删除正文版本的轻量元数据，不返回 Markdown 正文。该工具只读。',
@@ -68,12 +68,12 @@ export function registerNoteContentTools(server: McpServer) {
       outputSchema: z.object({ list: z.array(noteContentVersionOutputSchema) }),
       annotations: READ_ONLY_ANNOTATIONS,
     },
-    async ({ noteId }) => runMcpTool('note_content.list_versions', async () =>
+    async ({ noteId }) => runMcpTool('content.note.content.list_versions', async () =>
       listAdminNoteContentVersions(mcpId(noteId, 'noteId'))),
   )
 
   server.registerTool(
-    'note_content.get',
+    'content.note.content.get',
     {
       title: '读取笔记正文',
       description: '按正文版本 ID 读取完整 Markdown 与版本元数据。该工具只读。',
@@ -81,12 +81,12 @@ export function registerNoteContentTools(server: McpServer) {
       outputSchema: noteContentOutputSchema,
       annotations: READ_ONLY_ANNOTATIONS,
     },
-    async ({ noteContentId }) => runMcpTool('note_content.get', async () =>
+    async ({ noteContentId }) => runMcpTool('content.note.content.get', async () =>
       getAdminNoteContent(mcpId(noteContentId, 'noteContentId'))),
   )
 
   server.registerTool(
-    'note_content.create_draft',
+    'content.note.content.create_draft',
     {
       title: '创建笔记正文草稿',
       description: '在未发布版本中创建正文历史项；首个未删除正文会自动成为主版本。',
@@ -100,7 +100,7 @@ export function registerNoteContentTools(server: McpServer) {
       annotations: CREATE_ANNOTATIONS,
     },
     async ({ noteId, content, versionNote, status }) =>
-      runMcpTool('note_content.create_draft', async () => createAdminNoteContent({
+      runMcpTool('content.note.content.create_draft', async () => createAdminNoteContent({
         noteInfoId: noteId,
         content,
         versionNote,
@@ -110,7 +110,7 @@ export function registerNoteContentTools(server: McpServer) {
   )
 
   server.registerTool(
-    'note_content.update_draft',
+    'content.note.content.update_draft',
     {
       title: '更新笔记正文草稿',
       description: '更新正文 Markdown、版本说明或启用状态；不删除且不切换主版本。',
@@ -119,14 +119,14 @@ export function registerNoteContentTools(server: McpServer) {
       annotations: UPDATE_ANNOTATIONS,
     },
     async ({ noteContentId, content, versionNote, status }) =>
-      runMcpTool('note_content.update_draft', async () => updateAdminNoteContent(
+      runMcpTool('content.note.content.update_draft', async () => updateAdminNoteContent(
         mcpId(noteContentId, 'noteContentId'),
         { content, versionNote, status },
       )),
   )
 
   server.registerTool(
-    'note_content.set_primary_draft',
+    'content.note.content.set_primary',
     {
       title: '设置主正文草稿',
       description: '将指定未删除正文设为主版本，并在同一事务中取消该笔记的其他主版本。',
@@ -134,7 +134,7 @@ export function registerNoteContentTools(server: McpServer) {
       outputSchema: noteContentOutputSchema,
       annotations: UPDATE_ANNOTATIONS,
     },
-    async ({ noteContentId }) => runMcpTool('note_content.set_primary_draft', async () =>
+    async ({ noteContentId }) => runMcpTool('content.note.content.set_primary', async () =>
       updateAdminNoteContent(mcpId(noteContentId, 'noteContentId'), { isPrimary: true })),
   )
 }

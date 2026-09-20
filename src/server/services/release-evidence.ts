@@ -950,6 +950,20 @@ export async function listReleaseEvidence(input: {
   }
 }
 
+export async function getAdminReleaseEvidence(id: number) {
+  const credential = await prisma.releaseCredential.findUnique({
+    where: { id },
+    include: {
+      projectVersion: { include: { project: true } },
+      noteContent: { include: { noteInfo: { include: { category: true } } } },
+      issuerUser: true,
+      attempts: { orderBy: { createdAt: 'desc' } },
+    },
+  })
+  if (!credential) throw new HttpError('Release evidence not found', 404, 404)
+  return evidenceDto(credential)
+}
+
 export async function getPublicReleaseEvidence(signature: string) {
   const credential = await prisma.releaseCredential.findUnique({
     where: { transactionSignature: signature },

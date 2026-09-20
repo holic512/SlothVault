@@ -71,7 +71,7 @@ export const BUSINESS_TYPE_CONFIG = {
   NoteAttachment: { dir: 'note-attachment', imagesOnly: false },
   HomeworkFile: { dir: 'homework', imagesOnly: false },
   ContractAttachment: { dir: 'contract-attachment', imagesOnly: false },
-  Markdown: { dir: 'markdown', imagesOnly: true },
+  Markdown: { dir: 'markdown', imagesOnly: false },
   TempFile: { dir: 'temp', imagesOnly: false },
   Other: { dir: 'other', imagesOnly: false },
 } as const
@@ -607,6 +607,23 @@ export async function uploadAdminFiles(request: Request, options: UploadFilesOpt
         ? 1
         : options.maxFiles,
   })).map(uploadedFileDto)
+}
+
+export async function uploadAdminFileBuffer(input: {
+  originalName: string
+  businessType: BusinessType
+  buffer: Buffer
+}) {
+  const file = new File([new Uint8Array(input.buffer)], input.originalName)
+  const [record] = await persistPreparedUploads(
+    await prepareUploads([file], input.businessType),
+  )
+  if (!record) throw new HttpError('File upload failed', 500, 500)
+  return fileDto(record)
+}
+
+export function managedFileContentType(fileName: string) {
+  return CONTENT_TYPES[extensionOf(fileName)] || 'application/octet-stream'
 }
 
 export async function uploadSystemLogo(

@@ -84,7 +84,7 @@ const updateCategorySchema = z.strictObject({
 
 export function registerCategoryTools(server: McpServer) {
   server.registerTool(
-    'category.list',
+    'content.category.list',
     {
       title: '列出分类',
       description: '分页读取未删除分类及所属项目版本摘要。该工具只读。',
@@ -105,7 +105,7 @@ export function registerCategoryTools(server: McpServer) {
       annotations: READ_ONLY_ANNOTATIONS,
     },
     async ({ page, pageSize, projectId, projectVersionId, keyword, status, orderBy, order }) =>
-      runMcpTool('category.list', async () => listAdminCategories({
+      runMcpTool('content.category.list', async () => listAdminCategories({
         page,
         pageSize,
         skip: (page - 1) * pageSize,
@@ -124,7 +124,7 @@ export function registerCategoryTools(server: McpServer) {
   )
 
   server.registerTool(
-    'category.create',
+    'content.category.create',
     {
       title: '创建分类',
       description: '在未发布的项目版本草稿中创建分类。',
@@ -138,7 +138,7 @@ export function registerCategoryTools(server: McpServer) {
       annotations: CREATE_ANNOTATIONS,
     },
     async ({ projectVersionId, categoryName, weight, status }) =>
-      runMcpTool('category.create', async () => createAdminCategory({
+      runMcpTool('content.category.create', async () => createAdminCategory({
         projectVersionId,
         categoryName,
         weight,
@@ -147,7 +147,7 @@ export function registerCategoryTools(server: McpServer) {
   )
 
   server.registerTool(
-    'category.update',
+    'content.category.update',
     {
       title: '更新分类草稿',
       description: '修改分类元数据或将分类移动到另一个草稿版本；所有相关版本都必须未发布。',
@@ -156,7 +156,7 @@ export function registerCategoryTools(server: McpServer) {
       annotations: UPDATE_ANNOTATIONS,
     },
     async ({ categoryId, projectVersionId, categoryName, weight, status }) =>
-      runMcpTool('category.update', async () => updateAdminCategory(
+      runMcpTool('content.category.update', async () => updateAdminCategory(
         mcpId(categoryId, 'categoryId'),
         { projectVersionId, categoryName, weight, status },
       )),

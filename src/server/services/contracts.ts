@@ -1143,7 +1143,13 @@ export async function readAuthorizedContractAttachment(input: { id: number; user
   }
   if (!contract.attachmentFileId) throw new HttpError('Contract attachment not found', 404, 404)
   const { file, buffer } = await readManagedFile(contract.attachmentFileId)
-  if (file.businessType !== 'ContractAttachment') throw new HttpError('Contract attachment metadata is invalid', 409, 409)
+  if (
+    file.businessType !== 'ContractAttachment' ||
+    !file.originalName.toLowerCase().endsWith('.pdf') ||
+    !buffer.subarray(0, 5).equals(Buffer.from('%PDF-'))
+  ) {
+    throw new HttpError('Contract attachment metadata is invalid', 409, 409)
+  }
   return { originalName: file.originalName, buffer }
 }
 

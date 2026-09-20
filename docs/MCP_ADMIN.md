@@ -46,32 +46,34 @@ Authorization: Bearer svmcp_<public-id>.<secret>
 
 任一检查失败都会返回 HTTP `401` 和 MCP JSON-RPC 未认证错误。禁用或删除 Key 在下一次外部 MCP 请求时立即生效。
 
-## MCP 2.0 Tool
+## MCP 3.0 Tool
 
-MCP server identity 为 `slothvault-admin-mcp@2.0.0`。2.0 将原有 `admin_project_list` 直接替换为 `project.list`，不保留旧名；升级后应同步修改客户端保存的 Tool 名称。
+MCP server identity 为 `slothvault-admin-mcp@3.0.0`。3.0 使用点号分层命名，所有 2.0 Tool 名称均已停用且不保留别名；升级后应同步修改客户端保存的 Tool 名称。当前注册表共 55 个 Tool。
 
 | 领域 | Tool | 作用 |
 | --- | --- | --- |
-| 项目 | `project.list` | 分页读取未删除项目和最新已发布版本摘要。 |
-| 项目 | `project.get` | 读取一个项目的完整管理员元数据。 |
-| 项目 | `project.create` | 创建 `status=1` 的项目外壳；没有发布版本时不会公开。 |
-| 项目 | `project.update_metadata` | 更新名称、头像或权重；已有发布版本时只允许改权重。 |
-| 版本 | `project_version.list` | 分页读取草稿和已发布版本。 |
-| 版本 | `project_version.get` | 读取版本、所属项目和发布字段。 |
-| 版本 | `project_version.create_draft` | 创建空草稿，或从同项目的已发布版本复制文档树。 |
-| 版本 | `project_version.check_draft` | 只读执行正式发布所用的就绪校验。 |
-| 分类 | `category.list` | 分页读取分类和所属版本摘要。 |
-| 分类 | `category.create` | 在草稿版本中创建分类。 |
-| 分类 | `category.update` | 修改或在草稿版本之间移动分类。 |
-| 笔记 | `note.list` | 分页读取笔记、父级摘要和正文版本数。 |
-| 笔记 | `note.get` | 读取笔记元数据和父级摘要。 |
-| 笔记 | `note.create` | 创建笔记，作者固定为当前 MCP Key 所属管理员。 |
-| 笔记 | `note.update` | 修改或在草稿分类之间移动笔记。 |
-| 正文 | `note_content.list_versions` | 读取轻量正文版本列表，不返回 Markdown。 |
-| 正文 | `note_content.get` | 读取一个正文版本的完整 Markdown。 |
-| 正文 | `note_content.create_draft` | 创建正文历史项；首个正文自动成为主正文。 |
-| 正文 | `note_content.update_draft` | 更新 Markdown、版本说明或启用状态。 |
-| 正文 | `note_content.set_primary_draft` | 原子切换笔记的主正文版本。 |
+| 项目 | `content.project.list` / `content.project.get` | 分页读取项目或读取项目管理员详情。 |
+| 项目 | `content.project.create` / `content.project.update` | 创建项目或执行受草稿规则约束的元数据更新。 |
+| 版本 | `content.project.version.list` / `content.project.version.get` | 分页读取版本或读取版本发布字段。 |
+| 版本 | `content.project.version.create_draft` | 创建空的未发布版本草稿。 |
+| 版本 | `content.project.version.clone` | 从同项目的未删除发布版本复制文档树到新草稿。 |
+| 版本 | `content.project.version.check_draft` / `content.project.version.integrity` | 只读执行发布就绪校验或完整性校验。 |
+| 版本 | `content.project.version.manifest` | 读取已发布版本的规范 JSON 清单。 |
+| 分类 | `content.category.list` / `content.category.create` / `content.category.update` | 读取、创建或更新草稿版本分类。 |
+| 笔记 | `content.note.list` / `content.note.get` / `content.note.create` / `content.note.update` | 读取、创建或更新草稿版本笔记。 |
+| 正文 | `content.note.content.list_versions` / `content.note.content.get` | 读取正文历史摘要或完整 Markdown。 |
+| 正文 | `content.note.content.create_draft` / `content.note.content.update_draft` / `content.note.content.set_primary` | 创建、修改或切换正文主版本。 |
+| 文章 | `content.article.list` / `content.article.get` / `content.article.create` / `content.article.update` | 日常读取和编辑文章标题、摘要、封面、正文及会员等级引用；不执行发布生命周期。 |
+| 项目主页 | `content.project.home.list` / `content.project.home.get` / `content.project.home.create` / `content.project.home.update` | 读取、创建或更新项目主页。 |
+| 项目菜单 | `content.project.menu.list` / `content.project.menu.get` / `content.project.menu.create` / `content.project.menu.update` | 读取、创建或更新两级项目菜单。 |
+| 系统首页 | `content.homepage.get` / `content.homepage.create` / `content.homepage.update` | 读取、创建或更新系统首页。 |
+| 文件 | `content.file.list` / `content.file.get` / `content.file.upload` | 读取托管文件元数据或上传单个受限内容文件。 |
+| 后台只读 | `admin.dashboard.get` / `admin.user.list` / `admin.user.get` | 仪表盘和脱敏用户资料查询。 |
+| 后台只读 | `admin.membership.level.list` / `admin.user.membership.get` | 会员等级和用户会员查询。 |
+| 后台只读 | `admin.points.transaction.list` / `admin.gift_card.batch.list` | 积分流水和卡密批次统计查询，不返回明文卡密。 |
+| 后台只读 | `admin.contract.list` / `admin.contract.get` / `admin.contract.attachment.get` | 合同查询；附件通过受保护 Resource 读取。 |
+| 后台只读 | `admin.evidence.list` / `admin.evidence.get` | 只读查询数据库存证索引，不访问链上 RPC。 |
+| 后台只读 | `admin.settings.get` / `admin.system.update.get` | 脱敏设置和版本信息查询，不写设置、不执行更新。 |
 
 所有 ID 参数都必须是正十进制字符串，例如：
 
@@ -85,6 +87,8 @@ MCP server identity 为 `slothvault-admin-mcp@2.0.0`。2.0 将原有 `admin_proj
 
 从已发布版本创建草稿的示例：
 
+调用 `content.project.version.clone`：
+
 ```json
 {
   "projectId": "9",
@@ -94,7 +98,30 @@ MCP server identity 为 `slothvault-admin-mcp@2.0.0`。2.0 将原有 `admin_proj
 }
 ```
 
-`sourceVersionId` 必须属于 `projectId` 指定的同一项目，且来源必须已经发布、未删除。省略 `description` 或 `weight` 时沿用来源；不提供 `sourceVersionId` 时创建空草稿，默认说明为 `null`、权重为 `0`。
+`sourceVersionId` 必须属于 `projectId` 指定的同一项目，且来源必须已经发布、未删除。省略 `description` 或 `weight` 时沿用来源。若需要创建空草稿，应改调用 `content.project.version.create_draft`，默认说明为 `null`、权重为 `0`。
+
+### 文件上传与受保护 Resource
+
+`content.file.upload` 每次只接受一个文件，输入固定为：
+
+```json
+{
+  "originalName": "guide.md",
+  "businessType": "Markdown",
+  "contentBase64": "..."
+}
+```
+
+允许的 `businessType` 为 `ProjectAvatar`、`ArticleCover`、`ArticleAttachment`、`NoteAttachment`、`HomeworkFile`、`Markdown` 和 `Other`。`SystemLogo`、`SystemFavicon`、`UserAvatar`、`ContractAttachment` 不允许通过 MCP 上传。服务端会在 Base64 解码前检查编码长度，并继续复用文件名、扩展名、图片格式、Sharp 校验、路径安全和数据库事务；头像类文件限制 2 MB，普通文件限制 10 MB。普通 Tool 结果只返回文件元数据和 Resource URI，不嵌入大文件 Base64，也不返回旧的公共下载 URL。
+
+受保护 Resource URI 为：
+
+```text
+slothvault://managed-file/{id}
+slothvault://contract-attachment/{contractId}
+```
+
+每次 `resources/read` 都会重新验证当前 MCP Key。托管文件 Resource 只读取状态有效且非合同附件的文件；合同附件 Resource 通过合同授权 Service 返回原始文件名、`application/pdf` 和 blob，不暴露合同附件公共 URL。已删除、失效、缺失或业务类型不匹配的文件会返回受控错误。
 
 ## 工作流 Prompt
 
@@ -110,10 +137,10 @@ Prompt 返回给 MCP 客户端模型的是标准化执行指令，不会由服�
 
 项目版本一旦发布，版本本身及其分类、笔记、正文即被冻结。所有文档树写 Tool 都调用与网页后台相同的 Service、可串行化事务和版本锁；遇到发布版本会返回 `VERSION_FROZEN`，不会绕过业务规则或部分写入。
 
-`project.update_metadata` 有一个明确例外：已有发布版本的项目仍可调整权重，这可能立即改变公开排序；名称和头像必须在网页后台修改。含名称或头像的混合更新会整体失败，不会只应用其中的权重。
+`content.project.update` 有一个明确例外：已有发布版本的项目仍可调整权重，这可能立即改变公开排序；名称和头像必须在网页后台修改。含名称或头像的混合更新会整体失败，不会只应用其中的权重。
 
-`project_version.check_draft` 检查父项目状态、启用分类、启用笔记、唯一未删除主正文、主正文启用状态和非空正文。结果仅代表本次读取时刻；网页后台正式发布时会在事务中重新执行同一校验。
+`content.project.version.check_draft` 检查父项目状态、启用分类、启用笔记、唯一未删除主正文、主正文启用状态和非空正文。结果仅代表本次读取时刻；网页后台正式发布时会在事务中重新执行同一校验。
 
-MCP 不注册发布、撤回、删除、恢复、批量操作或版本可见性 Tool。普通用户 MCP、备份/恢复、系统设置、积分、卡密和链上交易操作也不在此入口提供。上述高风险操作继续由网页后台确认；后续如开放 MCP 发布，应采用独立的两段式确认协议。
+MCP 不注册项目、版本、分类、笔记、正文、文章、首页、菜单和文件的删除/恢复 Tool，也不注册发布、撤回、批量操作、版本可见性调整、密码重置、积分调整、卡密发行、会员授予/撤销、合同写入、链上提交、备份恢复、系统设置写入或系统更新执行 Tool。上述高风险操作继续由网页后台确认；后续如开放 MCP 发布，应采用独立的两段式确认协议。
 
 Tool、Prompt 与 Resource 注册分别位于 `src/server/mcp/tools/`、`src/server/mcp/prompts.ts` 和 `src/server/mcp/resources.ts`，均复用 `/mcp` 的 MCP Key 鉴权边界。

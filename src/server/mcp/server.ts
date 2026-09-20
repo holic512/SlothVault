@@ -2,7 +2,7 @@
  * @file server.ts
  * @project SlothVault
  * @module Administrator MCP Server
- * @description Constructs the per-request, stateless SlothVault administrator MCP server with draft-management tools and reusable workflows.
+ * @description Constructs the per-request, stateless SlothVault administrator MCP 3.0 server with daily content tools, safe read tools, protected Resources, and reusable workflows.
  * @logic Register the versioned server identity plus isolated Tool, Prompt, and Resource registries against one verified MCP principal while keeping protocol capabilities independent from browser routes.
  * @dependencies MCP TypeScript SDK, mcp/tools, mcp/prompts, mcp/resources, services/mcp-api-keys
  * @index_tags mcp,server,streamable-http,administrator,tools,prompts,resources
@@ -20,7 +20,7 @@ import { registerAdminMcpTools } from './tools'
 
 export function createAdminMcpServer(principal: McpPrincipal) {
   const server = new McpServer(
-    { name: 'slothvault-admin-mcp', version: '2.0.0' },
+    { name: 'slothvault-admin-mcp', version: '3.0.0' },
     { capabilities: { logging: {} } },
   )
   registerAdminMcpTools(server, principal)

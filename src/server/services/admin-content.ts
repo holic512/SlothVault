@@ -213,6 +213,58 @@ export async function getProjectHomeByProjectId(projectId: number) {
   return projectHomeDto(home)
 }
 
+export async function listProjectHomes(input: {
+  page: number
+  pageSize: number
+  skip: number
+  projectId?: number
+}) {
+  const where: Prisma.ProjectHomeWhereInput = {
+    isDeleted: false,
+    ...(input.projectId === undefined ? {} : { projectId: input.projectId }),
+  }
+  const [total, list] = await Promise.all([
+    prisma.projectHome.count({ where }),
+    prisma.projectHome.findMany({
+      where,
+      skip: input.skip,
+      take: input.pageSize,
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+    }),
+  ])
+  return {
+    list: list.map(projectHomeDto),
+    page: input.page,
+    pageSize: input.pageSize,
+    total,
+  }
+}
+
+export async function createProjectHome(
+  projectId: number,
+  input: CreateProjectHomeInput,
+) {
+  const content = requiredDocumentContent(input.content, 'Missing content')
+  try {
+    const home = await prisma.$transaction(async (tx) => {
+      await requireActiveProject(tx, projectId)
+      return tx.projectHome.create({
+        data: {
+          projectId,
+          content,
+          status: integerValue(input.status, 1),
+        },
+      })
+    })
+    return projectHomeDto(home)
+  } catch (error) {
+    if (hasPrismaCode(error, 'P2002')) {
+      throw new HttpError('Project homepage already exists', 409, 409)
+    }
+    throw error
+  }
+}
+
 export async function createOrRestoreProjectHome(
   projectId: number,
   input: CreateProjectHomeInput,
