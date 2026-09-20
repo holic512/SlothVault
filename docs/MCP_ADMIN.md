@@ -52,6 +52,8 @@ MCP server identity 为 `slothvault-admin-mcp@3.0.0`。3.0 使用点号分层命
 
 完整 Tool/Resource 清单、领域、风险、幂等性、URI、文件名和大小上限由注册表生成：[MCP Registry 清单](./MCP_REGISTRY.md)。修改 `src/server/mcp/tools/` 或 `src/server/mcp/resource-catalog.json` 后运行 `npm run mcp:docs`；CI 使用 `npm run mcp:docs:check` 阻止文档过期。
 
+面向 SlothTool MCP Client 的端到端调用范例、人工交接边界和 Skill 设计约束见：[SlothTool MCP Client 全场景操作与 Skill 设计指南](./SLOTHTOOL_MCP_WORKFLOW_GUIDE.md)。
+
 所有 ID 参数都必须是正十进制字符串，例如：
 
 ```json

@@ -191,7 +191,10 @@ type McpJsonResponse = {
     tools: Array<{ name: string; inputSchema?: unknown; outputSchema?: unknown }>
     prompts: Array<{ name: string }>
     resourceTemplates: Array<{ name: string; uriTemplate: string }>
-    structuredContent: { list: Array<Record<string, unknown>> }
+    structuredContent: {
+      list: Array<Record<string, unknown>>
+      grants: Array<Record<string, unknown>>
+    }
     isError?: boolean
     content: Array<{ text: string }>
     contents: Array<{
@@ -313,6 +316,40 @@ describe('administrator MCP server', () => {
     })
   })
 
+  it('returns administrator user reads with string role values', async () => {
+    const user = {
+      id: '8',
+      username: 'alice',
+      email: 'alice@example.com',
+      displayName: 'Alice',
+      role: 'USER',
+      status: 1,
+      pointsBalance: 80,
+      walletAddress: null,
+      createdAt: timestamp,
+      currentMembership: null,
+    }
+    mocks.listUsers.mockResolvedValue({ list: [user], total: 1 })
+    mocks.getManagedUser.mockResolvedValue(user)
+
+    const listed = await resultOf({
+      jsonrpc: '2.0', id: 31, method: 'tools/call',
+      params: {
+        name: 'admin.user.list',
+        arguments: { page: 1, pageSize: 20, keyword: 'alice' },
+      },
+    })
+    const detail = await resultOf({
+      jsonrpc: '2.0', id: 32, method: 'tools/call',
+      params: { name: 'admin.user.get', arguments: { userId: '8' } },
+    })
+
+    expect(listed.result.isError).not.toBe(true)
+    expect(listed.result.structuredContent.list[0]).toMatchObject({ id: '8', role: 'USER' })
+    expect(detail.result.isError).not.toBe(true)
+    expect(detail.result.structuredContent).toMatchObject({ id: '8', role: 'USER' })
+  })
+
   it('binds note authorship to the principal and rejects unknown fields', async () => {
     mocks.createAdminNote.mockResolvedValue(note())
     const called = await resultOf({
@@ -428,6 +465,42 @@ describe('administrator MCP server', () => {
     })
     expect(called.result.structuredContent.list[0]).not.toHaveProperty('content')
     expect(mocks.listAdminNoteContentVersions).toHaveBeenCalledWith(31)
+  })
+
+  it('returns administrator membership grants with a nullable points cost', async () => {
+    mocks.getManagedUserMembership.mockResolvedValue({
+      currentMembership: {
+        id: '2', name: 'VIP', rank: 2, expiresAt: null, source: 'ADMIN_GRANT',
+      },
+      grants: [{
+        id: '51',
+        membershipLevel: {
+          id: '2', name: 'VIP', rank: 2, pricePoints: 30, validityDays: 30, status: 1,
+          createdAt: timestamp, updatedAt: timestamp,
+        },
+        source: 'ADMIN_GRANT',
+        pointsCost: null,
+        grantedByUserId: '7',
+        grantedAt: timestamp,
+        expiresAt: null,
+        revokedAt: null,
+        revokedByUserId: null,
+        active: true,
+      }],
+    })
+
+    const called = await resultOf({
+      jsonrpc: '2.0', id: 81, method: 'tools/call',
+      params: { name: 'admin.user.membership.get', arguments: { userId: '8' } },
+    })
+
+    expect(called.result.isError).not.toBe(true)
+    expect(called.result.structuredContent.grants[0]).toMatchObject({
+      source: 'ADMIN_GRANT',
+      pointsCost: null,
+      grantedByUserId: '7',
+    })
+    expect(mocks.getManagedUserMembership).toHaveBeenCalledWith(8)
   })
 
   it('registers three workflows whose instructions respect the tool boundary', async () => {
