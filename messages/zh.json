@@ -1087,7 +1087,7 @@
       },
       "updates": {
         "cardTitle": "逐版本更新",
-        "notice": "此页面每次只展示紧邻的下一个正式版本。请在部署服务器上运行 SlothVault 部署脚本逐版本完成镜像更新。",
+        "notice": "此页面每次只展示紧邻的下一个正式版本。请在部署服务器上运行 slothtool slothvault deploy 逐版本完成镜像更新。",
         "checkedAt": "检查时间：{date}",
         "fields": {
           "installedVersion": "当前应用版本",

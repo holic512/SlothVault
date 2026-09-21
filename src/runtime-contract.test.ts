@@ -113,23 +113,6 @@ describe('Next runtime contract', () => {
     const dockerfile = readFileSync(join(root, 'Dockerfile'), 'utf8')
     const composeFiles = readComposeFiles()
     const entrypoint = readFileSync(join(root, 'docker-entrypoint.sh'), 'utf8')
-    const deploymentEntrypoint = readFileSync(join(root, 'deploy', 'install.py'), 'utf8')
-    const deploymentCompose = readFileSync(
-      join(root, 'deploy', 'slothvault_deploy', 'compose.py'),
-      'utf8',
-    )
-    const deploymentNginx = readFileSync(
-      join(root, 'deploy', 'slothvault_deploy', 'nginx.py'),
-      'utf8',
-    )
-    const deploymentCertbot = readFileSync(
-      join(root, 'deploy', 'slothvault_deploy', 'certbot.py'),
-      'utf8',
-    )
-    const deploymentCli = readFileSync(
-      join(root, 'deploy', 'slothvault_deploy', 'cli.py'),
-      'utf8',
-    )
     const sanitizer = readFileSync(
       join(root, 'scripts', 'sanitize-standalone.mjs'),
       'utf8',
@@ -157,39 +140,14 @@ describe('Next runtime contract', () => {
     expect(entrypoint).toContain('exec node server.js')
     expect(entrypoint).toContain('SLOTHVAULT_AUTO_BOOTSTRAP')
     expect(existsSync(join(root, 'install.py'))).toBe(false)
-    expect(deploymentEntrypoint).toContain('from slothvault_deploy.cli import main')
-    expect(deploymentCompose).toContain('DEFAULT_ROOT = Path("/data/slothvault")')
-    expect(deploymentCompose).toContain('compose_command')
-    expect(deploymentCompose).toContain('127.0.0.1:{0}:3000')
-    expect(deploymentNginx).toContain('proxy_set_header X-Forwarded-For')
-    expect(deploymentNginx).toContain('return 301 https://$host$request_uri;')
-    expect(deploymentNginx).toContain('class SystemNginxManager')
-    expect(deploymentNginx).toContain('class DockerNginxManager')
-    expect(deploymentNginx).toContain('"inspect", "--type", "container", container_name')
-    expect(deploymentNginx).toContain('OFFICIAL_NGINX_IMAGES')
-    expect(deploymentNginx).toContain('Docker Nginx 必须把 /etc/nginx/conf.d 或 /etc/nginx')
-    expect(deploymentNginx).toContain('proxy_pass http://{1};')
-    expect(deploymentNginx).toContain('upstream_host="slothvault"')
-    expect(deploymentNginx).toContain('不支持宝塔或第三方面板托管 Nginx')
-    expect(deploymentCli).toContain('--nginx-mode')
-    expect(deploymentCli).toContain('--nginx-container')
-    expect(deploymentCli).toContain('ensure_shared_slothvault_network')
-    expect(deploymentCli).toContain('自动模式不会扫描或接管 Docker 容器')
-    expect(deploymentCertbot).toContain('certonly')
-    expect(deploymentCertbot).toContain('--webroot')
-    expect(deploymentCertbot).toContain('slothvault-certbot-renew.timer')
-    expect(deploymentCertbot).toContain('DockerNginxManager')
-    expect(deploymentCertbot).toContain('exec {docker} exec {container} nginx -s reload')
-    expect(`${deploymentEntrypoint}\n${deploymentCompose}\n${deploymentNginx}\n${deploymentCertbot}`).not.toContain(
-      'import yaml',
-    )
+    expect(existsSync(join(root, 'deploy'))).toBe(false)
     expect(dockerfile).toContain('SLOTHVAULT_RELEASE_TAG')
     expect(dockerfile).toContain('org.opencontainers.image.revision')
     expect(workflow).toContain('Prepare immutable release identity')
     expect(workflow).toContain('SLOTHVAULT_RELEASE_COMMIT_SHA=${{ github.sha }}')
-    expect(workflow).toContain('release_metadata.py')
-    expect(workflow).toContain('git archive "${GITHUB_SHA}:deploy" | tar -x')
-    expect(workflow).toContain('gh release upload "$RELEASE_TAG" ./slothvault-deploy.zip --clobber')
+    expect(workflow).not.toContain('release_metadata.py')
+    expect(workflow).not.toContain('git archive "${GITHUB_SHA}:deploy" | tar -x')
+    expect(workflow).not.toContain('slothvault-deploy.zip')
     expect(sanitizer).toContain('removeSourceMaps(standaloneRoot)')
     expect(sanitizer).toContain('pruneSharpRuntimePackages(standaloneRoot)')
     expect(workflow).toContain('Inspect published image sizes')

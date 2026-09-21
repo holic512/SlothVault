@@ -1087,7 +1087,7 @@
       },
       "updates": {
         "cardTitle": "Step-by-step Updates",
-        "notice": "This page shows only the immediately next formal release. Run the SlothVault deployment script on the host server to update the image one Release at a time.",
+        "notice": "This page shows only the immediately next formal release. Run slothtool slothvault deploy on the host server to update the image one Release at a time.",
         "checkedAt": "Checked: {date}",
         "fields": {
           "installedVersion": "Running application version",

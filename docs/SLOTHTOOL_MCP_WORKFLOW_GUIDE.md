@@ -1,8 +1,8 @@
-# SlothTool MCP Client 全场景操作与 Skill 设计指南
+# SlothVault MCP Client 全场景操作与 Skill 设计指南
 
-本文面向通过 SlothTool `slothvault-mcp` 插件操作 SlothVault 管理员 MCP 的使用者，以及准备把这些流程封装为自动化 Skill 的开发者。目标不是重复列出全部 JSON Schema，而是给出一套可以执行、验证、停机和人工交接的标准流程。
+本文面向通过独立 `slothvault-mcp` 命令操作 SlothVault 管理员 MCP 的使用者，以及准备把这些流程封装为自动化 Skill 的开发者。该命令由 SlothTool 的 `slothvault` 多功能插件显式注册；目标不是重复列出全部 JSON Schema，而是给出一套可以执行、验证、停机和人工交接的标准流程。
 
-本文基于当前 SlothVault MCP 3.0 与 SlothTool `slothvault-mcp` 插件实现编写。兼容性基线为：
+本文基于当前 SlothVault MCP 3.0 与 SlothTool `slothvault` 插件实现编写。兼容性基线为：
 
 - MCP server identity：`slothvault-admin-mcp@3.0.0`；
 - 当前实时目录：55 个 Tool、3 个 Prompt、2 个 Resource Template。
@@ -20,7 +20,7 @@ SlothTool 是 MCP Client，SlothVault 是 MCP Server。一次典型调用链为�
 
 ```text
 Skill / 操作者
-  -> SlothTool slothvault-mcp CLI
+  -> slothvault-mcp CLI
     -> Streamable HTTP POST /mcp
       -> MCP Key 鉴权
         -> SlothVault Tool / Prompt / Resource
@@ -66,14 +66,15 @@ MCP Key 代表其所属管理员账号的管理权限。网页 Session Cookie �
 ### 2.2 安装插件并建立 Profile
 
 ```bash
-slothtool install slothvault-mcp
+slothtool install slothvault
+slothtool slothvault mcp register
 ```
 
 推荐通过标准输入录入 Key：
 
 ```bash
 printf '%s\n' "$SLOTHVAULT_MCP_KEY" | \
-  slothtool slothvault-mcp profile add production \
+  slothvault-mcp profile add production \
   --url https://vault.example.com/mcp \
   --key-stdin \
   --timeout 30000 \
@@ -86,7 +87,7 @@ printf '%s\n' "$SLOTHVAULT_MCP_KEY" | \
 Profile 保存在：
 
 ```text
-~/.pipker/slothtool/plugin-configs/slothvault-mcp.json
+~/.pipker/slothtool/plugin-configs/slothvault.json
 ```
 
 该文件包含明文 Key。SlothTool 会用私有权限创建它，但备份和 `gstore` 私有同步仓库仍应按凭据数据保护。
@@ -94,10 +95,10 @@ Profile 保存在：
 ### 2.3 建立兼容性基线
 
 ```bash
-slothtool slothvault-mcp doctor --profile production --json
-slothtool slothvault-mcp tools list --profile production --json
-slothtool slothvault-mcp prompts list --profile production --json
-slothtool slothvault-mcp resources list --profile production --json
+slothvault-mcp doctor --profile production --json
+slothvault-mcp tools list --profile production --json
+slothvault-mcp prompts list --profile production --json
+slothvault-mcp resources list --profile production --json
 ```
 
 当前兼容性检查应至少确认：
@@ -115,7 +116,7 @@ capabilities.resourceTemplates = 2
 ### 2.4 每次调用前查看实时 Tool 契约
 
 ```bash
-slothtool slothvault-mcp tools show content.project.create \
+slothvault-mcp tools show content.project.create \
   --profile production \
   --json
 ```
@@ -155,13 +156,13 @@ Skill 不应把本文示例当成永久 Schema。调用前至少检查：
 
 ```bash
 # 只读，不需要 --yes
-slothtool slothvault-mcp tools call content.project.list \
+slothvault-mcp tools call content.project.list \
   --args '{"page":1,"pageSize":50,"keyword":"项目 XXX"}' \
   --profile production \
   --json
 
 # 写操作，在非交互或 --json 模式中必须显式 --yes
-slothtool slothvault-mcp tools call content.project.create \
+slothvault-mcp tools call content.project.create \
   --args '{"projectName":"项目 XXX","avatar":null,"weight":0}' \
   --profile production \
   --yes \
@@ -175,7 +176,7 @@ slothtool slothvault-mcp tools call content.project.create \
 长 Markdown、文章正文和 Base64 文件不适合直接放入命令行。使用临时 JSON 文件：
 
 ```bash
-slothtool slothvault-mcp tools call content.note.content.create_draft \
+slothvault-mcp tools call content.note.content.create_draft \
   --args-file /tmp/slothvault-note-content.json \
   --profile production \
   --yes \
@@ -232,7 +233,7 @@ result.structuredContent
 `prompts get` 只返回标准 MCP messages：
 
 ```bash
-slothtool slothvault-mcp prompts get workflow.create_project_draft \
+slothvault-mcp prompts get workflow.create_project_draft \
   --args '{"projectName":"项目 XXX","version":"1.0","outline":"快速开始；架构；部署"}' \
   --profile production \
   --json
@@ -285,7 +286,7 @@ DISCOVER
 ### 5.1 读取服务端工作流建议
 
 ```bash
-slothtool slothvault-mcp prompts get workflow.create_project_draft \
+slothvault-mcp prompts get workflow.create_project_draft \
   --args '{"projectName":"项目 XXX","version":"1.0","description":"首个草稿","outline":"快速开始：安装、第一个项目；参考资料：配置项"}' \
   --profile production \
   --json
@@ -296,7 +297,7 @@ slothtool slothvault-mcp prompts get workflow.create_project_draft \
 ### 5.2 精确检查同名项目
 
 ```bash
-slothtool slothvault-mcp tools call content.project.list \
+slothvault-mcp tools call content.project.list \
   --args '{"page":1,"pageSize":50,"keyword":"项目 XXX"}' \
   --profile production \
   --json
@@ -311,7 +312,7 @@ slothtool slothvault-mcp tools call content.project.list \
 ### 5.3 创建项目外壳
 
 ```bash
-slothtool slothvault-mcp tools call content.project.create \
+slothvault-mcp tools call content.project.create \
   --args '{"projectName":"项目 XXX","avatar":null,"weight":0}' \
   --profile production \
   --yes \
@@ -321,7 +322,7 @@ slothtool slothvault-mcp tools call content.project.create \
 记录 `PROJECT_ID=result.structuredContent.id`，随后立即读取验证：
 
 ```bash
-slothtool slothvault-mcp tools call content.project.get \
+slothvault-mcp tools call content.project.get \
   --args '{"projectId":"<PROJECT_ID>"}' \
   --profile production \
   --json
@@ -332,7 +333,7 @@ slothtool slothvault-mcp tools call content.project.get \
 ### 5.4 创建空版本草稿
 
 ```bash
-slothtool slothvault-mcp tools call content.project.version.create_draft \
+slothvault-mcp tools call content.project.version.create_draft \
   --args '{"projectId":"<PROJECT_ID>","version":"1.0","description":"首个草稿","weight":0}' \
   --profile production \
   --yes \
@@ -348,13 +349,13 @@ slothtool slothvault-mcp tools call content.project.version.create_draft \
 ### 5.5 创建分类
 
 ```bash
-slothtool slothvault-mcp tools call content.category.create \
+slothvault-mcp tools call content.category.create \
   --args '{"projectVersionId":"<PROJECT_VERSION_ID>","categoryName":"快速开始","weight":10,"status":1}' \
   --profile production \
   --yes \
   --json
 
-slothtool slothvault-mcp tools call content.category.create \
+slothvault-mcp tools call content.category.create \
   --args '{"projectVersionId":"<PROJECT_VERSION_ID>","categoryName":"参考资料","weight":20,"status":1}' \
   --profile production \
   --yes \
@@ -366,19 +367,19 @@ slothtool slothvault-mcp tools call content.category.create \
 ### 5.6 创建笔记
 
 ```bash
-slothtool slothvault-mcp tools call content.note.create \
+slothvault-mcp tools call content.note.create \
   --args '{"categoryId":"<QUICKSTART_CATEGORY_ID>","noteTitle":"安装","weight":10,"status":1}' \
   --profile production \
   --yes \
   --json
 
-slothtool slothvault-mcp tools call content.note.create \
+slothvault-mcp tools call content.note.create \
   --args '{"categoryId":"<QUICKSTART_CATEGORY_ID>","noteTitle":"第一个项目","weight":20,"status":1}' \
   --profile production \
   --yes \
   --json
 
-slothtool slothvault-mcp tools call content.note.create \
+slothvault-mcp tools call content.note.create \
   --args '{"categoryId":"<REFERENCE_CATEGORY_ID>","noteTitle":"配置项","weight":10,"status":1}' \
   --profile production \
   --yes \
@@ -403,7 +404,7 @@ slothtool slothvault-mcp tools call content.note.create \
 调用：
 
 ```bash
-slothtool slothvault-mcp tools call content.note.content.create_draft \
+slothvault-mcp tools call content.note.content.create_draft \
   --args-file /tmp/slothvault-install-content.json \
   --profile production \
   --yes \
@@ -413,7 +414,7 @@ slothtool slothvault-mcp tools call content.note.content.create_draft \
 每篇笔记的首个未删除正文会自动成为主正文。创建后用以下命令确认 `isPrimary=true`：
 
 ```bash
-slothtool slothvault-mcp tools call content.note.content.list_versions \
+slothvault-mcp tools call content.note.content.list_versions \
   --args '{"noteId":"<INSTALL_NOTE_ID>"}' \
   --profile production \
   --json
@@ -422,7 +423,7 @@ slothtool slothvault-mcp tools call content.note.content.list_versions \
 如果后续创建第二个正文版本，只有在明确选择展示版本时才调用：
 
 ```bash
-slothtool slothvault-mcp tools call content.note.content.set_primary \
+slothvault-mcp tools call content.note.content.set_primary \
   --args '{"noteContentId":"<NEW_NOTE_CONTENT_ID>"}' \
   --profile production \
   --yes \
@@ -432,12 +433,12 @@ slothtool slothvault-mcp tools call content.note.content.set_primary \
 ### 5.8 完整读取草稿树
 
 ```bash
-slothtool slothvault-mcp tools call content.category.list \
+slothvault-mcp tools call content.category.list \
   --args '{"page":1,"pageSize":50,"projectVersionId":"<PROJECT_VERSION_ID>","keyword":"","orderBy":"weight","order":"asc"}' \
   --profile production \
   --json
 
-slothtool slothvault-mcp tools call content.note.list \
+slothvault-mcp tools call content.note.list \
   --args '{"page":1,"pageSize":50,"projectVersionId":"<PROJECT_VERSION_ID>","keyword":"","orderBy":"weight","order":"asc"}' \
   --profile production \
   --json
@@ -448,7 +449,7 @@ slothtool slothvault-mcp tools call content.note.list \
 ### 5.9 运行发布前检查
 
 ```bash
-slothtool slothvault-mcp tools call content.project.version.check_draft \
+slothvault-mcp tools call content.project.version.check_draft \
   --args '{"projectVersionId":"<PROJECT_VERSION_ID>"}' \
   --profile production \
   --json
@@ -465,7 +466,7 @@ slothtool slothvault-mcp tools call content.project.version.check_draft \
 也可以获取只读解释型 Prompt：
 
 ```bash
-slothtool slothvault-mcp prompts get workflow.pre_publish_check \
+slothvault-mcp prompts get workflow.pre_publish_check \
   --args '{"projectVersionId":"<PROJECT_VERSION_ID>"}' \
   --profile production \
   --json
@@ -478,17 +479,17 @@ MCP 不提供发布 Tool。操作者必须登录网页后台 `/admin/mm/projects
 发布后回到 MCP 验证：
 
 ```bash
-slothtool slothvault-mcp tools call content.project.version.get \
+slothvault-mcp tools call content.project.version.get \
   --args '{"projectVersionId":"<PROJECT_VERSION_ID>"}' \
   --profile production \
   --json
 
-slothtool slothvault-mcp tools call content.project.version.integrity \
+slothvault-mcp tools call content.project.version.integrity \
   --args '{"projectVersionId":"<PROJECT_VERSION_ID>"}' \
   --profile production \
   --json
 
-slothtool slothvault-mcp tools call content.project.version.manifest \
+slothvault-mcp tools call content.project.version.manifest \
   --args '{"projectVersionId":"<PROJECT_VERSION_ID>"}' \
   --profile production \
   --json
@@ -506,7 +507,7 @@ slothtool slothvault-mcp tools call content.project.version.manifest \
 3. 单次调用 `content.project.version.clone`：
 
 ```bash
-slothtool slothvault-mcp tools call content.project.version.clone \
+slothvault-mcp tools call content.project.version.clone \
   --args '{"projectId":"<PROJECT_ID>","sourceVersionId":"<PUBLISHED_VERSION_ID>","version":"2.0","description":"下一版本草稿","weight":20}' \
   --profile production \
   --yes \
@@ -524,7 +525,7 @@ slothtool slothvault-mcp tools call content.project.version.clone \
 先获取服务端 Prompt：
 
 ```bash
-slothtool slothvault-mcp prompts get workflow.organize_notes \
+slothvault-mcp prompts get workflow.organize_notes \
   --args '{"projectVersionId":"<PROJECT_VERSION_ID>","requirements":"合并重复章节，补齐缺失主正文，但保留历史正文版本"}' \
   --profile production \
   --json
@@ -577,7 +578,7 @@ const payload = {
 fs.writeFileSync(output, JSON.stringify(payload), { mode: 0o600, flag: "wx" });
 ' ./guide.md /tmp/slothvault-upload.json
 
-slothtool slothvault-mcp tools call content.file.upload \
+slothvault-mcp tools call content.file.upload \
   --args-file /tmp/slothvault-upload.json \
   --profile production \
   --yes \
@@ -591,12 +592,12 @@ slothtool slothvault-mcp tools call content.file.upload \
 ### 8.2 下载
 
 ```bash
-slothtool slothvault-mcp tools call content.file.get \
+slothvault-mcp tools call content.file.get \
   --args '{"fileId":"<FILE_ID>"}' \
   --profile production \
   --json
 
-slothtool slothvault-mcp resources read 'slothvault://managed-file/<FILE_ID>' \
+slothvault-mcp resources read 'slothvault://managed-file/<FILE_ID>' \
   --output ./guide.downloaded.md \
   --profile production \
   --json
@@ -609,7 +610,7 @@ SlothTool 会校验 URI、MIME、Base64、文件名和大小，以私有权限�
 ### 9.1 读取可用会员等级
 
 ```bash
-slothtool slothvault-mcp tools call admin.membership.level.list \
+slothvault-mcp tools call admin.membership.level.list \
   --args '{"includeDisabled":false}' \
   --profile production \
   --json
@@ -634,7 +635,7 @@ slothtool slothvault-mcp tools call admin.membership.level.list \
 调用：
 
 ```bash
-slothtool slothvault-mcp tools call content.article.create \
+slothvault-mcp tools call content.article.create \
   --args-file /tmp/slothvault-article.json \
   --profile production \
   --yes \
@@ -654,7 +655,7 @@ MCP 只创建文章草稿。正式发布或撤回必须在网页后台 `/admin/m
 ### 10.1 精确定位用户
 
 ```bash
-slothtool slothvault-mcp tools call admin.user.list \
+slothvault-mcp tools call admin.user.list \
   --args '{"page":1,"pageSize":50,"keyword":"alice"}' \
   --profile production \
   --json
@@ -665,7 +666,7 @@ slothtool slothvault-mcp tools call admin.user.list \
 读取用户详情：
 
 ```bash
-slothtool slothvault-mcp tools call admin.user.get \
+slothvault-mcp tools call admin.user.get \
   --args '{"userId":"<USER_ID>"}' \
   --profile production \
   --json
@@ -674,17 +675,17 @@ slothtool slothvault-mcp tools call admin.user.get \
 ### 10.2 读取当前会员、等级和积分证据
 
 ```bash
-slothtool slothvault-mcp tools call admin.user.membership.get \
+slothvault-mcp tools call admin.user.membership.get \
   --args '{"userId":"<USER_ID>"}' \
   --profile production \
   --json
 
-slothtool slothvault-mcp tools call admin.membership.level.list \
+slothvault-mcp tools call admin.membership.level.list \
   --args '{"includeDisabled":true}' \
   --profile production \
   --json
 
-slothtool slothvault-mcp tools call admin.points.transaction.list \
+slothvault-mcp tools call admin.points.transaction.list \
   --args '{"userId":"<USER_ID>","page":1,"pageSize":50}' \
   --profile production \
   --json
@@ -719,7 +720,7 @@ MCP 不注册会员授予/撤销 Tool。管理员必须：
 再次调用：
 
 ```bash
-slothtool slothvault-mcp tools call admin.user.membership.get \
+slothvault-mcp tools call admin.user.membership.get \
   --args '{"userId":"<USER_ID>"}' \
   --profile production \
   --json
@@ -759,7 +760,7 @@ slothtool slothvault-mcp tools call admin.user.membership.get \
 1. 列出合同：
 
 ```bash
-slothtool slothvault-mcp tools call admin.contract.list \
+slothvault-mcp tools call admin.contract.list \
   --args '{"page":1,"pageSize":50,"keyword":"合同关键字"}' \
   --profile production \
   --json
@@ -768,7 +769,7 @@ slothtool slothvault-mcp tools call admin.contract.list \
 2. 按合同 ID 读取并确认主体、状态和附件摘要：
 
 ```bash
-slothtool slothvault-mcp tools call admin.contract.get \
+slothvault-mcp tools call admin.contract.get \
   --args '{"contractId":"<CONTRACT_DATABASE_ID>"}' \
   --profile production \
   --json
@@ -779,7 +780,7 @@ slothtool slothvault-mcp tools call admin.contract.get \
 3. 取得受保护 URI：
 
 ```bash
-slothtool slothvault-mcp tools call admin.contract.attachment.get \
+slothvault-mcp tools call admin.contract.attachment.get \
   --args '{"contractId":"<CONTRACT_DATABASE_ID>"}' \
   --profile production \
   --json
@@ -788,7 +789,7 @@ slothtool slothvault-mcp tools call admin.contract.attachment.get \
 4. 下载：
 
 ```bash
-slothtool slothvault-mcp resources read \
+slothvault-mcp resources read \
   'slothvault://contract-attachment/<CONTRACT_DATABASE_ID>' \
   --output ./contract.pdf \
   --profile production \
@@ -813,12 +814,12 @@ Skill 默认应把它们归入 `live_surface_write`，要求比普通草稿写�
 项目主页示例：
 
 ```bash
-slothtool slothvault-mcp tools call content.project.home.list \
+slothvault-mcp tools call content.project.home.list \
   --args '{"page":1,"pageSize":50,"projectId":"<PROJECT_ID>"}' \
   --profile production \
   --json
 
-slothtool slothvault-mcp tools call content.project.home.create \
+slothvault-mcp tools call content.project.home.create \
   --args-file /tmp/slothvault-project-home.json \
   --profile production \
   --yes \
@@ -858,7 +859,7 @@ slothtool slothvault-mcp tools call content.project.home.create \
 ### 13.2 存证查询
 
 ```bash
-slothtool slothvault-mcp tools call admin.evidence.list \
+slothvault-mcp tools call admin.evidence.list \
   --args '{"page":1,"pageSize":50,"projectId":"<PROJECT_ID>","projectVersionId":"<PROJECT_VERSION_ID>"}' \
   --profile production \
   --json
@@ -869,17 +870,17 @@ slothtool slothvault-mcp tools call admin.evidence.list \
 ### 13.3 日常巡检
 
 ```bash
-slothtool slothvault-mcp tools call admin.dashboard.get \
+slothvault-mcp tools call admin.dashboard.get \
   --args '{"range":30}' \
   --profile production \
   --json
 
-slothtool slothvault-mcp tools call admin.settings.get \
+slothvault-mcp tools call admin.settings.get \
   --args '{}' \
   --profile production \
   --json
 
-slothtool slothvault-mcp tools call admin.system.update.get \
+slothvault-mcp tools call admin.system.update.get \
   --args '{}' \
   --profile production \
   --json
@@ -1027,7 +1028,7 @@ Profile：<脱敏名称，不含 Key>
 SlothTool 本地历史只保留脱敏摘要，最多 200 条，不保存完整参数、完整结果、Key 或 Resource 内容。需要清理脱敏历史时：
 
 ```bash
-slothtool slothvault-mcp history clear --yes --json
+slothvault-mcp history clear --yes --json
 ```
 
 删除 Profile 会删除本地连接配置，但不会撤销服务端 Key；服务端 Key 必须在 SlothVault `/admin/mm/mcp` 单独禁用或删除。

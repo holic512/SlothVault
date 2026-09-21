@@ -14,15 +14,15 @@ SlothVault 的发布包同时包含 SQLite、MySQL 和 PostgreSQL 支持，但�
 
 ## Docker 部署
 
-发布版推荐使用 GitHub Release 附件中的 `slothvault-deploy.zip`。解压出的 `deploy/` 目录只依赖 Python 3.8+ 标准库，运行在宿主机而不是应用容器中；它会选择 provider、生成唯一的 `/data/slothvault/compose.yml`、创建私有持久化目录，再调用已安装的 Docker Compose v2 拉取并启动发布镜像。部署包不安装 Docker Engine，也不覆盖已有的 Compose 文件或非空数据目录。
+发布版通过 SlothTool 的 `slothvault` 多功能插件运行内置部署包。该纯标准库 Python 3.8+ 部署程序运行在宿主机而不是应用容器中；它会选择 provider、生成唯一的 `/data/slothvault/compose.yml`、创建私有持久化目录，再调用已安装的 Docker Compose v2 拉取并启动发布镜像。插件不安装 Docker Engine，也不覆盖已有的 Compose 文件或非空数据目录。
 
 ```bash
-curl -fL https://github.com/holic512/SlothVault/releases/latest/download/slothvault-deploy.zip -o slothvault-deploy.zip
-python3 -m zipfile -e slothvault-deploy.zip .
-sudo python3 deploy/install.py
+npm install -g @holic512/slothtool
+slothtool install slothvault
+sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy
 ```
 
-如 `/data` 需要管理员权限，请从一开始使用 `sudo python3 deploy/install.py`，并在后续 `docker compose` 维护命令中使用相同权限。首次启动后访问实际服务地址的 `/install` 页面创建首位管理员。
+如 `/data` 需要管理员权限，请从一开始使用 `sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy`，以保留安装用户的 SlothTool 数据目录；后续 `docker compose` 维护命令使用相同权限。首次启动后访问实际服务地址的 `/install` 页面创建首位管理员。
 
 | 模式 | 服务 | 生成的 Compose 文件 | 应用数据目录 | 数据库目录 |
 | --- | --- | --- | --- | --- |
@@ -36,9 +36,9 @@ SQLite 只启动应用容器，并使用固定路径 `/app/data/database/slothva
 
 ### 已有 Nginx 的反向代理
 
-部署包支持标准系统级 Nginx 与显式指定的官方 Docker Hub `nginx` 容器。明确不支持宝塔 Nginx、`/www/server/nginx`、`/www/server/panel/vhost/nginx`、宝塔/面板镜像、其他第三方面板托管的 Nginx，也不会自动改造或接管已有第三方 Nginx。脚本不会安装 Nginx、覆盖非 SlothVault 生成的同名站点文件、删除容器、重建容器或执行 `docker compose down`。
+SlothTool 部署程序支持标准系统级 Nginx 与显式指定的官方 Docker Hub `nginx` 容器。明确不支持宝塔 Nginx、`/www/server/nginx`、`/www/server/panel/vhost/nginx`、宝塔/面板镜像、其他第三方面板托管的 Nginx，也不会自动改造或接管已有第三方 Nginx。程序不会安装 Nginx、覆盖非 SlothVault 生成的同名站点文件、删除容器、重建容器或执行 `docker compose down`。
 
-默认 `--nginx-mode auto` 只从宿主机 `PATH` 检测系统级 Nginx，找不到时不会扫描 Docker 容器。系统级模式只使用 `/etc/nginx/sites-available` + `/etc/nginx/sites-enabled` 或 `/etc/nginx/conf.d`；检测到实际二进制或 Nginx 配置来源属于宝塔目录时会直接以中文错误拒绝。已有实例可再次运行 `sudo python3 deploy/install.py`，选择“配置或更新 Nginx 反向代理”。
+默认 `--nginx-mode auto` 只从宿主机 `PATH` 检测系统级 Nginx，找不到时不会扫描 Docker 容器。系统级模式只使用 `/etc/nginx/sites-available` + `/etc/nginx/sites-enabled` 或 `/etc/nginx/conf.d`；检测到实际二进制或 Nginx 配置来源属于宝塔目录时会直接以中文错误拒绝。已有实例可再次运行 `sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy`，选择“配置或更新 Nginx 反向代理”。
 
 选择后，脚本会要求输入一个站点域名或 IPv4 地址及 Nginx HTTP 监听端口（默认 `80`），并执行以下受控流程：
 
@@ -48,7 +48,7 @@ SQLite 只启动应用容器，并使用固定路径 `/app/data/database/slothva
 4. 在 Nginx 已运行时重载服务；未运行时经用户再次确认后启动服务。
 5. 将 SlothVault 容器的宿主机端口绑定改为 `127.0.0.1:<端口>:3000`，然后重新创建容器，以阻止直接绕过 Nginx 的公网访问。
 
-该操作需要写入 `/etc/nginx`，请使用 `sudo python3 deploy/install.py`。HTTP 反向代理可以使用自定义监听端口；若要申请证书，请使用独立的“申请或更新 Let's Encrypt HTTPS 证书”菜单，它固定使用标准 `80` 和 `443` 端口。
+该操作需要写入 `/etc/nginx`，请使用 `sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy`。HTTP 反向代理可以使用自定义监听端口；若要申请证书，请使用独立的“申请或更新 Let's Encrypt HTTPS 证书”菜单，它固定使用标准 `80` 和 `443` 端口。
 
 ### 官方 Docker Nginx
 
@@ -57,7 +57,7 @@ Docker 模式要求用户明确指定容器名，且只接受镜像引用 `nginx
 Nginx 容器必须先启动，并与受管 SlothVault 服务共享一个非 host Docker 网络。脚本调用 `docker compose -f /data/slothvault/compose.yml ps -q slothvault` 取得应用容器后检查共同网络和 `slothvault` 别名；满足后配置固定生成 `proxy_pass http://slothvault:3000;`。Docker Nginx 中的 `127.0.0.1` 是容器自身，因此不会被作为回退上游；没有可靠共同网络时脚本停止，并提示先把 Nginx 容器连接到对应的 `slothvault-<provider>_default` 网络。
 
 ```bash
-sudo python3 deploy/install.py \
+sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy \
   --action nginx \
   --nginx-mode docker \
   --nginx-container slothvault-nginx
@@ -89,7 +89,7 @@ networks:
 
 ### Let's Encrypt HTTPS 与自动续约
 
-HTTPS 菜单采用 Certbot `certonly --webroot` HTTP-01 验证，部署包自己的 Nginx 配置是唯一配置来源，不使用会自动修改站点文件的 `certbot --nginx`。输入普通 DNS 域名（可输入多个，首个为主域名和证书目录名）、联系邮箱并确认 Let’s Encrypt 服务条款后，受管 Nginx 配置将按以下方式切换：
+HTTPS 菜单采用 Certbot `certonly --webroot` HTTP-01 验证，SlothTool 部署程序生成的 Nginx 配置是唯一配置来源，不使用会自动修改站点文件的 `certbot --nginx`。输入普通 DNS 域名（可输入多个，首个为主域名和证书目录名）、联系邮箱并确认 Let’s Encrypt 服务条款后，受管 Nginx 配置将按以下方式切换：
 
 1. 临时在 `80` 端口从 `/data/slothvault/acme-challenge` 提供 `/.well-known/acme-challenge/`，其余请求仍反代至应用；系统级模式使用 `127.0.0.1:<端口>`，Docker 模式使用已验证的 `slothvault:3000`。
 2. Certbot 成功签发后，HTTP 仅保留挑战路径，其他请求以 `301` 跳转至 HTTPS；Nginx 在 `443` 使用 `/etc/letsencrypt/live/<主域名>/fullchain.pem` 和 `privkey.pem` 反代 SlothVault。Docker 模式使用 inspect 推导出的容器内证书路径。
@@ -104,7 +104,7 @@ HTTPS 菜单采用 Certbot `certonly --webroot` HTTP-01 验证，部署包自己
 Docker HTTPS 在申请前还必须确认两个 bind mount：宿主机 `/data/slothvault/acme-challenge` 映射到容器的明确 ACME Webroot，以及完整宿主机 `/etc/letsencrypt` 映射到容器明确证书根目录（不能只挂载 `live`，因为证书文件会链接到 `archive`）。缺少任一挂载时会在签发前停止。Docker 模式的 Certbot deploy hook 仅执行已验证容器的 `docker exec <容器> nginx -s reload`，不调用 `systemctl`。
 
 ```bash
-sudo python3 deploy/install.py \
+sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy \
   --action https \
   --nginx-mode docker \
   --nginx-container slothvault-nginx
@@ -117,11 +117,11 @@ sudo python3 deploy/install.py \
 安装脚本提供“更新、启动、停止、状态、配置或更新 Nginx 反向代理、申请或更新 Let's Encrypt HTTPS 证书、查看证书状态或立即尝试续约”操作。更新会先确定紧邻的下一个正式 Release，将受管 Compose 中的官方镜像标签固定为该版本，再执行镜像拉取与 `up -d`；即使远程还有更高版本，也不会拉取 `latest` 跳过中间版本。此操作不会改动端口、数据库、持久化目录或其他 Compose 配置。请通过脚本执行更新，不要直接对仍指向 `latest` 的旧 Compose 文件运行 `pull`：
 
 ```bash
-sudo python3 deploy/install.py --action check-update
-sudo python3 deploy/install.py --action update
+sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy --action check-update
+sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy --action update
 ```
 
-仓库内的 `docker-compose.yml`、`docker-compose.mysql.yml`、`docker-compose.postgresql.yml` 及 `.env.docker.*.example` 仍用于源码构建和本地开发。不要将该源码模式的相对 `docker-data/` 目录与 Release 安装脚本的 `/data/slothvault/` 部署混用。
+仓库内的 `docker-compose.yml`、`docker-compose.mysql.yml`、`docker-compose.postgresql.yml` 及 `.env.docker.*.example` 仍用于源码构建和本地开发。不要将该源码模式的相对 `docker-data/` 目录与 SlothTool 部署程序的 `/data/slothvault/` 部署混用。
 
 ### 自动引导与首次管理员
 
@@ -214,7 +214,7 @@ CA 内容随数据库配置一起加密，不会通过安装状态接口返回�
 
 ## 旧 profile 部署与 provider 切换
 
-Release 安装脚本与仓库内的三种源码 Compose 模板都不会自动读取或移动旧 profile 方案的 `docker-data/config`、`docker-data/database`、`docker-data/mysql` 或 `docker-data/postgres`。先在升级本仓库或切换部署方式前，保留旧容器的 Compose 文件和运行环境，并完成备份；不要把旧目录挂载到新的应用或数据库数据路径。
+SlothTool 部署程序与仓库内的三种源码 Compose 模板都不会自动读取或移动旧 profile 方案的 `docker-data/config`、`docker-data/database`、`docker-data/mysql` 或 `docker-data/postgres`。先在升级本仓库或切换部署方式前，保留旧容器的 Compose 文件和运行环境，并完成备份；不要把旧目录挂载到新的应用或数据库数据路径。
 
 切换旧部署或 provider 的安全步骤：
 
