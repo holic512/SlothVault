@@ -6,7 +6,7 @@
  * @module Mixed Document Editing Surface
  * @description Provides a fast Markdown workflow with safe HTML layout snippets, exact public-preview rendering, image upload, visible content constraints, optional host toolbar content, and an optional container-fill layout.
  * @logic Keep the editor controlled, insert reusable mixed-content structures at the selection, validate pasted/dropped images, share the sanitized viewer for preview parity, let host workflows consolidate their title and actions into the editor header, and allow full-height hosts to allocate the remaining editing space.
- * @dependencies @uiw/react-md-editor, next/dynamic, next-intl, next-themes, lucide-react, MarkdownView
+ * @dependencies @uiw/react-md-editor, next/dynamic, next-intl, app-theme-context, lucide-react, MarkdownView
  * @index_tags markdown,html,editor,preview,upload,validation,accessibility
  * @author holic512
  */

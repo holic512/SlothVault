@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Public Project Reading
  * @description Centralizes public immutable project navigation, manifest metadata, document reads, and version transaction evidence.
- * @logic Require a visible published release, select its unique primary content, and expose release evidence without coupling public project documents to user identities.
+ * @logic Require a visible published release, resolve an optional active project homepage, and expose release evidence without coupling public project documents to user identities.
  * @dependencies Prisma project, document, and release credential models
  * @index_tags public-project,public-reader,versions,notes,evidence
  * @author holic512
@@ -84,11 +84,15 @@ async function requirePublishedProject(projectId: number) {
 }
 
 export async function getProjectHome(projectId: number) {
+  const home = await findPublicProjectHome(projectId)
+  if (!home) throw new HttpError('Home content not found', 404, 404)
+  return home
+}
+
+export async function findPublicProjectHome(projectId: number) {
   await requirePublishedProject(projectId)
   const home = await prisma.projectHome.findUnique({ where: { projectId } })
-  if (!home || home.isDeleted || home.status !== 1) {
-    throw new HttpError('Home content not found', 404, 404)
-  }
+  if (!home || home.isDeleted || home.status !== 1) return null
   return {
     id: home.id.toString(),
     projectId: home.projectId.toString(),

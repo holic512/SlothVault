@@ -4,21 +4,39 @@
  * @file app-theme-context.tsx
  * @project SlothVault
  * @module Theme Hydration Boundary
- * @description Exposes the server-resolved theme to client components until next-themes has hydrated.
- * @logic Use the cookie-backed initial theme for SSR and the first client render, then switch to the validated resolved theme without a palette flash.
- * @dependencies next-themes, app-theme, use-hydrated
+ * @description Owns the cookie-seeded application color mode for client components without injecting a runtime script.
+ * @logic Start from the server-resolved theme, synchronize explicit color-mode changes to the document class, and expose a single validated theme state to client consumers.
+ * @dependencies React Context, app-theme
  * @index_tags theme,context,hydration,ssr
  * @author holic512
  */
 
-import { createContext, useContext, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 
-import { useTheme } from 'next-themes'
+import type { AppTheme } from '@/theme/app-theme'
 
-import { useHydrated } from '@/hooks/use-hydrated'
-import { isAppTheme, type AppTheme } from '@/theme/app-theme'
+type AppThemeContextValue = {
+  theme: AppTheme
+  setTheme: (theme: AppTheme) => void
+}
 
-const InitialThemeContext = createContext<AppTheme>('light')
+const AppThemeContext = createContext<AppThemeContextValue>({
+  theme: 'light',
+  setTheme: () => {},
+})
+
+function applyThemeClass(theme: AppTheme) {
+  document.documentElement.classList.remove('light', 'dark')
+  document.documentElement.classList.add(theme)
+  document.documentElement.style.colorScheme = theme
+}
 
 export function AppThemeContextProvider({
   children,
@@ -27,13 +45,21 @@ export function AppThemeContextProvider({
   children: ReactNode
   initialTheme: AppTheme
 }) {
-  return <InitialThemeContext value={initialTheme}>{children}</InitialThemeContext>
+  const [theme, setThemeState] = useState(initialTheme)
+
+  const setTheme = useCallback((nextTheme: AppTheme) => {
+    setThemeState(nextTheme)
+    applyThemeClass(nextTheme)
+  }, [])
+
+  const value = useMemo(() => ({ theme, setTheme }), [setTheme, theme])
+  return <AppThemeContext value={value}>{children}</AppThemeContext>
+}
+
+export function useAppTheme() {
+  return useContext(AppThemeContext)
 }
 
 export function useResolvedAppTheme(): AppTheme {
-  const initialTheme = useContext(InitialThemeContext)
-  const { resolvedTheme } = useTheme()
-  const hydrated = useHydrated()
-
-  return hydrated && isAppTheme(resolvedTheme) ? resolvedTheme : initialTheme
+  return useAppTheme().theme
 }

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   prisma: {
     project: { findFirst: vi.fn() },
+    projectHome: { findUnique: vi.fn() },
     projectVersion: { findFirst: vi.fn() },
     noteInfo: { findFirst: vi.fn() },
     noteContent: { findMany: vi.fn() },
@@ -12,7 +13,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/server/prisma', () => ({ prisma: mocks.prisma }))
 
-import { getProjectNote, getPublicProject } from '@/server/services/public-projects'
+import {
+  findPublicProjectHome,
+  getProjectNote,
+  getPublicProject,
+} from '@/server/services/public-projects'
 
 describe('public project reading', () => {
   beforeEach(() => {
@@ -34,6 +39,20 @@ describe('public project reading', () => {
       projectName: 'Open archive',
       requireAuth: false,
     })
+  })
+
+  it('treats a missing homepage as an optional public entry point', async () => {
+    mocks.prisma.project.findFirst.mockResolvedValue({
+      id: 4,
+      projectName: 'Open archive',
+      avatar: null,
+      status: 1,
+      updatedAt: new Date('2026-07-31T00:00:00.000Z'),
+    })
+    mocks.prisma.projectHome.findUnique.mockResolvedValue(null)
+
+    await expect(findPublicProjectHome(4)).resolves.toBeNull()
+    expect(mocks.prisma.projectHome.findUnique).toHaveBeenCalledWith({ where: { projectId: 4 } })
   })
 
   it('returns finalized evidence shared by every article in a release', async () => {

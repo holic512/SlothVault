@@ -4,11 +4,13 @@
  * @module Public Project Document Reader
  * @description Renders immutable public project documents with navigation, exact content-version evidence, and legacy release evidence.
  * @logic Keep public project reading independent from user identity while displaying content evidence for the selected primary revision and legacy release receipts.
- * @dependencies next-intl/server, MarkdownView
+ * @dependencies Ant Design Typography, next-intl/server, MarkdownView
  * @index_tags project,document,reader,release,evidence,transaction,public
  * @author holic512
  */
-import { Typography } from 'antd'
+import TypographyParagraph from 'antd/es/typography/Paragraph'
+import TypographyText from 'antd/es/typography/Text'
+import TypographyTitle from 'antd/es/typography/Title'
 import { BadgeCheck, Download, ExternalLink, Fingerprint, FlaskConical } from 'lucide-react'
 import { getLocale, getTranslations } from 'next-intl/server'
 import Link from 'next/link'
@@ -68,7 +70,7 @@ export async function ProjectNoteView({
       <aside className="docs-sidebar">
         {sidebar.map((category) => (
           <section key={category.id} className="docs-category">
-            <Typography.Text>{category.categoryName}</Typography.Text>
+            <TypographyText>{category.categoryName}</TypographyText>
             <nav>
               {category.notes.map((note) => (
                 <Link
@@ -92,8 +94,8 @@ export async function ProjectNoteView({
               })}
             </span>
           </div>
-          <Typography.Title>{note.noteTitle}</Typography.Title>
-          {note.versionNote ? <Typography.Paragraph type="secondary">{note.versionNote}</Typography.Paragraph> : null}
+          <TypographyTitle>{note.noteTitle}</TypographyTitle>
+          {note.versionNote ? <TypographyParagraph type="secondary">{note.versionNote}</TypographyParagraph> : null}
           <aside className="docs-release-proof" aria-label={t('release.title')}>
             <span className="docs-copyright-mark"><Fingerprint size={18} /></span>
             <div className="docs-copyright-copy">

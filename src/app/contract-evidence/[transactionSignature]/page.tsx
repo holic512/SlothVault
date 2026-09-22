@@ -8,7 +8,8 @@
  * @index_tags public,contracts,evidence,receipt,verification,privacy,solana
  * @author holic512
  */
-import { Alert, Tag, Typography } from 'antd'
+import TypographyParagraph from 'antd/es/typography/Paragraph'
+import { Alert, Tag } from 'antd'
 import { BadgeCheck, ExternalLink, FileKey2, FlaskConical, ShieldCheck } from 'lucide-react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
@@ -60,7 +61,7 @@ export default async function ContractEvidenceReceiptPage({ params }: { params: 
           <a href={explorerUrl(transactionSignature, evidence.network)} target="_blank" rel="noreferrer">Solana Explorer <ExternalLink size={14} /></a>
         </div>
       </section>
-      <Typography.Paragraph className="evidence-receipt-disclaimer">本凭证证明 SlothVault 在对应链上交易中提交了此合同快照摘要。它是防篡改技术存证，不构成法定电子签名、司法公证或第三方电子签约证明。</Typography.Paragraph>
+      <TypographyParagraph className="evidence-receipt-disclaimer">本凭证证明 SlothVault 在对应链上交易中提交了此合同快照摘要。它是防篡改技术存证，不构成法定电子签名、司法公证或第三方电子签约证明。</TypographyParagraph>
     </main>
   </div>
 }

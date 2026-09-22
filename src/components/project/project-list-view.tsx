@@ -2,7 +2,7 @@
 
 import { Card, Empty, Typography } from 'antd'
 import { ArrowUpRight, CalendarClock, FolderTree } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import Link from 'next/link'
 
 import { PublicNavbar } from '@/components/shell/public-navbar'
@@ -26,7 +26,9 @@ export function ProjectListView({
   projects: ProjectListItem[]
   branding: SystemBranding
 }) {
+  const locale = useLocale()
   const t = useTranslations('ProjectsPage')
+  const dateLocale = locale === 'zh' ? 'zh-CN' : 'en-US'
 
   return (
     <div className={`${publicStyles.root} public-page projects-page`}>
@@ -60,7 +62,7 @@ export function ProjectListView({
                   </div>
                   <div className="project-card-meta">
                     <span><FolderTree size={14} />{project.categoryCount} {t('categories')}</span>
-                    <span><CalendarClock size={14} />{new Date(project.updatedAt).toLocaleDateString()}</span>
+                    <span><CalendarClock size={14} />{new Date(project.updatedAt).toLocaleDateString(dateLocale)}</span>
                   </div>
                 </Card>
               </Link>

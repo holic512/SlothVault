@@ -6,7 +6,7 @@
  * @module Theme and Locale Controls
  * @description Exposes visual style, light/dark mode, and language controls for every application surface.
  * @logic Persist visual style independently from color mode, update each preference optimistically, and restore the last style if persistence fails.
- * @dependencies antd, next-themes, next-intl, app-style-context, preferences API
+ * @dependencies antd, next-intl, app-theme-context, app-style-context, preferences API
  * @index_tags theme,style,locale,saas,accessibility
  * @author holic512
  */
@@ -17,9 +17,8 @@ import { App, Button, Divider, Popover, Segmented, Typography } from 'antd'
 import { Moon, PanelsTopLeft, Sun } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
-import { useTheme } from 'next-themes'
 
-import { useResolvedAppTheme } from '@/components/providers/app-theme-context'
+import { useAppTheme, useResolvedAppTheme } from '@/components/providers/app-theme-context'
 import { useAppStyle } from '@/components/providers/app-style-context'
 import { apiFetch } from '@/lib/api-client'
 import { isAppTheme } from '@/theme/app-theme'
@@ -29,7 +28,7 @@ export function ThemeControls() {
   const t = useTranslations('ThemeToggle')
   const locale = useLocale()
   const router = useRouter()
-  const { setTheme } = useTheme()
+  const { setTheme } = useAppTheme()
   const { message } = App.useApp()
   const resolvedTheme = useResolvedAppTheme()
   const { style, setStyle } = useAppStyle()

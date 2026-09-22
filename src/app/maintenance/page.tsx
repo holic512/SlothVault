@@ -8,7 +8,10 @@
  * @index_tags maintenance,database,configuration,page
  * @author holic512
  */
-import { Alert, Card, Typography } from 'antd'
+import TypographyParagraph from 'antd/es/typography/Paragraph'
+import TypographyText from 'antd/es/typography/Text'
+import TypographyTitle from 'antd/es/typography/Title'
+import { Alert, Card } from 'antd'
 
 import { AuthFrame } from '@/components/auth/auth-frame'
 import { createPageMetadata } from '@/i18n/metadata'
@@ -28,11 +31,11 @@ export default async function MaintenancePage() {
     <AuthFrame>
       <Card className="auth-card" variant="borderless">
         <div className="auth-heading">
-          <Typography.Text className="auth-kicker">{t('kicker')}</Typography.Text>
-          <Typography.Title level={1}>{t('title')}</Typography.Title>
-          <Typography.Paragraph type="secondary">
+          <TypographyText className="auth-kicker">{t('kicker')}</TypographyText>
+          <TypographyTitle level={1}>{t('title')}</TypographyTitle>
+          <TypographyParagraph type="secondary">
             {t('description')}
-          </Typography.Paragraph>
+          </TypographyParagraph>
         </div>
         <Alert
           type="error"

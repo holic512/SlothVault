@@ -13,7 +13,7 @@ import 'server-only'
 import { revalidateTag, unstable_cache } from 'next/cache'
 
 import {
-  getProjectHome,
+  findPublicProjectHome,
   getProjectMenu,
   getProjectNote,
   getProjectSidebar,
@@ -80,8 +80,8 @@ export function getCachedProjectShell(projectId: number) {
 export function getCachedProjectHome(projectId: number) {
   return unstable_cache(
     async () => {
-      const home = await getProjectHome(projectId)
-      return { ...home, updatedAt: iso(home.updatedAt) }
+      const home = await findPublicProjectHome(projectId)
+      return home ? { ...home, updatedAt: iso(home.updatedAt) } : null
     },
     ['public-project-home', String(projectId)],
     {

@@ -3,9 +3,9 @@
  * @project SlothVault
  * @module Admin Content Services
  * @description Owns project-home, project-menu, and system-homepage persistence, validation, transactions, and stable DTO mapping.
- * @logic Validate content commands, enforce active project and two-level menu invariants, execute atomic mutations, and serialize database records for admin APIs.
- * @dependencies Prisma project content models, server/http/errors, admin-catalog helpers
- * @index_tags admin,homepage,project-menu,system-homepage,transaction,dto,validation
+ * @logic Validate content commands, enforce active project and two-level menu invariants, execute atomic mutations, invalidate affected public-project cache entries, and serialize database records for admin APIs.
+ * @dependencies Prisma project content models, server/http/errors, admin-catalog helpers, public-project-cache
+ * @index_tags admin,homepage,project-menu,system-homepage,transaction,dto,validation,cache
  * @author holic512
  */
 import 'server-only'
@@ -15,6 +15,7 @@ import type { Prisma } from '@generated/prisma-postgresql/client'
 import { DOCUMENT_CONTENT_MAX_CHARACTERS } from '@/lib/document-content'
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
+import { invalidatePublicProjectCache } from '@/server/services/public-project-cache'
 import {
   hasPrismaCode,
   integerValue,
@@ -256,6 +257,7 @@ export async function createProjectHome(
         },
       })
     })
+    await invalidatePublicProjectCache(projectId)
     return projectHomeDto(home)
   } catch (error) {
     if (hasPrismaCode(error, 'P2002')) {
@@ -288,6 +290,7 @@ export async function createOrRestoreProjectHome(
       },
     })
   })
+  await invalidatePublicProjectCache(projectId)
   return projectHomeDto(home)
 }
 
@@ -313,6 +316,7 @@ export async function updateProjectHome(id: number, input: UpdateProjectHomeInpu
 
   try {
     const home = await prisma.projectHome.update({ where: { id }, data })
+    await invalidatePublicProjectCache(home.projectId)
     return projectHomeDto(home)
   } catch (error) {
     if (hasPrismaCode(error, 'P2025')) throw new HttpError('Not Found', 404, 404)
@@ -322,13 +326,17 @@ export async function updateProjectHome(id: number, input: UpdateProjectHomeInpu
 
 export async function deleteProjectHome(id: number, hard: boolean) {
   try {
-    if (hard) await prisma.projectHome.delete({ where: { id } })
-    else {
-      await prisma.projectHome.update({
+    const home = hard
+      ? await prisma.projectHome.delete({
+        where: { id },
+        select: { projectId: true },
+      })
+      : await prisma.projectHome.update({
         where: { id },
         data: { isDeleted: true, updatedAt: new Date() },
+        select: { projectId: true },
       })
-    }
+    await invalidatePublicProjectCache(home.projectId)
   } catch (error) {
     if (hasPrismaCode(error, 'P2025')) throw new HttpError('Not Found', 404, 404)
     throw error
