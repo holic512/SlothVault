@@ -52,7 +52,6 @@
 }
 
 .sloth-wallet-button.wallet-adapter-button:hover {
-  transform: translateY(-1px);
   border-color: var(--sv-text);
   background: var(--sv-bg-soft);
 }
@@ -135,14 +134,13 @@
   font-size: 14px !important;
   font-weight: 650 !important;
   line-height: 1.2 !important;
-  transition: background var(--sv-motion-fast) var(--sv-ease-standard), border-color var(--sv-motion-fast) var(--sv-ease-standard), transform var(--sv-motion-fast) var(--sv-ease-standard) !important;
+  transition: background var(--sv-motion-fast) var(--sv-ease-standard), border-color var(--sv-motion-fast) var(--sv-ease-standard) !important;
 }
 
 .wallet-adapter-modal-list .wallet-adapter-button:not([disabled]):hover {
   border-color: var(--sv-primary) !important;
   background: var(--sv-primary) !important;
   color: var(--sv-bg-solid) !important;
-  transform: translateY(-1px);
 }
 
 .wallet-adapter-modal-list .wallet-adapter-button span {
@@ -203,7 +201,6 @@
   border-radius: var(--sv-radius);
   background: var(--sv-bg-solid);
   box-shadow: var(--sv-shadow);
-  animation: admin-wallet-picker-enter var(--sv-motion-normal) var(--sv-ease-standard);
 }
 
 .admin-wallet-picker-close {
@@ -297,14 +294,13 @@
   font-size: 14px;
   font-weight: 650;
   text-align: left;
-  transition: background var(--sv-motion-fast) var(--sv-ease-standard), border-color var(--sv-motion-fast) var(--sv-ease-standard), transform var(--sv-motion-fast) var(--sv-ease-standard);
+  transition: background var(--sv-motion-fast) var(--sv-ease-standard), border-color var(--sv-motion-fast) var(--sv-ease-standard);
 }
 
 .admin-wallet-picker-list button:hover {
   border-color: var(--sv-primary);
   background: var(--sv-primary);
   color: var(--sv-bg-solid);
-  transform: translateY(-1px);
 }
 
 .admin-wallet-picker-list img {
@@ -361,18 +357,6 @@
 .admin-wallet-picker-actions button:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--sv-primary) 44%, transparent);
   outline-offset: -2px;
-}
-
-@keyframes admin-wallet-picker-enter {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.985);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
 }
 
 .admin-mobile-menu {

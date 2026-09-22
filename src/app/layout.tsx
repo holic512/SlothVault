@@ -2,10 +2,10 @@
  * @file layout.tsx
  * @project SlothVault
  * @module Application Shell
- * @description Defines the root Next.js document, metadata, locale provider, Ant Design SSR registry, and client providers.
- * @logic Resolve request preferences and the non-blocking managed favicon on the server, emit a hydration-safe color mode and visual style, and wrap every route once.
- * @dependencies next-intl, @ant-design/nextjs-registry, app-providers, app-style, global styles
- * @index_tags root-layout,metadata,providers,theme,style,ssr
+ * @description Defines the root Next.js document, metadata, locale provider, Ant Design SSR registry, and client preference providers.
+ * @logic Resolve request preferences and the non-blocking managed favicon on the server, emit hydration-safe color, visual-style, and public-navigation appearance state, and wrap every route once.
+ * @dependencies next-intl, @ant-design/nextjs-registry, app-providers, app-style, public-nav-style, global styles
+ * @index_tags root-layout,metadata,providers,theme,style,public-nav,ssr
  * @author holic512
  */
 import type { Metadata } from 'next'
@@ -40,6 +40,11 @@ import {
   DEFAULT_APP_STYLE,
   isAppStyle,
 } from '@/theme/app-style'
+import {
+  DEFAULT_PUBLIC_NAV_STYLE,
+  isPublicNavStyle,
+  PUBLIC_NAV_STYLE_COOKIE,
+} from '@/theme/public-nav-style'
 
 export async function generateMetadata(): Promise<Metadata> {
   const branding = await getSystemBranding()
@@ -59,8 +64,12 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const cookieStore = await cookies()
   const cookieTheme = cookieStore.get(APP_THEME_COOKIE)?.value
   const cookieStyle = cookieStore.get(APP_STYLE_COOKIE)?.value
+  const cookiePublicNavStyle = cookieStore.get(PUBLIC_NAV_STYLE_COOKIE)?.value
   const initialTheme = isAppTheme(cookieTheme) ? cookieTheme : DEFAULT_APP_THEME
   const initialStyle = isAppStyle(cookieStyle) ? cookieStyle : DEFAULT_APP_STYLE
+  const initialPublicNavStyle = isPublicNavStyle(cookiePublicNavStyle)
+    ? cookiePublicNavStyle
+    : DEFAULT_PUBLIC_NAV_STYLE
 
   return (
     <html
@@ -72,7 +81,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <body>
         <AntdRegistry>
           <NextIntlClientProvider locale={locale} messages={messages}>
-            <AppProviders initialTheme={initialTheme} initialStyle={initialStyle}>
+            <AppProviders
+              initialTheme={initialTheme}
+              initialStyle={initialStyle}
+              initialPublicNavStyle={initialPublicNavStyle}
+            >
               {children}
             </AppProviders>
           </NextIntlClientProvider>

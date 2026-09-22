@@ -9,11 +9,10 @@ describe('liquid glass displacement maps', () => {
       height: 180,
       radius: 24,
       refraction: 0,
-      pointer: { x: 0.5, y: 0.5 },
       quality: 'auto',
     })
 
-    expect(map.scale).toBe(1)
+    expect(map.scale).toBe(0)
     expect(map.data.length).toBe(map.width * map.height * 4)
     for (let index = 0; index < map.data.length; index += 4) {
       expect(map.data.slice(index, index + 4)).toEqual(new Uint8ClampedArray([128, 128, 0, 255]))
@@ -31,7 +30,6 @@ describe('liquid glass displacement maps', () => {
       const map = createLiquidGlassMap({
         ...shape,
         refraction: 14,
-        pointer: { x: 0.72, y: 0.21 },
         quality: 'auto',
         devicePixelRatio: 2,
       })
@@ -43,18 +41,68 @@ describe('liquid glass displacement maps', () => {
     }
   })
 
-  it('changes the local lens when the normalized pointer changes', () => {
-    const base = {
-      width: 320,
-      height: 200,
-      radius: 24,
-      refraction: 14,
-      quality: 'high' as const,
-    }
-    const nearStart = createLiquidGlassMap({ ...base, pointer: { x: 0.18, y: 0.26 } })
-    const nearEnd = createLiquidGlassMap({ ...base, pointer: { x: 0.82, y: 0.74 } })
+  it('bends opposite edges inward and leaves the reading area neutral', () => {
+    const map = createLiquidGlassMap({ width: 320, height: 80, radius: 24, refraction: 14, quality: 'high' })
+    const channel = (x: number, y: number, axis: number) => map.data[(y * map.width + x) * 4 + axis]
+    const midX = Math.floor(map.width / 2)
+    const midY = Math.floor(map.height / 2)
+    expect(channel(midX, 0, 1)).toBeGreaterThan(200)
+    expect(channel(midX, map.height - 1, 1)).toBeLessThan(55)
+    expect(channel(0, midY, 0)).toBeGreaterThan(200)
+    expect(channel(map.width - 1, midY, 0)).toBeLessThan(55)
+    expect(channel(midX, midY, 0)).toBe(128)
+    expect(channel(midX, midY, 1)).toBe(128)
+    expect(channel(0, midY, 0) + channel(map.width - 1, midY, 0)).toBe(255)
+  })
 
-    expect(nearStart.data).not.toEqual(nearEnd.data)
+  it('uses the actual corner radius instead of a fixed UV lens', () => {
+    const options = { width: 320, height: 80, refraction: 14, quality: 'high' as const }
+    const square = createLiquidGlassMap({ ...options, radius: 0 })
+    const rounded = createLiquidGlassMap({ ...options, radius: 32 })
+    // A square corner bends on one axis; a curved corner bends on both.
+    expect(square.data.slice(0, 2)).not.toEqual(new Uint8ClampedArray([128, 128]))
+    expect(rounded.data[0]).toBeGreaterThan(128)
+    expect(rounded.data[1]).toBeGreaterThan(128)
+    expect(rounded.data).not.toEqual(square.data)
+  })
+
+  it('keeps the optical strength in CSS pixels across sizes and quality levels', () => {
+    for (const width of [320, 1180]) {
+      for (const quality of ['low', 'auto', 'high'] as const) {
+        const map = createLiquidGlassMap({ width, height: 58, radius: 29, refraction: 8, quality })
+        const top = (Math.floor(map.width / 2) * 4) + 1
+        const displacement = map.scale * (map.data[top] / 255 - 0.5)
+        expect(displacement).toBeGreaterThan(7.5)
+        expect(displacement).toBeLessThanOrEqual(8)
+      }
+    }
+    const weak = createLiquidGlassMap({ width: 320, height: 80, radius: 24, refraction: 4, quality: 'auto' })
+    const strong = createLiquidGlassMap({ width: 320, height: 80, radius: 24, refraction: 14, quality: 'auto' })
+    expect(strong.scale).toBeGreaterThan(weak.scale)
+  })
+
+  it('honors 8px refraction on both desktop and mobile navigation', () => {
+    for (const shape of [{ width: 1180, height: 58 }, { width: 370, height: 52 }]) {
+      const map = createLiquidGlassMap({ ...shape, radius: shape.height / 2, refraction: 8, quality: 'high' })
+      // SVG scale spans both signed directions: 16 encodes -8px through +8px.
+      expect(map.scale).toBe(16)
+    }
+  })
+
+  it('limits magnification so small dots do not stretch into lines', () => {
+    for (const radius of [12, 20, 29]) {
+      const map = createLiquidGlassMap({ width: 320, height: 58, radius, refraction: 32, quality: 'high' })
+      const midX = Math.floor(map.width / 2)
+      let previous = -Infinity
+      for (let y = 0; y < map.height; y += 1) {
+        const displacement = map.scale * (map.data[(y * map.width + midX) * 4 + 1] / 255 - 0.5)
+        const sampledY = (y + 0.5) * 58 / map.height + displacement
+        // The analytic slope stays >= 0.535; allow for the map's 8-bit
+        // channel quantization when checking the decoded sampling distance.
+        expect(sampledY - previous).toBeGreaterThanOrEqual(0.45)
+        previous = sampledY
+      }
+    }
   })
 
   it('caps automatic quality while retaining the card aspect ratio', () => {

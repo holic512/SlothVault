@@ -119,6 +119,7 @@
     },
     "section": {
       "style": "Visual style",
+      "navigation": "Navigation appearance",
       "mode": "Mode",
       "language": "Language"
     },
@@ -136,8 +137,15 @@
       "zh": "Chinese",
       "en": "English"
     },
+    "publicNav": {
+      "standard": "Standard",
+      "standardDescription": "Restrained surface",
+      "liquidGlass": "Liquid glass",
+      "liquidGlassDescription": "Clear refraction and highlights"
+    },
     "messages": {
-      "styleSaveFailed": "Could not save the visual style; your previous setting was restored."
+      "styleSaveFailed": "Could not save the visual style; your previous setting was restored.",
+      "publicNavStyleSaveFailed": "Could not save the navigation appearance; your previous setting was restored."
     }
   },
   "IndexPage": {

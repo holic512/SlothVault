@@ -338,12 +338,8 @@
   font-size: 14px;
   font-weight: 700;
   text-decoration: none !important;
-  transition: 180ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease;
   border-radius: 6px;
-}
-
-.root :global(.sloth-btn):hover {
-  transform: translateY(-2px);
 }
 
 .root :global(.sloth-btn-primary) {
@@ -373,14 +369,13 @@
   justify-content: flex-end;
   padding: 22px;
   border: 1px solid var(--sv-border);
-  transition: 180ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease;
   border-radius: 8px;
   background: var(--sv-bg-solid);
 }
 
 .root :global(.sloth-feature-card):hover {
   border-color: var(--sv-border-strong) !important;
-  transform: translateY(-2px);
 }
 
 .root :global(.sloth-feature-card) strong {

@@ -119,6 +119,7 @@
     },
     "section": {
       "style": "界面风格",
+      "navigation": "导航外观",
       "mode": "模式",
       "language": "语言"
     },
@@ -136,8 +137,15 @@
       "zh": "中文",
       "en": "英文"
     },
+    "publicNav": {
+      "standard": "标准",
+      "standardDescription": "沿用克制表面",
+      "liquidGlass": "液态玻璃",
+      "liquidGlassDescription": "通透折射与边缘高光"
+    },
     "messages": {
-      "styleSaveFailed": "保存界面风格失败，已恢复原设置"
+      "styleSaveFailed": "保存界面风格失败，已恢复原设置",
+      "publicNavStyleSaveFailed": "保存导航外观失败，已恢复原设置"
     }
   },
   "IndexPage": {

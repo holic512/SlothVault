@@ -96,7 +96,6 @@
   border-radius: 50%;
   background: var(--sv-primary);
   box-shadow: 0 0 0 4px rgb(var(--sv-primary-rgb), 0.12);
-  animation: install-status-pulse 2.4s ease-in-out infinite;
 }
 
 .root :global(.install-main) {
@@ -205,7 +204,6 @@
   border: 1px solid rgb(var(--sv-primary-rgb), 0.15);
   border-radius: 50%;
   opacity: 0.8;
-  animation: install-orbit-spin 22s linear infinite;
   filter: grayscale(1);
 }
 
@@ -314,10 +312,6 @@
   min-height: 0;
 }
 
-.root :global(.install-stage-content--enter) {
-  animation: install-stage-in 320ms cubic-bezier(0.2, 0.72, 0.2, 1) both;
-}
-
 .root :global(.install-stage-heading) {
   margin-bottom: 18px;
 }
@@ -355,7 +349,7 @@
   color: var(--sv-text);
   cursor: pointer;
   text-align: left;
-  transition: 180ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease;
 }
 
 .root :global(.install-provider-option)::after {
@@ -369,12 +363,11 @@
   background: rgb(var(--sv-primary-rgb), 0.07);
   opacity: 0;
   transform: scale(0.6);
-  transition: 180ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease;
 }
 
 .root :global(.install-provider-option):hover:not(:disabled) {
   border-color: rgb(var(--sv-primary-rgb), 0.38);
-  transform: translateY(-2px);
 }
 
 .root :global(.install-provider-option):global(.is-active) {
@@ -703,20 +696,6 @@
   letter-spacing: 0.08em;
   text-align: center;
   text-transform: uppercase;
-}
-
-@keyframes install-status-pulse {
-  0%, 100% { opacity: 0.62; transform: scale(0.9); }
-  50% { opacity: 1; transform: scale(1.08); }
-}
-
-@keyframes install-orbit-spin {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes install-stage-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
 }
 
 @media (max-width: 900px) {

@@ -363,13 +363,12 @@
   font-weight: 650;
   line-height: 1;
   letter-spacing: -0.01em;
-  transition: border-color var(--sv-motion-fast) var(--sv-ease-standard), background var(--sv-motion-fast) var(--sv-ease-standard), transform var(--sv-motion-fast) var(--sv-ease-standard);
+  transition: border-color var(--sv-motion-fast) var(--sv-ease-standard), background var(--sv-motion-fast) var(--sv-ease-standard);
 }
 
 .root :global(.admin-wallet-tool .wallet-adapter-button:not([disabled]):hover) {
   border-color: color-mix(in srgb, var(--sv-primary) 38%, var(--sv-border-strong));
   background: var(--sv-bg-soft);
-  transform: translateY(-1px);
 }
 
 .root :global(.admin-wallet-tool .wallet-adapter-button:focus-visible) {
@@ -1676,13 +1675,12 @@
   background: linear-gradient(136deg, color-mix(in srgb, var(--sv-bg-solid) 97%, transparent), color-mix(in srgb, var(--sv-bg-soft) 46%, transparent));
   color: var(--sv-text);
   text-decoration: none;
-  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+  transition: border-color .18s ease, box-shadow .18s ease;
 }
 
 .root :global(.dashboard-metric-card):hover {
   border-color: color-mix(in srgb, var(--sv-primary) 42%, var(--sv-admin-border));
   box-shadow: 0 12px 26px color-mix(in srgb, var(--sv-text) 8%, transparent);
-  transform: translateY(-2px);
 }
 
 .root :global(.dashboard-metric-topline) {
@@ -1704,12 +1702,10 @@
 .root :global(.dashboard-metric-arrow) {
   color: var(--sv-text-muted);
   font-size: 16px;
-  transition: transform .18s ease;
 }
 
 .root :global(.dashboard-metric-card):hover :global(.dashboard-metric-arrow) {
   color: currentcolor;
-  transform: translate(2px, -2px);
 }
 
 .root :global(.dashboard-metric-label),

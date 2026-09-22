@@ -4,10 +4,10 @@
  * @file theme-controls.tsx
  * @project SlothVault
  * @module Theme and Locale Controls
- * @description Exposes visual style, light/dark mode, and language controls for every application surface.
- * @logic Persist visual style independently from color mode, update each preference optimistically, and restore the last style if persistence fails.
- * @dependencies antd, next-intl, app-theme-context, app-style-context, preferences API
- * @index_tags theme,style,locale,saas,accessibility
+ * @description Exposes visual style, public-navigation appearance, light/dark mode, and language controls for every application surface.
+ * @logic Persist appearance preferences independently, update each preference optimistically, and restore the last selection if persistence fails.
+ * @dependencies antd, next-intl, app-theme-context, app-style-context, public-nav-style-context, preferences API
+ * @index_tags theme,style,public-nav,liquid-glass,locale,saas,accessibility
  * @author holic512
  */
 
@@ -20,9 +20,11 @@ import { useRouter } from 'next/navigation'
 
 import { useAppTheme, useResolvedAppTheme } from '@/components/providers/app-theme-context'
 import { useAppStyle } from '@/components/providers/app-style-context'
+import { usePublicNavStyle } from '@/components/providers/public-nav-style-context'
 import { apiFetch } from '@/lib/api-client'
 import { isAppTheme } from '@/theme/app-theme'
 import { isAppStyle } from '@/theme/app-style'
+import { isPublicNavStyle } from '@/theme/public-nav-style'
 
 export function ThemeControls() {
   const t = useTranslations('ThemeToggle')
@@ -32,9 +34,11 @@ export function ThemeControls() {
   const { message } = App.useApp()
   const resolvedTheme = useResolvedAppTheme()
   const { style, setStyle } = useAppStyle()
+  const { publicNavStyle, setPublicNavStyle } = usePublicNavStyle()
   const [changingLocale, startLocaleTransition] = useTransition()
   const [changingTheme, startThemeTransition] = useTransition()
   const [changingStyle, startStyleTransition] = useTransition()
+  const [changingPublicNavStyle, startPublicNavStyleTransition] = useTransition()
   const light = resolvedTheme === 'light'
 
   const changeTheme = (nextTheme: string | number) => {
@@ -71,6 +75,25 @@ export function ThemeControls() {
     })
   }
 
+  const changePublicNavStyle = (nextStyle: string) => {
+    if (!isPublicNavStyle(nextStyle) || nextStyle === publicNavStyle) return
+
+    const previousStyle = publicNavStyle
+    setPublicNavStyle(nextStyle)
+    startPublicNavStyleTransition(async () => {
+      try {
+        await apiFetch('/api/preferences/public-nav-style', {
+          method: 'POST',
+          body: JSON.stringify({ publicNavStyle: nextStyle }),
+        })
+        router.refresh()
+      } catch (error) {
+        setPublicNavStyle(previousStyle)
+        message.error(error instanceof Error ? error.message : t('messages.publicNavStyleSaveFailed'))
+      }
+    })
+  }
+
   const changeLocale = (nextLocale: string | number) => {
     startLocaleTransition(async () => {
       await apiFetch('/api/preferences/locale', {
@@ -103,6 +126,40 @@ export function ThemeControls() {
           },
         ]}
       />
+      <Divider />
+      <Typography.Text type="secondary">{t('section.navigation')}</Typography.Text>
+      <div className="theme-nav-style-options" role="radiogroup" aria-label={t('section.navigation')}>
+        <button
+          type="button"
+          className={`theme-nav-style-card${publicNavStyle === 'standard' ? ' is-active' : ''}`}
+          role="radio"
+          aria-checked={publicNavStyle === 'standard'}
+          disabled={changingPublicNavStyle}
+          onClick={() => changePublicNavStyle('standard')}
+        >
+          <span className="theme-nav-style-preview theme-nav-style-preview--standard" aria-hidden="true">
+            <i />
+            <i />
+          </span>
+          <strong>{t('publicNav.standard')}</strong>
+          <small>{t('publicNav.standardDescription')}</small>
+        </button>
+        <button
+          type="button"
+          className={`theme-nav-style-card${publicNavStyle === 'liquid-glass' ? ' is-active' : ''}`}
+          role="radio"
+          aria-checked={publicNavStyle === 'liquid-glass'}
+          disabled={changingPublicNavStyle}
+          onClick={() => changePublicNavStyle('liquid-glass')}
+        >
+          <span className="theme-nav-style-preview theme-nav-style-preview--liquid" aria-hidden="true">
+            <i />
+            <i />
+          </span>
+          <strong>{t('publicNav.liquidGlass')}</strong>
+          <small>{t('publicNav.liquidGlassDescription')}</small>
+        </button>
+      </div>
       <Divider />
       <Typography.Text type="secondary">{t('section.mode')}</Typography.Text>
       <Segmented

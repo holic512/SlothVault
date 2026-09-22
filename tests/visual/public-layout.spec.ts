@@ -138,6 +138,22 @@ test('@desktop visual style control persists the selected SaaS style', async ({ 
   await expect(page.locator('html')).toHaveAttribute('data-style', 'saas')
 })
 
+test('@desktop public navigation appearance persists the liquid glass selection', async ({ context, page }) => {
+  await setTheme(context, page, 'light')
+  await mockProjectList(page)
+  await page.goto('/project/projectList')
+  await page.getByRole('button', { name: 'Open Theme Settings' }).click()
+  await page.getByRole('radio', { name: /Liquid glass/ }).click()
+  await expect(page.locator('.public-nav-shell')).toBeVisible()
+  await expect(page.locator('.public-nav')).toHaveClass(/is-liquid-glass/)
+  await expect.poll(async () => (
+    await context.cookies(baseURL)
+  ).find((cookie) => cookie.name === 'sv_public_nav_style')?.value).toBe('liquid-glass')
+  await page.reload()
+  await expect(page.locator('.public-nav-shell')).toBeVisible()
+  await expect(page.locator('.public-nav')).toHaveClass(/is-liquid-glass/)
+})
+
 test('@mobile mobile navigation keeps public destinations reachable', async ({ context, page }) => {
   await setTheme(context, page, 'light')
   await mockProjectList(page)
