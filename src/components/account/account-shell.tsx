@@ -80,7 +80,7 @@ export function AccountShell({
             <div className="account-rail-footer">
               <div className="account-appearance">
                 <span>{t('appearance')}</span>
-                <SurfaceAppearanceControl compact />
+                <SurfaceAppearanceControl />
               </div>
               {user.role === 'ADMIN' ? <Button block href="/admin/mm">{t('admin')}</Button> : null}
               <div className="account-section-rail-note">

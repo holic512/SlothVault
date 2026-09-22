@@ -6,7 +6,7 @@
  * @module Public Account Navigation
  * @description Provides conventional login and an identity-aware dropdown for private account routes, administrator navigation, and logout.
  * @logic Resolve the shared session once, direct signed-in users to dedicated account sections, expose the console only to administrators, and revoke the session on logout.
- * @dependencies Ant Design, React Query, Next navigation, auth API
+ * @dependencies Ant Design, React Query, Next navigation, PopupSurface, auth API
  * @index_tags navbar,account,dropdown,login,logout,admin
  * @author holic512
  */
@@ -17,6 +17,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 
+import { PopupSurface } from '@/components/ui/popup-surface'
 import { ApiClientError, apiFetch } from '@/lib/api-client'
 import type { SessionUser } from '@/types/user'
 
@@ -57,20 +58,19 @@ export function AccountNav({ compact = false }: { compact?: boolean }) {
     <Dropdown
       trigger={['click']}
       placement="bottomRight"
-      arrow
+      arrow={false}
       classNames={{ root: 'account-nav-dropdown' }}
       popupRender={(menu) => (
-        <div className="account-nav-popup">
+        <PopupSurface className="account-nav-popup">
           <Link href="/account" className="account-nav-popup-header">
-            <Avatar size={34} src={user.avatar || undefined} icon={<UserRound size={17} />} />
-            <span>
+            <Avatar size={30} src={user.avatar || undefined} icon={<UserRound size={17} />} />
+            <span className="account-nav-popup-identity">
               <strong>{user.displayName || user.username}</strong>
               <small>@{user.username}</small>
             </span>
-            <ChevronDown size={15} aria-hidden />
           </Link>
           {menu}
-        </div>
+        </PopupSurface>
       )}
       menu={{
         items: [

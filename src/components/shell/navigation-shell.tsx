@@ -5,7 +5,7 @@
  * @project SlothVault
  * @module Shared Navigation Shell
  * @description Gives public and project pages one fixed navigation geometry and appearance.
- * @logic Resolve the shared appearance preference once, wrap interchangeable navigation slots in the same surface, and keep responsive dimensions independent of page content.
+ * @logic Resolve the shared appearance preference once, keep navigation slots mounted in one switchable surface, and keep responsive dimensions independent of page content.
  * @dependencies React, public-nav-style-context, liquid-glass-card, navigation-shell.module.css
  * @index_tags navigation,public,project,liquid-glass,responsive
  * @author holic512
@@ -44,20 +44,19 @@ export function NavigationShell({
 
   return (
     <header className={`${styles.wrap} ${kind}-nav-wrap`}>
-      {liquid ? (
-        <LiquidGlassCard
-          className={`${styles.glass} ${kind}-nav-shell`}
-          width="min(var(--sv-container-content), 100%)"
-          margin="0 auto"
-          padding={0}
-          outerRadius="999px"
-          blur={0.25}
-          refraction={8}
-          quality="high"
-        >
-          {navigation}
-        </LiquidGlassCard>
-      ) : navigation}
+      <LiquidGlassCard
+        enabled={liquid}
+        className={`${styles.glass} ${kind}-nav-shell`}
+        width="min(var(--sv-container-content), 100%)"
+        margin="0 auto"
+        padding={0}
+        outerRadius={liquid ? '999px' : '20px'}
+        blur={0.25}
+        refraction={8}
+        quality="high"
+      >
+        {navigation}
+      </LiquidGlassCard>
     </header>
   )
 }

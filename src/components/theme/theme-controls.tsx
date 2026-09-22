@@ -4,7 +4,7 @@
  * @file theme-controls.tsx
  * @project SlothVault
  * @module Theme and Locale Controls
- * @description Exposes visual style, public-navigation appearance, light/dark mode, and language controls for every application surface.
+ * @description Exposes visual style, shared card and popup appearance, light/dark mode, and language controls for every application surface.
  * @logic Persist appearance preferences independently, update each preference optimistically, and restore the last selection if persistence fails.
  * @dependencies antd, next-intl, app-theme-context, app-style-context, public-nav-style-context, preferences API
  * @index_tags theme,style,public-nav,liquid-glass,locale,saas,accessibility
@@ -13,7 +13,7 @@
 
 import { useTransition } from 'react'
 
-import { App, Button, Divider, Popover, Segmented, Typography } from 'antd'
+import { App, Button, Popover, Segmented, Typography } from 'antd'
 import { Moon, PanelsTopLeft, Sun } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
@@ -21,6 +21,7 @@ import { useRouter } from 'next/navigation'
 import { useAppTheme, useResolvedAppTheme } from '@/components/providers/app-theme-context'
 import { useAppStyle } from '@/components/providers/app-style-context'
 import { SurfaceAppearanceControl } from '@/components/theme/surface-appearance-control'
+import { PopupSurface } from '@/components/ui/popup-surface'
 import { apiFetch } from '@/lib/api-client'
 import { isAppTheme } from '@/theme/app-theme'
 import { isAppStyle } from '@/theme/app-style'
@@ -83,59 +84,64 @@ export function ThemeControls() {
   }
 
   const content = (
-    <div className="theme-panel">
-      <Typography.Text type="secondary">{t('section.style')}</Typography.Text>
-      <Segmented
-        block
-        className="theme-style-segmented"
-        disabled={changingStyle}
-        value={style}
-        onChange={changeStyle}
-        options={[
-          {
-            label: <span className="theme-style-option">{t('style.mono')}</span>,
-            value: 'mono',
-            icon: <PanelsTopLeft size={14} />,
-          },
-          {
-            label: <span className="theme-style-option">{t('style.saas')}</span>,
-            value: 'saas',
-            icon: <span className="theme-saas-dot" aria-hidden="true" />,
-          },
-        ]}
-      />
-      <Divider />
-      <Typography.Text type="secondary">{t('section.navigation')}</Typography.Text>
-      <SurfaceAppearanceControl />
-      <Divider />
-      <Typography.Text type="secondary">{t('section.mode')}</Typography.Text>
-      <Segmented
-        block
-        disabled={changingTheme}
-        value={light ? 'light' : 'dark'}
-        onChange={changeTheme}
-        options={[
-          { label: t('mode.light'), value: 'light', icon: <Sun size={14} /> },
-          { label: t('mode.dark'), value: 'dark', icon: <Moon size={14} /> },
-        ]}
-      />
-      <Divider />
-      <Typography.Text type="secondary">{t('section.language')}</Typography.Text>
-      <Segmented
-        block
-        disabled={changingLocale}
-        value={locale}
-        onChange={changeLocale}
-        options={[
-          { label: t('language.en'), value: 'en' },
-          { label: t('language.zh'), value: 'zh' },
-        ]}
-      />
-    </div>
+    <PopupSurface className="theme-panel" padding={12}>
+      <div className="theme-control-section">
+        <Typography.Text type="secondary">{t('section.style')}</Typography.Text>
+        <Segmented
+          block
+          aria-label={t('section.style')}
+          disabled={changingStyle}
+          value={style}
+          onChange={changeStyle}
+          options={[
+            {
+              label: <span className="theme-style-option"><PanelsTopLeft size={14} aria-hidden />{t('style.mono')}</span>,
+              value: 'mono',
+            },
+            {
+              label: <span className="theme-style-option"><span className="theme-saas-dot" aria-hidden="true" />{t('style.saas')}</span>,
+              value: 'saas',
+            },
+          ]}
+        />
+      </div>
+      <div className="theme-control-section">
+        <Typography.Text type="secondary">{t('section.cardStyle')}</Typography.Text>
+        <SurfaceAppearanceControl />
+      </div>
+      <div className="theme-control-section">
+        <Typography.Text type="secondary">{t('section.mode')}</Typography.Text>
+        <Segmented
+          block
+          aria-label={t('section.mode')}
+          disabled={changingTheme}
+          value={light ? 'light' : 'dark'}
+          onChange={changeTheme}
+          options={[
+            { label: <span className="theme-style-option"><Sun size={14} aria-hidden />{t('mode.light')}</span>, value: 'light' },
+            { label: <span className="theme-style-option"><Moon size={14} aria-hidden />{t('mode.dark')}</span>, value: 'dark' },
+          ]}
+        />
+      </div>
+      <div className="theme-control-section">
+        <Typography.Text type="secondary">{t('section.language')}</Typography.Text>
+        <Segmented
+          block
+          aria-label={t('section.language')}
+          disabled={changingLocale}
+          value={locale}
+          onChange={changeLocale}
+          options={[
+            { label: t('language.en'), value: 'en' },
+            { label: t('language.zh'), value: 'zh' },
+          ]}
+        />
+      </div>
+    </PopupSurface>
   )
 
   return (
-    <Popover content={content} trigger="click" placement="bottomRight">
+    <Popover content={content} trigger="click" placement="bottomRight" arrow={false} classNames={{ root: 'theme-controls-popup' }}>
       <Button
         className="icon-action"
         aria-label={t('aria.openThemeSettings')}

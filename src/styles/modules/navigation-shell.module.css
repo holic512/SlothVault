@@ -40,6 +40,10 @@
   pointer-events: auto;
 }
 
+.glass[data-glass-enabled="false"] {
+  background: transparent;
+}
+
 .liquid {
   width: 100%;
   margin: 0;
