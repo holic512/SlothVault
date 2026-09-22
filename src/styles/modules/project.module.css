@@ -9,36 +9,8 @@
  * @author holic512
  */
 
-.root :global(.project-nav-menu) {
-  display: none !important;
-}
-
 .root {
   min-height: 100vh;
-}
-
-.root :global(.project-nav-wrap) {
-  position: fixed;
-  top: 14px;
-  right: 0;
-  left: 0;
-  z-index: var(--sv-z-navigation);
-  padding: 0 18px;
-}
-
-.root :global(.project-nav) {
-  display: grid;
-  grid-template-columns: minmax(190px, 1fr) auto minmax(190px, 1fr);
-  align-items: center;
-  width: min(1260px, 100%);
-  min-height: 60px;
-  margin: 0 auto;
-  padding: 8px 10px 8px 13px;
-  border: 1px solid var(--sv-border);
-  background: var(--sv-bg-elevated);
-  border-radius: 10px;
-  box-shadow: 0 8px 28px rgb(20, 20, 20, 6%);
-  backdrop-filter: blur(14px);
 }
 
 .root :global(.project-brand-lockup) {
@@ -87,65 +59,6 @@
 .root :global(.project-brand-lockup) svg {
   flex: 0 0 auto;
   color: var(--sv-primary-strong);
-}
-
-.root :global(.project-nav-center) {
-  display: flex;
-  align-items: center;
-  justify-self: center;
-  gap: 3px;
-}
-
-.root :global(.project-nav-center) > a {
-  display: inline-flex;
-  height: 34px;
-  align-items: center;
-  gap: 4px;
-  padding: 0 11px;
-  border-radius: 9px;
-  color: var(--sv-text-muted);
-  font-size: 13px;
-  font-weight: 650;
-  line-height: 34px;
-  text-decoration: none;
-}
-
-.root :global(.project-nav-center) :global(.ant-btn) {
-  display: inline-flex;
-  height: 34px;
-  align-items: center;
-  gap: 4px;
-  padding: 0 11px;
-  border-radius: 9px;
-  color: var(--sv-text-muted);
-  font-size: 13px;
-  font-weight: 650;
-  line-height: 34px;
-  text-decoration: none;
-}
-
-.root :global(.project-nav-center) > a:hover {
-  background: var(--sv-bg-soft) !important;
-  color: var(--sv-text) !important;
-}
-
-.root :global(.project-nav-center) > a:global(.is-active) {
-  background: var(--sv-bg-soft) !important;
-  color: var(--sv-text) !important;
-}
-
-.root :global(.project-nav-center) :global(.ant-btn):hover {
-  background: var(--sv-bg-soft) !important;
-  color: var(--sv-text) !important;
-}
-
-.root :global(.project-nav-actions) {
-  justify-self: end;
-}
-
-.root :global(.project-nav-actions) :global(.sloth-wallet-button):global(.wallet-adapter-button) {
-  height: 36px;
-  line-height: 34px;
 }
 
 .root :global(.project-version-select) {
@@ -411,39 +324,12 @@
 }
 
 @media (max-width: 900px) {
-  .root :global(.project-nav-menu) {
-    display: inline-flex !important;
-  }
-
-  .root :global(.project-nav) {
-    grid-template-columns: 1fr auto;
-  }
-
-  .root :global(.project-nav-center) {
-    display: none;
-  }
-
-  .root :global(.project-nav-actions) :global(.sloth-wallet-button):global(.wallet-adapter-button) {
-    display: none;
-  }
-
   .root :global(.docs-reader) {
     grid-template-columns: 205px minmax(0, 1fr);
   }
 }
 
 @media (max-width: 640px) {
-  .root :global(.project-nav-wrap) {
-    top: 9px;
-    padding: 0 9px;
-  }
-
-  .root :global(.project-nav) {
-    min-height: 54px;
-    padding: 6px 7px 6px 10px;
-    border-radius: 16px;
-  }
-
   .root :global(.project-brand-lockup) strong {
     max-width: 110px;
   }
@@ -462,7 +348,7 @@
     display: none;
   }
 
-  .root :global(.project-nav-actions) > :global(.ant-btn):first-of-type {
+  .root :global(.project-nav-library) {
     display: none;
   }
 

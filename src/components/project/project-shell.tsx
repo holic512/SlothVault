@@ -5,14 +5,14 @@
  * @project SlothVault
  * @module Public Project Shell
  * @description Provides the public article-collection layout and interactive navigation around server-rendered reading routes.
- * @logic Receive cached published metadata from the Server Component layout, then handle only browser navigation and responsive menu interaction.
- * @dependencies Ant Design, Next navigation, project context
+ * @logic Receive cached published metadata, place project-specific content inside the shared public navigation shell, and handle version switching and mobile menus.
+ * @dependencies Ant Design, Next navigation, project context, navigation-shell
  * @index_tags project-layout,public-reading,navigation,server-data,web2
  * @author holic512
  */
 import { useState, type ReactNode } from 'react'
 
-import { Button, Drawer, Dropdown, Select, Space } from 'antd'
+import { Button, Drawer, Dropdown, Select } from 'antd'
 import { ChevronDown, Library, Menu } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
@@ -22,6 +22,7 @@ import {
   type ProjectVersion,
   type PublicProject,
 } from '@/components/project/project-context'
+import { NavigationShell } from '@/components/shell/navigation-shell'
 import { ThemeControls } from '@/components/theme/theme-controls'
 import { AccountNav } from '@/components/auth/account-nav'
 import projectStyles from '@/styles/modules/project.module.css'
@@ -81,71 +82,76 @@ function ProjectNavigation({
   }
 
   return (
-    <header className="project-nav-wrap">
-      <nav className="project-nav">
-        <Link href={`/project/${projectId}/home`} className="project-brand-lockup">
-          {project.avatar ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={project.avatar} alt="" />
-          ) : (
-            <span>{project.projectName.charAt(0)}</span>
-          )}
-          <strong>{project.projectName}</strong>
-        </Link>
-
-        <div className="project-nav-center">
-          <Link className={pathname.endsWith('/home') ? 'is-active' : ''} href={`/project/${projectId}/home`}>
-            Home
-          </Link>
-          <Link className={pathname.includes('/docs') ? 'is-active' : ''} href={`/project/${projectId}/docs`}>
-            Docs
-          </Link>
-          {menus.map((menu) =>
-            menu.children.length ? (
-              <Dropdown
-                key={menu.id}
-                menu={{
-                  items: menu.children.map((child) => ({
-                    key: child.id,
-                    label: child.isExternal ? (
-                      <a href={child.url || '#'} target="_blank" rel="noreferrer">{child.label}</a>
-                    ) : (
-                      <Link href={resolveUrl(child.url)}>{child.label}</Link>
-                    ),
-                  })),
-                }}
-              >
-                <Button type="text">{menu.label}<ChevronDown size={13} /></Button>
-              </Dropdown>
-            ) : menu.isExternal ? (
-              <a key={menu.id} href={menu.url || '#'} target="_blank" rel="noreferrer">{menu.label}</a>
+    <>
+      <NavigationShell
+        kind="project"
+        brand={
+          <Link href={`/project/${projectId}/home`} className="project-brand-lockup">
+            {project.avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={project.avatar} alt="" />
             ) : (
-              <Link key={menu.id} href={resolveUrl(menu.url)}>{menu.label}</Link>
-            ),
-          )}
-        </div>
-
-        <Space size={7} className="project-nav-actions">
-          {pathname.includes('/docs') && versions.length ? (
-            <Select
-              className="project-version-select"
-              value={currentVersion || versions[0]?.id}
-              options={versions.map((version) => ({ label: version.version, value: version.id }))}
-              onChange={onVersionChange}
-              suffixIcon={<ChevronDown size={13} />}
+              <span>{project.projectName.charAt(0)}</span>
+            )}
+            <strong>{project.projectName}</strong>
+          </Link>
+        }
+        links={
+          <>
+            <Link className={pathname.endsWith('/home') ? 'is-active' : ''} href={`/project/${projectId}/home`}>
+              Home
+            </Link>
+            <Link className={pathname.includes('/docs') ? 'is-active' : ''} href={`/project/${projectId}/docs`}>
+              Docs
+            </Link>
+            {menus.map((menu) =>
+              menu.children.length ? (
+                <Dropdown
+                  key={menu.id}
+                  menu={{
+                    items: menu.children.map((child) => ({
+                      key: child.id,
+                      label: child.isExternal ? (
+                        <a href={child.url || '#'} target="_blank" rel="noreferrer">{child.label}</a>
+                      ) : (
+                        <Link href={resolveUrl(child.url)}>{child.label}</Link>
+                      ),
+                    })),
+                  }}
+                >
+                  <Button type="text">{menu.label}<ChevronDown size={13} /></Button>
+                </Dropdown>
+              ) : menu.isExternal ? (
+                <a key={menu.id} href={menu.url || '#'} target="_blank" rel="noreferrer">{menu.label}</a>
+              ) : (
+                <Link key={menu.id} href={resolveUrl(menu.url)}>{menu.label}</Link>
+              ),
+            )}
+          </>
+        }
+        actions={
+          <>
+            {pathname.includes('/docs') && versions.length ? (
+              <Select
+                className="project-version-select"
+                value={currentVersion || versions[0]?.id}
+                options={versions.map((version) => ({ label: version.version, value: version.id }))}
+                onChange={onVersionChange}
+                suffixIcon={<ChevronDown size={13} />}
+              />
+            ) : null}
+            <Button className="project-nav-library" aria-label="Project library" icon={<Library size={16} />} href="/project/projectList" />
+            <AccountNav compact />
+            <ThemeControls />
+            <Button
+              className="navigation-menu project-nav-menu"
+              aria-label="Open project navigation"
+              icon={<Menu size={17} />}
+              onClick={() => setMobileOpen(true)}
             />
-          ) : null}
-          <Button icon={<Library size={16} />} href="/project/projectList" />
-          <AccountNav compact />
-          <ThemeControls />
-          <Button
-            className="project-nav-menu"
-            aria-label="Open project navigation"
-            icon={<Menu size={17} />}
-            onClick={() => setMobileOpen(true)}
-          />
-        </Space>
-      </nav>
+          </>
+        }
+      />
       <Drawer
         className="mobile-nav-drawer project-mobile-drawer"
         title={project.projectName}
@@ -200,6 +206,6 @@ function ProjectNavigation({
           )}
         </nav>
       </Drawer>
-    </header>
+    </>
   )
 }

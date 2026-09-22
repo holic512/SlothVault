@@ -1,0 +1,146 @@
+/**
+ * @file navigation-shell.module.css
+ * @project SlothVault
+ * @module Shared Navigation Geometry
+ * @description Defines identical navigation dimensions, surface treatments, and controls for public and project routes.
+ * @logic Keep a fixed outer size across content changes, share link and action styling, and collapse navigation links at the same breakpoint.
+ * @dependencies SlothVault design tokens, navigation-shell
+ * @index_tags css-module,navigation,public,project,responsive
+ * @author holic512
+ */
+
+.wrap {
+  position: fixed;
+  top: 18px;
+  right: 0;
+  left: 0;
+  z-index: var(--sv-z-navigation);
+  padding: 0 20px;
+  pointer-events: none;
+}
+
+.navigation {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(max-content, 1fr);
+  align-items: center;
+  gap: 12px;
+  width: min(var(--sv-container-content), 100%);
+  height: var(--sv-nav-height);
+  margin: 0 auto;
+  padding: 8px 10px 8px 14px;
+  border: 1px solid var(--sv-border);
+  border-radius: 20px;
+  background: var(--sv-bg-elevated);
+  box-shadow: var(--sv-surface-shadow);
+  pointer-events: auto;
+  backdrop-filter: blur(14px);
+}
+
+.glass {
+  pointer-events: auto;
+}
+
+.liquid {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.brand {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.brand > a {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.links {
+  display: flex;
+  max-width: min(40vw, 580px);
+  align-items: center;
+  justify-self: center;
+  gap: 4px;
+  padding: 4px;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+
+.links > a,
+.links > :global(.ant-btn) {
+  display: inline-flex;
+  height: 34px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 5px;
+  color: var(--sv-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 120ms ease, background-color 120ms ease;
+}
+
+.links > a:hover,
+.links > a:global(.is-active),
+.links > :global(.ant-btn):hover {
+  background: var(--sv-bg-solid);
+  color: var(--sv-text);
+  box-shadow: inset 0 0 0 1px var(--sv-border);
+}
+
+.links > a:global(.is-active) svg {
+  color: var(--sv-text-muted);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-self: end;
+  gap: 8px;
+}
+
+.actions :global(.ant-btn) {
+  border-color: var(--sv-border);
+  background: color-mix(in srgb, var(--sv-bg-solid) 78%, transparent);
+  box-shadow: none;
+}
+
+.actions :global(.navigation-menu) {
+  display: none !important;
+}
+
+@media (max-width: 900px) {
+  .navigation {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .links {
+    display: none;
+  }
+
+  .actions :global(.navigation-menu) {
+    display: inline-flex !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .wrap {
+    top: 10px;
+    padding: 0 10px;
+  }
+
+  .navigation {
+    gap: 8px;
+    padding: 6px 7px 6px 11px;
+  }
+}
