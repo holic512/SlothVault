@@ -13,11 +13,12 @@
 import { useEffect } from 'react'
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { App, Avatar, Button, Card, Form, Input, Space, Typography, Upload } from 'antd'
+import { App, Avatar, Button, Form, Input, Space, Typography, Upload } from 'antd'
 import { ImageUp, Save, Trash2, UserRound } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { useAccountUser } from '@/components/account/account-shell'
+import { AccountCard } from '@/components/account/account-card'
 import { apiFetch } from '@/lib/api-client'
 import type { SessionUser } from '@/types/user'
 
@@ -40,7 +41,7 @@ export function AccountProfileView() {
       email: user.email || '',
       bio: user.bio || '',
     })
-  }, [form, user])
+  }, [form, user.displayName, user.email, user.bio])
 
   const saveMutation = useMutation({
     mutationFn: (values: ProfileValues) =>
@@ -88,55 +89,56 @@ export function AccountProfileView() {
     <div className="account-route">
       <div className="account-route-heading">
         <div>
-          <Typography.Text className="account-eyebrow">{t('kicker')}</Typography.Text>
-          <Typography.Title level={2}>{t('title')}</Typography.Title>
+          <Typography.Title level={1}>{t('title')}</Typography.Title>
           <Typography.Text type="secondary">{t('description')}</Typography.Text>
         </div>
       </div>
 
-      <Card className="account-card account-route-card">
-        <Form form={form} layout="vertical" onFinish={(values) => saveMutation.mutate(values)}>
-          <div className="account-form-grid">
-            <Form.Item name="displayName" label={t('displayName')}><Input prefix={<UserRound size={14} />} maxLength={80} /></Form.Item>
-            <Form.Item name="email" label={t('email')} rules={[{ type: 'email', message: t('emailInvalid') }]}><Input /></Form.Item>
-          </div>
-          <Form.Item label={t('avatar')}>
-            <Space wrap size={12}>
-              <Avatar size={68} src={user.avatar || undefined} icon={<UserRound />} />
-              <Space orientation="vertical" size={6}>
-                <Upload
-                  accept="image/png,image/jpeg,image/gif,image/webp"
-                  maxCount={1}
-                  showUploadList={false}
-                  beforeUpload={(file) => {
-                    uploadAvatarMutation.mutate(file)
-                    return false
-                  }}
-                >
-                  <Button icon={<ImageUp size={15} />} loading={uploadAvatarMutation.isPending}>
-                    {t('uploadAvatar')}
-                  </Button>
-                </Upload>
-                <Button
-                  danger
-                  size="small"
-                  icon={<Trash2 size={14} />}
-                  disabled={!user.avatar}
-                  loading={removeAvatarMutation.isPending}
-                  onClick={() => removeAvatarMutation.mutate()}
-                >
-                  {t('resetAvatar')}
+      <div className="account-profile-grid">
+        <AccountCard className="account-avatar-card" title={t('avatar')}>
+          <Space wrap size={12}>
+            <Avatar size={68} src={user.avatar || undefined} icon={<UserRound />} />
+            <Space orientation="vertical" size={6}>
+              <Upload
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                maxCount={1}
+                showUploadList={false}
+                beforeUpload={(file) => {
+                  uploadAvatarMutation.mutate(file)
+                  return false
+                }}
+              >
+                <Button icon={<ImageUp size={15} />} loading={uploadAvatarMutation.isPending}>
+                  {t('uploadAvatar')}
                 </Button>
-                <Typography.Text type="secondary">{t('avatarHint')}</Typography.Text>
-              </Space>
+              </Upload>
+              <Button
+                danger
+                size="small"
+                icon={<Trash2 size={14} />}
+                disabled={!user.avatar}
+                loading={removeAvatarMutation.isPending}
+                onClick={() => removeAvatarMutation.mutate()}
+              >
+                {t('resetAvatar')}
+              </Button>
+              <Typography.Text type="secondary">{t('avatarHint')}</Typography.Text>
             </Space>
-          </Form.Item>
-          <Form.Item name="bio" label={t('bio')}>
-            <Input.TextArea rows={4} maxLength={2_000} showCount />
-          </Form.Item>
-          <Button type="primary" htmlType="submit" icon={<Save size={15} />} loading={saveMutation.isPending}>{t('save')}</Button>
-        </Form>
-      </Card>
+          </Space>
+        </AccountCard>
+        <AccountCard className="account-route-card" title={t('details')}>
+          <Form form={form} layout="vertical" onFinish={(values) => saveMutation.mutate(values)}>
+            <div className="account-form-grid">
+              <Form.Item name="displayName" label={t('displayName')}><Input prefix={<UserRound size={14} />} maxLength={80} /></Form.Item>
+              <Form.Item name="email" label={t('email')} rules={[{ type: 'email', message: t('emailInvalid') }]}><Input /></Form.Item>
+            </div>
+            <Form.Item name="bio" label={t('bio')}>
+              <Input.TextArea rows={4} maxLength={2_000} showCount />
+            </Form.Item>
+            <div className="account-form-footer"><Button type="primary" htmlType="submit" icon={<Save size={15} />} loading={saveMutation.isPending}>{t('save')}</Button></div>
+          </Form>
+        </AccountCard>
+      </div>
     </div>
   )
 }

@@ -119,7 +119,7 @@
     },
     "section": {
       "style": "界面风格",
-      "navigation": "导航外观",
+      "navigation": "导航与账户卡片",
       "mode": "模式",
       "language": "语言"
     },
@@ -145,7 +145,7 @@
     },
     "messages": {
       "styleSaveFailed": "保存界面风格失败，已恢复原设置",
-      "publicNavStyleSaveFailed": "保存导航外观失败，已恢复原设置"
+      "publicNavStyleSaveFailed": "保存外观失败，已恢复原设置"
     }
   },
   "IndexPage": {
@@ -1805,7 +1805,10 @@
       "user": "个人用户",
       "admin": "管理后台",
       "navigationLabel": "账户功能导航",
-      "privacyNotice": "账户数据与登录凭据仅对本人可见。"
+      "privacyNotice": "账户数据与登录凭据仅对本人可见。",
+      "appearance": "导航与卡片外观",
+      "loadFailed": "暂时无法加载账户数据，请重试。",
+      "retry": "重试"
     },
     "overview": {
       "kicker": "概览",
@@ -1830,11 +1833,12 @@
         "profile": "编辑个人资料",
         "security": "管理安全与登录",
         "points": "兑换卡密与查看积分",
-        "membership": "开通与管理会员权益"
+        "membership": "开通与管理会员权益",
+        "contracts": "查看与签署合同"
       },
       "identity": {
-        "title": "你的账户由独立路由管理",
-        "description": "资料、安全和积分互不干扰，操作结果会立即同步到账户菜单。"
+        "title": "资料与登录安全",
+        "description": "定期检查登录方式，并保持个人资料更新。修改密码后需要重新登录。"
       }
     },
     "profile": {
@@ -1852,7 +1856,8 @@
       "resetAvatar": "恢复默认头像",
       "avatarHint": "支持 JPG、PNG、GIF、WebP，单个文件最大 2MB。",
       "bio": "个人简介",
-      "save": "保存资料"
+      "save": "保存资料",
+      "details": "基本资料"
     },
     "security": {
       "kicker": "安全",
@@ -1889,7 +1894,9 @@
         "defaultDescription": "积分变动",
         "change": "变动",
         "balance": "余额"
-      }
+      },
+      "code": "兑换码",
+      "usePoints": "用积分开通会员"
     },
     "membership": {
       "kicker": "会员",
@@ -1928,7 +1935,9 @@
         "revoked": "已取消",
         "active": "有效",
         "expired": "已过期"
-      }
+      },
+      "chooseLevel": "选择下方等级，开通对应的阅读权益。",
+      "managePoints": "管理积分"
     }
   },
   "Evidence": {

@@ -11,10 +11,13 @@
  * @author holic512
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { App, Button, Card, Descriptions, Empty, Space, Table, Tag, Typography } from 'antd'
+import { App, Button, Descriptions, Space, Table, Tag, Typography } from 'antd'
 import { CalendarClock, Check, Coins, Crown, Infinity, LockKeyhole, ShoppingCart } from 'lucide-react'
+import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
+import { AccountCard } from '@/components/account/account-card'
+import { AccountQueryError } from '@/components/account/account-query-error'
 import { apiFetch } from '@/lib/api-client'
 
 type MembershipLevel = {
@@ -91,85 +94,96 @@ export function AccountMembershipView() {
     <div className="account-route membership-route">
       <div className="account-route-heading">
         <div>
-          <Typography.Text className="account-eyebrow">{t('kicker')}</Typography.Text>
-          <Typography.Title level={2}>{t('title')}</Typography.Title>
+          <Typography.Title level={1}>{t('title')}</Typography.Title>
           <Typography.Text type="secondary">{t('description')}</Typography.Text>
         </div>
       </div>
 
-      <div className="membership-summary-grid">
-        <Card className="account-card membership-current-card" loading={membershipQuery.isLoading}>
-          <Space direction="vertical" size={10} className="full-width">
-            <Typography.Text type="secondary">{t('current')}</Typography.Text>
-            {data?.currentMembership ? (
-              <>
-                <Typography.Title level={3}><Crown size={20} /> {data.currentMembership.name}</Typography.Title>
-                <Descriptions size="small" column={1}>
-                  <Descriptions.Item label={t('level')}>Lv.{data.currentMembership.rank}</Descriptions.Item>
-                  <Descriptions.Item label={t('validity')}>{expiryLabel(data.currentMembership.expiresAt)}</Descriptions.Item>
-                </Descriptions>
-              </>
-            ) : (
-              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('noCurrent')} />
-            )}
-          </Space>
-        </Card>
-        <Card className="account-card membership-points-card" title={<span className="account-card-title"><Coins size={16} />{t('availablePoints')}</span>} loading={membershipQuery.isLoading}>
-          <Typography.Title level={2}>{data?.pointsBalance ?? 0}</Typography.Title>
-          <Typography.Text type="secondary">{t('pointsHint')}</Typography.Text>
-        </Card>
-      </div>
-
-      <Card className="account-card membership-levels-card" title={t('availableLevels')} loading={membershipQuery.isLoading}>
-        {data?.levels.length ? (
-          <div className="membership-level-grid">
-            {data.levels.map((level) => {
-              const lowerThanCurrent = Boolean(data.currentMembership && level.rank < data.currentMembership.rank)
-              const permanentCurrent = data.currentMembership?.id === level.id && data.currentMembership.expiresAt === null
-              const insufficient = (data.pointsBalance ?? 0) < level.pricePoints
-              return (
-                <section key={level.id} className="membership-level-card">
-                  <div className="membership-level-card-heading">
-                    <span className="membership-level-rank">Lv.{level.rank}</span>
-                    <Tag color="gold"><Crown size={13} />{level.name}</Tag>
+      {membershipQuery.isError ? (
+        <AccountQueryError retry={() => void membershipQuery.refetch()} />
+      ) : (
+        <>
+          <div className="membership-summary-grid">
+            <AccountCard className="membership-current-card" loading={membershipQuery.isLoading}>
+              <Space orientation="vertical" size={10} className="full-width">
+                <Typography.Text type="secondary">{t('current')}</Typography.Text>
+                {data?.currentMembership ? (
+                  <>
+                    <Typography.Title level={3}><Crown size={20} /> {data.currentMembership.name}</Typography.Title>
+                    <Descriptions size="small" column={1}>
+                      <Descriptions.Item label={t('level')}>Lv.{data.currentMembership.rank}</Descriptions.Item>
+                      <Descriptions.Item label={t('validity')}>{expiryLabel(data.currentMembership.expiresAt)}</Descriptions.Item>
+                    </Descriptions>
+                  </>
+                ) : (
+                  <div className="membership-empty-current">
+                    <Crown size={24} />
+                    <div><strong>{t('noCurrent')}</strong><p>{t('chooseLevel')}</p></div>
                   </div>
-                  <strong className="membership-level-price"><Coins size={17} />{t('price', { points: level.pricePoints })}</strong>
-                  <span className="membership-level-duration">
-                    {level.validityDays ? <><CalendarClock size={14} />{t('duration', { days: level.validityDays })}</> : <><Infinity size={14} />{t('permanent')}</>}
-                  </span>
-                  <Button
-                    type="primary"
-                    icon={permanentCurrent ? <Check size={15} /> : <ShoppingCart size={15} />}
-                    disabled={lowerThanCurrent || permanentCurrent || insufficient}
-                    loading={purchaseMutation.isPending && purchaseMutation.variables === level.id}
-                    onClick={() => confirmPurchase(level)}
-                  >
-                    {permanentCurrent ? t('owned') : lowerThanCurrent ? t('higherLevel') : insufficient ? t('insufficient') : t('purchase')}
-                  </Button>
-                </section>
-              )
-            })}
+                )}
+              </Space>
+            </AccountCard>
+            <AccountCard className="membership-points-card" title={<span className="account-card-title"><Coins size={16} />{t('availablePoints')}</span>} loading={membershipQuery.isLoading}>
+              <Typography.Title level={2}>{data?.pointsBalance ?? 0}</Typography.Title>
+              <Typography.Text type="secondary">{t('pointsHint')}</Typography.Text>
+              <Link className="account-text-link" href="/account/points">{t('managePoints')}</Link>
+            </AccountCard>
           </div>
-        ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('noLevels')} />}
-      </Card>
 
-      <Card className="account-card membership-history-card" title={<span className="account-card-title"><LockKeyhole size={16} />{t('history')}</span>}>
-        <Table<MembershipGrant>
-          rowKey="id"
-          size="small"
-          loading={membershipQuery.isLoading}
-          dataSource={data?.grants || []}
-          pagination={{ pageSize: 10, hideOnSinglePage: true }}
-          scroll={{ x: 720 }}
-          columns={[
-            { title: t('table.level'), dataIndex: ['membershipLevel', 'name'], render: (_value, item) => <Space><Tag color="gold">Lv.{item.membershipLevel.rank}</Tag>{item.membershipLevel.name}</Space> },
-            { title: t('table.source'), dataIndex: 'source', render: (value) => value === 'POINT_PURCHASE' ? t('table.purchase') : t('table.granted') },
-            { title: t('table.grantedAt'), dataIndex: 'grantedAt', render: (value) => new Date(value).toLocaleString(locale) },
-            { title: t('table.expiresAt'), dataIndex: 'expiresAt', render: (value) => expiryLabel(value) },
-            { title: t('table.status'), dataIndex: 'active', render: (_value, item) => item.revokedAt ? <Tag>{t('table.revoked')}</Tag> : item.active ? <Tag color="success">{t('table.active')}</Tag> : <Tag color="warning">{t('table.expired')}</Tag> },
-          ]}
-        />
-      </Card>
+          <section className="membership-levels-section" aria-labelledby="membership-levels-title">
+            <h2 id="membership-levels-title" className="account-section-title">{t('availableLevels')}</h2>
+            {membershipQuery.isLoading ? <AccountCard loading>{null}</AccountCard> : null}
+            {data?.levels.length ? (
+              <div className="membership-level-grid">
+                {data.levels.map((level) => {
+                  const lowerThanCurrent = Boolean(data.currentMembership && level.rank < data.currentMembership.rank)
+                  const permanentCurrent = data.currentMembership?.id === level.id && data.currentMembership.expiresAt === null
+                  const insufficient = (data.pointsBalance ?? 0) < level.pricePoints
+                  return (
+                    <AccountCard key={level.id} className="membership-level-card">
+                      <div className="membership-level-card-heading">
+                        <span className="membership-level-rank">Lv.{level.rank}</span>
+                        <Tag color="gold"><Crown size={13} />{level.name}</Tag>
+                      </div>
+                      <strong className="membership-level-price"><Coins size={17} />{t('price', { points: level.pricePoints })}</strong>
+                      <span className="membership-level-duration">
+                        {level.validityDays ? <><CalendarClock size={14} />{t('duration', { days: level.validityDays })}</> : <><Infinity size={14} />{t('permanent')}</>}
+                      </span>
+                      <Button
+                        type="primary"
+                        icon={permanentCurrent ? <Check size={15} /> : <ShoppingCart size={15} />}
+                        disabled={lowerThanCurrent || permanentCurrent || insufficient}
+                        loading={purchaseMutation.isPending && purchaseMutation.variables === level.id}
+                        onClick={() => confirmPurchase(level)}
+                      >
+                        {permanentCurrent ? t('owned') : lowerThanCurrent ? t('higherLevel') : insufficient ? t('insufficient') : t('purchase')}
+                      </Button>
+                    </AccountCard>
+                  )
+                })}
+              </div>
+            ) : !membershipQuery.isLoading && <AccountCard><p className="account-empty-copy">{t('noLevels')}</p></AccountCard>}
+          </section>
+
+          <AccountCard className="membership-history-card" title={<span className="account-card-title"><LockKeyhole size={16} />{t('history')}</span>}>
+            <Table<MembershipGrant>
+              rowKey="id"
+              size="small"
+              loading={membershipQuery.isLoading}
+              dataSource={data?.grants || []}
+              pagination={{ pageSize: 10, hideOnSinglePage: true }}
+              scroll={{ x: 720 }}
+              columns={[
+                { title: t('table.level'), dataIndex: ['membershipLevel', 'name'], render: (_value, item) => <Space><Tag color="gold">Lv.{item.membershipLevel.rank}</Tag>{item.membershipLevel.name}</Space> },
+                { title: t('table.source'), dataIndex: 'source', render: (value) => value === 'POINT_PURCHASE' ? t('table.purchase') : t('table.granted') },
+                { title: t('table.grantedAt'), dataIndex: 'grantedAt', render: (value) => new Date(value).toLocaleString(locale) },
+                { title: t('table.expiresAt'), dataIndex: 'expiresAt', render: (value) => expiryLabel(value) },
+                { title: t('table.status'), dataIndex: 'active', render: (_value, item) => item.revokedAt ? <Tag>{t('table.revoked')}</Tag> : item.active ? <Tag color="success">{t('table.active')}</Tag> : <Tag color="warning">{t('table.expired')}</Tag> },
+              ]}
+            />
+          </AccountCard>
+        </>
+      )}
     </div>
   )
 }

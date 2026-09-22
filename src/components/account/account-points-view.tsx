@@ -11,11 +11,14 @@
  * @author holic512
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { App, Button, Card, Form, Input, Statistic, Table, Typography } from 'antd'
+import { App, Button, Form, Input, Statistic, Table, Typography } from 'antd'
 import { Coins, Ticket } from 'lucide-react'
+import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { useAccountUser } from '@/components/account/account-shell'
+import { AccountCard } from '@/components/account/account-card'
+import { AccountQueryError } from '@/components/account/account-query-error'
 import { apiFetch } from '@/lib/api-client'
 
 type PointEntry = {
@@ -66,42 +69,48 @@ export function AccountPointsView() {
     <div className="account-route">
       <div className="account-route-heading">
         <div>
-          <Typography.Text className="account-eyebrow">{t('kicker')}</Typography.Text>
-          <Typography.Title level={2}>{t('title')}</Typography.Title>
+          <Typography.Title level={1}>{t('title')}</Typography.Title>
           <Typography.Text type="secondary">{t('description')}</Typography.Text>
         </div>
       </div>
 
-      <div className="account-points-summary">
-        <Card className="account-card account-overview-balance">
-          <Statistic title={t('current')} value={pointsBalance} prefix={<Coins size={17} />} />
-        </Card>
-        <Card className="account-card account-route-card" title={<span className="account-card-title"><Ticket size={16} />{t('redeemTitle')}</span>}>
-          <Form form={redeemForm} layout="vertical" onFinish={(values) => redeemMutation.mutate(values)}>
-            <Form.Item name="code" rules={[{ required: true, message: t('codeRequired') }]}>
-              <Input placeholder="SV-XXXXX-XXXXX-XXXXX-XXXXX" />
-            </Form.Item>
-            <Button htmlType="submit" loading={redeemMutation.isPending}>{t('redeem')}</Button>
-          </Form>
-        </Card>
-      </div>
+      {pointsQuery.isError ? (
+        <AccountQueryError retry={() => void pointsQuery.refetch()} />
+      ) : (
+        <>
+          <div className="account-points-summary">
+            <AccountCard className="account-overview-balance">
+              <Statistic title={t('current')} value={pointsBalance} prefix={<Coins size={17} />} />
+              <Link className="account-text-link" href="/account/membership">{t('usePoints')}</Link>
+            </AccountCard>
+            <AccountCard className="account-route-card" title={<span className="account-card-title"><Ticket size={16} />{t('redeemTitle')}</span>}>
+              <Form form={redeemForm} layout="vertical" onFinish={(values) => redeemMutation.mutate(values)}>
+                <Form.Item name="code" label={t('code')} rules={[{ required: true, message: t('codeRequired') }]}>
+                  <Input placeholder="SV-XXXXX-XXXXX-XXXXX-XXXXX" />
+                </Form.Item>
+                <Button htmlType="submit" loading={redeemMutation.isPending}>{t('redeem')}</Button>
+              </Form>
+            </AccountCard>
+          </div>
 
-      <Card className="account-card account-ledger-card" title={t('history')}>
-        <Table<PointEntry>
-          rowKey="id"
-          size="small"
-          loading={pointsQuery.isLoading}
-          dataSource={pointsQuery.data?.list || []}
-          pagination={false}
-          scroll={{ x: 660 }}
-          columns={[
-            { title: t('table.time'), dataIndex: 'createdAt', width: 176, render: (value) => new Date(value).toLocaleString(locale) },
-            { title: t('table.description'), dataIndex: 'description', render: (value) => value || t('table.defaultDescription') },
-            { title: t('table.change'), dataIndex: 'amount', width: 100, align: 'right', render: (value) => <strong>{value > 0 ? `+${value}` : value}</strong> },
-            { title: t('table.balance'), dataIndex: 'balanceAfter', width: 100, align: 'right' },
-          ]}
-        />
-      </Card>
+          <AccountCard className="account-ledger-card" title={t('history')}>
+            <Table<PointEntry>
+              rowKey="id"
+              size="small"
+              loading={pointsQuery.isLoading}
+              dataSource={pointsQuery.data?.list || []}
+              pagination={false}
+              scroll={{ x: 660 }}
+              columns={[
+                { title: t('table.time'), dataIndex: 'createdAt', width: 176, render: (value) => new Date(value).toLocaleString(locale) },
+                { title: t('table.description'), dataIndex: 'description', render: (value) => value || t('table.defaultDescription') },
+                { title: t('table.change'), dataIndex: 'amount', width: 100, align: 'right', render: (value) => <strong>{value > 0 ? `+${value}` : value}</strong> },
+                { title: t('table.balance'), dataIndex: 'balanceAfter', width: 100, align: 'right' },
+              ]}
+            />
+          </AccountCard>
+        </>
+      )}
     </div>
   )
 }

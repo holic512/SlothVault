@@ -1,0 +1,617 @@
+/**
+ * @file account.module.css
+ * @project SlothVault
+ * @module Account Workspace Styles
+ * @description Gives private account pages a compact identity rail and consistent, switchable content surfaces.
+ * @logic Separate navigation from forms and records, keep glass content readable, and collapse to a wrapping mobile navigation.
+ * @dependencies SlothVault tokens, AccountShell, AccountCard
+ * @index_tags account,layout,responsive,liquid-glass
+ * @author holic512
+ */
+
+.root {
+  --sv-font-display: var(--sv-font-body);
+
+  padding-top: 116px;
+  padding-bottom: 64px;
+}
+
+.root :global(.account-workspace) {
+  display: grid;
+  grid-template-columns: 224px minmax(0, 1fr);
+  align-items: start;
+  gap: 40px;
+}
+
+.root :global(.account-section-rail) {
+  position: sticky;
+  top: 106px;
+  min-width: 0;
+}
+
+.root :global(.account-identity) {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 10px 24px;
+}
+
+.root :global(.account-identity-copy) {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.root :global(.account-identity-copy) strong,
+.root :global(.account-identity-copy) :global(.ant-typography) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.root :global(.account-identity-copy) strong {
+  font-size: 16px;
+}
+
+.root :global(.account-identity-copy) :global(.ant-typography) {
+  font-size: 13px;
+}
+
+.root :global(.account-section-label) {
+  margin: 0 12px 10px;
+  color: var(--sv-text-muted);
+  font-size: 12px;
+}
+
+.root :global(.account-section-nav) {
+  display: grid;
+  gap: 4px;
+}
+
+.root :global(.account-section-nav) a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  color: var(--sv-text-muted);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.root :global(.account-section-nav) a:hover {
+  background: color-mix(in srgb, var(--sv-bg-soft) 60%, transparent);
+  color: var(--sv-text);
+}
+
+.root :global(.account-section-nav) a:global(.is-active) {
+  background: color-mix(in srgb, var(--sv-primary) 9%, var(--sv-bg-solid));
+  color: var(--sv-primary-strong);
+}
+
+.root :global(.account-section-nav) svg {
+  flex-shrink: 0;
+}
+
+.root :global(.account-rail-footer) {
+  display: grid;
+  gap: 20px;
+  margin-top: 24px;
+  padding: 22px 10px 0;
+  border-top: 1px solid var(--sv-border);
+}
+
+.root :global(.account-appearance) {
+  display: grid;
+  gap: 10px;
+  color: var(--sv-text-muted);
+  font-size: 12px;
+}
+
+.root :global(.account-appearance-options) {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--sv-border);
+  border-radius: 10px;
+}
+
+.root :global(.account-appearance-option) {
+  flex: 1;
+  min-height: 34px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--sv-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.root :global(.account-appearance-option.is-active) {
+  background: var(--sv-bg-solid);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 10%);
+  color: var(--sv-text);
+}
+
+.root :global(.account-appearance-option:disabled) {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.root :global(.account-section-rail-note) {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--sv-text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.root :global(.account-section-rail-note) svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.root :global(.account-route-content),
+.root :global(.account-route) {
+  min-width: 0;
+}
+
+.root :global(.account-route-heading) {
+  margin-bottom: 28px;
+}
+
+.root :global(.account-route-heading) h1:global(.ant-typography) {
+  margin: 0 0 8px;
+  font-size: 30px;
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.03em;
+}
+
+.root :global(.account-route-heading) :global(.ant-typography-secondary) {
+  display: block;
+  max-width: 68ch;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.root :global(.account-card) {
+  min-width: 0;
+  border: 1px solid transparent;
+}
+
+.root :global(.account-card[data-glass-enabled="false"]) {
+  border-color: var(--sv-border);
+}
+
+.root :global(.account-card-heading) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 22px 24px 0;
+}
+
+.root :global(.account-card-heading) h2,
+.root :global(.account-section-title) {
+  margin: 0;
+  color: var(--sv-text);
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.root :global(.account-card-body) {
+  padding: 24px;
+}
+
+.root :global(.account-card-heading) + :global(.account-card-body) {
+  padding-top: 18px;
+}
+
+.root :global(.account-card-title) {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.root :global(.account-form-grid) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.root :global(.account-form-footer) {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--sv-border);
+}
+
+.root :global(.account-profile-grid) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 248px;
+  gap: 20px;
+  align-items: start;
+}
+
+.root :global(.account-avatar-card) {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.root :global(.account-profile-grid) > :global(.account-route-card) {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.root :global(.account-avatar-card) :global(.ant-space) {
+  width: 100%;
+  gap: 16px !important;
+}
+
+.root :global(.account-avatar-card) :global(.ant-typography) {
+  display: block;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.root :global(.account-overview-grid) {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.root :global(.account-overview-balance) :global(.ant-statistic-content) {
+  margin: 14px 0 20px;
+  font-size: 44px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.root :global(.account-text-link) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--sv-primary-strong);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.root :global(.account-status-list) > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 39px;
+  color: var(--sv-text-muted);
+  font-size: 14px;
+}
+
+.root :global(.account-status-list) strong {
+  color: var(--sv-text);
+  font-size: 13px;
+}
+
+.root :global(.account-status-list) :global(.ant-tag) {
+  margin-inline-end: 0;
+}
+
+.root :global(.account-overview-actions) {
+  grid-column: 1 / -1;
+}
+
+.root :global(.account-overview-actions) :global(.account-card-body) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 32px;
+  padding-top: 10px;
+}
+
+.root :global(.account-overview-actions) a {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 50px;
+  border-bottom: 1px solid var(--sv-border);
+  color: var(--sv-text);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.root :global(.account-overview-actions) a:hover {
+  color: var(--sv-primary-strong);
+  background: color-mix(in srgb, var(--sv-bg-soft) 45%, transparent);
+}
+
+.root :global(.account-overview-identity) {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 4px 2px;
+  color: var(--sv-text-muted);
+  font-size: 13px;
+}
+
+.root :global(.account-overview-identity) svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.root :global(.account-overview-identity) :global(.ant-typography) {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.root :global(.account-security-grid) {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.root :global(.account-wallet-bound),
+.root :global(.account-wallet-empty) {
+  display: grid;
+  justify-items: start;
+  gap: 16px;
+  overflow-wrap: anywhere;
+}
+
+.root :global(.account-wallet-bound) :global(.ant-typography),
+.root :global(.account-wallet-empty) :global(.ant-typography) {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.root :global(.account-points-summary),
+.root :global(.membership-summary-grid) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.root :global(.account-points-summary) {
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  align-items: start;
+}
+
+.root :global(.membership-current-card) h3:global(.ant-typography) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 22px;
+}
+
+.root :global(.membership-points-card) h2:global(.ant-typography) {
+  margin: 0 0 6px;
+  font-size: 32px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.root :global(.membership-points-card) :global(.account-text-link) {
+  display: flex;
+}
+
+.root :global(.membership-empty-current) {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.root :global(.membership-empty-current) svg {
+  flex-shrink: 0;
+  color: var(--sv-text-muted);
+}
+
+.root :global(.membership-empty-current) p,
+.root :global(.account-empty-copy) {
+  margin: 8px 0 0;
+  color: var(--sv-text-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.root :global(.membership-levels-section) {
+  margin-bottom: 28px;
+}
+
+.root :global(.account-section-title) {
+  margin-bottom: 14px;
+}
+
+.root :global(.membership-level-grid) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr));
+  gap: 16px;
+}
+
+.root :global(.membership-level-card) :global(.account-card-body) {
+  display: grid;
+  gap: 18px;
+}
+
+.root :global(.membership-level-card-heading),
+.root :global(.membership-level-duration),
+.root :global(.membership-level-price) {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.root :global(.membership-level-rank),
+.root :global(.membership-level-duration) {
+  color: var(--sv-text-muted);
+  font-size: 13px;
+}
+
+.root :global(.membership-level-price) {
+  font-size: 24px;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.root :global(.account-contract-list) {
+  margin-top: 20px;
+}
+
+/* Tables should not hide the glass; cells keep a subtle, readable header tint. */
+.root :global(.account-card) :global(.ant-table),
+.root :global(.account-card) :global(.ant-table-cell) {
+  background: transparent;
+}
+
+.root :global(.account-card) :global(.ant-table-thead) > tr > th {
+  background: color-mix(in srgb, var(--sv-bg-soft) 60%, transparent);
+}
+
+.root :global(.account-card) :global(.ant-table-cell-row-hover) {
+  background: color-mix(in srgb, var(--sv-bg-soft) 70%, transparent);
+}
+
+@media (max-width: 1100px) {
+  .root :global(.account-workspace) {
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  .root :global(.account-profile-grid) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .root :global(.account-avatar-card),
+  .root :global(.account-profile-grid) > :global(.account-route-card) {
+    grid-area: auto;
+  }
+}
+
+@media (max-width: 800px) {
+  .root {
+    padding-top: 98px;
+    padding-bottom: 36px;
+  }
+
+  .root :global(.account-workspace) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  .root :global(.account-section-rail) {
+    position: static;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--sv-border);
+  }
+
+  .root :global(.account-identity) {
+    padding: 0 0 18px;
+  }
+
+  .root :global(.account-section-label),
+  .root :global(.account-section-rail-note) {
+    display: none;
+  }
+
+  .root :global(.account-section-nav) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .root :global(.account-section-nav) a {
+    gap: 8px;
+    padding: 8px;
+    font-size: 13px;
+  }
+
+  .root :global(.account-rail-footer) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 16px;
+    padding: 0;
+    border: 0;
+  }
+
+  .root :global(.account-rail-footer) > :global(.ant-btn) {
+    width: auto;
+  }
+
+  .root :global(.account-appearance) {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 600px) {
+  .root :global(.account-route-heading) {
+    margin-bottom: 20px;
+  }
+
+  .root :global(.account-route-heading) h1:global(.ant-typography) {
+    font-size: 26px;
+  }
+
+  .root :global(.account-overview-grid),
+  .root :global(.account-security-grid),
+  .root :global(.account-points-summary),
+  .root :global(.membership-summary-grid),
+  .root :global(.account-form-grid),
+  .root :global(.account-overview-actions) :global(.account-card-body) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .root :global(.account-overview-actions) :global(.account-card-body) {
+    gap: 0;
+  }
+
+  .root :global(.account-card-heading) {
+    padding: 20px 18px 0;
+  }
+
+  .root :global(.account-card-body) {
+    padding: 20px 18px;
+  }
+
+  .root :global(.account-form-grid) {
+    gap: 0;
+  }
+}
+
+.root :global(.account-query-error) {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-block: 20px;
+  padding: 18px;
+  border: 1px solid var(--sv-border);
+  border-radius: 12px;
+  color: var(--sv-text-muted);
+  font-size: 14px;
+}
+
+.root :global(.account-query-error) span {
+  flex: 1;
+}

@@ -68,6 +68,16 @@
   box-shadow: 0 3px 9px rgb(0 0 0 / 22%);
 }
 
+.root[data-glass-enabled="false"] {
+  background: var(--sv-bg-solid);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.root[data-glass-enabled="false"]::after {
+  display: none;
+}
+
 @media (prefers-reduced-transparency: reduce) {
   .root,
   .root[data-refraction="enabled"] {

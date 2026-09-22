@@ -13,10 +13,12 @@
 import { useState } from 'react'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, App, Button, Card, Checkbox, Descriptions, Drawer, Form, Input, List, Modal, Space, Tag, Typography } from 'antd'
+import { Alert, App, Button, Checkbox, Descriptions, Drawer, Form, Input, List, Modal, Space, Tag, Typography } from 'antd'
 import { BadgeCheck, FileCheck2, FileText, PenLine, ShieldCheck, XCircle } from 'lucide-react'
 
 import { MarkdownView } from '@/components/markdown/markdown-view'
+import { AccountCard } from '@/components/account/account-card'
+import { AccountQueryError } from '@/components/account/account-query-error'
 import { apiFetch } from '@/lib/api-client'
 import contractStyles from '@/styles/modules/contracts.module.css'
 
@@ -77,20 +79,24 @@ export function AccountContractsView() {
 
   return <div className={`account-route ${contractStyles.account}`}>
     <div className="account-route-heading">
-      <div><Typography.Text className="account-eyebrow">Contract desk</Typography.Text><Typography.Title level={2}>我的合同</Typography.Title><Typography.Text type="secondary">在线确认冻结的合同正文。签约不需要连接钱包，链上防篡改存证由管理员单独办理。</Typography.Text></div>
+      <div><Typography.Title level={1}>我的合同</Typography.Title><Typography.Text type="secondary">在线确认冻结的合同正文。签约不需要连接钱包，链上防篡改存证由管理员单独办理。</Typography.Text></div>
     </div>
     <Alert type="info" showIcon message="Web2 在线签约" description="点击确认后，系统会记录当前账户、时间、会话和基础客户端审计信息。此功能不替代法定电子签名或司法公证。" />
-    <Card className={contractStyles['list-card']} title="分配给我的合同">
-      <List
-        loading={contracts.isLoading}
-        locale={{ emptyText: '暂无分配给您的合同' }}
-        dataSource={contracts.data?.list || []}
-        renderItem={(contract) => <List.Item actions={[<Button key="view" type="link" onClick={() => setSelected(contract)}>查看合同</Button>]}>
-          <List.Item.Meta avatar={<FileText size={22} />} title={<Space>{contract.title}{statusTag(contract.status)}</Space>} description={<span>管理员：{contract.issuer.displayName || contract.issuer.username} · 发起于 {contract.issuedAt ? new Date(contract.issuedAt).toLocaleString() : '草稿中'}</span>} />
-          {contract.credentials.some((credential) => credential.status === 2) ? <Tag icon={<BadgeCheck size={12} />} color="success">已上链</Tag> : null}
-        </List.Item>}
-      />
-    </Card>
+    {contracts.isError ? (
+      <AccountQueryError retry={() => void contracts.refetch()} />
+    ) : (
+        <AccountCard className="account-contract-list" title="分配给我的合同">
+          <List
+            loading={contracts.isLoading}
+            locale={{ emptyText: '暂无分配给您的合同' }}
+            dataSource={contracts.data?.list || []}
+            renderItem={(contract) => <List.Item actions={[<Button key="view" type="link" onClick={() => setSelected(contract)}>查看合同</Button>]}>
+              <List.Item.Meta avatar={<FileText size={22} />} title={<Space>{contract.title}{statusTag(contract.status)}</Space>} description={<span>管理员：{contract.issuer.displayName || contract.issuer.username} · 发起于 {contract.issuedAt ? new Date(contract.issuedAt).toLocaleString() : '草稿中'}</span>} />
+              {contract.credentials.some((credential) => credential.status === 2) ? <Tag icon={<BadgeCheck size={12} />} color="success">已上链</Tag> : null}
+            </List.Item>}
+          />
+        </AccountCard>
+    )}
 
     <Drawer open={Boolean(selected)} onClose={() => setSelected(null)} width={760} title="合同详情">
       {selected ? <ContractRead contract={selected} onSign={() => { setAcknowledged(false); setSigning(selected) }} onDecline={() => { declineForm.resetFields(); setDeclining(selected) }} /> : null}

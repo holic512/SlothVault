@@ -4,22 +4,24 @@
  * @file account-shell.tsx
  * @project SlothVault
  * @module Personal Account Workspace
- * @description Provides the authenticated account header, section navigation, and shared session state for split account routes.
+ * @description Provides the compact identity rail, surface controls, section navigation, and shared session state for split account routes.
  * @logic Use the server-verified account as initial state, keep the client session query synchronized after profile mutations, and route each account concern to its own workspace view.
- * @dependencies React, React Query, Ant Design, Next navigation, auth session API
+ * @dependencies React, React Query, Ant Design, Next navigation, SurfaceAppearanceControl, account.module.css, auth session API
  * @index_tags account,workspace,navigation,profile,security,points
  * @author holic512
  */
 import { createContext, useContext, type ReactNode } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
-import { Avatar, Button, Space, Typography } from 'antd'
+import { Avatar, Button, Typography } from 'antd'
 import { Coins, Crown, FileSignature, KeyRound, LayoutDashboard, ShieldCheck, UserRound } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { usePathname } from 'next/navigation'
 
+import { SurfaceAppearanceControl } from '@/components/theme/surface-appearance-control'
 import { apiFetch } from '@/lib/api-client'
+import styles from '@/styles/modules/account.module.css'
 import type { SessionUser } from '@/types/user'
 
 const AccountUserContext = createContext<SessionUser | null>(null)
@@ -56,32 +58,35 @@ export function AccountShell({
 
   return (
     <AccountUserContext.Provider value={user}>
-      <main className="account-main content-container">
-        <section className="account-hero account-hero--workspace">
-          <Avatar size={54} src={user.avatar || undefined} icon={<UserRound />} />
-          <div>
-            <Typography.Text className="account-eyebrow">{t('kicker')}</Typography.Text>
-            <Typography.Title level={1}>{user.displayName || user.username}</Typography.Title>
-            <Typography.Text type="secondary">@{user.username} · {user.role === 'ADMIN' ? t('administrator') : t('user')}</Typography.Text>
-          </div>
-          <Space className="account-hero-actions" size={6}>
-            {user.role === 'ADMIN' ? <Button type="primary" href="/admin/mm">{t('admin')}</Button> : null}
-          </Space>
-        </section>
-
+      <main className={`${styles.root} account-main content-container`}>
         <div className="account-workspace">
           <aside className="account-section-rail" aria-label={t('navigationLabel')}>
+            <div className="account-identity">
+              <Avatar size={44} src={user.avatar || undefined} icon={<UserRound size={21} />} />
+              <div className="account-identity-copy">
+                <strong>{user.displayName || user.username}</strong>
+                <Typography.Text type="secondary">@{user.username}</Typography.Text>
+              </div>
+            </div>
+            <div className="account-section-label">{t('kicker')}</div>
             <nav className="account-section-nav">
               {accountSections.map(({ href, label, icon: Icon }) => (
-                <Link key={href} href={href} className={pathname === href ? 'is-active' : ''}>
-                  <Icon size={16} />
+                <Link key={href} href={href} className={pathname === href ? 'is-active' : ''} aria-current={pathname === href ? 'page' : undefined}>
+                  <Icon size={18} />
                   <span>{label}</span>
                 </Link>
               ))}
             </nav>
-            <div className="account-section-rail-note">
-              <KeyRound size={14} />
-              <span>{t('privacyNotice')}</span>
+            <div className="account-rail-footer">
+              <div className="account-appearance">
+                <span>{t('appearance')}</span>
+                <SurfaceAppearanceControl compact />
+              </div>
+              {user.role === 'ADMIN' ? <Button block href="/admin/mm">{t('admin')}</Button> : null}
+              <div className="account-section-rail-note">
+                <KeyRound size={14} />
+                <span>{t('privacyNotice')}</span>
+              </div>
             </div>
           </aside>
           <section className="account-route-content">{children}</section>

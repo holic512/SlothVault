@@ -11,13 +11,14 @@
  * @author holic512
  */
 import { useMutation } from '@tanstack/react-query'
-import { App, Button, Card, Form, Input, Tag, Typography } from 'antd'
+import { App, Button, Form, Input, Tag, Typography } from 'antd'
 import { KeyRound, ShieldCheck, WalletCards } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 
 import { useAccountUser } from '@/components/account/account-shell'
 import { WalletLoginButton } from '@/components/auth/wallet-login-button'
+import { AccountCard } from '@/components/account/account-card'
 import { apiFetch } from '@/lib/api-client'
 
 type PasswordValues = {
@@ -50,14 +51,13 @@ export function AccountSecurityView() {
     <div className="account-route">
       <div className="account-route-heading">
         <div>
-          <Typography.Text className="account-eyebrow">{t('kicker')}</Typography.Text>
-          <Typography.Title level={2}>{t('title')}</Typography.Title>
+          <Typography.Title level={1}>{t('title')}</Typography.Title>
           <Typography.Text type="secondary">{t('description')}</Typography.Text>
         </div>
       </div>
 
       <div className="account-security-grid">
-        <Card className="account-card account-route-card" title={<span className="account-card-title"><KeyRound size={16} />{t('passwordTitle')}</span>}>
+        <AccountCard className="account-route-card" title={<span className="account-card-title"><KeyRound size={16} />{t('passwordTitle')}</span>}>
           <Form form={passwordForm} layout="vertical" onFinish={(values) => passwordMutation.mutate(values)}>
             {user.passwordConfigured ? (
               <Form.Item name="currentPassword" label={t('currentPassword')} rules={[{ required: true, message: t('currentPasswordRequired') }]}>
@@ -82,9 +82,9 @@ export function AccountSecurityView() {
             </Form.Item>
             <Button type="primary" htmlType="submit" loading={passwordMutation.isPending}>{user.passwordConfigured ? t('changePassword') : t('setPassword')}</Button>
           </Form>
-        </Card>
+        </AccountCard>
 
-        <Card className="account-card account-route-card" title={<span className="account-card-title"><WalletCards size={16} />{t('walletTitle')}</span>}>
+        <AccountCard className="account-route-card" title={<span className="account-card-title"><WalletCards size={16} />{t('walletTitle')}</span>}>
           {user.walletAddress ? (
             <div className="account-wallet-bound">
               <Tag color="success">{t('bound')}</Tag>
@@ -98,7 +98,7 @@ export function AccountSecurityView() {
               <WalletLoginButton mode="bind" redirectTo="/account/security" />
             </div>
           )}
-        </Card>
+        </AccountCard>
       </div>
     </div>
   )

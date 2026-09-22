@@ -2,10 +2,10 @@
  * @file public.module.css
  * @project SlothVault
  * @module Public Experience Styles
- * @description Scopes the public shell, homepage, article archive, project library, and account layouts to the public page boundary.
- * @logic Compose public navigation, independent article surfaces, project reading, and account views responsively under one local module root.
+ * @description Scopes the public shell, homepage, article archive, and project library layouts to the public page boundary.
+ * @logic Compose public navigation, independent article surfaces, and project reading responsively under one local module root.
  * @dependencies SlothVault design tokens, feature markup
- * @index_tags css-module,public,homepage,articles,projects,account
+ * @index_tags css-module,public,homepage,articles,projects
  * @author holic512
  */
 
@@ -603,21 +603,6 @@
   text-decoration: none;
 }
 
-.root :global(.account-eyebrow) {
-  color: var(--sv-text-muted) !important;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
-.root :global(.account-card) {
-  border-radius: var(--sv-radius) !important;
-  background: var(--sv-bg-solid) !important;
-  box-shadow: var(--sv-surface-shadow);
-  border: 1px solid var(--sv-border) !important;
-}
-
 .root :global(.project-card-edition) {
   margin-top: auto;
   margin-bottom: 18px;
@@ -628,344 +613,11 @@
   text-transform: uppercase;
 }
 
-.root :global(.account-main) {
-  padding-top: 104px;
-  padding-bottom: 56px;
-}
-
 .root :global(.account-loading) {
   display: grid;
   min-height: 70vh;
   place-items: center;
   color: var(--sv-text-muted);
-}
-
-.root :global(.account-hero) {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 16px;
-  padding: 18px 0;
-  border-top: 1px solid var(--sv-border-strong);
-  border-bottom: 1px solid var(--sv-border);
-}
-
-.root :global(.account-hero) h1:global(.ant-typography) {
-  margin: 2px 0 4px;
-  font-size: clamp(1.65rem, 3vw, 2.2rem);
-  letter-spacing: -0.045em;
-}
-
-.root :global(.account-hero) :global(.account-eyebrow) {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
-.root :global(.account-hero--workspace) > :global(.ant-avatar) {
-  border: 1px solid var(--sv-border-strong);
-  background: var(--sv-bg-soft);
-}
-
-.root :global(.account-workspace) {
-  display: grid;
-  grid-template-columns: 216px minmax(0, 1fr);
-  align-items: start;
-  gap: 16px;
-}
-
-.root :global(.account-section-rail) {
-  position: sticky;
-  top: 92px;
-  display: grid;
-  gap: 12px;
-  padding: 7px;
-  border: 1px solid var(--sv-border);
-  border-radius: var(--sv-radius);
-  background: color-mix(in srgb, var(--sv-bg-solid) 92%, transparent);
-  box-shadow: var(--sv-surface-shadow);
-}
-
-.root :global(.account-section-nav) {
-  display: grid;
-  gap: 2px;
-}
-
-.root :global(.account-section-nav) a {
-  display: flex;
-  min-height: 34px;
-  align-items: center;
-  gap: 8px;
-  padding: 0 9px;
-  border: 1px solid transparent;
-  border-radius: var(--sv-radius-sm);
-  color: var(--sv-text-muted);
-  font-size: 13px;
-  font-weight: 650;
-  text-decoration: none;
-}
-
-.root :global(.account-section-nav) a:hover {
-  border-color: var(--sv-border);
-  background: var(--sv-bg-soft);
-  color: var(--sv-text);
-}
-
-.root :global(.account-section-nav) a:global(.is-active) {
-  border-color: color-mix(in srgb, var(--sv-primary) 22%, var(--sv-border));
-  background: color-mix(in srgb, var(--sv-primary) 9%, var(--sv-bg-solid));
-  color: var(--sv-primary-strong);
-}
-
-.root :global(.account-section-rail-note) {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 8px 9px 2px;
-  border-top: 1px solid var(--sv-border);
-  color: var(--sv-text-muted);
-  font-size: 11px;
-  line-height: 1.45;
-}
-
-.root :global(.account-section-rail-note) svg {
-  flex: 0 0 auto;
-  margin-top: 1px;
-}
-
-.root :global(.account-route-content) {
-  min-width: 0;
-}
-
-.root :global(.account-route-heading) {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.root :global(.account-route-heading) h2:global(.ant-typography) {
-  margin: 2px 0 3px;
-  font-size: 24px;
-  letter-spacing: -0.035em;
-}
-
-.root :global(.account-route-heading) :global(.ant-typography-secondary) {
-  font-size: 13px;
-}
-
-.root :global(.account-route-card) :global(.ant-card-body) {
-  padding: 16px;
-}
-
-.root :global(.account-route-card) :global(.ant-form-item) {
-  margin-bottom: 14px;
-}
-
-.root :global(.membership-summary-grid) {
-  display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(220px, 0.7fr);
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.root :global(.membership-current-card) h3:global(.ant-typography) {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-}
-
-.root :global(.membership-points-card) h2:global(.ant-typography) {
-  margin: 0 0 6px;
-}
-
-.root :global(.membership-levels-card),
-.root :global(.membership-history-card) {
-  margin-bottom: 12px;
-}
-
-.root :global(.membership-level-grid) {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 12px;
-}
-
-.root :global(.membership-level-card) {
-  display: grid;
-  gap: 12px;
-  min-height: 190px;
-  padding: 16px;
-  border: 1px solid var(--sv-border);
-  border-radius: var(--sv-radius-sm);
-  background: var(--sv-bg-soft);
-}
-
-.root :global(.membership-level-card-heading),
-.root :global(.membership-level-duration),
-.root :global(.membership-level-price) {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.root :global(.membership-level-rank) {
-  color: var(--sv-text-muted);
-  font-family: var(--sv-font-mono);
-  font-size: 11px;
-}
-
-.root :global(.membership-level-price) {
-  font-size: 18px;
-}
-
-.root :global(.membership-level-duration) {
-  color: var(--sv-text-muted);
-  font-size: 12px;
-}
-
-.root :global(.account-card-title) {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.root :global(.account-overview-grid) {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.root :global(.account-overview-balance) {
-  border-color: color-mix(in srgb, var(--sv-primary) 28%, var(--sv-border)) !important;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--sv-primary) 10%, var(--sv-bg-solid)), var(--sv-bg-solid) 64%) !important;
-}
-
-.root :global(.account-overview-balance) :global(.ant-statistic) {
-  margin-bottom: 8px;
-}
-
-.root :global(.account-overview-balance) :global(.ant-statistic-content) {
-  font-family: ui-serif, Charter, "Bitstream Charter", Cambria, serif;
-  font-size: 36px;
-  letter-spacing: -0.04em;
-}
-
-.root :global(.account-overview-balance) :global(.ant-btn-link) {
-  height: auto;
-  padding: 0;
-}
-
-.root :global(.account-status-list) {
-  display: grid;
-  gap: 9px;
-}
-
-.root :global(.account-status-list) > div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  color: var(--sv-text-muted);
-  font-size: 13px;
-}
-
-.root :global(.account-status-list) strong {
-  color: var(--sv-text);
-  font-size: 12px;
-}
-
-.root :global(.account-overview-actions) :global(.ant-card-body) {
-  display: grid;
-  padding-block: 7px;
-}
-
-.root :global(.account-overview-actions) a {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  min-height: 34px;
-  align-items: center;
-  gap: 8px;
-  padding: 0 2px;
-  color: var(--sv-text-muted);
-  font-size: 13px;
-  text-decoration: none;
-}
-
-.root :global(.account-overview-actions) a:hover {
-  color: var(--sv-primary-strong);
-}
-
-.root :global(.account-overview-identity) :global(.ant-card-body) {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.root :global(.account-overview-identity) svg {
-  flex: 0 0 auto;
-  margin-top: 2px;
-  color: var(--sv-primary-strong);
-}
-
-.root :global(.account-overview-identity) strong,
-.root :global(.account-overview-identity) :global(.ant-typography) {
-  display: block;
-}
-
-.root :global(.account-overview-identity) :global(.ant-typography) {
-  margin-top: 3px;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.root :global(.account-security-grid),
-.root :global(.account-points-summary) {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.root :global(.account-wallet-bound),
-.root :global(.account-wallet-empty) {
-  display: grid;
-  align-items: start;
-  gap: 10px;
-}
-
-.root :global(.account-wallet-empty) > svg {
-  color: var(--sv-primary-strong);
-}
-
-.root :global(.account-wallet-bound) :global(.ant-typography) {
-  margin: 0;
-  font-size: 12px;
-}
-
-.root :global(.account-form-grid) {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.root :global(.account-balance-card) :global(.ant-statistic) {
-  margin-bottom: 24px;
-}
-
-.root :global(.account-balance-card) :global(.ant-statistic-content) {
-  font-family: ui-serif, Charter, "Bitstream Charter", Cambria, serif;
-  font-size: 46px;
-}
-
-.root :global(.account-ledger-card) {
-  margin-top: 16px;
-}
-
-.root :global(.gift-card-copy) {
-  margin-top: 12px;
 }
 
 @media (max-width: 900px) {
@@ -1002,37 +654,9 @@
   .root :global(.article-reader-cover) {
     min-height: 440px;
   }
-
-  .root :global(.account-workspace) {
-    grid-template-columns: 1fr;
-  }
-
-  .root :global(.account-section-rail) {
-    position: static;
-    gap: 0;
-    padding: 5px;
-  }
-
-  .root :global(.account-section-nav) {
-    display: flex;
-    overflow-x: auto;
-  }
-
-  .root :global(.account-section-nav) a {
-    flex: 0 0 auto;
-  }
-
-  .root :global(.account-section-rail-note) {
-    display: none;
-  }
 }
 
 @media (max-width: 760px) {
-  .root :global(.account-main) {
-    padding-top: 88px;
-    padding-bottom: 36px;
-  }
-
   .root :global(.articles-main) {
     padding-top: 94px;
   }
@@ -1076,26 +700,6 @@
     font-size: clamp(2.7rem, 14vw, 4.7rem);
   }
 
-  .root :global(.account-hero) {
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: 14px;
-  }
-
-  .root :global(.account-hero-actions) {
-    grid-column: 1 / -1;
-    width: 100%;
-  }
-
-  .root :global(.account-security-grid),
-  .root :global(.account-points-summary),
-  .root :global(.membership-summary-grid) {
-    grid-template-columns: 1fr;
-  }
-
-  .root :global(.account-form-grid) {
-    grid-template-columns: 1fr;
-  }
-
 }
 
 @media (max-width: 640px) {
@@ -1135,13 +739,5 @@
 
   .root :global(.project-library-card) :global(.ant-card-body) {
     min-height: 280px;
-  }
-
-  .root :global(.account-overview-grid) {
-    grid-template-columns: 1fr;
-  }
-
-  .root :global(.account-hero) h1:global(.ant-typography) {
-    font-size: 1.5rem;
   }
 }

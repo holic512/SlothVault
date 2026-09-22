@@ -29,6 +29,7 @@ type LiquidGlassStyle = CSSProperties & Record<`--sv-liquid-glass-${string}`, st
 
 export type LiquidGlassCardProps = Omit<ComponentPropsWithoutRef<'div'>, 'children'> & {
   children: ReactNode
+  enabled?: boolean
   width?: CSSProperties['width']
   height?: CSSProperties['height']
   minWidth?: CSSProperties['minWidth']
@@ -72,6 +73,7 @@ function readCornerRadius(element: HTMLElement, width: number, height: number) {
 
 export function LiquidGlassCard({
   children,
+  enabled = true,
   width = '100%',
   height = 'auto',
   minWidth = 0,
@@ -107,7 +109,7 @@ export function LiquidGlassCard({
     const filter = filterRef.current
     const image = imageRef.current
     const displacement = displacementRef.current
-    if (!root || !filter || !image || !displacement || !supportsSvgBackdropFilter()) return
+    if (!enabled || !root || !filter || !image || !displacement || !supportsSvgBackdropFilter()) return
 
     const canvas = document.createElement('canvas')
     const context = canvas.getContext('2d')
@@ -162,7 +164,7 @@ export function LiquidGlassCard({
       if (frame !== undefined) window.cancelAnimationFrame(frame)
       reset()
     }
-  }, [filterId, quality, safeRefraction, safeBlur, outerRadiusValue])
+  }, [enabled, filterId, quality, safeRefraction, safeBlur, outerRadiusValue])
 
   const rootStyle: LiquidGlassStyle = {
     '--sv-liquid-glass-width': asCssLength(width, '100%'),
@@ -201,7 +203,7 @@ export function LiquidGlassCard({
           </filter>
         </defs>
       </svg>
-      <div {...rest} ref={rootRef} className={classNames(styles.root, className)} style={rootStyle}>
+      <div {...rest} ref={rootRef} data-glass-enabled={enabled} className={classNames(styles.root, className)} style={rootStyle}>
         <div className={classNames(styles.content, contentClassName)} style={contentStyle}>
           {children}
         </div>

@@ -119,7 +119,7 @@
     },
     "section": {
       "style": "Visual style",
-      "navigation": "Navigation appearance",
+      "navigation": "Navigation & account cards",
       "mode": "Mode",
       "language": "Language"
     },
@@ -145,7 +145,7 @@
     },
     "messages": {
       "styleSaveFailed": "Could not save the visual style; your previous setting was restored.",
-      "publicNavStyleSaveFailed": "Could not save the navigation appearance; your previous setting was restored."
+      "publicNavStyleSaveFailed": "Could not save the appearance; your previous setting was restored."
     }
   },
   "IndexPage": {
@@ -1805,7 +1805,10 @@
       "user": "User",
       "admin": "Admin console",
       "navigationLabel": "Account navigation",
-      "privacyNotice": "Your account data and sign-in credentials are visible only to you."
+      "privacyNotice": "Your account data and sign-in credentials are visible only to you.",
+      "appearance": "Navigation & cards",
+      "loadFailed": "Account data could not be loaded. Please try again.",
+      "retry": "Retry"
     },
     "overview": {
       "kicker": "Overview",
@@ -1830,11 +1833,12 @@
         "profile": "Edit your profile",
         "security": "Manage security and sign-in",
         "points": "Redeem codes and view points",
-        "membership": "Manage membership benefits"
+        "membership": "Manage membership benefits",
+        "contracts": "Review and sign contracts"
       },
       "identity": {
-        "title": "Your account is managed in dedicated routes",
-        "description": "Profile, security, and points stay separate, and changes are immediately reflected in the account menu."
+        "title": "Profile and sign-in security",
+        "description": "Keep your profile up to date and review your sign-in methods. Changing your password requires signing in again."
       }
     },
     "profile": {
@@ -1852,7 +1856,8 @@
       "resetAvatar": "Restore default avatar",
       "avatarHint": "JPG, PNG, GIF, and WebP are supported. Maximum file size: 2 MB.",
       "bio": "Bio",
-      "save": "Save profile"
+      "save": "Save profile",
+      "details": "Personal details"
     },
     "security": {
       "kicker": "Security",
@@ -1889,7 +1894,9 @@
         "defaultDescription": "Points adjustment",
         "change": "Change",
         "balance": "Balance"
-      }
+      },
+      "code": "Gift code",
+      "usePoints": "Use points for membership"
     },
     "membership": {
       "kicker": "Membership",
@@ -1928,7 +1935,9 @@
         "revoked": "Revoked",
         "active": "Active",
         "expired": "Expired"
-      }
+      },
+      "chooseLevel": "Choose a level below to unlock its reading benefits.",
+      "managePoints": "Manage points"
     }
   },
   "Evidence": {
