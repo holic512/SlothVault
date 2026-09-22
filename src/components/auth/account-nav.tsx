@@ -56,6 +56,8 @@ export function AccountNav({ compact = false }: { compact?: boolean }) {
   return (
     <Dropdown
       trigger={['click']}
+      placement="bottomRight"
+      arrow
       classNames={{ root: 'account-nav-dropdown' }}
       popupRender={(menu) => (
         <div className="account-nav-popup">

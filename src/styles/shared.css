@@ -255,24 +255,32 @@
   background: var(--sv-bg-soft);
 }
 
-.account-nav-dropdown {
-  min-width: 232px;
+/* stylelint-disable custom-property-pattern -- Reuse Ant Design's own popover surface tokens. */
+.account-nav-dropdown.ant-dropdown {
+  width: min(260px, calc(100vw - 24px));
+  min-width: 0;
+  filter: var(--ant-drop-shadow-popover);
+}
+
+.account-nav-dropdown.ant-dropdown .ant-dropdown-arrow::after {
+  box-shadow: none;
 }
 
 .account-nav-popup {
+  padding: 12px;
   overflow: hidden;
-  border: 1px solid var(--sv-border);
-  border-radius: var(--sv-radius);
-  background: var(--sv-bg-solid);
-  box-shadow: var(--sv-shadow-tight);
+  border-radius: var(--ant-border-radius-lg);
+  background: var(--ant-color-bg-elevated);
 }
+/* stylelint-enable custom-property-pattern */
 
 .account-nav-popup-header {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 9px;
-  padding: 11px 12px;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 4px 8px 14px;
   border-bottom: 1px solid var(--sv-border);
   color: var(--sv-text);
   text-decoration: none;
@@ -309,12 +317,22 @@
   font-size: 11px;
 }
 
-.account-nav-popup .ant-dropdown-menu {
-  padding: 5px;
+.account-nav-dropdown .account-nav-popup .ant-dropdown-menu {
+  padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+}
+
+.account-nav-dropdown .ant-dropdown-menu .ant-dropdown-menu-item {
+  min-height: 38px;
+  padding: 8px 10px;
+  border-radius: var(--sv-radius-sm);
+}
+
+.account-nav-dropdown .ant-dropdown-menu .ant-dropdown-menu-item-divider {
+  margin: 8px 0;
 }
 
 .mobile-nav-links {
