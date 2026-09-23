@@ -14,7 +14,7 @@ import { requireAdminSession } from '@/server/auth/session'
 import { defineRoute } from '@/server/http/handler'
 import { readJson } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
-import { integerValue, legacyBoolean, pagination } from '@/server/services/admin-catalog'
+import { integerValue, pagination } from '@/server/services/admin-catalog'
 import { createAdminArticle, listAdminArticles } from '@/server/services/admin-articles'
 
 const createArticleSchema = z.object({
@@ -40,7 +40,6 @@ export const GET = defineRoute(async (request) => {
     skip,
     keyword: searchParams.get('keyword')?.trim() || '',
     status,
-    includeDeleted: legacyBoolean(searchParams.get('includeDeleted')),
   }))
 })
 

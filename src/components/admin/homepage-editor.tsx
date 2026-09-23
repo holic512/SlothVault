@@ -17,6 +17,7 @@ import { App, Alert, Button, Skeleton, Space, Tag, Typography } from 'antd'
 import { ArrowLeft, Save } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 import { AdminPage } from '@/components/admin/admin-page'
 import { MarkdownContentEditor } from '@/components/admin/markdown-content-editor'
@@ -79,6 +80,10 @@ export function HomepageEditor({ projectId }: { projectId?: string }) {
     )
   }
 
+  if (projectId && resourceQuery.data?.isDeleted) {
+    return <AdminPage><Alert showIcon type="warning" title={t('messages.deletedHome')} description={<Link href="/admin/mm/trash">{t('messages.openTrash')}</Link>} /></AdminPage>
+  }
+
   return (
     <HomepageDraft
       key={`${projectId || 'system'}:${resourceQuery.data?.id || 'new'}`}
@@ -128,7 +133,7 @@ function HomepageDraft({
           method: resource ? 'PUT' : 'POST',
           body: JSON.stringify(
             resource
-              ? { content: contentToSave, status: 1, ...(projectId ? { isDeleted: false } : {}) }
+              ? { content: contentToSave, status: 1 }
               : { content: contentToSave, status: 1, ...(projectId ? { projectId } : {}) },
           ),
         })

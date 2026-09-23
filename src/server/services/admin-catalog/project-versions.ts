@@ -14,6 +14,7 @@ import type { Prisma } from '@generated/prisma-postgresql/client'
 
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
+import { deleteTrashItem, deleteVersionBatch } from '@/server/services/admin-trash'
 import {
   executeVersionWrite,
   lockDraftProjectVersions,
@@ -48,9 +49,7 @@ async function requireActiveProject(projectId: number) {
 }
 
 export async function listAdminProjectVersions(query: ProjectVersionListQuery) {
-  const where: Prisma.ProjectVersionWhereInput = {}
-  if (query.onlyDeleted) where.isDeleted = true
-  else if (!query.includeDeleted) where.isDeleted = false
+  const where: Prisma.ProjectVersionWhereInput = { isDeleted: false, project: { isDeleted: false } }
   if (query.keyword) {
     where.OR = [
       { version: databaseTextContains(query.keyword) },
@@ -190,19 +189,8 @@ export async function updateAdminProjectVersion(
 }
 
 export async function deleteAdminProjectVersion(id: number) {
-  try {
-    const projectVersion = await executeVersionWrite(async (tx) => {
-      await lockDraftProjectVersions(tx, [id])
-      return tx.projectVersion.update({
-        where: { id },
-        data: { isDeleted: true, status: 0, updatedAt: new Date() },
-      })
-    })
-    return projectVersionBaseDto(projectVersion)
-  } catch (error) {
-    if (hasPrismaCode(error, 'P2025')) throw new HttpError('Not Found', 404, 404)
-    throw error
-  }
+  await deleteTrashItem('version', id)
+  return projectVersionBaseDto(await prisma.projectVersion.findUniqueOrThrow({ where: { id } }))
 }
 
 export async function applyAdminProjectVersionBatch(input: {
@@ -241,32 +229,7 @@ export async function applyAdminProjectVersionBatch(input: {
   }
 
   if (action === 'delete') {
-    return executeVersionWrite(async (tx) => {
-      await lockDraftProjectVersions(tx, ids)
-      const result = await tx.projectVersion.updateMany({
-        where: { id: { in: ids } },
-        data: { isDeleted: true, status: 0, updatedAt: new Date() },
-      })
-      return { count: result.count }
-    })
-  }
-  if (action === 'restore') {
-    return executeVersionWrite(async (tx) => {
-      const locked = await tx.projectVersion.updateMany({
-        where: { id: { in: ids }, publishedAt: null },
-        data: { documentRevision: { increment: 1 }, updatedAt: new Date() },
-      })
-      if (locked.count !== ids.length) {
-        throw new HttpError('Batch contains a frozen project version', 409, 409, {
-          reason: 'VERSION_FROZEN',
-        })
-      }
-      const result = await tx.projectVersion.updateMany({
-        where: { id: { in: ids }, publishedAt: null },
-        data: { isDeleted: false, status: 0, updatedAt: new Date() },
-      })
-      return { count: result.count }
-    })
+    return deleteVersionBatch(ids)
   }
   if (action === 'moveToProject') {
     const projectId = parseJsonDecimalId(input.projectId, 'projectId')
@@ -294,9 +257,7 @@ export async function listAdminProjectVersionsByProject(
   const project = await prisma.project.findUnique({ where: { id: query.projectId } })
   if (!project) throw new HttpError('Project not found', 404, 404)
 
-  const where: Prisma.ProjectVersionWhereInput = { projectId: query.projectId }
-  if (query.onlyDeleted) where.isDeleted = true
-  else if (!query.includeDeleted) where.isDeleted = false
+  const where: Prisma.ProjectVersionWhereInput = { projectId: query.projectId, isDeleted: false, project: { isDeleted: false } }
   const [total, list] = await Promise.all([
     prisma.projectVersion.count({ where }),
     prisma.projectVersion.findMany({

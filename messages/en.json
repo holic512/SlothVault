@@ -423,6 +423,7 @@
     "adminArticleEdit": "Article Editor",
     "adminDashboard": "Admin Dashboard",
     "adminProjects": "Project Management",
+    "adminTrash": "Trash",
     "adminContracts": "Contract Management",
     "adminNotes": "Note Editor",
     "adminNoteContent": "Note Editor",
@@ -451,6 +452,7 @@
       "articles": "Article Management",
       "projects": "Project Management",
       "notes": "Project Content",
+      "trash": "Trash",
       "files": "File Management",
       "users": "User Management",
       "membershipLevels": "Membership Levels",
@@ -466,6 +468,28 @@
       "content": "Content",
       "users": "Users & Credits",
       "system": "System & Evidence"
+    },
+    "trash": {
+      "articles": "Articles",
+      "projects": "Projects",
+      "search": "Search trash",
+      "name": "Name",
+      "actions": "Actions",
+      "preview": "View",
+      "restore": "Restore",
+      "restored": "Restored",
+      "restoreTitle": "Restore item?",
+      "restoreConfirm": "Restore “{name}”? Deleted ancestors will also be restored; other deleted descendants remain in trash.",
+      "restoreProjectWarning": "Restoring “{name}” re-enables its project and may immediately make previous releases public. Other deleted descendants stay in trash. Continue?",
+      "deleted": "Deleted",
+      "inherited": "Hidden by parent",
+      "frozen": "Protected release",
+      "frozenDescription": "This published release and its content remain unchanged. They are offline only while the project is deleted.",
+      "deletedAt": "Deleted at",
+      "unknown": "Unknown (legacy record)",
+      "empty": "No deleted project content",
+      "select": "Select a tree node to view its context",
+      "close": "Close"
     },
     "walletTool": {
       "hint": "Used only for on-chain evidence signing; it does not affect administrator authentication.",
@@ -521,9 +545,9 @@
         "publishSuccess": "Article published",
         "withdrawSuccess": "Article withdrawn",
         "restoreSuccess": "Article restored as a draft",
-        "deleteSuccess": "Article deleted",
+        "deleteSuccess": "Article deleted. View or restore it in Trash.",
         "deleteTitle": "Delete article",
-        "deleteConfirm": "Delete “{title}”? It can be restored by enabling the deleted filter."
+        "deleteConfirm": "Delete “{title}”? View or restore it in Trash afterward."
       },
       "editor": {
         "back": "Back to articles",
@@ -552,7 +576,7 @@
         "body": "Article body",
         "bodyHint": "Markdown with public preview",
         "deletedTitle": "This article is deleted",
-        "deletedDescription": "Return to the article list, enable the deleted filter, and restore it there.",
+        "deletedDescription": "Open Trash to view or restore this article.",
         "messages": {
           "coverFailed": "Cover upload failed",
           "titleRequired": "Enter an article title",
@@ -562,7 +586,7 @@
           "withdrawSuccess": "Article withdrawn",
           "operationFailed": "Operation failed",
           "deleteTitle": "Delete article",
-          "deleteConfirm": "The article will be taken offline immediately and can be restored from the article list."
+          "deleteConfirm": "The article will go offline immediately. View or restore it in Trash."
         }
       }
     },
@@ -637,10 +661,10 @@
         "deleteConfirmTitle": "Confirm",
         "deleteButton": "Delete",
         "cancelButton": "Cancel",
-        "deleted": "Deleted",
+        "deleted": "Deleted. View or restore in Trash.",
         "deleteFailed": "Delete failed",
         "batchDeleteConfirm": "Confirm batch delete {count} selected items?",
-        "batchDeleted": "Deleted {count} items",
+        "batchDeleted": "Deleted {count} items. View or restore in Trash.",
         "batchDeleteFailed": "Batch delete failed",
         "batchRestored": "Restored {count} items",
         "batchRestoreFailed": "Batch restore failed",
@@ -708,7 +732,7 @@
       "messages": {
         "labelRequired": "Please enter a menu label",
         "saved": "Menu saved",
-        "deleted": "Menu deleted",
+        "deleted": "Menu deleted. View or restore it in Trash.",
         "restored": "Menu restored",
         "deleteConfirm": "Delete menu \"{name}\" and its children?"
       }
@@ -890,13 +914,13 @@
         "restore": "Restore",
         "created": "Created",
         "saved": "Saved",
-        "deleted": "Deleted",
+        "deleted": "Deleted. View or restore in Trash.",
         "restored": "Restored",
         "versionCreated": "Draft project version created",
         "revisionCreated": "Content version created",
         "operationFailed": "Operation failed",
         "deleteTitle": "Confirm deletion",
-        "deleteDescription": "Delete “{name}”? You can restore it after enabling Show deleted.",
+        "deleteDescription": "Delete “{name}”? View or restore it in Trash afterward.",
         "deletedRevision": "This content version is deleted. Restore it before editing.",
         "versionDialog": { "title": "New draft project version", "placeholder": "For example: v2.0-draft" },
         "entityDialog": {
@@ -1723,7 +1747,9 @@
         "noChanges": "Content has not changed",
         "contentRequired": "Content is required",
         "unsaved": "Unsaved changes",
-        "saveShortcut": "Ctrl/⌘ + S"
+        "saveShortcut": "Ctrl/⌘ + S",
+        "deletedHome": "Project homepage is deleted",
+        "openTrash": "Open Trash to view or restore it"
       }
     },
     "sidebar": {

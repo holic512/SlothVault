@@ -48,8 +48,6 @@ export const GET = defineRoute(async (request) => {
   const searchParams = request.nextUrl.searchParams
   const { page, pageSize, skip } = pagination(searchParams)
   const keyword = searchParams.get('keyword')?.trim() || ''
-  const includeDeleted = legacyBoolean(searchParams.get('includeDeleted'))
-  const onlyDeleted = legacyBoolean(searchParams.get('onlyDeleted'))
   const statusRaw = searchParams.get('status')
   const status = statusRaw === null ? undefined : integerValue(statusRaw, Number.NaN)
   const categoryIdRaw = searchParams.get('categoryId')
@@ -69,8 +67,6 @@ export const GET = defineRoute(async (request) => {
       pageSize,
       skip,
       keyword,
-      includeDeleted,
-      onlyDeleted,
       status,
       categoryId:
         categoryIdRaw === null ? undefined : parseDecimalId(categoryIdRaw, 'categoryId'),

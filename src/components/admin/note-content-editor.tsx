@@ -51,7 +51,6 @@ import {
   Plus,
   RefreshCw,
   Rocket,
-  RotateCcw,
   Save,
   ShieldCheck,
   Star,
@@ -198,7 +197,6 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
   const [selectedContentId, setSelectedContentId] = useState('')
   const [keyword, setKeyword] = useState('')
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({})
-  const [includeDeleted, setIncludeDeleted] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [mobilePane, setMobilePane] = useState<MobilePane>(noteId ? 'content' : 'tree')
   const [entityDialog, setEntityDialog] = useState<EntityDialog | null>(null)
@@ -229,20 +227,20 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
   const readOnly = Boolean(selectedVersion?.publishedAt || (deepParent?.id === currentVersionId && deepParent.publishedAt))
 
   const categoriesQuery = useQuery({
-    queryKey: ['admin-note-workspace-categories', currentVersionId, includeDeleted],
+    queryKey: ['admin-note-workspace-categories', currentVersionId],
     enabled: Boolean(currentVersionId),
     queryFn: () => apiFetch<{ list: Category[] }>(
-      `/api/admin/mm/category/byProjectVersion/${currentVersionId}?pageSize=100&includeDeleted=${includeDeleted ? '1' : '0'}`,
+      `/api/admin/mm/category/byProjectVersion/${currentVersionId}?pageSize=100`,
     ),
   })
   const notesQuery = useQuery({
-    queryKey: ['admin-note-workspace-notes', currentVersionId, includeDeleted],
+    queryKey: ['admin-note-workspace-notes', currentVersionId],
     enabled: Boolean(currentVersionId),
     queryFn: async () => {
       const result: NoteInfo[] = []
       for (let page = 1; page <= 50; page += 1) {
         const data = await apiFetch<{ list: NoteInfo[]; total: number }>(
-          `/api/admin/mm/note?page=${page}&pageSize=100&projectVersionId=${currentVersionId}&includeDeleted=${includeDeleted ? '1' : '0'}`,
+          `/api/admin/mm/note?page=${page}&pageSize=100&projectVersionId=${currentVersionId}`,
         )
         result.push(...data.list)
         if (!data.list.length || result.length >= data.total) break
@@ -253,10 +251,10 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
   const selectedNote = notesQuery.data?.find((item) => item.id === selectedNoteId)
     || (deepNoteQuery.data?.id === selectedNoteId ? deepNoteQuery.data : undefined)
   const contentsQuery = useQuery({
-    queryKey: ['admin-note-contents', selectedNoteId, includeDeleted],
+    queryKey: ['admin-note-contents', selectedNoteId],
     enabled: Boolean(selectedNoteId && selectedNote && !selectedNote.isDeleted),
     queryFn: () => apiFetch<{ list: NoteContent[] }>(
-      `/api/admin/mm/noteContent?noteInfoId=${selectedNoteId}&includeDeleted=${includeDeleted ? '1' : '0'}`,
+      `/api/admin/mm/noteContent?noteInfoId=${selectedNoteId}`,
     ),
   })
   const contents = contentsQuery.data?.list || []
@@ -406,32 +404,26 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
   const toggleEntityDeleted = async (kind: 'category' | 'note', item: Category | NoteInfo) => {
     if (readOnly) return
     if ((kind === 'note' && item.id === selectedNoteId) && !(await confirmDiscard())) return
-    const deleted = item.isDeleted
     const label = kind === 'category' ? (item as Category).categoryName : (item as NoteInfo).noteTitle
     const execute = async () => {
       try {
-        await apiFetch(`/api/admin/mm/${kind}/${item.id}`, deleted
-          ? { method: 'PUT', body: JSON.stringify({ isDeleted: false, status: 1 }) }
-          : { method: 'DELETE' })
-        if (!deleted) {
-          setDirty(false)
-          if (kind === 'category' && item.id === currentCategoryId) {
-            setSelectedCategoryId('')
-            setSelectedNoteId('')
-            router.push(pageUrl(currentProjectId, currentVersionId))
-          }
-          if (kind === 'note' && item.id === selectedNoteId) {
-            setSelectedNoteId('')
-            router.push(pageUrl(currentProjectId, currentVersionId, currentCategoryId))
-          }
+        await apiFetch(`/api/admin/mm/${kind}/${item.id}`, { method: 'DELETE' })
+        setDirty(false)
+        if (kind === 'category' && item.id === currentCategoryId) {
+          setSelectedCategoryId('')
+          setSelectedNoteId('')
+          router.push(pageUrl(currentProjectId, currentVersionId))
+        }
+        if (kind === 'note' && item.id === selectedNoteId) {
+          setSelectedNoteId('')
+          router.push(pageUrl(currentProjectId, currentVersionId, currentCategoryId))
         }
         await refreshWorkspace()
-        message.success(deleted ? t('restored') : t('deleted'))
+        message.success(t('deleted'))
       } catch (error) {
         message.error(formatAdminError(error, errorT))
       }
     }
-    if (deleted) return execute()
     modal.confirm({
       title: t('deleteTitle'),
       content: t('deleteDescription', { name: label }),
@@ -632,7 +624,6 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
   }
   const toggleRevisionDeleted = async (item: NoteContent) => {
     if (item.id === selectedContent?.id && !(await confirmDiscard())) return
-    if (item.isDeleted) return updateRevision(item, { isDeleted: false, status: 1 })
     modal.confirm({
       title: t('deleteTitle'),
       content: t('deleteDescription', { name: item.versionNote || contentT('unnamedVersion') }),
@@ -671,7 +662,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
       <span className="note-tree-actions" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
         {!note && !item.isDeleted ? <Button type="text" size="small" title={t('createNote')} aria-label={t('createNote')} icon={<Plus size={14} />} onClick={() => openNote(category.id)} /> : null}
         {!item.isDeleted ? <Button type="text" size="small" title={t(`entityDialog.${kind}.edit`)} aria-label={t(`entityDialog.${kind}.edit`)} icon={<Pencil size={14} />} onClick={() => note ? openNote(category.id, note) : openCategory(category)} /> : null}
-        <Button type="text" size="small" title={t(item.isDeleted ? 'restore' : 'delete')} aria-label={t(item.isDeleted ? 'restore' : 'delete')} danger={!item.isDeleted} icon={item.isDeleted ? <RotateCcw size={14} /> : <Trash2 size={14} />} onClick={() => void toggleEntityDeleted(kind, item)} />
+        <Button type="text" size="small" title={t('delete')} aria-label={t('delete')} danger icon={<Trash2 size={14} />} onClick={() => void toggleEntityDeleted(kind, item)} />
       </span>
     )
   }
@@ -819,7 +810,6 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
           </div>
           <div className="note-library-controls">
             <Input.Search allowClear value={keyword} placeholder={t('search')} onChange={(event) => setKeyword(event.target.value)} />
-            <label className="note-deleted-toggle"><Switch size="small" checked={includeDeleted} onChange={setIncludeDeleted} /><span>{t('showDeleted')}</span></label>
           </div>
           <div className="note-tree-scroll">
             {filteredCategories.length ? (
@@ -863,7 +853,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
                 <span className="note-revision-actions">
                   {!item.isDeleted ? <Button type="text" size="small" aria-label={t('revisionDialog.edit')} icon={<Pencil size={12} />} disabled={readOnly} onClick={() => setRevisionDialog({ mode: 'edit', id: item.id, versionNote: item.versionNote || '', status: item.status })} /> : null}
                   {!item.isDeleted && !item.isPrimary ? <Button type="text" size="small" aria-label={contentT('setPrimary')} icon={<Star size={12} />} disabled={readOnly} onClick={() => void updateRevision(item, { isPrimary: true })} /> : null}
-                  <Button type="text" size="small" aria-label={t(item.isDeleted ? 'restore' : 'delete')} danger={!item.isDeleted} icon={item.isDeleted ? <RotateCcw size={12} /> : <Trash2 size={12} />} disabled={readOnly} onClick={() => void toggleRevisionDeleted(item)} />
+                  <Button type="text" size="small" aria-label={t('delete')} danger icon={<Trash2 size={12} />} disabled={readOnly} onClick={() => void toggleRevisionDeleted(item)} />
                 </span>
               </div>
             )) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={selectedNote ? t('empty.revision') : t('empty.selectNote')} />}
@@ -884,7 +874,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
               readOnly={readOnly}
               onDirtyChange={setDirty}
               onSaved={(updated) => queryClient.setQueryData<{ list: NoteContent[] }>(
-                ['admin-note-contents', selectedNoteId, includeDeleted],
+                ['admin-note-contents', selectedNoteId],
                 (current) => ({ list: (current?.list || []).map((item) => item.id === updated.id ? updated : item) }),
               )}
             />
@@ -894,8 +884,6 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
               <Typography.Text>{emptyStep.text}</Typography.Text>
               <Button type="primary" disabled={emptyStep.disabled} onClick={emptyStep.run}>{emptyStep.action}</Button>
             </div>
-          ) : selectedContent?.isDeleted ? (
-            <div className="note-editor-empty"><Trash2 size={32} /><Typography.Text>{t('deletedRevision')}</Typography.Text><Button disabled={readOnly} onClick={() => void toggleRevisionDeleted(selectedContent)}>{t('restore')}</Button></div>
           ) : null}
         </main>
       </div>

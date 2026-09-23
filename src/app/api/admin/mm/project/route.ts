@@ -17,7 +17,6 @@ import { apiOk } from '@/server/http/response'
 import {
   createAdminProject,
   integerValue,
-  legacyBoolean,
   listAdminProjects,
   pagination,
   safeOrderField,
@@ -48,8 +47,6 @@ export const GET = defineRoute(async (request) => {
   const searchParams = request.nextUrl.searchParams
   const { page, pageSize, skip } = pagination(searchParams)
   const keyword = searchParams.get('keyword')?.trim() || ''
-  const includeDeleted = legacyBoolean(searchParams.get('includeDeleted'))
-  const onlyDeleted = legacyBoolean(searchParams.get('onlyDeleted'))
   const statusRaw = searchParams.get('status')
   const status = statusRaw === null ? undefined : integerValue(statusRaw, Number.NaN)
   const orderByField = safeOrderField(
@@ -65,8 +62,6 @@ export const GET = defineRoute(async (request) => {
       pageSize,
       skip,
       keyword,
-      includeDeleted,
-      onlyDeleted,
       status,
       orderByField,
       order,

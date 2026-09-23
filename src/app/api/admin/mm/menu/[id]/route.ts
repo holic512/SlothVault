@@ -2,10 +2,10 @@
  * @file route.ts
  * @project SlothVault
  * @module Admin Project Menu API
- * @description Reads, edits/restores, and cascade-deletes one project menu inside a two-level hierarchy.
+ * @description Reads, edits, and cascade-deletes one project menu inside a two-level hierarchy.
  * @logic Authenticate, parse path/query/body inputs, delegate transactional menu commands, and wrap compatibility responses.
  * @dependencies admin session, server/http helpers, admin catalog parser, admin content service
- * @index_tags api,admin,project-menu,update,restore,cascade-delete
+ * @index_tags api,admin,project-menu,update,cascade-delete
  * @author holic512
  */
 import { z } from 'zod'
@@ -15,7 +15,6 @@ import { defineRoute } from '@/server/http/handler'
 import { readJson } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
 import {
-  legacyBoolean,
   parseDecimalId,
 } from '@/server/services/admin-catalog'
 import {
@@ -31,7 +30,6 @@ const updateMenuSchema = z.object({
   isExternal: z.unknown().optional(),
   weight: z.unknown().optional(),
   status: z.unknown().optional(),
-  isDeleted: z.unknown().optional(),
 })
 
 export const dynamic = 'force-dynamic'
@@ -55,7 +53,6 @@ export const DELETE = defineRoute<{ id: string }>(async (request, context) => {
   await requireAdminSession(request)
   const { id: idRaw } = await context.params
   const id = parseDecimalId(idRaw)
-  const hard = legacyBoolean(request.nextUrl.searchParams.get('hard'))
-  await deleteProjectMenu(id, hard)
+  await deleteProjectMenu(id)
   return apiOk(null, 'deleted')
 })

@@ -37,8 +37,6 @@ export const GET = defineRoute<{ projectId: string }>(async (request, context) =
   const projectId = parseDecimalId(projectIdRaw, 'projectId')
   const searchParams = request.nextUrl.searchParams
   const { page, pageSize, skip } = pagination(searchParams)
-  const includeDeleted = legacyBoolean(searchParams.get('includeDeleted'))
-  const onlyDeleted = legacyBoolean(searchParams.get('onlyDeleted'))
   const includeProjectInfo = legacyBoolean(searchParams.get('includeProjectInfo'))
   const orderByField = safeOrderField(
     searchParams.get('orderBy'),
@@ -53,8 +51,6 @@ export const GET = defineRoute<{ projectId: string }>(async (request, context) =
       page,
       pageSize,
       skip,
-      includeDeleted,
-      onlyDeleted,
       includeProjectInfo,
       orderByField,
       order,

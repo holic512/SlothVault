@@ -15,6 +15,7 @@ import type { Prisma } from '@generated/prisma-postgresql/client'
 import { DOCUMENT_CONTENT_MAX_CHARACTERS } from '@/lib/document-content'
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
+import { deleteTrashItem } from '@/server/services/admin-trash'
 import {
   databaseTextContains,
   hasPrismaCode,
@@ -85,7 +86,6 @@ export type UpdateNoteContentInput = {
   versionNote?: string | null
   isPrimary?: boolean
   status?: number
-  isDeleted?: boolean
 }
 
 function optionalDocumentContent(value: unknown) {
@@ -182,8 +182,6 @@ export type NoteListQuery = {
   pageSize: number
   skip: number
   keyword: string
-  includeDeleted: boolean
-  onlyDeleted: boolean
   status?: number
   categoryId?: number
   projectVersionId?: number
@@ -194,23 +192,22 @@ export type NoteListQuery = {
 }
 
 export async function listAdminNotes(query: NoteListQuery) {
-  const where: Prisma.NoteInfoWhereInput = {}
-  if (query.onlyDeleted) where.isDeleted = true
-  else if (!query.includeDeleted) where.isDeleted = false
+  const where: Prisma.NoteInfoWhereInput = { isDeleted: false, category: { isDeleted: false, projectVersion: { isDeleted: false, project: { isDeleted: false } } } }
   if (query.keyword) where.noteTitle = databaseTextContains(query.keyword)
   if (Number.isFinite(query.status)) where.status = query.status
   if (query.categoryId !== undefined) where.categoryId = query.categoryId
 
-  const categoryWhere: Prisma.CategoryWhereInput = {}
+  const categoryWhere: Prisma.CategoryWhereInput = { isDeleted: false, projectVersion: { isDeleted: false, project: { isDeleted: false } } }
   if (query.projectVersionId !== undefined) {
     categoryWhere.projectVersionId = query.projectVersionId
   }
   if (query.projectId !== undefined) {
-    categoryWhere.projectVersion = { projectId: query.projectId }
+    categoryWhere.projectVersion = { projectId: query.projectId, isDeleted: false, project: { isDeleted: false } }
   }
   if (query.publishedOnly) {
     const releaseWhere: Prisma.ProjectVersionWhereInput = {
       isDeleted: false,
+      project: { isDeleted: false },
       status: 1,
       publishedAt: { not: null },
       releaseId: { not: null },
@@ -219,12 +216,12 @@ export async function listAdminNotes(query: NoteListQuery) {
     }
     categoryWhere.projectVersion = query.projectId === undefined
       ? releaseWhere
-      : { ...releaseWhere, projectId: query.projectId }
+      : { ...releaseWhere, projectId: query.projectId, project: { isDeleted: false } }
     where.contents = { some: { isDeleted: false, status: 1, isPrimary: true } }
     categoryWhere.isDeleted = false
     categoryWhere.status = 1
   }
-  if (Object.keys(categoryWhere).length > 0) where.category = categoryWhere
+  where.category = categoryWhere
 
   const [total, list] = await Promise.all([
     prisma.noteInfo.count({ where }),
@@ -343,7 +340,7 @@ export async function updateAdminNote(
   if (weight !== null) data.weight = weight
   const status = optionalIntegerValue(input.status)
   if (status !== null) data.status = status
-  if (typeof input.isDeleted === 'boolean') data.isDeleted = input.isDeleted
+  if (input.isDeleted !== undefined) throw new HttpError('Restore from the trash', 409, 409)
   if (Object.keys(data).length === 1) throw new HttpError('No fields to update', 400, 400)
 
   try {
@@ -389,45 +386,12 @@ export async function updateAdminNote(
 }
 
 export async function deleteAdminNote(id: number) {
-  const current = await prisma.noteInfo.findFirst({
-    where: { id, isDeleted: false, category: { isDeleted: false } },
-    select: { id: true, categoryId: true, category: { select: { projectVersionId: true } } },
-  })
-  if (!current) throw new HttpError('Not Found', 404, 404)
-
-  try {
-    await executeVersionWrite(async (tx) => {
-      await lockDraftProjectVersions(tx, [current.category.projectVersionId])
-      const fresh = await tx.noteInfo.findUnique({
-        where: { id },
-        select: {
-          categoryId: true,
-          category: { select: { projectVersionId: true } },
-        },
-      })
-      if (
-        !fresh ||
-        fresh.categoryId !== current.categoryId ||
-        fresh.category.projectVersionId !== current.category.projectVersionId
-      ) {
-        throw new HttpError('Note parent changed during delete', 409, 409, {
-          reason: 'VERSION_WRITE_CONFLICT',
-        })
-      }
-      await tx.noteInfo.update({
-        where: { id },
-        data: { isDeleted: true, updatedAt: new Date() },
-      })
-    })
-  } catch (error) {
-    if (hasPrismaCode(error, 'P2025')) throw new HttpError('Not Found', 404, 404)
-    throw error
-  }
+  await deleteTrashItem('note', id)
 }
 
 export async function requireActiveCategory(categoryId: number) {
   const category = await prisma.category.findFirst({
-    where: { id: categoryId, isDeleted: false },
+    where: { id: categoryId, isDeleted: false, projectVersion: { isDeleted: false, project: { isDeleted: false } } },
   })
   if (!category) throw new HttpError('Category not found', 404, 404)
   return category
@@ -438,7 +402,7 @@ export async function requireActiveNoteInfo(noteInfoId: number) {
     where: {
       id: noteInfoId,
       isDeleted: false,
-      category: { isDeleted: false },
+      category: { isDeleted: false, projectVersion: { isDeleted: false, project: { isDeleted: false } } },
     },
   })
   if (!noteInfo) throw new HttpError('NoteInfo not found', 404, 404)
@@ -570,17 +534,12 @@ export async function updateNoteContent(id: number, input: UpdateNoteContentInpu
       throw new HttpError('NoteContent parent changed during update', 409, 409)
     }
 
-    const resultingDeleted = input.isDeleted ?? current.isDeleted
-    if (input.isPrimary === true && resultingDeleted) {
-      throw new HttpError('Deleted content cannot be primary', 400, 400)
-    }
+    if (current.isDeleted) throw new HttpError('Restore from the trash', 409, 409)
 
     const data: Prisma.NoteContentUpdateInput = { updatedAt: new Date() }
     if (input.content !== undefined) data.content = input.content
     if (input.versionNote !== undefined) data.versionNote = input.versionNote
     if (input.status !== undefined) data.status = input.status
-    if (input.isDeleted !== undefined) data.isDeleted = input.isDeleted
-    if (resultingDeleted) data.isPrimary = false
 
     await tx.noteContent.update({ where: { id }, data })
     await normalizePrimaryContent(
@@ -588,7 +547,6 @@ export async function updateNoteContent(id: number, input: UpdateNoteContentInpu
       current.noteInfoId,
       {
         preferredId: input.isPrimary === true ? current.id : undefined,
-        forceLatest: current.isPrimary && resultingDeleted,
       },
     )
 
@@ -597,42 +555,13 @@ export async function updateNoteContent(id: number, input: UpdateNoteContentInpu
 }
 
 export async function deleteNoteContent(id: number) {
-  const reference = await prisma.noteContent.findUnique({
-    where: { id },
-    select: { noteInfoId: true },
-  })
-  if (!reference) throw new HttpError('Not Found', 404, 404)
-
-  await executeVersionWrite(async (tx) => {
-    const projectVersionId = await projectVersionIdForNote(tx, reference.noteInfoId)
-    await lockDraftProjectVersions(tx, [projectVersionId])
-    if (await projectVersionIdForNote(tx, reference.noteInfoId) !== projectVersionId) {
-      throw new HttpError('Note parent changed during content delete', 409, 409, {
-        reason: 'VERSION_WRITE_CONFLICT',
-      })
-    }
-    await lockActiveNoteInfo(tx, reference.noteInfoId)
-
-    const current = await tx.noteContent.findUnique({ where: { id } })
-    if (!current) throw new HttpError('Not Found', 404, 404)
-    if (current.noteInfoId !== reference.noteInfoId) {
-      throw new HttpError('NoteContent parent changed during delete', 409, 409)
-    }
-
-    await tx.noteContent.update({
-      where: { id },
-      data: { isDeleted: true, isPrimary: false, updatedAt: new Date() },
-    })
-    await normalizePrimaryContent(tx, current.noteInfoId, {
-      forceLatest: current.isPrimary,
-    })
-  })
+  await deleteTrashItem('content', id)
 }
 
-export async function listAdminNoteContents(noteInfoId: number, includeDeleted: boolean) {
+export async function listAdminNoteContents(noteInfoId: number) {
   await requireActiveNoteInfo(noteInfoId)
   const where: Prisma.NoteContentWhereInput = { noteInfoId }
-  if (!includeDeleted) where.isDeleted = false
+  where.isDeleted = false
   const list = await prisma.noteContent.findMany({
     where,
     orderBy: [{ isPrimary: 'desc' }, { createdAt: 'desc' }],
@@ -703,7 +632,7 @@ export async function updateAdminNoteContent(
   }
   const status = optionalIntegerValue(input.status)
   if (status !== null) update.status = status
-  if (typeof input.isDeleted === 'boolean') update.isDeleted = input.isDeleted
+  if (input.isDeleted !== undefined) throw new HttpError('Restore from the trash', 409, 409)
   if (input.isPrimary === true) update.isPrimary = true
   if (Object.keys(update).length === 0) {
     throw new HttpError('No fields to update', 400, 400)

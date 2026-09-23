@@ -44,15 +44,11 @@ type PageQuery<TOrderField extends string> = {
 
 export type ProjectListQuery = PageQuery<ProjectOrderField> & {
   keyword: string
-  includeDeleted: boolean
-  onlyDeleted: boolean
   status?: number
 }
 
 export type ProjectVersionListQuery = PageQuery<ProjectVersionOrderField> & {
   keyword: string
-  includeDeleted: boolean
-  onlyDeleted: boolean
   includeProject: boolean
   status?: number
   projectId?: number
@@ -60,15 +56,11 @@ export type ProjectVersionListQuery = PageQuery<ProjectVersionOrderField> & {
 
 export type ProjectVersionByProjectQuery = PageQuery<ProjectVersionOrderField> & {
   projectId: number
-  includeDeleted: boolean
-  onlyDeleted: boolean
   includeProjectInfo: boolean
 }
 
 export type CategoryListQuery = PageQuery<CategoryOrderField> & {
   keyword: string
-  includeDeleted: boolean
-  onlyDeleted: boolean
   includeProjectVersion: boolean
   status?: number
   projectVersionId?: number
@@ -77,7 +69,5 @@ export type CategoryListQuery = PageQuery<CategoryOrderField> & {
 
 export type CategoryByProjectVersionQuery = PageQuery<CategoryOrderField> & {
   projectVersionId: number
-  includeDeleted: boolean
-  onlyDeleted: boolean
   includeProjectVersionInfo: boolean
 }

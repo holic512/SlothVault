@@ -100,6 +100,36 @@
   background: transparent !important;
 }
 
+.root :global(.trash-layout) {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(280px, 1.4fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.root :global(.trash-tree) {
+  min-height: 260px;
+  overflow-x: auto;
+}
+
+.root :global(.trash-detail) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+  .root :global(.trash-layout) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .root :global(.trash-tree) {
+    min-height: 180px;
+    max-height: 42vh;
+    overflow: auto;
+    border-bottom: 1px solid var(--sv-admin-border);
+  }
+}
+
 @supports (height: 100dvh) {
   .root {
     height: 100dvh;

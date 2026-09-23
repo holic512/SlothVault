@@ -43,8 +43,7 @@ export const GET = defineRoute(async (request) => {
   if (projectIdRaw === null) throw new HttpError('Missing projectId', 400, 400)
   const projectId = parseDecimalId(projectIdRaw, 'projectId')
   const tree = legacyBoolean(request.nextUrl.searchParams.get('tree'))
-  const includeDeleted = legacyBoolean(request.nextUrl.searchParams.get('includeDeleted'))
-  return apiOk(await listProjectMenus({ projectId, tree, includeDeleted }))
+  return apiOk(await listProjectMenus({ projectId, tree }))
 })
 
 export const POST = defineRoute(async (request) => {

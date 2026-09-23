@@ -2,7 +2,7 @@
  * @file route.ts
  * @project SlothVault
  * @module Admin Article Detail API
- * @description Reads, updates, restores, or soft-deletes one independent article.
+ * @description Reads, updates, or soft-deletes one independent article.
  * @logic Require the administrator role, validate the decimal ID and editable fields, and keep lifecycle state out of generic updates.
  * @dependencies zod, admin session, HTTP helpers, admin article service
  * @index_tags api,admin,article,detail,update,delete
@@ -27,7 +27,6 @@ const updateArticleSchema = z.object({
   cover: z.unknown().optional(),
   content: z.unknown().optional(),
   requiredMembershipLevelId: z.number().int().positive().safe().nullable().optional(),
-  isDeleted: z.unknown().optional(),
 })
 
 export const dynamic = 'force-dynamic'

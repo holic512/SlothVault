@@ -179,7 +179,6 @@ export const pageToolDefinitions: McpToolDefinition[] = collectMcpToolDefinition
       list: await listProjectMenus({
         projectId: mcpId(projectId, 'projectId'),
         tree,
-        includeDeleted: false,
       }),
     })),
   )

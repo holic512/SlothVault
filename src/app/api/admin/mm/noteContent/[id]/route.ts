@@ -29,7 +29,6 @@ const updateNoteContentSchema = z.object({
   versionNote: z.unknown().optional(),
   isPrimary: z.unknown().optional(),
   status: z.unknown().optional(),
-  isDeleted: z.unknown().optional(),
 })
 
 export const dynamic = 'force-dynamic'

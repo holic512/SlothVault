@@ -20,7 +20,6 @@ import { defineRoute } from '@/server/http/handler'
 import { readJson } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
 import {
-  legacyBoolean,
   parseDecimalId,
 } from '@/server/services/admin-catalog'
 import {
@@ -44,8 +43,7 @@ export const GET = defineRoute(async (request) => {
   const noteInfoIdRaw = searchParams.get('noteInfoId')
   if (noteInfoIdRaw === null) throw new HttpError('Missing noteInfoId', 400, 400)
   const noteInfoId = parseDecimalId(noteInfoIdRaw, 'noteInfoId')
-  const includeDeleted = legacyBoolean(searchParams.get('includeDeleted'))
-  return apiOk(await listAdminNoteContents(noteInfoId, includeDeleted))
+  return apiOk(await listAdminNoteContents(noteInfoId))
 })
 
 export const POST = defineRoute(async (request) => {

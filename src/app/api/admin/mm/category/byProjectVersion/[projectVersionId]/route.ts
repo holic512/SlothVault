@@ -37,8 +37,6 @@ export const GET = defineRoute<{ projectVersionId: string }>(async (request, con
   const projectVersionId = parseDecimalId(projectVersionIdRaw, 'projectVersionId')
   const searchParams = request.nextUrl.searchParams
   const { page, pageSize, skip } = pagination(searchParams)
-  const includeDeleted = legacyBoolean(searchParams.get('includeDeleted'))
-  const onlyDeleted = legacyBoolean(searchParams.get('onlyDeleted'))
   const includeProjectVersionInfo = legacyBoolean(
     searchParams.get('includeProjectVersionInfo'),
   )
@@ -55,8 +53,6 @@ export const GET = defineRoute<{ projectVersionId: string }>(async (request, con
       page,
       pageSize,
       skip,
-      includeDeleted,
-      onlyDeleted,
       includeProjectVersionInfo,
       orderByField,
       order,

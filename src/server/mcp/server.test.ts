@@ -306,8 +306,8 @@ describe('administrator MCP server', () => {
     })
 
     expect(mocks.listAdminProjects).toHaveBeenCalledWith({
-      page: 2, pageSize: 5, skip: 5, keyword: 'Docs', includeDeleted: false,
-      onlyDeleted: false, status: undefined, orderByField: 'updatedAt', order: 'desc',
+      page: 2, pageSize: 5, skip: 5, keyword: 'Docs',
+      status: undefined, orderByField: 'updatedAt', order: 'desc',
     })
     expect(called.result).toMatchObject({
       structuredContent: {

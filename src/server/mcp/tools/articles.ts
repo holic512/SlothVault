@@ -104,7 +104,6 @@ export const articleToolDefinitions: McpToolDefinition[] = collectMcpToolDefinit
         skip: (page - 1) * pageSize,
         keyword: keyword.trim(),
         status,
-        includeDeleted: false,
       })),
   )
 

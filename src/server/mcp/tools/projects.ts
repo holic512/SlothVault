@@ -87,8 +87,6 @@ export const projectToolDefinitions: McpToolDefinition[] = collectMcpToolDefinit
         pageSize,
         skip: (page - 1) * pageSize,
         keyword: keyword.trim(),
-        includeDeleted: false,
-        onlyDeleted: false,
         status: undefined,
         orderByField: 'updatedAt',
         order: 'desc',

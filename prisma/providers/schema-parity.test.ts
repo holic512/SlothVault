@@ -174,6 +174,17 @@ describe('provider schema parity', () => {
     expect(models.get('ContractCredentialAttempt')).toContain('lastValidBlockHeight BigInt @map("last_valid_block_height")')
     expect(models.has('SystemInstallation')).toBe(true)
     expect(models.has('RuntimeLock')).toBe(false)
+    for (const model of ['Article', 'Project', 'ProjectVersion', 'Category', 'NoteInfo', 'NoteContent', 'ProjectHome', 'ProjectMenu']) {
+      expect(models.get(model)).toMatch(/deletedAt DateTime\? @map\("deleted_at"\)/)
+    }
+  })
+
+  it.each(providers)('%s adds nullable deletion timestamps without fabricating legacy history', (provider) => {
+    const migration = readFileSync(resolve(process.cwd(), `prisma/providers/${provider}/migrations/20260923000000_content_trash/migration.sql`), 'utf8')
+    for (const table of ['blog_article', 'collections_project', 'collections_project_version', 'collections_category', 'docs_note_info', 'docs_note_content', 'collections_project_home', 'collections_project_menu']) {
+      expect(migration).toContain(table)
+    }
+    expect(migration.toLowerCase()).not.toContain('update ')
   })
 
   it.each(providers)('%s uses portable Int identity keys and reserves BigInt for business values', (provider) => {

@@ -36,6 +36,7 @@ export type PageTitleKey =
   | 'adminNotes'
   | 'adminProjectHome'
   | 'adminProjects'
+  | 'adminTrash'
   | 'adminSettings'
   | 'adminSolana'
   | 'adminUsers'

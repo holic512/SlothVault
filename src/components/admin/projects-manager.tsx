@@ -24,13 +24,12 @@ import {
   Modal,
   Select,
   Space,
-  Switch,
   Table,
   Tag,
   Upload,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { BookOpenText, Ellipsis, Home, ImageUp, Import, Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-react'
+import { BookOpenText, Ellipsis, Home, ImageUp, Import, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 
@@ -68,7 +67,6 @@ export function ProjectsManager() {
   const [pageSize, setPageSize] = useState(20)
   const [keyword, setKeyword] = useState('')
   const [status, setStatus] = useState<string>()
-  const [includeDeleted, setIncludeDeleted] = useState(false)
   const [selectedIds, setSelectedIds] = useState<React.Key[]>([])
   const [editing, setEditing] = useState<ProjectDto | null>(null)
   const [formOpen, setFormOpen] = useState(false)
@@ -76,12 +74,11 @@ export function ProjectsManager() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
 
   const listQuery = useQuery({
-    queryKey: ['admin-projects', page, pageSize, keyword, status, includeDeleted],
+    queryKey: ['admin-projects', page, pageSize, keyword, status],
     queryFn: () => {
       const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
       if (keyword) params.set('keyword', keyword)
       if (status) params.set('status', status)
-      if (includeDeleted) params.set('includeDeleted', '1')
       return apiFetch<ProjectListData>(`/api/admin/mm/project?${params}`)
     },
   })
@@ -222,9 +219,7 @@ export function ProjectsManager() {
                   { key: 'home', icon: <Home size={14} />, label: t('operations.homeEdit'), onClick: () => router.push(`/admin/mm/projects/${row.id}/home`) },
                   { key: 'content', icon: <BookOpenText size={14} />, label: t('operations.contentEdit'), onClick: () => router.push(`/admin/mm/notes?projectId=${row.id}${row.latestVersionId ? `&versionId=${row.latestVersionId}` : ''}`) },
                   { type: 'divider' },
-                  row.isDeleted
-                    ? { key: 'restore', icon: <RotateCcw size={14} />, label: t('operations.restore'), onClick: () => batchMutation.mutate({ action: 'restore', ids: [row.id] }) }
-                    : { key: 'delete', danger: true, icon: <Trash2 size={14} />, label: t('operations.delete'), onClick: () => confirmDelete(row) },
+                  { key: 'delete', danger: true, icon: <Trash2 size={14} />, label: t('operations.delete'), onClick: () => confirmDelete(row) },
                 ],
               }}
             >
@@ -255,11 +250,9 @@ export function ProjectsManager() {
             onSearch={() => setPage(1)}
           />
           <Select allowClear value={status} placeholder={t('filters.status')} onChange={(value) => { setStatus(value); setPage(1) }} options={[{ label: t('status.enabled'), value: '1' }, { label: t('status.disabled'), value: '0' }]} />
-          <label className="admin-switch-label"><Switch checked={includeDeleted} onChange={(value) => { setIncludeDeleted(value); setPage(1) }} />{t('filters.includeDeleted')}</label>
         </div>
         <Space wrap>
           <Button disabled={!selectedIds.length} danger onClick={() => runBatch('delete')}>{t('actions.batchDelete')}</Button>
-          <Button disabled={!selectedIds.length} onClick={() => runBatch('restore')}>{t('actions.batchRestore')}</Button>
           <Button disabled={!selectedIds.length} onClick={() => runBatch('setStatus', { status: 1 })}>{t('actions.batchEnable')}</Button>
           <Button disabled={!selectedIds.length} onClick={() => runBatch('setStatus', { status: 0 })}>{t('actions.batchDisable')}</Button>
         </Space>

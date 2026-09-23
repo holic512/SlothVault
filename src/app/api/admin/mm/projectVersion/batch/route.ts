@@ -5,7 +5,7 @@
  * @description Applies authenticated bulk changes to project versions.
  * @logic Parse the bounded batch payload and delegate validation and version state changes to the catalog service.
  * @dependencies admin session, HTTP route helpers, admin catalog service
- * @index_tags api,admin,project-version,batch,restore
+ * @index_tags api,admin,project-version,batch,delete
  * @author holic512
  */
 import { z } from 'zod'

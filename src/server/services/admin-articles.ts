@@ -15,6 +15,7 @@ import type { Prisma } from '@generated/prisma-postgresql/client'
 import { DOCUMENT_CONTENT_MAX_CHARACTERS } from '@/lib/document-content'
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
+import { deleteTrashItem } from '@/server/services/admin-trash'
 import { databaseTextContains, hasPrismaCode } from '@/server/services/admin-catalog'
 import { invalidatePublicArticleCache } from '@/server/services/public-article-cache'
 
@@ -115,10 +116,8 @@ export async function listAdminArticles(input: {
   skip: number
   keyword: string
   status?: number
-  includeDeleted: boolean
 }) {
-  const where: Prisma.ArticleWhereInput = {}
-  if (!input.includeDeleted) where.isDeleted = false
+  const where: Prisma.ArticleWhereInput = { isDeleted: false }
   if (input.status === 0 || input.status === 1) where.status = input.status
   if (input.keyword) {
     where.OR = [
@@ -201,11 +200,7 @@ export async function updateAdminArticle(id: number, input: {
     await assertMembershipLevelExists(requiredMembershipLevelId)
     data.requiredMembershipLevelId = requiredMembershipLevelId
   }
-  if (input.isDeleted !== undefined) {
-    if (input.isDeleted !== false) throw new HttpError('Invalid restore state', 400, 400)
-    data.isDeleted = false
-    data.status = 0
-  }
+  if (input.isDeleted !== undefined) throw new HttpError('Restore from the trash', 409, 409)
   if (Object.keys(data).length === 1) throw new HttpError('No fields to update', 400, 400)
 
   try {
@@ -223,18 +218,8 @@ export async function updateAdminArticle(id: number, input: {
 }
 
 export async function deleteAdminArticle(id: number) {
-  try {
-    const article = await prisma.article.update({
-      where: { id },
-      data: { isDeleted: true, status: 0, updatedAt: new Date() },
-      include: { requiredMembershipLevel: { select: { id: true, name: true, rank: true } } },
-    })
-    await invalidatePublicArticleCache(id)
-    return adminArticleDto(article)
-  } catch (error) {
-    if (hasPrismaCode(error, 'P2025')) throw new HttpError('Article not found', 404, 404)
-    throw error
-  }
+  await deleteTrashItem('article', id)
+  return getAdminArticle(id)
 }
 
 export async function publishAdminArticle(id: number) {

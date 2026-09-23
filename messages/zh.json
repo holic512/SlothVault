@@ -423,6 +423,7 @@
     "adminArticleEdit": "文章编辑",
     "adminDashboard": "管理后台",
     "adminProjects": "项目管理",
+    "adminTrash": "回收站",
     "adminContracts": "合同管理",
     "adminNotes": "笔记编辑",
     "adminNoteContent": "笔记编辑",
@@ -451,6 +452,7 @@
       "articles": "文章管理",
       "projects": "项目管理",
       "notes": "项目内容",
+      "trash": "回收站",
       "files": "文件管理",
       "users": "用户管理",
       "membershipLevels": "会员等级",
@@ -466,6 +468,28 @@
       "content": "内容管理",
       "users": "用户与权益",
       "system": "系统与存证"
+    },
+    "trash": {
+      "articles": "文章",
+      "projects": "项目",
+      "search": "搜索回收站内容",
+      "name": "名称",
+      "actions": "操作",
+      "preview": "查看",
+      "restore": "恢复",
+      "restored": "已恢复",
+      "restoreTitle": "确认恢复",
+      "restoreConfirm": "恢复「{name}」？若其上级已删除，将一同恢复上级；其他子项仍留在回收站。",
+      "restoreProjectWarning": "恢复「{name}」将使其项目重新启用，原已发布内容可能立即公开。其他已删除子项不会恢复，确定继续吗？",
+      "deleted": "已删除",
+      "inherited": "随上级不可见",
+      "frozen": "发布内容受保护",
+      "frozenDescription": "该发布版本及其内容保持原样，仅因项目删除而下线。不可在回收站修改发布快照。",
+      "deletedAt": "删除时间",
+      "unknown": "未知（历史记录）",
+      "empty": "暂无已删除项目内容",
+      "select": "选择树节点查看层级和详情",
+      "close": "关闭"
     },
     "walletTool": {
       "hint": "仅用于链上存证签名，不影响后台登录权限",
@@ -521,9 +545,9 @@
         "publishSuccess": "文章已发布",
         "withdrawSuccess": "文章已撤回",
         "restoreSuccess": "文章已恢复为草稿",
-        "deleteSuccess": "文章已删除",
+        "deleteSuccess": "文章已删除，可在回收站查看或恢复",
         "deleteTitle": "删除文章",
-        "deleteConfirm": "确认删除文章「{title}」？删除后可通过“包含已删除”恢复。"
+        "deleteConfirm": "确认删除文章「{title}」？删除后请前往回收站查看或恢复。"
       },
       "editor": {
         "back": "返回文章列表",
@@ -552,7 +576,7 @@
         "body": "文章正文",
         "bodyHint": "Markdown 与公开预览",
         "deletedTitle": "文章已删除",
-        "deletedDescription": "请返回文章列表，通过“包含已删除”筛选后恢复。",
+        "deletedDescription": "请前往回收站查看或恢复。",
         "messages": {
           "coverFailed": "封面上传失败",
           "titleRequired": "请输入文章标题",
@@ -562,7 +586,7 @@
           "withdrawSuccess": "文章已撤回",
           "operationFailed": "操作失败",
           "deleteTitle": "删除文章",
-          "deleteConfirm": "删除后文章将立即下线，可在文章列表中恢复。"
+          "deleteConfirm": "删除后文章将立即下线，可在回收站查看或恢复。"
         }
       }
     },
@@ -637,10 +661,10 @@
         "deleteConfirmTitle": "提示",
         "deleteButton": "删除",
         "cancelButton": "取消",
-        "deleted": "已删除",
+        "deleted": "已删除，可在回收站查看或恢复",
         "deleteFailed": "删除失败",
         "batchDeleteConfirm": "确认批量删除所选 {count} 项？",
-        "batchDeleted": "已删除 {count} 项",
+        "batchDeleted": "已删除 {count} 项，可在回收站查看或恢复",
         "batchDeleteFailed": "批量删除失败",
         "batchRestored": "已恢复 {count} 项",
         "batchRestoreFailed": "批量恢复失败",
@@ -708,7 +732,7 @@
       "messages": {
         "labelRequired": "请输入菜单文本",
         "saved": "菜单已保存",
-        "deleted": "菜单已删除",
+        "deleted": "菜单已删除，可在回收站查看或恢复",
         "restored": "菜单已恢复",
         "deleteConfirm": "确认删除菜单「{name}」及其子菜单？"
       }
@@ -890,13 +914,13 @@
         "restore": "恢复",
         "created": "创建成功",
         "saved": "保存成功",
-        "deleted": "已删除",
+        "deleted": "已删除，可在回收站查看或恢复",
         "restored": "已恢复",
         "versionCreated": "草稿项目版本已创建",
         "revisionCreated": "内容版本已创建",
         "operationFailed": "操作失败",
         "deleteTitle": "确认删除",
-        "deleteDescription": "确认删除「{name}」？删除后可通过“显示已删除”恢复。",
+        "deleteDescription": "确认删除「{name}」？删除后可在回收站查看或恢复。",
         "deletedRevision": "该内容版本已删除，只能恢复后继续编辑",
         "versionDialog": { "title": "新建草稿项目版本", "placeholder": "例如：v2.0-draft" },
         "entityDialog": {
@@ -1723,7 +1747,9 @@
         "noChanges": "内容没有变化",
         "contentRequired": "内容不能为空",
         "unsaved": "有未保存的修改",
-        "saveShortcut": "Ctrl/⌘ + S"
+        "saveShortcut": "Ctrl/⌘ + S",
+        "deletedHome": "项目首页已删除",
+        "openTrash": "请前往回收站查看或恢复"
       }
     },
     "sidebar": {

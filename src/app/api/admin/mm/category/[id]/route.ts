@@ -25,7 +25,6 @@ const updateCategorySchema = z.object({
   categoryName: z.unknown().optional(),
   weight: z.unknown().optional(),
   status: z.unknown().optional(),
-  isDeleted: z.unknown().optional(),
 })
 
 export const dynamic = 'force-dynamic'

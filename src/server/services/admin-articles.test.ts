@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
       findFirst: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
     },
   },
 }))
@@ -109,9 +110,9 @@ describe('administrator independent articles', () => {
 
   it('withdraws without clearing first publication time and soft-deletes to a draft state', async () => {
     mocks.prisma.article.findFirst.mockResolvedValue(articleRecord({ status: 1, publishedAt: firstPublishedAt }))
-    mocks.prisma.article.update
-      .mockResolvedValueOnce(articleRecord({ publishedAt: firstPublishedAt }))
-      .mockResolvedValueOnce(articleRecord({ isDeleted: true }))
+    mocks.prisma.article.update.mockResolvedValueOnce(articleRecord({ publishedAt: firstPublishedAt }))
+    mocks.prisma.article.updateMany.mockResolvedValue({ count: 1 })
+    mocks.prisma.article.findUnique.mockResolvedValue(articleRecord({ isDeleted: true }))
 
     await withdrawAdminArticle(8)
     expect(mocks.prisma.article.update).toHaveBeenNthCalledWith(1, {
@@ -121,10 +122,9 @@ describe('administrator independent articles', () => {
     })
 
     await deleteAdminArticle(8)
-    expect(mocks.prisma.article.update).toHaveBeenNthCalledWith(2, {
-      where: { id: 8 },
-      data: { isDeleted: true, status: 0, updatedAt: expect.any(Date) },
-      include: requiredMembershipLevelInclude,
+    expect(mocks.prisma.article.updateMany).toHaveBeenCalledWith({
+      where: { id: 8, isDeleted: false },
+      data: { isDeleted: true, deletedAt: expect.any(Date), status: 0, updatedAt: expect.any(Date) },
     })
   })
 })

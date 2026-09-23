@@ -14,6 +14,7 @@ import type { Prisma } from '@generated/prisma-postgresql/client'
 
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
+import { deleteTrashItem } from '@/server/services/admin-trash'
 import {
   executeVersionWrite,
   lockDraftProjectVersions,
@@ -48,13 +49,11 @@ async function requireActiveProjectVersion(
 }
 
 export async function listAdminCategories(query: CategoryListQuery) {
-  const where: Prisma.CategoryWhereInput = {}
-  if (query.onlyDeleted) where.isDeleted = true
-  else if (!query.includeDeleted) where.isDeleted = false
+  const where: Prisma.CategoryWhereInput = { isDeleted: false, projectVersion: { isDeleted: false, project: { isDeleted: false } } }
   if (query.keyword) where.categoryName = databaseTextContains(query.keyword)
   if (Number.isFinite(query.status)) where.status = query.status
   if (query.projectVersionId !== undefined) where.projectVersionId = query.projectVersionId
-  if (query.projectId !== undefined) where.projectVersion = { projectId: query.projectId }
+  if (query.projectId !== undefined) where.projectVersion = { projectId: query.projectId, isDeleted: false, project: { isDeleted: false } }
 
   const [total, list] = await Promise.all([
     prisma.category.count({ where }),
@@ -133,7 +132,7 @@ export async function updateAdminCategory(
   if (weight !== null) data.weight = weight
   const status = optionalIntegerValue(input.status)
   if (status !== null) data.status = status
-  if (typeof input.isDeleted === 'boolean') data.isDeleted = input.isDeleted
+  if (input.isDeleted !== undefined) throw new HttpError('Restore from the trash', 409, 409)
   if (Object.keys(data).length === 1) throw new HttpError('No fields to update', 400, 400)
 
   try {
@@ -163,32 +162,7 @@ export async function updateAdminCategory(
 }
 
 export async function deleteAdminCategory(id: number) {
-  const current = await prisma.category.findUnique({
-    where: { id },
-    select: { projectVersionId: true },
-  })
-  if (!current) throw new HttpError('Not Found', 404, 404)
-  try {
-    await executeVersionWrite(async (tx) => {
-      await lockDraftProjectVersions(tx, [current.projectVersionId])
-      const fresh = await tx.category.findUnique({
-        where: { id },
-        select: { projectVersionId: true },
-      })
-      if (!fresh || fresh.projectVersionId !== current.projectVersionId) {
-        throw new HttpError('Category parent changed during delete', 409, 409, {
-          reason: 'VERSION_WRITE_CONFLICT',
-        })
-      }
-      await tx.category.update({
-        where: { id },
-        data: { isDeleted: true, updatedAt: new Date() },
-      })
-    })
-  } catch (error) {
-    if (hasPrismaCode(error, 'P2025')) throw new HttpError('Not Found', 404, 404)
-    throw error
-  }
+  await deleteTrashItem('category', id)
 }
 
 export async function listAdminCategoriesByProjectVersion(
@@ -199,9 +173,7 @@ export async function listAdminCategoriesByProjectVersion(
   })
   if (!projectVersion) throw new HttpError('ProjectVersion not found', 404, 404)
 
-  const where: Prisma.CategoryWhereInput = { projectVersionId: query.projectVersionId }
-  if (query.onlyDeleted) where.isDeleted = true
-  else if (!query.includeDeleted) where.isDeleted = false
+  const where: Prisma.CategoryWhereInput = { projectVersionId: query.projectVersionId, isDeleted: false, projectVersion: { isDeleted: false, project: { isDeleted: false } } }
   const [total, list] = await Promise.all([
     prisma.category.count({ where }),
     prisma.category.findMany({

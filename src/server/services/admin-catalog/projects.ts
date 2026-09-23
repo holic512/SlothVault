@@ -15,6 +15,7 @@ import type { Prisma } from '@generated/prisma-postgresql/client'
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
 import { invalidatePublicProjectCache } from '@/server/services/public-project-cache'
+import { deleteProjectBatch, deleteTrashItem } from '@/server/services/admin-trash'
 
 import {
   databaseTextContains,
@@ -27,9 +28,7 @@ import { projectDto, projectListDto, projectSummaryDto } from './dtos'
 import type { ProjectListQuery } from './query-types'
 
 export async function listAdminProjects(query: ProjectListQuery) {
-  const where: Prisma.ProjectWhereInput = {}
-  if (query.onlyDeleted) where.isDeleted = true
-  else if (!query.includeDeleted) where.isDeleted = false
+  const where: Prisma.ProjectWhereInput = { isDeleted: false }
   if (query.keyword) where.projectName = databaseTextContains(query.keyword)
   if (Number.isFinite(query.status)) where.status = query.status
 
@@ -204,17 +203,9 @@ export async function updateAdminProjectMetadataFromMcp(
 }
 
 export async function deleteAdminProject(id: number) {
-  try {
-    const project = await prisma.project.update({
-      where: { id },
-      data: { isDeleted: true, status: 0, updatedAt: new Date() },
-    })
-    await invalidatePublicProjectCache(id)
-    return projectSummaryDto(project)
-  } catch (error) {
-    if (hasPrismaCode(error, 'P2025')) throw new HttpError('Not Found', 404, 404)
-    throw error
-  }
+  await deleteTrashItem('project', id)
+  const project = await prisma.project.findUniqueOrThrow({ where: { id } })
+  return projectSummaryDto(project)
 }
 
 export async function applyAdminProjectBatch(input: {
@@ -227,20 +218,7 @@ export async function applyAdminProjectBatch(input: {
   if (!action || !ids) throw new HttpError('Missing action or ids', 400, 400)
 
   if (action === 'delete') {
-    const result = await prisma.project.updateMany({
-      where: { id: { in: ids } },
-      data: { isDeleted: true, status: 0, updatedAt: new Date() },
-    })
-    await Promise.all(ids.map((id) => invalidatePublicProjectCache(id)))
-    return { count: result.count }
-  }
-  if (action === 'restore') {
-    const result = await prisma.project.updateMany({
-      where: { id: { in: ids } },
-      data: { isDeleted: false, status: 1, updatedAt: new Date() },
-    })
-    await Promise.all(ids.map((id) => invalidatePublicProjectCache(id)))
-    return { count: result.count }
+    return deleteProjectBatch(ids)
   }
   if (action === 'setStatus') {
     const status = optionalIntegerValue(input.status)

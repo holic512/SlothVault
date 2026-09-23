@@ -111,8 +111,6 @@ export const categoryToolDefinitions: McpToolDefinition[] = collectMcpToolDefini
         pageSize,
         skip: (page - 1) * pageSize,
         keyword: keyword.trim(),
-        includeDeleted: false,
-        onlyDeleted: false,
         includeProjectVersion: true,
         status,
         projectId: projectId === undefined ? undefined : mcpId(projectId, 'projectId'),

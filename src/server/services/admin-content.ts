@@ -16,6 +16,7 @@ import { DOCUMENT_CONTENT_MAX_CHARACTERS } from '@/lib/document-content'
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
 import { invalidatePublicProjectCache } from '@/server/services/public-project-cache'
+import { deleteTrashItem } from '@/server/services/admin-trash'
 import {
   hasPrismaCode,
   integerValue,
@@ -71,7 +72,6 @@ export type UpdateProjectHomeInput = {
 export type ListProjectMenusInput = {
   projectId: number
   tree: boolean
-  includeDeleted: boolean
 }
 
 export type CreateProjectMenuInput = {
@@ -275,12 +275,13 @@ export async function createOrRestoreProjectHome(
 
   const home = await prisma.$transaction(async (tx) => {
     await requireActiveProject(tx, projectId)
+    const existing = await tx.projectHome.findUnique({ where: { projectId }, select: { isDeleted: true } })
+    if (existing?.isDeleted) throw new HttpError('Restore the project homepage from the trash', 409, 409)
     return tx.projectHome.upsert({
       where: { projectId },
       update: {
         content,
         status: integerValue(input.status, 1),
-        isDeleted: false,
         updatedAt: new Date(),
       },
       create: {
@@ -303,15 +304,12 @@ export async function getProjectHome(id: number) {
 export async function updateProjectHome(id: number, input: UpdateProjectHomeInput) {
   const existing = await prisma.projectHome.findUnique({ where: { id } })
   if (!existing) throw new HttpError('Not Found', 404, 404)
-  if (input.isDeleted === false) {
-    await prisma.$transaction((tx) => requireActiveProject(tx, existing.projectId))
-  }
+  if (existing.isDeleted || input.isDeleted !== undefined) throw new HttpError('Restore the project homepage from the trash', 409, 409)
 
   const data: Prisma.ProjectHomeUpdateInput = { updatedAt: new Date() }
   if (input.content !== undefined) data.content = requiredDocumentContent(input.content)
   const status = optionalIntegerValue(input.status)
   if (status !== null) data.status = status
-  if (typeof input.isDeleted === 'boolean') data.isDeleted = input.isDeleted
   if (Object.keys(data).length === 1) throw new HttpError('No fields to update', 400, 400)
 
   try {
@@ -324,23 +322,8 @@ export async function updateProjectHome(id: number, input: UpdateProjectHomeInpu
   }
 }
 
-export async function deleteProjectHome(id: number, hard: boolean) {
-  try {
-    const home = hard
-      ? await prisma.projectHome.delete({
-        where: { id },
-        select: { projectId: true },
-      })
-      : await prisma.projectHome.update({
-        where: { id },
-        data: { isDeleted: true, updatedAt: new Date() },
-        select: { projectId: true },
-      })
-    await invalidatePublicProjectCache(home.projectId)
-  } catch (error) {
-    if (hasPrismaCode(error, 'P2025')) throw new HttpError('Not Found', 404, 404)
-    throw error
-  }
+export async function deleteProjectHome(id: number) {
+  await deleteTrashItem('home', id)
 }
 
 export async function listProjectMenus(input: ListProjectMenusInput) {
@@ -349,16 +332,13 @@ export async function listProjectMenus(input: ListProjectMenusInput) {
   })
   if (!project) throw new HttpError('Project not found', 404, 404)
 
-  const baseWhere = {
-    projectId: input.projectId,
-    ...(input.includeDeleted ? {} : { isDeleted: false }),
-  }
+  const baseWhere = { projectId: input.projectId, isDeleted: false }
   if (input.tree) {
     const list = await prisma.projectMenu.findMany({
       where: { ...baseWhere, parentId: null },
       include: {
         children: {
-          where: input.includeDeleted ? {} : { isDeleted: false },
+          where: { isDeleted: false },
           orderBy: [{ weight: 'desc' }, { id: 'asc' }],
         },
       },
@@ -418,6 +398,7 @@ export async function getProjectMenu(id: number) {
 }
 
 export async function updateProjectMenu(id: number, input: UpdateProjectMenuInput) {
+  if (input.isDeleted !== undefined) throw new HttpError('Restore the project menu from the trash', 409, 409)
   const menu = await prisma.$transaction(async (tx) => {
     const current = await tx.projectMenu.findUnique({ where: { id } })
     if (!current) throw new HttpError('Not Found', 404, 404)
@@ -457,40 +438,14 @@ export async function updateProjectMenu(id: number, input: UpdateProjectMenuInpu
     if (typeof input.isExternal === 'boolean') data.isExternal = input.isExternal
     if (input.weight !== undefined) data.weight = integerValue(input.weight, current.weight)
     if (input.status !== undefined) data.status = integerValue(input.status, current.status)
-    if (typeof input.isDeleted === 'boolean') {
-      if (!input.isDeleted && current.parentId) {
-        const parent = await tx.projectMenu.findFirst({
-          where: { id: current.parentId, projectId: current.projectId, isDeleted: false },
-        })
-        if (!parent) throw new HttpError('Restore the parent menu first', 400, 400)
-      }
-      data.isDeleted = input.isDeleted
-    }
     if (Object.keys(data).length === 1) throw new HttpError('No fields to update', 400, 400)
     return tx.projectMenu.update({ where: { id }, data })
   })
   return projectMenuDtoBase(menu)
 }
 
-export async function deleteProjectMenu(id: number, hard: boolean) {
-  await prisma.$transaction(async (tx) => {
-    const current = await tx.projectMenu.findUnique({ where: { id } })
-    if (!current) throw new HttpError('Not Found', 404, 404)
-    if (hard) {
-      await tx.projectMenu.deleteMany({ where: { parentId: id } })
-      await tx.projectMenu.delete({ where: { id } })
-    } else {
-      const now = new Date()
-      await tx.projectMenu.updateMany({
-        where: { parentId: id },
-        data: { isDeleted: true, updatedAt: now },
-      })
-      await tx.projectMenu.update({
-        where: { id },
-        data: { isDeleted: true, updatedAt: now },
-      })
-    }
-  })
+export async function deleteProjectMenu(id: number) {
+  await deleteTrashItem('menu', id)
 }
 
 export async function getSystemHomepage() {

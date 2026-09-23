@@ -4,7 +4,7 @@
  * @file articles-manager.tsx
  * @project SlothVault
  * @module Independent Article Administration
- * @description Provides the administrator archive for searching, publishing, withdrawing, restoring, and soft-deleting standalone blog articles.
+ * @description Provides the administrator archive for searching, publishing, withdrawing, and soft-deleting standalone blog articles.
  * @logic Keep article lifecycle actions explicit, preserve pagination filters, and route all body editing into the dedicated article workspace.
  * @dependencies Ant Design, React Query, next-intl, Next navigation, article administration API
  * @index_tags admin,article,blog,list,lifecycle
@@ -13,9 +13,9 @@
 import { useState } from 'react'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { App, Button, Input, Select, Space, Switch, Table, Tag, Typography } from 'antd'
+import { App, Button, Input, Select, Space, Table, Tag, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { EyeOff, FilePenLine, Plus, RefreshCw, Rocket, RotateCcw, Trash2 } from 'lucide-react'
+import { EyeOff, FilePenLine, Plus, RefreshCw, Rocket, Trash2 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 
@@ -56,30 +56,22 @@ export function ArticlesManager() {
   const [pageSize, setPageSize] = useState(20)
   const [keyword, setKeyword] = useState('')
   const [status, setStatus] = useState<string>()
-  const [includeDeleted, setIncludeDeleted] = useState(false)
 
   const query = useQuery({
-    queryKey: ['admin-articles', page, pageSize, keyword, status, includeDeleted],
+    queryKey: ['admin-articles', page, pageSize, keyword, status],
     queryFn: () => {
       const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
       if (keyword.trim()) params.set('keyword', keyword.trim())
       if (status !== undefined) params.set('status', status)
-      if (includeDeleted) params.set('includeDeleted', '1')
       return apiFetch<ArticleListData>(`/api/admin/mm/article?${params}`)
     },
   })
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['admin-articles'] })
   const lifecycle = useMutation({
-    mutationFn: async ({ article, action }: { article: ArticleDto; action: 'publish' | 'withdraw' | 'restore' | 'delete' }) => {
+    mutationFn: async ({ article, action }: { article: ArticleDto; action: 'publish' | 'withdraw' | 'delete' }) => {
       if (action === 'delete') {
         return apiFetch<ArticleDto>(`/api/admin/mm/article/${article.id}`, { method: 'DELETE' })
-      }
-      if (action === 'restore') {
-        return apiFetch<ArticleDto>(`/api/admin/mm/article/${article.id}`, {
-          method: 'PUT',
-          body: JSON.stringify({ isDeleted: false }),
-        })
       }
       return apiFetch<ArticleDto>(`/api/admin/mm/article/${article.id}/${action}`, {
         method: 'POST',
@@ -174,15 +166,7 @@ export function ArticlesManager() {
               {t('actions.withdraw')}
             </Button>
           ) : null}
-          {row.isDeleted ? (
-            <Button type="link" icon={<RotateCcw size={14} />} onClick={() => lifecycle.mutate({ article: row, action: 'restore' })}>
-              {t('actions.restore')}
-            </Button>
-          ) : (
-            <Button type="link" danger icon={<Trash2 size={14} />} onClick={() => confirmDelete(row)}>
-              {t('actions.delete')}
-            </Button>
-          )}
+          <Button type="link" danger icon={<Trash2 size={14} />} onClick={() => confirmDelete(row)}>{t('actions.delete')}</Button>
         </Space>
       ),
     },
@@ -216,10 +200,6 @@ export function ArticlesManager() {
               { label: t('status.published'), value: '1' },
             ]}
           />
-          <label className="admin-switch-label">
-            <Switch checked={includeDeleted} onChange={(value) => { setIncludeDeleted(value); setPage(1) }} />
-            {t('filters.includeDeleted')}
-          </label>
         </div>
       </div>
 

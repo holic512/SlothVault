@@ -2,7 +2,7 @@
  * @file route.ts
  * @project SlothVault
  * @module Admin Project Homepage API
- * @description Reads or creates/restores the one homepage record associated with a project.
+ * @description Reads or creates the one homepage record associated with a project, without implicit restoration.
  * @logic Authenticate, parse identifiers and JSON, delegate homepage persistence, and wrap the stable response.
  * @dependencies admin session, server/http helpers, admin catalog parser, admin content service
  * @index_tags api,admin,project-home,get,upsert

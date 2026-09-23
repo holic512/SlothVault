@@ -31,6 +31,7 @@ import {
   PanelsTopLeft,
   Settings,
   TicketCheck,
+  Trash2,
   Users,
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
@@ -88,6 +89,7 @@ export function AdminShell({ children, branding }: { children: ReactNode; brandi
       { group: 'content', key: '/admin/mm/articles', icon: <Newspaper size={16} />, label: t('menu.articles') },
       { group: 'content', key: '/admin/mm/projects', icon: <Blocks size={16} />, label: t('menu.projects') },
       { group: 'content', key: '/admin/mm/notes', icon: <BookOpenText size={16} />, label: t('menu.notes') },
+      { group: 'content', key: '/admin/mm/trash', icon: <Trash2 size={16} />, label: t('menu.trash') },
       { group: 'content', key: '/admin/mm/files', icon: <FileStack size={16} />, label: t('menu.files') },
       { group: 'users', key: '/admin/mm/users', icon: <Users size={16} />, label: t('menu.users') },
       { group: 'users', key: '/admin/mm/membership-levels', icon: <Crown size={16} />, label: t('menu.membershipLevels') },

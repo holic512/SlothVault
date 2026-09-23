@@ -130,8 +130,6 @@ export const noteToolDefinitions: McpToolDefinition[] = collectMcpToolDefinition
       pageSize,
       skip: (page - 1) * pageSize,
       keyword: keyword.trim(),
-      includeDeleted: false,
-      onlyDeleted: false,
       status,
       categoryId: categoryId === undefined ? undefined : mcpId(categoryId, 'categoryId'),
       projectVersionId: projectVersionId === undefined

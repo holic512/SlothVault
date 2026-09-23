@@ -16,6 +16,7 @@ const sqliteMigrations = [
   '20260827000000_membership_article_access',
   '20260828000000_knowledge_package_import',
   '20260911000000_remove_knowledge_package_import',
+  '20260923000000_content_trash',
 ]
 
 function migrationSql(name: string) {
@@ -60,7 +61,7 @@ describe('SQLite provider bootstrap', () => {
       const article = await prisma.article.create({
         data: { title: 'Independent article', content: '# Body' },
       })
-      expect(article).toMatchObject({ id: 1, status: 0, publishedAt: null, isDeleted: false })
+      expect(article).toMatchObject({ id: 1, status: 0, publishedAt: null, isDeleted: false, deletedAt: null })
 
       const level = await prisma.membershipLevel.create({
         data: { name: 'VIP', rank: 1, pricePoints: 10, validityDays: 30 },
@@ -174,7 +175,7 @@ describe('SQLite provider bootstrap', () => {
     try {
       database.pragma('foreign_keys = ON')
       database.exec(readFileSync(resolve(process.cwd(), 'prisma/providers/sqlite/migrations/20260719000000_initial/migration.sql'), 'utf8'))
-      for (const migration of sqliteMigrations.slice(0, -1)) {
+      for (const migration of sqliteMigrations.slice(0, -2)) {
         database.exec(migrationSql(migration))
       }
 

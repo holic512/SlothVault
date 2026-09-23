@@ -5,7 +5,7 @@
  * @project SlothVault
  * @module Project Menu Administration
  * @description Provides a two-level Ant Design project menu tree table and validated editor.
- * @logic Load one project's menu tree, restrict parent choices to active roots, and coordinate create, edit, cascade delete, and restore operations.
+ * @logic Load active project menus, restrict parent choices to active roots, and coordinate create, edit, and cascade delete operations.
  * @dependencies Ant Design, React Query, next-intl, api-client
  * @index_tags admin,project-menu,navigation,tree,crud
  * @author holic512
@@ -29,7 +29,7 @@ import {
   Typography,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { formatAdminError } from '@/lib/admin-localization'
@@ -71,17 +71,16 @@ export function ProjectMenuManager({
   const errorT = useTranslations('AdminMM.errors')
   const queryClient = useQueryClient()
   const { message, modal } = App.useApp()
-  const [includeDeleted, setIncludeDeleted] = useState(false)
   const [editing, setEditing] = useState<MenuDto | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [form] = Form.useForm<MenuForm>()
 
   const query = useQuery({
-    queryKey: ['admin-project-menus', project?.id, includeDeleted],
+    queryKey: ['admin-project-menus', project?.id],
     enabled: Boolean(project),
     queryFn: () =>
       apiFetch<MenuDto[]>(
-        `/api/admin/mm/menu?projectId=${project!.id}&tree=1${includeDeleted ? '&includeDeleted=1' : ''}`,
+        `/api/admin/mm/menu?projectId=${project!.id}&tree=1`,
       ),
   })
   const refresh = () =>
@@ -138,15 +137,6 @@ export function ProjectMenuManager({
       },
     })
   }
-  const restore = async (menu: MenuDto) => {
-    await apiFetch(`/api/admin/mm/menu/${menu.id}`, {
-      method: 'PUT',
-      body: JSON.stringify({ isDeleted: false, status: 1 }),
-    })
-    message.success(t('messages.restored'))
-    await refresh()
-  }
-
   const columns: ColumnsType<MenuDto> = [
     { title: t('table.label'), dataIndex: 'label', minWidth: 180 },
     {
@@ -188,17 +178,13 @@ export function ProjectMenuManager({
               {t('operations.child')}
             </Button>
           ) : null}
-          {!row.isDeleted ? (
+          {(
             <>
               <Button type="link" onClick={() => openForm(row)}>{t('operations.edit')}</Button>
               <Button type="link" danger icon={<Trash2 size={13} />} onClick={() => remove(row)}>
                 {t('operations.delete')}
               </Button>
             </>
-          ) : (
-            <Button type="link" icon={<RotateCcw size={13} />} onClick={() => void restore(row)}>
-              {t('operations.restore')}
-            </Button>
           )}
         </Space>
       ),
@@ -218,10 +204,6 @@ export function ProjectMenuManager({
         <div className="inline-manager-toolbar">
           <div>
             <Typography.Text type="secondary">{t('desc')}</Typography.Text>
-            <label className="admin-switch-label">
-              <Switch checked={includeDeleted} onChange={setIncludeDeleted} />
-              {t('includeDeleted')}
-            </label>
           </div>
           <Button type="primary" icon={<Plus size={14} />} onClick={() => openForm()}>
             {t('newRoot')}
