@@ -72,7 +72,7 @@ export function HomepageEditor({ projectId }: { projectId?: string }) {
         <Alert
           showIcon
           type="error"
-          message={t('messages.loadFailed')}
+          title={t('messages.loadFailed')}
           description={formatAdminError(resourceQuery.error || projectQuery.error, errorT)}
         />
       </AdminPage>

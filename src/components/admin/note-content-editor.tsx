@@ -26,6 +26,7 @@ import {
   Space,
   Switch,
   Tag,
+  Tree,
   Typography,
 } from 'antd'
 import {
@@ -35,6 +36,8 @@ import {
   CloudUpload,
   FilePenLine,
   FilePlus2,
+  Folder,
+  FolderOpen,
   FolderPlus,
   FolderTree,
   Pencil,
@@ -142,6 +145,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
   const [selectedNoteId, setSelectedNoteId] = useState(noteId || '')
   const [selectedContentId, setSelectedContentId] = useState('')
   const [keyword, setKeyword] = useState('')
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({})
   const [includeDeleted, setIncludeDeleted] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [mobilePane, setMobilePane] = useState<MobilePane>(noteId ? 'content' : 'tree')
@@ -488,12 +492,66 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
     })
   }, [categoriesQuery.data?.list, keyword, notesQuery.data])
 
+  const expandedCategoryKeys = filteredCategories
+    .filter((category) => keyword.trim() || !collapsedCategories[`${currentVersionId}:${category.id}`])
+    .map((category) => `category:${category.id}`)
+
+  const renderTreeActions = (category: Category, note?: NoteInfo) => {
+    if (readOnly) return null
+    const item = note || category
+    const kind = note ? 'note' : 'category'
+    return (
+      <span className="note-tree-actions" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+        {!note && !item.isDeleted ? <Button type="text" size="small" title={t('createNote')} aria-label={t('createNote')} icon={<Plus size={14} />} onClick={() => openNote(category.id)} /> : null}
+        {!item.isDeleted ? <Button type="text" size="small" title={t(`entityDialog.${kind}.edit`)} aria-label={t(`entityDialog.${kind}.edit`)} icon={<Pencil size={14} />} onClick={() => note ? openNote(category.id, note) : openCategory(category)} /> : null}
+        <Button type="text" size="small" title={t(item.isDeleted ? 'restore' : 'delete')} aria-label={t(item.isDeleted ? 'restore' : 'delete')} danger={!item.isDeleted} icon={item.isDeleted ? <RotateCcw size={14} /> : <Trash2 size={14} />} onClick={() => void toggleEntityDeleted(kind, item)} />
+      </span>
+    )
+  }
+
+  const treeData = filteredCategories.map((category) => {
+    const categoryNotes = (notesQuery.data || []).filter((note) => note.categoryId === category.id)
+      .filter((note) => !keyword.trim() || category.categoryName.toLocaleLowerCase().includes(keyword.trim().toLocaleLowerCase()) || note.noteTitle.toLocaleLowerCase().includes(keyword.trim().toLocaleLowerCase()))
+    const expanded = expandedCategoryKeys.includes(`category:${category.id}`)
+    return {
+      key: `category:${category.id}`,
+      className: category.isDeleted ? 'is-deleted' : '',
+      title: (
+        <span className="note-tree-node-title">
+          {expanded ? <FolderOpen size={16} /> : <Folder size={16} />}
+          <span className="note-tree-label" title={category.categoryName}>{category.categoryName}</span>
+          <span className="note-tree-count">{categoryNotes.length}</span>
+          {renderTreeActions(category)}
+        </span>
+      ),
+      children: categoryNotes.length ? categoryNotes.map((note) => ({
+        key: `note:${note.id}`,
+        isLeaf: true,
+        selectable: !note.isDeleted,
+        className: note.isDeleted ? 'is-deleted' : '',
+        title: (
+          <span className="note-tree-node-title">
+            <FilePenLine size={15} />
+            <span className="note-tree-label" title={note.noteTitle}>{note.noteTitle}</span>
+            <span className="note-tree-count" title={t('revisions')}>{note.contentCount || 0}</span>
+            {renderTreeActions(category, note)}
+          </span>
+        ),
+      })) : !category.isDeleted && !readOnly ? [{
+        key: `create:${category.id}`,
+        isLeaf: true,
+        selectable: false,
+        title: <button className="note-tree-inline-create" type="button" onClick={(event) => { event.stopPropagation(); openNote(category.id) }}><Plus size={14} />{t('createNote')}</button>,
+      }] : [],
+    }
+  })
+
   const loadingDeepLink = Boolean(noteId && deepNoteQuery.isLoading && !currentVersionId)
   if (loadingDeepLink || projectsQuery.isLoading) {
     return <div className="admin-editor-loading"><Skeleton active paragraph={{ rows: 12 }} /></div>
   }
   if (deepNoteQuery.isError) {
-    return <Alert showIcon type="error" message={contentT('messages.fetchNoteFailed')} description={formatAdminError(deepNoteQuery.error, errorT)} />
+    return <Alert showIcon type="error" title={contentT('messages.fetchNoteFailed')} description={formatAdminError(deepNoteQuery.error, errorT)} />
   }
 
   const emptyStep = !currentProjectId
@@ -569,34 +627,29 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
             <label className="note-deleted-toggle"><Switch size="small" checked={includeDeleted} onChange={setIncludeDeleted} /><span>{t('showDeleted')}</span></label>
           </div>
           <div className="note-tree-scroll">
-            {filteredCategories.length ? filteredCategories.map((category) => {
-              const categoryNotes = (notesQuery.data || []).filter((note) => note.categoryId === category.id)
-                .filter((note) => !keyword.trim() || category.categoryName.toLocaleLowerCase().includes(keyword.trim().toLocaleLowerCase()) || note.noteTitle.toLocaleLowerCase().includes(keyword.trim().toLocaleLowerCase()))
-              return (
-                <div className={`note-tree-category ${category.id === currentCategoryId ? 'is-selected' : ''} ${category.isDeleted ? 'is-deleted' : ''}`} key={category.id}>
-                  <div className="note-tree-category-row">
-                    <button type="button" onClick={() => chooseCategory(category.id)}><FolderTree size={14} /><span>{category.categoryName}</span></button>
-                    <span className="note-tree-actions">
-                      {!category.isDeleted ? <Button type="text" size="small" icon={<Plus size={12} />} disabled={readOnly} onClick={() => openNote(category.id)} /> : null}
-                      {!category.isDeleted ? <Button type="text" size="small" icon={<Pencil size={12} />} disabled={readOnly} onClick={() => openCategory(category)} /> : null}
-                      <Button type="text" size="small" danger={!category.isDeleted} icon={category.isDeleted ? <RotateCcw size={12} /> : <Trash2 size={12} />} disabled={readOnly} onClick={() => void toggleEntityDeleted('category', category)} />
-                    </span>
-                  </div>
-                  <div className="note-tree-notes">
-                    {categoryNotes.map((note) => (
-                      <div className={`note-tree-note-row ${note.id === selectedNoteId ? 'is-active' : ''} ${note.isDeleted ? 'is-deleted' : ''}`} key={note.id}>
-                        <button type="button" disabled={note.isDeleted} onClick={() => chooseNote(note.id)}><FilePenLine size={13} /><span>{note.noteTitle}</span><Tag bordered={false}>{note.contentCount || 0}</Tag></button>
-                        <span className="note-tree-actions">
-                          {!note.isDeleted ? <Button type="text" size="small" icon={<Pencil size={12} />} disabled={readOnly} onClick={() => openNote(category.id, note)} /> : null}
-                          <Button type="text" size="small" danger={!note.isDeleted} icon={note.isDeleted ? <RotateCcw size={12} /> : <Trash2 size={12} />} disabled={readOnly} onClick={() => void toggleEntityDeleted('note', note)} />
-                        </span>
-                      </div>
-                    ))}
-                    {!categoryNotes.length && !category.isDeleted ? <button className="note-tree-inline-create" type="button" disabled={readOnly} onClick={() => openNote(category.id)}><Plus size={12} />{t('createNote')}</button> : null}
-                  </div>
-                </div>
-              )
-            }) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={currentVersionId ? t('empty.category') : t('empty.version')} />}
+            {filteredCategories.length ? (
+              <Tree
+                className="note-library-tree"
+                aria-label={t('structure')}
+                blockNode
+                virtual={false}
+                treeData={treeData}
+                expandedKeys={expandedCategoryKeys}
+                selectedKeys={selectedNoteId ? [`note:${selectedNoteId}`] : currentCategoryId ? [`category:${currentCategoryId}`] : []}
+                onExpand={(keys) => setCollapsedCategories((previous) => ({
+                  ...previous,
+                  ...Object.fromEntries(filteredCategories.map((category) => [
+                    `${currentVersionId}:${category.id}`,
+                    !keys.includes(`category:${category.id}`),
+                  ])),
+                }))}
+                onSelect={(_, { node }) => {
+                  const [kind, id] = String(node.key).split(':')
+                  if (kind === 'category') chooseCategory(id)
+                  if (kind === 'note') chooseNote(id)
+                }}
+              />
+            ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={currentVersionId ? t('empty.category') : t('empty.version')} />}
           </div>
         </aside>
 
@@ -607,17 +660,17 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
           </div>
           <div className="note-revision-list">
             {contents.length ? contents.map((item) => (
-              <button key={item.id} type="button" className={`note-revision-card ${selectedContent?.id === item.id ? 'is-active' : ''} ${item.isDeleted ? 'is-deleted' : ''}`} onClick={() => chooseRevision(item.id)}>
-                <span className="note-revision-copy">
+              <div key={item.id} className={`note-revision-card ${selectedContent?.id === item.id ? 'is-active' : ''} ${item.isDeleted ? 'is-deleted' : ''}`}>
+                <button type="button" className="note-revision-copy" aria-pressed={selectedContent?.id === item.id} onClick={() => chooseRevision(item.id)}>
                   <strong>{item.isPrimary ? <Star size={13} fill="currentColor" /> : null}{item.versionNote || contentT('unnamedVersion')}</strong>
                   <small>{item.status === 1 ? t('enabled') : t('disabled')} · {formatAdminDate(locale, item.updatedAt)}</small>
+                </button>
+                <span className="note-revision-actions">
+                  {!item.isDeleted ? <Button type="text" size="small" aria-label={t('revisionDialog.edit')} icon={<Pencil size={12} />} disabled={readOnly} onClick={() => setRevisionDialog({ mode: 'edit', id: item.id, versionNote: item.versionNote || '', status: item.status })} /> : null}
+                  {!item.isDeleted && !item.isPrimary ? <Button type="text" size="small" aria-label={contentT('setPrimary')} icon={<Star size={12} />} disabled={readOnly} onClick={() => void updateRevision(item, { isPrimary: true })} /> : null}
+                  <Button type="text" size="small" aria-label={t(item.isDeleted ? 'restore' : 'delete')} danger={!item.isDeleted} icon={item.isDeleted ? <RotateCcw size={12} /> : <Trash2 size={12} />} disabled={readOnly} onClick={() => void toggleRevisionDeleted(item)} />
                 </span>
-                <span className="note-revision-actions" onClick={(event) => event.stopPropagation()}>
-                  {!item.isDeleted ? <Button type="text" size="small" icon={<Pencil size={12} />} disabled={readOnly} onClick={() => setRevisionDialog({ mode: 'edit', id: item.id, versionNote: item.versionNote || '', status: item.status })} /> : null}
-                  {!item.isDeleted && !item.isPrimary ? <Button type="text" size="small" icon={<Star size={12} />} disabled={readOnly} onClick={() => void updateRevision(item, { isPrimary: true })} /> : null}
-                  <Button type="text" size="small" danger={!item.isDeleted} icon={item.isDeleted ? <RotateCcw size={12} /> : <Trash2 size={12} />} disabled={readOnly} onClick={() => void toggleRevisionDeleted(item)} />
-                </span>
-              </button>
+              </div>
             )) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={selectedNote ? t('empty.revision') : t('empty.selectNote')} />}
           </div>
         </aside>

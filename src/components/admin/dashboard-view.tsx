@@ -198,7 +198,7 @@ export function DashboardView() {
         <Alert
           type="error"
           showIcon
-          message={t('messages.loadFailed')}
+          title={t('messages.loadFailed')}
           description={t('messages.loadFailedDescription')}
           action={<Button onClick={() => void query.refetch()}>{t('actions.refresh')}</Button>}
         />

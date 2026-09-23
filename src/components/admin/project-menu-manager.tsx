@@ -214,7 +214,7 @@ export function ProjectMenuManager({
       onCancel={onClose}
     >
       <Space orientation="vertical" size={14} className="full-width">
-        <Alert showIcon type="info" message={t('defaultHint')} />
+        <Alert showIcon type="info" title={t('defaultHint')} />
         <div className="inline-manager-toolbar">
           <div>
             <Typography.Text type="secondary">{t('desc')}</Typography.Text>

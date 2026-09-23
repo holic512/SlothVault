@@ -339,7 +339,7 @@ export function ContractsManager() {
         </Form.Item>
         <Form.Item label={t('form.attachment')} extra={t('form.attachmentHint')}>
           <Space direction="vertical" size={8} style={{ width: '100%' }}>
-            {attachment ? <Alert type="success" showIcon message={attachment.originalName} description={t('detail.selectedPdf', { size: Math.ceil(Number(attachment.fileSize) / 1024) })} /> : null}
+            {attachment ? <Alert type="success" showIcon title={attachment.originalName} description={t('detail.selectedPdf', { size: Math.ceil(Number(attachment.fileSize) / 1024) })} /> : null}
             <Upload accept="application/pdf,.pdf" maxCount={1} showUploadList={false} beforeUpload={uploadPdf}>
               <Button icon={<UploadCloud size={15} />}>{t('actions.uploadPdf')}</Button>
             </Upload>
@@ -355,7 +355,7 @@ export function ContractsManager() {
 
     <Drawer open={Boolean(evidenceTarget)} onClose={() => { setEvidenceTarget(null); setPrepared(null) }} size={580} title={t('drawer.evidence')}>
       {evidenceTarget ? <>
-        <Alert showIcon type="info" message={t('dialog.adminWallet')} description={t('dialog.adminWalletDescription')} />
+        <Alert showIcon type="info" title={t('dialog.adminWallet')} description={t('dialog.adminWalletDescription')} />
         <Card className={contractStyles['evidence-card']} bordered={false}>
           <Descriptions column={1} size="small" items={[
             { key: 'title', label: t('detail.contract'), children: evidenceTarget.title },
@@ -368,7 +368,7 @@ export function ContractsManager() {
             <Select options={(networks.data?.networks || []).map((item) => ({ value: item.network, disabled: !item.enabled, label: item.network === 'mainnet' ? t('detail.mainnetCredential') : t('detail.devnetCredential') }))} />
           </Form.Item>
           {prepared ? <Space direction="vertical" style={{ width: '100%' }}>
-            <Alert type={prepared.network === 'mainnet' ? 'warning' : 'info'} showIcon message={prepared.network === 'mainnet' ? t('dialog.mainnetFee') : t('dialog.devnetTest')} description={t('dialog.feeExpires', { fee: (prepared.feeLamports / 1_000_000_000).toFixed(9), date: formatAdminDate(locale, new Date(prepared.expiresAt)) })} />
+            <Alert type={prepared.network === 'mainnet' ? 'warning' : 'info'} showIcon title={prepared.network === 'mainnet' ? t('dialog.mainnetFee') : t('dialog.devnetTest')} description={t('dialog.feeExpires', { fee: (prepared.feeLamports / 1_000_000_000).toFixed(9), date: formatAdminDate(locale, new Date(prepared.expiresAt)) })} />
             <Button block type="primary" icon={<ShieldCheck size={15} />} loading={submitEvidence.isPending} disabled={!wallet.canSignTransaction || wallet.address !== prepared.signerAddress} onClick={() => submitEvidence.mutate(prepared)}>{t('actions.sign')}</Button>
             <Button block onClick={() => setPrepared(null)}>{t('actions.back')}</Button>
           </Space> : <Button block type="primary" icon={<FileSignature size={15} />} loading={prepareEvidence.isPending} disabled={!wallet.address || !wallet.canSignTransaction} htmlType="submit">{t('actions.prepare')}</Button>}
@@ -395,7 +395,7 @@ function ContractDetail({ contract, admin }: { contract: Contract; admin?: boole
       ]} />
       <div className={contractStyles.body}><MarkdownView content={contract.body} /></div>
     </section>
-    {contract.declineReason ? <Alert type="error" showIcon message={t('detail.declined')} description={contract.declineReason} /> : null}
+    {contract.declineReason ? <Alert type="error" showIcon title={t('detail.declined')} description={contract.declineReason} /> : null}
     {admin && contract.signedAudit ? <Card size="small" title={t('detail.web2Audit')}><Descriptions column={1} size="small" items={[
       { key: 'session', label: t('detail.session'), children: <Typography.Text code>{contract.signedAudit.sessionId || t('empty')}</Typography.Text> },
       { key: 'ip', label: t('detail.ip'), children: contract.signedAudit.ip || t('empty') },

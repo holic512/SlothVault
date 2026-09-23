@@ -76,6 +76,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       lang={locale}
       className={`theme-${initialStyle} ${initialTheme}`}
       data-style={initialStyle}
+      data-scroll-behavior="smooth"
       suppressHydrationWarning
     >
       <body>

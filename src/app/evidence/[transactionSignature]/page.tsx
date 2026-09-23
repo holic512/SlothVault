@@ -51,8 +51,8 @@ export default async function EvidenceReceiptPage({ params }: { params: Promise<
         <Tag color={evidence.network === 'devnet' ? 'warning' : 'success'}>{evidence.network === 'devnet' ? 'DEVNET · 测试凭证' : 'MAINNET · 正式存证'}</Tag>
       </header>
 
-      {evidence.network === 'devnet' ? <Alert showIcon type="warning" message="这是 Devnet 测试凭证，不具备 Mainnet 正式存证标识。" /> : null}
-      {!evidence.subjectVisible ? <Alert showIcon type="info" message={isNoteContent ? '来源内容当前不公开' : '来源版本当前不可见'} description={isNoteContent ? '该凭证绑定的内容不是当前公开、启用的主版本；仅展示不可逆标识、哈希和链上信息。' : '仍展示已经公开写入链上的字段；项目正文、版本名称和 manifest 下载已隐藏。'} /> : null}
+      {evidence.network === 'devnet' ? <Alert showIcon type="warning" title="这是 Devnet 测试凭证，不具备 Mainnet 正式存证标识。" /> : null}
+      {!evidence.subjectVisible ? <Alert showIcon type="info" title={isNoteContent ? '来源内容当前不公开' : '来源版本当前不可见'} description={isNoteContent ? '该凭证绑定的内容不是当前公开、启用的主版本；仅展示不可逆标识、哈希和链上信息。' : '仍展示已经公开写入链上的字段；项目正文、版本名称和 manifest 下载已隐藏。'} /> : null}
 
       <section className="evidence-receipt-paper">
         {evidence.subjectVisible ? <div className="evidence-receipt-title"><span>{isNoteContent ? '来源内容' : '来源版本'}</span><strong>{isNoteContent ? `${evidence.projectName} / ${evidence.version} / ${evidence.categoryName} / ${evidence.noteTitle} / ${evidence.contentVersion || '未命名版本'}` : `${evidence.projectName} / ${evidence.version}`}</strong></div> : null}

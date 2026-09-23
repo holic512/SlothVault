@@ -192,7 +192,7 @@ export function BackupManager() {
 
   return (
     <AdminPage>
-      <Alert showIcon type="warning" message={t('warning.title')} description={t('warning.content')} />
+      <Alert showIcon type="warning" title={t('warning.title')} description={t('warning.content')} />
 
       <div className="backup-grid">
         <BackupCard
@@ -297,7 +297,7 @@ export function BackupManager() {
         onOk={() => void resetSystem()}
       >
         <Space orientation="vertical" size={14} className="full-width">
-          <Alert showIcon type="error" message={t('reset.dialogWarning')} />
+          <Alert showIcon type="error" title={t('reset.dialogWarning')} />
           <Checkbox checked={clearDatabase} onChange={(event) => setClearDatabase(event.target.checked)}>
             {t('reset.clearDatabase')}
           </Checkbox>

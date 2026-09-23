@@ -13,7 +13,7 @@
 import { useState } from 'react'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, App, Button, Checkbox, Descriptions, Drawer, Form, Input, List, Modal, Space, Tag, Typography } from 'antd'
+import { Alert, App, Button, Checkbox, Descriptions, Drawer, Empty, Form, Input, Modal, Space, Tag, Typography } from 'antd'
 import { BadgeCheck, FileCheck2, FileText, PenLine, ShieldCheck, XCircle } from 'lucide-react'
 
 import { MarkdownView } from '@/components/markdown/markdown-view'
@@ -81,29 +81,31 @@ export function AccountContractsView() {
     <div className="account-route-heading">
       <div><Typography.Title level={1}>我的合同</Typography.Title><Typography.Text type="secondary">在线确认冻结的合同正文。签约不需要连接钱包，链上防篡改存证由管理员单独办理。</Typography.Text></div>
     </div>
-    <Alert type="info" showIcon message="Web2 在线签约" description="点击确认后，系统会记录当前账户、时间、会话和基础客户端审计信息。此功能不替代法定电子签名或司法公证。" />
+    <Alert type="info" showIcon title="Web2 在线签约" description="点击确认后，系统会记录当前账户、时间、会话和基础客户端审计信息。此功能不替代法定电子签名或司法公证。" />
     {contracts.isError ? (
       <AccountQueryError retry={() => void contracts.refetch()} />
     ) : (
-        <AccountCard className="account-contract-list" title="分配给我的合同">
-          <List
-            loading={contracts.isLoading}
-            locale={{ emptyText: '暂无分配给您的合同' }}
-            dataSource={contracts.data?.list || []}
-            renderItem={(contract) => <List.Item actions={[<Button key="view" type="link" onClick={() => setSelected(contract)}>查看合同</Button>]}>
-              <List.Item.Meta avatar={<FileText size={22} />} title={<Space>{contract.title}{statusTag(contract.status)}</Space>} description={<span>管理员：{contract.issuer.displayName || contract.issuer.username} · 发起于 {contract.issuedAt ? new Date(contract.issuedAt).toLocaleString() : '草稿中'}</span>} />
+        <AccountCard className="account-contract-list" title="分配给我的合同" loading={contracts.isLoading}>
+          {contracts.data?.list.length ? <ul className={contractStyles['contract-list']}>
+            {contracts.data.list.map((contract) => <li key={contract.id} className={contractStyles['contract-list-item']}>
+              <FileText size={22} aria-hidden />
+              <div className={contractStyles['contract-list-copy']}>
+                <Space wrap>{contract.title}{statusTag(contract.status)}</Space>
+                <Typography.Text type="secondary">管理员：{contract.issuer.displayName || contract.issuer.username} · 发起于 {contract.issuedAt ? new Date(contract.issuedAt).toLocaleString() : '草稿中'}</Typography.Text>
+              </div>
               {contract.credentials.some((credential) => credential.status === 2) ? <Tag icon={<BadgeCheck size={12} />} color="success">已上链</Tag> : null}
-            </List.Item>}
-          />
+              <Button type="link" onClick={() => setSelected(contract)}>查看合同</Button>
+            </li>)}
+          </ul> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无分配给您的合同" />}
         </AccountCard>
     )}
 
-    <Drawer open={Boolean(selected)} onClose={() => setSelected(null)} width={760} title="合同详情">
+    <Drawer open={Boolean(selected)} onClose={() => setSelected(null)} size={760} title="合同详情">
       {selected ? <ContractRead contract={selected} onSign={() => { setAcknowledged(false); setSigning(selected) }} onDecline={() => { declineForm.resetFields(); setDeclining(selected) }} /> : null}
     </Drawer>
     <Modal open={Boolean(signing)} title="确认在线签约" okText="确认签约" cancelText="返回阅读" confirmLoading={sign.isPending} okButtonProps={{ disabled: !acknowledged }} onCancel={() => setSigning(null)} onOk={() => signing && sign.mutate(signing.id)}>
-      <Space direction="vertical" size={14} style={{ width: '100%' }}>
-        <Alert type="warning" showIcon message="确认前请核对正文与 SHA-256 摘要" description="签约后该合同内容不可修改；如不同意，请选择拒签。" />
+      <Space orientation="vertical" size={14} style={{ width: '100%' }}>
+        <Alert type="warning" showIcon title="确认前请核对正文与 SHA-256 摘要" description="签约后该合同内容不可修改；如不同意，请选择拒签。" />
         <Checkbox checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)}>我已阅读并同意以当前显示的冻结正文作为合同内容。</Checkbox>
       </Space>
     </Modal>
@@ -127,8 +129,8 @@ function ContractRead({ contract, onSign, onDecline }: { contract: Contract; onS
       ]} />
       <div className={contractStyles.body}><MarkdownView content={contract.body} /></div>
     </section>
-    {contract.declineReason ? <Alert type="error" showIcon message="您已拒绝此合同" description={contract.declineReason} /> : null}
+    {contract.declineReason ? <Alert type="error" showIcon title="您已拒绝此合同" description={contract.declineReason} /> : null}
     {contract.status === 1 ? <div className={contractStyles['user-actions']}><Button type="primary" icon={<PenLine size={15} />} onClick={onSign}>阅读完毕，在线签约</Button><Button danger icon={<XCircle size={15} />} onClick={onDecline}>拒绝签约</Button></div> : null}
-    {contract.status === 2 ? <Alert type="success" showIcon icon={<ShieldCheck />} message={`已于 ${contract.signedAt ? new Date(contract.signedAt).toLocaleString() : ''} 完成在线签约`} description="管理员可随后用其钱包将合同摘要写入链上。" /> : null}
+    {contract.status === 2 ? <Alert type="success" showIcon icon={<ShieldCheck />} title={`已于 ${contract.signedAt ? new Date(contract.signedAt).toLocaleString() : ''} 完成在线签约`} description="管理员可随后用其钱包将合同摘要写入链上。" /> : null}
   </div>
 }

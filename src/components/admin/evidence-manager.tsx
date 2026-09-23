@@ -351,7 +351,7 @@ export function EvidenceManager() {
     {
       title: t('table.subject'),
       render: (_, row) => <div>
-        <Space size={5}><strong>{row.projectName}</strong><Tag bordered={false}>{row.subjectType === 'NOTE_CONTENT' ? t('subject.noteContent') : t('subject.projectVersion')}</Tag></Space>
+        <Space size={5}><strong>{row.projectName}</strong><Tag variant="filled">{row.subjectType === 'NOTE_CONTENT' ? t('subject.noteContent') : t('subject.projectVersion')}</Tag></Space>
         <br />
         <Typography.Text type="secondary">
           {row.subjectType === 'NOTE_CONTENT'
@@ -401,8 +401,8 @@ export function EvidenceManager() {
       </Space>
     </AdminToolbar>
     <AdminTablePanel className="evidence-ledger">
-      {query.isError ? <Alert showIcon type="error" message={t('messages.loadFailed')} description={evidenceErrorMessage(query.error)} action={<Button size="small" onClick={() => void query.refetch()}>{t('actions.retryLoad')}</Button>} /> : null}
-      {scope === 'wallet' && !signer ? <Alert showIcon type="info" message={t('messages.walletScope')} /> : null}
+      {query.isError ? <Alert showIcon type="error" title={t('messages.loadFailed')} description={evidenceErrorMessage(query.error)} action={<Button size="small" onClick={() => void query.refetch()}>{t('actions.retryLoad')}</Button>} /> : null}
+      {scope === 'wallet' && !signer ? <Alert showIcon type="info" title={t('messages.walletScope')} /> : null}
       <Table rowKey="id" size="small" loading={query.isLoading} dataSource={query.data?.list || []} columns={columns} scroll={{ x: 1080 }} pagination={{ current: page, pageSize: 20, total: query.data?.total || 0, showSizeChanger: false, onChange: setPage }} />
       <div className="evidence-mobile-list">
         {!query.isLoading && (query.data?.list.length || 0) === 0 ? <Empty description={t('messages.empty')} /> : null}
@@ -415,7 +415,7 @@ export function EvidenceManager() {
       </div>
     </AdminTablePanel>
 
-    <Drawer title={t('receipt.title')} width={560} open={Boolean(selected)} onClose={() => setSelected(null)}>
+    <Drawer title={t('receipt.title')} size={560} open={Boolean(selected)} onClose={() => setSelected(null)}>
       {selected ? <>
         <Descriptions bordered size="small" column={1} items={[
           { key: 'release', label: t('receipt.subject'), children: selected.subjectType === 'NOTE_CONTENT' ? `${selected.projectName} / ${selected.version} / ${selected.categoryName || t('table.emptyTransaction')} / ${selected.noteTitle || t('subject.noteFallback')} / ${selected.contentVersion || t('subject.unnamedVersion')}` : `${selected.projectName} / ${selected.version}` },
@@ -427,22 +427,22 @@ export function EvidenceManager() {
         <Typography.Title level={5}>{t('receipt.timeline')}</Typography.Title>
         <Timeline items={selected.attempts.map((attempt) => ({
           color: attempt.status === 2 ? 'green' : attempt.status === -1 ? 'red' : 'blue',
-          children: <div><strong>{statusLabel(attempt.status)}</strong><br /><Typography.Text type="secondary">{formatAdminDate(locale, attempt.createdAt)}</Typography.Text>{attempt.failureMessage ? <Alert type="error" showIcon message={t('messages.failure')} description={evidenceErrorMessage(new ApiClientError('Evidence attempt failed', 400, 400, { reason: attempt.failureCode }))} /> : null}</div>,
+          children: <div><strong>{statusLabel(attempt.status)}</strong><br /><Typography.Text type="secondary">{formatAdminDate(locale, attempt.createdAt)}</Typography.Text>{attempt.failureMessage ? <Alert type="error" showIcon title={t('messages.failure')} description={evidenceErrorMessage(new ApiClientError('Evidence attempt failed', 400, 400, { reason: attempt.failureCode }))} /> : null}</div>,
         }))} />
         {selected.transactionSignature ? <Button block href={explorerUrl(selected.transactionSignature, selected.network)} target="_blank" icon={<ExternalLink size={14} />}>{t('actions.openExplorer')}</Button> : null}
       </> : <Empty />}
     </Drawer>
 
-    <Drawer title={retrySubject ? t('drawer.retryTitle') : t('drawer.issueTitle')} width={620} open={issueOpen} destroyOnHidden onClose={() => {
+    <Drawer title={retrySubject ? t('drawer.retryTitle') : t('drawer.issueTitle')} size={620} open={issueOpen} destroyOnHidden onClose={() => {
       if (prepare.isPending || submit.isPending) return
       setIssueOpen(false)
       setRetrySubject(null)
       form.resetFields()
       void cancelPrepared('The evidence drawer was closed before signing')
     }}>
-      <Alert showIcon type="info" message={t('drawer.independentTitle')} description={t('drawer.independentDescription')} />
-      {retrySubject ? <Alert showIcon type="warning" message={t('drawer.retryTitleAlert')} description={retrySubject.subjectType === 'NOTE_CONTENT' ? `${retrySubject.projectName} / ${retrySubject.version} / ${retrySubject.noteTitle || t('subject.noteFallback')} / ${retrySubject.contentVersion || t('subject.unnamedVersion')}` : t('drawer.legacyRetry', { project: retrySubject.projectName, version: retrySubject.version })} /> : null}
-      {versionsQuery.isError || projectsQuery.isError ? <Alert showIcon type="error" message={t('drawer.loadOptionsFailed')} description={evidenceErrorMessage(versionsQuery.error || projectsQuery.error)} /> : null}
+      <Alert showIcon type="info" title={t('drawer.independentTitle')} description={t('drawer.independentDescription')} />
+      {retrySubject ? <Alert showIcon type="warning" title={t('drawer.retryTitleAlert')} description={retrySubject.subjectType === 'NOTE_CONTENT' ? `${retrySubject.projectName} / ${retrySubject.version} / ${retrySubject.noteTitle || t('subject.noteFallback')} / ${retrySubject.contentVersion || t('subject.unnamedVersion')}` : t('drawer.legacyRetry', { project: retrySubject.projectName, version: retrySubject.version })} /> : null}
+      {versionsQuery.isError || projectsQuery.isError ? <Alert showIcon type="error" title={t('drawer.loadOptionsFailed')} description={evidenceErrorMessage(versionsQuery.error || projectsQuery.error)} /> : null}
       <Form form={form} layout="vertical" onFinish={(values) => prepare.mutate(values)}>
         {!retrySubject ? <>
           <Form.Item label={t('drawer.project')} required>
@@ -526,7 +526,7 @@ export function EvidenceManager() {
         <Form.Item name="network" label={t('drawer.network')} rules={[{ required: true }]}>
           <Select disabled={Boolean(prepared)} options={(query.data?.networks || []).map((item) => ({ value: item.network, disabled: !item.enabled, label: `${networkLabel(item.network)}${item.enabled ? '' : t('network.disabled')}` }))} />
         </Form.Item>
-        {prepared ? <Alert showIcon type="success" message={t('drawer.preparedTitle')} description={t('drawer.preparedDescription')} /> : null}
+        {prepared ? <Alert showIcon type="success" title={t('drawer.preparedTitle')} description={t('drawer.preparedDescription')} /> : null}
         <Descriptions size="small" column={1} items={[
           { key: 'signer', label: t('drawer.signer'), children: <Typography.Text code copyable>{prepared?.signerAddress || signer || t('drawer.notConnected')}</Typography.Text> },
           ...(prepared ? [
@@ -538,7 +538,7 @@ export function EvidenceManager() {
             { key: 'memo', label: t('drawer.finalMemo'), children: <Typography.Text code copyable>{prepared.memo}</Typography.Text> },
           ] : []),
         ]} />
-        {prepared && signer !== prepared.signerAddress ? <Alert showIcon type="warning" message={t('drawer.walletChangedTitle')} description={t('drawer.walletChangedDescription')} /> : null}
+        {prepared && signer !== prepared.signerAddress ? <Alert showIcon type="warning" title={t('drawer.walletChangedTitle')} description={t('drawer.walletChangedDescription')} /> : null}
         {prepared ? <Space direction="vertical" style={{ width: '100%' }}>
           <Button block type="primary" size="large" loading={submit.isPending} disabled={signer !== prepared.signerAddress} onClick={() => submit.mutate(prepared)}>{t('actions.sign')}</Button>
           <Button block disabled={submit.isPending} onClick={() => void cancelPrepared('The administrator chose to revise the prepared evidence')}>{t('actions.backToEdit')}</Button>

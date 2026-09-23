@@ -919,96 +919,123 @@
   gap: 5px;
 }
 
-.root :global(.note-tree-category) {
-  margin-bottom: 6px;
-  border: 1px solid transparent;
-  border-radius: var(--sv-admin-radius);
+.root :global(.note-library-tree) {
+  background: transparent;
+  color: var(--sv-text);
+  font-size: 13px;
 }
 
-.root :global(.note-tree-category):global(.is-selected) {
-  border-color: rgb(var(--sv-primary-rgb), 0.2);
-  background: rgb(var(--sv-primary-rgb), 0.045);
+.root :global(.note-library-tree .ant-tree-treenode) {
+  width: 100%;
+  min-height: 34px;
+  align-items: center;
+  margin-bottom: 2px;
+  padding: 0 4px;
+  border-radius: 4px;
 }
 
-.root :global(.note-tree-category):global(.is-deleted),
-.root :global(.note-tree-note-row):global(.is-deleted),
+.root :global(.note-library-tree .ant-tree-treenode):hover {
+  background: var(--sv-tree-hover-bg);
+}
+
+.root :global(.note-library-tree .ant-tree-treenode-selected),
+.root :global(.note-library-tree .ant-tree-treenode-selected):hover {
+  background: var(--sv-tree-selected-bg);
+}
+
+.root :global(.note-library-tree .ant-tree-node-content-wrapper) {
+  min-width: 0;
+  padding: 0 4px;
+  line-height: 34px;
+}
+
+.root :global(.note-library-tree.ant-tree .ant-tree-treenode .ant-tree-node-content-wrapper),
+.root :global(.note-library-tree.ant-tree .ant-tree-treenode .ant-tree-node-content-wrapper):hover,
+.root :global(.note-library-tree.ant-tree .ant-tree-treenode .ant-tree-node-content-wrapper.ant-tree-node-selected) {
+  background: transparent;
+  color: var(--sv-text);
+}
+
+.root :global(.note-library-tree .ant-tree-title) {
+  display: block;
+  min-width: 0;
+}
+
+.root :global(.note-library-tree .ant-tree-switcher) {
+  width: 20px;
+  margin: 0;
+  line-height: 34px;
+  color: var(--sv-text-muted);
+}
+
+.root :global(.note-library-tree .ant-tree-indent-unit) {
+  width: 18px;
+}
+
+.root :global(.note-library-tree .ant-tree-treenode.is-deleted),
 .root :global(.note-revision-card):global(.is-deleted) {
   opacity: 0.58;
 }
 
-.root :global(.note-tree-category-row),
-.root :global(.note-tree-note-row) {
+.root :global(.note-tree-node-title) {
   display: flex;
   min-width: 0;
   align-items: center;
-  justify-content: space-between;
-  gap: 3px;
+  gap: 7px;
 }
 
-.root :global(.note-tree-category-row) > button:first-child,
-.root :global(.note-tree-note-row) > button:first-child {
-  display: flex;
+.root :global(.note-tree-node-title) > svg {
+  flex-shrink: 0;
+  color: var(--sv-text-muted);
+}
+
+.root :global(.note-tree-label) {
   min-width: 0;
   flex: 1;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 6px;
-  border: 0;
-  background: transparent;
-  color: var(--sv-text);
-  cursor: pointer;
-  text-align: left;
-}
-
-.root :global(.note-tree-category-row) > button:first-child > span,
-.root :global(.note-tree-note-row) > button:first-child > span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.root :global(.note-tree-notes) {
-  padding: 0 3px 4px 17px;
-}
-
-.root :global(.note-tree-note-row) {
-  border-radius: 5px;
-}
-
-.root :global(.note-tree-note-row):global(.is-active) {
-  background: rgb(var(--sv-primary-rgb), 0.11);
-}
-
-.root :global(.note-tree-note-row) :global(.ant-tag) {
-  margin: 0;
-  font-size: 10px;
-  line-height: 17px;
+.root :global(.note-tree-count) {
+  flex-shrink: 0;
+  color: var(--sv-text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
 .root :global(.note-tree-actions) {
   display: flex;
-  flex: 0 0 auto;
+  width: 0;
+  flex-shrink: 0;
+  overflow: hidden;
   opacity: 0;
 }
 
-.root :global(.note-tree-category-row):hover :global(.note-tree-actions),
-.root :global(.note-tree-note-row):hover :global(.note-tree-actions),
-.root :global(.note-tree-category):global(.is-selected) > :global(.note-tree-category-row) :global(.note-tree-actions),
-.root :global(.note-tree-note-row):global(.is-active) :global(.note-tree-actions) {
+.root :global(.note-library-tree .ant-tree-treenode):hover :global(.note-tree-actions),
+.root :global(.note-library-tree .ant-tree-treenode):focus-within :global(.note-tree-actions) {
+  width: auto;
   opacity: 1;
 }
 
 .root :global(.note-tree-inline-create) {
   display: flex;
+  min-height: 34px;
   align-items: center;
-  gap: 5px;
-  margin: 2px 5px;
-  padding: 5px;
+  gap: 7px;
+  padding: 0;
   border: 0;
   background: transparent;
   color: var(--sv-primary);
   cursor: pointer;
-  font-size: 11px;
+  font-size: 12px;
+}
+
+@media (hover: none) {
+  .root :global(.note-tree-actions) {
+    width: auto;
+    opacity: 1;
+  }
 }
 
 .root :global(.note-revision-card) {
@@ -1042,6 +1069,12 @@
   min-width: 0;
   flex: 1;
   flex-direction: column;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
 }
 
 .root :global(.note-revision-copy) strong {
@@ -1073,7 +1106,8 @@
   transition: opacity 150ms ease;
 }
 
-.root :global(.note-revision-card):hover :global(.note-revision-actions) {
+.root :global(.note-revision-card):hover :global(.note-revision-actions),
+.root :global(.note-revision-card):focus-within :global(.note-revision-actions) {
   opacity: 1;
 }
 

@@ -200,12 +200,12 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
     )
   }
   if (articleId && query.isError) {
-    return <AdminPage><Alert type="error" showIcon message={formatAdminError(query.error, errorT)} /></AdminPage>
+    return <AdminPage><Alert type="error" showIcon title={formatAdminError(query.error, errorT)} /></AdminPage>
   }
   if (article?.isDeleted) {
     return (
       <AdminPage>
-        <Alert type="warning" showIcon message={t('deletedTitle')} description={t('deletedDescription')} />
+        <Alert type="warning" showIcon title={t('deletedTitle')} description={t('deletedDescription')} />
       </AdminPage>
     )
   }

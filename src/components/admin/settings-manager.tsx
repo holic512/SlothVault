@@ -76,7 +76,7 @@ export function SettingsManager() {
   if (query.isError) {
     return (
       <AdminPage>
-        <Alert showIcon type="error" message={t('messages.loadFailed')} description={formatAdminError(query.error, errorT)} />
+        <Alert showIcon type="error" title={t('messages.loadFailed')} description={formatAdminError(query.error, errorT)} />
       </AdminPage>
     )
   }
@@ -385,7 +385,7 @@ function SettingsForm({ data }: { data: ConfigData }) {
               </div>
             </div>
             {tab.key === 'updates' ? <SystemUpdatePanel /> : <>
-              {tab.key === 'rpc' ? <Alert className="settings-rpc-notice" showIcon type="info" message={t('tabs.rpc.noticeTitle')} description={t('tabs.rpc.noticeDescription')} action={<Button size="small" loading={networkTestMutation.isPending} onClick={() => networkTestMutation.mutate()}>{t('tabs.rpc.test')}</Button>} /> : null}
+              {tab.key === 'rpc' ? <Alert className="settings-rpc-notice" showIcon type="info" title={t('tabs.rpc.noticeTitle')} description={t('tabs.rpc.noticeDescription')} action={<Button size="small" loading={networkTestMutation.isPending} onClick={() => networkTestMutation.mutate()}>{t('tabs.rpc.test')}</Button>} /> : null}
               {tab.configs.length ? <Card className="settings-card" title={<span className="settings-card-title">{tab.icon}{tab.key === 'branding' ? t('branding.cardTitle') : t('tabs.fieldsCount', { count: tab.configs.length })}</span>}><div className="settings-fields">{tab.configs.map(renderConfig)}</div></Card> : <Empty description={t('empty')} />}
             </>}
           </section>,
@@ -409,7 +409,7 @@ function SystemUpdatePanel() {
     return <Alert
       showIcon
       type="error"
-      message={t('updates.messages.loadFailed')}
+      title={t('updates.messages.loadFailed')}
       description={formatAdminError(query.error, errorT)}
       action={<Button size="small" onClick={() => void query.refetch()}>{t('updates.actions.retry')}</Button>}
     />
@@ -433,7 +433,7 @@ function SystemUpdatePanel() {
       className="settings-update-notice"
       showIcon
       type={data.status === 'CHECK_FAILED' ? 'error' : data.status === 'UPDATE_AVAILABLE' || data.status === 'HISTORY_INCOMPLETE' ? 'warning' : 'info'}
-      message={t(`updates.status.${data.status}`)}
+      title={t(`updates.status.${data.status}`)}
       description={t('updates.notice')}
       action={<Button size="small" icon={<RefreshCw size={14} />} loading={query.isFetching} onClick={() => void query.refetch()}>{t('updates.actions.check')}</Button>}
     />
@@ -463,7 +463,7 @@ function SystemUpdatePanel() {
             <Typography.Text code>{data.repository}</Typography.Text>
           </Descriptions.Item>
         </Descriptions>
-        {!data.historyComplete && data.status !== 'CHECK_FAILED' ? <Alert showIcon type="warning" message={t('updates.messages.historyIncomplete')} /> : null}
+        {!data.historyComplete && data.status !== 'CHECK_FAILED' ? <Alert showIcon type="warning" title={t('updates.messages.historyIncomplete')} /> : null}
         {data.error ? <Typography.Text type="secondary">{t(`updates.errors.${data.error}`)}</Typography.Text> : null}
         {data.nextRelease ? <Card className="settings-update-next-release" size="small" title={<span className="settings-card-title"><RefreshCw size={15} />{t('updates.nextRelease.title')}</span>}>
           <Space direction="vertical" size={8} style={{ width: '100%' }}>

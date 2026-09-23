@@ -53,7 +53,7 @@ export function InitForm() {
         <Typography.Title level={1}>{t('hero.title')}</Typography.Title>
         <Typography.Paragraph type="secondary">{t('hero.desc')}</Typography.Paragraph>
       </div>
-      {errorText ? <Alert className="auth-alert" type="error" showIcon message={errorText} /> : null}
+      {errorText ? <Alert className="auth-alert" type="error" showIcon title={errorText} /> : null}
       <Form<InitValues> layout="vertical" requiredMark={false} onFinish={submit} size="large" disabled={checking}>
         <Form.Item name="username" rules={[{ required: true }, { min: 2 }, { max: 64 }]}> 
           <Input prefix={<UserOutlined />} placeholder={t('form.username')} autoComplete="username" />

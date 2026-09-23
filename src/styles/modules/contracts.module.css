@@ -67,8 +67,30 @@
   margin-bottom: 18px;
 }
 
-.account :global(.ant-list-item) {
-  padding-inline: 4px;
+.contract-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.contract-list-item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 4px;
+}
+
+.contract-list-item + .contract-list-item {
+  border-top: 1px solid var(--sv-border);
+}
+
+.contract-list-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 180px;
+  gap: 4px;
+  overflow-wrap: anywhere;
 }
 
 .user-actions {

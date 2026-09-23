@@ -15,6 +15,8 @@
   --sv-bg-solid: #fbfaf7;
   --sv-surface: var(--sv-bg-solid);
   --sv-bg-soft: #ebeae5;
+  --sv-tree-hover-bg: color-mix(in srgb, var(--sv-text) 6%, var(--sv-bg-solid));
+  --sv-tree-selected-bg: color-mix(in srgb, var(--sv-primary) 14%, var(--sv-bg-solid));
   --sv-text: #151515;
   --sv-text-muted: #66645f;
   --sv-border: rgb(20, 20, 20, 14%);
