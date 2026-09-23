@@ -4,10 +4,10 @@
  * @file projects-manager.tsx
  * @project SlothVault
  * @module Project Administration
- * @description Provides administrator-only management for public article collections, immutable releases, manifests, draft clones, and unified content-editor entry points.
- * @logic Query collections, open the linear content workspace, edit draft versions, publish after strict validation, operate release visibility, verify manifests, and clone frozen trees for the next revision.
+ * @description Provides administrator-only project management and the unified content-editor entry point.
+ * @logic Query projects, edit metadata, manage availability, and navigate to the version-aware content workspace.
  * @dependencies Ant Design, React Query, next-intl, api-client
- * @index_tags admin,projects,versions,crud
+ * @index_tags admin,projects,crud
  * @author holic512
  */
 import { useState } from 'react'
@@ -30,12 +30,12 @@ import {
   Upload,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { BookOpenText, Boxes, Clipboard, Download, Ellipsis, Eye, EyeOff, GitFork, Home, ImageUp, Import, Plus, RefreshCw, Rocket, RotateCcw, ShieldCheck, Trash2 } from 'lucide-react'
+import { BookOpenText, Ellipsis, Home, ImageUp, Import, Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 
 import { formatAdminDate, formatAdminError } from '@/lib/admin-localization'
-import { apiFetch, ApiClientError } from '@/lib/api-client'
+import { apiFetch } from '@/lib/api-client'
 import { AdminPage, AdminPageActions } from '@/components/admin/admin-page'
 import { ProjectMenuManager } from '@/components/admin/project-menu-manager'
 
@@ -72,7 +72,6 @@ export function ProjectsManager() {
   const [selectedIds, setSelectedIds] = useState<React.Key[]>([])
   const [editing, setEditing] = useState<ProjectDto | null>(null)
   const [formOpen, setFormOpen] = useState(false)
-  const [versionProject, setVersionProject] = useState<ProjectDto | null>(null)
   const [menuProject, setMenuProject] = useState<ProjectDto | null>(null)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
 
@@ -219,7 +218,6 @@ export function ProjectsManager() {
             <Dropdown
               menu={{
                 items: [
-                  { key: 'versions', icon: <Boxes size={14} />, label: t('operations.versionManage'), onClick: () => setVersionProject(row) },
                   { key: 'menu', icon: <Ellipsis size={14} />, label: t('operations.menuConfig'), onClick: () => setMenuProject(row) },
                   { key: 'home', icon: <Home size={14} />, label: t('operations.homeEdit'), onClick: () => router.push(`/admin/mm/projects/${row.id}/home`) },
                   { key: 'content', icon: <BookOpenText size={14} />, label: t('operations.contentEdit'), onClick: () => router.push(`/admin/mm/notes?projectId=${row.id}${row.latestVersionId ? `&versionId=${row.latestVersionId}` : ''}`) },
@@ -323,256 +321,7 @@ export function ProjectsManager() {
         </Form>
       </Modal>
 
-      <VersionManager project={versionProject} onClose={() => setVersionProject(null)} onUpdated={refresh} />
       <ProjectMenuManager project={menuProject} onClose={() => setMenuProject(null)} />
     </AdminPage>
-  )
-}
-
-type VersionDto = {
-  id: string
-  projectId: string
-  version: string
-  description: string | null
-  weight: number
-  status: number
-  releaseId: string | null
-  releaseHash: string | null
-  manifestVersion: number | null
-  publishedAt: string | null
-  isDeleted: boolean
-  createdAt: string
-  updatedAt: string
-}
-
-function VersionManager({ project, onClose, onUpdated }: { project: ProjectDto | null; onClose: () => void; onUpdated: () => unknown }) {
-  const vt = useTranslations('AdminMM.projects.versionRelease')
-  const errorT = useTranslations('AdminMM.errors')
-  const router = useRouter()
-  const queryClient = useQueryClient()
-  const { message, modal } = App.useApp()
-  const [includeDeleted, setIncludeDeleted] = useState(false)
-  const [editing, setEditing] = useState<VersionDto | null>(null)
-  const [formOpen, setFormOpen] = useState(false)
-  const [cloneSource, setCloneSource] = useState<VersionDto | null>(null)
-  const [form] = Form.useForm<{ version: string; description?: string; weight: number; status: number }>()
-  const [cloneForm] = Form.useForm<{ version: string; description?: string; weight: number }>()
-  const query = useQuery({
-    queryKey: ['project-versions-admin', project?.id, includeDeleted],
-    enabled: Boolean(project),
-    queryFn: () =>
-      apiFetch<{ list: VersionDto[]; total: number }>(
-        `/api/admin/mm/projectVersion/byProject/${project!.id}?pageSize=100${includeDeleted ? '&includeDeleted=1' : ''}`,
-      ),
-  })
-  const refresh = async () => {
-    await queryClient.invalidateQueries({ queryKey: ['project-versions-admin', project?.id] })
-    await onUpdated()
-  }
-  const save = useMutation({
-    mutationFn: (values: { version: string; description?: string; weight: number; status: number }) =>
-      apiFetch(editing ? `/api/admin/mm/projectVersion/${editing.id}` : '/api/admin/mm/projectVersion', {
-        method: editing ? 'PUT' : 'POST',
-        body: JSON.stringify({
-          version: values.version,
-          description: values.description || null,
-          weight: values.weight,
-          ...(editing ? {} : { projectId: project!.id, status: 0 }),
-        }),
-      }),
-    onSuccess: async () => { message.success(vt('messages.saved')); setFormOpen(false); setEditing(null); await refresh() },
-    onError: (error) => message.error(formatAdminError(error, errorT)),
-  })
-  const publish = useMutation({
-    mutationFn: (id: string) => apiFetch(`/api/admin/mm/projectVersion/${id}/publish`, { method: 'POST' }),
-    onSuccess: async () => {
-      message.success(vt('messages.published'))
-      await refresh()
-    },
-    onError: (error) => {
-      const issues = error instanceof ApiClientError && error.data && typeof error.data === 'object' && 'issues' in error.data
-        ? (error.data as { issues?: Array<{ code: string; message: string }> }).issues || []
-        : []
-      if (issues.length) {
-        const issueKey: Record<string, 'projectInactive' | 'noEnabledCategory' | 'categoryNoEnabledNote' | 'notePrimaryCount' | 'notePrimaryDisabled' | 'notePrimaryEmpty' | 'metadataIncomplete' | 'manifestUnsupported' | 'hashMismatch'> = {
-          PROJECT_INACTIVE: 'projectInactive',
-          NO_ENABLED_CATEGORY: 'noEnabledCategory',
-          CATEGORY_NO_ENABLED_NOTE: 'categoryNoEnabledNote',
-          NOTE_PRIMARY_COUNT: 'notePrimaryCount',
-          NOTE_PRIMARY_DISABLED: 'notePrimaryDisabled',
-          NOTE_PRIMARY_EMPTY: 'notePrimaryEmpty',
-          RELEASE_METADATA_INCOMPLETE: 'metadataIncomplete',
-          MANIFEST_VERSION_UNSUPPORTED: 'manifestUnsupported',
-          RELEASE_HASH_MISMATCH: 'hashMismatch',
-        }
-        modal.error({
-          title: vt('messages.publishValidationFailed'),
-          content: <ul>{issues.map((item) => <li key={item.code}>{vt(`validation.${issueKey[item.code] || 'unknown'}`)}</li>)}</ul>,
-        })
-      } else message.error(formatAdminError(error, errorT))
-    },
-  })
-  const setVisibility = async (row: VersionDto, status: 0 | 1) => {
-    await apiFetch(`/api/admin/mm/projectVersion/${row.id}`, {
-      method: 'PUT',
-      body: JSON.stringify({ status }),
-    })
-    message.success(status === 1 ? vt('messages.restored') : vt('messages.hidden'))
-    await refresh()
-  }
-  const verifyIntegrity = async (row: VersionDto) => {
-    const result = await apiFetch<{ valid: boolean; storedHash: string | null; computedHash: string | null; issues: Array<{ code: string; message: string }> }>(
-      `/api/admin/mm/projectVersion/${row.id}/integrity`,
-    )
-    modal[result.valid ? 'success' : 'error']({
-      title: result.valid ? vt('messages.integrityVerified') : vt('messages.integrityFailed'),
-      content: result.valid
-        ? <code className="release-hash-block">{result.computedHash}</code>
-        : <ul>{result.issues.map((item) => {
-          const issueKey: Record<string, 'projectInactive' | 'noEnabledCategory' | 'categoryNoEnabledNote' | 'notePrimaryCount' | 'notePrimaryDisabled' | 'notePrimaryEmpty' | 'metadataIncomplete' | 'manifestUnsupported' | 'hashMismatch'> = {
-            PROJECT_INACTIVE: 'projectInactive',
-            NO_ENABLED_CATEGORY: 'noEnabledCategory',
-            CATEGORY_NO_ENABLED_NOTE: 'categoryNoEnabledNote',
-            NOTE_PRIMARY_COUNT: 'notePrimaryCount',
-            NOTE_PRIMARY_DISABLED: 'notePrimaryDisabled',
-            NOTE_PRIMARY_EMPTY: 'notePrimaryEmpty',
-            RELEASE_METADATA_INCOMPLETE: 'metadataIncomplete',
-            MANIFEST_VERSION_UNSUPPORTED: 'manifestUnsupported',
-            RELEASE_HASH_MISMATCH: 'hashMismatch',
-          }
-          return <li key={item.code}>{vt(`validation.${issueKey[item.code] || 'unknown'}`)}</li>
-        })}</ul>,
-    })
-  }
-  const downloadManifest = async (row: VersionDto) => {
-    const response = await fetch(`/api/admin/mm/projectVersion/${row.id}/manifest`, { credentials: 'same-origin' })
-    if (!response.ok) throw new Error(vt('messages.manifestFailed'))
-    const url = URL.createObjectURL(await response.blob())
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = `slothvault-${row.releaseId}.manifest.json`
-    anchor.click()
-    URL.revokeObjectURL(url)
-  }
-  const openClone = (row: VersionDto) => {
-    setCloneSource(row)
-    cloneForm.setFieldsValue({
-      version: `${row.version}-next`,
-      description: row.description || '',
-      weight: row.weight,
-    })
-  }
-  const clone = useMutation({
-    mutationFn: (values: { version: string; description?: string; weight: number }) =>
-      apiFetch(`/api/admin/mm/projectVersion/${cloneSource!.id}/clone`, {
-        method: 'POST',
-        body: JSON.stringify({ ...values, description: values.description || null }),
-      }),
-    onSuccess: async () => { message.success(vt('messages.cloned')); setCloneSource(null); await refresh() },
-    onError: (error) => message.error(formatAdminError(error, errorT)),
-  })
-  const restore = async (id: string) => {
-    await apiFetch('/api/admin/mm/projectVersion/batch', { method: 'POST', body: JSON.stringify({ action: 'restore', ids: [id] }) })
-    await refresh()
-  }
-
-  const openVersionForm = (version?: VersionDto) => {
-    setEditing(version || null)
-    form.setFieldsValue(version ? { version: version.version, description: version.description || '', weight: version.weight, status: 0 } : { version: '', description: '', weight: 0, status: 0 })
-    setFormOpen(true)
-  }
-
-  return (
-    <Modal open={Boolean(project)} title={vt('title', { name: project?.projectName || '' })} width={920} footer={null} onCancel={onClose}>
-      <div className="inline-manager-toolbar">
-        <label className="admin-switch-label"><Switch checked={includeDeleted} onChange={setIncludeDeleted} />{vt('includeDeleted')}</label>
-        <Button type="primary" icon={<Plus size={14} />} onClick={() => openVersionForm()}>{vt('newVersion')}</Button>
-      </div>
-      <Table<VersionDto>
-        rowKey="id"
-        size="small"
-        loading={query.isLoading}
-        dataSource={query.data?.list || []}
-        pagination={false}
-        columns={[
-          { title: vt('table.version'), dataIndex: 'version' },
-          { title: vt('table.description'), dataIndex: 'description', ellipsis: true },
-          { title: vt('table.weight'), dataIndex: 'weight', width: 80 },
-          {
-            title: vt('table.lifecycle'),
-            width: 110,
-            render: (_, row) => row.isDeleted
-              ? <Tag>{vt('status.deleted')}</Tag>
-              : !row.publishedAt
-                ? <Tag>{vt('status.draft')}</Tag>
-                : row.status === 1
-                  ? <Tag color="success">{vt('status.published')}</Tag>
-                  : <Tag color="warning">{vt('status.hidden')}</Tag>,
-          },
-          {
-            title: vt('table.hash'),
-            width: 155,
-            render: (_, row) => row.releaseHash
-              ? <code title={row.releaseHash}>{row.releaseHash.slice(0, 12)}…</code>
-              : '—',
-          },
-          {
-            title: vt('table.actions'),
-            width: 285,
-            render: (_, row) => (
-              <Space size={2}>
-                {!row.publishedAt ? <Button type="link" onClick={() => openVersionForm(row)}>{vt('actions.edit')}</Button> : null}
-                <Button type="link" onClick={() => router.push(`/admin/mm/notes?projectId=${row.projectId}&versionId=${row.id}`)}>{vt('actions.content')}</Button>
-                {row.isDeleted ? (
-                  <Button type="link" onClick={() => void restore(row.id)}>{vt('actions.restore')}</Button>
-                ) : row.publishedAt ? (
-                  <Dropdown menu={{ items: [
-                    row.status === 1
-                      ? { key: 'hide', icon: <EyeOff size={14} />, label: vt('actions.hide'), onClick: () => void setVisibility(row, 0) }
-                      : { key: 'show', icon: <Eye size={14} />, label: vt('actions.show'), onClick: () => void setVisibility(row, 1) },
-                    { key: 'copy', icon: <Clipboard size={14} />, label: vt('actions.copyHash'), onClick: () => void navigator.clipboard.writeText(row.releaseHash || '').then(() => message.success(vt('messages.hashCopied'))).catch(() => message.error(vt('messages.copyFailed'))) },
-                    { key: 'manifest', icon: <Download size={14} />, label: vt('actions.manifest'), onClick: () => void downloadManifest(row).catch((error) => message.error(formatAdminError(error, errorT))) },
-                    { key: 'integrity', icon: <ShieldCheck size={14} />, label: vt('actions.integrity'), onClick: () => void verifyIntegrity(row).catch((error) => message.error(formatAdminError(error, errorT))) },
-                    { key: 'clone', icon: <GitFork size={14} />, label: vt('actions.clone'), onClick: () => openClone(row) },
-                  ] }}>
-                    <Button icon={<Ellipsis size={15} />}>{vt('actions.release')}</Button>
-                  </Dropdown>
-                ) : (
-                  <Dropdown menu={{ items: [
-                    { key: 'publish', icon: <Rocket size={14} />, label: vt('actions.publish'), onClick: () => publish.mutate(row.id) },
-                    { key: 'delete', danger: true, icon: <Trash2 size={14} />, label: vt('actions.delete'), onClick: () => modal.confirm({ title: vt('deleteConfirm', { version: row.version }), onOk: async () => { await apiFetch(`/api/admin/mm/projectVersion/${row.id}`, { method: 'DELETE' }); await refresh() } }) },
-                  ] }}>
-                    <Button icon={<Ellipsis size={15} />}>{vt('status.draft')}</Button>
-                  </Dropdown>
-                )}
-              </Space>
-            ),
-          },
-        ]}
-      />
-      <Modal open={formOpen} title={editing ? vt('form.editTitle') : vt('form.newTitle')} confirmLoading={save.isPending} onCancel={() => setFormOpen(false)} onOk={() => form.submit()}>
-        <Form form={form} layout="vertical" onFinish={(values) => save.mutate(values)}>
-          <Form.Item name="version" label={vt('form.version')} rules={[{ required: true }]}><Input placeholder="v1.0.0" /></Form.Item>
-          <Form.Item name="description" label={vt('form.description')}><Input.TextArea rows={3} /></Form.Item>
-          <div className="admin-form-grid">
-            <Form.Item name="weight" label={vt('form.weight')}><InputNumber min={0} className="full-width" /></Form.Item>
-            <Form.Item name="status" label={vt('form.status')}><Select disabled options={[{ label: vt('status.draft'), value: 0 }]} /></Form.Item>
-          </div>
-        </Form>
-      </Modal>
-      <Modal
-        open={Boolean(cloneSource)}
-        title={vt('clone.title', { version: cloneSource?.version || '' })}
-        confirmLoading={clone.isPending}
-        onCancel={() => setCloneSource(null)}
-        onOk={() => cloneForm.submit()}
-      >
-        <Form form={cloneForm} layout="vertical" onFinish={(values) => clone.mutate(values)}>
-          <Form.Item name="version" label={vt('clone.version')} rules={[{ required: true }]}><Input maxLength={64} /></Form.Item>
-          <Form.Item name="description" label={vt('form.description')}><Input.TextArea rows={3} /></Form.Item>
-          <Form.Item name="weight" label={vt('form.weight')}><InputNumber className="full-width" /></Form.Item>
-        </Form>
-      </Modal>
-    </Modal>
   )
 }

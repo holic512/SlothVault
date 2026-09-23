@@ -4,10 +4,10 @@
  * @file note-content-editor.tsx
  * @project SlothVault
  * @module Unified Note Workspace
- * @description Owns the linear project-to-Markdown administration flow in one responsive workspace.
- * @logic Resolve deep-link or query context, guard every context transition with the same dirty check, manage category/note/content revisions in place, and keep published versions read-only.
+ * @description Owns project-version lifecycle actions and the linear project-to-Markdown administration flow in one responsive workspace.
+ * @logic Resolve deep links, bind lifecycle actions to the selected version, guard context changes and publication against unsaved content, and keep published trees read-only.
  * @dependencies Ant Design, React Query, React MD Editor wrapper, Next navigation, next-intl, api-client
- * @index_tags admin,notes,workspace,categories,content-versions,autosave,responsive
+ * @index_tags admin,notes,workspace,project-versions,categories,content-versions,autosave,responsive
  * @author holic512
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -17,6 +17,7 @@ import {
   App,
   Alert,
   Button,
+  Dropdown,
   Empty,
   Input,
   InputNumber,
@@ -34,17 +35,25 @@ import {
   Braces,
   ChevronRight,
   CloudUpload,
+  Clipboard,
+  Download,
+  Ellipsis,
+  Eye,
+  EyeOff,
   FilePenLine,
   FilePlus2,
   Folder,
   FolderOpen,
   FolderPlus,
   FolderTree,
+  GitFork,
   Pencil,
   Plus,
   RefreshCw,
+  Rocket,
   RotateCcw,
   Save,
+  ShieldCheck,
   Star,
   Trash2,
 } from 'lucide-react'
@@ -53,7 +62,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 
 import { MarkdownContentEditor } from '@/components/admin/markdown-content-editor'
 import { formatAdminDate, formatAdminError } from '@/lib/admin-localization'
-import { apiFetch } from '@/lib/api-client'
+import { apiFetch, ApiClientError } from '@/lib/api-client'
 
 type Project = { id: string; projectName: string }
 type ProjectVersion = {
@@ -61,6 +70,10 @@ type ProjectVersion = {
   projectId: string
   version: string
   description: string | null
+  weight: number
+  status: number
+  releaseId: string | null
+  releaseHash: string | null
   publishedAt: string | null
   isDeleted: boolean
 }
@@ -120,6 +133,44 @@ type RevisionDialog = {
   status: number
 }
 type MobilePane = 'tree' | 'versions' | 'content'
+type VersionDialog = {
+  mode: 'create' | 'edit' | 'clone'
+  sourceId?: string
+  version: string
+  description: string
+  weight: number
+}
+type VersionAction = 'create' | 'edit' | 'publish' | 'delete' | 'clone' | 'hide' | 'show' | 'copyHash' | 'manifest' | 'integrity'
+const releaseIssueKeys = {
+  PROJECT_INACTIVE: 'projectInactive',
+  NO_ENABLED_CATEGORY: 'noEnabledCategory',
+  CATEGORY_NO_ENABLED_NOTE: 'categoryNoEnabledNote',
+  NOTE_PRIMARY_COUNT: 'notePrimaryCount',
+  NOTE_PRIMARY_DISABLED: 'notePrimaryDisabled',
+  NOTE_PRIMARY_EMPTY: 'notePrimaryEmpty',
+  RELEASE_METADATA_INCOMPLETE: 'metadataIncomplete',
+  MANIFEST_VERSION_UNSUPPORTED: 'manifestUnsupported',
+  RELEASE_HASH_MISMATCH: 'hashMismatch',
+} as const
+
+export function getProjectVersionActions(projectId: string, version?: Pick<ProjectVersion, 'publishedAt' | 'status'>): VersionAction[] {
+  if (!projectId) return []
+  if (!version) return ['create']
+  return version.publishedAt
+    ? ['create', 'clone', version.status === 1 ? 'hide' : 'show', 'copyHash', 'manifest', 'integrity']
+    : ['create', 'edit', 'publish', 'delete']
+}
+
+export async function loadProjectVersions(projectId: string) {
+  const list: ProjectVersion[] = []
+  for (let page = 1; ; page += 1) {
+    const data = await apiFetch<{ list: ProjectVersion[]; total: number }>(
+      `/api/admin/mm/projectVersion/byProject/${projectId}?page=${page}&pageSize=100&orderBy=id&order=asc`,
+    )
+    list.push(...data.list)
+    if (!data.list.length || list.length >= data.total) return { list }
+  }
+}
 
 function pageUrl(projectId: string, versionId: string, categoryId = '') {
   const params = new URLSearchParams()
@@ -132,6 +183,7 @@ function pageUrl(projectId: string, versionId: string, categoryId = '') {
 
 export function NoteContentEditor({ noteId }: { noteId?: string }) {
   const t = useTranslations('AdminMM.notes.workspace')
+  const vt = useTranslations('AdminMM.projects.versionRelease')
   const contentT = useTranslations('AdminMM.notes.content')
   const errorT = useTranslations('AdminMM.errors')
   const locale = useLocale()
@@ -151,8 +203,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
   const [mobilePane, setMobilePane] = useState<MobilePane>(noteId ? 'content' : 'tree')
   const [entityDialog, setEntityDialog] = useState<EntityDialog | null>(null)
   const [revisionDialog, setRevisionDialog] = useState<RevisionDialog | null>(null)
-  const [versionDialogOpen, setVersionDialogOpen] = useState(false)
-  const [newVersionLabel, setNewVersionLabel] = useState('')
+  const [versionDialog, setVersionDialog] = useState<VersionDialog | null>(null)
   const [busy, setBusy] = useState(false)
 
   const projectsQuery = useQuery({
@@ -171,23 +222,11 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
   const versionsQuery = useQuery({
     queryKey: ['admin-note-workspace-versions', currentProjectId],
     enabled: Boolean(currentProjectId),
-    queryFn: () => apiFetch<{ list: ProjectVersion[] }>(
-      `/api/admin/mm/projectVersion/byProject/${currentProjectId}?pageSize=100`,
-    ),
+    queryFn: () => loadProjectVersions(currentProjectId),
   })
 
   const selectedVersion = versionsQuery.data?.list.find((item) => item.id === currentVersionId)
-    || (deepNoteQuery.data?.category?.projectVersion?.id === currentVersionId
-      ? {
-          id: currentVersionId,
-          projectId: currentProjectId,
-          version: deepNoteQuery.data.category.projectVersion.version,
-          description: null,
-          publishedAt: deepNoteQuery.data.category.projectVersion.publishedAt,
-          isDeleted: false,
-        }
-      : undefined)
-  const readOnly = Boolean(selectedVersion?.publishedAt)
+  const readOnly = Boolean(selectedVersion?.publishedAt || (deepParent?.id === currentVersionId && deepParent.publishedAt))
 
   const categoriesQuery = useQuery({
     queryKey: ['admin-note-workspace-categories', currentVersionId, includeDeleted],
@@ -249,6 +288,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
   }
   const refreshWorkspace = async () => {
     await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['admin-projects'] }),
       queryClient.invalidateQueries({ queryKey: ['admin-note-workspace-projects'] }),
       queryClient.invalidateQueries({ queryKey: ['admin-note-workspace-versions'] }),
       queryClient.invalidateQueries({ queryKey: ['admin-note-workspace-categories'] }),
@@ -402,25 +442,152 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
     })
   }
 
-  const createProjectVersion = async () => {
-    if (!currentProjectId || !newVersionLabel.trim()) return
+  const selectVersionContext = (nextVersionId: string) => {
+    setVersionId(nextVersionId)
+    setSelectedCategoryId('')
+    setSelectedNoteId('')
+    setSelectedContentId('')
+    setMobilePane('tree')
+    router.push(pageUrl(currentProjectId, nextVersionId))
+  }
+
+  const openVersionDialog = (mode: VersionDialog['mode'], source?: ProjectVersion) => {
+    setVersionDialog({
+      mode,
+      sourceId: source?.id,
+      version: mode === 'clone' ? `${source?.version || ''}-next` : mode === 'edit' ? source?.version || '' : '',
+      description: mode === 'create' ? '' : source?.description || '',
+      weight: mode === 'create' ? 0 : source?.weight || 0,
+    })
+  }
+
+  const saveProjectVersion = async () => {
+    if (!versionDialog || !currentProjectId || !versionDialog.version.trim()) return
+    if (versionDialog.mode !== 'edit' && !(await confirmDiscard())) return
     setBusy(true)
     try {
-      const created = await apiFetch<ProjectVersion>('/api/admin/mm/projectVersion', {
-        method: 'POST',
-        body: JSON.stringify({ projectId: currentProjectId, version: newVersionLabel.trim(), status: 0 }),
-      })
-      setVersionDialogOpen(false)
-      setNewVersionLabel('')
-      await queryClient.invalidateQueries({ queryKey: ['admin-note-workspace-versions', currentProjectId] })
-      setVersionId(created.id)
-      router.push(pageUrl(currentProjectId, created.id))
-      message.success(t('versionCreated'))
+      const { mode, sourceId } = versionDialog
+      const saved = await apiFetch<ProjectVersion>(
+        mode === 'create' ? '/api/admin/mm/projectVersion'
+          : mode === 'clone' ? `/api/admin/mm/projectVersion/${sourceId}/clone`
+            : `/api/admin/mm/projectVersion/${sourceId}`,
+        {
+          method: mode === 'edit' ? 'PUT' : 'POST',
+          body: JSON.stringify({
+            ...(mode === 'create' ? { projectId: currentProjectId, status: 0 } : {}),
+            version: versionDialog.version.trim(),
+            description: mode === 'edit' ? versionDialog.description.trim() : versionDialog.description.trim() || null,
+            weight: versionDialog.weight,
+          }),
+        },
+      )
+      setVersionDialog(null)
+      if (mode !== 'edit') {
+        setDirty(false)
+        selectVersionContext(saved.id)
+      }
+      await refreshWorkspace()
+      message.success(mode === 'create' ? t('versionCreated') : mode === 'clone' ? vt('messages.cloned') : vt('messages.saved'))
     } catch (error) {
       message.error(formatAdminError(error, errorT))
     } finally {
       setBusy(false)
     }
+  }
+
+  const renderReleaseIssues = (issues: Array<{ code: string }>) => (
+    <ul>{issues.map((issue, index) => (
+      <li key={`${issue.code}:${index}`}>{vt(`validation.${releaseIssueKeys[issue.code as keyof typeof releaseIssueKeys] || 'unknown'}`)}</li>
+    ))}</ul>
+  )
+
+  const showReleaseIssues = (error: unknown) => {
+    const issues = error instanceof ApiClientError && error.data && typeof error.data === 'object' && 'issues' in error.data
+      ? (error.data as { issues?: Array<{ code: string }> }).issues || []
+      : []
+    if (!issues.length) {
+      message.error(formatAdminError(error, errorT))
+      return
+    }
+    modal.error({
+      title: vt('messages.publishValidationFailed'),
+      content: renderReleaseIssues(issues),
+    })
+  }
+
+  const runVersionAction = (action: VersionAction) => {
+    if (action === 'create') {
+      openVersionDialog('create')
+      return
+    }
+    const version = selectedVersion
+    if (!version) return
+    if (action === 'edit' || action === 'clone') {
+      openVersionDialog(action, version)
+      return
+    }
+    if (action === 'publish' || action === 'delete') {
+      if (dirty) {
+        message.warning(t('saveBeforeVersionAction'))
+        return
+      }
+      modal.confirm({
+        title: action === 'publish' ? t('publishConfirm', { version: version.version }) : vt('deleteConfirm', { version: version.version }),
+        content: action === 'publish' ? t('publishImmutable') : t('versionDeleteDescription'),
+        okText: action === 'publish' ? vt('actions.publish') : vt('actions.delete'),
+        okButtonProps: { danger: action === 'delete' },
+        onOk: async () => {
+          try {
+            await apiFetch(`/api/admin/mm/projectVersion/${version.id}${action === 'publish' ? '/publish' : ''}`, {
+              method: action === 'publish' ? 'POST' : 'DELETE',
+            })
+            if (action === 'delete') selectVersionContext('')
+            await refreshWorkspace()
+            message.success(action === 'publish' ? vt('messages.published') : t('deleted'))
+          } catch (error) {
+            if (action === 'publish') showReleaseIssues(error)
+            else message.error(formatAdminError(error, errorT))
+          }
+        },
+      })
+      return
+    }
+    void (async () => {
+      try {
+        if (action === 'hide' || action === 'show') {
+          await apiFetch(`/api/admin/mm/projectVersion/${version.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ status: action === 'show' ? 1 : 0 }),
+          })
+          await refreshWorkspace()
+          message.success(vt(action === 'show' ? 'messages.restored' : 'messages.hidden'))
+        } else if (action === 'copyHash') {
+          await navigator.clipboard.writeText(version.releaseHash || '')
+          message.success(vt('messages.hashCopied'))
+        } else if (action === 'manifest') {
+          const response = await fetch(`/api/admin/mm/projectVersion/${version.id}/manifest`, { credentials: 'same-origin' })
+          if (!response.ok) throw new Error(vt('messages.manifestFailed'))
+          const url = URL.createObjectURL(await response.blob())
+          const anchor = document.createElement('a')
+          anchor.href = url
+          anchor.download = `slothvault-${version.releaseId}.manifest.json`
+          anchor.click()
+          URL.revokeObjectURL(url)
+        } else if (action === 'integrity') {
+          const result = await apiFetch<{ valid: boolean; computedHash: string | null; issues: Array<{ code: string }> }>(
+            `/api/admin/mm/projectVersion/${version.id}/integrity`,
+          )
+          modal[result.valid ? 'success' : 'error']({
+            title: vt(result.valid ? 'messages.integrityVerified' : 'messages.integrityFailed'),
+            content: result.valid
+              ? <code className="release-hash-block">{result.computedHash}</code>
+              : renderReleaseIssues(result.issues),
+          })
+        }
+      } catch (error) {
+        message.error(action === 'copyHash' ? vt('messages.copyFailed') : formatAdminError(error, errorT))
+      }
+    })()
   }
 
   const saveRevision = async () => {
@@ -557,7 +724,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
   const emptyStep = !currentProjectId
     ? { icon: <FolderTree size={32} />, text: t('empty.project'), action: t('empty.manageProjects'), run: () => router.push('/admin/mm/projects'), disabled: false }
     : !currentVersionId
-      ? { icon: <FolderTree size={32} />, text: t('empty.version'), action: t('empty.createVersion'), run: () => setVersionDialogOpen(true), disabled: false }
+      ? { icon: <FolderTree size={32} />, text: t('empty.version'), action: t('empty.createVersion'), run: () => openVersionDialog('create'), disabled: false }
       : !(categoriesQuery.data?.list || []).some((item) => !item.isDeleted)
         ? { icon: <FolderPlus size={32} />, text: t('empty.category'), action: t('empty.createCategory'), run: () => openCategory(), disabled: readOnly }
         : !currentCategoryId
@@ -569,6 +736,25 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
               : !selectedContent
                 ? { icon: <CloudUpload size={32} />, text: t('empty.revision'), action: t('empty.createRevision'), run: () => setRevisionDialog({ mode: 'create', versionNote: '', status: 1 }), disabled: readOnly || selectedNote.isDeleted }
                 : null
+
+  const actionIcons = {
+    create: <Plus size={14} />,
+    edit: <Pencil size={14} />,
+    publish: <Rocket size={14} />,
+    delete: <Trash2 size={14} />,
+    clone: <GitFork size={14} />,
+    hide: <EyeOff size={14} />,
+    show: <Eye size={14} />,
+    copyHash: <Clipboard size={14} />,
+    manifest: <Download size={14} />,
+    integrity: <ShieldCheck size={14} />,
+  }
+  const versionTag = (version: ProjectVersion) => (
+    <span className="note-version-tags" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }} title={version.publishedAt ? contentT('releasedReadOnly') : undefined}>
+      <Tag style={{ marginInlineEnd: 0 }} color={version.publishedAt ? 'success' : 'default'}>{vt(version.publishedAt ? 'status.published' : 'status.draft')}</Tag>
+      {version.publishedAt && version.status !== 1 ? <Tag style={{ marginInlineEnd: 0 }} color="warning">{vt('status.hidden')}</Tag> : null}
+    </span>
+  )
 
   return (
     <div className="note-editor-page">
@@ -586,25 +772,34 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
           <Select
             showSearch
             disabled={!currentProjectId}
-            value={currentVersionId || undefined}
+            value={selectedVersion?.id}
             placeholder={t('selectVersion')}
             optionFilterProp="label"
             options={(versionsQuery.data?.list || []).map((item) => ({
               value: item.id,
-              label: `${item.version}${item.publishedAt ? ` · ${t('published')}` : ''}`,
+              label: item.version,
             }))}
+            optionRender={(option) => {
+              const version = versionsQuery.data?.list.find((item) => item.id === option.value)
+              return <span className="note-version-option" style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}><span>{option.label}</span>{version ? versionTag(version) : null}</span>
+            }}
             onChange={chooseVersion}
           />
-          <Button
-            icon={<Plus size={15} />}
-            disabled={!currentProjectId}
-            onClick={() => setVersionDialogOpen(true)}
-          >{t('quickVersion')}</Button>
+          <Dropdown menu={{ items: getProjectVersionActions(currentProjectId, selectedVersion).map((action) => ({
+            key: action,
+            icon: actionIcons[action],
+            danger: action === 'delete',
+            disabled: action === 'copyHash' && !selectedVersion?.releaseHash,
+            label: action === 'create' ? t('newBlankDraft') : vt(`actions.${action}`),
+            onClick: () => runVersionAction(action),
+          })) }} disabled={!currentProjectId}>
+            <Button icon={<Ellipsis size={15} />}>{t('versionActions')}</Button>
+          </Dropdown>
         </div>
-        <Space wrap>
+        <Space wrap className="note-version-status">
           {dirty ? <Tag color="warning">{contentT('unsaved')}</Tag> : null}
-          {readOnly ? <Tag color="blue">{contentT('releasedReadOnly')}</Tag> : null}
           <Button icon={<RefreshCw size={15} />} onClick={() => void refreshWorkspace()}>{t('refresh')}</Button>
+          {selectedVersion ? versionTag(selectedVersion) : null}
         </Space>
       </div>
 
@@ -705,8 +900,12 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
         </main>
       </div>
 
-      <Modal open={versionDialogOpen} title={t('versionDialog.title')} okText={t('create')} cancelText={t('cancel')} confirmLoading={busy} okButtonProps={{ disabled: !newVersionLabel.trim() }} onCancel={() => setVersionDialogOpen(false)} onOk={() => void createProjectVersion()}>
-        <Input value={newVersionLabel} maxLength={64} placeholder={t('versionDialog.placeholder')} onChange={(event) => setNewVersionLabel(event.target.value)} />
+      <Modal open={Boolean(versionDialog)} title={versionDialog?.mode === 'edit' ? vt('form.editTitle') : versionDialog?.mode === 'clone' ? vt('clone.title', { version: selectedVersion?.version || '' }) : t('versionDialog.title')} okText={versionDialog?.mode === 'create' ? t('create') : t('save')} cancelText={t('cancel')} confirmLoading={busy} okButtonProps={{ disabled: !versionDialog?.version.trim() }} onCancel={() => setVersionDialog(null)} onOk={() => void saveProjectVersion()}>
+        {versionDialog ? <div className="note-dialog-fields">
+          <label><span>{vt('form.version')}</span><Input value={versionDialog.version} maxLength={64} placeholder={t('versionDialog.placeholder')} onChange={(event) => setVersionDialog({ ...versionDialog, version: event.target.value })} /></label>
+          <label><span>{vt('form.description')}</span><Input.TextArea rows={3} value={versionDialog.description} onChange={(event) => setVersionDialog({ ...versionDialog, description: event.target.value })} /></label>
+          <label><span>{vt('form.weight')}</span><InputNumber value={versionDialog.weight} min={0} onChange={(value) => setVersionDialog({ ...versionDialog, weight: value ?? 0 })} /></label>
+        </div> : null}
       </Modal>
       <Modal open={Boolean(entityDialog)} title={entityDialog ? t(`entityDialog.${entityDialog.kind}.${entityDialog.mode}`) : ''} okText={t('save')} cancelText={t('cancel')} confirmLoading={busy} okButtonProps={{ disabled: !entityDialog?.name.trim() }} onCancel={() => setEntityDialog(null)} onOk={() => void saveEntity()}>
         {entityDialog ? <div className="note-dialog-fields">

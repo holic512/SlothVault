@@ -861,6 +861,10 @@
   font-size: 12px;
 }
 
+.root :global(.note-version-status) {
+  justify-content: flex-end;
+}
+
 .root :global(.note-context-selectors) > svg {
   flex: 0 0 auto;
   color: var(--sv-text-muted);
