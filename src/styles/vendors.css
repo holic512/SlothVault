@@ -423,6 +423,10 @@
     var(--sv-bg-solid);
 }
 
+[data-style='saas'] .document-editor-intro {
+  background: var(--sv-bg-solid);
+}
+
 .document-editor-intro-actions {
   display: flex;
   min-width: 0;

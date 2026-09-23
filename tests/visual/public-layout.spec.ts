@@ -104,7 +104,7 @@ test('@desktop authentication surface hydrates directly into dark mode', async (
   await expect(page).toHaveScreenshot('login-dark.png', { fullPage: true })
 })
 
-test('@desktop SaaS styling hydrates directly into its light public surface', async ({ context, page }) => {
+test('@desktop Standard styling hydrates directly into its light public surface', async ({ context, page }) => {
   await setTheme(context, page, 'light', 'saas')
   await mockProjectList(page)
   await page.goto('/project/projectList')
@@ -116,7 +116,7 @@ test('@desktop SaaS styling hydrates directly into its light public surface', as
   await expect(page).toHaveScreenshot('publication-grid-saas-light.png', { fullPage: true })
 })
 
-test('@desktop SaaS styling hydrates directly into its dark authentication surface', async ({ context, page }) => {
+test('@desktop Standard styling hydrates directly into its dark authentication surface', async ({ context, page }) => {
   await setTheme(context, page, 'dark', 'saas')
   await page.goto('/login')
   await expect(page.locator('html')).toHaveClass(/dark/)
@@ -127,11 +127,11 @@ test('@desktop SaaS styling hydrates directly into its dark authentication surfa
   await expect(page).toHaveScreenshot('login-saas-dark.png', { fullPage: true })
 })
 
-test('@desktop visual style control persists the selected SaaS style', async ({ context, page }) => {
+test('@desktop visual style control persists the selected Standard style', async ({ context, page }) => {
   await setTheme(context, page, 'light')
   await page.goto('/login')
   await page.getByRole('button', { name: 'Open Theme Settings' }).click()
-  await page.getByText('Professional SaaS', { exact: true }).click()
+  await page.getByRole('radio', { name: 'Standard', exact: true }).click()
   await expect(page.locator('html')).toHaveAttribute('data-style', 'saas')
   await expect.poll(async () => (await context.cookies(baseURL)).find((cookie) => cookie.name === 'sv_style')?.value).toBe('saas')
   await page.reload()
@@ -165,7 +165,7 @@ test('@mobile mobile navigation keeps public destinations reachable', async ({ c
   await expect(page).toHaveScreenshot('mobile-navigation-open.png')
 })
 
-test('@mobile SaaS styling keeps public destinations reachable', async ({ context, page }) => {
+test('@mobile Standard styling keeps public destinations reachable', async ({ context, page }) => {
   await setTheme(context, page, 'light', 'saas')
   await mockProjectList(page)
   await page.goto('/project/projectList')

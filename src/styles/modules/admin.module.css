@@ -825,6 +825,11 @@
     color-mix(in srgb, var(--sv-bg-solid) 97%, var(--sv-bg-soft));
 }
 
+:global([data-style='saas']) .root :global(.note-library-panel),
+:global([data-style='saas']) .root :global(.note-revision-panel) {
+  background: var(--sv-bg-solid);
+}
+
 .root :global(.note-writing-panel) {
   min-width: 0;
   min-height: 0;
@@ -1128,6 +1133,10 @@
   background:
     radial-gradient(circle at 50% 42%, rgb(var(--sv-primary-rgb), 0.1), transparent 28%),
     var(--sv-bg-solid);
+}
+
+:global([data-style='saas']) .root :global(.note-editor-empty) {
+  background: var(--sv-bg-solid);
 }
 
 .root :global(.note-dialog-fields) {

@@ -7,7 +7,7 @@
  * @description Exposes visual style, shared card and popup appearance, light/dark mode, and language controls for every application surface.
  * @logic Persist appearance preferences independently, update each preference optimistically, and restore the last selection if persistence fails.
  * @dependencies antd, next-intl, app-theme-context, app-style-context, public-nav-style-context, preferences API
- * @index_tags theme,style,public-nav,liquid-glass,locale,saas,accessibility
+ * @index_tags theme,style,public-nav,liquid-glass,locale,standard,accessibility
  * @author holic512
  */
 
@@ -99,7 +99,7 @@ export function ThemeControls() {
               value: 'mono',
             },
             {
-              label: <span className="theme-style-option"><span className="theme-saas-dot" aria-hidden="true" />{t('style.saas')}</span>,
+              label: <span className="theme-style-option"><span className="theme-standard-dot" aria-hidden="true" />{t('style.standard')}</span>,
               value: 'saas',
             },
           ]}

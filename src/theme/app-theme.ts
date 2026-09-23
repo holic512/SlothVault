@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Application Theme Contract
  * @description Defines the supported color modes, cookie contract, and style-aware palettes used during SSR and hydration.
- * @logic Validate the persisted color mode once, expose a stable light fallback, and provide matching palettes for every visual style and Ant Design adapter.
+ * @logic Validate the persisted color mode once, expose a stable light fallback, and provide matching page and component palettes, with explicit neutral tokens for the Standard style.
  * @dependencies app-style
  * @index_tags theme,style,cookie,ssr,design-tokens
  * @author holic512
@@ -58,33 +58,94 @@ export const appThemePalette = {
       border: 'rgba(255,255,255,.13)',
     },
   },
+  // Legacy cookie key retained for users who already selected the Standard style.
   saas: {
     light: {
-      background: '#f4f7fb',
+      background: '#ffffff',
       container: '#ffffff',
       sider: '#ffffff',
-      tableHeader: '#f7f9fc',
-      primary: '#2563eb',
-      info: '#2563eb',
-      success: '#15803d',
-      warning: '#b45309',
-      error: '#dc2626',
-      border: '#d9e1ee',
+      tableHeader: '#f5f7fa',
+      primary: '#409eff',
+      info: '#909399',
+      success: '#67c23a',
+      warning: '#e6a23c',
+      error: '#f56c6c',
+      border: '#dcdfe6',
     },
     dark: {
-      background: '#0b1220',
-      container: '#111a2b',
-      sider: '#0f1726',
-      tableHeader: '#162136',
-      primary: '#78a6ff',
-      info: '#78a6ff',
-      success: '#4ade80',
-      warning: '#fbbf24',
-      error: '#fb7185',
-      border: '#263650',
+      background: '#141414',
+      container: '#1d1e1f',
+      sider: '#141414',
+      tableHeader: '#262727',
+      primary: '#409eff',
+      info: '#909399',
+      success: '#67c23a',
+      warning: '#e6a23c',
+      error: '#f56c6c',
+      border: '#4c4d4f',
     },
   },
 } as const satisfies Record<AppStyle, Record<AppTheme, AppThemePalette>>
+
+/** Element Plus light neutrals and a charcoal dark adaptation, explicitly mapped to component tokens. */
+export const standardThemeTokens = {
+  light: {
+    colorTextBase: '#303133',
+    colorText: '#303133',
+    colorTextHeading: '#303133',
+    colorTextLabel: '#606266',
+    colorTextSecondary: '#606266',
+    colorTextTertiary: '#909399',
+    colorTextQuaternary: '#a8abb2',
+    colorTextPlaceholder: '#a8abb2',
+    colorTextDisabled: '#c0c4cc',
+    colorBgElevated: '#ffffff',
+    colorBgLayout: '#ffffff',
+    colorBgContainerDisabled: '#f5f7fa',
+    colorBorderSecondary: '#ebeef5',
+    colorFill: '#e6e8eb',
+    colorFillSecondary: '#f0f2f5',
+    colorFillTertiary: '#f5f7fa',
+    colorFillQuaternary: '#fafafa',
+    colorPrimaryHover: '#79bbff',
+    colorPrimaryActive: '#337ecc',
+    colorPrimaryBg: '#ecf5ff',
+    colorPrimaryBgHover: '#d9ecff',
+    colorPrimaryBorder: '#a0cfff',
+    colorPrimaryBorderHover: '#79bbff',
+    colorLink: '#409eff',
+    colorLinkHover: '#79bbff',
+    colorLinkActive: '#337ecc',
+  },
+  dark: {
+    colorTextBase: '#e5eaf3',
+    colorText: '#e5eaf3',
+    colorTextHeading: '#e5eaf3',
+    colorTextLabel: '#cfd3dc',
+    colorTextSecondary: '#cfd3dc',
+    colorTextTertiary: '#a3a6ad',
+    colorTextQuaternary: '#8d9095',
+    colorTextPlaceholder: '#8d9095',
+    colorTextDisabled: '#6c6e72',
+    colorBgElevated: '#1d1e1f',
+    colorBgLayout: '#141414',
+    colorBgContainerDisabled: '#262727',
+    colorBorderSecondary: '#363637',
+    colorFill: '#424243',
+    colorFillSecondary: '#303030',
+    colorFillTertiary: '#262727',
+    colorFillQuaternary: '#1d1d1d',
+    colorPrimaryHover: '#3375b9',
+    colorPrimaryActive: '#66b1ff',
+    colorPrimaryBg: '#18222c',
+    colorPrimaryBgHover: '#1d3043',
+    colorPrimaryBorder: '#2a598a',
+    colorPrimaryBorderHover: '#3375b9',
+    colorLink: '#409eff',
+    colorLinkHover: '#3375b9',
+    colorLinkActive: '#66b1ff',
+  },
+} as const
 
 export function isAppTheme(value: string | undefined): value is AppTheme {
   return Boolean(value && appThemes.includes(value as AppTheme))

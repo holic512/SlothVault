@@ -22,7 +22,7 @@ import { useLocale } from 'next-intl'
 
 import { useResolvedAppTheme } from '@/components/providers/app-theme-context'
 import { useAppStyle } from '@/components/providers/app-style-context'
-import { appThemePalette } from '@/theme/app-theme'
+import { appThemePalette, standardThemeTokens } from '@/theme/app-theme'
 
 export function DesignSystemProvider({ children }: { children: ReactNode }) {
   const locale = useLocale()
@@ -69,6 +69,7 @@ export function DesignSystemProvider({ children }: { children: ReactNode }) {
             colorBgContainer: palette.container,
             colorBorder: palette.border,
             controlHeight: style === 'saas' ? 34 : 38,
+            ...(style === 'saas' ? standardThemeTokens[resolvedTheme] : {}),
           },
           components: {
             Button: { fontWeight: style === 'saas' ? 600 : 650 },

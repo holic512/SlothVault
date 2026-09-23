@@ -101,27 +101,31 @@
   color-scheme: dark;
 }
 
+/* Keep the persisted saas key compatible; its displayed name is Standard.
+ * Light semantic colors follow Element Plus theme-chalk common/var.scss; dark surfaces use a neutral charcoal adaptation.
+ */
 :root[data-style='saas'] {
-  --sv-bg: #f4f7fb;
-  --sv-bg-elevated: rgb(255, 255, 255, 88%);
+  --sv-bg: #fff;
+  --sv-bg-elevated: rgb(255 255 255 / 96%);
   --sv-bg-solid: #fff;
-  --sv-bg-soft: #edf3ff;
-  --sv-text: #172033;
-  --sv-text-muted: #64748b;
-  --sv-border: #d9e1ee;
-  --sv-border-strong: #b8c7dd;
-  --sv-primary: #2563eb;
-  --sv-primary-rgb: 37, 99, 235;
-  --sv-primary-strong: #1d4ed8;
-  --sv-accent: #3b82f6;
-  --sv-danger: #dc2626;
-  --sv-success: #15803d;
-  --sv-warning: #b45309;
-  --sv-code-bg: #111827;
-  --sv-code-text: #e5edff;
-  --sv-shadow: 0 22px 70px rgb(30, 64, 175, 13%);
-  --sv-shadow-tight: 0 12px 30px rgb(30, 64, 175, 15%);
-  --sv-surface-shadow: 0 12px 34px rgb(30, 64, 175, 10%);
+  --sv-bg-soft: #f5f7fa;
+  --sv-text: #303133;
+  --sv-text-muted: #606266;
+  --sv-border: #dcdfe6;
+  --sv-border-strong: #cdd0d6;
+  --sv-primary: #409eff;
+  --sv-primary-rgb: 64, 158, 255;
+  --sv-primary-strong: #337ecc;
+  --sv-primary-contrast: #fff;
+  --sv-accent: #909399;
+  --sv-danger: #f56c6c;
+  --sv-success: #67c23a;
+  --sv-warning: #e6a23c;
+  --sv-code-bg: #141414;
+  --sv-code-text: #e5eaf3;
+  --sv-shadow: 0 16px 48px rgb(0 0 0 / 10%);
+  --sv-shadow-tight: 0 8px 24px rgb(0 0 0 / 8%);
+  --sv-surface-shadow: 0 3px 12px rgb(0 0 0 / 5%);
   --sv-radius-sm: 7px;
   --sv-radius: 12px;
   --sv-radius-lg: 18px;
@@ -138,30 +142,26 @@
 }
 
 :root[data-style='saas'].dark {
-  --sv-bg: #0b1220;
-  --sv-bg-elevated: rgb(15, 23, 38, 88%);
-  --sv-bg-solid: #111a2b;
-  --sv-bg-soft: #182641;
-  --sv-text: #e8eefb;
-  --sv-text-muted: #9aabc7;
-  --sv-border: #263650;
-  --sv-border-strong: #3c5378;
-  --sv-primary: #78a6ff;
-  --sv-primary-rgb: 120, 166, 255;
-  --sv-primary-strong: #a9c6ff;
-  --sv-accent: #78a6ff;
-  --sv-danger: #fb7185;
-  --sv-success: #4ade80;
-  --sv-warning: #fbbf24;
-  --sv-code-bg: #080e1a;
-  --sv-code-text: #e5edff;
-  --sv-shadow: 0 28px 90px rgb(0, 0, 0, 48%);
-  --sv-shadow-tight: 0 12px 32px rgb(0, 0, 0, 38%);
-  --sv-surface-shadow: 0 12px 34px rgb(0, 0, 0, 34%);
-  --sv-page-background: var(--sv-bg);
-  --sv-page-background-size: auto;
-  --sv-page-background-repeat: no-repeat;
-  --sv-page-overlay: transparent;
+  --sv-bg: #141414;
+  --sv-bg-elevated: rgb(29 30 31 / 96%);
+  --sv-bg-solid: #1d1e1f;
+  --sv-bg-soft: #262727;
+  --sv-text: #e5eaf3;
+  --sv-text-muted: #cfd3dc;
+  --sv-border: #4c4d4f;
+  --sv-border-strong: #636466;
+  --sv-primary: #409eff;
+  --sv-primary-rgb: 64, 158, 255;
+  --sv-primary-strong: #66b1ff;
+  --sv-accent: #a3a6ad;
+  --sv-danger: #f56c6c;
+  --sv-success: #67c23a;
+  --sv-warning: #e6a23c;
+  --sv-code-bg: #0a0a0a;
+  --sv-code-text: #e5eaf3;
+  --sv-shadow: 0 16px 48px rgb(0 0 0 / 36%);
+  --sv-shadow-tight: 0 8px 24px rgb(0 0 0 / 28%);
+  --sv-surface-shadow: 0 3px 12px rgb(0 0 0 / 22%);
 }
 
 @media (max-width: 640px) {
