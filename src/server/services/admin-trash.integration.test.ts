@@ -6,7 +6,7 @@ import Database from 'better-sqlite3'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PrismaClient } from '../../../generated/prisma-sqlite/client'
 
-type SqliteTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$use' | '$extends'>
+type SqliteTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$use' | '$transaction' | '$extends'>
 
 const mocks = vi.hoisted(() => ({
   client: undefined as PrismaClient | undefined,
