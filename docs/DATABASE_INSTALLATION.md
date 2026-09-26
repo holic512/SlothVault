@@ -114,7 +114,7 @@ sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy \
 
 若使用 SELinux 且 Nginx 出现 `502 Bad Gateway`，部署者还需根据发行版安全策略允许 Nginx 连接本机上游服务。
 
-安装脚本提供“更新、启动、停止、状态、配置或更新 Nginx 反向代理、申请或更新 Let's Encrypt HTTPS 证书、查看证书状态或立即尝试续约”操作。更新会先确定紧邻的下一个正式 Release，将受管 Compose 中的官方镜像标签固定为该版本，再执行镜像拉取与 `up -d`；即使远程还有更高版本，也不会拉取 `latest` 跳过中间版本。此操作不会改动端口、数据库、持久化目录或其他 Compose 配置。请通过脚本执行更新，不要直接对仍指向 `latest` 的旧 Compose 文件运行 `pull`：
+安装脚本提供“更新、启动、停止、状态、配置或更新 Nginx 反向代理、申请或更新 Let's Encrypt HTTPS 证书、查看证书状态或立即尝试续约”操作。检查更新会显示最新正式 Release 以及当前版本之后每个正式 Release 的日志；确认更新后，脚本将受管 Compose 中的官方镜像标签固定到最新正式版本，再执行镜像拉取与 `up -d`。它不会依赖可变的 `latest` tag，也不会改动端口、数据库、持久化目录或其他 Compose 配置。请通过脚本执行更新，不要直接对仍指向 `latest` 的旧 Compose 文件运行 `pull`：
 
 ```bash
 sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy --action check-update

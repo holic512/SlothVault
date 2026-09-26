@@ -75,12 +75,13 @@ describe('system update release metadata', () => {
     expect(parseReleaseTag('v2.0.0-build.-1')).toBeNull()
   })
 
-  it('returns only the immediately next official release when several newer Releases exist', async () => {
+  it('returns the latest official target and all newer release notes in version order', async () => {
     mockReleaseResponse([
-      release('v2.0.0-build.77', 'newest commit'),
       release('v2.0.0-build.76', 'middle commit'),
+      release('v2.0.0-build.77', 'newest commit'),
       release('v2.0.0-build.75', 'installed commit'),
       { ...release('v9.9.9-build.1'), prerelease: true },
+      { ...release('v9.9.9-build.2'), draft: true },
       { ...release('not-a-release-tag'), html_url: 'https://example.test/release' },
     ])
 
@@ -90,9 +91,13 @@ describe('system update release metadata', () => {
       status: 'UPDATE_AVAILABLE',
       historyComplete: true,
       installed: { tag: 'v2.0.0-build.75', commitSha: 'installed-sha' },
-      nextRelease: { tag: 'v2.0.0-build.76' },
+      latestRelease: { tag: 'v2.0.0-build.77' },
+      nextRelease: { tag: 'v2.0.0-build.77' },
     })
-    expect(result.nextRelease?.notes).toBe('middle commit')
+    expect(result.newerReleases.map((item) => [item.tag, item.notes])).toEqual([
+      ['v2.0.0-build.76', 'middle commit'],
+      ['v2.0.0-build.77', 'newest commit'],
+    ])
   })
 
   it('does not cache GitHub check failures', async () => {
@@ -148,12 +153,48 @@ describe('system update release metadata', () => {
     expect(fetch).toHaveBeenCalledTimes(1)
   })
 
+  it('bypasses the successful cache for a manual check and returns the new latest release', async () => {
+    const releaseFetch = vi.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: vi.fn().mockResolvedValue([release('v2.0.0-build.75')]) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: vi.fn().mockResolvedValue([
+        release('v2.0.0-build.77'), release('v2.0.0-build.76'), release('v2.0.0-build.75'),
+      ]) })
+    vi.stubGlobal('fetch', releaseFetch)
+
+    await expect(getSystemUpdateInfo()).resolves.toMatchObject({ status: 'UP_TO_DATE' })
+    await expect(getSystemUpdateInfo()).resolves.toMatchObject({ status: 'UP_TO_DATE' })
+    const refreshed = await getSystemUpdateInfo({ forceRefresh: true })
+
+    expect(releaseFetch).toHaveBeenCalledTimes(2)
+    expect(refreshed).toMatchObject({ status: 'UPDATE_AVAILABLE', latestRelease: { tag: 'v2.0.0-build.77' }, nextRelease: { tag: 'v2.0.0-build.77' } })
+    expect(refreshed.newerReleases.map((item) => item.tag)).toEqual(['v2.0.0-build.76', 'v2.0.0-build.77'])
+  })
+
+  it('reports a failed manual check instead of reusing cached release data', async () => {
+    const releaseFetch = vi.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: vi.fn().mockResolvedValue([release('v2.0.0-build.75')]) })
+      .mockResolvedValueOnce({ ok: false, status: 429, json: vi.fn() })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: vi.fn().mockResolvedValue([release('v2.0.0-build.75')]) })
+    vi.stubGlobal('fetch', releaseFetch)
+
+    await getSystemUpdateInfo()
+    await expect(getSystemUpdateInfo({ forceRefresh: true })).resolves.toMatchObject({
+      status: 'CHECK_FAILED',
+      error: 'RELEASE_RATE_LIMITED',
+      latestRelease: null,
+    })
+    await expect(getSystemUpdateInfo()).resolves.toMatchObject({ status: 'UP_TO_DATE' })
+    expect(releaseFetch).toHaveBeenCalledTimes(3)
+  })
+
   it('reports an old image without embedded build metadata as unverifiable', async () => {
     delete process.env.SLOTHVAULT_RELEASE_TAG
     mockReleaseResponse([release('v2.0.0-build.76')])
 
     await expect(getSystemUpdateInfo()).resolves.toMatchObject({
       status: 'UNVERSIONED',
+      latestRelease: { tag: 'v2.0.0-build.76' },
+      newerReleases: [],
       nextRelease: null,
       historyComplete: false,
     })
@@ -175,6 +216,8 @@ describe('system update release metadata', () => {
     await expect(getSystemUpdateInfo()).resolves.toMatchObject({
       status: 'HISTORY_INCOMPLETE',
       historyComplete: false,
+      latestRelease: { tag: 'v2.0.0-build.76' },
+      newerReleases: [],
       nextRelease: null,
     })
   })

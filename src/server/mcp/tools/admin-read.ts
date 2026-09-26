@@ -165,6 +165,8 @@ const systemUpdateSchema = z.object({
   status: z.enum(['UP_TO_DATE', 'UPDATE_AVAILABLE', 'LOCAL_NEWER', 'UNVERSIONED', 'HISTORY_INCOMPLETE', 'CHECK_FAILED']),
   repository: z.string(),
   installed: jsonObjectSchema,
+  latestRelease: jsonObjectSchema.nullable(),
+  newerReleases: z.array(jsonObjectSchema),
   nextRelease: jsonObjectSchema.nullable(),
   historyComplete: z.boolean(),
   error: z.string().nullable(),

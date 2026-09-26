@@ -4,8 +4,8 @@
  * @file settings-manager.tsx
  * @project SlothVault
  * @module System Settings Administration
- * @description Provides tabbed configuration controls for branding, evidence policy, protected RPC endpoints, and the one immediately next read-only system Release update without echoing stored secrets.
- * @logic Load known configuration metadata, partition settings by operational risk, stage uploaded logo and favicon paths with explicit synchronization choices, submit one atomic batch, re-read process-independent runtime values, and independently request one safe adjacent GitHub Release update step.
+ * @description Provides tabbed configuration controls for branding, evidence policy, protected RPC endpoints, and the latest read-only system Release update without echoing stored secrets.
+ * @logic Load known configuration metadata, partition settings by operational risk, stage uploaded logo and favicon paths with explicit synchronization choices, submit one atomic batch, re-read process-independent runtime values, and show all official releases through the latest target with a fresh manual check.
  * @dependencies Ant Design, React Query, next-intl, Next navigation, api-client, system-update API
  * @index_tags admin,settings,branding,logo,favicon,secrets,configuration,transaction,system-update,release
  * @author holic512
@@ -51,6 +51,8 @@ type SystemUpdateInfo = {
   status: SystemUpdateStatus
   repository: string
   installed: { packageVersion: string; tag: string | null; commitSha: string | null }
+  latestRelease: SystemRelease | null
+  newerReleases: SystemRelease[]
   nextRelease: SystemRelease | null
   historyComplete: boolean
   error: string | null
@@ -399,9 +401,14 @@ function SystemUpdatePanel() {
   const t = useTranslations('AdminMM.settings')
   const errorT = useTranslations('AdminMM.errors')
   const locale = useLocale()
+  const queryClient = useQueryClient()
   const query = useQuery({
     queryKey: ['admin-system-update'],
     queryFn: () => apiFetch<SystemUpdateInfo>('/api/admin/mm/system-update'),
+  })
+  const refresh = useMutation({
+    mutationFn: () => apiFetch<SystemUpdateInfo>('/api/admin/mm/system-update?refresh=1', { cache: 'no-store' }),
+    onSuccess: (value) => queryClient.setQueryData(['admin-system-update'], value),
   })
 
   if (query.isLoading) return <Skeleton active paragraph={{ rows: 8 }} />
@@ -411,7 +418,7 @@ function SystemUpdatePanel() {
       type="error"
       title={t('updates.messages.loadFailed')}
       description={formatAdminError(query.error, errorT)}
-      action={<Button size="small" onClick={() => void query.refetch()}>{t('updates.actions.retry')}</Button>}
+      action={<Button size="small" loading={refresh.isPending} onClick={() => refresh.mutate()}>{t('updates.actions.retry')}</Button>}
     />
   }
 
@@ -435,8 +442,9 @@ function SystemUpdatePanel() {
       type={data.status === 'CHECK_FAILED' ? 'error' : data.status === 'UPDATE_AVAILABLE' || data.status === 'HISTORY_INCOMPLETE' ? 'warning' : 'info'}
       title={t(`updates.status.${data.status}`)}
       description={t('updates.notice')}
-      action={<Button size="small" icon={<RefreshCw size={14} />} loading={query.isFetching} onClick={() => void query.refetch()}>{t('updates.actions.check')}</Button>}
+      action={<Button size="small" icon={<RefreshCw size={14} />} loading={refresh.isPending} onClick={() => refresh.mutate()}>{t('updates.actions.check')}</Button>}
     />
+    {refresh.isError ? <Alert showIcon type="error" title={t('updates.messages.loadFailed')} description={formatAdminError(refresh.error, errorT)} /> : null}
     <Card className="settings-card settings-update-card" title={<span className="settings-card-title"><RefreshCw size={16} />{t('updates.cardTitle')}</span>}>
       <Space direction="vertical" size={12} style={{ width: '100%' }}>
         <Space wrap size={8}>
@@ -450,14 +458,14 @@ function SystemUpdatePanel() {
           <Descriptions.Item label={t('updates.fields.installedCommit')}>
             <Typography.Text code>{data.installed.commitSha?.slice(0, 12) || t('updates.values.unavailable')}</Typography.Text>
           </Descriptions.Item>
-          <Descriptions.Item label={t('updates.fields.nextVersion')}>
-            <Typography.Text code>{data.nextRelease?.tag || t('updates.values.unavailable')}</Typography.Text>
+          <Descriptions.Item label={t('updates.fields.latestVersion')}>
+            <Typography.Text code>{data.latestRelease?.tag || t('updates.values.unavailable')}</Typography.Text>
           </Descriptions.Item>
-          <Descriptions.Item label={t('updates.fields.nextCommit')}>
-            <Typography.Text code>{data.nextRelease?.commitSha?.slice(0, 12) || t('updates.values.unavailable')}</Typography.Text>
+          <Descriptions.Item label={t('updates.fields.latestCommit')}>
+            <Typography.Text code>{data.latestRelease?.commitSha?.slice(0, 12) || t('updates.values.unavailable')}</Typography.Text>
           </Descriptions.Item>
           <Descriptions.Item label={t('updates.fields.publishedAt')}>
-            {date(data.nextRelease?.publishedAt || null)}
+            {date(data.latestRelease?.publishedAt || null)}
           </Descriptions.Item>
           <Descriptions.Item label={t('updates.fields.repository')}>
             <Typography.Text code>{data.repository}</Typography.Text>
@@ -465,13 +473,17 @@ function SystemUpdatePanel() {
         </Descriptions>
         {!data.historyComplete && data.status !== 'CHECK_FAILED' ? <Alert showIcon type="warning" title={t('updates.messages.historyIncomplete')} /> : null}
         {data.error ? <Typography.Text type="secondary">{t(`updates.errors.${data.error}`)}</Typography.Text> : null}
-        {data.nextRelease ? <Card className="settings-update-next-release" size="small" title={<span className="settings-card-title"><RefreshCw size={15} />{t('updates.nextRelease.title')}</span>}>
-          <Space direction="vertical" size={8} style={{ width: '100%' }}>
-            <Space size={8} wrap><Typography.Text strong code>{data.nextRelease.tag}</Typography.Text><Typography.Text type="secondary">{data.nextRelease.title}</Typography.Text></Space>
-            <Typography.Text type="secondary">{date(data.nextRelease.publishedAt)} · {data.nextRelease.commitSha?.slice(0, 12) || t('updates.values.unavailable')}</Typography.Text>
-            <Typography.Paragraph className="settings-update-notes">{data.nextRelease.notes || t('updates.values.noNotes')}</Typography.Paragraph>
-            <Typography.Link href={data.nextRelease.htmlUrl} target="_blank" rel="noreferrer">{t('updates.actions.openRelease')}</Typography.Link>
-          </Space>
+        {data.newerReleases.length ? <Card className="settings-update-next-release" size="small" title={<span className="settings-card-title"><RefreshCw size={15} />{t('updates.newerReleases.title')}</span>}>
+          <div>
+            {data.newerReleases.map((release) => <section className="settings-update-release-entry" key={release.tag}>
+              <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                <Space size={8} wrap><Typography.Text strong code>{release.tag}</Typography.Text><Typography.Text type="secondary">{release.title}</Typography.Text></Space>
+                <Typography.Text type="secondary">{date(release.publishedAt)} · {release.commitSha?.slice(0, 12) || t('updates.values.unavailable')}</Typography.Text>
+                <Typography.Paragraph className="settings-update-notes">{release.notes || t('updates.values.noNotes')}</Typography.Paragraph>
+                <Typography.Link href={release.htmlUrl} target="_blank" rel="noreferrer">{t('updates.actions.openRelease')}</Typography.Link>
+              </Space>
+            </section>)}
+          </div>
         </Card> : null}
       </Space>
     </Card>

@@ -1117,19 +1117,19 @@
         },
         "updates": {
           "label": "系统更新",
-          "description": "查看当前运行版本与唯一的下一个正式升级版本。"
+          "description": "查看当前运行版本、最新正式版本及全部跨版本日志。"
         },
         "fieldsCount": "{count} 项设置"
       },
       "updates": {
-        "cardTitle": "逐版本更新",
-        "notice": "此页面每次只展示紧邻的下一个正式版本。请在部署服务器上运行 slothtool slothvault deploy 逐版本完成镜像更新。",
+        "cardTitle": "系统更新",
+        "notice": "此页面展示最新正式版本与当前版本之后的全部更新日志。请在部署服务器上运行 slothtool slothvault deploy，经确认后直接更新到最新正式版本。",
         "checkedAt": "检查时间：{date}",
         "fields": {
           "installedVersion": "当前应用版本",
           "installedCommit": "当前提交",
-          "nextVersion": "下一个正式版本",
-          "nextCommit": "下一个提交",
+          "latestVersion": "最新正式版本",
+          "latestCommit": "最新版本提交",
           "publishedAt": "发布时间",
           "repository": "更新仓库"
         },
@@ -1138,7 +1138,7 @@
           "UPDATE_AVAILABLE": "发现可安装的正式更新",
           "LOCAL_NEWER": "当前应用版本比已获取的正式发布版本更新",
           "UNVERSIONED": "当前应用未嵌入可比较的发布标识",
-          "HISTORY_INCOMPLETE": "发现更新，但无法确认完整历史日志",
+          "HISTORY_INCOMPLETE": "无法确认当前版本的完整发布历史",
           "CHECK_FAILED": "暂时无法检查 GitHub 更新"
         },
         "errors": {
@@ -1152,8 +1152,8 @@
           "retry": "重试",
           "openRelease": "查看此版本发布页"
         },
-        "nextRelease": {
-          "title": "下一步升级内容"
+        "newerReleases": {
+          "title": "本次跨版本更新日志（从旧到新）"
         },
         "values": {
           "unavailable": "不可用",
@@ -1161,7 +1161,7 @@
         },
         "messages": {
           "loadFailed": "加载更新状态失败",
-          "historyIncomplete": "当前版本不在已获取的正式 Release 历史中，更新状态可供参考，但无法展示完整累计日志。",
+          "historyIncomplete": "当前版本不在已获取的正式 Release 历史中，无法确认安全更新目标或展示完整累计日志。",
           "empty": "暂无更新状态"
         }
       },

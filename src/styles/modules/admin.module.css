@@ -1399,6 +1399,16 @@
   background: color-mix(in srgb, var(--sv-primary-strong) 5%, var(--sv-bg-solid)) !important;
 }
 
+.root :global(.settings-update-release-entry) {
+  display: block;
+  width: 100%;
+  padding: 12px 0;
+}
+
+.root :global(.settings-update-release-entry + .settings-update-release-entry) {
+  border-top: 1px solid var(--sv-admin-border);
+}
+
 .root :global(.settings-update-notes) {
   max-width: 100%;
   margin: 0 !important;

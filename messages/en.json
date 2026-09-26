@@ -1117,19 +1117,19 @@
         },
         "updates": {
           "label": "System Updates",
-          "description": "View the running version and the one immediately next formal upgrade."
+          "description": "View the running version, latest official release, and all cumulative release notes."
         },
         "fieldsCount": "{count} settings"
       },
       "updates": {
-        "cardTitle": "Step-by-step Updates",
-        "notice": "This page shows only the immediately next formal release. Run slothtool slothvault deploy on the host server to update the image one Release at a time.",
+        "cardTitle": "System Updates",
+        "notice": "This page shows the latest official release and every newer release note. Run slothtool slothvault deploy on the host server to update directly to the latest release after confirmation.",
         "checkedAt": "Checked: {date}",
         "fields": {
           "installedVersion": "Running application version",
           "installedCommit": "Running commit",
-          "nextVersion": "Next formal release",
-          "nextCommit": "Next commit",
+          "latestVersion": "Latest official release",
+          "latestCommit": "Latest release commit",
           "publishedAt": "Published at",
           "repository": "Update repository"
         },
@@ -1138,7 +1138,7 @@
           "UPDATE_AVAILABLE": "A formal update is available",
           "LOCAL_NEWER": "The running application is newer than the fetched formal releases",
           "UNVERSIONED": "The running application has no comparable release identity",
-          "HISTORY_INCOMPLETE": "An update is available, but the full history cannot be confirmed",
+          "HISTORY_INCOMPLETE": "The running version's complete release history cannot be confirmed",
           "CHECK_FAILED": "GitHub update status is temporarily unavailable"
         },
         "errors": {
@@ -1152,8 +1152,8 @@
           "retry": "Retry",
           "openRelease": "View this release"
         },
-        "nextRelease": {
-          "title": "Next upgrade contents"
+        "newerReleases": {
+          "title": "Cumulative release notes (oldest first)"
         },
         "values": {
           "unavailable": "Unavailable",
@@ -1161,7 +1161,7 @@
         },
         "messages": {
           "loadFailed": "Failed to load update status",
-          "historyIncomplete": "The running version was not found in the fetched formal Release history. The update status is indicative, but the complete cumulative log cannot be shown.",
+          "historyIncomplete": "The running version was not found in the fetched official Release history, so a safe update target and complete cumulative log cannot be confirmed.",
           "empty": "No update status is available"
         }
       },

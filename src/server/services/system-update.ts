@@ -2,8 +2,8 @@
  * @file system-update.ts
  * @project SlothVault
  * @module System Release Update Service
- * @description Resolves the running application's release identity and its immediately next published SlothVault GitHub Release.
- * @logic Parse release tags deterministically, fetch and cache only successful public release listings, select the adjacent upgrade step only when the installed Release is known, and convert remote failures into a stable display state.
+ * @description Resolves the running application's release identity, the latest official release, and all newer SlothVault releases.
+ * @logic Parse release tags deterministically, cache successful public listings unless a manual check requests fresh data, collect every newer release when the installed Release is known, and convert remote failures into a stable display state.
  * @dependencies Node.js fetch, package.json runtime metadata, GitHub Releases REST API
  * @index_tags system-update,release,github,version,cache,admin
  * @author holic512
@@ -52,6 +52,8 @@ export type SystemUpdateInfo = {
     tag: string | null
     commitSha: string | null
   }
+  latestRelease: SystemRelease | null
+  newerReleases: SystemRelease[]
   nextRelease: SystemRelease | null
   historyComplete: boolean
   error: 'RELEASE_SOURCE_NOT_FOUND' | 'RELEASE_RATE_LIMITED' | 'RELEASE_REQUEST_TIMEOUT' | 'RELEASE_CHECK_FAILED' | null
@@ -71,6 +73,7 @@ type GitHubReleasePayload = {
 type CachedReleaseList = {
   repository: string
   expiresAt: number
+  checkedAt: string
   releases: SystemRelease[]
 }
 
@@ -146,13 +149,13 @@ function sortReleasesNewestFirst(releases: SystemRelease[]) {
   })
 }
 
-function nextReleaseAfter(installedVersion: ReleaseVersion, releases: SystemRelease[]) {
+function newerReleasesAfter(installedVersion: ReleaseVersion, releases: SystemRelease[]) {
   return releases
     .filter((release) => {
       const version = parseReleaseTag(release.tag)
       return version ? compareReleaseVersions(version, installedVersion) > 0 : false
     })
-    .sort((left, right) => compareReleaseVersions(parseReleaseTag(left.tag)!, parseReleaseTag(right.tag)!))[0] || null
+    .sort((left, right) => compareReleaseVersions(parseReleaseTag(left.tag)!, parseReleaseTag(right.tag)!))
 }
 
 function githubErrorForStatus(status: number): ReleaseCheckError {
@@ -161,15 +164,17 @@ function githubErrorForStatus(status: number): ReleaseCheckError {
   return new ReleaseCheckError('RELEASE_CHECK_FAILED')
 }
 
-async function fetchPublishedReleases(repository: string, installedTag: string | null) {
+async function fetchPublishedReleases(repository: string, installedTag: string | null, forceRefresh: boolean) {
   const now = Date.now()
+  if (forceRefresh) cachedReleaseList = null
   if (
+    !forceRefresh &&
     cachedReleaseList &&
     cachedReleaseList.repository === repository &&
     cachedReleaseList.expiresAt > now &&
     (!installedTag || cachedReleaseList.releases.some((release) => release.tag === installedTag))
   ) {
-    return cachedReleaseList.releases
+    return cachedReleaseList
   }
 
   const releases: SystemRelease[] = []
@@ -205,8 +210,8 @@ async function fetchPublishedReleases(repository: string, installedTag: string |
 
   const sorted = sortReleasesNewestFirst(releases)
   if (!sorted.length) throw new ReleaseCheckError('RELEASE_SOURCE_NOT_FOUND')
-  cachedReleaseList = { repository, expiresAt: now + CACHE_TTL_MS, releases: sorted }
-  return sorted
+  cachedReleaseList = { repository, expiresAt: Date.now() + CACHE_TTL_MS, checkedAt: new Date().toISOString(), releases: sorted }
+  return cachedReleaseList
 }
 
 function installedIdentity() {
@@ -223,20 +228,22 @@ function failedCheck(identity: SystemUpdateInfo['installed'], repository: string
     status: 'CHECK_FAILED',
     repository,
     installed: identity,
+    latestRelease: null,
+    newerReleases: [],
     nextRelease: null,
     historyComplete: false,
     error,
   }
 }
 
-export async function getSystemUpdateInfo(): Promise<SystemUpdateInfo> {
+export async function getSystemUpdateInfo({ forceRefresh = false }: { forceRefresh?: boolean } = {}): Promise<SystemUpdateInfo> {
   const repository = releaseRepository()
   const installed = installedIdentity()
   const installedVersion = parseReleaseTag(installed.tag)
 
-  let releases: SystemRelease[]
+  let releaseList: CachedReleaseList
   try {
-    releases = await fetchPublishedReleases(repository, installed.tag)
+    releaseList = await fetchPublishedReleases(repository, installed.tag, forceRefresh)
   } catch (error) {
     return failedCheck(
       installed,
@@ -245,15 +252,18 @@ export async function getSystemUpdateInfo(): Promise<SystemUpdateInfo> {
     )
   }
 
+  const { releases, checkedAt } = releaseList
   const latest = releases[0] || null
   const latestVersion = latest ? parseReleaseTag(latest.tag) : null
   if (!latest || !latestVersion) return failedCheck(installed, repository, 'RELEASE_SOURCE_NOT_FOUND')
   if (!installedVersion) {
     return {
-      checkedAt: new Date().toISOString(),
+      checkedAt,
       status: 'UNVERSIONED',
       repository,
       installed,
+      latestRelease: latest,
+      newerReleases: [],
       nextRelease: null,
       historyComplete: false,
       error: null,
@@ -262,10 +272,11 @@ export async function getSystemUpdateInfo(): Promise<SystemUpdateInfo> {
 
   const comparison = compareReleaseVersions(installedVersion, latestVersion)
   const installedReleaseFound = releases.some((release) => release.tag === installed.tag)
-  const nextRelease = installedReleaseFound ? nextReleaseAfter(installedVersion, releases) : null
+  const newerReleases = installedReleaseFound ? newerReleasesAfter(installedVersion, releases) : []
+  const nextRelease = newerReleases.at(-1) || null
 
   return {
-    checkedAt: new Date().toISOString(),
+    checkedAt,
     status:
       comparison === 0
         ? 'UP_TO_DATE'
@@ -278,6 +289,8 @@ export async function getSystemUpdateInfo(): Promise<SystemUpdateInfo> {
             : 'HISTORY_INCOMPLETE',
     repository,
     installed,
+    latestRelease: latest,
+    newerReleases,
     nextRelease,
     historyComplete: installedReleaseFound,
     error: null,
