@@ -14,11 +14,15 @@ import type { Prisma } from '@generated/prisma-postgresql/client'
 
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
+import { invalidatePublicProjectCache } from '@/server/services/public-project-cache'
+import { projectVersionOrder } from '@/server/services/project-version-order'
 import { deleteTrashItem, deleteVersionBatch } from '@/server/services/admin-trash'
 import {
   executeVersionWrite,
   lockDraftProjectVersions,
-  setProjectVersionVisibility,
+  lockProjectVersionMetadata,
+  isProjectVersionEmpty,
+  projectVersionEmptyStates,
   setProjectVersionsVisibility,
 } from '@/server/services/project-version-release'
 
@@ -48,6 +52,25 @@ async function requireActiveProject(projectId: number) {
   if (!project) throw new HttpError('Project not found', 404, 404)
 }
 
+async function versionPage(where: Prisma.ProjectVersionWhereInput, query: ProjectVersionByProjectQuery | ProjectVersionListQuery) {
+  const include = { project: 'includeProject' in query && query.includeProject }
+  if (query.orderByField !== 'publishedAt') return prisma.projectVersion.findMany({
+    where, skip: query.skip, take: query.pageSize, orderBy: projectVersionOrder(query.orderByField, query.order), include,
+  })
+  const publishedWhere = { ...where, publishedAt: { not: null } }
+  const publishedCount = await prisma.projectVersion.count({ where: publishedWhere })
+  const publishedTake = Math.min(query.pageSize, Math.max(0, publishedCount - query.skip))
+  const released = publishedTake ? await prisma.projectVersion.findMany({
+    where: publishedWhere, skip: query.skip, take: publishedTake,
+    orderBy: [{ publishedAt: query.order }, { id: 'desc' }], include,
+  }) : []
+  const drafts = query.pageSize > publishedTake ? await prisma.projectVersion.findMany({
+    where: { ...where, publishedAt: null }, skip: Math.max(0, query.skip - publishedCount), take: query.pageSize - publishedTake,
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], include,
+  }) : []
+  return [...released, ...drafts]
+}
+
 export async function listAdminProjectVersions(query: ProjectVersionListQuery) {
   const where: Prisma.ProjectVersionWhereInput = { isDeleted: false, project: { isDeleted: false } }
   if (query.keyword) {
@@ -61,16 +84,11 @@ export async function listAdminProjectVersions(query: ProjectVersionListQuery) {
 
   const [total, list] = await Promise.all([
     prisma.projectVersion.count({ where }),
-    prisma.projectVersion.findMany({
-      where,
-      skip: query.skip,
-      take: query.pageSize,
-      orderBy: { [query.orderByField]: query.order },
-      include: { ...(query.includeProject ? { project: true } : {}) },
-    }),
+    versionPage(where, query),
   ])
+  const empty = await projectVersionEmptyStates(prisma, list.map(item => item.id))
   return {
-    list: list.map(projectVersionDto),
+    list: list.map(item => ({ ...projectVersionDto(item), isEmpty: empty.get(item.id)! })),
     page: query.page,
     pageSize: query.pageSize,
     total,
@@ -100,7 +118,7 @@ export async function createAdminProjectVersion(input: {
     },
     include: { project: true },
   })
-  return projectVersionDto(projectVersion)
+  return { ...projectVersionDto(projectVersion), isEmpty: await isProjectVersionEmpty(prisma, projectVersion.id) }
 }
 
 export async function getAdminProjectVersion(id: number) {
@@ -109,7 +127,7 @@ export async function getAdminProjectVersion(id: number) {
     include: { project: true },
   })
   if (!projectVersion) throw new HttpError('Not Found', 404, 404)
-  return projectVersionDto(projectVersion)
+  return { ...projectVersionDto(projectVersion), isEmpty: await isProjectVersionEmpty(prisma, projectVersion.id) }
 }
 
 export async function updateAdminProjectVersion(
@@ -122,33 +140,7 @@ export async function updateAdminProjectVersion(
     status?: unknown
   },
 ) {
-  const current = await prisma.projectVersion.findUnique({
-    where: { id },
-    select: { publishedAt: true },
-  })
-  if (!current) throw new HttpError('Not Found', 404, 404)
-
-  const requestedStatus = optionalIntegerValue(input.status)
-  const changesContent =
-    input.projectId !== undefined ||
-    input.version !== undefined ||
-    input.description !== undefined ||
-    input.weight !== undefined
-  if (current.publishedAt) {
-    if (changesContent || requestedStatus === null || (requestedStatus !== 0 && requestedStatus !== 1)) {
-      throw new HttpError('Published project version is frozen', 409, 409, {
-        reason: 'VERSION_FROZEN',
-        projectVersionId: String(id),
-      })
-    }
-    return setProjectVersionVisibility(id, requestedStatus as 0 | 1)
-  }
-  if (input.status !== undefined) {
-    throw new HttpError('Draft visibility cannot be changed', 409, 409, {
-      reason: 'DRAFT_STATUS_IMMUTABLE',
-    })
-  }
-
+  // Published metadata and visibility remain editable; document membership does not.
   const data: Prisma.ProjectVersionUncheckedUpdateInput = { updatedAt: new Date() }
   if (input.projectId !== undefined) {
     const projectId = parseJsonDecimalId(input.projectId, 'projectId')
@@ -160,14 +152,25 @@ export async function updateAdminProjectVersion(
     if (!version) throw new HttpError('Invalid version', 400, 400)
     data.version = version
   }
-  if (typeof input.description === 'string') data.description = input.description.trim() || null
+  if (input.description === null || typeof input.description === 'string') data.description = typeof input.description === 'string' ? input.description.trim() || null : null
   const weight = optionalIntegerValue(input.weight)
   if (weight !== null) data.weight = weight
-  if (Object.keys(data).length === 1) throw new HttpError('No fields to update', 400, 400)
+  const requestedStatus = optionalIntegerValue(input.status)
+  if (input.status !== undefined && requestedStatus !== 0 && requestedStatus !== 1) throw new HttpError('Invalid status', 400, 400)
+  if (Object.keys(data).length === 1 && requestedStatus === null) throw new HttpError('No fields to update', 400, 400)
 
   try {
     const projectVersion = await executeVersionWrite(async (tx) => {
-      await lockDraftProjectVersions(tx, [id])
+      await lockProjectVersionMetadata(tx, id)
+      const current = await tx.projectVersion.findUniqueOrThrow({ where: { id } })
+      if (current.publishedAt) {
+        if (data.projectId !== undefined && data.projectId !== current.projectId) {
+          throw new HttpError('Published document membership is frozen', 409, 409, { reason: 'VERSION_FROZEN', projectVersionId: String(id) })
+        }
+        if (requestedStatus !== null) data.status = requestedStatus
+      } else if (requestedStatus !== null && requestedStatus !== current.status) {
+        throw new HttpError('Draft visibility cannot be changed', 409, 409, { reason: 'DRAFT_STATUS_IMMUTABLE' })
+      }
       if (data.projectId !== undefined) {
         const target = await tx.project.findFirst({
           where: { id: data.projectId as number, isDeleted: false },
@@ -181,7 +184,8 @@ export async function updateAdminProjectVersion(
         include: { project: true },
       })
     })
-    return projectVersionDto(projectVersion)
+    await invalidatePublicProjectCache(projectVersion.projectId)
+    return { ...projectVersionDto(projectVersion), isEmpty: await isProjectVersionEmpty(prisma, projectVersion.id) }
   } catch (error) {
     if (hasPrismaCode(error, 'P2025')) throw new HttpError('Not Found', 404, 404)
     throw error
@@ -260,16 +264,12 @@ export async function listAdminProjectVersionsByProject(
   const where: Prisma.ProjectVersionWhereInput = { projectId: query.projectId, isDeleted: false, project: { isDeleted: false } }
   const [total, list] = await Promise.all([
     prisma.projectVersion.count({ where }),
-    prisma.projectVersion.findMany({
-      where,
-      skip: query.skip,
-      take: query.pageSize,
-      orderBy: { [query.orderByField]: query.order },
-    }),
+    versionPage(where, query),
   ])
 
+  const empty = await projectVersionEmptyStates(prisma, list.map(item => item.id))
   return {
-    list: list.map(projectVersionBaseDto),
+    list: list.map(item => ({ ...projectVersionBaseDto(item), isEmpty: empty.get(item.id)! })),
     page: query.page,
     pageSize: query.pageSize,
     total,

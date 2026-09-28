@@ -34,6 +34,7 @@ const createProjectVersionSchema = z.object({
 })
 
 const projectVersionOrderFields = [
+  'publishedAt',
   'id',
   'version',
   'weight',
@@ -57,7 +58,7 @@ export const GET = defineRoute(async (request) => {
   const orderByField = safeOrderField(
     searchParams.get('orderBy'),
     projectVersionOrderFields,
-    'weight',
+    'publishedAt',
   )
   const order = sortDirection(searchParams.get('order'))
 

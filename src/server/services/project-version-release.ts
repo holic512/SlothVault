@@ -2,7 +2,7 @@
  * @file project-version-release.ts
  * @project SlothVault
  * @module Project Version Release
- * @description Defines canonical release manifests and owns read-only draft preflight, atomic publication, visibility, integrity, cloning, and write freezing.
+ * @description Owns publication, content integrity, metadata locks, and atomic cloning into new or empty drafts.
  * @logic Serialize draft writes through a version revision lock, share publishability validation with non-mutating preflight, publish one immutable release identity, rebuild it for verification, and clone frozen trees into new drafts.
  * @dependencies node:crypto, Prisma transactions, database unit-of-work, public project cache
  * @index_tags project-version,release,manifest,sha256,publication,preflight,integrity,clone,transaction
@@ -10,7 +10,7 @@
  */
 import 'server-only'
 
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 
 import type { Prisma } from '@generated/prisma-postgresql/client'
 
@@ -19,79 +19,14 @@ import { unitOfWork } from '@/server/database/unit-of-work'
 import { prisma } from '@/server/prisma'
 import { invalidatePublicProjectCache } from '@/server/services/public-project-cache'
 
-export const RELEASE_MANIFEST_VERSION = 1
+import {
+  RELEASE_MANIFEST_VERSION, buildReleaseManifest, issue, issueCompare,
+  type ReleaseTreeSource, type BuiltRelease, type ReleaseIssue,
+} from './release-manifest'
+export { RELEASE_MANIFEST_VERSION, buildReleaseManifest } from './release-manifest'
+export type { ReleaseManifest, ReleaseTreeSource, BuiltRelease, ReleaseIssue } from './release-manifest'
+
 const MAX_SERIALIZABLE_ATTEMPTS = 3
-
-export type ReleaseIssue = {
-  code: string
-  entity: 'projectVersion' | 'project' | 'category' | 'note' | 'content' | 'release'
-  entityId: string
-  message: string
-}
-
-export type ReleaseManifest = {
-  schema: 1
-  releaseId: string
-  version: {
-    label: string
-    description: string | null
-    weight: number
-  }
-  categories: Array<{
-    name: string
-    weight: number
-    status: number
-    notes: Array<{
-      title: string
-      weight: number
-      status: number
-      content: {
-        versionNote: string | null
-        status: number
-        markdown: string
-      }
-    }>
-  }>
-}
-
-export type ReleaseTreeSource = {
-  id: number
-  version: string
-  description: string | null
-  weight: number
-  publishedAt: Date | null
-  isDeleted: boolean
-  project: { id: number; status: number; isDeleted: boolean }
-  categories: Array<{
-    id: number
-    categoryName: string
-    weight: number
-    status: number
-    isDeleted: boolean
-    noteInfos: Array<{
-      id: number
-      noteTitle: string
-      weight: number
-      status: number
-      isDeleted: boolean
-      contents: Array<{
-        id: number
-        content: string
-        versionNote: string | null
-        isPrimary: boolean
-        status: number
-        isDeleted: boolean
-      }>
-    }>
-  }>
-}
-
-export type BuiltRelease = {
-  manifest: ReleaseManifest | null
-  bytes: Uint8Array | null
-  hash: string | null
-  issues: ReleaseIssue[]
-}
 
 type DatabaseReader = Pick<Prisma.TransactionClient, 'projectVersion'>
 
@@ -119,162 +54,6 @@ export async function projectVersionIdForNote(
   return note.category.projectVersionId
 }
 
-function sha256(bytes: Uint8Array) {
-  return createHash('sha256').update(bytes).digest('hex')
-}
-
-function utf8(value: string) {
-  return Buffer.from(value, 'utf8')
-}
-
-function byteCompare(left: Uint8Array, right: Uint8Array) {
-  return Buffer.compare(Buffer.from(left), Buffer.from(right))
-}
-
-function stableNodeCompare<T extends { weight: number }>(
-  labelOf: (node: T) => string,
-) {
-  return (left: T, right: T) => {
-    const weight = right.weight - left.weight
-    if (weight !== 0) return weight
-
-    const label = byteCompare(utf8(labelOf(left)), utf8(labelOf(right)))
-    if (label !== 0) return label
-
-    const leftBytes = utf8(JSON.stringify(left))
-    const rightBytes = utf8(JSON.stringify(right))
-    const digest = byteCompare(utf8(sha256(leftBytes)), utf8(sha256(rightBytes)))
-    return digest !== 0 ? digest : byteCompare(leftBytes, rightBytes)
-  }
-}
-
-function issue(
-  code: string,
-  entity: ReleaseIssue['entity'],
-  entityId: number | string,
-  message: string,
-): ReleaseIssue {
-  return { code, entity, entityId: String(entityId), message }
-}
-
-function issueCompare(left: ReleaseIssue, right: ReleaseIssue) {
-  return (
-    byteCompare(utf8(left.entity), utf8(right.entity)) ||
-    byteCompare(utf8(left.entityId), utf8(right.entityId)) ||
-    byteCompare(utf8(left.code), utf8(right.code)) ||
-    byteCompare(utf8(left.message), utf8(right.message))
-  )
-}
-
-export function buildReleaseManifest(
-  source: ReleaseTreeSource,
-  releaseId: string,
-): BuiltRelease {
-  const issues: ReleaseIssue[] = []
-  const enabledCategories = source.categories.filter(
-    (category) => !category.isDeleted && category.status === 1,
-  )
-  if (enabledCategories.length === 0) {
-    issues.push(
-      issue(
-        'NO_ENABLED_CATEGORY',
-        'projectVersion',
-        source.id,
-        'At least one enabled category is required',
-      ),
-    )
-  }
-
-  const categories = enabledCategories.map((category) => {
-    const enabledNotes = category.noteInfos.filter(
-      (note) => !note.isDeleted && note.status === 1,
-    )
-    if (enabledNotes.length === 0) {
-      issues.push(
-        issue(
-          'CATEGORY_NO_ENABLED_NOTE',
-          'category',
-          category.id,
-          'Enabled category must contain at least one enabled note',
-        ),
-      )
-    }
-
-    const notes = enabledNotes.flatMap((note) => {
-      const primaryContents = note.contents.filter(
-        (content) => !content.isDeleted && content.isPrimary,
-      )
-      if (primaryContents.length !== 1) {
-        issues.push(
-          issue(
-            'NOTE_PRIMARY_COUNT',
-            'note',
-            note.id,
-            'Enabled note must have exactly one undeleted primary content',
-          ),
-        )
-        return []
-      }
-
-      const content = primaryContents[0]
-      if (content.status !== 1) {
-        issues.push(
-          issue(
-            'NOTE_PRIMARY_DISABLED',
-            'content',
-            content.id,
-            'Primary content must be enabled',
-          ),
-        )
-      }
-      if (content.content.trim().length === 0) {
-        issues.push(
-          issue(
-            'NOTE_PRIMARY_EMPTY',
-            'content',
-            content.id,
-            'Primary content must not be blank',
-          ),
-        )
-      }
-
-      return [{
-        title: note.noteTitle,
-        weight: note.weight,
-        status: note.status,
-        content: {
-          versionNote: content.versionNote,
-          status: content.status,
-          markdown: content.content,
-        },
-      }]
-    }).sort(stableNodeCompare((note) => note.title))
-
-    return {
-      name: category.categoryName,
-      weight: category.weight,
-      status: category.status,
-      notes,
-    }
-  }).sort(stableNodeCompare((category) => category.name))
-
-  issues.sort(issueCompare)
-  if (issues.length > 0) return { manifest: null, bytes: null, hash: null, issues }
-
-  const manifest: ReleaseManifest = {
-    schema: RELEASE_MANIFEST_VERSION,
-    releaseId,
-    version: {
-      label: source.version,
-      description: source.description,
-      weight: source.weight,
-    },
-    categories,
-  }
-  const bytes = utf8(JSON.stringify(manifest))
-  return { manifest, bytes, hash: sha256(bytes), issues: [] }
-}
-
 function inactiveProjectIssues(project: ReleaseTreeSource['project']) {
   if (!project.isDeleted && project.status === 1) return []
   return [
@@ -287,8 +66,8 @@ function inactiveProjectIssues(project: ReleaseTreeSource['project']) {
   ]
 }
 
-function buildPublishableRelease(source: ReleaseTreeSource, releaseId: string): BuiltRelease {
-  const built = buildReleaseManifest(source, releaseId)
+function buildPublishableRelease(source: ReleaseTreeSource): BuiltRelease {
+  const built = buildReleaseManifest(source)
   const issues = [...inactiveProjectIssues(source.project), ...built.issues].sort(issueCompare)
   if (issues.length > 0) return { manifest: null, bytes: null, hash: null, issues }
   return built
@@ -389,6 +168,36 @@ export async function lockDraftProjectVersions(
       projectVersionId: String(id),
     })
   }
+}
+
+export async function lockProjectVersionMetadata(tx: Prisma.TransactionClient, id: number) {
+  const locked = await tx.projectVersion.updateMany({
+    where: { id, isDeleted: false, project: { isDeleted: false } },
+    data: { documentRevision: { increment: 1 } },
+  })
+  if (locked.count !== 1) throw new HttpError('ProjectVersion not found', 404, 404)
+}
+
+/** A draft is empty only if its tree has no undeleted record, including children in trash. */
+export async function projectVersionEmptyStates(reader: Pick<Prisma.TransactionClient, 'category'>, ids: number[]) {
+  if (!ids.length) return new Map<number, boolean>()
+  const occupied = await reader.category.findMany({
+    where: {
+      projectVersionId: { in: ids },
+      OR: [
+        { isDeleted: false },
+        { noteInfos: { some: { OR: [{ isDeleted: false }, { contents: { some: { isDeleted: false } } }] } } },
+      ],
+    },
+    select: { projectVersionId: true },
+    distinct: ['projectVersionId'],
+  })
+  const nonempty = new Set(occupied.map((item) => item.projectVersionId))
+  return new Map(ids.map((id) => [id, !nonempty.has(id)]))
+}
+
+export async function isProjectVersionEmpty(reader: Pick<Prisma.TransactionClient, 'category'>, id: number) {
+  return (await projectVersionEmptyStates(reader, [id])).get(id)!
 }
 
 async function lockPublishedProjectVersion(tx: Prisma.TransactionClient, id: number) {
@@ -526,7 +335,7 @@ export async function publishProjectVersion(projectVersionId: number) {
     if (!source) throw new HttpError('ProjectVersion not found', 404, 404)
 
     const releaseId = randomUUID()
-    const built = buildPublishableRelease(source, releaseId)
+    const built = buildPublishableRelease(source)
     if (!built.manifest || !built.hash) {
       throw new HttpError('Project version is not ready to publish', 422, 422, {
         reason: 'RELEASE_VALIDATION_FAILED',
@@ -570,8 +379,6 @@ export async function publishProjectVersion(projectVersionId: number) {
   return releaseDto(result)
 }
 
-const DRAFT_CHECK_RELEASE_ID = '00000000-0000-0000-0000-000000000000'
-
 export async function checkDraftProjectVersion(projectVersionId: number) {
   const source = await loadReleaseTree(prisma, projectVersionId)
   if (!source || source.isDeleted) {
@@ -584,7 +391,7 @@ export async function checkDraftProjectVersion(projectVersionId: number) {
     })
   }
 
-  const built = buildPublishableRelease(source, DRAFT_CHECK_RELEASE_ID)
+  const built = buildPublishableRelease(source)
   return {
     projectVersionId: String(projectVersionId),
     ready: built.issues.length === 0,
@@ -679,7 +486,7 @@ export async function getProjectVersionIntegrity(projectVersionId: number) {
   if (metadataIssues.length === 0 && version.releaseId) {
     const source = await loadReleaseTree(prisma, projectVersionId)
     if (!source) throw new HttpError('ProjectVersion not found', 404, 404)
-    built = buildReleaseManifest(source, version.releaseId)
+    built = buildReleaseManifest(source)
   }
   const issues = [...metadataIssues, ...built.issues].sort(issueCompare)
   if (built.hash && version.releaseHash && built.hash !== version.releaseHash) {
@@ -741,10 +548,12 @@ export async function getProjectVersionManifest(
 
 export async function cloneProjectVersion(
   projectVersionId: number,
-  input: { version: string; description?: string | null; weight?: number },
+  input: { version?: string; description?: string | null; weight?: number; targetVersionId?: number },
 ) {
-  const versionLabel = input.version.trim()
-  if (!versionLabel) throw new HttpError('Missing version', 400, 400)
+  const versionLabel = input.version?.trim()
+  if (input.targetVersionId !== undefined ? input.version !== undefined || input.description !== undefined || input.weight !== undefined : !versionLabel) {
+    throw new HttpError('Choose a new version or an existing empty draft', 400, 400)
+  }
 
   return executeVersionWrite(async (tx) => {
     await lockPublishedProjectVersion(tx, projectVersionId)
@@ -768,15 +577,30 @@ export async function cloneProjectVersion(
       })
     }
 
-    const created = await tx.projectVersion.create({
-      data: {
-        projectId: source.projectId,
-        version: versionLabel,
-        description: input.description === undefined ? source.description : input.description,
-        weight: input.weight ?? source.weight,
-        status: 0,
-      },
-    })
+    let created
+    if (input.targetVersionId !== undefined) {
+      await lockDraftProjectVersions(tx, [input.targetVersionId])
+      const target = await tx.projectVersion.findUnique({ where: { id: input.targetVersionId } })
+      if (!target || target.projectId !== source.projectId) {
+        throw new HttpError('Clone target must belong to the source project', 409, 409, { reason: 'VERSION_PROJECT_MISMATCH' })
+      }
+      if (!(await isProjectVersionEmpty(tx, target.id))) {
+        throw new HttpError('Target draft already contains documents', 409, 409, {
+          reason: 'TARGET_VERSION_NOT_EMPTY', projectVersionId: String(target.id),
+        })
+      }
+      created = target
+    } else {
+      created = await tx.projectVersion.create({
+        data: {
+          projectId: source.projectId,
+          version: versionLabel!,
+          description: input.description === undefined ? source.description : input.description,
+          weight: input.weight ?? source.weight,
+          status: 0,
+        },
+      })
+    }
 
     for (const category of source.categories) {
       const clonedCategory = await tx.category.create({
@@ -825,6 +649,7 @@ export async function cloneProjectVersion(
       createdAt: created.createdAt,
       updatedAt: created.updatedAt,
       isDeleted: created.isDeleted,
+      isEmpty: false,
     }
   })
 }

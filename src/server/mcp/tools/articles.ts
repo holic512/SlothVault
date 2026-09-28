@@ -2,8 +2,8 @@
  * @file articles.ts
  * @project SlothVault
  * @module MCP Article Tools
- * @description Registers MCP 3.0 article reads and draft-safe content mutations without lifecycle operations.
- * @logic Expose list, detail, create, and update through the article service while excluding publish, withdraw, delete, and restore inputs.
+ * @description Registers MCP article reads and content mutations with explicit publication and withdrawal.
+ * @logic Expose list, detail, create, and update through the article service while separating content updates from publication and withdrawal.
  * @dependencies MCP TypeScript SDK, zod, document limits, admin article service, MCP tool contracts
  * @index_tags mcp,tools,article,content,draft
  * @author holic512
@@ -17,6 +17,8 @@ import { collectMcpToolDefinitions, type McpToolDefinition } from '@/server/mcp/
 import { DOCUMENT_CONTENT_MAX_CHARACTERS } from '@/lib/document-content'
 import {
   createAdminArticle,
+  publishAdminArticle,
+  withdrawAdminArticle,
   getAdminArticle,
   listAdminArticles,
   updateAdminArticle,
@@ -164,4 +166,30 @@ export const articleToolDefinitions: McpToolDefinition[] = collectMcpToolDefinit
         },
       )),
   )
+  server.defineTool(
+    'content.article.publish',
+    {
+      title: '发布文章',
+      description: '校验标题和正文后发布文章。',
+      inputSchema: z.strictObject({ articleId: decimalIdSchema }),
+      outputSchema: articleOutputSchema,
+      annotations: UPDATE_ANNOTATIONS,
+    },
+    async ({ articleId }) => runMcpTool('content.article.publish', async () =>
+      publishAdminArticle(mcpId(articleId, 'articleId'))),
+  )
+
+  server.defineTool(
+    'content.article.withdraw',
+    {
+      title: '撤回文章',
+      description: '隐藏文章并保留原文，后续可重新发布。',
+      inputSchema: z.strictObject({ articleId: decimalIdSchema }),
+      outputSchema: articleOutputSchema,
+      annotations: UPDATE_ANNOTATIONS,
+    },
+    async ({ articleId }) => runMcpTool('content.article.withdraw', async () =>
+      withdrawAdminArticle(mcpId(articleId, 'articleId'))),
+  )
+
 })

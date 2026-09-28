@@ -3,14 +3,15 @@
  * @project SlothVault
  * @module Note Content Evidence Protocol
  * @description Defines the deterministic note-content manifest, SHA-256 identity, and wallet-signed Solana Memo contract used by note revision evidence.
- * @logic Serialize only stable release and editorial fields in a fixed order, hash the UTF-8 manifest without database IDs, and require the selected wallet to sign the exact canonical Memo transaction.
- * @dependencies node:crypto, @solana/web3.js, solana-memo-transaction, system-config
+ * @logic Serialize only the manifest version and exact Markdown in a fixed order, hash the UTF-8 manifest without database IDs, and require the selected wallet to sign the exact canonical Memo transaction.
+ * @dependencies release-manifest, @solana/web3.js, solana-memo-transaction, system-config
  * @index_tags evidence,notes,content,manifest,sha256,solana,memo
  * @author holic512
  */
 import 'server-only'
 
-import { createHash } from 'node:crypto'
+import { buildNoteMarkdownManifest, NOTE_CONTENT_MANIFEST_VERSION } from './release-manifest'
+export { NOTE_CONTENT_MANIFEST_VERSION } from './release-manifest'
 
 import { PublicKey, Transaction } from '@solana/web3.js'
 
@@ -25,7 +26,6 @@ import type { SolanaNetwork } from '@/server/services/system-config'
 
 export const NOTE_CONTENT_EVIDENCE_PROTOCOL = 'slothvault.note-content'
 export const NOTE_CONTENT_EVIDENCE_PROTOCOL_VERSION = 1
-export const NOTE_CONTENT_MANIFEST_VERSION = 1
 export const PROJECT_VERSION_EVIDENCE_SUBJECT = 'PROJECT_VERSION'
 export const NOTE_CONTENT_EVIDENCE_SUBJECT = 'NOTE_CONTENT'
 
@@ -44,40 +44,10 @@ export type NoteContentEvidenceSource = {
   markdown: string
 }
 
-export type NoteContentManifest = {
-  schema: typeof NOTE_CONTENT_MANIFEST_VERSION
-  releaseId: string
-  projectVersion: { label: string }
-  category: { name: string }
-  note: { title: string }
-  content: {
-    versionNote: string | null
-    isPrimary: boolean
-    status: number
-    markdown: string
-  }
-}
+export type NoteContentManifest = { schema: typeof NOTE_CONTENT_MANIFEST_VERSION; markdown: string }
 
 export function buildNoteContentManifest(source: NoteContentEvidenceSource) {
-  const manifest: NoteContentManifest = {
-    schema: NOTE_CONTENT_MANIFEST_VERSION,
-    releaseId: source.releaseId,
-    projectVersion: { label: source.projectVersion },
-    category: { name: source.categoryName },
-    note: { title: source.noteTitle },
-    content: {
-      versionNote: source.versionNote,
-      isPrimary: source.isPrimary,
-      status: source.status,
-      markdown: source.markdown,
-    },
-  }
-  const bytes = Buffer.from(JSON.stringify(manifest), 'utf8')
-  return {
-    manifest,
-    bytes,
-    hash: createHash('sha256').update(bytes).digest('hex'),
-  }
+  return buildNoteMarkdownManifest(source.markdown)
 }
 
 export type NoteContentEvidenceMemo = {

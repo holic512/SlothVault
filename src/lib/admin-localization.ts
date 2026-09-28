@@ -31,6 +31,11 @@ const KNOWN_ERROR_KEYS: Record<string, Parameters<AdminErrorTranslator>[0]> = {
   'Article not found': 'notFound',
   'Contract not found': 'notFound',
   'Not Found': 'notFound',
+  'Target draft already contains documents': 'targetNotEmpty',
+  'Clone target must belong to the source project': 'differentProject',
+  'Published project version is frozen': 'publishedBodyFrozen',
+  'Published document membership is frozen': 'publishedBodyFrozen',
+  'Version write conflict': 'versionWriteConflict',
 }
 
 function languageTag(locale: string) {

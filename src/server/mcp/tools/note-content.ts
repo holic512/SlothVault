@@ -138,4 +138,17 @@ export const noteContentToolDefinitions: McpToolDefinition[] = collectMcpToolDef
     async ({ noteContentId }) => runMcpTool('content.note.content.set_primary', async () =>
       updateAdminNoteContent(mcpId(noteContentId, 'noteContentId'), { isPrimary: true })),
   )
+  server.defineTool(
+    'content.note.content.update_metadata',
+    {
+      title: '更新正文版本说明',
+      description: '修改正文版本说明，包括已经发布的正文；不修改 Markdown、状态或主版本。',
+      inputSchema: z.strictObject({ noteContentId: decimalIdSchema, versionNote: z.string().trim().max(255).nullable() }),
+      outputSchema: noteContentOutputSchema,
+      annotations: UPDATE_ANNOTATIONS,
+    },
+    async ({ noteContentId, versionNote }) => runMcpTool('content.note.content.update_metadata', async () =>
+      updateAdminNoteContent(mcpId(noteContentId, 'noteContentId'), { versionNote })),
+  )
+
 })

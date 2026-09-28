@@ -21,6 +21,7 @@ import {
 } from '@/server/services/admin-catalog'
 
 const projectVersionOrderFields = [
+  'publishedAt',
   'id',
   'version',
   'weight',
@@ -41,7 +42,7 @@ export const GET = defineRoute<{ projectId: string }>(async (request, context) =
   const orderByField = safeOrderField(
     searchParams.get('orderBy'),
     projectVersionOrderFields,
-    'weight',
+    'publishedAt',
   )
   const order = sortDirection(searchParams.get('order'))
 

@@ -129,7 +129,7 @@ export const projectToolDefinitions: McpToolDefinition[] = collectMcpToolDefinit
     'content.project.update',
     {
       title: '更新项目元数据',
-      description: '更新项目名称、头像或权重。已有发布版本时仅允许修改权重。',
+      description: '更新项目名称、头像或权重。已发布项目也可修改这些元数据，不影响正文哈希。',
       inputSchema: updateProjectMetadataSchema,
       outputSchema: projectOutputSchema,
       annotations: UPDATE_ANNOTATIONS,

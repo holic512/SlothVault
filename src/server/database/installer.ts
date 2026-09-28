@@ -42,6 +42,7 @@ import { CURRENT_SCHEMA_REVISION, INSTALLATION_ROW_ID } from '@/server/database/
 import type { DatabaseConnectionInput } from '@/server/database/types'
 import { unitOfWork } from '@/server/database/unit-of-work'
 import { HttpError } from '@/server/http/errors'
+import { upgradeContentManifests } from './content-manifest-upgrade'
 import { ensureInitialHomepage } from '@/server/services/homepage'
 
 function hasPrismaCode(error: unknown, code: string) {
@@ -78,6 +79,7 @@ async function writeSchemaReadyMarker(connection: DatabaseConnectionInput) {
       }
       if (marker.status === 'SCHEMA_READY') {
         if (marker.schemaRevision < CURRENT_SCHEMA_REVISION) {
+          await upgradeContentManifests(client)
           await client.systemInstallation.update({
             where: { id: INSTALLATION_ROW_ID },
             data: { schemaRevision: CURRENT_SCHEMA_REVISION, updatedAt: new Date() },

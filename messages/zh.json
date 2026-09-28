@@ -672,7 +672,7 @@
         "batchUpdateFailed": "批量更新失败",
         "selectFirst": "请先选择要操作的项目",
         "requestFailed": "请求失败",
-        "releasedReadOnly": "已发布版本为只读，请先克隆为新草稿"
+        "releasedReadOnly": "正文已发布；名称和说明可修改，正文改动请克隆草稿"
       },
       "versionRelease": {
         "title": "版本管理 · {name}",
@@ -683,7 +683,7 @@
         "status": { "deleted": "已删除", "draft": "草稿", "published": "已发布", "hidden": "已隐藏" },
         "actions": { "edit": "编辑", "content": "编辑内容", "restore": "恢复", "hide": "隐藏发布", "show": "恢复发布", "copyHash": "复制哈希", "manifest": "下载 manifest", "integrity": "校验完整性", "clone": "克隆为草稿", "release": "发布操作", "publish": "发布", "delete": "删除" },
         "form": { "newTitle": "新建版本", "editTitle": "编辑版本", "version": "版本标签", "description": "描述", "weight": "权重", "status": "状态" },
-        "clone": { "title": "将 {version} 克隆为草稿", "version": "新版本标签" },
+        "clone": { "title": "将 {version} 克隆为草稿", "version": "新版本标签", "destination": "克隆到", "newDraft": "创建新草稿" },
         "messages": { "saved": "已保存", "published": "版本已发布", "publishValidationFailed": "发布校验未通过", "restored": "发布已恢复", "hidden": "发布已隐藏", "integrityVerified": "发布完整性校验通过", "integrityFailed": "发布完整性校验失败", "manifestFailed": "manifest 下载失败", "cloned": "已克隆为草稿", "hashCopied": "哈希已复制", "copyFailed": "无法复制哈希" },
         "validation": { "projectInactive": "所属项目必须处于启用状态", "noEnabledCategory": "至少需要一个启用的分类", "categoryNoEnabledNote": "每个启用分类至少需要一篇启用笔记", "notePrimaryCount": "每篇启用笔记必须恰好有一个主内容版本", "notePrimaryDisabled": "笔记的主内容版本必须处于启用状态", "notePrimaryEmpty": "笔记的主内容版本不能为空", "metadataIncomplete": "发布元数据不完整", "manifestUnsupported": "该发布使用了不受支持的 manifest 版本", "hashMismatch": "已保存的发布哈希与当前内容不一致", "unknown": "发布内容未通过校验" }
       }
@@ -880,7 +880,7 @@
         "restored": "已恢复",
         "restoreFailed": "恢复失败",
         "requestFailed": "请求失败",
-        "releasedReadOnly": "已发布版本为只读，请先克隆为新草稿"
+        "releasedReadOnly": "正文已发布；名称和说明可修改，正文改动请克隆草稿"
       },
       "workspace": {
         "selectProject": "选择项目",
@@ -889,7 +889,7 @@
         "newBlankDraft": "新建空白草稿",
         "saveBeforeVersionAction": "请先保存未提交的正文，再操作该版本",
         "publishConfirm": "确认发布版本「{version}」？",
-        "publishImmutable": "发布后版本内容和元数据将不可修改；只有公开状态可以切换。请确认正文已保存。",
+        "publishImmutable": "发布后正文和文档结构将冻结，名称、说明和展示顺序仍可修改。请确认正文已保存。",
         "versionDeleteDescription": "删除后该草稿将不再出现在版本列表中。",
         "refresh": "刷新",
         "mobileNavigation": "编辑步骤",
@@ -974,8 +974,8 @@
         "saved": "已保存",
         "saveHint": "Ctrl+S 保存",
         "save": "保存",
-        "releasedReadOnly": "已发布版本（只读）",
-        "releasedReadOnlyTip": "已发布文档树已冻结。若需修改，请在项目版本管理中克隆为新草稿。",
+        "releasedReadOnly": "已发布版本（正文已冻结）",
+        "releasedReadOnlyTip": "名称和说明可直接修改。修改正文或文档结构时，请先克隆到新草稿或已有空草稿。",
         "selectOrCreate": "请从左侧选择或创建一个内容版本",
         "newVersionDialog": {
           "title": "新建内容版本",
@@ -1142,6 +1142,10 @@
           "CHECK_FAILED": "暂时无法检查 GitHub 更新"
         },
         "errors": {
+      "targetNotEmpty": "目标草稿已有内容，无法克隆到此版本。",
+      "differentProject": "来源和目标版本必须属于同一项目。",
+      "publishedBodyFrozen": "发布正文与文档结构已冻结；名称和说明仍可修改。",
+      "versionWriteConflict": "版本正在被其他操作修改，请刷新后重试。",
           "RELEASE_SOURCE_NOT_FOUND": "未找到可用的正式 GitHub Release。",
           "RELEASE_RATE_LIMITED": "GitHub API 当前限流，请稍后重试。",
           "RELEASE_REQUEST_TIMEOUT": "连接 GitHub 超时，请检查服务器网络后重试。",

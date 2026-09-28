@@ -32,11 +32,11 @@ describe('note content evidence protocol', () => {
     expect(JSON.stringify(first.manifest)).not.toMatch(/noteContentId|categoryId|noteInfoId/)
   })
 
-  it('changes the hash when content or its published hierarchy changes', () => {
+  it('changes the hash when content changes but not editorial hierarchy', () => {
     const baseline = buildNoteContentManifest(source).hash
     expect(buildNoteContentManifest({ ...source, markdown: '# Changed\n' }).hash).not.toBe(baseline)
-    expect(buildNoteContentManifest({ ...source, categoryName: 'Reference' }).hash).not.toBe(baseline)
-    expect(buildNoteContentManifest({ ...source, noteTitle: 'Install' }).hash).not.toBe(baseline)
+    expect(buildNoteContentManifest({ ...source, categoryName: 'Reference' }).hash).toBe(baseline)
+    expect(buildNoteContentManifest({ ...source, noteTitle: 'Install' }).hash).toBe(baseline)
   })
 
   it('serializes Memo fields in the protocol order', () => {
@@ -44,11 +44,11 @@ describe('note content evidence protocol', () => {
       installationId: '550e8400-e29b-41d4-a716-446655440000',
       contentEvidenceId: '61785fd5-b940-48ae-9300-06c05dd49686',
       releaseId: source.releaseId,
-      manifestVersion: 1,
+      manifestVersion: 2,
       contentHash: 'ab'.repeat(32),
       network: 'devnet',
       signer: '11111111111111111111111111111111',
-    })).toBe('{"protocol":"slothvault.note-content","version":1,"installationId":"550e8400-e29b-41d4-a716-446655440000","contentEvidenceId":"61785fd5-b940-48ae-9300-06c05dd49686","releaseId":"90f98878-b654-4ad3-8f61-7b849ef03d49","manifestVersion":1,"contentHash":"abababababababababababababababababababababababababababababababab","network":"devnet","signer":"11111111111111111111111111111111"}')
+    })).toBe('{"protocol":"slothvault.note-content","version":1,"installationId":"550e8400-e29b-41d4-a716-446655440000","contentEvidenceId":"61785fd5-b940-48ae-9300-06c05dd49686","releaseId":"90f98878-b654-4ad3-8f61-7b849ef03d49","manifestVersion":2,"contentHash":"abababababababababababababababababababababababababababababababab","network":"devnet","signer":"11111111111111111111111111111111"}')
   })
 
   it('accepts only the exact wallet-signed transaction', () => {

@@ -231,7 +231,7 @@ export function EvidenceManager() {
   const versionsQuery = useQuery({
     queryKey: ['published-versions-for-evidence', issueProjectId],
     enabled: issueOpen && !retrySubject && Boolean(issueProjectId),
-    queryFn: () => apiFetch<{ list: PublishedVersion[] }>(`/api/admin/mm/projectVersion/byProject/${issueProjectId}?pageSize=100&orderBy=updatedAt&order=desc`),
+    queryFn: () => apiFetch<{ list: PublishedVersion[] }>(`/api/admin/mm/projectVersion/byProject/${issueProjectId}?pageSize=100&orderBy=publishedAt&order=desc`),
   })
   const categoriesQuery = useQuery({
     queryKey: ['evidence-category-options', issueVersionId],

@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   createAdminProject: vi.fn(), getAdminProject: vi.fn(), listAdminProjects: vi.fn(),
   updateAdminProjectMetadataFromMcp: vi.fn(), createAdminProjectVersion: vi.fn(),
+  updateAdminProjectVersion: vi.fn(), publishProjectVersion: vi.fn(), setProjectVersionVisibility: vi.fn(),
+  publishAdminArticle: vi.fn(), withdrawAdminArticle: vi.fn(),
   getAdminProjectVersion: vi.fn(), listAdminProjectVersions: vi.fn(),
   createAdminCategory: vi.fn(), listAdminCategories: vi.fn(), updateAdminCategory: vi.fn(),
   createAdminNote: vi.fn(), getAdminNote: vi.fn(), listAdminNotes: vi.fn(), updateAdminNote: vi.fn(),
@@ -35,6 +37,7 @@ vi.mock('@/server/services/admin-catalog', () => ({
   listAdminProjects: mocks.listAdminProjects,
   updateAdminProjectMetadataFromMcp: mocks.updateAdminProjectMetadataFromMcp,
   createAdminProjectVersion: mocks.createAdminProjectVersion,
+  updateAdminProjectVersion: mocks.updateAdminProjectVersion,
   getAdminProjectVersion: mocks.getAdminProjectVersion,
   listAdminProjectVersions: mocks.listAdminProjectVersions,
   createAdminCategory: mocks.createAdminCategory,
@@ -60,12 +63,16 @@ vi.mock('@/server/services/admin-notes', () => ({
 vi.mock('@/server/services/project-version-release', () => ({
   checkDraftProjectVersion: mocks.checkDraftProjectVersion,
   cloneProjectVersion: mocks.cloneProjectVersion,
+  publishProjectVersion: mocks.publishProjectVersion,
+  setProjectVersionVisibility: mocks.setProjectVersionVisibility,
   getProjectVersionIntegrity: mocks.getProjectVersionIntegrity,
   getProjectVersionManifest: mocks.getProjectVersionManifest,
 }))
 
 vi.mock('@/server/services/admin-articles', () => ({
   createAdminArticle: mocks.createAdminArticle,
+  publishAdminArticle: mocks.publishAdminArticle,
+  withdrawAdminArticle: mocks.withdrawAdminArticle,
   getAdminArticle: mocks.getAdminArticle,
   listAdminArticles: mocks.listAdminArticles,
   updateAdminArticle: mocks.updateAdminArticle,
@@ -213,7 +220,7 @@ async function resultOf(message: Record<string, unknown>) {
 }
 
 describe('administrator MCP server', () => {
-  it('publishes the 3.0 identity and the complete safe daily-management tool registry', async () => {
+  it('publishes the 3.1 identity and the complete safe daily-management tool registry', async () => {
     const initialize = await resultOf({
       jsonrpc: '2.0', id: 1, method: 'initialize',
       params: {
@@ -222,7 +229,7 @@ describe('administrator MCP server', () => {
       },
     })
     expect(initialize).toMatchObject({
-      result: { serverInfo: { name: 'slothvault-admin-mcp', version: '3.0.0' } },
+      result: { serverInfo: { name: 'slothvault-admin-mcp', version: '3.1.0' } },
     })
 
     const listed = await resultOf({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} })
@@ -232,12 +239,13 @@ describe('administrator MCP server', () => {
       'content.project.version.list', 'content.project.version.get', 'content.project.version.create_draft',
       'content.project.version.clone', 'content.project.version.check_draft',
       'content.project.version.integrity', 'content.project.version.manifest',
+      'content.project.version.update', 'content.project.version.publish', 'content.project.version.set_visibility',
       'content.category.list', 'content.category.create', 'content.category.update',
       'content.note.list', 'content.note.get', 'content.note.create', 'content.note.update',
       'content.note.content.list_versions', 'content.note.content.get',
       'content.note.content.create_draft', 'content.note.content.update_draft',
-      'content.note.content.set_primary',
-      'content.article.list', 'content.article.get', 'content.article.create', 'content.article.update',
+      'content.note.content.set_primary', 'content.note.content.update_metadata',
+      'content.article.list', 'content.article.get', 'content.article.create', 'content.article.update', 'content.article.publish', 'content.article.withdraw',
       'content.project.home.list', 'content.project.home.get', 'content.project.home.create',
       'content.project.home.update', 'content.project.menu.list', 'content.project.menu.get',
       'content.project.menu.create', 'content.project.menu.update',
@@ -251,10 +259,43 @@ describe('administrator MCP server', () => {
     ])
     expect(names).not.toContain('admin_project_list')
     expect(names.some((name: string) =>
-      /(?:^|\.)(?:publish|withdraw|delete|restore|password|adjust|issue|submit|reconcile|reset|backup)(?:\.|$)/.test(name),
+      /(?:^|\.)(?:delete|restore|password|adjust|issue|submit|reconcile|reset|backup)(?:\.|$)/.test(name),
     )).toBe(false)
     expect(listed.result.tools.every((tool: { inputSchema?: unknown }) => tool.inputSchema)).toBe(true)
     expect(listed.result.tools.every((tool: { outputSchema?: unknown }) => tool.outputSchema)).toBe(true)
+  })
+
+  it('delegates administrator publication and returns the refreshed version', async () => {
+    const version = { id: '11', projectId: '9', version: 'v1', description: null, weight: 0, status: 1,
+      releaseId: 'release', releaseHash: 'a'.repeat(64), manifestVersion: 2, publishedAt: timestamp,
+      createdAt: timestamp, updatedAt: timestamp, isDeleted: false, isEmpty: false }
+    mocks.publishProjectVersion.mockResolvedValue(version)
+    mocks.getAdminProjectVersion.mockResolvedValue(version)
+    const called = await resultOf({ jsonrpc: '2.0', id: 60, method: 'tools/call', params: {
+      name: 'content.project.version.publish', arguments: { projectVersionId: '11' },
+    } })
+    expect(mocks.publishProjectVersion).toHaveBeenCalledWith(11)
+    expect(called.result.structuredContent).toMatchObject({ id: '11', manifestVersion: 2, isEmpty: false })
+    await resultOf({ jsonrpc: '2.0', id: 61, method: 'tools/call', params: {
+      name: 'content.project.version.set_visibility', arguments: { projectVersionId: '11', status: 0 },
+    } })
+    expect(mocks.setProjectVersionVisibility).toHaveBeenCalledWith(11, 0)
+  })
+
+  it('supports article publication and withdrawal through registered tools', async () => {
+    const article = { id: '12', title: 'Article', summary: null, cover: null, content: '# Body', status: 1,
+      requiredMembershipLevelId: null, requiredMembershipLevel: null, publishedAt: timestamp,
+      createdAt: timestamp, updatedAt: timestamp, isDeleted: false }
+    mocks.publishAdminArticle.mockResolvedValue(article)
+    mocks.withdrawAdminArticle.mockResolvedValue({ ...article, status: 0 })
+    for (const [action, status] of [['publish', 1], ['withdraw', 0]] as const) {
+      const called = await resultOf({ jsonrpc: '2.0', id: 62, method: 'tools/call', params: {
+        name: `content.article.${action}`, arguments: { articleId: '12' },
+      } })
+      expect(called.result.structuredContent).toMatchObject({ id: '12', status })
+    }
+    expect(mocks.publishAdminArticle).toHaveBeenCalledWith(12)
+    expect(mocks.withdrawAdminArticle).toHaveBeenCalledWith(12)
   })
 
   it('publishes protected managed-file and contract-attachment resource templates', async () => {
@@ -503,12 +544,13 @@ describe('administrator MCP server', () => {
     expect(mocks.getManagedUserMembership).toHaveBeenCalledWith(8)
   })
 
-  it('registers three workflows whose instructions respect the tool boundary', async () => {
+  it('registers four workflows whose instructions respect the tool boundary', async () => {
     const listed = await resultOf({ jsonrpc: '2.0', id: 9, method: 'prompts/list', params: {} })
     expect(listed.result.prompts.map((prompt: { name: string }) => prompt.name)).toEqual([
       'workflow.create_project_draft',
       'workflow.organize_notes',
       'workflow.pre_publish_check',
+      'workflow.publish_version',
     ])
 
     const prompt = await resultOf({
@@ -520,6 +562,6 @@ describe('administrator MCP server', () => {
     })
     const text = prompt.result.messages[0].content.text
     expect(text).toContain('content.project.version.check_draft')
-    expect(text).not.toMatch(/admin_project_list|\.publish|\.delete|\.restore/)
+    expect(text).not.toMatch(/admin_project_list|\.delete|\.restore/)
   })
 })

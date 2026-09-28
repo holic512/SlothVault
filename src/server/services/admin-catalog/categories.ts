@@ -14,10 +14,12 @@ import type { Prisma } from '@generated/prisma-postgresql/client'
 
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
+import { invalidatePublicProjectCache } from '@/server/services/public-project-cache'
 import { deleteTrashItem } from '@/server/services/admin-trash'
 import {
   executeVersionWrite,
   lockDraftProjectVersions,
+  lockProjectVersionMetadata,
 } from '@/server/services/project-version-release'
 
 import {
@@ -137,7 +139,11 @@ export async function updateAdminCategory(
 
   try {
     const category = await executeVersionWrite(async (tx) => {
-      await lockDraftProjectVersions(tx, [current.projectVersionId, targetVersionId])
+      for (const versionId of [...new Set([current.projectVersionId, targetVersionId])].sort((a, b) => a - b)) await lockProjectVersionMetadata(tx, versionId)
+      const before = await tx.category.findUniqueOrThrow({ where: { id } })
+      if (targetVersionId !== current.projectVersionId || (data.status !== undefined && data.status !== before.status)) {
+        await lockDraftProjectVersions(tx, [current.projectVersionId, targetVersionId])
+      }
       const fresh = await tx.category.findUnique({
         where: { id },
         select: { projectVersionId: true },
@@ -154,6 +160,7 @@ export async function updateAdminCategory(
         include: { projectVersion: true },
       })
     })
+    await invalidatePublicProjectCache()
     return categoryDto(category)
   } catch (error) {
     if (hasPrismaCode(error, 'P2025')) throw new HttpError('Not Found', 404, 404)

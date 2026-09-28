@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   },
 }))
 
+vi.mock('@/server/database/unit-of-work', () => ({ unitOfWork: { execute: (operation: (tx: typeof mocks.prisma) => unknown) => operation(mocks.prisma) } }))
 vi.mock('@/server/prisma', () => ({ prisma: mocks.prisma }))
 vi.mock('@/server/services/public-article-cache', () => ({
   invalidatePublicArticleCache: mocks.invalidate,
@@ -54,7 +55,7 @@ function articleRecord(overrides: Record<string, unknown> = {}) {
 }
 
 describe('administrator independent articles', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => { vi.clearAllMocks(); mocks.prisma.article.updateMany.mockResolvedValue({ count: 1 }) })
 
   it('creates a draft without accepting lifecycle state from the caller', async () => {
     mocks.prisma.article.create.mockResolvedValue(articleRecord())

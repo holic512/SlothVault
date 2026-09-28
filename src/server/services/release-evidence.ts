@@ -478,6 +478,8 @@ export async function prepareEvidence(input: {
               issuerUserId: input.issuerUserId,
               signerAddress: signer.toBase58(),
               memo: subject.memo,
+              subjectHash: subject.subjectHash,
+              subjectManifestVersion: subject.subjectManifestVersion,
               transactionSignature: null,
               status: CREDENTIAL_STATUS.PREPARED,
               slot: null,

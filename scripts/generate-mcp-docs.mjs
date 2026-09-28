@@ -6,7 +6,7 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const toolDirectory = path.join(projectRoot, 'src', 'server', 'mcp', 'tools')
 const outputPath = path.join(projectRoot, 'docs', 'MCP_REGISTRY.md')
 
-const EXPECTED_TOOL_COUNT = 55
+const EXPECTED_TOOL_COUNT = 61
 const TOOL_ANNOTATION_METADATA = {
   READ_ONLY_ANNOTATIONS: { risk: 'read', idempotency: 'idempotent' },
   CREATE_ANNOTATIONS: { risk: 'write', idempotency: 'non-idempotent' },

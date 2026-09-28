@@ -152,7 +152,7 @@ describe('provider schema parity', () => {
     expect(models.get('NoteInfo')).toContain('authorId Int? @map("author_id")')
     expect(models.get('ProjectVersion')).toContain('documentRevision Int @default(0) @map("document_revision")')
     expect(models.get('ProjectVersion')).toContain('releaseId String? @unique')
-    expect(models.get('ProjectVersion')).toContain('releaseHash String? @unique')
+    expect(models.get('ProjectVersion')).not.toContain('releaseHash String? @unique')
     expect(models.get('ProjectVersion')).toContain('manifestVersion Int? @map("manifest_version")')
     expect(models.get('ProjectVersion')).toContain('publishedAt DateTime? @map("published_at")')
     expect(models.get('NoteContent')).toContain('evidenceId String? @unique')

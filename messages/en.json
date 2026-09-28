@@ -672,7 +672,7 @@
         "batchUpdateFailed": "Batch update failed",
         "selectFirst": "Please select items first",
         "requestFailed": "Request failed",
-        "releasedReadOnly": "Published versions are read only; clone a new draft first"
+        "releasedReadOnly": "Published content is frozen; names and descriptions remain editable. Clone a draft to change content."
       },
       "versionRelease": {
         "title": "Versions · {name}",
@@ -683,7 +683,7 @@
         "status": { "deleted": "Deleted", "draft": "Draft", "published": "Published", "hidden": "Hidden" },
         "actions": { "edit": "Edit", "content": "Edit Content", "restore": "Restore", "hide": "Hide release", "show": "Restore release", "copyHash": "Copy hash", "manifest": "Download manifest", "integrity": "Verify integrity", "clone": "Clone to draft", "release": "Release", "publish": "Publish", "delete": "Delete" },
         "form": { "newTitle": "New version", "editTitle": "Edit version", "version": "Version label", "description": "Description", "weight": "Weight", "status": "Status" },
-        "clone": { "title": "Clone {version} to draft", "version": "New version label" },
+        "clone": { "title": "Clone {version} to draft", "version": "New version label", "destination": "Clone into", "newDraft": "Create a new draft" },
         "messages": { "saved": "Saved", "published": "Version published", "publishValidationFailed": "Publish validation failed", "restored": "Release restored", "hidden": "Release hidden", "integrityVerified": "Release integrity verified", "integrityFailed": "Release integrity failed", "manifestFailed": "Manifest download failed", "cloned": "Draft cloned", "hashCopied": "Hash copied", "copyFailed": "Unable to copy hash" },
         "validation": { "projectInactive": "The parent project must be enabled", "noEnabledCategory": "At least one enabled category is required", "categoryNoEnabledNote": "Every enabled category needs at least one enabled note", "notePrimaryCount": "Every enabled note must have exactly one primary content version", "notePrimaryDisabled": "A note's primary content version must be enabled", "notePrimaryEmpty": "A note's primary content version cannot be empty", "metadataIncomplete": "Release metadata is incomplete", "manifestUnsupported": "This release uses an unsupported manifest version", "hashMismatch": "The saved release hash no longer matches the current content", "unknown": "The release content did not pass validation" }
       }
@@ -880,7 +880,7 @@
         "restored": "Restored",
         "restoreFailed": "Restore failed",
         "requestFailed": "Request failed",
-        "releasedReadOnly": "Published versions are read only; clone a new draft first"
+        "releasedReadOnly": "Published content is frozen; names and descriptions remain editable. Clone a draft to change content."
       },
       "workspace": {
         "selectProject": "Select project",
@@ -889,7 +889,7 @@
         "newBlankDraft": "New blank draft",
         "saveBeforeVersionAction": "Save your pending content before changing this version",
         "publishConfirm": "Publish version “{version}”?",
-        "publishImmutable": "The version content and metadata cannot be edited after publication; only visibility can change. Make sure your content is saved.",
+        "publishImmutable": "Publication freezes the content and document structure. Names, descriptions, and display order remain editable. Save your content first.",
         "versionDeleteDescription": "This draft will no longer appear in the version list after deletion.",
         "refresh": "Refresh",
         "mobileNavigation": "Editing steps",
@@ -974,8 +974,8 @@
         "saved": "Saved",
         "saveHint": "Ctrl+S to save",
         "save": "Save",
-        "releasedReadOnly": "Published version (read only)",
-        "releasedReadOnlyTip": "The published document tree is frozen. Clone it to a new draft from Project Versions before editing.",
+        "releasedReadOnly": "Published version (content frozen)",
+        "releasedReadOnlyTip": "Names and descriptions remain editable. Clone into a new or existing empty draft to change content or document structure.",
         "selectOrCreate": "Please select or create a content version from the left",
         "newVersionDialog": {
           "title": "New Content Version",
@@ -1142,6 +1142,10 @@
           "CHECK_FAILED": "GitHub update status is temporarily unavailable"
         },
         "errors": {
+      "targetNotEmpty": "The target draft already contains documents.",
+      "differentProject": "Source and target must belong to the same project.",
+      "publishedBodyFrozen": "Published content and structure are frozen; names and descriptions remain editable.",
+      "versionWriteConflict": "Another operation changed this version. Refresh and try again.",
           "RELEASE_SOURCE_NOT_FOUND": "No published GitHub Release is available.",
           "RELEASE_RATE_LIMITED": "The GitHub API is rate limited; try again later.",
           "RELEASE_REQUEST_TIMEOUT": "The GitHub request timed out; check server networking and try again.",

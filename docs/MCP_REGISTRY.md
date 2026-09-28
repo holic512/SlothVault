@@ -2,7 +2,7 @@
 
 <!-- GENERATED FILE: run `npm run mcp:docs` after changing MCP declarations. -->
 
-Tool count: **55**
+Tool count: **61**
 
 | Tool | Domain | Risk | Idempotency | Resource permission |
 | --- | --- | --- | --- | --- |
@@ -24,6 +24,8 @@ Tool count: **55**
 | `content.article.get` | `content.article` | read | idempotent | - |
 | `content.article.create` | `content.article` | write | non-idempotent | - |
 | `content.article.update` | `content.article` | write | non-idempotent | - |
+| `content.article.publish` | `content.article` | write | non-idempotent | - |
+| `content.article.withdraw` | `content.article` | write | non-idempotent | - |
 | `content.category.list` | `content.category` | read | idempotent | - |
 | `content.category.create` | `content.category` | write | non-idempotent | - |
 | `content.category.update` | `content.category` | write | non-idempotent | - |
@@ -35,6 +37,7 @@ Tool count: **55**
 | `content.note.content.create_draft` | `content.note.content` | write | non-idempotent | - |
 | `content.note.content.update_draft` | `content.note.content` | write | non-idempotent | - |
 | `content.note.content.set_primary` | `content.note.content` | write | non-idempotent | - |
+| `content.note.content.update_metadata` | `content.note.content` | write | non-idempotent | - |
 | `content.note.list` | `content.note` | read | idempotent | - |
 | `content.note.get` | `content.note` | read | idempotent | - |
 | `content.note.create` | `content.note` | write | non-idempotent | - |
@@ -57,6 +60,9 @@ Tool count: **55**
 | `content.project.version.check_draft` | `content.project.version` | read | idempotent | - |
 | `content.project.version.integrity` | `content.project.version` | read | idempotent | - |
 | `content.project.version.manifest` | `content.project.version` | read | idempotent | - |
+| `content.project.version.update` | `content.project.version` | write | non-idempotent | - |
+| `content.project.version.publish` | `content.project.version` | write | non-idempotent | - |
+| `content.project.version.set_visibility` | `content.project.version` | write | non-idempotent | - |
 | `content.project.list` | `content.project` | read | idempotent | - |
 | `content.project.get` | `content.project` | read | idempotent | - |
 | `content.project.create` | `content.project` | write | non-idempotent | - |

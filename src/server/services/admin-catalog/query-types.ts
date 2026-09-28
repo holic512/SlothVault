@@ -19,6 +19,7 @@ type ProjectOrderField =
   | 'updatedAt'
 
 type ProjectVersionOrderField =
+  | 'publishedAt'
   | 'id'
   | 'version'
   | 'weight'

@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Administrator Article Publishing
  * @description Owns administrator-only CRUD and lifecycle operations for independent blog articles.
- * @logic Validate the standalone article contract, preserve the first publication timestamp across withdrawals, soft-delete to a draft state, and invalidate public cache after every mutation.
+ * @logic Validate publication under a shared transaction and row lock, preserve the first publication timestamp across withdrawals, soft-delete to a draft state, and invalidate public cache after every mutation.
  * @dependencies Prisma Article model, document content limits, HTTP errors, public article cache
  * @index_tags admin,article,blog,crud,publish,withdraw
  * @author holic512
@@ -14,6 +14,7 @@ import type { Prisma } from '@generated/prisma-postgresql/client'
 
 import { DOCUMENT_CONTENT_MAX_CHARACTERS } from '@/lib/document-content'
 import { HttpError } from '@/server/http/errors'
+import { unitOfWork } from '@/server/database/unit-of-work'
 import { prisma } from '@/server/prisma'
 import { deleteTrashItem } from '@/server/services/admin-trash'
 import { databaseTextContains, hasPrismaCode } from '@/server/services/admin-catalog'
@@ -101,9 +102,9 @@ function requiredMembershipLevelValue(value: unknown) {
   return value
 }
 
-async function assertMembershipLevelExists(id: number | null | undefined) {
+async function assertMembershipLevelExists(id: number | null | undefined, reader: Pick<Prisma.TransactionClient, 'membershipLevel'> = prisma) {
   if (id === undefined || id === null) return
-  const level = await prisma.membershipLevel.findUnique({
+  const level = await reader.membershipLevel.findUnique({
     where: { id },
     select: { id: true },
   })
@@ -223,22 +224,23 @@ export async function deleteAdminArticle(id: number) {
 }
 
 export async function publishAdminArticle(id: number) {
-  const current = await prisma.article.findFirst({ where: { id, isDeleted: false } })
-  if (!current) throw new HttpError('Article not found', 404, 404)
-  if (!current.title.trim() || !current.content.trim()) {
-    throw new HttpError('Title and content are required before publishing', 400, 400)
-  }
-  await assertMembershipLevelExists(current.requiredMembershipLevelId)
-
-  const article = await prisma.article.update({
-    where: { id },
-    data: {
-      status: 1,
-      publishedAt: current.publishedAt ?? new Date(),
-      updatedAt: new Date(),
-    },
-    include: { requiredMembershipLevel: { select: { id: true, name: true, rank: true } } },
-  })
+  const article = await unitOfWork.execute(async (tx) => {
+    const locked = await tx.article.updateMany({
+      where: { id, isDeleted: false }, data: { updatedAt: new Date() },
+    })
+    if (locked.count !== 1) throw new HttpError('Article not found', 404, 404)
+    const current = await tx.article.findFirst({ where: { id, isDeleted: false } })
+    if (!current) throw new HttpError('Article not found', 404, 404)
+    if (!current.title.trim() || !current.content.trim()) {
+      throw new HttpError('Title and content are required before publishing', 400, 400)
+    }
+    await assertMembershipLevelExists(current.requiredMembershipLevelId, tx)
+    return tx.article.update({
+      where: { id },
+      data: { status: 1, publishedAt: current.publishedAt ?? new Date(), updatedAt: new Date() },
+      include: { requiredMembershipLevel: { select: { id: true, name: true, rank: true } } },
+    })
+  }, { mode: 'write', isolationLevel: 'Serializable' })
   await invalidatePublicArticleCache(id)
   return adminArticleDto(article)
 }

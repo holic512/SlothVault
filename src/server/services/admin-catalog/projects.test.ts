@@ -57,7 +57,7 @@ describe('MCP project metadata boundary', () => {
     expect(mocks.invalidatePublicProjectCache).toHaveBeenCalledWith(9)
   })
 
-  it('atomically limits name and avatar changes to projects without releases', async () => {
+  it('allows name and avatar changes without a publication predicate', async () => {
     mocks.updateMany.mockResolvedValue({ count: 1 })
     mocks.findUnique.mockResolvedValue(project())
 
@@ -70,7 +70,6 @@ describe('MCP project metadata boundary', () => {
       where: {
         id: 9,
         isDeleted: false,
-        versions: { none: { publishedAt: { not: null } } },
       },
       data: {
         projectName: 'Documentation 2',
@@ -81,7 +80,7 @@ describe('MCP project metadata boundary', () => {
     })
   })
 
-  it('rejects a mixed metadata update as a whole after any version is published', async () => {
+  it('rejects updates to missing or deleted projects', async () => {
     mocks.updateMany.mockResolvedValue({ count: 0 })
     mocks.findUnique.mockResolvedValue({
       isDeleted: false,
@@ -92,8 +91,7 @@ describe('MCP project metadata boundary', () => {
       projectName: 'Forbidden rename',
       weight: 99,
     })).rejects.toMatchObject({
-      status: 409,
-      data: { reason: 'PROJECT_METADATA_LIVE', projectId: '9' },
+      status: 404,
     })
     expect(mocks.invalidatePublicProjectCache).not.toHaveBeenCalled()
   })

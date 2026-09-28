@@ -5,7 +5,7 @@
  * @project SlothVault
  * @module Unified Note Workspace
  * @description Owns project-version lifecycle actions and the linear project-to-Markdown administration flow in one responsive workspace.
- * @logic Resolve deep links, bind lifecycle actions to the selected version, guard context changes and publication against unsaved content, and keep published trees read-only.
+ * @logic Resolve deep links and recent releases, clone into new or empty drafts, guard unsaved content, and allow published metadata edits while keeping bodies and document membership frozen.
  * @dependencies Ant Design, React Query, React MD Editor wrapper, Next navigation, next-intl, api-client
  * @index_tags admin,notes,workspace,project-versions,categories,content-versions,autosave,responsive
  * @author holic512
@@ -73,6 +73,7 @@ type ProjectVersion = {
   status: number
   releaseId: string | null
   releaseHash: string | null
+  isEmpty?: boolean
   publishedAt: string | null
   isDeleted: boolean
 }
@@ -135,6 +136,7 @@ type MobilePane = 'tree' | 'versions' | 'content'
 type VersionDialog = {
   mode: 'create' | 'edit' | 'clone'
   sourceId?: string
+  targetVersionId?: string
   version: string
   description: string
   weight: number
@@ -156,15 +158,21 @@ export function getProjectVersionActions(projectId: string, version?: Pick<Proje
   if (!projectId) return []
   if (!version) return ['create']
   return version.publishedAt
-    ? ['create', 'clone', version.status === 1 ? 'hide' : 'show', 'copyHash', 'manifest', 'integrity']
+    ? ['create', 'edit', 'clone', version.status === 1 ? 'hide' : 'show', 'copyHash', 'manifest', 'integrity']
     : ['create', 'edit', 'publish', 'delete']
+}
+
+function changedFields(values: Record<string, unknown>, current?: object) {
+  if (!current) return values
+  const before = current as Record<string, unknown>
+  return Object.fromEntries(Object.entries(values).filter(([key, value]) => value !== before[key]))
 }
 
 export async function loadProjectVersions(projectId: string) {
   const list: ProjectVersion[] = []
   for (let page = 1; ; page += 1) {
     const data = await apiFetch<{ list: ProjectVersion[]; total: number }>(
-      `/api/admin/mm/projectVersion/byProject/${projectId}?page=${page}&pageSize=100&orderBy=id&order=asc`,
+      `/api/admin/mm/projectVersion/byProject/${projectId}?page=${page}&pageSize=100&orderBy=publishedAt&order=desc`,
     )
     list.push(...data.list)
     if (!data.list.length || list.length >= data.total) return { list }
@@ -215,7 +223,6 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
   })
   const deepParent = deepNoteQuery.data?.category?.projectVersion
   const currentProjectId = deepParent?.projectId || projectId
-  const currentVersionId = deepParent?.id || versionId
   const currentCategoryId = deepNoteQuery.data?.categoryId || selectedCategoryId
   const versionsQuery = useQuery({
     queryKey: ['admin-note-workspace-versions', currentProjectId],
@@ -223,6 +230,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
     queryFn: () => loadProjectVersions(currentProjectId),
   })
 
+  const currentVersionId = deepParent?.id || versionId || versionsQuery.data?.list[0]?.id || ''
   const selectedVersion = versionsQuery.data?.list.find((item) => item.id === currentVersionId)
   const readOnly = Boolean(selectedVersion?.publishedAt || (deepParent?.id === currentVersionId && deepParent.publishedAt))
 
@@ -329,7 +337,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
   })
 
   const openCategory = (category?: Category) => {
-    if (readOnly || !currentVersionId) return
+    if ((readOnly && !category) || !currentVersionId) return
     setEntityDialog({
       kind: 'category',
       mode: category ? 'edit' : 'create',
@@ -340,7 +348,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
     })
   }
   const openNote = (categoryId: string, note?: NoteInfo) => {
-    if (readOnly || !categoryId) return
+    if ((readOnly && !note) || !categoryId) return
     setSelectedCategoryId(categoryId)
     setEntityDialog({
       kind: 'note',
@@ -358,32 +366,34 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
     try {
       const editing = entityDialog.mode === 'edit'
       if (entityDialog.kind === 'category') {
+        const data = changedFields({
+          categoryName: entityDialog.name.trim(), weight: entityDialog.weight,
+          ...(!readOnly ? { status: entityDialog.status } : {}),
+          ...(editing ? {} : { projectVersionId: currentVersionId }),
+        }, editing ? categoriesQuery.data?.list.find(item => item.id === entityDialog.id) : undefined)
+        if (!Object.keys(data).length) { setEntityDialog(null); return }
         const saved = await apiFetch<Category>(
           editing ? `/api/admin/mm/category/${entityDialog.id}` : '/api/admin/mm/category',
           {
             method: editing ? 'PUT' : 'POST',
-            body: JSON.stringify({
-              categoryName: entityDialog.name.trim(),
-              weight: entityDialog.weight,
-              status: entityDialog.status,
-              ...(editing ? {} : { projectVersionId: currentVersionId }),
-            }),
+            body: JSON.stringify(data),
           },
         )
         await queryClient.invalidateQueries({ queryKey: ['admin-note-workspace-categories'] })
         setSelectedCategoryId(saved.id)
         router.replace(pageUrl(currentProjectId, currentVersionId, saved.id))
       } else {
+        const data = changedFields({
+          noteTitle: entityDialog.name.trim(), weight: entityDialog.weight,
+          ...(!readOnly ? { status: entityDialog.status } : {}),
+          ...(editing ? {} : { categoryId: currentCategoryId }),
+        }, editing ? notesQuery.data?.find(item => item.id === entityDialog.id) : undefined)
+        if (!Object.keys(data).length) { setEntityDialog(null); return }
         const saved = await apiFetch<NoteInfo>(
           editing ? `/api/admin/mm/note/${entityDialog.id}` : '/api/admin/mm/note',
           {
             method: editing ? 'PUT' : 'POST',
-            body: JSON.stringify({
-              noteTitle: entityDialog.name.trim(),
-              weight: entityDialog.weight,
-              status: entityDialog.status,
-              ...(editing ? {} : { categoryId: currentCategoryId }),
-            }),
+            body: JSON.stringify(data),
           },
         )
         await queryClient.invalidateQueries({ queryKey: ['admin-note-workspace-notes'] })
@@ -454,23 +464,24 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
   }
 
   const saveProjectVersion = async () => {
-    if (!versionDialog || !currentProjectId || !versionDialog.version.trim()) return
+    if (!versionDialog || !currentProjectId || (!versionDialog.targetVersionId && !versionDialog.version.trim())) return
     if (versionDialog.mode !== 'edit' && !(await confirmDiscard())) return
     setBusy(true)
     try {
       const { mode, sourceId } = versionDialog
+      const data = mode === 'clone' && versionDialog.targetVersionId ? { targetVersionId: versionDialog.targetVersionId } : changedFields({
+        ...(mode === 'create' ? { projectId: currentProjectId } : {}),
+        version: versionDialog.version.trim(), description: versionDialog.description.trim() || null,
+        weight: versionDialog.weight,
+      }, mode === 'edit' ? versionsQuery.data?.list.find(item => item.id === sourceId) : undefined)
+      if (!Object.keys(data).length) { setVersionDialog(null); return }
       const saved = await apiFetch<ProjectVersion>(
         mode === 'create' ? '/api/admin/mm/projectVersion'
           : mode === 'clone' ? `/api/admin/mm/projectVersion/${sourceId}/clone`
             : `/api/admin/mm/projectVersion/${sourceId}`,
         {
           method: mode === 'edit' ? 'PUT' : 'POST',
-          body: JSON.stringify({
-            ...(mode === 'create' ? { projectId: currentProjectId, status: 0 } : {}),
-            version: versionDialog.version.trim(),
-            description: mode === 'edit' ? versionDialog.description.trim() : versionDialog.description.trim() || null,
-            weight: versionDialog.weight,
-          }),
+          body: JSON.stringify(data),
         },
       )
       setVersionDialog(null)
@@ -587,15 +598,17 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
     setBusy(true)
     try {
       const editing = revisionDialog.mode === 'edit'
+      const data = changedFields({
+        ...(editing ? {} : { noteInfoId: selectedNoteId, content: '' }),
+        versionNote: revisionDialog.versionNote.trim() || null,
+        ...(!readOnly ? { status: revisionDialog.status } : {}),
+      }, editing ? contents.find(item => item.id === revisionDialog.id) : undefined)
+      if (!Object.keys(data).length) { setRevisionDialog(null); return }
       const saved = await apiFetch<NoteContent>(
         editing ? `/api/admin/mm/noteContent/${revisionDialog.id}` : '/api/admin/mm/noteContent',
         {
           method: editing ? 'PUT' : 'POST',
-          body: JSON.stringify({
-            ...(editing ? {} : { noteInfoId: selectedNoteId, content: '' }),
-            versionNote: revisionDialog.versionNote.trim() || null,
-            status: revisionDialog.status,
-          }),
+          body: JSON.stringify(data),
         },
       )
       setRevisionDialog(null)
@@ -655,14 +668,13 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
     .map((category) => `category:${category.id}`)
 
   const renderTreeActions = (category: Category, note?: NoteInfo) => {
-    if (readOnly) return null
     const item = note || category
     const kind = note ? 'note' : 'category'
     return (
       <span className="note-tree-actions" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
-        {!note && !item.isDeleted ? <Button type="text" size="small" title={t('createNote')} aria-label={t('createNote')} icon={<Plus size={14} />} onClick={() => openNote(category.id)} /> : null}
+        {!readOnly && !note && !item.isDeleted ? <Button type="text" size="small" title={t('createNote')} aria-label={t('createNote')} icon={<Plus size={14} />} onClick={() => openNote(category.id)} /> : null}
         {!item.isDeleted ? <Button type="text" size="small" title={t(`entityDialog.${kind}.edit`)} aria-label={t(`entityDialog.${kind}.edit`)} icon={<Pencil size={14} />} onClick={() => note ? openNote(category.id, note) : openCategory(category)} /> : null}
-        <Button type="text" size="small" title={t('delete')} aria-label={t('delete')} danger icon={<Trash2 size={14} />} onClick={() => void toggleEntityDeleted(kind, item)} />
+        <Button type="text" size="small" title={t('delete')} aria-label={t('delete')} danger disabled={readOnly} icon={<Trash2 size={14} />} onClick={() => void toggleEntityDeleted(kind, item)} />
       </span>
     )
   }
@@ -851,7 +863,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
                   <small>{item.status === 1 ? t('enabled') : t('disabled')} · {formatAdminDate(locale, item.updatedAt)}</small>
                 </button>
                 <span className="note-revision-actions">
-                  {!item.isDeleted ? <Button type="text" size="small" aria-label={t('revisionDialog.edit')} icon={<Pencil size={12} />} disabled={readOnly} onClick={() => setRevisionDialog({ mode: 'edit', id: item.id, versionNote: item.versionNote || '', status: item.status })} /> : null}
+                  {!item.isDeleted ? <Button type="text" size="small" aria-label={t('revisionDialog.edit')} icon={<Pencil size={12} />} onClick={() => setRevisionDialog({ mode: 'edit', id: item.id, versionNote: item.versionNote || '', status: item.status })} /> : null}
                   {!item.isDeleted && !item.isPrimary ? <Button type="text" size="small" aria-label={contentT('setPrimary')} icon={<Star size={12} />} disabled={readOnly} onClick={() => void updateRevision(item, { isPrimary: true })} /> : null}
                   <Button type="text" size="small" aria-label={t('delete')} danger icon={<Trash2 size={12} />} disabled={readOnly} onClick={() => void toggleRevisionDeleted(item)} />
                 </span>
@@ -888,24 +900,30 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
         </main>
       </div>
 
-      <Modal open={Boolean(versionDialog)} title={versionDialog?.mode === 'edit' ? vt('form.editTitle') : versionDialog?.mode === 'clone' ? vt('clone.title', { version: selectedVersion?.version || '' }) : t('versionDialog.title')} okText={versionDialog?.mode === 'create' ? t('create') : t('save')} cancelText={t('cancel')} confirmLoading={busy} okButtonProps={{ disabled: !versionDialog?.version.trim() }} onCancel={() => setVersionDialog(null)} onOk={() => void saveProjectVersion()}>
+      <Modal open={Boolean(versionDialog)} title={versionDialog?.mode === 'edit' ? vt('form.editTitle') : versionDialog?.mode === 'clone' ? vt('clone.title', { version: selectedVersion?.version || '' }) : t('versionDialog.title')} okText={versionDialog?.mode === 'create' ? t('create') : t('save')} cancelText={t('cancel')} confirmLoading={busy} okButtonProps={{ disabled: !versionDialog?.targetVersionId && !versionDialog?.version.trim() }} onCancel={() => setVersionDialog(null)} onOk={() => void saveProjectVersion()}>
         {versionDialog ? <div className="note-dialog-fields">
-          <label><span>{vt('form.version')}</span><Input value={versionDialog.version} maxLength={64} placeholder={t('versionDialog.placeholder')} onChange={(event) => setVersionDialog({ ...versionDialog, version: event.target.value })} /></label>
-          <label><span>{vt('form.description')}</span><Input.TextArea rows={3} value={versionDialog.description} onChange={(event) => setVersionDialog({ ...versionDialog, description: event.target.value })} /></label>
-          <label><span>{vt('form.weight')}</span><InputNumber value={versionDialog.weight} min={0} onChange={(value) => setVersionDialog({ ...versionDialog, weight: value ?? 0 })} /></label>
+          {versionDialog.mode === 'clone' ? <label><span>{vt('clone.destination')}</span><Select value={versionDialog.targetVersionId || ''} options={[
+            { value: '', label: vt('clone.newDraft') },
+            ...(versionsQuery.data?.list || []).filter((item) => !item.publishedAt && !item.isDeleted && item.isEmpty).map((item) => ({ value: item.id, label: item.version })),
+          ]} onChange={(value) => setVersionDialog({ ...versionDialog, targetVersionId: value || undefined })} /></label> : null}
+          {!versionDialog.targetVersionId ? <>
+            <label><span>{vt('form.version')}</span><Input value={versionDialog.version} maxLength={64} placeholder={t('versionDialog.placeholder')} onChange={(event) => setVersionDialog({ ...versionDialog, version: event.target.value })} /></label>
+            <label><span>{vt('form.description')}</span><Input.TextArea rows={3} value={versionDialog.description} onChange={(event) => setVersionDialog({ ...versionDialog, description: event.target.value })} /></label>
+            <label><span>{vt('form.weight')}</span><InputNumber value={versionDialog.weight} min={0} onChange={(value) => setVersionDialog({ ...versionDialog, weight: value ?? 0 })} /></label>
+          </> : null}
         </div> : null}
       </Modal>
       <Modal open={Boolean(entityDialog)} title={entityDialog ? t(`entityDialog.${entityDialog.kind}.${entityDialog.mode}`) : ''} okText={t('save')} cancelText={t('cancel')} confirmLoading={busy} okButtonProps={{ disabled: !entityDialog?.name.trim() }} onCancel={() => setEntityDialog(null)} onOk={() => void saveEntity()}>
         {entityDialog ? <div className="note-dialog-fields">
           <label><span>{entityDialog.kind === 'category' ? t('categoryName') : t('noteTitle')}</span><Input value={entityDialog.name} maxLength={entityDialog.kind === 'category' ? 64 : 255} onChange={(event) => setEntityDialog({ ...entityDialog, name: event.target.value })} /></label>
           <label><span>{t('weight')}</span><InputNumber value={entityDialog.weight} onChange={(value) => setEntityDialog({ ...entityDialog, weight: value || 0 })} /></label>
-          <label className="note-dialog-switch"><span>{t('enabled')}</span><Switch checked={entityDialog.status === 1} onChange={(checked) => setEntityDialog({ ...entityDialog, status: checked ? 1 : 0 })} /></label>
+          <label className="note-dialog-switch"><span>{t('enabled')}</span><Switch disabled={readOnly} checked={entityDialog.status === 1} onChange={(checked) => setEntityDialog({ ...entityDialog, status: checked ? 1 : 0 })} /></label>
         </div> : null}
       </Modal>
       <Modal open={Boolean(revisionDialog)} title={revisionDialog ? t(`revisionDialog.${revisionDialog.mode}`) : ''} okText={t('save')} cancelText={t('cancel')} confirmLoading={busy} onCancel={() => setRevisionDialog(null)} onOk={() => void saveRevision()}>
         {revisionDialog ? <div className="note-dialog-fields">
           <label><span>{t('revisionNote')}</span><Input value={revisionDialog.versionNote} maxLength={255} onChange={(event) => setRevisionDialog({ ...revisionDialog, versionNote: event.target.value })} /></label>
-          <label className="note-dialog-switch"><span>{t('enabled')}</span><Switch checked={revisionDialog.status === 1} onChange={(checked) => setRevisionDialog({ ...revisionDialog, status: checked ? 1 : 0 })} /></label>
+          <label className="note-dialog-switch"><span>{t('enabled')}</span><Switch disabled={readOnly} checked={revisionDialog.status === 1} onChange={(checked) => setRevisionDialog({ ...revisionDialog, status: checked ? 1 : 0 })} /></label>
         </div> : null}
       </Modal>
     </div>

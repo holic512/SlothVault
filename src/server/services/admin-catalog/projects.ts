@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Admin Project Administration
  * @description Implements project listing, creation, lookup, ordinary administration, MCP metadata boundaries, soft deletion, and batch actions.
- * @logic Build Prisma filters, map stable DTOs, atomically keep released project names and avatars outside MCP writes, invalidate public ordering changes, and translate missing records consistently.
+ * @logic Build Prisma filters, map stable DTOs, allow release-independent metadata edits through both admin surfaces, invalidate public ordering changes, and translate missing records consistently.
  * @dependencies server/prisma, server/http/errors, catalog values, catalog DTOs
  * @index_tags admin,catalog,project,crud,batch,mcp,metadata-boundary
  * @author holic512
@@ -14,6 +14,7 @@ import type { Prisma } from '@generated/prisma-postgresql/client'
 
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
+import { publishedVersionOrder } from '@/server/services/project-version-order'
 import { invalidatePublicProjectCache } from '@/server/services/public-project-cache'
 import { deleteProjectBatch, deleteTrashItem } from '@/server/services/admin-trash'
 
@@ -47,9 +48,9 @@ export async function listAdminProjects(query: ProjectListQuery) {
             publishedAt: { not: null },
             releaseId: { not: null },
             releaseHash: { not: null },
-            manifestVersion: 1,
+            manifestVersion: 2,
           },
-          orderBy: { weight: 'desc' },
+          orderBy: publishedVersionOrder,
           take: 1,
           include: {
             _count: {
@@ -127,7 +128,7 @@ export async function updateAdminProject(
 
   try {
     const project = await prisma.project.update({ where: { id }, data })
-    if (data.status !== undefined) await invalidatePublicProjectCache(id)
+    await invalidatePublicProjectCache(id)
     return projectDto(project)
   } catch (error) {
     if (hasPrismaCode(error, 'P2025')) throw new HttpError('Not Found', 404, 404)
@@ -160,41 +161,8 @@ export async function updateAdminProjectMetadataFromMcp(
   if (weight !== null) data.weight = weight
   if (Object.keys(data).length === 1) throw new HttpError('No fields to update', 400, 400)
 
-  const changesPublishedMetadata = data.projectName !== undefined || data.avatar !== undefined
-  const updated = await prisma.project.updateMany({
-    where: {
-      id,
-      isDeleted: false,
-      ...(changesPublishedMetadata
-        ? { versions: { none: { publishedAt: { not: null } } } }
-        : {}),
-    },
-    data,
-  })
-  if (updated.count !== 1) {
-    const project = await prisma.project.findUnique({
-      where: { id },
-      select: {
-        isDeleted: true,
-        versions: {
-          where: { publishedAt: { not: null } },
-          select: { id: true },
-          take: 1,
-        },
-      },
-    })
-    if (!project || project.isDeleted) throw new HttpError('Not Found', 404, 404)
-    if (changesPublishedMetadata && project.versions.length > 0) {
-      throw new HttpError('Published project name and avatar must be changed in the web admin', 409, 409, {
-        reason: 'PROJECT_METADATA_LIVE',
-        projectId: String(id),
-      })
-    }
-    throw new HttpError('Project metadata update conflict', 409, 409, {
-      reason: 'PROJECT_METADATA_WRITE_CONFLICT',
-      projectId: String(id),
-    })
-  }
+  const updated = await prisma.project.updateMany({ where: { id, isDeleted: false }, data })
+  if (updated.count !== 1) throw new HttpError('Not Found', 404, 404)
 
   const project = await prisma.project.findUnique({ where: { id } })
   if (!project) throw new HttpError('Not Found', 404, 404)

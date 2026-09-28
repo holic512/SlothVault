@@ -86,7 +86,7 @@ describe('note workspace revision controls', () => {
     const editButtons = buttons.filter((button) => button.includes('aria-label="revisionDialog.edit"'))
     expect(editButtons).toHaveLength(2)
     for (const button of editButtons) {
-      expect(button.includes('disabled=""')).toBe(published)
+      expect(button.includes('disabled=""')).toBe(false)
     }
     expect(html).toContain(published ? 'status.published' : 'status.draft')
     expect(html).not.toContain('quickVersion')
@@ -104,8 +104,8 @@ describe('note workspace revision controls', () => {
     expect(getProjectVersionActions('')).toEqual([])
     expect(getProjectVersionActions('2')).toEqual(['create'])
     expect(getProjectVersionActions('2', { publishedAt: null, status: 0 })).toEqual(['create', 'edit', 'publish', 'delete'])
-    expect(getProjectVersionActions('2', { publishedAt: '2026-09-23', status: 1 })).toEqual(['create', 'clone', 'hide', 'copyHash', 'manifest', 'integrity'])
-    expect(getProjectVersionActions('2', { publishedAt: '2026-09-23', status: 0 })).toEqual(['create', 'clone', 'show', 'copyHash', 'manifest', 'integrity'])
+    expect(getProjectVersionActions('2', { publishedAt: '2026-09-23', status: 1 })).toEqual(['create', 'edit', 'clone', 'hide', 'copyHash', 'manifest', 'integrity'])
+    expect(getProjectVersionActions('2', { publishedAt: '2026-09-23', status: 0 })).toEqual(['create', 'edit', 'clone', 'show', 'copyHash', 'manifest', 'integrity'])
   })
 
   it('loads every page of active versions in a stable order', async () => {
@@ -121,7 +121,7 @@ describe('note workspace revision controls', () => {
     expect(result.list).toHaveLength(101)
     expect(result.list[100].id).toBe('101')
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(fetchMock.mock.calls[0][0]).toContain('orderBy=id&order=asc')
+    expect(fetchMock.mock.calls[0][0]).toContain('orderBy=publishedAt&order=desc')
     expect(fetchMock.mock.calls[1][0]).toContain('page=2')
   })
 

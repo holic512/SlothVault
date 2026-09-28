@@ -330,13 +330,6 @@ export function validateBackupRelations(data: BackupData) {
     (item) => item.releaseId,
   )
   assertUniqueField(
-    'releaseHash',
-    data.projectVersions.filter(
-      (item): item is typeof item & { releaseHash: string } => item.releaseHash !== null,
-    ),
-    (item) => item.releaseHash,
-  )
-  assertUniqueField(
     'noteContent evidenceId',
     data.noteContents.filter(
       (item): item is typeof item & { evidenceId: string } => item.evidenceId !== null,

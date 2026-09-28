@@ -227,7 +227,7 @@ const projectVersionSchema = z.object({
   status: smallIntSchema,
   releaseId: z.string().uuid().nullable().optional().default(null),
   releaseHash: z.string().regex(/^[a-f0-9]{64}$/).nullable().optional().default(null),
-  manifestVersion: z.literal(1).nullable().optional().default(null),
+  manifestVersion: z.literal(2).nullable().optional().default(null),
   publishedAt: dateStringSchema.nullable().optional().default(null),
   createdAt: dateStringSchema,
   updatedAt: dateStringSchema,

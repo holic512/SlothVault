@@ -268,7 +268,7 @@ describe('database backup release compatibility', () => {
     })
     data.projectVersions.push({
       id: '2', projectId: '1', version: 'published', description: null, weight: 1, status: 1,
-      releaseId, releaseHash: 'a'.repeat(64), manifestVersion: 1, publishedAt: timestamp,
+      releaseId, releaseHash: 'a'.repeat(64), manifestVersion: 2, publishedAt: timestamp,
       createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
     })
     data.categories.push({
@@ -286,7 +286,7 @@ describe('database backup release compatibility', () => {
     data.releaseCredentials.push({
       id: '30', projectVersionId: '2', noteContentId: '5', issuerUserId: '7',
       subjectType: 'NOTE_CONTENT', subjectId: evidenceId, subjectHash: 'b'.repeat(64),
-      subjectManifestVersion: 1, network: 'devnet', signerAddress: '11111111111111111111111111111111',
+      subjectManifestVersion: 2, network: 'devnet', signerAddress: '11111111111111111111111111111111',
       memo: '{}', transactionSignature: null, status: 0, slot: null, blockTime: null,
       feeLamports: null, finalizedAt: null, lastVerifiedAt: null, createdAt: timestamp, updatedAt: timestamp,
     })
@@ -311,7 +311,7 @@ describe('database backup release compatibility', () => {
     })
     data.projectVersions.push({
       id: '2', projectId: '1', version: 'v2.2', description: null, weight: 1, status: 1,
-      releaseId, releaseHash: 'a'.repeat(64), manifestVersion: 1, publishedAt: timestamp,
+      releaseId, releaseHash: 'a'.repeat(64), manifestVersion: 2, publishedAt: timestamp,
       createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
     })
     data.releaseCredentials.push({
@@ -387,3 +387,19 @@ describe('database backup release compatibility', () => {
 })
 
 const releaseId = '550e8400-e29b-41d4-a716-446655440000'
+
+
+describe('content manifest v2 backup contract', () => {
+  it('allows repeated body hashes and keeps release IDs unique', () => {
+    const data = backupWithReservation()
+    data.projectVersions = [1, 2].map(id => ({
+      id: String(id), projectId: '1', version: `v${id}`, description: null, weight: 0,
+      status: 1, releaseId: `550e8400-e29b-41d4-a716-44665544000${id}`,
+      releaseHash: 'a'.repeat(64), manifestVersion: 2, publishedAt: timestamp,
+      createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
+    }))
+    expect(parseDatabaseImportPayload({ data, version: '2.7.0' }).data.projectVersions).toHaveLength(2)
+    data.projectVersions[1].releaseId = data.projectVersions[0].releaseId
+    expect(() => parseDatabaseImportPayload({ data, version: '2.7.0' })).toThrow(/releaseId/)
+  })
+})

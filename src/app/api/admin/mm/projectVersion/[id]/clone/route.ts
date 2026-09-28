@@ -18,10 +18,13 @@ import { parseDecimalId } from '@/server/services/admin-catalog'
 import { cloneProjectVersion } from '@/server/services/project-version-release'
 
 const cloneSchema = z.object({
-  version: z.string().trim().min(1).max(64),
+  version: z.string().trim().min(1).max(64).optional(),
+  targetVersionId: z.string().regex(/^\d+$/).optional(),
   description: z.string().nullable().optional(),
   weight: z.number().int().optional(),
-}).strict()
+}).strict().refine((value) => value.targetVersionId !== undefined
+  ? value.version === undefined && value.description === undefined && value.weight === undefined
+  : value.version !== undefined, { message: 'Choose a new version or an existing empty draft' })
 
 export const dynamic = 'force-dynamic'
 
@@ -29,5 +32,5 @@ export const POST = defineRoute<{ id: string }>(async (request, context) => {
   await requireAdminSession(request)
   const { id } = await context.params
   const body = await readJson(request, cloneSchema)
-  return apiOk(await cloneProjectVersion(parseDecimalId(id), body), 'created', 201)
+  return apiOk(await cloneProjectVersion(parseDecimalId(id), { ...body, targetVersionId: body.targetVersionId === undefined ? undefined : parseDecimalId(body.targetVersionId) }), 'created', body.targetVersionId ? 200 : 201)
 })

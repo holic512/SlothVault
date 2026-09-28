@@ -17,6 +17,7 @@ const sqliteMigrations = [
   '20260828000000_knowledge_package_import',
   '20260911000000_remove_knowledge_package_import',
   '20260923000000_content_trash',
+  '20260928000000_content_manifest_v2',
 ]
 
 function migrationSql(name: string) {
@@ -175,7 +176,7 @@ describe('SQLite provider bootstrap', () => {
     try {
       database.pragma('foreign_keys = ON')
       database.exec(readFileSync(resolve(process.cwd(), 'prisma/providers/sqlite/migrations/20260719000000_initial/migration.sql'), 'utf8'))
-      for (const migration of sqliteMigrations.slice(0, -2)) {
+      for (const migration of sqliteMigrations.slice(0, sqliteMigrations.indexOf('20260911000000_remove_knowledge_package_import'))) {
         database.exec(migrationSql(migration))
       }
 

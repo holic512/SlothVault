@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   noteContentUpdateMany: vi.fn(),
   executeVersionWrite: vi.fn(),
   lockDraftProjectVersions: vi.fn(),
+  lockProjectVersionMetadata: vi.fn(),
   projectVersionIdForNote: vi.fn(),
 }))
 
@@ -40,9 +41,12 @@ vi.mock('@/server/prisma', () => ({
 vi.mock('@/server/services/project-version-release', () => ({
   executeVersionWrite: mocks.executeVersionWrite,
   lockDraftProjectVersions: mocks.lockDraftProjectVersions,
+  lockProjectVersionMetadata: mocks.lockProjectVersionMetadata,
   projectVersionIdForCategory: vi.fn(),
   projectVersionIdForNote: mocks.projectVersionIdForNote,
 }))
+
+vi.mock('@/server/services/public-project-cache', () => ({ invalidatePublicProjectCache: vi.fn() }))
 
 import {
   getAdminNoteContent,

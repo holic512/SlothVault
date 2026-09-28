@@ -372,7 +372,8 @@ function assertToolPolicy(definition: McpToolDefinition, context: McpRequestCont
   if (context.principal.authentication !== 'mcp-api-key') {
     throw new HttpError('MCP API-key authentication is required', 401, 401)
   }
-  if (/(?:^|\.)(?:delete|restore|publish|withdraw|revoke|batch|reset|backup)$/.test(definition.name)) {
+  const contentLifecycle = ['content.project.version.publish', 'content.article.publish', 'content.article.withdraw'].includes(definition.name)
+  if (!contentLifecycle && /(?:^|\.)(?:delete|restore|publish|withdraw|revoke|batch|reset|backup)$/.test(definition.name)) {
     throw new HttpError(`Tool is blocked by MCP risk policy: ${definition.name}`, 403, 403)
   }
 }

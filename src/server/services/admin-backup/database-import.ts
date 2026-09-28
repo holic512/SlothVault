@@ -621,7 +621,7 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
       )
       const source = await loadReleaseTree(tx, mappedVersionId)
       if (!source) throw new Error('Imported project version mapping is missing')
-      const built = buildReleaseManifest(source, item.releaseId)
+      const built = buildReleaseManifest(source)
       if (built.issues.length > 0 || built.hash !== item.releaseHash) {
         throw new HttpError('Backup release integrity verification failed', 409, 409, {
           reason: 'BACKUP_RELEASE_INTEGRITY_FAILED',

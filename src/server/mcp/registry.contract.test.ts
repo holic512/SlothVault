@@ -40,9 +40,9 @@ function readToolMetadata() {
 }
 
 describe('MCP declaration registry contract', () => {
-  it('keeps the complete 55-tool registry unique and adapter-only', () => {
+  it('keeps the complete 61-tool registry unique and adapter-only', () => {
     const names = readToolNames()
-    expect(names).toHaveLength(55)
+    expect(names).toHaveLength(61)
     expect(new Set(names).size).toBe(names.length)
     const sdkToolRegistration = ['server', 'registerTool'].join('.')
     expect(readToolSource()).not.toContain(`${sdkToolRegistration}(`)
@@ -61,9 +61,9 @@ describe('MCP declaration registry contract', () => {
 
   it('declares metadata, schemas, and handlers for every Tool', () => {
     const source = readToolSource()
-    expect([...source.matchAll(/defineTool\(/g)]).toHaveLength(55)
-    expect([...source.matchAll(/inputSchema:/g)]).toHaveLength(55)
-    expect([...source.matchAll(/outputSchema:/g)]).toHaveLength(55)
+    expect([...source.matchAll(/defineTool\(/g)]).toHaveLength(61)
+    expect([...source.matchAll(/inputSchema:/g)]).toHaveLength(61)
+    expect([...source.matchAll(/outputSchema:/g)]).toHaveLength(61)
     expect(source).toContain('READ_ONLY_ANNOTATIONS')
     expect(source).toContain('CREATE_ANNOTATIONS')
     expect(source).toContain('UPDATE_ANNOTATIONS')
@@ -84,7 +84,7 @@ describe('MCP declaration registry contract', () => {
     const source = readToolSource()
     const wildcardRecord = ['z.record', '(z.string(), z.unknown())'].join('')
     expect(source).not.toContain(wildcardRecord)
-    for (const forbidden of ['.delete', '.restore', '.publish', '.revoke', '.batch']) {
+    for (const forbidden of ['.delete', '.restore', '.revoke', '.batch']) {
       expect(readToolNames().some((name) => name.endsWith(forbidden))).toBe(false)
     }
   })
@@ -111,7 +111,7 @@ describe('MCP declaration registry contract', () => {
 
   it('keeps the generated registry document current', () => {
     const document = fs.readFileSync(path.join(mcpDirectory, '..', '..', '..', 'docs', 'MCP_REGISTRY.md'), 'utf8')
-    expect(document).toContain('Tool count: **55**')
+    expect(document).toContain('Tool count: **61**')
     expect(document).toContain('Resource count: **2**')
     for (const { name, risk, idempotency } of readToolMetadata()) {
       const domain = name.split('.').slice(0, -1).join('.')

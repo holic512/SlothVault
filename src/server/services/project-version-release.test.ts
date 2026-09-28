@@ -14,7 +14,6 @@ import {
   type ReleaseTreeSource,
 } from '@/server/services/project-version-release'
 
-const releaseId = '550e8400-e29b-41d4-a716-446655440000'
 const timestamp = new Date('2026-09-14T00:00:00.000Z')
 
 function source(): ReleaseTreeSource {
@@ -87,10 +86,10 @@ function source(): ReleaseTreeSource {
   }
 }
 
-describe('project release manifest v1', () => {
-  it('emits fixed UTF-8 JSON bytes with null, quotes, CRLF, and stable duplicate ordering', () => {
-    const built = buildReleaseManifest(source(), releaseId)
-    const expected = '{"schema":1,"releaseId":"550e8400-e29b-41d4-a716-446655440000","version":{"label":"版本 \\"一\\"","description":null,"weight":12},"categories":[{"name":"相同","weight":7,"status":1,"notes":[{"title":"文档","weight":5,"status":1,"content":{"versionNote":"v2","status":1,"markdown":"不同正文"}}]},{"name":"相同","weight":7,"status":1,"notes":[{"title":"文档","weight":5,"status":1,"content":{"versionNote":null,"status":1,"markdown":"第一行\\r\\n第二行 \\"值\\""}}]}]}'
+describe('project release manifest v2', () => {
+  it('emits fixed UTF-8 JSON bytes with exact quotes, CRLF, and UTF-8 ordering', () => {
+    const built = buildReleaseManifest(source())
+    const expected = JSON.stringify({ schema: 2, contents: ['不同正文', '第一行\r\n第二行 "值"'] })
 
     expect(Buffer.from(built.bytes!).toString('utf8')).toBe(expected)
     expect(built.hash).toBe(createHash('sha256').update(expected, 'utf8').digest('hex'))
@@ -111,15 +110,37 @@ describe('project release manifest v1', () => {
       })
     })
 
-    expect(buildReleaseManifest(remapped, releaseId).hash).toBe(
-      buildReleaseManifest(original, releaseId).hash,
+    expect(buildReleaseManifest(remapped).hash).toBe(
+      buildReleaseManifest(original).hash,
     )
   })
 
-  it('changes the hash for the same logical content under another release identity', () => {
-    expect(buildReleaseManifest(source(), releaseId).hash).not.toBe(
-      buildReleaseManifest(source(), '550e8400-e29b-41d4-a716-446655440001').hash,
-    )
+  it('ignores editorial metadata, retains duplicates, and detects exact body changes', () => {
+    const baseline = source()
+    const changed = structuredClone(baseline)
+    changed.version = 'renamed'
+    changed.description = 'new description'
+    changed.weight = 999
+    changed.categories.reverse()
+    for (const category of changed.categories) {
+      category.categoryName = 'Renamed'
+      category.weight = 500
+      for (const note of category.noteInfos) {
+        note.noteTitle = 'New title'
+        note.weight = 100
+        note.contents[0].versionNote = 'Edited description'
+      }
+    }
+    expect(buildReleaseManifest(changed).hash).toBe(buildReleaseManifest(baseline).hash)
+    const note = baseline.categories[0].noteInfos[0]
+    baseline.categories[0].noteInfos.push(structuredClone(note))
+    expect(buildReleaseManifest(baseline).manifest?.contents).toHaveLength(3)
+    expect(buildReleaseManifest(baseline).hash).not.toBe(buildReleaseManifest(changed).hash)
+    for (const suffix of [' ', '\n', '![image](/new-link.png)']) {
+      const modified = source()
+      modified.categories[0].noteInfos[0].contents[0].content += suffix
+      expect(buildReleaseManifest(modified).hash).not.toBe(buildReleaseManifest(source()).hash)
+    }
   })
 
   it('excludes disabled nodes and non-primary content from the digest', () => {
@@ -135,8 +156,8 @@ describe('project release manifest v1', () => {
       isDeleted: false,
     })
 
-    expect(buildReleaseManifest(changed, releaseId).hash).toBe(
-      buildReleaseManifest(baseline, releaseId).hash,
+    expect(buildReleaseManifest(changed).hash).toBe(
+      buildReleaseManifest(baseline).hash,
     )
   })
 
@@ -145,7 +166,7 @@ describe('project release manifest v1', () => {
     invalid.categories[0].noteInfos[0].contents[0].status = 0
     invalid.categories[1].noteInfos = []
 
-    const built = buildReleaseManifest(invalid, releaseId)
+    const built = buildReleaseManifest(invalid)
     expect(built.bytes).toBeNull()
     expect(built.hash).toBeNull()
     expect(built.issues.map((item) => item.code)).toEqual([

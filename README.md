@@ -264,8 +264,10 @@ npm run build
 ## 文档
 
 - [数据库安装与迁移指南](./docs/DATABASE_INSTALLATION.md)
-- [发布 manifest 规范](./docs/RELEASE_MANIFEST_V1.md)
+- [发布 manifest 规范](./docs/RELEASE_MANIFEST_V2.md)
 
 ## 许可证
 
 SlothVault 自身源码采用 [MIT License](./LICENSE) 授权。第三方依赖按其各自许可证执行。
+
+管理员 MCP 支持项目版本发布、显示隐藏及文章发布与撤回。版本默认最近发布优先；发布后名称和说明可修改，正文变更需克隆草稿。可直接克隆到同项目完全空的已有草稿。配置与 Skill 更新步骤见 [SlothTool MCP 工作流](./docs/SLOTHTOOL_MCP_WORKFLOW_GUIDE.md)。

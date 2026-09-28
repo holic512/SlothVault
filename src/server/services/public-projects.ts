@@ -12,6 +12,7 @@ import 'server-only'
 
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
+import { publishedVersionOrder } from '@/server/services/project-version-order'
 
 export async function listPublicProjects() {
   const list = await prisma.project.findMany({
@@ -25,7 +26,7 @@ export async function listPublicProjects() {
           publishedAt: { not: null },
           releaseId: { not: null },
           releaseHash: { not: null },
-          manifestVersion: 1,
+          manifestVersion: 2,
         },
       },
     },
@@ -38,9 +39,9 @@ export async function listPublicProjects() {
           publishedAt: { not: null },
           releaseId: { not: null },
           releaseHash: { not: null },
-          manifestVersion: 1,
+          manifestVersion: 2,
         },
-        orderBy: { weight: 'desc' },
+        orderBy: publishedVersionOrder,
         take: 1,
         include: {
           _count: { select: { categories: { where: { isDeleted: false } } } },
@@ -141,9 +142,9 @@ export async function getProjectVersions(projectId: number) {
       publishedAt: { not: null },
       releaseId: { not: null },
       releaseHash: { not: null },
-      manifestVersion: 1,
+      manifestVersion: 2,
     },
-    orderBy: { weight: 'desc' },
+    orderBy: publishedVersionOrder,
     select: {
       id: true,
       version: true,
@@ -168,7 +169,7 @@ async function requireVersion(projectId: number, versionId: number) {
       publishedAt: { not: null },
       releaseId: { not: null },
       releaseHash: { not: null },
-      manifestVersion: 1,
+      manifestVersion: 2,
     },
     include: {
       project: { select: { isDeleted: true, status: true } },

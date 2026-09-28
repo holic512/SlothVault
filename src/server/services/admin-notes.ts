@@ -2,7 +2,7 @@
  * @file admin-notes.ts
  * @project SlothVault
  * @module Admin Notes
- * @description Owns draft-only note metadata, full or lightweight NoteContent queries, and serialized primary-version mutations for administration APIs and MCP.
+ * @description Owns editable note metadata and frozen published bodies, full or lightweight NoteContent queries, and serialized primary-version mutations for administration APIs and MCP.
  * @logic Keep history listings free of Markdown payloads, lock every owning project version before writes, lock cross-version moves in stable order, increment note revisions, and normalize undeleted contents to exactly one primary in the same serializable transaction.
  * @dependencies server/prisma, admin-catalog parsing, Prisma NoteInfo/NoteContent models, server/http/errors, project-version release service
  * @index_tags admin,mcp,notes,note-content,service,transaction,revision-lock,primary-version
@@ -15,6 +15,7 @@ import type { Prisma } from '@generated/prisma-postgresql/client'
 import { DOCUMENT_CONTENT_MAX_CHARACTERS } from '@/lib/document-content'
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
+import { invalidatePublicProjectCache } from '@/server/services/public-project-cache'
 import { deleteTrashItem } from '@/server/services/admin-trash'
 import {
   databaseTextContains,
@@ -26,6 +27,7 @@ import {
 import {
   executeVersionWrite,
   lockDraftProjectVersions,
+  lockProjectVersionMetadata,
   projectVersionIdForCategory,
   projectVersionIdForNote,
 } from '@/server/services/project-version-release'
@@ -212,7 +214,7 @@ export async function listAdminNotes(query: NoteListQuery) {
       publishedAt: { not: null },
       releaseId: { not: null },
       releaseHash: { not: null },
-      manifestVersion: 1,
+      manifestVersion: 2,
     }
     categoryWhere.projectVersion = query.projectId === undefined
       ? releaseWhere
@@ -345,7 +347,11 @@ export async function updateAdminNote(
 
   try {
     const note = await executeVersionWrite(async (tx) => {
-      await lockDraftProjectVersions(tx, [current.category.projectVersionId, targetVersionId])
+      for (const versionId of [...new Set([current.category.projectVersionId, targetVersionId])].sort((a, b) => a - b)) await lockProjectVersionMetadata(tx, versionId)
+      const before = await tx.noteInfo.findUniqueOrThrow({ where: { id } })
+      if (targetCategoryId !== current.categoryId || (data.status !== undefined && data.status !== before.status)) {
+        await lockDraftProjectVersions(tx, [current.category.projectVersionId, targetVersionId])
+      }
       const fresh = await tx.noteInfo.findUnique({
         where: { id },
         select: {
@@ -378,6 +384,7 @@ export async function updateAdminNote(
         include: { category: true },
       })
     })
+    await invalidatePublicProjectCache()
     return noteDto(note)
   } catch (error) {
     if (hasPrismaCode(error, 'P2025')) throw new HttpError('Not Found', 404, 404)
@@ -518,9 +525,9 @@ export async function updateNoteContent(id: number, input: UpdateNoteContentInpu
   })
   if (!reference) throw new HttpError('Not Found', 404, 404)
 
-  return executeVersionWrite(async (tx) => {
+  const result = await executeVersionWrite(async (tx) => {
     const projectVersionId = await projectVersionIdForNote(tx, reference.noteInfoId)
-    await lockDraftProjectVersions(tx, [projectVersionId])
+    await lockProjectVersionMetadata(tx, projectVersionId)
     if (await projectVersionIdForNote(tx, reference.noteInfoId) !== projectVersionId) {
       throw new HttpError('Note parent changed during content update', 409, 409, {
         reason: 'VERSION_WRITE_CONFLICT',
@@ -536,13 +543,18 @@ export async function updateNoteContent(id: number, input: UpdateNoteContentInpu
 
     if (current.isDeleted) throw new HttpError('Restore from the trash', 409, 409)
 
+    const changesBody = (input.content !== undefined && input.content !== current.content) ||
+      (input.status !== undefined && input.status !== current.status) ||
+      (input.isPrimary !== undefined && input.isPrimary !== current.isPrimary)
+    if (changesBody) await lockDraftProjectVersions(tx, [projectVersionId])
+
     const data: Prisma.NoteContentUpdateInput = { updatedAt: new Date() }
     if (input.content !== undefined) data.content = input.content
     if (input.versionNote !== undefined) data.versionNote = input.versionNote
     if (input.status !== undefined) data.status = input.status
 
     await tx.noteContent.update({ where: { id }, data })
-    await normalizePrimaryContent(
+    if (changesBody) await normalizePrimaryContent(
       tx,
       current.noteInfoId,
       {
@@ -552,6 +564,8 @@ export async function updateNoteContent(id: number, input: UpdateNoteContentInpu
 
     return tx.noteContent.findUniqueOrThrow({ where: { id } })
   })
+  await invalidatePublicProjectCache()
+  return result
 }
 
 export async function deleteNoteContent(id: number) {

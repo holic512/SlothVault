@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module MCP Workflow Prompts
  * @description Registers reusable administrator workflows for creating project drafts, organizing notes, and checking publication readiness.
- * @logic Return direct-execution instructions that reference only registered MCP tools, respect immutable releases, stop on exact project-name conflicts, and never publish or delete content.
+ * @logic Return direct-execution instructions that reference only registered MCP tools, respect immutable releases, stop on exact project-name conflicts, and publish only for a user-requested publication workflow.
  * @dependencies MCP TypeScript SDK, zod, mcp tool contracts
  * @index_tags mcp,prompts,workflow,project-draft,note-organization,preflight
  * @author holic512
@@ -38,7 +38,7 @@ export function registerAdminMcpPrompts(server: McpServer) {
       },
     },
     ({ projectName, version, description, outline }) => workflowMessage(`
-请直接执行 SlothVault 项目草稿创建工作流；MCP 客户端如配置了逐次 Tool 审批，则遵循客户端审批。
+请直接执行 SlothVault 项目草稿创建工作流；用户对整项任务的授权覆盖其中必要步骤，不逐项重复询问；仍遵守客户端权限。
 
 目标：
 - 项目名称：${JSON.stringify(projectName)}
@@ -68,7 +68,7 @@ export function registerAdminMcpPrompts(server: McpServer) {
       },
     },
     ({ projectVersionId, requirements }) => workflowMessage(`
-请直接整理 SlothVault 项目版本草稿 ${projectVersionId}；MCP 客户端如配置了逐次 Tool 审批，则遵循客户端审批。
+请直接整理 SlothVault 项目版本草稿 ${projectVersionId}；用户对整项任务的授权覆盖其中必要步骤，不逐项重复询问；仍遵守客户端权限。
 
 整理要求：${requirements === undefined ? '保持清晰的现有结构，修正明显缺失的正文和主版本关系。' : requirements}
 
@@ -78,7 +78,7 @@ export function registerAdminMcpPrompts(server: McpServer) {
 3. 对每个相关笔记调用 content.note.content.list_versions；只在确实需要理解或修改正文时调用 content.note.content.get，避免无谓加载大段历史正文。
 4. 根据整理要求，使用 content.category.create/content.category.update、content.note.create/content.note.update、content.note.content.create_draft/content.note.content.update_draft 完成结构和内容调整；需要改变展示正文时单独调用 content.note.content.set_primary。
 5. 优先更新已有实体，只有缺少对应结构时才创建；不得用近似标题猜测合并，不得制造重复分类或笔记。
-6. 任一 Tool 返回 VERSION_FROZEN 或其他冲突时立即停止并报告，不继续执行剩余写入。
+6. 遇到 VERSION_FROZEN 时先只读检查；若任务需要编辑已发布正文，克隆到指定空草稿或新草稿后继续，不在原版本重放写入。
 7. 不删除、不恢复、不发布、不撤回，也不改变发布版本可见性。完成后列出实际修改和新建的实体 ID。
 `.trim()),
   )
@@ -97,10 +97,27 @@ export function registerAdminMcpPrompts(server: McpServer) {
 
 执行规则：
 1. 调用 content.project.version.get，确认版本存在、未删除且 publishedAt 为 null；否则报告该版本不是可检查的草稿。
-2. 调用 content.project.version.check_draft。ready=true 时报告“当前读取时刻已通过发布就绪校验”；明确说明网页后台正式发布仍会在事务内重新校验。
+2. 调用 content.project.version.check_draft。ready=true 时报告“当前读取时刻已通过发布就绪校验”；正式发布工具仍会在事务内重新校验。
 3. ready=false 时，按 issues 的 code、entity、entityId 和 message 逐项解释。仅为定位问题而调用 content.project.get、content.category.list、content.note.list、content.note.get、content.note.content.list_versions 或 content.note.content.get。
 4. 给出按实体 ID 定位的修复建议，但不要调用任何写 Tool 自动修复。
 5. 不发布、不撤回、不删除、不恢复，也不改变项目或版本可见性。
 `.trim()),
   )
+  server.registerPrompt(
+    'workflow.publish_version',
+    {
+      title: '检查并发布项目版本',
+      description: '在用户已要求发布的任务中，完成发布前检查、正式发布和结果回查。',
+      argsSchema: { projectVersionId: decimalIdSchema },
+    },
+    ({ projectVersionId }) => workflowMessage(`
+仅在用户已要求发布此版本时执行以下流程；此 Prompt 本身不扩大用户授权。
+1. 用 content.project.version.get 读取版本 ${projectVersionId}；若已发布，直接回查完整性。
+2. 草稿先调用 content.project.version.check_draft。存在问题时解释具体原因，在已有编辑授权内修正后再检查。
+3. 校验通过后调用 content.project.version.publish；无需为已有授权重新逐项询问。
+4. 调用 content.project.version.integrity，并回查 content.project.version.get 和 content.project.list，核对发布状态、哈希和最新版本。
+5. 结果不明的网络失败先回查；不能确认是否成功时不重放非幂等写入。只报告实际结果和需要处理的问题。
+`.trim()),
+  )
+
 }

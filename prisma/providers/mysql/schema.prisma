@@ -258,7 +258,7 @@ model ProjectVersion {
   status           Int        @db.SmallInt
   documentRevision Int        @default(0) @map("document_revision")
   releaseId        String?    @unique(map: "uq_collections_project_version_release_id") @map("release_id") @db.Char(36)
-  releaseHash      String?    @unique(map: "uq_collections_project_version_release_hash") @map("release_hash") @db.Char(64)
+  releaseHash      String?    @map("release_hash") @db.Char(64)
   manifestVersion  Int?       @map("manifest_version")
   publishedAt      DateTime?  @map("published_at") @db.DateTime(3)
   createdAt        DateTime   @default(now()) @map("created_at") @db.DateTime(3)

@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { upgradeContentManifests } from './content-manifest-upgrade'
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
@@ -170,6 +171,7 @@ export async function upgradeConfiguredDatabaseSchema(connection: DatabaseConnec
       throw new DatabaseMigrationError('Installed database schema is newer than this application')
     }
     if (marker.schemaRevision < CURRENT_SCHEMA_REVISION) {
+      await upgradeContentManifests(client)
       await client.systemInstallation.update({
         where: { id: INSTALLATION_ROW_ID },
         data: { schemaRevision: CURRENT_SCHEMA_REVISION, updatedAt: new Date() },
