@@ -23,7 +23,12 @@ COPY prisma.config.ts ./
 COPY prisma ./prisma
 COPY scripts/generate-prisma.mjs ./scripts/generate-prisma.mjs
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --no-audit --no-fund
+    for attempt in 1 2 3; do \
+      npm ci --no-audit --no-fund && break; \
+      if [ "$attempt" = 3 ]; then exit 1; fi; \
+      echo "npm ci failed (attempt $attempt/3); retrying in 10 seconds"; \
+      sleep 10; \
+    done
 
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
