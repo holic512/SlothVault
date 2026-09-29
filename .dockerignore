@@ -31,3 +31,4 @@ tests
 playwright-report
 test-results
 deploy
+integrations

@@ -1,0 +1,32 @@
+{
+  "name": "@holic512/slothvault-runtime",
+  "version": "1.0.0",
+  "description": "SlothTool-managed SlothVault MCP client, Skill, and deployment runtime",
+  "type": "module",
+  "private": false,
+  "bin": {
+    "slothvault-mcp": "bin/slothvault-mcp.js",
+    "slothvault-runtime": "bin/slothvault-runtime.js"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "deploy",
+    "skills",
+    "npm-shrinkwrap.json",
+    "skill-release.json",
+    "runtime-contract.json"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "metadata:check": "node scripts/skill-metadata.js --check",
+    "prepack": "node scripts/skill-metadata.js --check"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0"
+  },
+  "license": "ISC"
+}

@@ -2,8 +2,8 @@
  * @file scripts/release-version.mjs
  * @project SlothVault
  * @module Release Version Resolution
- * @description Synchronizes and validates a deterministic package release version from the manually selected major component and first-parent Git history.
- * @logic Use the commit that introduced the current major as the epoch, map later first-parent commits to patch values 1 through 20 and then unbounded minor increments, write the next version before committing, validate the committed version in GitHub Actions, and derive a plain vM.m.p release tag.
+ * @description Synchronizes the application release version from first-parent commits that change application-owned files.
+ * @logic Exclude toolkit-only commits from the application sequence, then map the remaining commits to the existing patch/minor cycle and validate the committed version in Actions.
  * @dependencies Node.js node:child_process, node:fs/promises, Git
  * @index_tags release,version,semver,github-actions,git-history,docker
  * @author holic512
@@ -68,6 +68,23 @@ function git(args) {
   return execFileSync('git', args, { encoding: 'utf8' }).trim()
 }
 
+export function isApplicationChange(paths) {
+  return paths.some(file => file && !file.startsWith('integrations/') && file !== '.github/workflows/release-toolkit.yml')
+}
+
+function applicationCommitCount(baseline, commit) {
+  if (!baseline) return 0
+  const commits = git(['rev-list', '--first-parent', '--reverse', `${baseline}..${commit}`]).split('\n').filter(Boolean)
+  return commits.filter(sha => isApplicationChange(
+    git(['diff', '--name-only', `${sha}^1`, sha]).split('\n').filter(Boolean),
+  )).length
+}
+
+function pendingApplicationChange() {
+  const tracked = git(['diff', 'HEAD', '--name-only']).split('\n').filter(Boolean)
+  return isApplicationChange(tracked)
+}
+
 function packageVersionAtCommit(commit) {
   try {
     const packageJson = JSON.parse(git(['show', `${commit}:package.json`]))
@@ -95,10 +112,7 @@ export async function resolveReleaseIdentity({
   const packageVersion = parseSemanticVersion(packageJson.version)
 
   const baseline = findMajorVersionBaseline(packageVersionHistory(), packageVersion.major)
-  const commitsSinceBaseline = integerVersionPart(
-    git(['rev-list', '--first-parent', '--count', `${baseline}..${commit}`]),
-    'Commit count',
-  )
+  const commitsSinceBaseline = applicationCommitCount(baseline, commit)
   const version = releaseVersionForCommitCount(packageVersion.major, commitsSinceBaseline)
   if (packageJson.version !== version) {
     throw new Error(
@@ -132,10 +146,7 @@ export async function preparePackageVersion({
   }
 
   const commitsSinceBaseline = baseline
-    ? integerVersionPart(
-      git(['rev-list', '--first-parent', '--count', `${baseline}..${commit}`]),
-      'Commit count',
-    ) + 1
+    ? applicationCommitCount(baseline, commit) + (pendingApplicationChange() ? 1 : 0)
     : 0
   const version = releaseVersionForCommitCount(packageVersion.major, commitsSinceBaseline)
   packageJson.version = version

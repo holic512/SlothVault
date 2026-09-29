@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "name": "slothvault-mcp",
+  "skillVersion": "1.0.0",
+  "pluginVersion": "1.0.0",
+  "files": {
+    "SKILL.md": "c775af53b2078c5a85f1b5c2c0ed323460491b81e984912157ae7153e6d0afd3",
+    "agents/openai.yaml": "90b861bf01eb1df0536f104807961df486520a5c33d3cde23e7c38ebcdad87a7",
+    "references/project-materials.md": "b3b494f22be6c200bb7a03c3407d789b20c85248095dc0bd033d21bf01bdfc71"
+  }
+}

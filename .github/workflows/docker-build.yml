@@ -14,10 +14,16 @@ on:
     branches:
       - master
       - main
+    paths-ignore:
+      - 'integrations/**'
+      - '.github/workflows/release-toolkit.yml'
   push:
     branches:
       - master
       - main
+    paths-ignore:
+      - 'integrations/**'
+      - '.github/workflows/release-toolkit.yml'
 
 concurrency:
   group: docker-release-${{ github.ref }}

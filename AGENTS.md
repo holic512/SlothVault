@@ -16,7 +16,7 @@
 
 发布版本必须与 Git 提交一一对应，禁止依赖 GitHub Actions 在推送后回写版本号或创建额外版本提交。
 
-1. 每一次 `git commit` 前必须先执行 `npm run version:prepare`，将自动计算的版本写入 `package.json`，并将该文件与本次业务改动一同提交；推送前必须确认版本文件已暂存。
+1. 应用文件发生变更时，先暂存本次新增文件，再在 `git commit` 前执行 `npm run version:prepare`，将自动计算的应用版本写入根 `package.json` 并一同提交；仅修改 `integrations/` 或工具包发布 workflow 时不修改根版本。工具包使用自己的 `package.json` 版本与 `toolkit-v` 标签。
 2. 版本格式为 `major.minor.patch`。`major` 仅在需要发布新大版本时由开发者明确设置；将 `package.json` 改为新的 `M.0.0` 后执行版本同步，该提交即为新大版本的 `M.0.0` 起点。
-3. 同一大版本内，脚本按默认分支 first-parent 提交顺序自动递增 `patch`：`0` 至 `20`；超过 `20` 时 `minor` 加 `1`、`patch` 重置为 `0`。`minor` 不设上限，直到开发者指定新的 `major`。
+3. 同一大版本内，脚本按默认分支 first-parent 中包含应用文件变更的提交顺序自动递增 `patch`：`0` 至 `20`；超过 `20` 时 `minor` 加 `1`、`patch` 重置为 `0`。仅工具包变更的提交不计入应用版本。
 4. GitHub Actions 必须使用相同算法校验 `package.json`；版本不一致时必须失败且不得发布 Docker 镜像或 GitHub Release。Action 只校验和发布，不得自行写回 Git 历史，避免生成循环提交。
