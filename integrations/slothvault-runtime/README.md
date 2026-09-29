@@ -1,4 +1,6 @@
-# SlothVault external runtime
+# SlothVault legacy external runtime (migration fallback)
+
+This combined `toolkit-v*` package is no longer published. Its source remains for migration and rollback reference only. Active modules and their release contracts live under `integrations/mcp-client/`, `integrations/skill/`, `integrations/deployment/`, and `integrations/PROTOCOL.md`.
 
 This directory owns the administrator MCP client, `slothvault-mcp` command, Codex/Claude Code Skill, and Python deployment program. SlothTool owns the installation, unified update command, and user interface. The application server route and MCP registry stay under `src/server/mcp/` because they use Vault application services.
 

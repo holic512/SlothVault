@@ -67,9 +67,9 @@ APP_DATA_PATH=./data UPLOAD_STORAGE_PATH=./data/uploads npm run dev
 
 ### Docker Compose
 
-正式 Linux 部署由 SlothTool 的 `slothvault` 界面调用本仓库发布的工具运行包提供。运行包中的纯标准库 Python 部署程序不需要 SlothVault 源码目录；交互选择 SQLite、MySQL 或 PostgreSQL 后，会在部署根目录生成私有的 `/data/slothvault/compose.yml`，创建所选模式的持久化目录，拉取发布镜像并启动服务。首次 schema 初始化由应用自动完成；随后访问应用的 `/install` 页面创建首位管理员。
+正式 Linux 部署由 SlothTool 的 `sv` 界面调用本仓库独立发布的 Deployment Package。纯标准库 Python 部署程序也可从源码直接执行；交互选择 SQLite、MySQL 或 PostgreSQL 后，会在部署根目录生成私有的 `/data/slothvault/compose.yml`，创建所选模式的持久化目录，拉取发布镜像并启动服务。首次 schema 初始化由应用自动完成；随后访问应用的 `/install` 页面创建首位管理员。
 
-前置条件：Linux 已安装 Docker Engine、Docker Compose v2 与 Python 3.8+。SlothTool 插件不会尝试根据发行版自动安装 Docker。默认 `/data` 目录和 Nginx/证书配置需要管理员权限，建议从首次安装开始使用 `sudo`，后续 Docker 命令也使用同一权限级别。
+前置条件：Linux 已安装 Docker Engine、Docker Compose v2 与 Python 3.10+。SlothTool 插件不会尝试根据发行版自动安装 Docker。默认 `/data` 目录和 Nginx/证书配置需要管理员权限，建议从首次安装开始使用 `sudo`，后续 Docker 命令也使用同一权限级别。
 
 ```bash
 npm install -g @holic512/slothtool
@@ -224,9 +224,9 @@ flowchart LR
 
 ## 管理员 MCP
 
-系统内置管理员 MCP Streamable HTTP 入口 `POST /mcp`，通过独立、可撤销的管理员 MCP Key 鉴权，不复用网页 Cookie Session。MCP server `3.0.0` 的 Tool、Resource 和风险边界由声明式注册表统一管理，Prompt 引用受契约测试约束；完整清单见 [MCP Registry](./docs/MCP_REGISTRY.md)，接入方式见 [管理员 MCP 接入说明](./docs/MCP_ADMIN.md)。普通文件下载统一通过受保护 Resource URI，发布、撤回、删除、恢复、批量和其他高风险操作仍由网页后台确认。
+系统内置管理员 MCP Streamable HTTP 入口 `POST /mcp`，通过独立、可撤销的管理员 MCP Key 鉴权，不复用网页 Cookie Session。MCP server `3.1.0` 的 Tool、Resource 和风险边界由声明式注册表统一管理，Prompt 引用受契约测试约束；完整清单见 [MCP Registry](./docs/MCP_REGISTRY.md)，接入方式见 [管理员 MCP 接入说明](./docs/MCP_ADMIN.md)。普通文件下载统一通过受保护 Resource URI，发布、撤回、删除、恢复、批量和其他高风险操作仍由网页后台确认。
 
-对外工具集中在 [`integrations/slothvault-runtime/`](./integrations/slothvault-runtime/)，包含管理员 MCP 客户端、`slothvault-mcp` 命令、Skill 和部署程序。它使用独立的 `1.0.0` 起始版本，由 [toolkit Release 工作流](./.github/workflows/release-toolkit.yml)发布为 `toolkit-vX.Y.Z`，并随包提供锁定依赖、Skill 文件摘要和归档 SHA-256。SlothTool 负责下载、校验、安装和统一更新；仅修改运行包不递增应用版本，也不触发 Docker 镜像发布。应用内 `/mcp` 路由和注册表仍随业务服务留在 `src/server/mcp/`。
+对外集成拆分为独立的 [MCP Client](./integrations/mcp-client/)、[Skill](./integrations/skill/) 和 [Deployment](./integrations/deployment/) 包，分别使用 `mcp-client-v*`、`skill-v*` 和 `deployment-v*` Release。三个包各自从 `1.0.0` 起步，归档与清单包含独立版本、协议主版本及 SHA-256。Python MCP 脚本和部署脚本可从源码运行，Skill 可手动复制；SlothTool 负责统一安装、更新、TUI 和 `slothtool sv` 分发。受 Bearer Key 保护的 `GET /mcp/compatibility` 声明最低客户端版本与 MCP 协议支持范围。跨仓库架构、接口和更新步骤见 [integrations 文档](./integrations/ARCHITECTURE.md)。旧 `toolkit-v*` 整包不再发布。仅修改集成包不递增应用版本，也不触发 Docker 镜像发布；应用内 `/mcp` 路由和注册表仍随业务服务留在 `src/server/mcp/`。
 
 上传文件不进入 `public/`。数据库 JSON 与上传 ZIP 可独立导出、严格校验并恢复；备份包含账户、密码哈希、内容、积分、卡密哈希和存证索引，应按敏感数据管理。
 

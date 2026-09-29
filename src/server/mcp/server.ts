@@ -18,9 +18,13 @@ import { registerAdminMcpPrompts } from './prompts'
 import { registerAdminMcpResources } from './resources'
 import { registerAdminMcpTools } from './tools'
 
+export const ADMIN_MCP_SERVER_NAME = 'slothvault-admin-mcp'
+export const ADMIN_MCP_SERVER_VERSION = '3.1.0'
+export const MINIMUM_ADMIN_MCP_CLIENT_VERSION = '1.0.0'
+
 export function createAdminMcpServer(principal: McpPrincipal) {
   const server = new McpServer(
-    { name: 'slothvault-admin-mcp', version: '3.1.0' },
+    { name: ADMIN_MCP_SERVER_NAME, version: ADMIN_MCP_SERVER_VERSION },
     { capabilities: { logging: {} } },
   )
   registerAdminMcpTools(server, principal)

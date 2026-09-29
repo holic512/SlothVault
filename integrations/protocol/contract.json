@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "compatibilitySchema": 1,
+  "serverName": "slothvault-admin-mcp",
+  "minimumClientVersion": "1.0.0",
+  "modules": {
+    "mcp-client": {"protocolMajor": 2, "minPython": "3.10", "entry": "slothvault_mcp.py"},
+    "skill": {"protocolMajor": 1, "entry": "slothvault-mcp/SKILL.md"},
+    "deployment": {"protocolMajor": 1, "minPython": "3.10", "entry": "install.py"}
+  },
+  "storage": {
+    "config": "~/.pipker/slothtool/plugin-configs/slothvault.json",
+    "history": "~/.pipker/slothtool/data/slothvault/history.json",
+    "components": "~/.pipker/slothtool/runtimes/slothvault/components/<module>/releases/<version>"
+  }
+}

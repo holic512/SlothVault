@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "module": "deployment",
+  "version": "1.0.0",
+  "bridgeApiMajor": 1,
+  "minPython": "3.10"
+}

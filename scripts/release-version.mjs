@@ -69,7 +69,8 @@ function git(args) {
 }
 
 export function isApplicationChange(paths) {
-  return paths.some(file => file && !file.startsWith('integrations/') && file !== '.github/workflows/release-toolkit.yml')
+  const integrationWorkflow = /^\.github\/workflows\/release-(?:toolkit|vault-module|mcp-client|skill|deployment)\.yml$/
+  return paths.some(file => file && !file.startsWith('integrations/') && !integrationWorkflow.test(file))
 }
 
 function applicationCommitCount(baseline, commit) {

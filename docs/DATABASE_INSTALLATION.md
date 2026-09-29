@@ -14,7 +14,7 @@ SlothVault 的发布包同时包含 SQLite、MySQL 和 PostgreSQL 支持，但�
 
 ## Docker 部署
 
-发布版通过 SlothTool 的 `slothvault` 多功能插件运行内置部署包。该纯标准库 Python 3.8+ 部署程序运行在宿主机而不是应用容器中；它会选择 provider、生成唯一的 `/data/slothvault/compose.yml`、创建私有持久化目录，再调用已安装的 Docker Compose v2 拉取并启动发布镜像。插件不安装 Docker Engine，也不覆盖已有的 Compose 文件或非空数据目录。
+发布版通过 SlothTool 的 `sv` 插件运行独立 Deployment Package。该纯标准库 Python 3.10+ 部署程序运行在宿主机而不是应用容器中；它会选择 provider、生成唯一的 `/data/slothvault/compose.yml`、创建私有持久化目录，再调用已安装的 Docker Compose v2 拉取并启动发布镜像。插件不安装 Docker Engine，也不覆盖已有的 Compose 文件或非空数据目录。
 
 ```bash
 npm install -g @holic512/slothtool

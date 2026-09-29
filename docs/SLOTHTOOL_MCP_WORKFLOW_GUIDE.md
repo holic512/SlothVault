@@ -57,16 +57,17 @@ CLI 保留稳定分类和退出码，同时提供脱敏的 `reason`、实体 ID 
 
 ## Skill 版本与更新
 
-Skill 从 `1.0.0` 开始由本仓库 `integrations/slothvault-runtime/` 维护，与 MCP 客户端和部署程序一起发布在独立的 `toolkit-vX.Y.Z` Release。SlothTool 界面插件采用独立版本。工具包 Release 附带 Skill 版本、工具包版本和文件 SHA-256 摘要；SlothTool 校验归档完整性和适配协议后安装。
+Skill 从 `1.0.0` 开始由本仓库 `integrations/skill/` 独立维护和发布为 `skill-vX.Y.Z`。MCP Client 与 Deployment 分别使用 `mcp-client-vX.Y.Z`、`deployment-vX.Y.Z`；SlothTool 界面插件采用独立版本。每个 Release 附带模块版本、协议主版本、归档和逐文件 SHA-256；SlothTool 校验后安装。完整契约见 [集成协议](../integrations/PROTOCOL.md)。
 
 ```bash
-slothtool slothvault skill status --json
-slothtool slothvault skill status --check --json
-slothtool slothvault skill update
-slothtool slothvault skill update --local
+slothtool sv skill status --json
+slothtool sv skill status --check --json
+slothtool sv skill update
+slothtool sv skill update --local
+slothtool update slothvault --module skill --check --json
 slothtool update slothvault --check --json
 ```
 
-在线更新由 SlothTool 同时检查界面与 Vault 工具包版本，再同步新版 Skill。`--local` 仅使用当前已安装工具包修复受管 Skill 链接。当前和旧受管链接可同步；用户自定义文件保持原状并报告冲突。网络检查失败显示“未能检查”。`slothtool bundle slothvault` 只包含界面插件，用该归档安装时仍需联网取得 Vault 工具包。
+在线更新由 SlothTool 分别检查界面与三个 Vault 包版本，再同步新版 Skill。`--local` 仅使用当前已安装 Skill 包修复受管链接。当前和旧受管链接可同步；用户自定义文件保持原状并报告冲突。网络检查失败显示“未能检查”。`slothtool bundle slothvault` 只包含界面插件，用该归档安装时仍需联网取得三个 Vault 包。
 
 正文哈希的字节规则、元数据边界和数据库升级方式参见 [Manifest v2](./RELEASE_MANIFEST_V2.md)。

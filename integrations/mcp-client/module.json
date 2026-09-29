@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "module": "mcp-client",
+  "version": "1.0.0",
+  "bridgeApiMajor": 2,
+  "minPython": "3.10",
+  "serverName": "slothvault-admin-mcp"
+}

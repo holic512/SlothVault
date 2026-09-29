@@ -1,0 +1,99 @@
+# @file release-vault-module.yml
+# @project SlothVault
+# @module Independent integration release
+# @description Validates and publishes one Vault-owned module as its own GitHub Release.
+# @logic Run module checks, enforce version-tag identity, package with hashes, and publish factual notes.
+# @dependencies GitHub Actions, Python, integrations/scripts/package_module.py
+# @index_tags release,mcp-client,skill,deployment
+# @author holic512
+
+name: Release one Vault integration module
+
+on:
+  workflow_call:
+    inputs:
+      module:
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+      - name: Validate shared integration contract
+        run: python integrations/scripts/validate_protocol.py
+      - name: Install locked MCP Client dependencies
+        if: inputs.module == 'mcp-client'
+        run: python -m pip install --disable-pip-version-check --require-hashes --index-url https://pypi.org/simple -r integrations/mcp-client/requirements.lock
+      - name: Validate MCP Client
+        if: inputs.module == 'mcp-client'
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s integrations/mcp-client/tests
+          PYTHONDONTWRITEBYTECODE=1 python integrations/mcp-client/slothvault_mcp.py --version --json
+      - name: Validate Skill
+        if: inputs.module == 'skill'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path('integrations/skill')
+          version = json.loads((root / 'module.json').read_text())['version']
+          skill = (root / 'slothvault-mcp/SKILL.md').read_text()
+          assert f'version: "{version}"' in skill
+          assert 'slothvault-mcp' in skill
+          PY
+      - name: Validate deployment
+        if: inputs.module == 'deployment'
+        run: PYTHONDONTWRITEBYTECODE=1 python integrations/deployment/tests/deploy_installer_test.py
+      - name: Resolve immutable tag
+        id: version
+        env:
+          MODULE: ${{ inputs.module }}
+        run: |
+          set -euo pipefail
+          version="$(python -c 'import json,os; print(json.load(open("integrations/"+os.environ["MODULE"]+"/module.json"))["version"])')"
+          tag="${MODULE}-v${version}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+            if git diff --quiet "${tag}" HEAD -- "integrations/${MODULE}" ":(exclude)integrations/${MODULE}/CHANGELOG.md" ":(exclude)integrations/${MODULE}/README.md" ":(exclude)integrations/${MODULE}/tests/**"; then
+              echo "publish=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "Packaged ${MODULE} content changed without advancing its version" >&2
+              exit 1
+            fi
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build archive, manifest, and release notes
+        env:
+          MODULE: ${{ inputs.module }}
+        run: |
+          set -euo pipefail
+          case "$MODULE" in
+            mcp-client) module_check='Python MCP Client unit tests and source entry' ;;
+            skill) module_check='Skill metadata and content validation' ;;
+            deployment) module_check='Python Deployment tests' ;;
+            *) echo "Unknown module: $MODULE" >&2; exit 1 ;;
+          esac
+          python integrations/scripts/package_module.py "$MODULE" --outdir "dist/$MODULE" --commit "$GITHUB_SHA" --check "Integration contract validation" --check "$module_check" --check "Archive and manifest SHA-256 self-check"
+          cat "dist/$MODULE/slothvault-$MODULE-release-notes.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish independent Release
+        if: github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch && steps.version.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODULE: ${{ inputs.module }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" "dist/$MODULE/slothvault-$MODULE-$VERSION.tgz" "dist/$MODULE/slothvault-$MODULE-manifest.json" --repo "${{ github.repository }}" --target "$GITHUB_SHA" --title "SlothVault $MODULE $VERSION" --notes-file "dist/$MODULE/slothvault-$MODULE-release-notes.md"

@@ -1,0 +1,4 @@
+{"type":"progress","phase":"inspect"}
+{"type":"snapshot","data":{"state":"managed","appVersion":"2.4.10"}}
+{"type":"prompt","label":"Database password","secret":true}
+{"type":"done","code":0}

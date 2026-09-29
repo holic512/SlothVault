@@ -1,0 +1,15 @@
+name: Release SlothVault MCP Client
+on:
+  pull_request:
+    paths: ['integrations/mcp-client/**', 'integrations/protocol/**', 'integrations/scripts/**', '.github/workflows/release-mcp-client.yml', '.github/workflows/release-vault-module.yml']
+  push:
+    branches: [master, main]
+    paths: ['integrations/mcp-client/**', 'integrations/protocol/**', 'integrations/scripts/**', '.github/workflows/release-mcp-client.yml', '.github/workflows/release-vault-module.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  release:
+    uses: ./.github/workflows/release-vault-module.yml
+    with:
+      module: mcp-client

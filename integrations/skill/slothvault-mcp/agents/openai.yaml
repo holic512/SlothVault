@@ -1,0 +1,7 @@
+interface:
+  display_name: "SlothVault MCP"
+  short_description: "Safely operate the SlothVault administrator MCP"
+  default_prompt: "Use $slothvault-mcp to inspect my configured SlothVault MCP and safely complete the requested operation."
+
+policy:
+  allow_implicit_invocation: true
