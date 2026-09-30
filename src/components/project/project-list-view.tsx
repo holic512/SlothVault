@@ -1,7 +1,7 @@
 'use client'
 
 import { Card, Empty, Typography } from 'antd'
-import { ArrowUpRight, CalendarClock, FolderTree } from 'lucide-react'
+import { ArrowUpRight, CalendarClock, FolderTree, GitBranch } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import Link from 'next/link'
 
@@ -60,12 +60,13 @@ export function ProjectListView({
                   <Typography.Paragraph type="secondary" ellipsis={{ rows: 2 }}>
                     {project.latestVersionDesc || t('fallbackDescription')}
                   </Typography.Paragraph>
-                  <div className="project-card-edition">
+                  <div className="project-card-edition" data-state={project.latestVersion ? 'versioned' : 'unversioned'}>
+                    <GitBranch size={13} aria-hidden="true" />
                     {project.latestVersion ? t('version', { version: project.latestVersion }) : t('unversioned')}
                   </div>
                   <div className="project-card-meta">
-                    <span><FolderTree size={14} />{project.categoryCount} {t('categories')}</span>
-                    <span><CalendarClock size={14} />{new Date(project.updatedAt).toLocaleDateString(dateLocale)}</span>
+                    <span className="project-card-categories" data-empty={project.categoryCount === 0}><FolderTree size={14} aria-hidden="true" />{project.categoryCount} {t('categories')}</span>
+                    <span className="project-card-updated"><CalendarClock size={14} aria-hidden="true" />{new Date(project.updatedAt).toLocaleDateString(dateLocale)}</span>
                   </div>
                 </Card>
               </Link>

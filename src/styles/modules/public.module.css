@@ -117,6 +117,12 @@
   text-decoration: none;
 }
 
+.root :global(.project-card-link):focus-visible {
+  outline: 2px solid var(--sv-project-version);
+  outline-offset: 4px;
+  border-radius: var(--sv-radius);
+}
+
 .root :global(.project-library-card) {
   height: 100%;
   overflow: hidden;
@@ -152,13 +158,12 @@
   height: 44px;
   overflow: hidden;
   place-items: center;
-  border: 1px solid var(--sv-border);
-  background: var(--sv-bg-soft);
+  border: 1px solid color-mix(in srgb, var(--sv-project-avatar) 20%, var(--sv-border));
+  background: color-mix(in srgb, var(--sv-project-avatar) 8%, var(--sv-bg-solid));
   font-size: 20px;
   font-weight: 600;
   border-radius: 8px;
-  color: var(--sv-text);
-  filter: grayscale(1);
+  color: var(--sv-project-avatar);
 }
 
 .root :global(.project-card-avatar) img {
@@ -179,9 +184,9 @@
 }
 
 .root :global(.project-library-card):hover :global(.project-card-arrow) {
-  border-color: var(--sv-text);
-  background: var(--sv-text);
-  color: var(--sv-bg-solid);
+  border-color: color-mix(in srgb, var(--sv-project-version) 30%, var(--sv-border));
+  background: color-mix(in srgb, var(--sv-project-version) 10%, var(--sv-bg-solid));
+  color: var(--sv-project-version);
 }
 
 .root :global(.project-library-card) h3:global(.ant-typography) {
@@ -227,6 +232,22 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
+}
+
+.root :global(.project-card-categories) {
+  padding: 3px 7px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--sv-project-category) 8%, var(--sv-bg-solid));
+  color: var(--sv-project-category);
+}
+
+.root :global(.project-card-categories)[data-empty='true'] {
+  background: var(--sv-bg-soft);
+  color: var(--sv-text-muted);
+}
+
+.root :global(.project-card-updated) svg {
+  color: var(--sv-project-updated);
 }
 
 .root :global(.articles-main) {
@@ -562,10 +583,27 @@
 }
 
 .root :global(.project-card-edition) {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 5px;
   margin-top: auto;
   margin-bottom: 14px;
-  color: var(--sv-text-muted);
+  padding: 4px 8px;
+  border: 1px solid color-mix(in srgb, var(--sv-project-version) 20%, var(--sv-bg-solid));
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--sv-project-version) 8%, var(--sv-bg-solid));
+  color: var(--sv-project-version);
   font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.root :global(.project-card-edition)[data-state='unversioned'] {
+  border-color: var(--sv-border);
+  background: var(--sv-bg-soft);
+  color: var(--sv-text-muted);
 }
 
 .root :global(.account-loading) {

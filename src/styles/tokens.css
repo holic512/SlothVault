@@ -29,6 +29,10 @@
   --sv-danger: #8f3030;
   --sv-success: #17843b;
   --sv-warning: #9a6700;
+  --sv-project-version: #1d4ed8;
+  --sv-project-category: #6d28d9;
+  --sv-project-updated: #b45309;
+  --sv-project-avatar: #0f766e;
   --sv-code-bg: #0c0e12;
   --sv-code-text: #e8edf3;
   --sv-shadow: 0 22px 70px rgb(20, 20, 20, 8%);
@@ -94,6 +98,10 @@
   --sv-danger: #d98b8b;
   --sv-success: #4ade80;
   --sv-warning: #facc15;
+  --sv-project-version: #93c5fd;
+  --sv-project-category: #c4b5fd;
+  --sv-project-updated: #fcd34d;
+  --sv-project-avatar: #5eead4;
   --sv-code-bg: #090b0e;
   --sv-code-text: #e8edf3;
   --sv-shadow: 0 28px 90px rgb(0, 0, 0, 48%);
