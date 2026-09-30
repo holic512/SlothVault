@@ -160,13 +160,11 @@ export function FilesManager() {
     {
       title: t('table.preview'),
       width: 82,
-      render: (_value, row) =>
-        isImage(row) ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img className="file-preview-thumb" src={row.url} alt="" />
-        ) : (
-          <span className="file-preview-fallback"><FileArchive size={20} /></span>
-        ),
+      render: (_value, row) => (
+        <span className="file-preview-fallback">
+          {isImage(row) ? <FileImage size={20} /> : <FileArchive size={20} />}
+        </span>
+      ),
     },
     { title: t('table.originalName'), dataIndex: 'originalName', minWidth: 230, ellipsis: true },
     {
@@ -232,7 +230,7 @@ export function FilesManager() {
   ]
 
   return (
-    <AdminPage>
+    <AdminPage className="admin-files-page">
       <AdminPageActions>
         <Space>
           <Button icon={<RefreshCw size={15} />} onClick={() => void refresh()}>
@@ -282,7 +280,7 @@ export function FilesManager() {
       <div className="admin-table-card">
         <Table
           rowKey="id"
-          scroll={{ x: 1050 }}
+          scroll={{ x: 1050, y: '100%' }}
           loading={listQuery.isLoading}
           dataSource={listQuery.data?.list || []}
           columns={columns}

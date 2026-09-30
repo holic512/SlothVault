@@ -551,6 +551,29 @@
   overflow: auto;
 }
 
+.root :global(.admin-files-page) {
+  overflow: hidden;
+}
+
+.root :global(.admin-files-page) > :global(.admin-page-actions),
+.root :global(.admin-files-page) > :global(.admin-toolbar-card),
+.root :global(.admin-files-page .ant-table-header) {
+  flex: 0 0 auto;
+}
+
+.root :global(.admin-files-page .ant-table-body) {
+  min-height: 0;
+  flex: 1 1 0;
+  overscroll-behavior: contain;
+}
+
+.root :global(.admin-files-page .ant-table-wrapper) > :global(.ant-spin) {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
 .root :global(.admin-table-card) :global(.ant-table-thead > tr > th) {
   position: sticky;
   top: 0;
@@ -740,17 +763,6 @@
   border: 1px solid var(--sv-admin-border);
   border-radius: var(--sv-admin-radius);
   background: var(--sv-bg-elevated);
-}
-
-.root :global(.file-preview-thumb) {
-  display: grid;
-  width: 36px;
-  height: 36px;
-  place-items: center;
-  border: 1px solid var(--sv-admin-border);
-  border-radius: var(--sv-admin-radius);
-  background: var(--sv-bg-soft);
-  object-fit: cover;
 }
 
 .root :global(.file-preview-fallback) {
