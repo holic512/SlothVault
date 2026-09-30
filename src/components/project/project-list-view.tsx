@@ -34,10 +34,13 @@ export function ProjectListView({
     <div className={`${publicStyles.root} public-page projects-page`}>
       <PublicNavbar branding={branding} />
       <main className="projects-main content-container">
-        <div className="projects-heading">
-          <Typography.Text className="projects-kicker">Library</Typography.Text>
-          <Typography.Title>{t('title')}</Typography.Title>
-        </div>
+        <header className="public-list-heading">
+          <div>
+            <h1>{t('title')}</h1>
+            <p>{t('description')}</p>
+          </div>
+          <span className="public-list-count">{t('count', { count: projects.length })}</span>
+        </header>
 
         {projects.length ? (
           <div className="project-grid">
@@ -55,10 +58,10 @@ export function ProjectListView({
                   </div>
                   <Typography.Title level={3}>{project.projectName}</Typography.Title>
                   <Typography.Paragraph type="secondary" ellipsis={{ rows: 2 }}>
-                    {project.latestVersionDesc || 'A versioned SlothVault document collection.'}
+                    {project.latestVersionDesc || t('fallbackDescription')}
                   </Typography.Paragraph>
                   <div className="project-card-edition">
-                    {project.latestVersion ? `Edition ${project.latestVersion}` : 'Living collection'}
+                    {project.latestVersion ? t('version', { version: project.latestVersion }) : t('unversioned')}
                   </div>
                   <div className="project-card-meta">
                     <span><FolderTree size={14} />{project.categoryCount} {t('categories')}</span>

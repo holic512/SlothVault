@@ -10,7 +10,12 @@
     "mobileNavigation": "Mobile navigation"
   },
   "ProjectsPage": {
-    "title": "Public Project Library",
+    "title": "Projects",
+    "description": "Browse project documentation and release notes.",
+    "count": "{count} projects",
+    "fallbackDescription": "Project documentation and release notes.",
+    "version": "Version {version}",
+    "unversioned": "No version yet",
     "loading": "Loading...",
     "error": "Failed to load, please try again later",
     "empty": "No public projects yet",

@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Public Article Archive View
  * @description Renders a cover-led editorial archive with a featured lead story and compact responsive article cards.
- * @logic Promote the first article on the current page, preserve chronological numbering, provide cover fallbacks, and expose simple canonical pagination.
+ * @logic Promote the first article on the current page, display publication dates, provide cover fallbacks, and expose simple canonical pagination.
  * @dependencies Next links, next-intl/server, ArticleCover, PublicNavbar
  * @index_tags article,archive,editorial,public,responsive
  * @author holic512
@@ -43,19 +43,17 @@ export async function PublicArticleListView({
   const [locale, t] = await Promise.all([getLocale(), getTranslations('ArticlesPage')])
   const dateLocale = locale === 'zh' ? 'zh-CN' : 'en-US'
   const [featured, ...rest] = articles
-  const numberOffset = (page - 1) * 12
 
   return (
     <div className={`${publicStyles.root} public-page articles-page`}>
       <PublicNavbar branding={branding} />
       <main className="articles-main content-container">
-        <header className="articles-masthead">
+        <header className="public-list-heading">
           <div>
-            <span className="articles-kicker">Journal / {new Date().getFullYear()}</span>
             <h1>{t('title')}</h1>
+            <p>{t('description')}</p>
           </div>
-          <p>{t('description')}</p>
-          <span className="articles-count">{t('count', { count: total })}</span>
+          <span className="public-list-count">{t('count', { count: total })}</span>
         </header>
 
         {featured ? (
@@ -65,7 +63,6 @@ export async function PublicArticleListView({
                 <ArticleCover cover={featured.cover} title={featured.title} className="article-feature-cover" eager />
                 <div className="article-feature-copy">
                   <div className="article-card-folio">
-                    <span>{String(numberOffset + 1).padStart(2, '0')}</span>
                     <time>{new Date(featured.publishedAt).toLocaleDateString(dateLocale)}</time>
                   </div>
                   <h2>{featured.title}</h2>
@@ -78,13 +75,12 @@ export async function PublicArticleListView({
 
             {rest.length ? (
               <div className="article-grid">
-                {rest.map((article, index) => (
+                {rest.map((article) => (
                   <Link key={article.id} href={`/articles/${article.id}`} className="article-card-link">
                     <article className="article-card">
                       <ArticleCover cover={article.cover} title={article.title} className="article-card-cover" />
                       <div className="article-card-copy">
                         <div className="article-card-folio">
-                          <span>{String(numberOffset + index + 2).padStart(2, '0')}</span>
                           <time>{new Date(article.publishedAt).toLocaleDateString(dateLocale)}</time>
                         </div>
                         <h2>{article.title}</h2>
@@ -99,7 +95,6 @@ export async function PublicArticleListView({
           </>
         ) : (
           <section className="articles-empty">
-            <span>00</span>
             <h2>{t('emptyTitle')}</h2>
             <p>{t('emptyDescription')}</p>
           </section>
