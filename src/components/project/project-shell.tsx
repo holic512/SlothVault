@@ -5,8 +5,8 @@
  * @project SlothVault
  * @module Public Project Shell
  * @description Provides the public article-collection layout and interactive navigation around server-rendered reading routes.
- * @logic Receive cached published metadata, place project-specific content inside the shared public navigation shell, and handle version switching and mobile menus.
- * @dependencies Ant Design, Next navigation, project context, navigation-shell
+ * @logic Render shared localized built-in destinations alongside custom menus, identify active reading routes, and handle version switching and mobile menus.
+ * @dependencies Ant Design, Next navigation, next-intl, project context, navigation-shell, project-navigation
  * @index_tags project-layout,public-reading,navigation,server-data,web2
  * @author holic512
  */
@@ -16,6 +16,7 @@ import { Button, Drawer, Dropdown, Select } from 'antd'
 import { ChevronDown, Library, Menu } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 
 import {
   type ProjectMenu,
@@ -26,6 +27,7 @@ import { NavigationShell } from '@/components/shell/navigation-shell'
 import { ThemeControls } from '@/components/theme/theme-controls'
 import { AccountNav } from '@/components/auth/account-nav'
 import projectStyles from '@/styles/modules/project.module.css'
+import { getBuiltinProjectNavigation, isBuiltinProjectNavigationActive } from '@/lib/project-navigation'
 
 export function ProjectShell({
   projectId,
@@ -74,6 +76,9 @@ function ProjectNavigation({
   onVersionChange: (value: string) => void
 }) {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const t = useTranslations('ProjectNavigation')
+  const builtinLinks = getBuiltinProjectNavigation(projectId)
+  const docsActive = isBuiltinProjectNavigationActive('docs', projectId, pathname)
   const versionMatch = pathname.match(/\/v\/([^/]+)/)
   const currentVersion = versionMatch?.[1]
   const resolveUrl = (url: string | null) => {
@@ -98,12 +103,14 @@ function ProjectNavigation({
         }
         links={
           <>
-            <Link className={pathname.endsWith('/home') ? 'is-active' : ''} href={`/project/${projectId}/home`}>
-              Home
-            </Link>
-            <Link className={pathname.includes('/docs') ? 'is-active' : ''} href={`/project/${projectId}/docs`}>
-              Docs
-            </Link>
+            {builtinLinks.map((entry) => {
+              const active = isBuiltinProjectNavigationActive(entry.key, projectId, pathname)
+              return (
+                <Link key={entry.key} className={active ? 'is-active' : ''} aria-current={active ? 'page' : undefined} href={entry.href}>
+                  {t(entry.translationKey)}
+                </Link>
+              )
+            })}
             {menus.map((menu) =>
               menu.children.length ? (
                 <Dropdown
@@ -131,21 +138,22 @@ function ProjectNavigation({
         }
         actions={
           <>
-            {pathname.includes('/docs') && versions.length ? (
+            {docsActive && versions.length ? (
               <Select
                 className="project-version-select"
+                aria-label={t('version')}
                 value={currentVersion || versions[0]?.id}
                 options={versions.map((version) => ({ label: version.version, value: version.id }))}
                 onChange={onVersionChange}
                 suffixIcon={<ChevronDown size={13} />}
               />
             ) : null}
-            <Button className="project-nav-library" aria-label="Project library" icon={<Library size={16} />} href="/project/projectList" />
+            <Button className="project-nav-library" aria-label={t('library')} icon={<Library size={16} />} href="/project/projectList" />
             <AccountNav compact />
             <ThemeControls />
             <Button
               className="navigation-menu project-nav-menu"
-              aria-label="Open project navigation"
+              aria-label={t('openMenu')}
               icon={<Menu size={17} />}
               onClick={() => setMobileOpen(true)}
             />
@@ -160,16 +168,19 @@ function ProjectNavigation({
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
       >
-        <nav className="mobile-nav-links" aria-label="Project navigation">
-          <Link href={`/project/${projectId}/home`} onClick={() => setMobileOpen(false)}>
-            Home
-          </Link>
-          <Link href={`/project/${projectId}/docs`} onClick={() => setMobileOpen(false)}>
-            Docs
-          </Link>
-          {pathname.includes('/docs') && versions.length ? (
+        <nav className="mobile-nav-links" aria-label={t('mobileNavigation')}>
+          {builtinLinks.map((entry) => {
+            const active = isBuiltinProjectNavigationActive(entry.key, projectId, pathname)
+            return (
+              <Link key={entry.key} className={active ? 'is-active' : ''} aria-current={active ? 'page' : undefined} href={entry.href} onClick={() => setMobileOpen(false)}>
+                {t(entry.translationKey)}
+              </Link>
+            )
+          })}
+          {docsActive && versions.length ? (
             <Select
               className="project-mobile-version-select"
+              aria-label={t('version')}
               value={currentVersion || versions[0]?.id}
               options={versions.map((version) => ({ label: version.version, value: version.id }))}
               onChange={(value) => {
@@ -183,7 +194,7 @@ function ProjectNavigation({
             menu.children.length
               ? menu.children.map((child) =>
                   child.isExternal ? (
-                    <a key={child.id} href={child.url || '#'} target="_blank" rel="noreferrer">
+                    <a key={child.id} href={child.url || '#'} target="_blank" rel="noreferrer" onClick={() => setMobileOpen(false)}>
                       {child.label}
                     </a>
                   ) : (
@@ -194,7 +205,7 @@ function ProjectNavigation({
                 )
               : menu.isExternal
                 ? [
-                    <a key={menu.id} href={menu.url || '#'} target="_blank" rel="noreferrer">
+                    <a key={menu.id} href={menu.url || '#'} target="_blank" rel="noreferrer" onClick={() => setMobileOpen(false)}>
                       {menu.label}
                     </a>,
                   ]

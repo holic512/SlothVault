@@ -9,6 +9,14 @@
     "openMenu": "打开导航",
     "mobileNavigation": "移动端导航"
   },
+  "ProjectNavigation": {
+    "home": "首页",
+    "docs": "文档",
+    "library": "返回项目列表",
+    "openMenu": "打开项目导航",
+    "mobileNavigation": "项目导航",
+    "version": "选择项目版本"
+  },
   "ProjectsPage": {
     "title": "项目",
     "description": "浏览项目文档与版本更新。",
@@ -696,10 +704,15 @@
     "projectMenu": {
       "title": "菜单配置 · {name}",
       "desc": "配置项目顶部导航，最多支持两级菜单。",
-      "defaultHint": "首页与文档是系统内置入口，无需在这里重复创建。",
+      "defaultHint": "首页与文档固定在前两项，随界面语言自动翻译，不可修改，无需重复创建。",
       "includeDeleted": "包含已删除",
       "newRoot": "新增一级菜单",
+      "source": {
+        "builtin": "系统内置",
+        "custom": "自定义"
+      },
       "table": {
+        "source": "来源",
         "label": "菜单文本",
         "url": "链接",
         "type": "类型",
@@ -717,6 +730,8 @@
       },
       "operations": {
         "child": "新增子菜单",
+        "fixed": "固定入口，不可修改",
+        "retry": "重试",
         "edit": "编辑",
         "delete": "删除",
         "restore": "恢复"
@@ -736,6 +751,7 @@
       },
       "messages": {
         "labelRequired": "请输入菜单文本",
+        "loadFailed": "自定义导航加载失败",
         "saved": "菜单已保存",
         "deleted": "菜单已删除，可在回收站查看或恢复",
         "restored": "菜单已恢复",

@@ -9,6 +9,14 @@
     "openMenu": "Open navigation",
     "mobileNavigation": "Mobile navigation"
   },
+  "ProjectNavigation": {
+    "home": "Home",
+    "docs": "Docs",
+    "library": "Back to project library",
+    "openMenu": "Open project navigation",
+    "mobileNavigation": "Project navigation",
+    "version": "Select project version"
+  },
   "ProjectsPage": {
     "title": "Projects",
     "description": "Browse project documentation and release notes.",
@@ -696,10 +704,15 @@
     "projectMenu": {
       "title": "Menu · {name}",
       "desc": "Configure the project header navigation with up to two levels.",
-      "defaultHint": "Home and Docs are built-in entries and do not need to be recreated here.",
+      "defaultHint": "Home and Docs are fixed in the first two positions and automatically follow the interface language. They cannot be modified and do not need to be recreated.",
       "includeDeleted": "Include deleted",
       "newRoot": "New top-level menu",
+      "source": {
+        "builtin": "System built-in",
+        "custom": "Custom"
+      },
       "table": {
+        "source": "Source",
         "label": "Label",
         "url": "URL",
         "type": "Type",
@@ -717,6 +730,8 @@
       },
       "operations": {
         "child": "Add child",
+        "fixed": "Fixed entry, cannot be modified",
+        "retry": "Retry",
         "edit": "Edit",
         "delete": "Delete",
         "restore": "Restore"
@@ -736,6 +751,7 @@
       },
       "messages": {
         "labelRequired": "Please enter a menu label",
+        "loadFailed": "Failed to load custom navigation",
         "saved": "Menu saved",
         "deleted": "Menu deleted. View or restore it in Trash.",
         "restored": "Menu restored",

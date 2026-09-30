@@ -4,9 +4,9 @@
  * @file project-menu-manager.tsx
  * @project SlothVault
  * @module Project Menu Administration
- * @description Provides a two-level Ant Design project menu tree table and validated editor.
- * @logic Load active project menus, restrict parent choices to active roots, and coordinate create, edit, and cascade delete operations.
- * @dependencies Ant Design, React Query, next-intl, api-client
+ * @description Shows localized read-only built-in navigation alongside an editable two-level project menu tree.
+ * @logic Prepend built-in display rows, load custom menus with retry feedback, restrict parent choices to custom roots, and coordinate CRUD operations.
+ * @dependencies Ant Design, React Query, next-intl, api-client, project-navigation
  * @index_tags admin,project-menu,navigation,tree,crud
  * @author holic512
  */
@@ -34,23 +34,11 @@ import { useTranslations } from 'next-intl'
 
 import { formatAdminError } from '@/lib/admin-localization'
 import { apiFetch } from '@/lib/api-client'
+import { buildProjectMenuRows, type CustomProjectMenu, type ProjectMenuRow } from '@/lib/project-navigation'
 
 export type MenuProject = { id: string; projectName: string }
 
-type MenuDto = {
-  id: string
-  projectId: string
-  parentId: string | null
-  label: string
-  url: string | null
-  isExternal: boolean
-  weight: number
-  status: number
-  createdAt: string
-  updatedAt: string
-  isDeleted: boolean
-  children?: MenuDto[]
-}
+type MenuDto = CustomProjectMenu
 type MenuForm = {
   parentId?: string | null
   label: string
@@ -68,6 +56,7 @@ export function ProjectMenuManager({
   onClose: () => void
 }) {
   const t = useTranslations('AdminMM.projectMenu')
+  const navigationT = useTranslations('ProjectNavigation')
   const errorT = useTranslations('AdminMM.errors')
   const queryClient = useQueryClient()
   const { message, modal } = App.useApp()
@@ -137,8 +126,18 @@ export function ProjectMenuManager({
       },
     })
   }
-  const columns: ColumnsType<MenuDto> = [
+  const columns: ColumnsType<ProjectMenuRow> = [
     { title: t('table.label'), dataIndex: 'label', minWidth: 180 },
+    {
+      title: t('table.source'),
+      dataIndex: 'kind',
+      width: 115,
+      render: (kind) => (
+        <Tag color={kind === 'builtin' ? 'blue' : undefined}>
+          {kind === 'builtin' ? t('source.builtin') : t('source.custom')}
+        </Tag>
+      ),
+    },
     {
       title: t('table.url'),
       dataIndex: 'url',
@@ -171,7 +170,9 @@ export function ProjectMenuManager({
       title: t('table.operations'),
       fixed: 'right',
       width: 260,
-      render: (_value, row) => (
+      render: (_value, row) => row.kind === 'builtin' ? (
+        <Typography.Text type="secondary">{t('operations.fixed')}</Typography.Text>
+      ) : (
         <Space size={2}>
           {!row.isDeleted && row.parentId === null ? (
             <Button type="link" icon={<Plus size={13} />} onClick={() => openForm(undefined, row.id)}>
@@ -180,8 +181,8 @@ export function ProjectMenuManager({
           ) : null}
           {(
             <>
-              <Button type="link" onClick={() => openForm(row)}>{t('operations.edit')}</Button>
-              <Button type="link" danger icon={<Trash2 size={13} />} onClick={() => remove(row)}>
+              <Button type="link" onClick={() => openForm(row.menu)}>{t('operations.edit')}</Button>
+              <Button type="link" danger icon={<Trash2 size={13} />} onClick={() => remove(row.menu)}>
                 {t('operations.delete')}
               </Button>
             </>
@@ -201,6 +202,19 @@ export function ProjectMenuManager({
     >
       <Space orientation="vertical" size={14} className="full-width">
         <Alert showIcon type="info" title={t('defaultHint')} />
+        {query.isError ? (
+          <Alert
+            showIcon
+            type="error"
+            title={t('messages.loadFailed')}
+            description={formatAdminError(query.error, errorT)}
+            action={
+              <Button size="small" loading={query.isFetching} onClick={() => { void query.refetch() }}>
+                {t('operations.retry')}
+              </Button>
+            }
+          />
+        ) : null}
         <div className="inline-manager-toolbar">
           <div>
             <Typography.Text type="secondary">{t('desc')}</Typography.Text>
@@ -210,13 +224,13 @@ export function ProjectMenuManager({
           </Button>
         </div>
         <Table
-          rowKey="id"
+          rowKey="rowKey"
           size="small"
           loading={query.isLoading}
-          dataSource={query.data || []}
+          dataSource={project ? buildProjectMenuRows(project.id, query.data || [], navigationT) : []}
           columns={columns}
           pagination={false}
-          scroll={{ x: 900 }}
+          scroll={{ x: 1015 }}
         />
       </Space>
 
