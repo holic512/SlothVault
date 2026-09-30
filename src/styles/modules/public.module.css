@@ -23,12 +23,7 @@
 }
 
 .root :global(.homepage-markdown) {
-  padding: clamp(26px, 5vw, 64px);
-  border: 1px solid var(--sv-border);
-  backdrop-filter: blur(12px);
-  border-radius: var(--sv-radius) !important;
-  background: var(--sv-bg-solid) !important;
-  box-shadow: var(--sv-surface-shadow);
+  min-width: 0;
 }
 
 .root :global(.homepage-empty) {
@@ -44,7 +39,7 @@
 
 .root :global(.homepage-empty) h1 {
   margin: 0;
-  font-size: clamp(1.7rem, 4vw, 2.5rem);
+  font-size: var(--sv-font-landing-title);
   letter-spacing: -0.045em;
 }
 
@@ -83,7 +78,7 @@
 .root :global(.public-list-heading) h1 {
   margin: 0;
   color: var(--sv-text);
-  font-size: clamp(26px, 3vw, 32px);
+  font-size: var(--sv-font-page-title);
   font-weight: 600;
   letter-spacing: -0.025em;
   line-height: 1.3;
@@ -463,7 +458,7 @@
 }
 
 .root :global(.article-reader-shell) {
-  max-width: var(--sv-container-content);
+  width: min(var(--sv-container-reading), calc(100% - 2 * var(--sv-page-gutter)));
 }
 
 .root :global(.article-reader-back) {
@@ -479,16 +474,16 @@
 }
 
 .root :global(.article-reader-hero) {
-  padding: clamp(36px, 7vw, 82px) 0;
+  padding: var(--sv-reading-section-gap) 0;
   border-top: 2px solid var(--sv-text);
   border-bottom: 1px solid var(--sv-border-strong);
 }
 
 .root :global(.article-reader-hero.has-cover) {
   display: grid;
-  grid-template-columns: minmax(0, 0.85fr) minmax(420px, 1.15fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: stretch;
-  gap: clamp(32px, 5vw, 72px);
+  gap: var(--sv-reading-section-gap);
   padding: 0;
 }
 
@@ -496,24 +491,26 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: clamp(38px, 6vw, 74px) 0;
+  min-width: 0;
+  padding: var(--sv-reading-paragraph-gap) 0;
 }
 
 .root :global(.article-reader-heading) h1 {
-  max-width: 900px;
-  margin: 26px 0 22px;
-  font-size: clamp(3rem, 7vw, 6.8rem);
-  font-weight: 500;
-  letter-spacing: -0.072em;
-  line-height: 0.95;
+  margin: 1rem 0;
+  font-family: var(--sv-font-body);
+  font-size: var(--sv-font-reader-title);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: var(--sv-line-heading);
+  overflow-wrap: anywhere;
 }
 
 .root :global(.article-reader-heading) > p {
   max-width: 640px;
-  margin: 0 0 34px;
+  margin: 0 0 var(--sv-reading-paragraph-gap);
   color: var(--sv-text-muted);
-  font-size: clamp(17px, 2vw, 21px);
-  line-height: 1.58;
+  font-size: var(--sv-font-reading);
+  line-height: var(--sv-line-reading);
 }
 
 .root :global(.article-reader-dates) {
@@ -522,7 +519,7 @@
   gap: 16px;
   color: var(--sv-text-muted);
   font-family: var(--sv-font-mono);
-  font-size: 10px;
+  font-size: var(--sv-font-secondary);
   text-transform: uppercase;
 }
 
@@ -533,12 +530,14 @@
 }
 
 .root :global(.article-reader-cover) {
-  min-height: 560px;
+  min-width: 0;
+  min-height: 0;
+  aspect-ratio: 4 / 3;
 }
 
 .root :global(.article-reader-body) {
   margin: 0 auto;
-  padding: clamp(42px, 7vw, 88px) 0;
+  padding: var(--sv-reading-section-gap) 0;
 }
 
 .root :global(.article-membership-badge) {
@@ -637,7 +636,7 @@
   }
 
   .root :global(.article-reader-cover) {
-    min-height: 440px;
+    min-height: 0;
   }
 }
 
@@ -678,11 +677,7 @@
   }
 
   .root :global(.article-reader-heading) {
-    padding: 38px 0;
-  }
-
-  .root :global(.article-reader-heading) h1 {
-    font-size: clamp(2.7rem, 14vw, 4.7rem);
+    padding: var(--sv-reading-paragraph-gap) 0;
   }
 
 }
@@ -690,11 +685,6 @@
 @media (max-width: 640px) {
   .root :global(.homepage-main) {
     padding: 84px 0 28px;
-  }
-
-  .root :global(.homepage-markdown) {
-    padding: 24px 18px;
-    border-radius: 18px;
   }
 
   .root :global(.homepage-empty) {
@@ -715,7 +705,7 @@
   }
 
   .root :global(.article-reader-cover) {
-    min-height: 300px;
+    min-height: 0;
   }
 
   .root :global(.project-library-card) :global(.ant-card-body) {

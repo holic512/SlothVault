@@ -47,8 +47,8 @@
   margin: 0 auto;
 }
 
-.content-container--reading {
-  width: min(var(--sv-container-reading), calc(100% - 40px));
+.content-container.content-container--reading {
+  width: min(var(--sv-container-reading), calc(100% - 2 * var(--sv-page-gutter)));
 }
 
 .theme-controls-popup.ant-popover,
@@ -344,10 +344,6 @@
   }
 
   .content-container {
-    width: min(100% - 20px, 980px);
-  }
-
-  .content-container--reading {
     width: min(100% - 20px, 980px);
   }
 

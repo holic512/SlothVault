@@ -55,7 +55,7 @@
 
 .root :global(.auth-heading) h1:global(.ant-typography) {
   margin-top: 5px;
-  font-size: 28px;
+  font-size: var(--sv-font-page-title);
   letter-spacing: -0.045em;
 }
 
@@ -121,7 +121,7 @@
 }
 
 .root :global(.auth-heading--editorial) h1:global(.ant-typography) {
-  font-size: 30px;
+  font-size: var(--sv-font-page-title);
 }
 
 .root :global(.auth-footnote) {

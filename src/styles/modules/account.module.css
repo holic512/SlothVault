@@ -135,9 +135,9 @@
 
 .root :global(.account-route-heading) h1:global(.ant-typography) {
   margin: 0 0 8px;
-  font-size: 30px;
+  font-size: var(--sv-font-page-title);
   font-weight: 650;
-  line-height: 1.25;
+  line-height: var(--sv-line-heading);
   letter-spacing: -0.03em;
 }
 
@@ -538,7 +538,7 @@
   }
 
   .root :global(.account-route-heading) h1:global(.ant-typography) {
-    font-size: 26px;
+    font-size: var(--sv-font-page-title);
   }
 
   .root :global(.account-overview-grid),

@@ -128,18 +128,20 @@
   padding: 110px 0 70px;
 }
 
-.root :global(.project-home-markdown) {
-  padding: clamp(24px, 5vw, 56px);
-  border: 1px solid var(--sv-border);
-  border-radius: 22px;
-  background: color-mix(in srgb, var(--sv-bg-solid) 92%, transparent);
-  box-shadow: var(--sv-shadow);
+.root :global(.project-home-main) {
+  min-height: 100vh;
+  padding: clamp(120px, 11vw, 144px) 0 clamp(56px, 6vw, 80px);
+}
+
+.root :global(.project-home-container) {
+  width: min(var(--sv-container-reading), calc(100% - 2 * var(--sv-page-gutter)));
+  margin: 0 auto;
 }
 
 .root :global(.docs-reader) {
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
-  width: min(var(--sv-container-wide), calc(100% - 36px));
+  width: min(var(--sv-container-wide), calc(100% - 2 * var(--sv-page-gutter)));
   min-height: 100vh;
   margin: 0 auto;
   gap: 0;
@@ -196,22 +198,25 @@
 }
 
 .root :global(.docs-article) {
-  width: min(840px, 100%);
+  width: min(calc(var(--sv-container-reading) + 4rem), 100%);
   min-width: 0;
   margin: 0 auto;
-  padding: 24px clamp(24px, 5vw, 64px) 80px;
+  padding: 1.5rem 2rem 5rem;
 }
 
 .root :global(.docs-article-header) {
-  margin-bottom: 32px;
-  padding-bottom: 24px;
+  margin-bottom: var(--sv-reading-section-gap);
+  padding-bottom: var(--sv-reading-paragraph-gap);
   border-bottom: 1px solid var(--sv-border);
 }
 
 .root :global(.docs-article-header) h1:global(.ant-typography) {
   margin: 7px 0 4px;
-  font-size: clamp(2rem, 5vw, 3.3rem);
-  letter-spacing: -0.055em;
+  font-family: var(--sv-font-body);
+  font-size: var(--sv-font-reader-title);
+  line-height: var(--sv-line-heading);
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
 }
 
 .root :global(.docs-article-meta) {
@@ -220,7 +225,7 @@
   align-items: center;
   gap: 8px 16px;
   color: var(--sv-text-muted);
-  font-size: 13px;
+  font-size: var(--sv-font-secondary);
 }
 
 .root :global(.docs-author-link) {
@@ -356,9 +361,12 @@
     padding-top: 84px;
   }
 
+  .root :global(.project-home-main) {
+    padding-top: 116px;
+  }
+
   .root :global(.docs-reader) {
     display: block;
-    width: 100%;
     padding-top: 76px;
   }
 
@@ -379,7 +387,8 @@
   }
 
   .root :global(.docs-article) {
-    padding: 26px 18px 60px;
+    width: 100%;
+    padding: 1.5rem 0 3.75rem;
   }
 
   .root :global(.docs-copyright-proof) {

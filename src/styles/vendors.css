@@ -588,26 +588,13 @@
 }
 
 .markdown-editor-shell .w-md-editor-preview {
+  padding: 0;
   background: var(--sv-bg-solid);
 }
 
-.markdown-editor-shell .markdown-editor-preview-content {
-  padding: 20px clamp(16px, 3vw, 32px);
-  font-size: 16px;
-}
-
-.markdown-editor-shell .markdown-editor-preview-content h1 {
-  font-size: clamp(2rem, 4vw, 3.25rem);
-}
-
-.markdown-editor-shell .markdown-editor-preview-content h2 {
-  margin-top: 30px;
-  font-size: clamp(1.4rem, 2.4vw, 1.85rem);
-}
-
-.markdown-editor-shell .markdown-editor-preview-content h3 {
-  margin-top: 22px;
-  font-size: 1.2rem;
+.markdown-editor-shell .markdown-editor-preview-content[data-presentation] {
+  max-width: calc(var(--sv-container-reading) + 2 * var(--sv-reading-inset));
+  padding: var(--sv-reading-inset);
 }
 
 .markdown-editor-shell .w-md-editor-text-pre > code {
@@ -661,32 +648,35 @@
 }
 
 .ant-typography h1 {
-  font-family: var(--sv-font-display);
+  font-family: var(--sv-font-body);
+  font-size: var(--sv-font-page-title);
   font-weight: 600;
 }
 
 .ant-typography h2 {
-  font-family: var(--sv-font-display);
+  font-family: var(--sv-font-body);
+  font-size: var(--sv-font-reading-h2);
   font-weight: 600;
 }
 
 .ant-typography h3 {
-  font-family: var(--sv-font-display);
+  font-family: var(--sv-font-body);
+  font-size: var(--sv-font-reading-h3);
   font-weight: 600;
 }
 
 h1.ant-typography {
-  font-family: var(--sv-font-display);
+  font-family: var(--sv-font-body);
   font-weight: 600;
 }
 
 h2.ant-typography {
-  font-family: var(--sv-font-display);
+  font-family: var(--sv-font-body);
   font-weight: 600;
 }
 
 h3.ant-typography {
-  font-family: var(--sv-font-display);
+  font-family: var(--sv-font-body);
   font-weight: 600;
 }
 

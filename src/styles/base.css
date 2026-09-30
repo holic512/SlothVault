@@ -92,17 +92,23 @@ select {
 }
 
 h1 {
-  font-family: var(--sv-font-display);
+  font-family: var(--sv-font-body);
+  font-size: var(--sv-font-page-title);
+  line-height: var(--sv-line-heading);
   font-weight: 600;
 }
 
 h2 {
-  font-family: var(--sv-font-display);
+  font-family: var(--sv-font-body);
+  font-size: var(--sv-font-reading-h2);
+  line-height: var(--sv-line-heading);
   font-weight: 600;
 }
 
 h3 {
-  font-family: var(--sv-font-display);
+  font-family: var(--sv-font-body);
+  font-size: var(--sv-font-reading-h3);
+  line-height: var(--sv-line-heading);
   font-weight: 600;
 }
 

@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Mixed Document Viewer
  * @description Renders Markdown and embedded HTML through one responsive, sanitized document surface.
- * @logic Parse GFM and raw HTML, filter inline CSS, create stable heading links, sanitize the final tree, and harden external resources.
+ * @logic Apply reading or landing typography, parse GFM and raw HTML, filter inline CSS, create stable heading links, sanitize the final tree, and harden external resources.
  * @dependencies react-markdown, remark-gfm, rehype-raw, rehype-slug, rehype-autolink-headings, rehype-sanitize
  * @index_tags markdown,html,viewer,sanitize,security,typography
  * @author holic512
@@ -75,12 +75,22 @@ const sanitizeSchema = {
   attributes: sanitizeAttributes,
 } satisfies SanitizeSchema
 
-export function MarkdownView({ content, className = '' }: { content: string; className?: string }) {
+export type MarkdownPresentation = 'reading' | 'landing'
+
+export function MarkdownView({
+  content,
+  className = '',
+  presentation = 'reading',
+}: {
+  content: string
+  className?: string
+  presentation?: MarkdownPresentation
+}) {
   const t = useTranslations('MarkdownView')
   const articleClassName = `${markdownStyles.root} ${className}`.trim()
   if (!isDocumentContentWithinLimit(content)) {
     return (
-      <article className={articleClassName} data-document-error="content-too-large" role="alert">
+      <article className={articleClassName} data-presentation={presentation} data-document-error="content-too-large" role="alert">
         <div className="sloth-callout sloth-callout-warning">
           <strong>{t('unavailableTitle')}</strong>
           <p>
@@ -92,7 +102,7 @@ export function MarkdownView({ content, className = '' }: { content: string; cla
   }
 
   return (
-    <article className={articleClassName}>
+    <article className={articleClassName} data-presentation={presentation}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[

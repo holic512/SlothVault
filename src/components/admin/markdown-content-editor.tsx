@@ -5,7 +5,7 @@
  * @project SlothVault
  * @module Mixed Document Editing Surface
  * @description Provides a fast Markdown workflow with safe HTML layout snippets, exact public-preview rendering, image upload, visible content constraints, optional host toolbar content, and an optional container-fill layout.
- * @logic Keep the editor controlled, insert reusable mixed-content structures at the selection, validate pasted/dropped images, share the sanitized viewer for preview parity, let host workflows consolidate their title and actions into the editor header, and allow full-height hosts to allocate the remaining editing space.
+ * @logic Keep the editor controlled, insert mixed-content structures, validate images, match the host reading or landing presentation in preview, and allocate remaining editing space for full-height hosts.
  * @dependencies @uiw/react-md-editor, next/dynamic, next-intl, app-theme-context, lucide-react, MarkdownView
  * @index_tags markdown,html,editor,preview,upload,validation,accessibility
  * @author holic512
@@ -27,7 +27,7 @@ import {
 import dynamic from 'next/dynamic'
 import { useLocale, useTranslations } from 'next-intl'
 
-import { MarkdownView } from '@/components/markdown/markdown-view'
+import { MarkdownView, type MarkdownPresentation } from '@/components/markdown/markdown-view'
 import { useResolvedAppTheme } from '@/components/providers/app-theme-context'
 import { formatAdminError } from '@/lib/admin-localization'
 import {
@@ -39,10 +39,6 @@ import {
 
 const MDEditor = dynamic(() => import('@uiw/react-md-editor'), { ssr: false })
 const MEGABYTE = 1024 * 1024
-
-function previewDocument(source: string) {
-  return <MarkdownView content={source} className="markdown-editor-preview-content" />
-}
 
 function escapeMarkdownAlt(fileName: string, fallback: string) {
   const nameWithoutExtension = fileName.replace(/\.[^.]+$/, '').trim()
@@ -61,6 +57,7 @@ export function MarkdownContentEditor({
   fillContainer = false,
   header,
   headerActions,
+  presentation = 'reading',
 }: {
   value: string
   onChange: (value: string) => void
@@ -69,6 +66,7 @@ export function MarkdownContentEditor({
   fillContainer?: boolean
   header?: ReactNode
   headerActions?: ReactNode
+  presentation?: MarkdownPresentation
 }) {
   const t = useTranslations('DocumentEditor')
   const errorT = useTranslations('AdminMM.errors')
@@ -344,7 +342,11 @@ export function MarkdownContentEditor({
         visibleDragbar={false}
         commands={readOnly ? [] : editorCommands}
         extraCommands={readOnly ? [commands.codePreview, commands.fullscreen] : [commands.codeEdit, commands.codeLive, commands.codePreview, commands.fullscreen]}
-        components={{ preview: previewDocument }}
+        components={{
+          preview: (source) => (
+            <MarkdownView content={source} className="markdown-editor-preview-content" presentation={presentation} />
+          ),
+        }}
         textareaProps={{
           'aria-label': t('textareaLabel'),
           'aria-describedby': `${guideOpen ? `${guideId} ` : ''}${statusId}`,

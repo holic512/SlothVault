@@ -36,7 +36,7 @@ export default async function HomePage() {
       <main className="homepage-main">
         <div className="content-container content-container--reading">
           {content ? (
-            <MarkdownView content={content} className="homepage-markdown" />
+            <MarkdownView content={content} className="homepage-markdown" presentation="landing" />
           ) : (
             <section className="homepage-empty" aria-labelledby="homepage-empty-title">
               <h1 id="homepage-empty-title">{t('title')}</h1>
