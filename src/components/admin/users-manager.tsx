@@ -13,7 +13,7 @@
 import { useState } from 'react'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { App, Button, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Tag } from 'antd'
+import { App, Button, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Tag, Tooltip } from 'antd'
 import { Coins, Crown, KeyRound, Pencil, Plus, RefreshCw, Search, Trash2, UserRound } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
@@ -267,7 +267,7 @@ export function UsersManager() {
   }
 
   return (
-    <AdminPage>
+    <AdminPage className="admin-users-page">
       <AdminPageActions>
         <Space>
           <Button icon={<RefreshCw size={15} />} onClick={() => void query.refetch()}>{t('actions.refresh')}</Button>
@@ -303,7 +303,7 @@ export function UsersManager() {
               title: t('table.user'),
               minWidth: 180,
               render: (_value, user) => (
-                <Space>
+                <Space className="admin-user-identity" align="center">
                   <UserRound size={17} />
                   <span><strong>{user.displayName || user.username}</strong><br /><small>@{user.username}</small></span>
                 </Space>
@@ -314,7 +314,7 @@ export function UsersManager() {
               title: t('table.role'),
               dataIndex: 'role',
               width: 96,
-              render: (value) => value === 'ADMIN' ? <Tag color="blue">{t('role.admin')}</Tag> : t('role.user'),
+              render: (value) => <Tag color={value === 'ADMIN' ? 'blue' : undefined}>{value === 'ADMIN' ? t('role.admin') : t('role.user')}</Tag>,
             },
             { title: t('table.wallet'), dataIndex: 'walletAddress', width: 100, render: (value) => value ? t('wallet.bound') : t('wallet.unbound') },
             { title: t('table.points'), dataIndex: 'pointsBalance', width: 100, align: 'right' },
@@ -338,15 +338,25 @@ export function UsersManager() {
             {
               title: t('table.operations'),
               fixed: 'right',
-              width: 350,
+              width: 192,
               render: (_value, user) => (
-                <Space size={4}>
-                  <Button type="link" icon={<Pencil size={14} />} onClick={() => openEdit(user)}>{t('operations.edit')}</Button>
-                  <Button type="link" icon={<KeyRound size={14} />} onClick={() => openPasswordReset(user)}>{t('operations.password')}</Button>
-                  <Button type="link" icon={<Coins size={14} />} onClick={() => setAdjusting(user)}>{t('operations.points')}</Button>
-                  <Button type="link" icon={<Crown size={14} />} onClick={() => openMembership(user)}>{t('operations.membership')}</Button>
+                <Space className="admin-user-operations" size={4}>
+                  <Tooltip title={t('operations.edit')}>
+                    <Button type="link" aria-label={t('operations.edit')} icon={<Pencil size={14} />} onClick={() => openEdit(user)} />
+                  </Tooltip>
+                  <Tooltip title={t('operations.password')}>
+                    <Button type="link" aria-label={t('operations.password')} icon={<KeyRound size={14} />} onClick={() => openPasswordReset(user)} />
+                  </Tooltip>
+                  <Tooltip title={t('operations.points')}>
+                    <Button type="link" aria-label={t('operations.points')} icon={<Coins size={14} />} onClick={() => setAdjusting(user)} />
+                  </Tooltip>
+                  <Tooltip title={t('operations.membership')}>
+                    <Button type="link" aria-label={t('operations.membership')} icon={<Crown size={14} />} onClick={() => openMembership(user)} />
+                  </Tooltip>
                   {user.role !== 'ADMIN' && user.status === 1 ? (
-                    <Button danger type="link" icon={<Trash2 size={14} />} onClick={() => confirmDisable(user)}>{t('operations.delete')}</Button>
+                    <Tooltip title={t('operations.delete')}>
+                      <Button danger type="link" aria-label={t('operations.delete')} icon={<Trash2 size={14} />} onClick={() => confirmDisable(user)} />
+                    </Tooltip>
                   ) : null}
                 </Space>
               ),

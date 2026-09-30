@@ -607,6 +607,34 @@
   padding-inline: 0;
 }
 
+.root :global(.admin-users-page .ant-btn),
+.root :global(.admin-user-identity .ant-space-item),
+.root :global(.admin-user-operations .ant-space-item) {
+  display: inline-flex;
+  align-items: center;
+}
+
+.root :global(.admin-users-page .ant-btn-icon) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.root :global(.admin-users-page .ant-btn-icon svg),
+.root :global(.admin-user-identity svg) {
+  display: block;
+  flex-shrink: 0;
+}
+
+.root :global(.admin-user-operations .ant-btn) {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  justify-content: center;
+  padding: 0;
+}
+
 .root :global(input.ant-input) {
   height: var(--sv-admin-control-height);
   border-radius: var(--sv-admin-radius);
