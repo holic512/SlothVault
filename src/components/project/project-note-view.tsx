@@ -3,8 +3,8 @@
  * @project SlothVault
  * @module Public Project Document Reader
  * @description Renders immutable public project documents with navigation, exact content-version evidence, and legacy release evidence.
- * @logic Keep public project reading independent from user identity while displaying content evidence for the selected primary revision and legacy release receipts.
- * @dependencies Ant Design Typography, next-intl/server, MarkdownView
+ * @logic Keep public reading independent from user identity, display version evidence, and navigate rendered Markdown headings through the document outline.
+ * @dependencies Ant Design Typography, next-intl/server, ProjectDocumentContent
  * @index_tags project,document,reader,release,evidence,transaction,public
  * @author holic512
  */
@@ -15,7 +15,7 @@ import { BadgeCheck, Download, ExternalLink, Fingerprint, FlaskConical } from 'l
 import { getLocale, getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 
-import { MarkdownView } from '@/components/markdown/markdown-view'
+import { ProjectDocumentContent } from '@/components/project/project-document-content'
 
 export type SidebarCategory = {
   id: string
@@ -151,7 +151,7 @@ export async function ProjectNoteView({
             </aside>
           ))}
         </header>
-        <MarkdownView content={note.content} />
+        <ProjectDocumentContent key={note.id} content={note.content} outlineLabel={t('outline')} />
       </article>
     </main>
   )

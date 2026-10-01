@@ -55,6 +55,7 @@
     "description": "Please contact an administrator to edit and publish the homepage."
   },
   "ProjectDocument": {
+    "outline": "On this page",
     "updated": "Updated {date}",
     "release": {
       "title": "Project version integrity",

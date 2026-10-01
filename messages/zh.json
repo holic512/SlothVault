@@ -55,6 +55,7 @@
     "description": "请联系管理员前往管理后台编辑并发布首页内容。"
   },
   "ProjectDocument": {
+    "outline": "本页目录",
     "updated": "更新于 {date}",
     "release": {
       "title": "项目版本完整性",

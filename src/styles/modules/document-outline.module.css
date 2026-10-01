@@ -1,0 +1,153 @@
+.root {
+  min-width: 0;
+}
+
+.outline {
+  position: fixed;
+  z-index: 20;
+  top: 160px;
+  right: 0;
+}
+
+.trigger {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 40px;
+  padding: 12px 0;
+  cursor: pointer;
+  list-style: none;
+}
+
+.trigger::-webkit-details-marker {
+  display: none;
+}
+
+.mobile-label {
+  display: none;
+}
+
+.rail {
+  display: flex;
+  max-height: min(55vh, 360px);
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 9px;
+  overflow: hidden;
+}
+
+.rail span {
+  height: 2px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  background: var(--sv-border-strong);
+}
+
+.rail span[data-active='true'] {
+  background: var(--sv-text);
+}
+
+.outline .panel {
+  position: absolute;
+  top: 0;
+  right: 40px;
+  display: none;
+  width: 272px;
+  max-height: calc(100dvh - 200px);
+  padding: 12px 8px;
+  overflow-y: auto;
+  border: 1px solid var(--sv-border);
+  border-radius: 12px;
+  background: var(--sv-bg-solid);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 8%);
+}
+
+.outline:hover .panel,
+.outline:focus-within .panel,
+.outline[open] .panel {
+  display: block;
+}
+
+.label {
+  display: block;
+  padding: 4px 12px 10px;
+  color: var(--sv-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.panel ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.panel a {
+  display: block;
+  padding: 6px 12px;
+  border-radius: 5px;
+  color: var(--sv-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.panel a:hover,
+.panel a[aria-current='location'] {
+  background: rgb(var(--sv-primary-rgb), 0.08);
+  color: var(--sv-text);
+}
+
+.trigger:focus-visible,
+.panel a:focus-visible {
+  outline: 2px solid var(--sv-text-muted);
+  outline-offset: 2px;
+}
+
+@media (max-width: 1100px) {
+  .outline {
+    position: static;
+    margin-bottom: var(--sv-reading-paragraph-gap);
+    border-bottom: 1px solid var(--sv-border);
+  }
+
+  .trigger {
+    width: 100%;
+    justify-content: space-between;
+    color: var(--sv-text-muted);
+    font-size: 13px;
+  }
+
+  .mobile-label {
+    display: block;
+  }
+
+  .trigger::after {
+    content: '+';
+  }
+
+  .outline[open] .trigger::after {
+    content: '−';
+  }
+
+  .rail,
+  .label {
+    display: none;
+  }
+
+  .outline .panel {
+    position: static;
+    width: 100%;
+    max-height: 320px;
+    margin-bottom: 12px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .outline:not([open]) .panel {
+    display: none;
+  }
+}
