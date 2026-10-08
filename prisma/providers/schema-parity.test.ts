@@ -13,6 +13,10 @@ const expectedTables = {
   Article: 'blog_article',
   MembershipLevel: 'membership_level',
   MembershipGrant: 'membership_grant',
+  ArticleMembership: 'article_membership',
+  ProjectReadMembership: 'project_read_membership',
+  ProjectDownloadMembership: 'project_download_membership',
+  FileReference: 'files_file_reference',
   Project: 'collections_project',
   ProjectMenu: 'collections_project_menu',
   ProjectHome: 'collections_project_home',
@@ -109,7 +113,7 @@ describe('provider schema parity', () => {
   it('keeps the same logical Prisma models and fields for every provider', () => {
     const reference = modelBlocks(readSchema('postgresql'))
 
-    expect([...reference.keys()]).toEqual(Object.keys(expectedTables))
+    expect([...reference.keys()].sort()).toEqual(Object.keys(expectedTables).sort())
     expect(modelBlocks(readSchema('mysql'))).toEqual(reference)
     expect(modelBlocks(readSchema('sqlite'))).toEqual(reference)
   })

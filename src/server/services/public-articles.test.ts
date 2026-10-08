@@ -8,12 +8,12 @@ const mocks = vi.hoisted(() => ({
       findFirst: vi.fn(),
     },
   },
-  getEffectiveMembership: vi.fn(),
+  getActiveMemberships: vi.fn(),
 }))
 
 vi.mock('@/server/prisma', () => ({ prisma: mocks.prisma }))
 vi.mock('@/server/services/membership', () => ({
-  getEffectiveMembership: mocks.getEffectiveMembership,
+  getActiveMemberships: mocks.getActiveMemberships,
 }))
 
 import {
@@ -45,6 +45,7 @@ describe('public independent articles', () => {
       publishedAt,
       updatedAt,
       requiredMembershipLevel: null,
+        allowedMembershipLevels: [],
     }])
 
     await expect(listPublicArticles(2)).resolves.toEqual({
@@ -56,6 +57,7 @@ describe('public independent articles', () => {
         publishedAt,
         updatedAt,
         requiredMembershipLevel: null,
+        allowedMembershipLevels: [],
       }],
       page: 2,
       pageSize: 12,
@@ -87,20 +89,22 @@ describe('public independent articles', () => {
       publishedAt,
       updatedAt,
       requiredMembershipLevel: { id: '2', name: 'VIP', rank: 2 },
+      allowedMembershipLevels: [{ id: '2', name: 'VIP', rank: 2, status: 1 }],
     }
 
+    mocks.prisma.article.findFirst.mockResolvedValue({ ...article, id: 8, allowedMemberships: [{ membershipLevel: { id: 2, name: 'VIP', rank: 2, status: 1 } }] })
     await expect(resolvePublicArticleReader(article, null)).resolves.toEqual({
       ...article,
       content: null,
       locked: true,
       viewerAuthenticated: false,
     })
-    expect(mocks.prisma.article.findFirst).not.toHaveBeenCalled()
+    expect(mocks.prisma.article.findFirst).toHaveBeenCalledTimes(1)
+    expect(mocks.prisma.article.findFirst.mock.calls[0][0].select.content).toBeUndefined()
   })
 
   it('loads a protected body only after an eligible member passes the server check', async () => {
-    mocks.getEffectiveMembership.mockResolvedValue({ id: '2', name: 'VIP', rank: 2, expiresAt: null, source: 'POINT_PURCHASE' })
-    mocks.prisma.article.findFirst.mockResolvedValue({ content: '# Private body' })
+    mocks.getActiveMemberships.mockResolvedValue([{ id: '2', name: 'VIP', rank: 2, expiresAt: null, source: 'POINT_PURCHASE' }])
     const article = {
       id: '8',
       title: 'Members only',
@@ -109,14 +113,16 @@ describe('public independent articles', () => {
       publishedAt,
       updatedAt,
       requiredMembershipLevel: { id: '2', name: 'VIP', rank: 2 },
+      allowedMembershipLevels: [{ id: '2', name: 'VIP', rank: 2, status: 1 }],
     }
 
+    mocks.prisma.article.findFirst.mockResolvedValueOnce({ ...article, id: 8, allowedMemberships: [{ membershipLevel: { id: 2, name: 'VIP', rank: 2, status: 1 } }] }).mockResolvedValueOnce({ content: '# Private body' })
     await expect(resolvePublicArticleReader(article, { userId: 7, role: 'USER' })).resolves.toMatchObject({
       content: '# Private body',
       locked: false,
       viewerAuthenticated: true,
     })
-    expect(mocks.getEffectiveMembership).toHaveBeenCalledWith(7)
+    expect(mocks.getActiveMemberships).toHaveBeenCalledWith(7)
     expect(mocks.prisma.article.findFirst).toHaveBeenCalledWith(expect.objectContaining({
       select: { content: true },
     }))

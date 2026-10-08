@@ -13,7 +13,7 @@
 import { useState } from 'react'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { App, Button, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Tag, Tooltip } from 'antd'
+import { App, Button, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Tag, Tooltip, Typography } from 'antd'
 import { Coins, Crown, KeyRound, Pencil, Plus, RefreshCw, Search, Trash2, UserRound } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
@@ -31,12 +31,12 @@ type UserRow = {
   pointsBalance: number
   walletAddress: string | null
   createdAt: string
-  currentMembership: {
+  activeMemberships: Array<{
     id: string
     name: string
     rank: number
     expiresAt: string | null
-  } | null
+  }>
 }
 
 type UserFormValues = {
@@ -68,7 +68,7 @@ type MembershipLevel = {
 }
 
 type UserMembershipData = {
-  currentMembership: UserRow['currentMembership']
+  activeMemberships: UserRow['activeMemberships']
   grants: Array<{
     id: string
     membershipLevel: MembershipLevel
@@ -209,7 +209,7 @@ export function UsersManager() {
     onError: (error) => message.error(formatAdminError(error, errorT)),
   })
   const revokeMembershipMutation = useMutation({
-    mutationFn: () => apiFetch<UserMembershipData>(`/api/admin/mm/users/${managingMembership!.id}/membership`, { method: 'DELETE' }),
+    mutationFn: (membershipLevelId?: string) => apiFetch<UserMembershipData>(`/api/admin/mm/users/${managingMembership!.id}/membership?${membershipLevelId ? `membershipLevelId=${membershipLevelId}` : 'all=true'}`, { method: 'DELETE' }),
     onSuccess: async () => {
       message.success(t('messages.membershipRevoked'))
       await Promise.all([
@@ -320,10 +320,10 @@ export function UsersManager() {
             { title: t('table.points'), dataIndex: 'pointsBalance', width: 100, align: 'right' },
             {
               title: t('table.membership'),
-              dataIndex: 'currentMembership',
+              dataIndex: 'activeMemberships',
               width: 170,
-              render: (value: UserRow['currentMembership']) => value
-                ? <span><Tag color="gold">{t('membership.level', { rank: value.rank })}</Tag>{value.name}<br /><small>{value.expiresAt ? t('membership.until', { date: formatAdminDate(locale, value.expiresAt, false) }) : t('membership.permanent')}</small></span>
+              render: (value: UserRow['activeMemberships']) => value?.length
+                ? <Space orientation="vertical" size={2}>{value.map((item) => <span key={item.id}><Tag color="gold">{item.name}</Tag><small>{item.expiresAt ? t('membership.until', { date: formatAdminDate(locale, item.expiresAt, false) }) : t('membership.permanent')}</small></span>)}</Space>
                 : <Tag>{t('membership.regular')}</Tag>,
             },
             {
@@ -430,15 +430,17 @@ export function UsersManager() {
         confirmLoading={membershipMutation.isPending}
         onCancel={() => { setManagingMembership(null); membershipForm.resetFields(); setMembershipPermanent(false) }}
         onOk={() => membershipForm.submit()}
-        footer={(_origin, { OkBtn, CancelBtn }) => <Space><Button danger loading={revokeMembershipMutation.isPending} onClick={() => revokeMembershipMutation.mutate()}>{t('membership.revokeAll')}</Button><CancelBtn /><OkBtn /></Space>}
+        footer={(_origin, { OkBtn, CancelBtn }) => <Space><Button danger loading={revokeMembershipMutation.isPending} onClick={() => modal.confirm({ title: t('membership.revokeAll'), content: t('membership.revokeAllConfirm'), okButtonProps: { danger: true }, onOk: () => revokeMembershipMutation.mutateAsync(undefined) })}>{t('membership.revokeAll')}</Button><CancelBtn /><OkBtn /></Space>}
       >
         <Space direction="vertical" size={12} className="full-width">
           <div>
-            <strong>{t('membership.current')}</strong>{membershipQuery.data?.currentMembership ? <Tag color="gold">{t('membership.level', { rank: membershipQuery.data.currentMembership.rank })} {membershipQuery.data.currentMembership.name}</Tag> : t('membership.regular')}
+            <strong>{t('membership.current')}</strong>
+            {membershipQuery.data?.activeMemberships.length ? membershipQuery.data.activeMemberships.map((item) => <span key={item.id}><Tag color="gold">{item.name}</Tag><Button size="small" type="link" danger onClick={() => modal.confirm({ title: t('membership.revokeType', { name: item.name }), content: t('membership.revokeTypeConfirm'), okButtonProps: { danger: true }, onOk: () => revokeMembershipMutation.mutateAsync(item.id) })}>{t('membership.revoke')}</Button></span>) : t('membership.regular')}
           </div>
+          <Typography.Text type="secondary">{t('membership.independentHint')}</Typography.Text>
           <Form form={membershipForm} layout="vertical" onFinish={(values) => membershipMutation.mutate(values)}>
             <Form.Item name="membershipLevelId" label={t('membership.grantLevel')} rules={[{ required: true, message: t('membership.selectLevel') }]}>
-              <Select loading={membershipLevelsQuery.isLoading} options={(membershipLevelsQuery.data || []).map((level) => ({ value: level.id, label: `${t('membership.level', { rank: level.rank })} · ${level.name}${level.status === 0 ? ` (${t('membership.disabled')})` : ''}` }))} />
+              <Select loading={membershipLevelsQuery.isLoading} options={(membershipLevelsQuery.data || []).map((level) => ({ value: level.id, label: `${level.name}${level.status === 0 ? ` (${t('membership.disabled')})` : ''}` }))} />
             </Form.Item>
             <Form.Item label={t('membership.permanent')} valuePropName="checked">
               <Switch checked={membershipPermanent} onChange={setMembershipPermanent} />
@@ -451,7 +453,7 @@ export function UsersManager() {
           </Form>
           <div className="admin-membership-history">
             <strong>{t('membership.history')}</strong>
-            {membershipQuery.data?.grants.map((grant) => <div key={grant.id}><Tag color={grant.active ? 'success' : undefined}>{t('membership.level', { rank: grant.membershipLevel.rank })} {grant.membershipLevel.name}</Tag>{grant.revokedAt ? t('membership.revoked') : grant.expiresAt ? t('membership.until', { date: formatAdminDate(locale, grant.expiresAt) }) : t('membership.permanent')}</div>)}
+            {membershipQuery.data?.grants.map((grant) => <div key={grant.id}><Tag color={grant.active ? 'success' : undefined}>{grant.membershipLevel.name}</Tag>{grant.revokedAt ? t('membership.revoked') : grant.expiresAt ? t('membership.until', { date: formatAdminDate(locale, grant.expiresAt) }) : t('membership.permanent')}</div>)}
           </div>
         </Space>
       </Modal>

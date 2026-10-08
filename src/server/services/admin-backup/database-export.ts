@@ -2,7 +2,7 @@
  * @file database-export.ts
  * @project SlothVault
  * @module Admin Database Backup Export
- * @description Exports a relation-closed portable 2.7 snapshot of membership entitlements, articles, project content, accounts, contracts, configuration, and transaction evidence.
+ * @description Exports a relation-closed portable 2.8 snapshot of membership entitlements, articles, project content, accounts, contracts, configuration, and transaction evidence.
  * @logic Read one repeatable transaction snapshot, retain member access and independent articles, close project relations, serialize evidence BigInts and frozen contract identity, then validate the portable result.
  * @dependencies database unit-of-work, Prisma, HTTP JSON serialization, backup schema and validation
  * @index_tags admin,backup,database,export,snapshot,relations
@@ -77,9 +77,9 @@ export async function exportDatabaseBackup() {
       tx.giftCard.findMany(),
       tx.membershipLevel.findMany(),
       tx.membershipGrant.findMany(),
-      tx.article.findMany({ where: { isDeleted: false } }),
+      tx.article.findMany({ where: { isDeleted: false }, include: { allowedMemberships: true } }),
     ])
-    const projects = await tx.project.findMany({ where: { isDeleted: false } })
+    const projects = await tx.project.findMany({ where: { isDeleted: false }, include: { readMemberships: true, downloadMemberships: true } })
     const projectIds = projects.map((item) => item.id)
 
     const [projectVersions, candidateMenus, projectHomes] =
@@ -131,7 +131,20 @@ export async function exportDatabaseBackup() {
       where: { credentialId: { in: contractCredentialIds } },
     })
 
+    const sourceIds = {
+      NOTE_CONTENT: new Set(noteContents.map((item) => item.id)),
+      PROJECT_HOME: new Set(projectHomes.map((item) => item.id)),
+      PROJECT_MENU: new Set(projectMenus.map((item) => item.id)),
+      ARTICLE: new Set(articles.map((item) => item.id)),
+      SYSTEM_HOMEPAGE: new Set(systemHomepages.map((item) => item.id)),
+      PROJECT_AVATAR: new Set(projects.map((item) => item.id)),
+      USER_AVATAR: new Set(users.map((item) => item.id)),
+      SYSTEM_CONFIG: new Set(systemConfigs.map((item) => item.id)),
+    }
+    const fileIds = new Set(fileManagements.map((item) => item.id))
+    const fileReferences = (await tx.fileReference.findMany()).filter((item) => fileIds.has(item.fileId) && sourceIds[item.sourceType as keyof typeof sourceIds]?.has(item.sourceId))
     return {
+      fileReferences,
       users,
       pointTransactions,
       giftCardBatches,
@@ -203,13 +216,17 @@ export async function exportDatabaseBackup() {
       grantedByUserId: grantedByUserId?.toString() ?? null,
       revokedByUserId: revokedByUserId?.toString() ?? null,
     })),
-    articles: snapshot.articles.map(({ id, requiredMembershipLevelId, ...item }) => ({
+    articles: snapshot.articles.map(({ id, requiredMembershipLevelId, allowedMemberships, ...item }) => ({
       ...item,
       id: id.toString(),
       requiredMembershipLevelId: requiredMembershipLevelId?.toString() ?? null,
+      allowedMembershipLevelIds: (allowedMemberships ?? []).map((link) => String(link.membershipLevelId)),
     })),
-    projects: snapshot.projects.map(({ id, ...item }) => ({
+    fileReferences: snapshot.fileReferences.map((item) => ({ ...item, id: String(item.id), fileId: String(item.fileId), sourceId: String(item.sourceId), projectId: item.projectId ? String(item.projectId) : null })),
+    projects: snapshot.projects.map(({ id, readMemberships, downloadMemberships, ...item }) => ({
       ...item,
+      readMembershipLevelIds: (readMemberships ?? []).map((link) => String(link.membershipLevelId)),
+      downloadMembershipLevelIds: (downloadMemberships ?? []).map((link) => String(link.membershipLevelId)),
       id: id.toString(),
     })),
     projectVersions: snapshot.projectVersions.map(({
@@ -344,7 +361,7 @@ export async function exportDatabaseBackup() {
   void _legacyCompressedNfts
 
   return {
-    version: '2.7.0',
+    version: '2.8.0',
     exportedAt,
     data: activeData,
   }

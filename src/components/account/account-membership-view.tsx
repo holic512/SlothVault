@@ -4,7 +4,7 @@
  * @file account-membership-view.tsx
  * @project SlothVault
  * @module Account Membership Center
- * @description Shows the current entitlement, point-priced levels, and immutable membership grant history for the signed-in user.
+ * @description Shows concurrent independent entitlements, point-priced types, and immutable membership grant history for the signed-in user.
  * @logic Read authoritative membership and point data, let users purchase only through the protected API, and refresh account balances after a successful grant.
  * @dependencies React Query, Ant Design, account shell, account membership API
  * @index_tags account,membership,points,purchase,history
@@ -42,13 +42,13 @@ type MembershipGrant = {
 
 type MembershipData = {
   pointsBalance: number
-  currentMembership: {
+  activeMemberships: Array<{
     id: string
     name: string
     rank: number
     expiresAt: string | null
     source: string
-  } | null
+  }>
   levels: MembershipLevel[]
   grants: MembershipGrant[]
 }
@@ -63,7 +63,7 @@ export function AccountMembershipView() {
     queryFn: () => apiFetch<MembershipData>('/api/account/membership'),
   })
   const purchaseMutation = useMutation({
-    mutationFn: (membershipLevelId: string) => apiFetch<{ pointsBalance: number; membership: MembershipData['currentMembership'] }>(
+    mutationFn: (membershipLevelId: string) => apiFetch<{ pointsBalance: number; membership: MembershipData['activeMemberships'][number] }>(
       '/api/account/membership',
       { method: 'POST', body: JSON.stringify({ membershipLevelId: Number(membershipLevelId) }) },
     ),
@@ -107,15 +107,14 @@ export function AccountMembershipView() {
             <AccountCard className="membership-current-card" loading={membershipQuery.isLoading}>
               <Space orientation="vertical" size={10} className="full-width">
                 <Typography.Text type="secondary">{t('current')}</Typography.Text>
-                {data?.currentMembership ? (
-                  <>
-                    <Typography.Title level={3}><Crown size={20} /> {data.currentMembership.name}</Typography.Title>
+                {data?.activeMemberships.length ? data.activeMemberships.map((membership) => (
+                  <div key={membership.id}>
+                    <Typography.Title level={3}><Crown size={20} /> {membership.name}</Typography.Title>
                     <Descriptions size="small" column={1}>
-                      <Descriptions.Item label={t('level')}>Lv.{data.currentMembership.rank}</Descriptions.Item>
-                      <Descriptions.Item label={t('validity')}>{expiryLabel(data.currentMembership.expiresAt)}</Descriptions.Item>
+                      <Descriptions.Item label={t('validity')}>{expiryLabel(membership.expiresAt)}</Descriptions.Item>
                     </Descriptions>
-                  </>
-                ) : (
+                  </div>
+                )) : (
                   <div className="membership-empty-current">
                     <Crown size={24} />
                     <div><strong>{t('noCurrent')}</strong><p>{t('chooseLevel')}</p></div>
@@ -136,13 +135,12 @@ export function AccountMembershipView() {
             {data?.levels.length ? (
               <div className="membership-level-grid">
                 {data.levels.map((level) => {
-                  const lowerThanCurrent = Boolean(data.currentMembership && level.rank < data.currentMembership.rank)
-                  const permanentCurrent = data.currentMembership?.id === level.id && data.currentMembership.expiresAt === null
+                  const owned = data.activeMemberships.find((item) => item.id === level.id)
+                  const permanentCurrent = Boolean(owned && owned.expiresAt === null)
                   const insufficient = (data.pointsBalance ?? 0) < level.pricePoints
                   return (
                     <AccountCard key={level.id} className="membership-level-card">
                       <div className="membership-level-card-heading">
-                        <span className="membership-level-rank">Lv.{level.rank}</span>
                         <Tag color="gold"><Crown size={13} />{level.name}</Tag>
                       </div>
                       <strong className="membership-level-price"><Coins size={17} />{t('price', { points: level.pricePoints })}</strong>
@@ -152,11 +150,11 @@ export function AccountMembershipView() {
                       <Button
                         type="primary"
                         icon={permanentCurrent ? <Check size={15} /> : <ShoppingCart size={15} />}
-                        disabled={lowerThanCurrent || permanentCurrent || insufficient}
+                        disabled={permanentCurrent || insufficient}
                         loading={purchaseMutation.isPending && purchaseMutation.variables === level.id}
                         onClick={() => confirmPurchase(level)}
                       >
-                        {permanentCurrent ? t('owned') : lowerThanCurrent ? t('higherLevel') : insufficient ? t('insufficient') : t('purchase')}
+                        {permanentCurrent ? t('owned') : insufficient ? t('insufficient') : owned ? t('renew') : t('purchase')}
                       </Button>
                     </AccountCard>
                   )
@@ -174,7 +172,7 @@ export function AccountMembershipView() {
               pagination={{ pageSize: 10, hideOnSinglePage: true }}
               scroll={{ x: 720 }}
               columns={[
-                { title: t('table.level'), dataIndex: ['membershipLevel', 'name'], render: (_value, item) => <Space><Tag color="gold">Lv.{item.membershipLevel.rank}</Tag>{item.membershipLevel.name}</Space> },
+                { title: t('table.level'), dataIndex: ['membershipLevel', 'name'], render: (_value, item) => <Space><Tag color="gold"><Crown size={13} /></Tag>{item.membershipLevel.name}</Space> },
                 { title: t('table.source'), dataIndex: 'source', render: (value) => value === 'POINT_PURCHASE' ? t('table.purchase') : t('table.granted') },
                 { title: t('table.grantedAt'), dataIndex: 'grantedAt', render: (value) => new Date(value).toLocaleString(locale) },
                 { title: t('table.expiresAt'), dataIndex: 'expiresAt', render: (value) => expiryLabel(value) },

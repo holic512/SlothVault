@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Mixed Document Viewer
  * @description Renders Markdown and embedded HTML through one responsive, sanitized document surface.
- * @logic Apply reading or landing typography, parse GFM and raw HTML, filter inline CSS, create stable heading links, sanitize the final tree, and harden external resources.
+ * @logic Apply reading or landing typography, parse GFM and raw HTML, filter inline CSS, create stable heading links, sanitize the final tree, and harden external resources, and route managed links through contextual reading/download checks.
  * @dependencies react-markdown, remark-gfm, rehype-raw, rehype-slug, rehype-autolink-headings, rehype-sanitize
  * @index_tags markdown,html,viewer,sanitize,security,typography
  * @author holic512
@@ -26,6 +26,7 @@ import {
   SAFE_DOCUMENT_CLASS_NAME,
 } from '@/lib/markdown-security'
 import markdownStyles from '@/styles/modules/markdown.module.css'
+import { contextualFileUrl, managedUploadPath } from '@/lib/managed-file-paths'
 
 type AttributeDefinitions = NonNullable<SanitizeSchema['attributes']>[string]
 
@@ -81,10 +82,16 @@ export function MarkdownView({
   content,
   className = '',
   presentation = 'reading',
+  projectId,
+  canDownload = true,
+  downloadMessage,
 }: {
   content: string
   className?: string
   presentation?: MarkdownPresentation
+  projectId?: string
+  canDownload?: boolean
+  downloadMessage?: string
 }) {
   const t = useTranslations('MarkdownView')
   const articleClassName = `${markdownStyles.root} ${className}`.trim()
@@ -117,10 +124,13 @@ export function MarkdownView({
           a: ({ node, href, children, ...props }) => {
             void node
             const external = Boolean(href && /^(https?:)?\/\//.test(href))
+            const managed = Boolean(managedUploadPath(href))
             return (
               <a
                 {...props}
-                href={href}
+                href={managed && !canDownload ? undefined : contextualFileUrl(href, projectId, true)}
+                aria-disabled={managed && !canDownload ? true : undefined}
+                title={managed && !canDownload ? downloadMessage || t('downloadUnavailable') : props.title}
                 target={external ? '_blank' : undefined}
                 rel={external ? 'noreferrer noopener' : undefined}
               >
@@ -134,6 +144,7 @@ export function MarkdownView({
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 {...props}
+                src={contextualFileUrl(typeof props.src === 'string' ? props.src : undefined, projectId)}
                 alt={alt || ''}
                 decoding="async"
                 loading="lazy"

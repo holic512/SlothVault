@@ -13,6 +13,10 @@ import 'server-only'
 import type { Prisma } from '@generated/prisma-postgresql/client'
 
 export async function deleteBusinessData(tx: Prisma.TransactionClient) {
+  const fileReferences = await tx.fileReference.deleteMany({})
+  const articleMemberships = await tx.articleMembership.deleteMany({})
+  const projectReadMemberships = await tx.projectReadMembership.deleteMany({})
+  const projectDownloadMemberships = await tx.projectDownloadMembership.deleteMany({})
   const giftCards = await tx.giftCard.deleteMany({})
   const giftCardBatches = await tx.giftCardBatch.deleteMany({})
   const pointTransactions = await tx.pointTransaction.deleteMany({})
@@ -37,6 +41,10 @@ export async function deleteBusinessData(tx: Prisma.TransactionClient) {
   const systemHomepages = await tx.systemHomepage.deleteMany({})
 
   const deleted = {
+    fileReferences: fileReferences.count,
+    articleMemberships: articleMemberships.count,
+    projectReadMemberships: projectReadMemberships.count,
+    projectDownloadMemberships: projectDownloadMemberships.count,
     giftCards: giftCards.count,
     giftCardBatches: giftCardBatches.count,
     pointTransactions: pointTransactions.count,

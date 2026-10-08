@@ -150,6 +150,7 @@ model Article {
   updatedAt                 DateTime         @default(now()) @map("updated_at") @db.DateTime(3)
   isDeleted                 Boolean          @default(false) @map("is_deleted")
   deletedAt                 DateTime?        @map("deleted_at")
+  allowedMemberships        ArticleMembership[]
   requiredMembershipLevel   MembershipLevel? @relation("ArticleRequiredMembershipLevel", fields: [requiredMembershipLevelId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([status, isDeleted, publishedAt], map: "idx_blog_article_public")
@@ -167,6 +168,9 @@ model MembershipLevel {
   createdAt        DateTime          @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt        DateTime          @default(now()) @map("updated_at") @db.DateTime(3)
   grants           MembershipGrant[]
+  articleMemberships ArticleMembership[]
+  readableProjects ProjectReadMembership[]
+  downloadableProjects ProjectDownloadMembership[]
   requiredArticles Article[]         @relation("ArticleRequiredMembershipLevel")
 
   @@index([status, rank], map: "idx_membership_level_status_rank")
@@ -200,6 +204,11 @@ model Project {
   avatar      String?  @db.VarChar(500)
   weight      Int
   status      Int      @db.SmallInt
+  readAccessMode String @default("PUBLIC") @map("read_access_mode") @db.VarChar(32)
+  downloadAccessMode String @default("FOLLOW_READ") @map("download_access_mode") @db.VarChar(32)
+  readMemberships ProjectReadMembership[]
+  downloadMemberships ProjectDownloadMembership[]
+  fileReferences FileReference[]
   requireAuth Boolean  @default(false) @map("require_auth")
   createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt   DateTime @default(now()) @map("updated_at") @db.DateTime(3)
@@ -338,6 +347,7 @@ model FileManagement {
   businessType String   @map("business_type") @db.VarChar(50)
   status       Int      @default(1) @db.SmallInt
   createTime   DateTime @default(now()) @map("create_time") @db.DateTime(3)
+  references   FileReference[]
   contractAttachment Contract? @relation("ContractAttachment")
 
   @@map("files_file_management")
@@ -536,4 +546,53 @@ model ReleaseCredentialAttempt {
   @@index([credentialId, status], map: "idx_release_credential_attempt_status")
   @@index([transactionSignature], map: "idx_release_credential_attempt_signature")
   @@map("release_credential_attempt")
+}
+
+model ArticleMembership {
+  articleId Int @map("article_id")
+  membershipLevelId Int @map("membership_level_id")
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  membershipLevel MembershipLevel @relation(fields: [membershipLevelId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@id([articleId, membershipLevelId])
+  @@index([membershipLevelId], map: "idx_article_membership_level")
+  @@map("article_membership")
+}
+
+model ProjectReadMembership {
+  projectId Int @map("project_id")
+  membershipLevelId Int @map("membership_level_id")
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  membershipLevel MembershipLevel @relation(fields: [membershipLevelId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@id([projectId, membershipLevelId])
+  @@index([membershipLevelId], map: "idx_project_read_membership_level")
+  @@map("project_read_membership")
+}
+
+model ProjectDownloadMembership {
+  projectId Int @map("project_id")
+  membershipLevelId Int @map("membership_level_id")
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  membershipLevel MembershipLevel @relation(fields: [membershipLevelId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@id([projectId, membershipLevelId])
+  @@index([membershipLevelId], map: "idx_project_download_membership_level")
+  @@map("project_download_membership")
+}
+
+model FileReference {
+  id Int @id @default(autoincrement())
+  fileId Int @map("file_id")
+  sourceType String @map("source_type") @db.VarChar(32)
+  sourceId Int @map("source_id")
+  projectId Int? @map("project_id")
+  usage String @db.VarChar(32)
+  file FileManagement @relation(fields: [fileId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([fileId, sourceType, sourceId, usage], map: "uq_file_reference_source_usage")
+  @@index([sourceType, sourceId], map: "idx_file_reference_source")
+  @@index([projectId], map: "idx_file_reference_project")
+  @@map("files_file_reference")
 }

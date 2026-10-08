@@ -24,7 +24,7 @@ type PublicArticleListItem = {
   cover: string | null
   publishedAt: string
   updatedAt: string
-  requiredMembershipLevel: { id: string; name: string; rank: number } | null
+  allowedMembershipLevels: Array<{ id: string; name: string; rank: number; status: number }>
 }
 
 export async function PublicArticleListView({
@@ -67,7 +67,7 @@ export async function PublicArticleListView({
                   </div>
                   <h2>{featured.title}</h2>
                   <p>{featured.summary}</p>
-                  {featured.requiredMembershipLevel ? <span className="article-membership-badge"><LockKeyhole size={13} />{t('requiredLevel', { level: featured.requiredMembershipLevel.name })}</span> : null}
+                  {featured.allowedMembershipLevels.length ? <span className="article-membership-badge"><LockKeyhole size={13} />{t('requiredLevel', { level: featured.allowedMembershipLevels.map((item) => item.name).join(' / ') })}</span> : null}
                   <span className="article-read-action">{t('read')}<ArrowUpRight size={16} /></span>
                 </div>
               </article>
@@ -85,7 +85,7 @@ export async function PublicArticleListView({
                         </div>
                         <h2>{article.title}</h2>
                         <p>{article.summary}</p>
-                        {article.requiredMembershipLevel ? <span className="article-membership-badge"><LockKeyhole size={13} />{t('requiredLevel', { level: article.requiredMembershipLevel.name })}</span> : null}
+                        {article.allowedMembershipLevels.length ? <span className="article-membership-badge"><LockKeyhole size={13} />{t('requiredLevel', { level: article.allowedMembershipLevels.map((item) => item.name).join(' / ') })}</span> : null}
                       </div>
                     </article>
                   </Link>

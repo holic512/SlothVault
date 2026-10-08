@@ -1,25 +1,29 @@
 /**
  * @file route.ts
  * @project SlothVault
- * @module Legacy Public Access API
- * @description Preserves the former wallet-access endpoint while reporting that every published collection is publicly readable.
- * @logic Validate the project identifier and existence, ignore legacy wallet payloads, and return a stable unconditional public-access decision.
- * @dependencies HTTP route helpers, public-projects service
- * @index_tags api,compatibility,public-reading,no-wallet
+ * @module Project Capability API
+ * @description Reports independent reading and download decisions while preserving the legacy hasAccess field.
+ * @logic Read current policy and session memberships on every request and return reasons without shared caching.
+ * @dependencies HTTP route helpers, content-access, viewer
+ * @index_tags api,compatibility,reading,download,membership
  * @author holic512
  */
 import { defineRoute } from '@/server/http/handler'
 import { parseBigIntId } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
-import { getPublicProject } from '@/server/services/public-projects'
+import { resolveProjectAccess } from '@/server/services/content-access'
+import { getRequestViewer } from '@/server/auth/viewer'
 
-export const POST = defineRoute<{ id: string }>(async (_request, context) => {
+export const POST = defineRoute<{ id: string }>(async (request, context) => {
   const { id } = await context.params
   const projectId = parseBigIntId(id, 'project id')
-  await getPublicProject(projectId)
-  return apiOk({
-    hasAccess: true,
-    reason: 'Published content is public',
-    requireAuth: false,
+  const access = await resolveProjectAccess(projectId, await getRequestViewer(request))
+  const response = apiOk({
+    ...access,
+    hasAccess: access.canRead,
+    reason: access.readReason,
+    requireAuth: access.readAccess.mode !== 'PUBLIC',
   })
-})
+  response.headers.set('Cache-Control', 'private, no-store')
+  return response
+}, { cacheControl: 'private, no-store' })

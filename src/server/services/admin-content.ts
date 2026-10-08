@@ -3,12 +3,13 @@
  * @project SlothVault
  * @module Admin Content Services
  * @description Owns project-home, project-menu, and system-homepage persistence, validation, transactions, and stable DTO mapping.
- * @logic Validate content commands, enforce active project and two-level menu invariants, execute atomic mutations, invalidate affected public-project cache entries, and serialize database records for admin APIs.
- * @dependencies Prisma project content models, server/http/errors, admin-catalog helpers, public-project-cache
+ * @logic Validate content commands, enforce active project and two-level menu invariants, synchronize managed file references inside atomic mutations, invalidate affected public-project cache entries, and serialize database records for admin APIs.
+ * @dependencies Prisma project content models, server/http/errors, admin-catalog helpers, public-project-cache, file-references
  * @index_tags admin,homepage,project-menu,system-homepage,transaction,dto,validation,cache
  * @author holic512
  */
 import 'server-only'
+import { indexFileWrite } from './file-references'
 
 import type { Prisma } from '@generated/prisma-postgresql/client'
 
@@ -249,13 +250,13 @@ export async function createProjectHome(
   try {
     const home = await prisma.$transaction(async (tx) => {
       await requireActiveProject(tx, projectId)
-      return tx.projectHome.create({
+      return indexFileWrite(tx, 'PROJECT_HOME', tx.projectHome.create({
         data: {
           projectId,
           content,
           status: integerValue(input.status, 1),
         },
-      })
+      }))
     })
     await invalidatePublicProjectCache(projectId)
     return projectHomeDto(home)
@@ -277,7 +278,7 @@ export async function createOrRestoreProjectHome(
     await requireActiveProject(tx, projectId)
     const existing = await tx.projectHome.findUnique({ where: { projectId }, select: { isDeleted: true } })
     if (existing?.isDeleted) throw new HttpError('Restore the project homepage from the trash', 409, 409)
-    return tx.projectHome.upsert({
+    return indexFileWrite(tx, 'PROJECT_HOME', tx.projectHome.upsert({
       where: { projectId },
       update: {
         content,
@@ -289,7 +290,7 @@ export async function createOrRestoreProjectHome(
         content,
         status: integerValue(input.status, 1),
       },
-    })
+    }))
   })
   await invalidatePublicProjectCache(projectId)
   return projectHomeDto(home)
@@ -313,7 +314,7 @@ export async function updateProjectHome(id: number, input: UpdateProjectHomeInpu
   if (Object.keys(data).length === 1) throw new HttpError('No fields to update', 400, 400)
 
   try {
-    const home = await prisma.projectHome.update({ where: { id }, data })
+    const home = await prisma.$transaction((fileTx) => indexFileWrite(fileTx, 'PROJECT_HOME', fileTx.projectHome.update({ where: { id }, data })))
     await invalidatePublicProjectCache(home.projectId)
     return projectHomeDto(home)
   } catch (error) {
@@ -368,7 +369,7 @@ export async function createProjectMenu(projectId: number, input: CreateProjectM
   const menu = await prisma.$transaction(async (tx) => {
     await requireActiveProject(tx, projectId)
     if (parentId) await validateMenuParent(tx, { projectId, parentId })
-    return tx.projectMenu.create({
+    return indexFileWrite(tx, 'PROJECT_MENU', tx.projectMenu.create({
       data: {
         projectId,
         parentId,
@@ -378,7 +379,7 @@ export async function createProjectMenu(projectId: number, input: CreateProjectM
         weight: integerValue(input.weight, 0),
         status: integerValue(input.status, 1),
       },
-    })
+    }))
   })
   return projectMenuDtoBase(menu)
 }
@@ -439,7 +440,7 @@ export async function updateProjectMenu(id: number, input: UpdateProjectMenuInpu
     if (input.weight !== undefined) data.weight = integerValue(input.weight, current.weight)
     if (input.status !== undefined) data.status = integerValue(input.status, current.status)
     if (Object.keys(data).length === 1) throw new HttpError('No fields to update', 400, 400)
-    return tx.projectMenu.update({ where: { id }, data })
+    return indexFileWrite(tx, 'PROJECT_MENU', tx.projectMenu.update({ where: { id }, data }))
   })
   return projectMenuDtoBase(menu)
 }
@@ -459,9 +460,9 @@ export async function getSystemHomepage() {
 
 export async function createSystemHomepage(input: CreateSystemHomepageInput) {
   const content = requiredDocumentContent(input.content)
-  const homepage = await prisma.systemHomepage.create({
+  const homepage = await prisma.$transaction((fileTx) => indexFileWrite(fileTx, 'SYSTEM_HOMEPAGE', fileTx.systemHomepage.create({
     data: { content, status: integerValue(input.status, 1) },
-  })
+  })))
   return systemHomepageDto(homepage)
 }
 
@@ -474,7 +475,7 @@ export async function updateSystemHomepage(id: number, input: UpdateSystemHomepa
   if (Object.keys(data).length === 1) throw new HttpError('No fields to update', 400, 400)
 
   try {
-    const homepage = await prisma.systemHomepage.update({ where: { id }, data })
+    const homepage = await prisma.$transaction((fileTx) => indexFileWrite(fileTx, 'SYSTEM_HOMEPAGE', fileTx.systemHomepage.update({ where: { id }, data })))
     return systemHomepageDto(homepage)
   } catch (error) {
     if (hasPrismaCode(error, 'P2025')) throw new HttpError('Not Found', 404, 404)

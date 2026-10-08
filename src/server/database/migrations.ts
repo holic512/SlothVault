@@ -10,6 +10,7 @@
  */
 import 'server-only'
 import { upgradeContentManifests } from './content-manifest-upgrade'
+import { rebuildFileReferences } from '@/server/services/file-references'
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
@@ -172,6 +173,9 @@ export async function upgradeConfiguredDatabaseSchema(connection: DatabaseConnec
     }
     if (marker.schemaRevision < CURRENT_SCHEMA_REVISION) {
       await upgradeContentManifests(client)
+      if (marker.schemaRevision < 9) {
+        await client.$transaction((tx) => rebuildFileReferences(tx), { timeout: 120_000 })
+      }
       await client.systemInstallation.update({
         where: { id: INSTALLATION_ROW_ID },
         data: { schemaRevision: CURRENT_SCHEMA_REVISION, updatedAt: new Date() },

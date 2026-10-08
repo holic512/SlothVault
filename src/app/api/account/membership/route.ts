@@ -2,7 +2,7 @@
  * @file route.ts
  * @project SlothVault
  * @module Account Membership API
- * @description Returns the signed-in user's membership state and exchanges points for a selected active level.
+ * @description Returns all independently active membership types and exchanges points for purchase or renewal of one type.
  * @logic Require an active user session, throttle purchases by user and client IP, and delegate the atomic point-and-grant transaction to the membership service.
  * @dependencies zod, user session, request IP, rate limiter, membership service
  * @index_tags api,account,membership,points,purchase,rate-limit
@@ -26,7 +26,7 @@ export const dynamic = 'force-dynamic'
 export const GET = defineRoute(async (request) => {
   const session = await requireUserSession(request)
   return apiOk(await getMembershipAccountData(session.userId))
-})
+}, { cacheControl: 'private, no-store' })
 
 export const POST = defineRoute(async (request) => {
   const session = await requireUserSession(request)
@@ -38,4 +38,4 @@ export const POST = defineRoute(async (request) => {
   })
   const body = await readJson(request, purchaseSchema)
   return apiOk(await purchaseMembership({ userId: session.userId, ...body }), 'purchased')
-})
+}, { cacheControl: 'private, no-store' })

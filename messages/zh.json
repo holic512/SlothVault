@@ -46,7 +46,7 @@
     "published": "发布于 {date}",
     "updated": "更新于 {date}",
     "lockedTitle": "此文章需要会员权限",
-    "lockedDescription": "开通 {level} 或更高等级会员后即可阅读全文。",
+    "lockedDescription": "开通以下任一会员即可阅读全文：{level}。",
     "loginAction": "登录后查看权益",
     "membershipAction": "前往会员中心"
   },
@@ -77,6 +77,19 @@
         "mainnet": "本文内容版本存证 · Mainnet",
         "description": "此凭证仅绑定当前公开主内容版本。"
       }
+    },
+    "permissions": {
+      "readLocked": "此文档需要阅读权限",
+      "downloadLocked": "可在线阅读，下载需要额外权限",
+      "downloadClosed": "作者已关闭下载",
+      "closedDescription": "在线阅读仍按项目阅读权限开放；本项目的附件和正文清单暂不提供下载。",
+      "loginDescription": "请先登录，再查看可用的阅读与下载权益。",
+      "memberDescription": "持有以下任一有效会员即可获得此权限：{names}。",
+      "configuredMembers": "管理员指定的会员",
+      "login": "登录",
+      "openMembership": "开通会员",
+      "notForSale": "这些会员类型暂未开放购买，请联系管理员。",
+      "downloadUnavailable": "当前没有本项目的下载权限"
     }
   },
   "DocumentEditor": {
@@ -448,7 +461,7 @@
     "adminProjectHome": "首页编辑",
     "adminHomepage": "系统首页管理",
     "adminUsers": "用户管理",
-    "adminMembershipLevels": "会员等级管理",
+    "adminMembershipLevels": "会员类型",
     "adminMcpKeys": "MCP Key 管理",
     "adminGiftCards": "卡密管理",
     "adminEvidence": "交易存证",
@@ -469,7 +482,7 @@
       "trash": "回收站",
       "files": "文件管理",
       "users": "用户管理",
-      "membershipLevels": "会员等级",
+      "membershipLevels": "会员类型",
       "contracts": "合同管理",
       "giftCards": "卡密管理",
       "solana": "存证系统",
@@ -578,8 +591,8 @@
         "access": "阅读权限",
         "publicAccess": "公开阅读（无需会员）",
         "publicAccessHint": "所有访客均可阅读此文章。",
-        "memberOnlyHint": "只有达到所选等级的有效会员可以阅读正文。",
-        "levelDisabled": "已停用",
+        "memberOnlyHint": "持有所选任一有效会员即可阅读正文；会员之间不自动包含权限。",
+        "levelDisabled": "已停售",
         "cover": "封面",
         "coverFallback": "文章",
         "uploadCover": "上传封面",
@@ -700,6 +713,29 @@
         "clone": { "title": "将 {version} 克隆为草稿", "version": "新版本标签", "destination": "克隆到", "newDraft": "创建新草稿" },
         "messages": { "saved": "已保存", "published": "版本已发布", "publishValidationFailed": "发布校验未通过", "restored": "发布已恢复", "hidden": "发布已隐藏", "integrityVerified": "发布完整性校验通过", "integrityFailed": "发布完整性校验失败", "manifestFailed": "manifest 下载失败", "cloned": "已克隆为草稿", "hashCopied": "哈希已复制", "copyFailed": "无法复制哈希" },
         "validation": { "projectInactive": "所属项目必须处于启用状态", "noEnabledCategory": "至少需要一个启用的分类", "categoryNoEnabledNote": "每个启用分类至少需要一篇启用笔记", "notePrimaryCount": "每篇启用笔记必须恰好有一个主内容版本", "notePrimaryDisabled": "笔记的主内容版本必须处于启用状态", "notePrimaryEmpty": "笔记的主内容版本不能为空", "metadataIncomplete": "发布元数据不完整", "manifestUnsupported": "该发布使用了不受支持的 manifest 版本", "hashMismatch": "已保存的发布哈希与当前内容不一致", "unknown": "发布内容未通过校验" }
+      },
+      "permissions": {
+        "read": "阅读权限",
+        "download": "下载权限",
+        "members": "允许的会员类型",
+        "selectMembers": "请选择至少一种会员",
+        "notForSale": "已停售",
+        "summary": "以下任一会员可访问：{names}",
+        "downloadNeedsRead": "下载还需要具备本项目的阅读权限。",
+        "sharedFilesHint": "共享附件只要在其他项目允许下载，就仍可通过其他项目获取。外部站点的下载地址不受本站权限控制。",
+        "modes": {
+          "PUBLIC": "所有人",
+          "LOGIN": "登录用户",
+          "MEMBERSHIPS": "指定会员类型",
+          "FOLLOW_READ": "跟随阅读权限",
+          "DISABLED": "关闭下载"
+        },
+        "hints": {
+          "PUBLIC": "所有访客可阅读项目正文。",
+          "LOGIN": "登录后可访问，无需开通会员。",
+          "FOLLOW_READ": "能阅读本项目的用户也能下载。",
+          "DISABLED": "保留在线阅读，关闭附件和正文清单下载。"
+        }
       }
     },
     "projectMenu": {
@@ -1566,15 +1602,15 @@
       }
     },
     "membershipLevels": {
-      "actions": { "refresh": "刷新", "create": "新建会员等级", "edit": "编辑", "save": "保存", "cancel": "取消" },
-      "messages": { "created": "会员等级已创建", "updated": "会员等级已更新" },
-      "table": { "level": "等级", "rank": "排序值", "pricePoints": "积分价格", "validity": "有效期", "status": "状态", "updatedAt": "更新时间", "operations": "操作" },
-      "level": "Lv.{rank}",
+      "actions": { "refresh": "刷新", "create": "新建会员类型", "edit": "编辑", "save": "保存", "cancel": "取消" },
+      "messages": { "created": "会员类型已创建", "updated": "会员类型已更新" },
+      "table": { "level": "会员类型", "rank": "展示排序", "pricePoints": "积分价格", "validity": "有效期", "status": "状态", "updatedAt": "更新时间", "operations": "操作" },
+      "level": "显示顺序 {rank}",
       "validityDays": "{count} 天",
       "permanent": "永久有效",
-      "status": { "available": "可购买", "disabled": "已停用", "disabledWithRetention": "已停用（保留现有权益）" },
-      "dialog": { "createTitle": "新建会员等级", "editTitle": "编辑会员等级" },
-      "form": { "name": "等级名称", "rank": "排序值（越高权限越高）", "pricePoints": "积分价格", "validityDays": "有效天数（留空表示永久）", "status": "销售状态" }
+      "status": { "available": "可购买", "disabled": "已停售", "disabledWithRetention": "已停售（保留现有权益）" },
+      "dialog": { "createTitle": "新建会员类型", "editTitle": "编辑会员类型" },
+      "form": { "name": "会员名称", "rank": "展示排序（不影响权限）", "pricePoints": "积分价格", "validityDays": "有效天数（留空表示永久）", "status": "销售状态" }
     },
     "giftCards": {
       "actions": { "refresh": "刷新", "create": "发行卡密", "generate": "生成卡密", "cancel": "取消", "confirmSaved": "我已保存", "copyAll": "复制全部卡密" },
@@ -1614,7 +1650,7 @@
         "role": "身份",
         "wallet": "钱包",
         "points": "积分",
-        "membership": "会员等级",
+        "membership": "会员类型",
         "status": "状态",
         "createdAt": "创建时间",
         "operations": "操作"
@@ -1684,16 +1720,21 @@
         "revokeAll": "取消全部权益",
         "current": "当前权益：",
         "regular": "普通用户",
-        "grantLevel": "授予等级",
-        "selectLevel": "请选择会员等级",
+        "grantLevel": "授予会员类型",
+        "selectLevel": "请选择会员类型",
         "permanent": "永久有效",
         "expiresAt": "到期时间",
         "selectFutureExpiry": "请选择未来到期时间",
         "history": "授权记录",
         "revoked": "已取消",
         "until": "至 {date}",
-        "disabled": "已停用",
-        "level": "Lv.{rank}"
+        "disabled": "已停售",
+        "level": "会员类型",
+        "independentHint": "设置只替换所选类型，其他会员权益保持有效。",
+        "revoke": "撤销",
+        "revokeType": "撤销 {name}",
+        "revokeTypeConfirm": "仅撤销这一类型的有效授权，其他会员权益保留。",
+        "revokeAllConfirm": "将撤销该用户全部类型的会员权益，请确认。"
       }
     },
     "mcpKeys": {
@@ -1957,7 +1998,7 @@
     "membership": {
       "kicker": "会员",
       "title": "会员中心",
-      "description": "使用积分开通等级，解锁对应文章阅读权限。",
+      "description": "使用积分独立开通会员类型，按项目配置获得阅读和下载权益。",
       "purchased": "会员权益已开通",
       "purchaseTitle": "开通 {name}",
       "purchaseDuration": "将扣除 {points} 积分，有效期 {days} 天。",
@@ -1965,23 +2006,23 @@
       "confirm": "确认开通",
       "cancel": "取消",
       "current": "当前会员权益",
-      "level": "等级",
+      "level": "会员类型",
       "validity": "有效期",
       "permanent": "永久有效",
       "noCurrent": "当前没有有效会员权益",
       "availablePoints": "可用积分",
       "pointsHint": "积分会在购买成功后即时扣除。",
-      "availableLevels": "可开通等级",
+      "availableLevels": "可开通的会员类型",
       "price": "{points} 积分",
       "duration": "有效 {days} 天",
       "owned": "已永久拥有",
-      "higherLevel": "当前等级更高",
+      "higherLevel": "各类型独立购买",
       "insufficient": "积分不足",
       "purchase": "积分开通",
-      "noLevels": "管理员尚未配置可购买会员等级",
+      "noLevels": "管理员尚未配置可购买的会员类型",
       "history": "会员授权记录",
       "table": {
-        "level": "等级",
+        "level": "会员类型",
         "source": "来源",
         "purchase": "积分购买",
         "granted": "管理员授予",
@@ -1992,8 +2033,9 @@
         "active": "有效",
         "expired": "已过期"
       },
-      "chooseLevel": "选择下方等级，开通对应的阅读权益。",
-      "managePoints": "管理积分"
+      "chooseLevel": "可同时开通多种会员，每种会员独立到期、独立续费。",
+      "managePoints": "管理积分",
+      "renew": "续费此会员"
     }
   },
   "Evidence": {
@@ -2016,6 +2058,7 @@
   },
   "MarkdownView": {
     "unavailableTitle": "文档暂时无法展示",
-    "contentTooLarge": "内容超过 {limit} 字符的安全展示限制，请联系管理员精简或拆分文档。"
+    "contentTooLarge": "内容超过 {limit} 字符的安全展示限制，请联系管理员精简或拆分文档。",
+    "downloadUnavailable": "当前没有本项目的下载权限"
   }
 }

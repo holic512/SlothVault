@@ -3,12 +3,13 @@
  * @project SlothVault
  * @module Admin Notes
  * @description Owns editable note metadata and frozen published bodies, full or lightweight NoteContent queries, and serialized primary-version mutations for administration APIs and MCP.
- * @logic Keep history listings free of Markdown payloads, lock every owning project version before writes, lock cross-version moves in stable order, increment note revisions, and normalize undeleted contents to exactly one primary in the same serializable transaction.
+ * @logic Synchronize managed file references during content writes and parent moves; Keep history listings free of Markdown payloads, lock every owning project version before writes, lock cross-version moves in stable order, increment note revisions, and normalize undeleted contents to exactly one primary in the same serializable transaction.
  * @dependencies server/prisma, admin-catalog parsing, Prisma NoteInfo/NoteContent models, server/http/errors, project-version release service
  * @index_tags admin,mcp,notes,note-content,service,transaction,revision-lock,primary-version
  * @author holic512
  */
 import 'server-only'
+import { indexFileWrite, syncFileReferences } from './file-references'
 
 import type { Prisma } from '@generated/prisma-postgresql/client'
 
@@ -378,11 +379,16 @@ export async function updateAdminNote(
           reason: 'VERSION_WRITE_CONFLICT',
         })
       }
-      return tx.noteInfo.update({
+      const updated = await tx.noteInfo.update({
         where: { id },
         data,
         include: { category: true },
       })
+      if (targetCategoryId !== current.categoryId) {
+        const contents = await tx.noteContent.findMany({ where: { noteInfoId: id }, select: { id: true } })
+        for (const content of contents) await syncFileReferences(tx, 'NOTE_CONTENT', content.id)
+      }
+      return updated
     })
     await invalidatePublicProjectCache()
     return noteDto(note)
@@ -480,10 +486,10 @@ async function normalizePrimaryContent(
   })
 
   if (!selected.isPrimary) {
-    await tx.noteContent.update({
+    await indexFileWrite(tx, 'NOTE_CONTENT', tx.noteContent.update({
       where: { id: selected.id },
       data: { isPrimary: true, updatedAt: now },
-    })
+    }))
   }
 }
 
@@ -498,7 +504,7 @@ export async function createNoteContent(input: CreateNoteContentInput) {
     }
     await lockActiveNoteInfo(tx, input.noteInfoId)
 
-    const created = await tx.noteContent.create({
+    const created = await indexFileWrite(tx, 'NOTE_CONTENT', tx.noteContent.create({
       data: {
         noteInfoId: input.noteInfoId,
         content: input.content,
@@ -506,7 +512,7 @@ export async function createNoteContent(input: CreateNoteContentInput) {
         isPrimary: false,
         status: input.status,
       },
-    })
+    }))
 
     await normalizePrimaryContent(
       tx,
@@ -553,7 +559,7 @@ export async function updateNoteContent(id: number, input: UpdateNoteContentInpu
     if (input.versionNote !== undefined) data.versionNote = input.versionNote
     if (input.status !== undefined) data.status = input.status
 
-    await tx.noteContent.update({ where: { id }, data })
+    await indexFileWrite(tx, 'NOTE_CONTENT', tx.noteContent.update({ where: { id }, data }))
     if (changesBody) await normalizePrimaryContent(
       tx,
       current.noteInfoId,

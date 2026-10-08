@@ -27,7 +27,7 @@ export function readDocumentHeadings(root: ParentNode): DocumentHeading[] {
     }))
 }
 
-export function ProjectDocumentContent({ content, outlineLabel }: { content: string; outlineLabel: string }) {
+export function ProjectDocumentContent({ content, outlineLabel, projectId, canDownload, downloadMessage }: { content: string; outlineLabel: string; projectId?: string; canDownload?: boolean; downloadMessage?: string }) {
   const documentRef = useRef<HTMLDivElement>(null)
   const [headings, setHeadings] = useState<DocumentHeading[]>([])
   const [activeId, setActiveId] = useState('')
@@ -126,7 +126,7 @@ export function ProjectDocumentContent({ content, outlineLabel }: { content: str
           </nav>
         </details>
       )}
-      <div ref={documentRef}><MarkdownView content={content} /></div>
+      <div ref={documentRef}><MarkdownView content={content} projectId={projectId} canDownload={canDownload} downloadMessage={downloadMessage} /></div>
     </div>
   )
 }

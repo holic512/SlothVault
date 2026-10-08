@@ -3,15 +3,17 @@
  * @project SlothVault
  * @module Public Project Reading
  * @description Centralizes public immutable project navigation, manifest metadata, document reads, and version transaction evidence.
- * @logic Require a visible published release, resolve an optional active project homepage, and expose release evidence without coupling public project documents to user identities.
+ * @logic Require a visible published release, resolve an optional active project homepage, and expose release evidence with independent membership reading policies.
  * @dependencies Prisma project, document, and release credential models
- * @index_tags public-project,public-reader,versions,notes,evidence
+ * @index_tags public-project,public-reader,versions,notes,evidence,permissions
  * @author holic512
  */
 import 'server-only'
 
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
+import type { AccessViewer } from '@/lib/content-access'
+import { projectAccessInclude, projectPolicyDto, resolveProjectAccess, requireProjectCapability } from './content-access'
 import { publishedVersionOrder } from '@/server/services/project-version-order'
 
 export async function listPublicProjects() {
@@ -32,6 +34,7 @@ export async function listPublicProjects() {
     },
     orderBy: { weight: 'desc' },
     include: {
+      ...projectAccessInclude,
       versions: {
         where: {
           isDeleted: false,
@@ -60,6 +63,7 @@ export async function listPublicProjects() {
       latestVersionDesc: latestVersion?.description || null,
       categoryCount: latestVersion?._count.categories || 0,
       requireAuth: false,
+      ...projectPolicyDto(project),
       updatedAt: project.updatedAt,
     }
   })
@@ -74,10 +78,13 @@ export async function getPublicProject(projectId: number) {
       avatar: true,
       status: true,
       updatedAt: true,
+      readAccessMode: true,
+      downloadAccessMode: true,
+      ...projectAccessInclude,
     },
   })
   if (!project) throw new HttpError('Project not found', 404, 404)
-  return { ...project, id: project.id.toString(), requireAuth: false }
+  return { id: project.id.toString(), projectName: project.projectName, avatar: project.avatar, status: project.status, updatedAt: project.updatedAt, requireAuth: false, ...projectPolicyDto(project) }
 }
 
 async function requirePublishedProject(projectId: number) {
@@ -224,6 +231,7 @@ export async function getProjectNote(
   projectId: number,
   versionId: number,
   noteId: number,
+  viewer: AccessViewer = null,
 ) {
   const version = await requireVersion(projectId, versionId)
   const note = await prisma.noteInfo.findFirst({
@@ -232,10 +240,12 @@ export async function getProjectNote(
       isDeleted: false,
       status: 1,
       category: { projectVersionId: versionId, isDeleted: false, status: 1 },
+      contents: { some: { isPrimary: true, isDeleted: false, status: 1 } },
     },
     select: { id: true, noteTitle: true },
   })
   if (!note) throw new HttpError('Note not found', 404, 404)
+  requireProjectCapability(await resolveProjectAccess(projectId, viewer), 'read')
 
   const contents = await prisma.noteContent.findMany({
     where: { noteInfoId: noteId, isPrimary: true, isDeleted: false, status: 1 },
@@ -285,4 +295,14 @@ export async function getProjectNote(
       finalizedAt: credential.finalizedAt!,
     })),
   }
+}
+
+export async function getProjectNoteMetadata(projectId: number, versionId: number, noteId: number) {
+  await requireVersion(projectId, versionId)
+  const note = await prisma.noteInfo.findFirst({
+    where: { id: noteId, isDeleted: false, status: 1, category: { projectVersionId: versionId, isDeleted: false, status: 1 }, contents: { some: { isPrimary: true, isDeleted: false, status: 1 } } },
+    select: { id: true, noteTitle: true },
+  })
+  if (!note) throw new HttpError('Note not found', 404, 404)
+  return { id: String(note.id), noteTitle: note.noteTitle }
 }

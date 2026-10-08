@@ -405,3 +405,7 @@
     padding-left: 48px;
   }
 }
+
+.root :global(.project-access-notice) {
+  margin-block: 16px;
+}

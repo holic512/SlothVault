@@ -48,6 +48,7 @@ export const BACKUP_COLLECTION_KEYS = [
   'noteInfos',
   'noteContents',
   'fileManagements',
+  'fileReferences',
   'systemConfigs',
   'systemHomepages',
   'contracts',

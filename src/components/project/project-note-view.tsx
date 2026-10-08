@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Public Project Document Reader
  * @description Renders immutable public project documents with navigation, exact content-version evidence, and legacy release evidence.
- * @logic Keep public reading independent from user identity, display version evidence, and navigate rendered Markdown headings through the document outline.
+ * @logic Render metadata for locked readers, require independent reading and download capabilities, display version evidence, and navigate rendered Markdown headings through the document outline.
  * @dependencies Ant Design Typography, next-intl/server, ProjectDocumentContent
  * @index_tags project,document,reader,release,evidence,transaction,public
  * @author holic512
@@ -15,6 +15,8 @@ import { BadgeCheck, Download, ExternalLink, Fingerprint, FlaskConical } from 'l
 import { getLocale, getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 
+import type { ProjectAccess } from '@/lib/content-access'
+import { ProjectAccessNotice } from './project-access-notice'
 import { ProjectDocumentContent } from '@/components/project/project-document-content'
 
 export type SidebarCategory = {
@@ -56,12 +58,16 @@ export async function ProjectNoteView({
   noteId,
   sidebar,
   note,
+  noteTitle,
+  access,
 }: {
   projectId: string
   versionId: string
   noteId: string
   sidebar: SidebarCategory[]
-  note: NoteData
+  note: NoteData | null
+  noteTitle: string
+  access: ProjectAccess
 }) {
   const [locale, t] = await Promise.all([getLocale(), getTranslations('ProjectDocument')])
 
@@ -88,14 +94,15 @@ export async function ProjectNoteView({
       <article className="docs-article">
         <header className="docs-article-header">
           <div className="docs-article-meta">
-            <span>
+            {note ? <span>
               {t('updated', {
                 date: new Date(note.updatedAt).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US'),
               })}
-            </span>
+            </span> : null}
           </div>
-          <TypographyTitle>{note.noteTitle}</TypographyTitle>
-          {note.versionNote ? <TypographyParagraph type="secondary">{note.versionNote}</TypographyParagraph> : null}
+          <TypographyTitle>{noteTitle}</TypographyTitle>
+          {note?.versionNote ? <TypographyParagraph type="secondary">{note.versionNote}</TypographyParagraph> : null}
+          {note ? <>
           <aside className="docs-release-proof" aria-label={t('release.title')}>
             <span className="docs-copyright-mark"><Fingerprint size={18} /></span>
             <div className="docs-copyright-copy">
@@ -109,9 +116,9 @@ export async function ProjectNoteView({
               <span>{t('release.scope')}</span>
             </div>
             <div className="docs-copyright-links">
-              <a href={`/api/project/${projectId}/v/${versionId}/manifest`} download>
+              {access.canDownload ? <a href={`/api/project/${projectId}/v/${versionId}/manifest`} download>
                 {t('release.download')}<Download size={12} />
-              </a>
+              </a> : null}
             </div>
           </aside>
           {note.evidence.map((credential) => (
@@ -150,8 +157,10 @@ export async function ProjectNoteView({
               </div>
             </aside>
           ))}
+          </> : null}
+          <ProjectAccessNotice access={access} capability={note ? 'download' : 'read'} />
         </header>
-        <ProjectDocumentContent key={note.id} content={note.content} outlineLabel={t('outline')} />
+        {note ? <ProjectDocumentContent key={note.id} content={note.content} outlineLabel={t('outline')} projectId={projectId} canDownload={access.canDownload} downloadMessage={t('permissions.downloadUnavailable')} /> : null}
       </article>
     </main>
   )

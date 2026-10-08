@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({ findUnique: vi.fn() }))
 
+vi.mock('@/server/services/file-references', () => ({ indexFileWrite: (_tx: unknown, _type: unknown, write: Promise<unknown>) => write, syncFileReferences: vi.fn() }))
+
 vi.mock('@/server/prisma', () => ({
   prisma: { projectVersion: { findUnique: mocks.findUnique } },
 }))

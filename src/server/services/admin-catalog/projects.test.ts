@@ -6,6 +6,9 @@ const mocks = vi.hoisted(() => ({
   invalidatePublicProjectCache: vi.fn(),
 }))
 
+vi.mock('@/server/database/unit-of-work', () => ({ unitOfWork: { execute: (operation: (tx: unknown) => unknown) => operation({ project: { updateMany: mocks.updateMany, findUniqueOrThrow: mocks.findUnique } }) } }))
+vi.mock('@/server/services/file-references', () => ({ syncFileReferences: vi.fn() }))
+
 vi.mock('@/server/prisma', () => ({
   prisma: {
     project: {

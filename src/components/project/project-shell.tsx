@@ -27,6 +27,7 @@ import { NavigationShell } from '@/components/shell/navigation-shell'
 import { ThemeControls } from '@/components/theme/theme-controls'
 import { AccountNav } from '@/components/auth/account-nav'
 import projectStyles from '@/styles/modules/project.module.css'
+import { contextualFileUrl, managedUploadPath } from '@/lib/managed-file-paths'
 import { getBuiltinProjectNavigation, isBuiltinProjectNavigationActive } from '@/lib/project-navigation'
 
 export function ProjectShell({
@@ -83,6 +84,7 @@ function ProjectNavigation({
   const currentVersion = versionMatch?.[1]
   const resolveUrl = (url: string | null) => {
     if (!url) return `/project/${projectId}/home`
+    if (managedUploadPath(url)) return contextualFileUrl(url, projectId, true)!
     return url.startsWith('/') ? `/project/${projectId}${url}` : url
   }
 
@@ -119,7 +121,7 @@ function ProjectNavigation({
                     items: menu.children.map((child) => ({
                       key: child.id,
                       label: child.isExternal ? (
-                        <a href={child.url || '#'} target="_blank" rel="noreferrer">{child.label}</a>
+                        <a href={contextualFileUrl(child.url ?? undefined, projectId, true) || '#'} target="_blank" rel="noreferrer">{child.label}</a>
                       ) : (
                         <Link href={resolveUrl(child.url)}>{child.label}</Link>
                       ),
@@ -129,7 +131,7 @@ function ProjectNavigation({
                   <Button type="text">{menu.label}<ChevronDown size={13} /></Button>
                 </Dropdown>
               ) : menu.isExternal ? (
-                <a key={menu.id} href={menu.url || '#'} target="_blank" rel="noreferrer">{menu.label}</a>
+                <a key={menu.id} href={contextualFileUrl(menu.url ?? undefined, projectId, true) || '#'} target="_blank" rel="noreferrer">{menu.label}</a>
               ) : (
                 <Link key={menu.id} href={resolveUrl(menu.url)}>{menu.label}</Link>
               ),
@@ -194,7 +196,7 @@ function ProjectNavigation({
             menu.children.length
               ? menu.children.map((child) =>
                   child.isExternal ? (
-                    <a key={child.id} href={child.url || '#'} target="_blank" rel="noreferrer" onClick={() => setMobileOpen(false)}>
+                    <a key={child.id} href={contextualFileUrl(child.url ?? undefined, projectId, true) || '#'} target="_blank" rel="noreferrer" onClick={() => setMobileOpen(false)}>
                       {child.label}
                     </a>
                   ) : (
@@ -205,7 +207,7 @@ function ProjectNavigation({
                 )
               : menu.isExternal
                 ? [
-                    <a key={menu.id} href={menu.url || '#'} target="_blank" rel="noreferrer" onClick={() => setMobileOpen(false)}>
+                    <a key={menu.id} href={contextualFileUrl(menu.url ?? undefined, projectId, true) || '#'} target="_blank" rel="noreferrer" onClick={() => setMobileOpen(false)}>
                       {menu.label}
                     </a>,
                   ]

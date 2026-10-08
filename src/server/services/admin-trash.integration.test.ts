@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   invalidate: vi.fn(),
 }))
 
+vi.mock('@/server/database/unit-of-work', () => ({ unitOfWork: { execute: async (operation: (tx: SqliteTransaction) => Promise<unknown>) => mocks.client!.$transaction(operation) } }))
+
 vi.mock('@/server/prisma', () => ({ get prisma() { return mocks.client } }))
 vi.mock('@/server/services/public-project-cache', () => ({ invalidatePublicProjectCache: mocks.invalidate }))
 vi.mock('@/server/services/public-article-cache', () => ({ invalidatePublicArticleCache: mocks.invalidate }))

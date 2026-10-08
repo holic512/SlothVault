@@ -28,6 +28,8 @@ const tx = {
   },
 }
 
+vi.mock('@/server/services/file-references', () => ({ indexFileWrite: (_tx: unknown, _type: unknown, write: Promise<unknown>) => write, syncFileReferences: vi.fn() }))
+
 vi.mock('@/server/prisma', () => ({
   prisma: {
     noteInfo: { findFirst: mocks.noteInfoFindFirst },

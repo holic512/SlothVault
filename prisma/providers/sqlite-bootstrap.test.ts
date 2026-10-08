@@ -18,6 +18,7 @@ const sqliteMigrations = [
   '20260911000000_remove_knowledge_package_import',
   '20260923000000_content_trash',
   '20260928000000_content_manifest_v2',
+  '20261008000000_parallel_membership_project_access',
 ]
 
 function migrationSql(name: string) {

@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Admin Category Administration
  * @description Implements category listing and draft-only mutations for project versions.
- * @logic Resolve source and target versions, lock them in stable order inside a serializable transaction, recheck parent relationships, and reject every mutation beneath a published release.
+ * @logic Resolve source and target versions, lock them in stable order inside a serializable transaction, recheck parent relationships, synchronize file project associations on moves, and reject every mutation beneath a published release.
  * @dependencies server/prisma, server/http/errors, catalog values, catalog DTOs, project-version release service
  * @index_tags admin,catalog,category,crud,project-version
  * @author holic512
@@ -16,6 +16,7 @@ import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
 import { invalidatePublicProjectCache } from '@/server/services/public-project-cache'
 import { deleteTrashItem } from '@/server/services/admin-trash'
+import { syncFileReferences } from '@/server/services/file-references'
 import {
   executeVersionWrite,
   lockDraftProjectVersions,
@@ -154,11 +155,16 @@ export async function updateAdminCategory(
         })
       }
       await requireActiveProjectVersion(targetVersionId, tx)
-      return tx.category.update({
+      const updated = await tx.category.update({
         where: { id },
         data,
         include: { projectVersion: true },
       })
+      if (targetVersionId !== current.projectVersionId) {
+        const contents = await tx.noteContent.findMany({ where: { noteInfo: { categoryId: id } }, select: { id: true } })
+        for (const content of contents) await syncFileReferences(tx, 'NOTE_CONTENT', content.id)
+      }
+      return updated
     })
     await invalidatePublicProjectCache()
     return categoryDto(category)

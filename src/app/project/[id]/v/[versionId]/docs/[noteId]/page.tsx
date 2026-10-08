@@ -1,4 +1,17 @@
+/**
+ * @file page.tsx
+ * @project SlothVault
+ * @module Project Document Route
+ * @description Keeps navigation and titles visible while loading protected document bodies only for authorized readers.
+ * @logic Read public metadata separately, resolve the current session and project policy, then render a body or membership notice.
+ * @dependencies viewer, content-access, public-projects, public-project-cache, ProjectNoteView
+ * @index_tags project,read,download,membership,server-rendering,metadata
+ * @author holic512
+ */
 import type { Metadata } from 'next'
+import { getPageViewer } from '@/server/auth/viewer'
+import { resolveProjectAccess } from '@/server/services/content-access'
+import { getProjectNoteMetadata } from '@/server/services/public-projects'
 
 import { ProjectNoteView } from '@/components/project/project-note-view'
 import { createPageMetadata } from '@/i18n/metadata'
@@ -8,6 +21,8 @@ import {
   getCachedProjectSidebar,
 } from '@/server/services/public-project-cache'
 
+export const dynamic = 'force-dynamic'
+
 export async function generateMetadata({
   params,
 }: {
@@ -16,7 +31,7 @@ export async function generateMetadata({
   const { id, versionId, noteId } = await params
   const [projectShell, note] = await Promise.all([
     getCachedProjectShell(Number(id)),
-    getCachedProjectNote(Number(id), Number(versionId), Number(noteId)),
+    getProjectNoteMetadata(Number(id), Number(versionId), Number(noteId)),
   ])
   return createPageMetadata('projectNote', {
     noteTitle: note.noteTitle,
@@ -32,10 +47,13 @@ export default async function ProjectNotePage({
   const { id, versionId, noteId } = await params
   const projectId = Number(id)
   const numericVersionId = Number(versionId)
-  const [sidebar, note] = await Promise.all([
+  const viewer = await getPageViewer()
+  const access = await resolveProjectAccess(projectId, viewer)
+  const [sidebar, metadata] = await Promise.all([
     getCachedProjectSidebar(projectId, numericVersionId),
-    getCachedProjectNote(projectId, numericVersionId, Number(noteId)),
+    getProjectNoteMetadata(projectId, numericVersionId, Number(noteId)),
   ])
+  const note = access.canRead ? await getCachedProjectNote(projectId, numericVersionId, Number(noteId), viewer) : null
   return (
     <ProjectNoteView
       projectId={id}
@@ -43,6 +61,8 @@ export default async function ProjectNotePage({
       noteId={noteId}
       sidebar={sidebar}
       note={note}
+      noteTitle={metadata.noteTitle}
+      access={access}
     />
   )
 }

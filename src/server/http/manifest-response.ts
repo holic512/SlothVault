@@ -16,7 +16,7 @@ export function releaseManifestResponse(
 ) {
   const etag = `"${release.releaseHash}"`
   const headers = new Headers({
-    'Cache-Control': 'no-store',
+    'Cache-Control': 'private, no-store',
     'Content-Disposition': `attachment; filename="slothvault-${release.releaseId}.manifest.json"`,
     'Content-Type': 'application/json; charset=utf-8',
     ETag: etag,

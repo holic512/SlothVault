@@ -59,6 +59,7 @@ const userOutputSchema = z.object({
   walletAddress: z.string().nullable(),
   createdAt: isoDateSchema,
   currentMembership: membershipSummarySchema.nullable(),
+  activeMemberships: z.array(membershipSummarySchema).describe('全部有效会员类型，各自独立到期；rank 仅用于展示排序。'),
 })
 const membershipLevelSchema = z.object({
   id: decimalIdSchema,
@@ -84,6 +85,7 @@ const membershipGrantSchema = z.object({
 })
 const userMembershipSchema = z.object({
   currentMembership: membershipSummarySchema.nullable(),
+  activeMemberships: z.array(membershipSummarySchema),
   grants: z.array(membershipGrantSchema),
 })
 const pointTransactionSchema = z.object({
@@ -220,8 +222,8 @@ export const adminReadToolDefinitions: McpToolDefinition[] = collectMcpToolDefin
   server.defineTool(
     'admin.membership.level.list',
     {
-      title: '列出会员等级',
-      description: '读取会员等级及积分价格，不修改会员配置。该工具只读。',
+      title: '列出会员类型',
+      description: '读取并列会员类型及积分价格，rank 仅用于展示排序。会员及项目权限通过网页后台管理。该工具只读。',
       inputSchema: z.strictObject({ includeDisabled: z.boolean().default(true) }),
       outputSchema: z.object({ list: z.array(membershipLevelSchema) }),
       annotations: READ_ONLY_ANNOTATIONS,
@@ -235,7 +237,7 @@ export const adminReadToolDefinitions: McpToolDefinition[] = collectMcpToolDefin
     'admin.user.membership.get',
     {
       title: '读取用户会员',
-      description: '读取用户当前会员和历史授予记录，不授予或撤销会员。该工具只读。',
+      description: '读取用户全部有效会员类型、各自到期时间和历史授予记录。currentMembership 仅为兼容摘要，不用于权限判断。该工具只读。',
       inputSchema: z.strictObject({ userId: decimalIdSchema }),
       outputSchema: userMembershipSchema,
       annotations: READ_ONLY_ANNOTATIONS,

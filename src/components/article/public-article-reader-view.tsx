@@ -30,7 +30,7 @@ export async function PublicArticleReaderView({
     content: string | null
     publishedAt: string
     updatedAt: string
-    requiredMembershipLevel: { id: string; name: string; rank: number } | null
+    allowedMembershipLevels: Array<{ id: string; name: string; rank: number; status: number }>
     locked: boolean
     viewerAuthenticated: boolean
   }
@@ -65,7 +65,7 @@ export async function PublicArticleReaderView({
                 <section className="article-membership-lock">
                   <LockKeyhole size={24} />
                   <h2>{t('lockedTitle')}</h2>
-                  <p>{t('lockedDescription', { level: article.requiredMembershipLevel?.name || '' })}</p>
+                  <p>{t('lockedDescription', { level: article.allowedMembershipLevels.map((item) => item.name).join(' / ') })}</p>
                   <Link href={article.viewerAuthenticated ? '/account/membership' : '/login'}>
                     {article.viewerAuthenticated ? t('membershipAction') : t('loginAction')}
                   </Link>

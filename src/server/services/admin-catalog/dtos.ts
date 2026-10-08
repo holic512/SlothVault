@@ -3,14 +3,15 @@
  * @project SlothVault
  * @module Admin Catalog DTOs
  * @description Maps project, project-version, and category records to stable administrator API DTOs.
- * @logic Serialize identifiers, retain existing nested relation shapes, and force legacy project authentication output to false.
+ * @logic Serialize identifiers, retain existing nested relation shapes, and include independent reading and download policies alongside legacy authentication output.
  * @dependencies Prisma-compatible catalog record shapes
  * @index_tags admin,catalog,dto,project,project-version,category
  * @author holic512
  */
 import 'server-only'
+import { projectPolicyDto, type ProjectPolicyRecord } from '@/server/services/content-access'
 
-type ProjectLike = {
+type ProjectLike = ProjectPolicyRecord & {
   id: number
   projectName: string
   avatar: string | null
@@ -64,6 +65,7 @@ export function projectDto(project: ProjectLike) {
     weight: project.weight,
     status: project.status,
     requireAuth: false,
+    ...projectPolicyDto(project),
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
     isDeleted: project.isDeleted,
@@ -77,6 +79,7 @@ export function projectSummaryDto(project: ProjectLike) {
     weight: project.weight,
     status: project.status,
     requireAuth: false,
+    ...projectPolicyDto(project),
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
     isDeleted: project.isDeleted,

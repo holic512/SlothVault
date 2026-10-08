@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { syncFileReferences } from '@/server/services/file-references'
 
 import { unitOfWork } from '@/server/database/unit-of-work'
 import { HttpError } from '@/server/http/errors'
@@ -257,6 +258,8 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
     }
 
     for (const item of data.articles) {
+      const requiredRank = data.membershipLevels.find((level) => level.id === item.requiredMembershipLevelId)?.rank
+      const allowedIds = version === '2.8.0' ? item.allowedMembershipLevelIds : requiredRank === undefined ? [] : data.membershipLevels.filter((level) => level.rank >= requiredRank).map((level) => level.id)
       const record = await tx.article.create({
         data: {
           title: item.title,
@@ -264,6 +267,7 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
           cover: item.cover,
           content: item.content,
           status: item.status,
+          allowedMemberships: { create: allowedIds.map((id) => ({ membershipLevelId: requiredMappedId(ids.membershipLevels, id, 'article membership') })) },
           requiredMembershipLevelId: item.requiredMembershipLevelId
             ? requiredMappedId(
               ids.membershipLevels,
@@ -275,6 +279,7 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
           createdAt: new Date(item.createdAt),
           updatedAt: new Date(item.updatedAt),
           isDeleted: item.isDeleted,
+          deletedAt: item.deletedAt ? new Date(item.deletedAt) : null,
         },
       })
       ids.articles.set(item.id, record.id)
@@ -288,9 +293,14 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
           weight: item.weight,
           status: item.status,
           requireAuth: false,
+          readAccessMode: version === '2.8.0' ? item.readAccessMode : 'PUBLIC',
+          downloadAccessMode: version === '2.8.0' ? item.downloadAccessMode : 'FOLLOW_READ',
+          readMemberships: { create: (version === '2.8.0' ? item.readMembershipLevelIds : []).map((id) => ({ membershipLevelId: requiredMappedId(ids.membershipLevels, id, 'project read membership') })) },
+          downloadMemberships: { create: (version === '2.8.0' ? item.downloadMembershipLevelIds : []).map((id) => ({ membershipLevelId: requiredMappedId(ids.membershipLevels, id, 'project download membership') })) },
           createdAt: new Date(item.createdAt),
           updatedAt: new Date(item.updatedAt),
           isDeleted: item.isDeleted,
+          deletedAt: item.deletedAt ? new Date(item.deletedAt) : null,
         },
       })
       ids.projects.set(item.id, created.id)
@@ -311,6 +321,7 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
           createdAt: new Date(item.createdAt),
           updatedAt: new Date(item.updatedAt),
           isDeleted: item.isDeleted,
+          deletedAt: item.deletedAt ? new Date(item.deletedAt) : null,
         },
       })
       ids.projectVersions.set(item.id, created.id)
@@ -330,6 +341,7 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
           createdAt: new Date(item.createdAt),
           updatedAt: new Date(item.updatedAt),
           isDeleted: item.isDeleted,
+          deletedAt: item.deletedAt ? new Date(item.deletedAt) : null,
         },
       })
       ids.categories.set(item.id, created.id)
@@ -350,6 +362,7 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
           createdAt: new Date(item.createdAt),
           updatedAt: new Date(item.updatedAt),
           isDeleted: item.isDeleted,
+          deletedAt: item.deletedAt ? new Date(item.deletedAt) : null,
         },
       })
       ids.projectMenus.set(item.id, created.id)
@@ -364,6 +377,7 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
           createdAt: new Date(item.createdAt),
           updatedAt: new Date(item.updatedAt),
           isDeleted: item.isDeleted,
+          deletedAt: item.deletedAt ? new Date(item.deletedAt) : null,
         },
       })
       ids.projectHomes.set(item.id, created.id)
@@ -382,6 +396,7 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
           createdAt: new Date(item.createdAt),
           updatedAt: new Date(item.updatedAt),
           isDeleted: item.isDeleted,
+          deletedAt: item.deletedAt ? new Date(item.deletedAt) : null,
         },
       })
       ids.noteInfos.set(item.id, created.id)
@@ -399,6 +414,7 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
           createdAt: new Date(item.createdAt),
           updatedAt: new Date(item.updatedAt),
           isDeleted: item.isDeleted,
+          deletedAt: item.deletedAt ? new Date(item.deletedAt) : null,
         },
       })
       ids.noteContents.set(item.id, created.id)
@@ -633,10 +649,18 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
       }
     }
 
+    let fileReferenceCount = 0
+    for (const [sourceType, sourceIds] of [
+      ['NOTE_CONTENT', ids.noteContents], ['PROJECT_HOME', ids.projectHomes], ['PROJECT_MENU', ids.projectMenus], ['ARTICLE', ids.articles], ['SYSTEM_HOMEPAGE', ids.systemHomepages],
+      ['PROJECT_AVATAR', ids.projects], ['USER_AVATAR', ids.users], ['SYSTEM_CONFIG', ids.systemConfigs],
+    ] as const) {
+      for (const sourceId of sourceIds.values()) fileReferenceCount += await syncFileReferences(tx, sourceType, sourceId)
+    }
     return {
       message: 'Database import completed successfully',
       mode,
       imported: {
+        fileReferences: fileReferenceCount,
         users: ids.users.size,
         pointTransactions: ids.pointTransactions.size,
         giftCardBatches: ids.giftCardBatches.size,

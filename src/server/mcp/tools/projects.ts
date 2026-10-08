@@ -35,6 +35,10 @@ import {
   UPDATE_ANNOTATIONS,
 } from './common'
 
+const policyShape = {
+  membershipLevelIds: z.array(decimalIdSchema),
+  membershipLevels: z.array(z.object({ id: decimalIdSchema, name: z.string(), status: z.number().int() })),
+}
 const projectOutputSchema = z.object({
   id: decimalIdSchema,
   projectName: z.string(),
@@ -42,6 +46,9 @@ const projectOutputSchema = z.object({
   weight: z.number().int(),
   status: z.number().int(),
   requireAuth: z.boolean(),
+  readAccess: z.object({ mode: z.enum(['PUBLIC', 'LOGIN', 'MEMBERSHIPS']), ...policyShape }),
+  downloadAccess: z.object({ mode: z.enum(['FOLLOW_READ', 'LOGIN', 'MEMBERSHIPS', 'DISABLED']), ...policyShape })
+    .describe('下载须同时具备阅读权限；指定会员类型按交集匹配，不按 rank 继承。'),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
   isDeleted: z.boolean(),
@@ -97,7 +104,7 @@ export const projectToolDefinitions: McpToolDefinition[] = collectMcpToolDefinit
     'content.project.get',
     {
       title: '读取项目详情',
-      description: '按 ID 读取一个管理员项目，包括状态和删除标记。该工具只读。',
+      description: '按 ID 读取管理员项目及阅读、下载权限。权限变更通过网页后台管理。该工具只读。',
       inputSchema: z.strictObject({
         projectId: decimalIdSchema.describe('项目 ID，使用正十进制字符串。'),
       }),

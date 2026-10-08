@@ -22,6 +22,8 @@ const mocks = vi.hoisted(() => {
   }
 })
 
+vi.mock('@/server/services/file-references', () => ({ syncFileReferences: vi.fn() }))
+
 vi.mock('@/server/prisma', () => ({ prisma: mocks.prisma }))
 vi.mock('@/server/services/public-project-cache', () => ({ invalidatePublicProjectCache: mocks.invalidateProject }))
 vi.mock('@/server/services/public-article-cache', () => ({ invalidatePublicArticleCache: mocks.invalidateArticle }))

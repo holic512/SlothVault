@@ -13,7 +13,7 @@ import 'server-only'
 import { isAdminRole } from '@/server/auth/roles'
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
-import { getEffectiveMembership } from '@/server/services/membership'
+import { getActiveMemberships } from '@/server/services/membership'
 
 export const PUBLIC_ARTICLE_PAGE_SIZE = 12
 
@@ -25,6 +25,7 @@ export type PublicArticleMetadata = {
   publishedAt: Date
   updatedAt: Date
   requiredMembershipLevel: { id: string; name: string; rank: number } | null
+  allowedMembershipLevels: Array<{ id: string; name: string; rank: number; status: number }>
 }
 
 export type PublicArticleReader = PublicArticleMetadata & {
@@ -84,6 +85,7 @@ export async function listPublicArticles(page = 1) {
         publishedAt: true,
         updatedAt: true,
         requiredMembershipLevel: { select: { id: true, name: true, rank: true } },
+        allowedMemberships: { include: { membershipLevel: { select: { id: true, name: true, rank: true, status: true } } } },
       },
     }),
   ])
@@ -97,6 +99,7 @@ export async function listPublicArticles(page = 1) {
       publishedAt: article.publishedAt!,
       updatedAt: article.updatedAt,
       requiredMembershipLevel: requiredLevelDto(article.requiredMembershipLevel),
+      allowedMembershipLevels: (article.allowedMemberships ?? []).map(({ membershipLevel }) => ({ ...membershipLevel, id: String(membershipLevel.id) })),
     })),
     page: normalizedPage,
     pageSize: PUBLIC_ARTICLE_PAGE_SIZE,
@@ -118,6 +121,7 @@ export async function getPublicArticleMetadata(id: number): Promise<PublicArticl
       publishedAt: true,
       updatedAt: true,
       requiredMembershipLevel: { select: { id: true, name: true, rank: true } },
+      allowedMemberships: { include: { membershipLevel: { select: { id: true, name: true, rank: true, status: true } } } },
     },
   })
   if (!article) throw new HttpError('Article not found', 404, 404)
@@ -130,6 +134,7 @@ export async function getPublicArticleMetadata(id: number): Promise<PublicArticl
     publishedAt: article.publishedAt!,
     updatedAt: article.updatedAt,
     requiredMembershipLevel: requiredLevelDto(article.requiredMembershipLevel),
+    allowedMembershipLevels: (article.allowedMemberships ?? []).map(({ membershipLevel }) => ({ ...membershipLevel, id: String(membershipLevel.id) })),
   }
 }
 
@@ -137,12 +142,14 @@ export async function resolvePublicArticleReader(
   article: PublicArticleMetadata,
   viewer: { userId?: number; role?: string } | null,
 ): Promise<PublicArticleReader> {
-  const requiredLevel = article.requiredMembershipLevel
+  // Metadata caches never supply the authoritative access decision.
+  article = await getPublicArticleMetadata(Number(article.id))
+  const allowedIds = article.allowedMembershipLevels.map((item) => item.id)
   const viewerAuthenticated = Boolean(viewer?.userId)
-  const membership = viewer?.userId ? await getEffectiveMembership(viewer.userId) : null
-  const allowed = !requiredLevel ||
+  const memberships = viewer?.userId ? await getActiveMemberships(viewer.userId) : []
+  const allowed = !allowedIds.length ||
     Boolean(viewer?.role && isAdminRole(viewer.role)) ||
-    Boolean(membership && membership.rank >= requiredLevel.rank)
+    memberships.some((membership) => allowedIds.includes(membership.id))
 
   if (!allowed) return { ...article, content: null, locked: true, viewerAuthenticated }
 

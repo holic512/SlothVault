@@ -23,6 +23,8 @@ const mocks = vi.hoisted(() => ({
   getSystemBranding: vi.fn(),
 }))
 
+vi.mock('@/server/services/file-references', () => ({ indexFileWrite: (_tx: unknown, _type: unknown, write: Promise<unknown>) => write, syncFileReferences: vi.fn() }))
+
 vi.mock('@/server/prisma', () => ({ prisma: mocks.prisma }))
 vi.mock('@/server/services/system-config', () => ({ CONFIG_KEYS: mocks.configKeys }))
 vi.mock('@/server/services/system-branding', () => ({

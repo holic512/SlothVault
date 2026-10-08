@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   invalidate: vi.fn(),
+  transaction: vi.fn(),
   prisma: {
     article: {
       create: vi.fn(),
@@ -14,7 +15,8 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@/server/database/unit-of-work', () => ({ unitOfWork: { execute: (operation: (tx: typeof mocks.prisma) => unknown) => operation(mocks.prisma) } }))
-vi.mock('@/server/prisma', () => ({ prisma: mocks.prisma }))
+vi.mock('@/server/prisma', () => ({ prisma: { ...mocks.prisma, $transaction: mocks.transaction } }))
+vi.mock('@/server/services/file-references', () => ({ indexFileWrite: (_tx: unknown, _type: unknown, write: Promise<unknown>) => write }))
 vi.mock('@/server/services/public-article-cache', () => ({
   invalidatePublicArticleCache: mocks.invalidate,
 }))
@@ -36,6 +38,7 @@ const firstPublishedAt = new Date('2026-08-20T02:00:00.000Z')
 const createdAt = new Date('2026-08-20T01:00:00.000Z')
 const requiredMembershipLevelInclude = {
   requiredMembershipLevel: { select: { id: true, name: true, rank: true } },
+  allowedMemberships: { include: { membershipLevel: { select: { id: true, name: true, rank: true, status: true } } } },
 }
 
 function articleRecord(overrides: Record<string, unknown> = {}) {
@@ -55,7 +58,7 @@ function articleRecord(overrides: Record<string, unknown> = {}) {
 }
 
 describe('administrator independent articles', () => {
-  beforeEach(() => { vi.clearAllMocks(); mocks.prisma.article.updateMany.mockResolvedValue({ count: 1 }) })
+  beforeEach(() => { vi.clearAllMocks(); mocks.transaction.mockImplementation((operation) => operation(mocks.prisma)); mocks.prisma.article.updateMany.mockResolvedValue({ count: 1 }) })
 
   it('creates a draft without accepting lifecycle state from the caller', async () => {
     mocks.prisma.article.create.mockResolvedValue(articleRecord())
@@ -73,6 +76,7 @@ describe('administrator independent articles', () => {
         content: '# Body',
         status: 0,
         requiredMembershipLevelId: null,
+        allowedMemberships: { create: [] },
       },
       include: requiredMembershipLevelInclude,
     })

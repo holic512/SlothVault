@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { PublicNavbar } from '@/components/shell/public-navbar'
 import publicStyles from '@/styles/modules/public.module.css'
 import type { SystemBranding } from '@/types/branding'
+import type { AccessRule, ReadAccessMode, DownloadAccessMode } from '@/lib/content-access'
 
 export type ProjectListItem = {
   id: string
@@ -17,6 +18,8 @@ export type ProjectListItem = {
   latestVersionDesc: string | null
   categoryCount: number
   updatedAt: string
+  readAccess: AccessRule<ReadAccessMode>
+  downloadAccess: AccessRule<DownloadAccessMode>
 }
 
 export function ProjectListView({
@@ -28,6 +31,8 @@ export function ProjectListView({
 }) {
   const locale = useLocale()
   const t = useTranslations('ProjectsPage')
+  const permissionT = useTranslations('AdminMM.projects.permissions')
+  const describe = (rule: AccessRule) => rule.mode === 'MEMBERSHIPS' ? rule.membershipLevels.map(item => item.name).join(' / ') : permissionT(`modes.${rule.mode}`)
   const dateLocale = locale === 'zh' ? 'zh-CN' : 'en-US'
 
   return (
@@ -64,6 +69,10 @@ export function ProjectListView({
                     <GitBranch size={13} aria-hidden="true" />
                     {project.latestVersion ? t('version', { version: project.latestVersion }) : t('unversioned')}
                   </div>
+                  <Typography.Paragraph type="secondary">
+                    {permissionT('read')}：{describe(project.readAccess)}<br />
+                    {permissionT('download')}：{describe(project.downloadAccess)}
+                  </Typography.Paragraph>
                   <div className="project-card-meta">
                     <span className="project-card-categories" data-empty={project.categoryCount === 0}><FolderTree size={14} aria-hidden="true" />{project.categoryCount} {t('categories')}</span>
                     <span className="project-card-updated"><CalendarClock size={14} aria-hidden="true" />{new Date(project.updatedAt).toLocaleDateString(dateLocale)}</span>

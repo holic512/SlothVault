@@ -12,6 +12,7 @@ import { defineRoute } from '@/server/http/handler'
 import { releaseManifestResponse } from '@/server/http/manifest-response'
 import { parseBigIntId } from '@/server/http/request'
 import { getProjectVersionManifest } from '@/server/services/project-version-release'
+import { getRequestViewer } from '@/server/auth/viewer'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,7 +23,14 @@ export const GET = defineRoute<{ id: string; versionId: string }>(
       request,
       await getProjectVersionManifest(parseBigIntId(versionId, 'version id'), {
         publicProjectId: parseBigIntId(id, 'project id'),
+        viewer: await getRequestViewer(request),
       }),
     )
   },
+  { cacheControl: 'private, no-store' },
 )
+
+export async function HEAD(request: Parameters<typeof GET>[0], context: Parameters<typeof GET>[1]) {
+  const response = await GET(request, context)
+  return new Response(null, { status: response.status, headers: response.headers })
+}

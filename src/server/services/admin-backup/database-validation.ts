@@ -11,6 +11,8 @@
 import 'server-only'
 
 import { HttpError } from '@/server/http/errors'
+import { extractManagedFiles, managedUploadPath } from '@/lib/managed-files'
+import { CONFIG_KEYS } from '@/server/services/system-config'
 
 import {
   BACKUP_COLLECTION_KEYS,
@@ -80,7 +82,7 @@ export function validateBackupRelations(data: BackupData) {
   const giftCards = mapById('giftCard', data.giftCards)
   const membershipLevels = mapById('membershipLevel', data.membershipLevels)
   const membershipGrants = mapById('membershipGrant', data.membershipGrants)
-  mapById('article', data.articles)
+  const articles = mapById('article', data.articles)
   const projects = mapById('project', data.projects)
   const projectVersions = mapById('projectVersion', data.projectVersions)
   const categories = mapById('category', data.categories)
@@ -89,8 +91,8 @@ export function validateBackupRelations(data: BackupData) {
   const noteInfos = mapById('noteInfo', data.noteInfos)
   const noteContents = mapById('noteContent', data.noteContents)
   const fileManagements = mapById('fileManagement', data.fileManagements)
-  mapById('systemConfig', data.systemConfigs)
-  mapById('systemHomepage', data.systemHomepages)
+  const systemConfigs = mapById('systemConfig', data.systemConfigs)
+  const systemHomepages = mapById('systemHomepage', data.systemHomepages)
   const releaseCredentials = mapById('releaseCredential', data.releaseCredentials)
   mapById('releaseCredentialAttempt', data.releaseCredentialAttempts)
   const contracts = mapById('contract', data.contracts)
@@ -128,6 +130,75 @@ export function validateBackupRelations(data: BackupData) {
     if (item.requiredMembershipLevelId) {
       assertReference(membershipLevels, item.requiredMembershipLevelId, 'article requiredMembershipLevelId')
     }
+    assertUniqueField('article membership type', item.allowedMembershipLevelIds, (id) => id)
+    for (const id of item.allowedMembershipLevelIds) assertReference(membershipLevels, id, 'article membership type')
+  }
+
+  for (const item of data.projects) {
+    for (const [mode, ids] of [[item.readAccessMode, item.readMembershipLevelIds], [item.downloadAccessMode, item.downloadMembershipLevelIds]] as const) {
+      if ((mode === 'MEMBERSHIPS') !== (ids.length > 0)) invalidBackup(`project ${item.id} has an inconsistent membership policy`)
+      assertUniqueField('project membership type', ids, (id) => id)
+      for (const id of ids) assertReference(membershipLevels, id, 'project membership type')
+    }
+  }
+
+  mapById('fileReference', data.fileReferences)
+  assertUniqueField('file reference source', data.fileReferences, (item) => `${item.fileId}:${item.sourceType}:${item.sourceId}:${item.usage}`)
+  for (const reference of data.fileReferences) {
+    assertReference(fileManagements, reference.fileId, 'fileReference fileId')
+    if (reference.projectId) assertReference(projects, reference.projectId, 'fileReference projectId')
+    let expectedProjectId: string | null = null
+    let content = ''
+    let menuPath: string | null = null
+    let mediaPath: string | null = null
+    switch (reference.sourceType) {
+      case 'NOTE_CONTENT': {
+        assertReference(noteContents, reference.sourceId, 'fileReference content')
+        const note = noteInfos.get(noteContents.get(reference.sourceId)!.noteInfoId)
+        const category = note && categories.get(note.categoryId)
+        expectedProjectId = category ? projectVersions.get(category.projectVersionId)?.projectId ?? null : null
+        content = noteContents.get(reference.sourceId)!.content
+        break
+      }
+      case 'PROJECT_HOME':
+        assertReference(projectHomes, reference.sourceId, 'fileReference project home')
+        expectedProjectId = projectHomes.get(reference.sourceId)!.projectId
+        content = projectHomes.get(reference.sourceId)!.content
+        break
+      case 'PROJECT_MENU':
+        assertReference(projectMenus, reference.sourceId, 'fileReference menu')
+        expectedProjectId = projectMenus.get(reference.sourceId)!.projectId
+        menuPath = managedUploadPath(projectMenus.get(reference.sourceId)!.url ?? undefined)
+        break
+      case 'ARTICLE':
+        assertReference(articles, reference.sourceId, 'fileReference article')
+        content = articles.get(reference.sourceId)!.content
+        mediaPath = managedUploadPath(articles.get(reference.sourceId)!.cover ?? undefined)
+        break
+      case 'SYSTEM_HOMEPAGE':
+        assertReference(systemHomepages, reference.sourceId, 'fileReference homepage')
+        content = systemHomepages.get(reference.sourceId)!.content
+        break
+      case 'PROJECT_AVATAR':
+        assertReference(projects, reference.sourceId, 'fileReference project avatar')
+        expectedProjectId = reference.sourceId
+        mediaPath = managedUploadPath(projects.get(reference.sourceId)!.avatar ?? undefined)
+        break
+      case 'USER_AVATAR':
+        assertReference(users, reference.sourceId, 'fileReference user avatar')
+        mediaPath = managedUploadPath(users.get(reference.sourceId)!.avatar ?? undefined)
+        break
+      case 'SYSTEM_CONFIG': {
+        assertReference(systemConfigs, reference.sourceId, 'fileReference system config')
+        const config = systemConfigs.get(reference.sourceId)!
+        if (([CONFIG_KEYS.SYSTEM_LOGO_FILE_PATH, CONFIG_KEYS.SYSTEM_FAVICON_FILE_PATH] as string[]).includes(config.configKey)) mediaPath = managedUploadPath(`/${config.configValue}`)
+        break
+      }
+    }
+    if (reference.projectId !== expectedProjectId) invalidBackup('fileReference project does not match its source')
+    const filePath = fileManagements.get(reference.fileId)!.filePath
+    const links = reference.sourceType === 'PROJECT_MENU' ? [{ filePath: menuPath, usage: 'DOWNLOAD' }] : [...extractManagedFiles(content), { filePath: mediaPath, usage: 'READ_MEDIA' }]
+    if (!links.some((link) => link.filePath === filePath && link.usage === reference.usage)) invalidBackup('fileReference file is absent from its source')
   }
 
   for (const item of data.projectVersions) {
@@ -361,6 +432,19 @@ export function parseDatabaseImportPayload(input: unknown): DatabaseImportPayloa
     const issue = parsed.error.issues[0]
     const path = issue?.path.length ? `${issue.path.join('.')}: ` : ''
     invalidBackup(`${path}${issue?.message || 'invalid structure'}`)
+  }
+
+  // Defaults are for older formats; an incomplete current backup must not silently open protected content.
+  if (parsed.data.version === '2.8.0') {
+    const source = input as { data: { projects: Record<string, unknown>[]; articles?: Record<string, unknown>[] } }
+    for (const project of source.data.projects) {
+      for (const key of ['readAccessMode', 'downloadAccessMode', 'readMembershipLevelIds', 'downloadMembershipLevelIds']) {
+        if (project[key] === undefined) invalidBackup(`2.8.0 project policy is missing ${key}`)
+      }
+    }
+    for (const article of source.data.articles ?? []) {
+      if (article.allowedMembershipLevelIds === undefined) invalidBackup('2.8.0 article is missing allowedMembershipLevelIds')
+    }
   }
 
   if (parsed.data.version === '2.0.0') {

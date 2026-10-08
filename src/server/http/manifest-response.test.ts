@@ -19,7 +19,7 @@ describe('release manifest response', () => {
     )
     expect(response.headers.get('etag')).toBe(`"${release.releaseHash}"`)
     expect(response.headers.get('x-content-sha256')).toBe(release.releaseHash)
-    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(response.headers.get('cache-control')).toBe('private, no-store')
   })
 
   it('honors an exact If-None-Match after the caller has resolved a release', async () => {

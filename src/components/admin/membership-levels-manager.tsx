@@ -4,8 +4,8 @@
  * @file membership-levels-manager.tsx
  * @project SlothVault
  * @module Membership Level Administration
- * @description Provides the administrator table and editor for point-priced membership levels used by article access rules.
- * @logic Keep rank, price, duration, and sellability explicit; retain disabled levels instead of deleting historical references.
+ * @description Provides the administrator table and editor for point-priced membership levels used by explicit content access lists.
+ * @logic Keep display order, price, duration, and sellability explicit; retain disabled levels instead of deleting historical references.
  * @dependencies Ant Design, React Query, admin page layout, membership-level API
  * @index_tags admin,membership,level,crud,points
  * @author holic512
@@ -109,7 +109,7 @@ export function MembershipLevelsManager() {
           pagination={false}
           scroll={{ x: 760 }}
           columns={[
-            { title: t('table.level'), dataIndex: 'name', render: (_value, level) => <Space><Tag color="gold"><Crown size={13} />{t('level', { rank: level.rank })}</Tag><Typography.Text strong>{level.name}</Typography.Text></Space> },
+            { title: t('table.level'), dataIndex: 'name', render: (_value, level) => <Space><Tag color="gold"><Crown size={13} /></Tag><Typography.Text strong>{level.name}</Typography.Text></Space> },
             { title: t('table.rank'), dataIndex: 'rank', width: 100 },
             { title: t('table.pricePoints'), dataIndex: 'pricePoints', width: 130, align: 'right', render: (value) => <Space size={3}><Coins size={14} />{formatAdminNumber(locale, value)}</Space> },
             { title: t('table.validity'), dataIndex: 'validityDays', width: 130, render: (value) => value ? t('validityDays', { count: formatAdminNumber(locale, value) }) : t('permanent') },

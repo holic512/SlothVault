@@ -3,12 +3,13 @@
  * @project SlothVault
  * @module Public Project Data Cache
  * @description Adds a short shared Next.js Data Cache in front of published project reads used by Server Components.
- * @logic Cache public navigation and document data independently for one minute so request-rendered pages avoid repeated ORM work while administrative publication changes become visible promptly.
+ * @logic Cache only public introductions and navigation for one minute; resolve document authorization and bodies per request so request-rendered pages avoid repeated ORM work while administrative publication changes become visible promptly.
  * @dependencies next/cache, public-projects service
  * @index_tags nextjs, data-cache, public-project, reading, revalidate
  * @author holic512
  */
 import 'server-only'
+import type { AccessViewer } from '@/lib/content-access'
 
 import { revalidateTag, unstable_cache } from 'next/cache'
 
@@ -122,28 +123,20 @@ export function getCachedProjectSidebar(projectId: number, versionId: number) {
   )()
 }
 
-export function getCachedProjectNote(projectId: number, versionId: number, noteId: number) {
-  return unstable_cache(
-    async () => {
-      const note = await getProjectNote(projectId, versionId, noteId)
-      return {
-        ...note,
-        updatedAt: iso(note.updatedAt),
-        publishedAt: iso(note.publishedAt),
-        evidence: note.evidence.map((item) => ({
-          ...item,
-          finalizedAt: iso(item.finalizedAt),
-        })),
-        noteEvidence: note.noteEvidence.map((item) => ({
-          ...item,
-          finalizedAt: iso(item.finalizedAt),
-        })),
-      }
-    },
-    ['public-project-note', String(projectId), String(versionId), String(noteId)],
-    {
-      revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS,
-      tags: [PUBLIC_PROJECTS_CACHE_TAG, publicProjectCacheTag(projectId)],
-    },
-  )()
+export async function getCachedProjectNote(projectId: number, versionId: number, noteId: number, viewer: AccessViewer = null) {
+  // Protected bodies and viewer decisions are never placed in the shared Data Cache.
+  const note = await getProjectNote(projectId, versionId, noteId, viewer)
+  return {
+    ...note,
+    updatedAt: iso(note.updatedAt),
+    publishedAt: iso(note.publishedAt),
+    evidence: note.evidence.map((item) => ({
+      ...item,
+      finalizedAt: iso(item.finalizedAt),
+    })),
+    noteEvidence: note.noteEvidence.map((item) => ({
+      ...item,
+      finalizedAt: iso(item.finalizedAt),
+    })),
+  }
 }

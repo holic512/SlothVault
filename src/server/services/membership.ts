@@ -2,10 +2,10 @@
  * @file membership.ts
  * @project SlothVault
  * @module Membership Entitlements
- * @description Owns configurable point-priced membership levels, immutable grants, effective access resolution, and administrator membership overrides.
- * @logic Resolve the highest active grant as the user's effective level, atomically exchange points for a new entitlement, preserve prior grants for expiry fallback, and revoke superseded grants only for explicit administrator replacement.
+ * @description Owns configurable point-priced membership types, immutable grants, effective access resolution, and administrator membership overrides.
+ * @logic Group active grants by independent membership type, purchase and renew each type atomically, retain the legacy single summary for compatibility, and scope administrator overrides to one type.
  * @dependencies Prisma MembershipLevel/MembershipGrant/User models, database/unit-of-work, HTTP errors, public article cache
- * @index_tags membership, entitlement, points, level, expiry, article-access, admin
+ * @index_tags membership, entitlement, points, types, expiry, article-access, admin
  * @author holic512
  */
 import 'server-only'
@@ -118,6 +118,35 @@ export function membershipSummaryFromGrants(
     expiresAt: grant.expiresAt,
     source: grant.source,
   }
+}
+
+/** Effective types are independent; rank only controls presentation order. */
+export function activeMembershipsFromGrants(
+  grants: MembershipGrantRecord[],
+  now = new Date(),
+): NonNullable<MembershipSummary>[] {
+  const byType = new Map<number, MembershipGrantRecord>()
+  for (const grant of grants) {
+    if (!isMembershipGrantActive(grant, now)) continue
+    const previous = byType.get(grant.membershipLevelId)
+    if (!previous || (previous.expiresAt !== null &&
+      (grant.expiresAt === null || grant.expiresAt.getTime() > previous.expiresAt.getTime()))) {
+      byType.set(grant.membershipLevelId, grant)
+    }
+  }
+  return [...byType.values()]
+    .sort((left, right) => left.membershipLevel.rank - right.membershipLevel.rank || left.membershipLevelId - right.membershipLevelId)
+    .map((grant) => ({
+      id: String(grant.membershipLevelId), name: grant.membershipLevel.name,
+      rank: grant.membershipLevel.rank, expiresAt: grant.expiresAt, source: grant.source,
+    }))
+}
+
+export async function getActiveMemberships(userId: number, now = new Date()) {
+  const grants = await prisma.membershipGrant.findMany({
+    where: activeGrantWhere(userId, now), include: { membershipLevel: true },
+  })
+  return activeMembershipsFromGrants(grants, now)
 }
 
 function hasPrismaCode(error: unknown, code: string) {
@@ -240,6 +269,7 @@ export async function getMembershipAccountData(userId: number) {
   return {
     pointsBalance: user.pointsBalance,
     currentMembership: membershipSummaryFromGrants(grants, now),
+    activeMemberships: activeMembershipsFromGrants(grants, now),
     levels: levels.map(membershipLevelDto),
     grants: grants.map((grant) => membershipGrantDto(grant, now)),
   }
@@ -248,7 +278,6 @@ export async function getMembershipAccountData(userId: number) {
 function purchaseExpiry(options: {
   now: Date
   target: MembershipLevelRecord
-  effective: MembershipSummary
   sameLevelGrants: MembershipGrantRecord[]
 }) {
   if (!options.target.validityDays) return null
@@ -259,9 +288,6 @@ function purchaseExpiry(options: {
 
   if (finiteSameLevelExpiry) {
     return addDays(laterDate(options.now, finiteSameLevelExpiry), options.target.validityDays)
-  }
-  if (options.effective?.expiresAt) {
-    return addDays(laterDate(options.now, options.effective.expiresAt), options.target.validityDays)
   }
   return addDays(options.now, options.target.validityDays)
 }
@@ -282,10 +308,6 @@ export async function purchaseMembership(input: { userId: number; membershipLeve
       throw new HttpError('Membership level is unavailable', 409, 409)
     }
 
-    const effective = membershipSummaryFromGrants(activeGrants, now)
-    if (effective && target.rank < effective.rank) {
-      throw new HttpError('Cannot purchase a lower membership level while a higher level is active', 409, 409)
-    }
     const sameLevelGrants = activeGrants.filter((grant) => grant.membershipLevelId === target.id)
     if (sameLevelGrants.some((grant) => grant.expiresAt === null)) {
       throw new HttpError('This membership level is already permanent', 409, 409)
@@ -294,7 +316,7 @@ export async function purchaseMembership(input: { userId: number; membershipLeve
       throw new HttpError('Insufficient points balance', 409, 409)
     }
 
-    const expiresAt = purchaseExpiry({ now, target, effective, sameLevelGrants })
+    const expiresAt = purchaseExpiry({ now, target, sameLevelGrants })
     const grant = await tx.membershipGrant.create({
       data: {
         userId: user.id,
@@ -325,6 +347,7 @@ export async function purchaseMembership(input: { userId: number; membershipLeve
     return {
       pointsBalance: updatedUser.pointsBalance,
       membership: membershipSummaryFromGrants([...activeGrants, grant], now),
+      activeMemberships: activeMembershipsFromGrants([...activeGrants, grant], now),
       grant: membershipGrantDto(grant, now),
     }
   }, { isolationLevel: 'Serializable' })
@@ -343,6 +366,7 @@ export async function getManagedUserMembership(userId: number) {
   if (!user) throw new HttpError('User not found', 404, 404)
   return {
     currentMembership: membershipSummaryFromGrants(grants, now),
+    activeMemberships: activeMembershipsFromGrants(grants, now),
     grants: grants.map((grant) => membershipGrantDto(grant, now)),
   }
 }
@@ -365,7 +389,7 @@ export async function replaceManagedUserMembership(input: {
     if (!user) throw new HttpError('User not found', 404, 404)
     if (!level) throw new HttpError('Membership level not found', 404, 404)
     await tx.membershipGrant.updateMany({
-      where: { userId: user.id, revokedAt: null },
+      where: { userId: user.id, membershipLevelId: level.id, revokedAt: null },
       data: { revokedAt: now, revokedByUserId: input.actorUserId },
     })
     await tx.membershipGrant.create({
@@ -385,13 +409,20 @@ export async function replaceManagedUserMembership(input: {
 export async function revokeManagedUserMembership(input: {
   actorUserId: number
   userId: number
+  membershipLevelId?: number
+  all?: boolean
 }) {
+  if ((!input.membershipLevelId && input.all !== true) || (input.membershipLevelId && input.all)) {
+    throw new HttpError('Specify one membership type or explicitly revoke all', 400, 400)
+  }
   const now = new Date()
   const result = await unitOfWork.execute(async (tx) => {
     const user = await tx.user.findUnique({ where: { id: input.userId }, select: { id: true } })
     if (!user) throw new HttpError('User not found', 404, 404)
     return tx.membershipGrant.updateMany({
-      where: { userId: user.id, revokedAt: null },
+      where: { userId: user.id, revokedAt: null,
+        ...(input.all ? {} : { membershipLevelId: input.membershipLevelId }),
+      },
       data: { revokedAt: now, revokedByUserId: input.actorUserId },
     })
   }, { isolationLevel: 'Serializable' })

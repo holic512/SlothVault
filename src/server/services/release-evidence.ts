@@ -3,12 +3,14 @@
  * @project SlothVault
  * @module Unified Content Evidence Ledger
  * @description Owns project-release and note-content Solana Memo evidence preparation, durable submission, reconciliation, listing, and public verification in one ledger.
- * @logic Resolve an immutable subject, reserve its network singleton, dispatch the matching protocol, persist a signed attempt before broadcast, and finalize only from matching chain facts.
+ * @logic Keep public verification metadata free of bodies and require project download access for manifests; Resolve an immutable subject, reserve its network singleton, dispatch the matching protocol, persist a signed attempt before broadcast, and finalize only from matching chain facts.
  * @dependencies Prisma transactions, release integrity, release/note evidence protocols, Solana RPC runtime, system configuration
  * @index_tags release,notes,content,evidence,solana,memo,ledger,verification
  * @author holic512
  */
 import 'server-only'
+import type { AccessViewer } from '@/lib/content-access'
+import { resolveProjectAccess, requireProjectCapability } from './content-access'
 
 import { randomUUID } from 'node:crypto'
 
@@ -818,18 +820,19 @@ function evidenceWhere(input: {
   }
 }
 
-function evidenceDto(credential: Prisma.ReleaseCredentialGetPayload<{
-  include: {
-    projectVersion: { include: { project: true } }
-    noteContent: {
-      include: {
-        noteInfo: { include: { category: true } }
-      }
-    }
-    issuerUser: true
-    attempts: true
-  }
-}>) {
+const evidenceRelations = {
+  projectVersion: { include: { project: true } },
+  noteContent: { select: {
+    id: true, noteInfoId: true, evidenceId: true, versionNote: true,
+    isPrimary: true, status: true, createdAt: true, updatedAt: true,
+    isDeleted: true, deletedAt: true,
+    noteInfo: { include: { category: true } },
+  } },
+  issuerUser: true,
+  attempts: { orderBy: { createdAt: 'desc' } },
+} as const
+
+function evidenceDto(credential: Prisma.ReleaseCredentialGetPayload<{ include: typeof evidenceRelations }>) {
   const versionVisible =
     !credential.projectVersion.isDeleted &&
     credential.projectVersion.status === 1 &&
@@ -919,10 +922,7 @@ export async function listReleaseEvidence(input: {
       take: input.pageSize,
       orderBy: { createdAt: 'desc' },
       include: {
-        projectVersion: { include: { project: true } },
-        noteContent: { include: { noteInfo: { include: { category: true } } } },
-        issuerUser: true,
-        attempts: { orderBy: { createdAt: 'desc' } },
+        ...evidenceRelations,
       },
     }),
     prisma.releaseCredential.groupBy({ by: ['network', 'status'], _count: { id: true } }),
@@ -956,10 +956,7 @@ export async function getAdminReleaseEvidence(id: number) {
   const credential = await prisma.releaseCredential.findUnique({
     where: { id },
     include: {
-      projectVersion: { include: { project: true } },
-      noteContent: { include: { noteInfo: { include: { category: true } } } },
-      issuerUser: true,
-      attempts: { orderBy: { createdAt: 'desc' } },
+      ...evidenceRelations,
     },
   })
   if (!credential) throw new HttpError('Release evidence not found', 404, 404)
@@ -970,10 +967,7 @@ export async function getPublicReleaseEvidence(signature: string) {
   const credential = await prisma.releaseCredential.findUnique({
     where: { transactionSignature: signature },
     include: {
-      projectVersion: { include: { project: true } },
-      noteContent: { include: { noteInfo: { include: { category: true } } } },
-      issuerUser: true,
-      attempts: { orderBy: { createdAt: 'desc' } },
+      ...evidenceRelations,
     },
   })
   if (!credential) return null
@@ -1015,7 +1009,7 @@ export async function getPublicReleaseEvidence(signature: string) {
   }
 }
 
-export async function getPublicNoteContentEvidenceManifest(signature: string) {
+export async function getPublicNoteContentEvidenceManifest(signature: string, viewer: AccessViewer = null) {
   const publicEvidence = await getPublicReleaseEvidence(signature)
   if (
     !publicEvidence ||
@@ -1024,6 +1018,8 @@ export async function getPublicNoteContentEvidenceManifest(signature: string) {
   ) {
     throw new HttpError('Public note content evidence manifest not found', 404, 404)
   }
+  if (!publicEvidence.projectId) throw new HttpError('Project not found', 404, 404)
+  requireProjectCapability(await resolveProjectAccess(Number(publicEvidence.projectId), viewer), 'download')
   const credential = await prisma.releaseCredential.findUnique({
     where: { transactionSignature: signature },
     include: {

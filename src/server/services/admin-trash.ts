@@ -3,12 +3,14 @@
  * @project SlothVault
  * @module Administrator Content Trash
  * @description Lists deleted content with its ancestors and owns cascade deletion and ancestor-aware restoration.
- * @logic Serialize draft-tree mutations by version revision, preserve frozen releases, and restore only the selected item plus missing ancestors.
+ * @logic Serialize draft-tree mutations by version revision, preserve frozen releases, and restore only the selected item plus missing ancestors, and rebuild its managed file references.
  * @dependencies Prisma, project-version release write lock, public cache invalidation
  * @index_tags admin,trash,soft-delete,restore,hierarchy,release
  * @author holic512
  */
 import 'server-only'
+import { syncFileReferences } from './file-references'
+import { unitOfWork } from '@/server/database/unit-of-work'
 
 import type { Prisma } from '@generated/prisma-postgresql/client'
 
@@ -189,8 +191,11 @@ export async function deleteVersionBatch(ids: number[]) {
 export async function restoreTrashItem(kind: TrashKind, id: number) {
   const now = new Date()
   if (kind === 'article') {
-    const changed = await prisma.article.updateMany({ where: { id, isDeleted: true }, data: { isDeleted: false, deletedAt: null, status: 0, updatedAt: now } })
-    if (!changed.count) throw missing()
+    await unitOfWork.execute(async (tx) => {
+      const changed = await tx.article.updateMany({ where: { id, isDeleted: true }, data: { isDeleted: false, deletedAt: null, status: 0, updatedAt: now } })
+      if (!changed.count) throw missing()
+      await syncFileReferences(tx, 'ARTICLE', id)
+    })
     await invalidatePublicArticleCache(id)
     return
   }
@@ -200,6 +205,7 @@ export async function restoreTrashItem(kind: TrashKind, id: number) {
       if (kind === 'project') {
         const changed = await tx.project.updateMany({ where: { id, isDeleted: true }, data: { isDeleted: false, deletedAt: null, status: 1, updatedAt: now } })
         if (!changed.count) throw missing()
+        await syncFileReferences(tx, 'PROJECT_AVATAR', id)
         return id
       }
       const item = kind === 'menu'
@@ -217,6 +223,8 @@ export async function restoreTrashItem(kind: TrashKind, id: number) {
       } else if (item.isDeleted) {
         await tx.projectHome.update({ where: { id }, data: { isDeleted: false, deletedAt: null, updatedAt: now } })
       }
+      await syncFileReferences(tx, kind === 'menu' ? 'PROJECT_MENU' : 'PROJECT_HOME', id)
+      if (parentId) await syncFileReferences(tx, 'PROJECT_MENU', parentId)
       return item.projectId
     })
   } else {
@@ -232,6 +240,7 @@ export async function restoreTrashItem(kind: TrashKind, id: number) {
         const primary = await tx.noteContent.findFirst({ where: { noteInfoId: ancestry.noteId, isDeleted: false, isPrimary: true }, select: { id: true } })
         if (!primary) await tx.noteContent.update({ where: { id }, data: { isPrimary: true } })
       }
+      if (kind === 'content') await syncFileReferences(tx, 'NOTE_CONTENT', id)
       return ancestry.projectId
     })
   }

@@ -15,7 +15,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { unitOfWork } from '@/server/database/unit-of-work'
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
-import { membershipSummaryFromGrants } from '@/server/services/membership'
+import { activeMembershipsFromGrants, membershipSummaryFromGrants } from '@/server/services/membership'
 
 export const GIFT_CARD_STATUS = {
   DISABLED: 0,
@@ -253,6 +253,7 @@ export async function listUsers(input: {
       ...user,
       id: user.id.toString(),
       currentMembership: membershipSummaryFromGrants(membershipGrants, now),
+      activeMemberships: activeMembershipsFromGrants(membershipGrants, now),
     })),
   }
 }
@@ -286,6 +287,7 @@ export async function getManagedUser(userId: number) {
     ...profile,
     id: profile.id.toString(),
     currentMembership: membershipSummaryFromGrants(membershipGrants, now),
+    activeMemberships: activeMembershipsFromGrants(membershipGrants, now),
   }
 }
 

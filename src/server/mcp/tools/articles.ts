@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module MCP Article Tools
  * @description Registers MCP article reads and content mutations with explicit publication and withdrawal.
- * @logic Expose list, detail, create, and update through the article service while separating content updates from publication and withdrawal.
+ * @logic Expose list, detail, create, and update through the article service while separating content updates from publication and withdrawal; permission writes remain in the web administrator interface.
  * @dependencies MCP TypeScript SDK, zod, document limits, admin article service, MCP tool contracts
  * @index_tags mcp,tools,article,content,draft
  * @author holic512
@@ -53,6 +53,8 @@ const articleOutputSchema = z.object({
   status: z.number().int(),
   requiredMembershipLevelId: decimalIdSchema.nullable(),
   requiredMembershipLevel: membershipSummarySchema,
+  allowedMembershipLevelIds: z.array(decimalIdSchema),
+  allowedMembershipLevels: z.array(z.object({ id: decimalIdSchema, name: z.string(), rank: z.number().int(), status: z.number().int() })),
   publishedAt: isoDateSchema.nullable(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
@@ -64,7 +66,6 @@ const articleValuesSchema = {
   summary: z.string().trim().max(500).nullable().optional(),
   cover: z.string().max(500).nullable().optional(),
   content: z.string().max(DOCUMENT_CONTENT_MAX_CHARACTERS),
-  requiredMembershipLevelId: decimalIdSchema.nullable().optional(),
 }
 
 const updateArticleSchema = z.strictObject({
@@ -73,11 +74,10 @@ const updateArticleSchema = z.strictObject({
   summary: articleValuesSchema.summary,
   cover: articleValuesSchema.cover,
   content: articleValuesSchema.content.optional(),
-  requiredMembershipLevelId: articleValuesSchema.requiredMembershipLevelId,
 }).refine(
-  ({ title, summary, cover, content, requiredMembershipLevelId }) =>
+  ({ title, summary, cover, content }) =>
     title !== undefined || summary !== undefined || cover !== undefined ||
-    content !== undefined || requiredMembershipLevelId !== undefined,
+    content !== undefined,
   { message: '至少提供一个需要更新的文章字段。' },
 )
 
@@ -126,20 +126,17 @@ export const articleToolDefinitions: McpToolDefinition[] = collectMcpToolDefinit
     'content.article.create',
     {
       title: '创建文章草稿',
-      description: '创建未发布文章，不执行发布或可见性变更。',
+      description: '创建未发布文章。会员允许名单通过网页后台配置，发布前请核对权限。',
       inputSchema: z.strictObject(articleValuesSchema),
       outputSchema: articleOutputSchema,
       annotations: CREATE_ANNOTATIONS,
     },
-    async ({ title, summary, cover, content, requiredMembershipLevelId }) =>
+    async ({ title, summary, cover, content }) =>
       runMcpTool('content.article.create', async () => createAdminArticle({
         title,
         summary,
         cover,
         content,
-        requiredMembershipLevelId: requiredMembershipLevelId === undefined || requiredMembershipLevelId === null
-          ? requiredMembershipLevelId
-          : mcpId(requiredMembershipLevelId, 'requiredMembershipLevelId'),
       })),
   )
 
@@ -147,12 +144,12 @@ export const articleToolDefinitions: McpToolDefinition[] = collectMcpToolDefinit
     'content.article.update',
     {
       title: '更新文章内容',
-      description: '更新文章内容字段，不发布、撤回、删除或恢复文章。',
+      description: '更新文章内容字段；会员允许名单仅通过网页后台修改。该工具不发布、撤回、删除或恢复文章。',
       inputSchema: updateArticleSchema,
       outputSchema: articleOutputSchema,
       annotations: UPDATE_ANNOTATIONS,
     },
-    async ({ articleId, title, summary, cover, content, requiredMembershipLevelId }) =>
+    async ({ articleId, title, summary, cover, content }) =>
       runMcpTool('content.article.update', async () => updateAdminArticle(
         mcpId(articleId, 'articleId'),
         {
@@ -160,9 +157,6 @@ export const articleToolDefinitions: McpToolDefinition[] = collectMcpToolDefinit
           summary,
           cover,
           content,
-          requiredMembershipLevelId: requiredMembershipLevelId === undefined || requiredMembershipLevelId === null
-            ? requiredMembershipLevelId
-            : mcpId(requiredMembershipLevelId, 'requiredMembershipLevelId'),
         },
       )),
   )

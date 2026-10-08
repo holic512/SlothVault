@@ -2,13 +2,17 @@
  * @file route.ts
  * @project SlothVault
  * @module Upload Runtime
- * @description Serves contained files from the configured upload storage root with safe media headers and a metadata-only HEAD path.
- * @logic Hold the shared application-state lock while decoding, validating, and reading a contained uploads/* file, then reject directories and attach non-previewable formats without MIME sniffing.
- * @dependencies Next Route Handlers, node:fs/promises, admin file storage service, maintenance-lock
- * @index_tags uploads,public-files,path-containment,get,head,security-headers,maintenance-lock
+ * @description Serves contained managed uploads after checking current reading or download permissions for GET and HEAD.
+ * @logic Validate paths, authorize real live references before reading bytes, use private responses, and attach download formats without MIME sniffing.
+ * @dependencies Next Route Handlers, file-access, admin file storage service, maintenance-lock
+ * @index_tags uploads,permissions,path-containment,get,head,security-headers,maintenance-lock
  * @author holic512
  */
 import { HttpError } from '@/server/http/errors'
+import type { NextRequest } from 'next/server'
+import { getRequestViewer } from '@/server/auth/viewer'
+import { authorizeManagedFile } from '@/server/services/file-access'
+import { isInlineImagePath } from '@/lib/managed-file-paths'
 import {
   inspectPublicUpload,
   readPublicUpload,
@@ -29,25 +33,42 @@ function contentDisposition(fileName: string) {
   return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(fileName)}`
 }
 
-function responseHeaders(file: Awaited<ReturnType<typeof inspectPublicUpload>>) {
+function responseHeaders(file: Awaited<ReturnType<typeof inspectPublicUpload>>, download: boolean) {
   const headers = new Headers({
-    'Cache-Control': 'public, max-age=31536000, immutable',
+    'Cache-Control': 'private, no-store',
     'Content-Length': file.stats.size.toString(),
     'Content-Type': file.contentType,
     'Last-Modified': file.stats.mtime.toUTCString(),
     'X-Content-Type-Options': 'nosniff',
   })
-  if (file.attachment) {
+  if (file.attachment || download) {
     headers.set('Content-Disposition', contentDisposition(file.fileName))
   }
   return headers
 }
 
-async function serveUpload(context: UploadRouteContext, headOnly: boolean) {
+async function serveUpload(request: NextRequest, context: UploadRouteContext, headOnly: boolean) {
   try {
     const { path } = await context.params
+    const projectRaw = request.nextUrl.searchParams.get('projectId')
+    const projectId = projectRaw === null ? undefined : Number(projectRaw)
+    if (projectId !== undefined && (!/^\d+$/.test(projectRaw!) || !Number.isSafeInteger(projectId) || projectId < 1)) {
+      throw new HttpError('Invalid project id', 400, 400)
+    }
+    let segments: string[]
+    try { segments = path.map((segment) => decodeURIComponent(segment)) } catch {
+      throw new HttpError('Invalid file path', 400, 400)
+    }
+    if (!segments.length || segments.some((segment) => !segment || segment === '.' || segment === '..' || /[/\\\u0000]/.test(segment))) {
+      throw new HttpError('Invalid file path', 400, 400)
+    }
+    const filePath = `uploads/${segments.join('/')}`
+    const download = request.nextUrl.searchParams.get('download') === '1' || !isInlineImagePath(filePath)
+    await authorizeManagedFile(filePath, await getRequestViewer(request), {
+      projectId, download,
+    })
     const file = await inspectPublicUpload(path)
-    const headers = responseHeaders(file)
+    const headers = responseHeaders(file, download)
     if (headOnly) return new Response(null, { status: 200, headers })
 
     const buffer = await readPublicUpload(file.absolutePath)
@@ -56,21 +77,21 @@ async function serveUpload(context: UploadRouteContext, headOnly: boolean) {
     if (error instanceof HttpError) {
       return new Response(error.message, {
         status: error.status,
-        headers: { 'X-Content-Type-Options': 'nosniff' },
+        headers: { 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, no-store' },
       })
     }
     console.error('[uploads] Failed to serve file', error)
     return new Response('Failed to serve file', {
       status: 500,
-      headers: { 'X-Content-Type-Options': 'nosniff' },
+      headers: { 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, no-store' },
     })
   }
 }
 
-export async function GET(_request: Request, context: UploadRouteContext) {
-  return withMaintenanceLock('shared', () => serveUpload(context, false))
+export async function GET(request: NextRequest, context: UploadRouteContext) {
+  return withMaintenanceLock('shared', () => serveUpload(request, context, false))
 }
 
-export async function HEAD(_request: Request, context: UploadRouteContext) {
-  return withMaintenanceLock('shared', () => serveUpload(context, true))
+export async function HEAD(request: NextRequest, context: UploadRouteContext) {
+  return withMaintenanceLock('shared', () => serveUpload(request, context, true))
 }

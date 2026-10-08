@@ -151,6 +151,8 @@ const timestamp = new Date('2026-09-14T00:00:00.000Z')
 function project(overrides: Record<string, unknown> = {}) {
   return {
     id: '9', projectName: 'Documentation', avatar: null, weight: 2, status: 1,
+    readAccess: { mode: 'PUBLIC', membershipLevelIds: [], membershipLevels: [] },
+    downloadAccess: { mode: 'FOLLOW_READ', membershipLevelIds: [], membershipLevels: [] },
     requireAuth: false, createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
     ...overrides,
   }
@@ -284,7 +286,7 @@ describe('administrator MCP server', () => {
 
   it('supports article publication and withdrawal through registered tools', async () => {
     const article = { id: '12', title: 'Article', summary: null, cover: null, content: '# Body', status: 1,
-      requiredMembershipLevelId: null, requiredMembershipLevel: null, publishedAt: timestamp,
+      allowedMembershipLevelIds: [], allowedMembershipLevels: [], requiredMembershipLevelId: null, requiredMembershipLevel: null, publishedAt: timestamp,
       createdAt: timestamp, updatedAt: timestamp, isDeleted: false }
     mocks.publishAdminArticle.mockResolvedValue(article)
     mocks.withdrawAdminArticle.mockResolvedValue({ ...article, status: 0 })
@@ -369,6 +371,7 @@ describe('administrator MCP server', () => {
       walletAddress: null,
       createdAt: timestamp,
       currentMembership: null,
+      activeMemberships: [],
     }
     mocks.listUsers.mockResolvedValue({ list: [user], total: 1 })
     mocks.getManagedUser.mockResolvedValue(user)
@@ -513,6 +516,7 @@ describe('administrator MCP server', () => {
       currentMembership: {
         id: '2', name: 'VIP', rank: 2, expiresAt: null, source: 'ADMIN_GRANT',
       },
+      activeMemberships: [{ id: '2', name: 'VIP', rank: 2, expiresAt: null, source: 'ADMIN_GRANT' }],
       grants: [{
         id: '51',
         membershipLevel: {

@@ -3,12 +3,14 @@
  * @project SlothVault
  * @module Admin Project Administration
  * @description Implements project listing, creation, lookup, ordinary administration, MCP metadata boundaries, soft deletion, and batch actions.
- * @logic Build Prisma filters, map stable DTOs, allow release-independent metadata edits through both admin surfaces, invalidate public ordering changes, and translate missing records consistently.
+ * @logic Persist independent read/download rules and managed avatars; Build Prisma filters, map stable DTOs, allow release-independent metadata edits through both admin surfaces, invalidate public ordering changes, and translate missing records consistently.
  * @dependencies server/prisma, server/http/errors, catalog values, catalog DTOs
  * @index_tags admin,catalog,project,crud,batch,mcp,metadata-boundary
  * @author holic512
  */
 import 'server-only'
+import { indexFileWrite, syncFileReferences } from '@/server/services/file-references'
+import { unitOfWork } from '@/server/database/unit-of-work'
 
 import type { Prisma } from '@generated/prisma-postgresql/client'
 
@@ -25,6 +27,8 @@ import {
   optionalIntegerValue,
   parseJsonDecimalIds,
 } from './values'
+import { parseAccessRule, projectAccessInclude } from '@/server/services/content-access'
+
 import { projectDto, projectListDto, projectSummaryDto } from './dtos'
 import type { ProjectListQuery } from './query-types'
 
@@ -41,6 +45,7 @@ export async function listAdminProjects(query: ProjectListQuery) {
       take: query.pageSize,
       orderBy: { [query.orderByField]: query.order },
       include: {
+        ...projectAccessInclude,
         versions: {
           where: {
             isDeleted: false,
@@ -75,24 +80,31 @@ export async function createAdminProject(input: {
   avatar?: unknown
   weight?: unknown
   status?: unknown
+  readAccess?: unknown
+  downloadAccess?: unknown
 }) {
   const projectName = typeof input.projectName === 'string' ? input.projectName.trim() : ''
   if (!projectName) throw new HttpError('Missing projectName', 400, 400)
 
-  const project = await prisma.project.create({
+  const read = input.readAccess === undefined ? undefined : await parseAccessRule(input.readAccess)
+  const download = input.downloadAccess === undefined ? undefined : await parseAccessRule(input.downloadAccess, true)
+  const project = await unitOfWork.execute((tx) => indexFileWrite(tx, 'PROJECT_AVATAR', tx.project.create({
     data: {
       projectName,
       avatar: typeof input.avatar === 'string' ? input.avatar : null,
       weight: integerValue(input.weight, 0),
       status: integerValue(input.status, 1),
       requireAuth: false,
+      ...(read ? { readAccessMode: read.mode, readMemberships: { create: read.membershipLevelIds.map((membershipLevelId) => ({ membershipLevelId })) } } : {}),
+      ...(download ? { downloadAccessMode: download.mode, downloadMemberships: { create: download.membershipLevelIds.map((membershipLevelId) => ({ membershipLevelId })) } } : {}),
     },
-  })
+    include: projectAccessInclude,
+  })))
   return projectDto(project)
 }
 
 export async function getAdminProject(id: number) {
-  const project = await prisma.project.findUnique({ where: { id } })
+  const project = await prisma.project.findUnique({ where: { id }, include: projectAccessInclude })
   if (!project) throw new HttpError('Not Found', 404, 404)
   return projectDto(project)
 }
@@ -104,6 +116,8 @@ export async function updateAdminProject(
     avatar?: unknown
     weight?: unknown
     status?: unknown
+    readAccess?: unknown
+    downloadAccess?: unknown
   },
 ) {
   const data: Prisma.ProjectUpdateInput = { updatedAt: new Date() }
@@ -120,6 +134,16 @@ export async function updateAdminProject(
     data.avatar = input.avatar
   }
 
+  if (input.readAccess !== undefined) {
+    const rule = await parseAccessRule(input.readAccess)
+    data.readAccessMode = rule.mode
+    data.readMemberships = { deleteMany: {}, create: rule.membershipLevelIds.map((membershipLevelId) => ({ membershipLevelId })) }
+  }
+  if (input.downloadAccess !== undefined) {
+    const rule = await parseAccessRule(input.downloadAccess, true)
+    data.downloadAccessMode = rule.mode
+    data.downloadMemberships = { deleteMany: {}, create: rule.membershipLevelIds.map((membershipLevelId) => ({ membershipLevelId })) }
+  }
   const weight = optionalIntegerValue(input.weight)
   if (weight !== null) data.weight = weight
   const status = optionalIntegerValue(input.status)
@@ -127,7 +151,7 @@ export async function updateAdminProject(
   if (Object.keys(data).length === 1) throw new HttpError('No fields to update', 400, 400)
 
   try {
-    const project = await prisma.project.update({ where: { id }, data })
+    const project = await unitOfWork.execute((tx) => indexFileWrite(tx, 'PROJECT_AVATAR', tx.project.update({ where: { id }, data, include: projectAccessInclude })))
     await invalidatePublicProjectCache(id)
     return projectDto(project)
   } catch (error) {
@@ -161,11 +185,12 @@ export async function updateAdminProjectMetadataFromMcp(
   if (weight !== null) data.weight = weight
   if (Object.keys(data).length === 1) throw new HttpError('No fields to update', 400, 400)
 
-  const updated = await prisma.project.updateMany({ where: { id, isDeleted: false }, data })
-  if (updated.count !== 1) throw new HttpError('Not Found', 404, 404)
-
-  const project = await prisma.project.findUnique({ where: { id } })
-  if (!project) throw new HttpError('Not Found', 404, 404)
+  const project = await unitOfWork.execute(async (tx) => {
+    const updated = await tx.project.updateMany({ where: { id, isDeleted: false }, data })
+    if (updated.count !== 1) throw new HttpError('Not Found', 404, 404)
+    await syncFileReferences(tx, 'PROJECT_AVATAR', id)
+    return tx.project.findUniqueOrThrow({ where: { id }, include: projectAccessInclude })
+  })
   await invalidatePublicProjectCache(id)
   return projectDto(project)
 }

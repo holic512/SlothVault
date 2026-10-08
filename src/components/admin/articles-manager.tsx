@@ -31,7 +31,7 @@ type ArticleDto = {
   content: string
   status: number
   requiredMembershipLevelId: string | null
-  requiredMembershipLevel: { id: string; name: string; rank: number } | null
+  allowedMembershipLevels: Array<{ id: string; name: string; rank: number; status: number }>
   publishedAt: string | null
   createdAt: string
   updatedAt: string
@@ -127,10 +127,10 @@ export function ArticlesManager() {
     },
     {
       title: t('table.access'),
-      dataIndex: 'requiredMembershipLevel',
+      dataIndex: 'allowedMembershipLevels',
       width: 150,
-      render: (value: ArticleDto['requiredMembershipLevel']) => value
-        ? <Tag color="gold">Lv.{value.rank} · {value.name}</Tag>
+      render: (value: ArticleDto['allowedMembershipLevels']) => value?.length
+        ? <Space wrap>{value.map((item) => <Tag key={item.id} color="gold">{item.name}</Tag>)}</Space>
         : <Tag color="green">{t('table.public')}</Tag>,
     },
     {

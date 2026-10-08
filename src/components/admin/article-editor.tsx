@@ -31,7 +31,7 @@ type ArticleDto = {
   cover: string | null
   content: string
   status: number
-  requiredMembershipLevelId: string | null
+  allowedMembershipLevelIds: string[]
   requiredMembershipLevel: { id: string; name: string; rank: number } | null
   publishedAt: string | null
   createdAt: string
@@ -61,7 +61,7 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
   const [summary, setSummary] = useState('')
   const [cover, setCover] = useState<string | null>(null)
   const [content, setContent] = useState('')
-  const [requiredMembershipLevelId, setRequiredMembershipLevelId] = useState<string | null>(null)
+  const [allowedMembershipLevelIds, setAllowedMembershipLevelIds] = useState<string[]>([])
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false)
 
@@ -83,7 +83,7 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
     setSummary(article.summary || '')
     setCover(article.cover)
     setContent(article.content)
-    setRequiredMembershipLevelId(article.requiredMembershipLevelId)
+    setAllowedMembershipLevelIds(article.allowedMembershipLevelIds)
     setDirty(false)
   }, [article])
 
@@ -140,7 +140,7 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
             summary: summary.trim() || null,
             cover,
             content,
-            requiredMembershipLevelId: requiredMembershipLevelId ? Number(requiredMembershipLevelId) : null,
+            allowedMembershipLevelIds: allowedMembershipLevelIds.map(Number),
           }),
         },
       )
@@ -246,16 +246,17 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
             <Select
               id="article-membership-level"
               allowClear
-              value={requiredMembershipLevelId || undefined}
+              mode="multiple"
+              value={allowedMembershipLevelIds}
               placeholder={t('publicAccess')}
               loading={membershipLevelsQuery.isLoading}
               options={(membershipLevelsQuery.data || []).map((level) => ({
                 value: level.id,
-                label: `Lv.${level.rank} · ${level.name}${level.status === 0 ? ` (${t('levelDisabled')})` : ''}`,
+                label: `${level.name}${level.status === 0 ? ` (${t('levelDisabled')})` : ''}`,
               }))}
-              onChange={(value) => mark(setRequiredMembershipLevelId, value || null)}
+              onChange={(value) => mark(setAllowedMembershipLevelIds, value || [])}
             />
-            <Typography.Text type="secondary">{requiredMembershipLevelId ? t('memberOnlyHint') : t('publicAccessHint')}</Typography.Text>
+            <Typography.Text type="secondary">{allowedMembershipLevelIds.length ? t('memberOnlyHint') : t('publicAccessHint')}</Typography.Text>
           </div>
           <div className="article-editor-field">
             <label>{t('cover')}</label>

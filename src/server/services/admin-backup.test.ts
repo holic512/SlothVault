@@ -28,6 +28,10 @@ function backupWithReservation(options: {
         weight: 0,
         status: 1,
         requireAuth: false,
+        readAccessMode: 'PUBLIC',
+        downloadAccessMode: 'FOLLOW_READ',
+        readMembershipLevelIds: [],
+        downloadMembershipLevelIds: [],
         createdAt: timestamp,
         updatedAt: timestamp,
         isDeleted: false,
@@ -40,6 +44,7 @@ function backupWithReservation(options: {
     noteInfos: [],
     noteContents: [],
     fileManagements: [],
+    fileReferences: [],
     systemConfigs: [],
     systemHomepages: [],
     contracts: [],
@@ -181,6 +186,7 @@ describe('database backup independent article compatibility', () => {
       content: '# Body',
       status: 1,
       requiredMembershipLevelId: null,
+    allowedMembershipLevelIds: [],
       publishedAt: timestamp,
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -202,6 +208,7 @@ describe('database backup independent article compatibility', () => {
       content: '# Body',
       status: 0,
       requiredMembershipLevelId: null,
+    allowedMembershipLevelIds: [],
       publishedAt: null,
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -243,7 +250,7 @@ describe('database backup membership compatibility', () => {
     })
     data.articles.push({
       id: '13', title: 'Member article', summary: null, cover: null, content: '# Body',
-      status: 1, requiredMembershipLevelId: '11', publishedAt: timestamp,
+      status: 1, requiredMembershipLevelId: '11', allowedMembershipLevelIds: [], publishedAt: timestamp,
       createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
     })
 

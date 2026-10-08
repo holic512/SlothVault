@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { indexFileWrite } from './file-references'
 
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
@@ -235,7 +236,7 @@ export async function updateAdminSettings(configs: AdminConfigChange[]) {
       }
     }
 
-    await Promise.all(changes.map((change) => tx.systemConfig.upsert({
+    await Promise.all(changes.map((change) => indexFileWrite(tx, 'SYSTEM_CONFIG', tx.systemConfig.upsert({
       where: { configKey: change.key },
       update: { configValue: change.value, description: change.description, updatedAt: new Date() },
       create: {
@@ -243,7 +244,7 @@ export async function updateAdminSettings(configs: AdminConfigChange[]) {
         configValue: change.value,
         description: change.description,
       },
-    })))
+    }))))
   })
   return { updated: changes.length, message: 'Configuration saved' }
 }

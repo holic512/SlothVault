@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { indexFileWrite } from './file-references'
 
 import { hashPassword, verifyPassword } from '@/server/auth/password'
 import { USER_ROLE, USER_STATUS } from '@/server/auth/roles'
@@ -154,10 +155,10 @@ export async function updateUserProfile(userId: number, input: {
 
 export async function updateUserAvatar(userId: number, avatar: string | null) {
   try {
-    const user = await prisma.user.update({
+    const user = await unitOfWork.execute((tx) => indexFileWrite(tx, 'USER_AVATAR', tx.user.update({
       where: { id: userId },
       data: { avatar, updatedAt: new Date() },
-    })
+    })))
     return userDto(user)
   } catch (error) {
     if (hasPrismaCode(error, 'P2025')) throw new HttpError('User not found', 404, 404)

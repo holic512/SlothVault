@@ -36,11 +36,15 @@ import { useRouter } from 'next/navigation'
 import { formatAdminDate, formatAdminError } from '@/lib/admin-localization'
 import { apiFetch } from '@/lib/api-client'
 import { AdminPage, AdminPageActions } from '@/components/admin/admin-page'
+import type { AccessRule, ReadAccessMode, DownloadAccessMode } from '@/lib/content-access'
+import { ProjectAccessFields } from './project-access-fields'
 import { ProjectMenuManager } from '@/components/admin/project-menu-manager'
 
 type ProjectDto = {
   id: string
   projectName: string
+  readAccess: AccessRule<ReadAccessMode>
+  downloadAccess: AccessRule<DownloadAccessMode>
   avatar: string | null
   weight: number
   status: number
@@ -53,7 +57,7 @@ type ProjectDto = {
 }
 
 type ProjectListData = { list: ProjectDto[]; page: number; pageSize: number; total: number }
-type ProjectForm = Pick<ProjectDto, 'projectName' | 'weight' | 'status'> & { avatar?: string }
+type ProjectForm = Pick<ProjectDto, 'projectName' | 'weight' | 'status'> & { avatar?: string; readAccess: Pick<AccessRule<ReadAccessMode>, 'mode' | 'membershipLevelIds'>; downloadAccess: Pick<AccessRule<DownloadAccessMode>, 'mode' | 'membershipLevelIds'> }
 
 export function ProjectsManager() {
   const t = useTranslations('AdminMM.projects')
@@ -88,7 +92,7 @@ export function ProjectsManager() {
     mutationFn: (values: ProjectForm) =>
       apiFetch<ProjectDto>(editing ? `/api/admin/mm/project/${editing.id}` : '/api/admin/mm/project', {
         method: editing ? 'PUT' : 'POST',
-        body: JSON.stringify({ ...values, avatar: values.avatar || null }),
+        body: JSON.stringify({ ...values, avatar: values.avatar || null, readAccess: { ...values.readAccess, membershipLevelIds: values.readAccess.mode === 'MEMBERSHIPS' ? values.readAccess.membershipLevelIds : [] }, downloadAccess: { ...values.downloadAccess, membershipLevelIds: values.downloadAccess.mode === 'MEMBERSHIPS' ? values.downloadAccess.membershipLevelIds : [] } }),
       }),
     onSuccess: async () => {
       message.success(editing ? t('messages.saveSuccess') : t('messages.createSuccess'))
@@ -116,7 +120,7 @@ export function ProjectsManager() {
 
   const openCreate = () => {
     setEditing(null)
-    form.setFieldsValue({ projectName: '', avatar: '', weight: 0, status: 1 })
+    form.setFieldsValue({ projectName: '', avatar: '', weight: 0, status: 1, readAccess: { mode: 'PUBLIC', membershipLevelIds: [] }, downloadAccess: { mode: 'FOLLOW_READ', membershipLevelIds: [] } })
     setFormOpen(true)
   }
   const openEdit = (project: ProjectDto) => {
@@ -126,6 +130,8 @@ export function ProjectsManager() {
       avatar: project.avatar || '',
       weight: project.weight,
       status: project.status,
+      readAccess: { mode: project.readAccess.mode, membershipLevelIds: project.readAccess.membershipLevelIds },
+      downloadAccess: { mode: project.downloadAccess.mode, membershipLevelIds: project.downloadAccess.membershipLevelIds },
     })
     setFormOpen(true)
   }
@@ -170,6 +176,10 @@ export function ProjectsManager() {
   }
 
   const columns: ColumnsType<ProjectDto> = [
+      ...(['readAccess', 'downloadAccess'] as const).map((key) => ({
+        title: t(`permissions.${key === 'readAccess' ? 'read' : 'download'}`), dataIndex: key, width: 180,
+        render: (rule: AccessRule) => <Tag>{rule.mode === 'MEMBERSHIPS' ? rule.membershipLevels.map((item) => item.name).join(' / ') : t(`permissions.modes.${rule.mode}`)}</Tag>,
+      })),
       {
         title: t('table.avatar'),
         dataIndex: 'avatar',
@@ -261,7 +271,7 @@ export function ProjectsManager() {
       <div className="admin-table-card">
         <Table
           rowKey="id"
-          scroll={{ x: 1080 }}
+          scroll={{ x: 1420 }}
           loading={listQuery.isLoading}
           dataSource={listQuery.data?.list || []}
           columns={columns}
@@ -307,6 +317,7 @@ export function ProjectsManager() {
               </Upload>
             </Space.Compact>
           </Form.Item>
+          <ProjectAccessFields />
           <div className="admin-form-grid">
             <Form.Item name="weight" label={t('dialog.weight')}><InputNumber min={0} max={999999} className="full-width" /></Form.Item>
             <Form.Item name="status" label={t('dialog.status')}><Select options={[{ label: t('status.enabled'), value: 1 }, { label: t('status.disabled'), value: 0 }]} /></Form.Item>

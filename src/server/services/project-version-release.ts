@@ -9,6 +9,9 @@
  * @author holic512
  */
 import 'server-only'
+import type { AccessViewer } from '@/lib/content-access'
+import { resolveProjectAccess, requireProjectCapability } from './content-access'
+import { indexFileWrite, syncFileReferences } from './file-references'
 
 import { randomUUID } from 'node:crypto'
 
@@ -344,6 +347,11 @@ export async function publishProjectVersion(projectVersionId: number) {
     }
 
     const publishedAt = new Date()
+    for (const category of source.categories) {
+      for (const note of category.noteInfos) {
+        for (const content of note.contents) await syncFileReferences(tx, 'NOTE_CONTENT', content.id)
+      }
+    }
     try {
       const updated = await tx.projectVersion.update({
         where: { id: projectVersionId },
@@ -515,7 +523,7 @@ export async function getProjectVersionIntegrity(projectVersionId: number) {
 
 export async function getProjectVersionManifest(
   projectVersionId: number,
-  options: { publicProjectId?: number } = {},
+  options: { publicProjectId?: number; viewer?: AccessViewer } = {},
 ) {
   if (options.publicProjectId !== undefined) {
     const visible = await prisma.projectVersion.findFirst({
@@ -530,6 +538,7 @@ export async function getProjectVersionManifest(
       select: { id: true },
     })
     if (!visible) throw new HttpError('Version not found', 404, 404)
+    requireProjectCapability(await resolveProjectAccess(options.publicProjectId, options.viewer ?? null), 'download')
   }
 
   const integrity = await getProjectVersionIntegrity(projectVersionId)
@@ -622,7 +631,7 @@ export async function cloneProjectVersion(
           },
         })
         for (const content of note.contents) {
-          await tx.noteContent.create({
+          await indexFileWrite(tx, 'NOTE_CONTENT', tx.noteContent.create({
             data: {
               noteInfoId: clonedNote.id,
               content: content.content,
@@ -630,7 +639,7 @@ export async function cloneProjectVersion(
               isPrimary: content.isPrimary,
               status: content.status,
             },
-          })
+          }))
         }
       }
     }

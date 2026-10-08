@@ -26,6 +26,8 @@ const updateProjectSchema = z.object({
   avatar: z.unknown().optional(),
   weight: z.unknown().optional(),
   status: z.unknown().optional(),
+  readAccess: z.unknown().optional(),
+  downloadAccess: z.unknown().optional(),
 })
 
 export const dynamic = 'force-dynamic'

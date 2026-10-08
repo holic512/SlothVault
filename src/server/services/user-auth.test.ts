@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => ({
   },
 }))
 
+vi.mock('@/server/services/file-references', () => ({ indexFileWrite: (_tx: unknown, _type: unknown, write: Promise<unknown>) => write, syncFileReferences: vi.fn() }))
+
 vi.mock('@/server/auth/password', () => ({
   hashPassword: mocks.hashPassword,
   verifyPassword: mocks.verifyPassword,
@@ -54,6 +56,7 @@ function userRecord(overrides: Record<string, unknown> = {}) {
 describe('conventional user authentication', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.execute.mockImplementation((operation) => operation(mocks.prisma))
   })
 
   it('normalizes credentials and always registers a regular Web2 user', async () => {

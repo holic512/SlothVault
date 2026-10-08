@@ -2,7 +2,7 @@
  * @file database-schema.ts
  * @project SlothVault
  * @module Admin Database Backup Schema
- * @description Defines the portable 2.7 database-backup shape with membership entitlements, independent articles, contracts, project-version evidence, and legacy cNFT input compatibility.
+ * @description Defines the portable 2.8 database-backup shape with membership entitlements, independent articles, contracts, project-version evidence, and legacy cNFT input compatibility.
  * @logic Validate active collections strictly, retain member access and standalone blog content, accept deprecated Tree/cNFT arrays only for ignore accounting, and retain prior import envelopes.
  * @dependencies Zod, Node path rules, backup constants
  * @index_tags admin,backup,database,schema,zod,portable
@@ -200,10 +200,12 @@ const articleSchema = z.object({
   content: z.string().max(500_000),
   status: z.union([z.literal(0), z.literal(1)]),
   requiredMembershipLevelId: nullableIdStringSchema.optional().default(null),
+  allowedMembershipLevelIds: z.array(idStringSchema).max(1000).optional().default([]),
   publishedAt: dateStringSchema.nullable(),
   createdAt: dateStringSchema,
   updatedAt: dateStringSchema,
   isDeleted: z.boolean(),
+  deletedAt: dateStringSchema.nullable().optional(),
 }).strict()
 
 const projectSchema = z.object({
@@ -213,9 +215,14 @@ const projectSchema = z.object({
   weight: intSchema,
   status: smallIntSchema,
   requireAuth: z.boolean(),
+  readAccessMode: z.enum(['PUBLIC', 'LOGIN', 'MEMBERSHIPS']).optional().default('PUBLIC'),
+  downloadAccessMode: z.enum(['FOLLOW_READ', 'LOGIN', 'MEMBERSHIPS', 'DISABLED']).optional().default('FOLLOW_READ'),
+  readMembershipLevelIds: z.array(idStringSchema).max(1000).optional().default([]),
+  downloadMembershipLevelIds: z.array(idStringSchema).max(1000).optional().default([]),
   createdAt: dateStringSchema,
   updatedAt: dateStringSchema,
   isDeleted: z.boolean(),
+  deletedAt: dateStringSchema.nullable().optional(),
 }).strict()
 
 const projectVersionSchema = z.object({
@@ -232,6 +239,7 @@ const projectVersionSchema = z.object({
   createdAt: dateStringSchema,
   updatedAt: dateStringSchema,
   isDeleted: z.boolean(),
+  deletedAt: dateStringSchema.nullable().optional(),
 }).strict()
 
 const categorySchema = z.object({
@@ -243,6 +251,7 @@ const categorySchema = z.object({
   createdAt: dateStringSchema,
   updatedAt: dateStringSchema,
   isDeleted: z.boolean(),
+  deletedAt: dateStringSchema.nullable().optional(),
 }).strict()
 
 const projectMenuSchema = z.object({
@@ -257,6 +266,7 @@ const projectMenuSchema = z.object({
   createdAt: dateStringSchema,
   updatedAt: dateStringSchema,
   isDeleted: z.boolean(),
+  deletedAt: dateStringSchema.nullable().optional(),
 }).strict()
 
 const projectHomeSchema = z.object({
@@ -267,6 +277,7 @@ const projectHomeSchema = z.object({
   createdAt: dateStringSchema,
   updatedAt: dateStringSchema,
   isDeleted: z.boolean(),
+  deletedAt: dateStringSchema.nullable().optional(),
 }).strict()
 
 const noteInfoSchema = z.object({
@@ -279,6 +290,7 @@ const noteInfoSchema = z.object({
   createdAt: dateStringSchema,
   updatedAt: dateStringSchema,
   isDeleted: z.boolean(),
+  deletedAt: dateStringSchema.nullable().optional(),
 }).strict()
 
 const noteContentSchema = z.object({
@@ -292,6 +304,7 @@ const noteContentSchema = z.object({
   createdAt: dateStringSchema,
   updatedAt: dateStringSchema,
   isDeleted: z.boolean(),
+  deletedAt: dateStringSchema.nullable().optional(),
 }).strict()
 
 const fileManagementSchema = z.object({
@@ -487,6 +500,15 @@ const contractAdminAuditSchema = z.object({
   createdAt: dateStringSchema,
 }).strict()
 
+const fileReferenceSchema = z.object({
+  id: idStringSchema,
+  fileId: idStringSchema,
+  sourceType: z.enum(['NOTE_CONTENT', 'PROJECT_HOME', 'PROJECT_MENU', 'ARTICLE', 'SYSTEM_HOMEPAGE', 'PROJECT_AVATAR', 'USER_AVATAR', 'SYSTEM_CONFIG']),
+  sourceId: idStringSchema,
+  projectId: nullableIdStringSchema,
+  usage: z.enum(['READ_MEDIA', 'DOWNLOAD']),
+}).strict()
+
 export const backupDataSchema = z.object({
   users: z.array(userSchema).max(DATABASE_RECORD_LIMIT).default([]),
   pointTransactions: z.array(pointTransactionSchema).max(DATABASE_RECORD_LIMIT).default([]),
@@ -502,6 +524,7 @@ export const backupDataSchema = z.object({
   projectHomes: z.array(projectHomeSchema).max(DATABASE_RECORD_LIMIT),
   noteInfos: z.array(noteInfoSchema).max(DATABASE_RECORD_LIMIT),
   noteContents: z.array(noteContentSchema).max(DATABASE_RECORD_LIMIT),
+  fileReferences: z.array(fileReferenceSchema).max(DATABASE_RECORD_LIMIT).optional().default([]),
   fileManagements: z.array(fileManagementSchema).max(DATABASE_RECORD_LIMIT),
   systemConfigs: z.array(systemConfigSchema).max(DATABASE_RECORD_LIMIT),
   systemHomepages: z.array(systemHomepageSchema).max(DATABASE_RECORD_LIMIT),
@@ -518,7 +541,7 @@ export const backupDataSchema = z.object({
 export const databaseImportPayloadSchema = z.object({
   data: backupDataSchema,
   mode: z.enum(['insert', 'overwrite']).optional().default('insert'),
-  version: z.enum(['2.0.0', '2.1.0', '2.2.0', '2.3.0', '2.4.0', '2.5.0', '2.6.0', '2.7.0']).optional().default('2.0.0'),
+  version: z.enum(['2.0.0', '2.1.0', '2.2.0', '2.3.0', '2.4.0', '2.5.0', '2.6.0', '2.7.0', '2.8.0']).optional().default('2.0.0'),
 }).strict()
 
 export type BackupData = z.infer<typeof backupDataSchema>
