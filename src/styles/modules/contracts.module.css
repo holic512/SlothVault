@@ -1,8 +1,3 @@
-.manager {
-  --sv-contract-ink: rgb(24 50 70);
-  --sv-contract-accent: rgb(15 118 110);
-}
-
 .manager :global(.admin-toolbar-card) {
   display: flex;
   gap: 12px;
@@ -18,20 +13,11 @@
   position: relative;
   overflow: hidden;
   padding: 28px;
-  border: 1px solid color-mix(in srgb, var(--sv-contract-accent) 22%, transparent);
-  border-radius: 16px;
-  background:
-    linear-gradient(90deg, transparent 32px, color-mix(in srgb, var(--sv-contract-accent) 10%, transparent) 33px, transparent 34px),
-    repeating-linear-gradient(0deg, transparent 0 30px, color-mix(in srgb, var(--sv-contract-ink) 6%, transparent) 31px),
-    rgb(255 252 245);
-  box-shadow: 0 18px 44px rgb(24 50 70 / 9%);
-}
-
-:global(.dark) .paper {
-  background:
-    linear-gradient(90deg, transparent 32px, rgb(94 234 212 / 10%) 33px, transparent 34px),
-    repeating-linear-gradient(0deg, transparent 0 30px, rgb(226 232 240 / 5%) 31px),
-    rgb(22 35 45);
+  border: 1px solid var(--sv-border);
+  border-radius: 12px;
+  background: var(--sv-bg-solid);
+  color: var(--sv-text);
+  overflow-wrap: anywhere;
 }
 
 .paper-header {
@@ -39,7 +25,7 @@
   gap: 11px;
   align-items: flex-start;
   margin-bottom: 24px;
-  color: var(--sv-contract-accent);
+  color: var(--sv-text);
 }
 
 .paper-header :global(.ant-typography) {
@@ -49,18 +35,18 @@
 .body {
   margin-top: 28px;
   padding-top: 20px;
-  border-top: 1px solid color-mix(in srgb, var(--sv-contract-ink) 12%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--sv-text) 12%, transparent);
 }
 
 .body :global(.markdown-content) {
-  font-family: 'Source Sans Pro', serif;
+  line-height: 1.8;
 }
 
 .evidence-card,
 .list-card {
   margin-block: 16px;
-  border: 1px solid color-mix(in srgb, var(--sv-contract-accent) 16%, transparent);
-  background: color-mix(in srgb, var(--sv-contract-accent) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sv-text) 16%, transparent);
+  background: color-mix(in srgb, var(--sv-text) 4%, transparent);
 }
 
 .account :global(.account-route-heading) {
@@ -109,4 +95,26 @@
     align-items: stretch;
     flex-direction: column;
   }
+}
+
+.verification {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--sv-border);
+}
+
+.verification summary {
+  cursor: pointer;
+  color: var(--sv-text-muted);
+  margin-bottom: 12px;
+}
+
+.pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.flow {
+  margin-bottom: 20px;
 }

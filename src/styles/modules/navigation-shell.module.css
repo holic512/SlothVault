@@ -19,6 +19,16 @@
   pointer-events: none;
 }
 
+.popup-host {
+  position: absolute;
+  pointer-events: none;
+  inset: 0;
+}
+
+.popup-host > * {
+  pointer-events: auto;
+}
+
 .navigation {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(max-content, 1fr);

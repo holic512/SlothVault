@@ -112,7 +112,7 @@ const giftCardBatchSchema = z.object({
   createdBy: z.string(),
   createdAt: isoDateSchema,
 })
-const contractSchema = z.object({
+export const contractSchema = z.object({
   id: decimalIdSchema,
   contractId: z.string(),
   title: z.string(),

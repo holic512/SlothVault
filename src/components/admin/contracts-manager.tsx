@@ -113,6 +113,8 @@ export function ContractsManager() {
   const [pageSize, setPageSize] = useState(20)
   const [keyword, setKeyword] = useState('')
   const [status, setStatus] = useState<number | undefined>()
+  const [subjectKeyword, setSubjectKeyword] = useState('')
+  const [uploading, setUploading] = useState(false)
   const [editorOpen, setEditorOpen] = useState(false)
   const [editing, setEditing] = useState<Contract | null>(null)
   const [detail, setDetail] = useState<Contract | null>(null)
@@ -132,8 +134,9 @@ export function ContractsManager() {
     },
   })
   const users = useQuery({
-    queryKey: ['contract-subject-users'],
-    queryFn: () => apiFetch<{ list: UserRow[] }>('/api/admin/mm/users?page=1&pageSize=100'),
+    queryKey: ['contract-subject-users', subjectKeyword],
+    enabled: editorOpen,
+    queryFn: () => apiFetch<{ list: UserRow[] }>(`/api/admin/mm/users?page=1&pageSize=100&keyword=${encodeURIComponent(subjectKeyword)}`),
   })
   const networks = useQuery({
     queryKey: ['contract-evidence-networks'],
@@ -146,7 +149,17 @@ export function ContractsManager() {
     })),
     [users.data],
   )
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['admin-contracts'] })
+  const detailQuery = useQuery({
+    queryKey: ['admin-contract', detail?.id],
+    queryFn: () => apiFetch<Contract>(`/api/admin/contracts/${detail!.id}`),
+    enabled: Boolean(detail),
+  })
+  const currentDetail = detailQuery.data
+  const bodyPreview = Form.useWatch('body', form)
+  const refresh = () => Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['admin-contracts'] }),
+    queryClient.invalidateQueries({ queryKey: ['admin-contract'] }),
+  ])
 
   const save = useMutation({
     mutationFn: (values: { subjectUserId: number; title: string; body: string }) => {
@@ -155,7 +168,8 @@ export function ContractsManager() {
         ? apiFetch<Contract>(`/api/admin/contracts/${editing.id}`, { method: 'PUT', body: JSON.stringify(payload) })
         : apiFetch<Contract>('/api/admin/contracts', { method: 'POST', body: JSON.stringify(payload) })
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
+      setDetail(result)
       message.success(editing ? t('messages.draftSaved') : t('messages.draftCreated'))
       setEditorOpen(false)
       setEditing(null)
@@ -229,17 +243,20 @@ export function ContractsManager() {
 
   const openCreate = () => {
     setEditing(null)
+    setSubjectKeyword('')
     setAttachment(null)
     form.setFieldsValue({ subjectUserId: undefined, title: '', body: '' })
     setEditorOpen(true)
   }
   const openEdit = (contract: Contract) => {
     setEditing(contract)
+    setSubjectKeyword(contract.subject.username)
     setAttachment(contract.attachment)
     form.setFieldsValue({ subjectUserId: Number(contract.subject.id), title: contract.title, body: contract.body })
     setEditorOpen(true)
   }
   const uploadPdf = async (file: File) => {
+    setUploading(true)
     const formData = new FormData()
     formData.append('file', file)
     try {
@@ -252,12 +269,13 @@ export function ContractsManager() {
     } catch (error) {
       message.error(formatAdminError(error, errorT))
     }
+    setUploading(false)
     return Upload.LIST_IGNORE
   }
   const openEvidence = (contract: Contract) => {
     setEvidenceTarget(contract)
     setPrepared(null)
-    evidenceForm.setFieldsValue({ network: 'mainnet' })
+    evidenceForm.setFieldsValue({ network: networks.data?.networks.find((item) => item.enabled)?.network })
   }
 
   return <AdminPage className={contractStyles.manager}>
@@ -268,12 +286,14 @@ export function ContractsManager() {
       </Space>
     </AdminPageActions>
 
+    <Alert className={contractStyles.flow} type="info" showIcon title={t('flow.title')} description={t('flow.description')} />
+    {contracts.isError ? <Alert type="error" showIcon title={formatAdminError(contracts.error, errorT)} action={<Button onClick={() => void contracts.refetch()}>{t('actions.refresh')}</Button>} /> : null}
     <AdminToolbar>
       <Input.Search
         allowClear
         value={keyword}
         placeholder={t('filters.keyword')}
-        onChange={(event) => setKeyword(event.target.value)}
+        onChange={(event) => { setKeyword(event.target.value); setPage(1) }}
         onSearch={() => setPage(1)}
       />
       <Select
@@ -322,14 +342,15 @@ export function ContractsManager() {
 
     <Drawer
       open={editorOpen}
-      onClose={() => { setEditorOpen(false); setEditing(null); setAttachment(null); form.resetFields() }}
+      onClose={() => { if (save.isPending || uploading) return; setEditorOpen(false); setEditing(null); setAttachment(null); form.resetFields() }}
       size={620}
       title={editing ? t('drawer.edit') : t('drawer.create')}
-      extra={<Button type="primary" loading={save.isPending} onClick={() => form.submit()}>{t('actions.saveDraft')}</Button>}
+      extra={<Button type="primary" loading={save.isPending} disabled={uploading} onClick={() => form.submit()}>{t('actions.saveDraft')}</Button>}
     >
-      <Form form={form} layout="vertical" onFinish={(values) => save.mutate(values)}>
+      {users.isError ? <Alert type="error" showIcon title={formatAdminError(users.error, errorT)} action={<Button onClick={() => void users.refetch()}>{t('actions.refresh')}</Button>} /> : null}
+      <Form form={form} disabled={save.isPending} layout="vertical" onFinish={(values) => save.mutate(values)}>
         <Form.Item name="subjectUserId" label={t('form.subject')} rules={[{ required: true, message: t('form.subjectRequired') }]}>
-          <Select showSearch optionFilterProp="label" options={subjectOptions} placeholder={t('form.selectSubject')} />
+          <Select showSearch filterOption={false} onSearch={setSubjectKeyword} loading={users.isFetching} options={subjectOptions} placeholder={t('form.selectSubject')} />
         </Form.Item>
         <Form.Item name="title" label={t('form.title')} rules={[{ required: true, whitespace: true, max: 255 }]}>
           <Input maxLength={255} placeholder={t('form.titlePlaceholder')} />
@@ -337,23 +358,31 @@ export function ContractsManager() {
         <Form.Item name="body" label={t('form.body')} rules={[{ required: true, whitespace: true, max: 100_000 }]}>
           <Input.TextArea rows={16} showCount maxLength={100_000} placeholder={t('form.bodyPlaceholder')} />
         </Form.Item>
+        <details className={contractStyles.verification}><summary>{t('form.preview')}</summary><MarkdownView content={bodyPreview || ''} /></details>
         <Form.Item label={t('form.attachment')} extra={t('form.attachmentHint')}>
           <Space direction="vertical" size={8} style={{ width: '100%' }}>
             {attachment ? <Alert type="success" showIcon title={attachment.originalName} description={t('detail.selectedPdf', { size: Math.ceil(Number(attachment.fileSize) / 1024) })} /> : null}
-            <Upload accept="application/pdf,.pdf" maxCount={1} showUploadList={false} beforeUpload={uploadPdf}>
-              <Button icon={<UploadCloud size={15} />}>{t('actions.uploadPdf')}</Button>
+            <Upload accept="application/pdf,.pdf" maxCount={1} showUploadList={false} disabled={uploading || save.isPending} beforeUpload={uploadPdf}>
+              <Button loading={uploading} disabled={save.isPending} icon={<UploadCloud size={15} />}>{t('actions.uploadPdf')}</Button>
             </Upload>
-            {attachment ? <Button type="link" danger onClick={() => setAttachment(null)}>{t('actions.removeAttachment')}</Button> : null}
+            {attachment ? <Button type="link" danger disabled={uploading || save.isPending} onClick={() => setAttachment(null)}>{t('actions.removeAttachment')}</Button> : null}
           </Space>
         </Form.Item>
       </Form>
     </Drawer>
 
     <Drawer open={Boolean(detail)} onClose={() => setDetail(null)} size={760} title={t('drawer.detail')}>
-      {detail ? <ContractDetail contract={detail} admin /> : null}
+      {detailQuery.isError ? <Alert type="error" showIcon title={formatAdminError(detailQuery.error, errorT)} action={<Button onClick={() => void detailQuery.refetch()}>{t('actions.refresh')}</Button>} /> : currentDetail ? <>
+        <ContractDetail contract={currentDetail} admin />
+        <Space wrap className={contractStyles.flow}>
+          {currentDetail.status === 0 ? <><Button onClick={() => { setDetail(null); openEdit(currentDetail) }}>{t('actions.edit')}</Button><Button type="primary" loading={issue.isPending} onClick={() => modal.confirm({ title: t('dialog.issueTitle'), content: t('dialog.issueContent'), okText: t('dialog.issueOk'), onOk: () => issue.mutateAsync(currentDetail.id) })}>{t('dialog.issueOk')}</Button></> : null}
+          {currentDetail.status === 1 ? <Alert type="info" showIcon title={t('flow.pending')} /> : null}
+          {currentDetail.status === 2 ? <Button onClick={() => openEvidence(currentDetail)}>{t('actions.evidence')}</Button> : null}
+        </Space>
+      </> : <Card loading />}
     </Drawer>
 
-    <Drawer open={Boolean(evidenceTarget)} onClose={() => { setEvidenceTarget(null); setPrepared(null) }} size={580} title={t('drawer.evidence')}>
+    <Drawer open={Boolean(evidenceTarget)} onClose={() => { if (prepareEvidence.isPending || submitEvidence.isPending) return; setEvidenceTarget(null); setPrepared(null) }} size={580} title={t('drawer.evidence')}>
       {evidenceTarget ? <>
         <Alert showIcon type="info" title={t('dialog.adminWallet')} description={t('dialog.adminWalletDescription')} />
         <Card className={contractStyles['evidence-card']} bordered={false}>
@@ -365,12 +394,12 @@ export function ContractsManager() {
         </Card>
         <Form form={evidenceForm} layout="vertical" onFinish={(values) => prepareEvidence.mutate(values)}>
           <Form.Item name="network" label={t('form.network')} rules={[{ required: true }]}>
-            <Select options={(networks.data?.networks || []).map((item) => ({ value: item.network, disabled: !item.enabled, label: item.network === 'mainnet' ? t('detail.mainnetCredential') : t('detail.devnetCredential') }))} />
+            <Select disabled={Boolean(prepared) || prepareEvidence.isPending || submitEvidence.isPending} options={(networks.data?.networks || []).map((item) => ({ value: item.network, disabled: !item.enabled, label: item.network === 'mainnet' ? t('detail.mainnetCredential') : t('detail.devnetCredential') }))} />
           </Form.Item>
           {prepared ? <Space direction="vertical" style={{ width: '100%' }}>
             <Alert type={prepared.network === 'mainnet' ? 'warning' : 'info'} showIcon title={prepared.network === 'mainnet' ? t('dialog.mainnetFee') : t('dialog.devnetTest')} description={t('dialog.feeExpires', { fee: (prepared.feeLamports / 1_000_000_000).toFixed(9), date: formatAdminDate(locale, new Date(prepared.expiresAt)) })} />
             <Button block type="primary" icon={<ShieldCheck size={15} />} loading={submitEvidence.isPending} disabled={!wallet.canSignTransaction || wallet.address !== prepared.signerAddress} onClick={() => submitEvidence.mutate(prepared)}>{t('actions.sign')}</Button>
-            <Button block onClick={() => setPrepared(null)}>{t('actions.back')}</Button>
+            <Button block disabled={submitEvidence.isPending} onClick={() => setPrepared(null)}>{t('actions.back')}</Button>
           </Space> : <Button block type="primary" icon={<FileSignature size={15} />} loading={prepareEvidence.isPending} disabled={!wallet.address || !wallet.canSignTransaction} htmlType="submit">{t('actions.prepare')}</Button>}
         </Form>
       </> : null}
@@ -383,8 +412,10 @@ function ContractDetail({ contract, admin }: { contract: Contract; admin?: boole
   const locale = useLocale()
   return <div className={contractStyles.detail}>
     <section className={contractStyles.paper}>
-      <div className={contractStyles['paper-header']}><FileCheck2 size={18} /><div><Typography.Text type="secondary">{t('detail.frozen')}</Typography.Text><Typography.Title level={3}>{contract.title}</Typography.Title></div></div>
+      <div className={contractStyles['paper-header']}><FileCheck2 size={18} /><div><Typography.Text type="secondary">{t(contract.status === 0 ? 'status.draft' : 'detail.frozen')}</Typography.Text><Typography.Title level={3}>{contract.title}</Typography.Title></div></div>
       <Descriptions column={1} size="small" items={[
+        { key: 'issuer', label: t('detail.issuer'), children: contract.issuer.displayName || contract.issuer.username },
+        { key: 'subject', label: t('table.subject'), children: `${contract.subject.displayName || contract.subject.username}（@${contract.subject.username}）` },
         { key: 'state', label: t('detail.state'), children: contractStatus(contract.status, t) },
         { key: 'id', label: t('detail.id'), children: <Typography.Text code copyable>{contract.contractId}</Typography.Text> },
         { key: 'body', label: t('detail.bodyHash'), children: <Typography.Text code copyable>{contract.bodyHash}</Typography.Text> },
@@ -395,7 +426,7 @@ function ContractDetail({ contract, admin }: { contract: Contract; admin?: boole
       ]} />
       <div className={contractStyles.body}><MarkdownView content={contract.body} /></div>
     </section>
-    {contract.declineReason ? <Alert type="error" showIcon title={t('detail.declined')} description={contract.declineReason} /> : null}
+    {contract.status === -1 ? <Alert type="info" showIcon title={t('detail.declined')} description={contract.declineReason || t('flow.declined')} /> : null}
     {admin && contract.signedAudit ? <Card size="small" title={t('detail.web2Audit')}><Descriptions column={1} size="small" items={[
       { key: 'session', label: t('detail.session'), children: <Typography.Text code>{contract.signedAudit.sessionId || t('empty')}</Typography.Text> },
       { key: 'ip', label: t('detail.ip'), children: contract.signedAudit.ip || t('empty') },
