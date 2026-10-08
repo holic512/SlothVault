@@ -2,7 +2,7 @@
  * @file database-schema.ts
  * @project SlothVault
  * @module Admin Database Backup Schema
- * @description Defines the portable 2.8 database-backup shape with membership entitlements, independent articles, contracts, project-version evidence, and legacy cNFT input compatibility.
+ * @description Defines the portable 2.9 database-backup shape with membership entitlements, independent articles, contracts, project-version evidence, and legacy cNFT input compatibility.
  * @logic Validate active collections strictly, retain member access and standalone blog content, accept deprecated Tree/cNFT arrays only for ignore accounting, and retain prior import envelopes.
  * @dependencies Zod, Node path rules, backup constants
  * @index_tags admin,backup,database,schema,zod,portable
@@ -13,6 +13,7 @@ import 'server-only'
 import { isAbsolute } from 'node:path'
 
 import { z } from 'zod'
+import { commissionBackupShape } from '@/server/commissions/backup'
 
 import {
   DATABASE_BIGINT_MAX,
@@ -429,6 +430,15 @@ const releaseCredentialAttemptSchema = z.object({
 }).strict()
 
 const contractSchema = z.object({
+  commissionId: nullableIdStringSchema.optional().default(null),
+  templateVersionId: nullableIdStringSchema.optional().default(null),
+  documentType: z.enum(['AGREEMENT', 'CHANGE', 'ACCEPTANCE']).optional().default('AGREEMENT'),
+  sourceRecordId: nullableIdStringSchema.optional().default(null),
+  snapshotJson: z.string().max(500000).nullable().optional().default(null),
+  snapshotHash: z.string().regex(/^[a-f0-9]{64}$/).nullable().optional().default(null),
+  providerSessionId: nullableString(255).optional().default(null),
+  providerIp: nullableString(255).optional().default(null),
+  providerUserAgent: nullableString(10000).optional().default(null),
   id: idStringSchema,
   contractId: z.string().uuid(),
   installationId: z.string().uuid().nullable(),
@@ -510,6 +520,7 @@ const fileReferenceSchema = z.object({
 }).strict()
 
 export const backupDataSchema = z.object({
+  ...commissionBackupShape,
   users: z.array(userSchema).max(DATABASE_RECORD_LIMIT).default([]),
   pointTransactions: z.array(pointTransactionSchema).max(DATABASE_RECORD_LIMIT).default([]),
   giftCardBatches: z.array(giftCardBatchSchema).max(DATABASE_RECORD_LIMIT).default([]),
@@ -541,7 +552,8 @@ export const backupDataSchema = z.object({
 export const databaseImportPayloadSchema = z.object({
   data: backupDataSchema,
   mode: z.enum(['insert', 'overwrite']).optional().default('insert'),
-  version: z.enum(['2.0.0', '2.1.0', '2.2.0', '2.3.0', '2.4.0', '2.5.0', '2.6.0', '2.7.0', '2.8.0']).optional().default('2.0.0'),
+  version: z.enum(['2.0.0', '2.1.0', '2.2.0', '2.3.0', '2.4.0', '2.5.0', '2.6.0', '2.7.0', '2.8.0', '2.9.0']).optional().default('2.0.0'),
+  ignoredLegacyContracts: z.number().int().nonnegative().optional().default(0),
 }).strict()
 
 export type BackupData = z.infer<typeof backupDataSchema>

@@ -62,7 +62,7 @@ export const adminMcpResourceDefinitions: McpResourceDefinition[] = collectMcpRe
     },
     async (uri, { id }) => {
       const { file, buffer } = await readManagedFile(resourceId(id, 'fileId'))
-      if (file.businessType === 'ContractAttachment') {
+      if (['ContractAttachment', 'CommissionAttachment'].includes(file.businessType)) {
         throw new HttpError('Contract attachments require the protected contract resource', 403, 403)
       }
       return {

@@ -61,7 +61,7 @@ export function AccountOverview() {
           <Link href="/account/security"><ShieldCheck size={16} /><span>{t('actions.security')}</span><ArrowRight size={15} /></Link>
           <Link href="/account/points"><WalletCards size={16} /><span>{t('actions.points')}</span><ArrowRight size={15} /></Link>
           <Link href="/account/membership"><Crown size={16} /><span>{t('actions.membership')}</span><ArrowRight size={15} /></Link>
-          <Link href="/account/contracts"><FileSignature size={16} /><span>{t('actions.contracts')}</span><ArrowRight size={15} /></Link>
+          <Link href="/account/commissions"><FileSignature size={16} /><span>{t('actions.commissions')}</span><ArrowRight size={15} /></Link>
         </AccountCard>
 
         <div className="account-overview-identity">

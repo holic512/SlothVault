@@ -4,11 +4,15 @@ const mocks = vi.hoisted(() => ({
   execute: vi.fn(),
   prisma: {
     contract: {
+      create: vi.fn(),
+      update: vi.fn(),
       count: vi.fn(),
       findMany: vi.fn(),
       findUnique: vi.fn(),
       updateMany: vi.fn(),
     },
+    user: { findUnique: vi.fn() },
+    systemInstallation: { findFirst: vi.fn() },
     contractCredential: { findUnique: vi.fn() },
     contractCredentialAttempt: { findFirst: vi.fn() },
   },
@@ -33,6 +37,11 @@ vi.mock('@/server/services/system-config', () => ({
 
 import {
   CONTRACT_STATUS,
+  createAdminContract,
+  updateAdminContract,
+  issueAdminContract,
+  cancelAdminContract,
+  readAuthorizedContractAttachment,
   getPublicContractEvidence,
   getUserContract,
   listUserContracts,
@@ -91,7 +100,7 @@ describe('contract user boundaries', () => {
     await expect(listUserContracts(7, { page: 1, pageSize: 20 })).resolves.toMatchObject({ list: [] })
 
     expect(mocks.prisma.contract.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { subjectUserId: 7, status: { not: CONTRACT_STATUS.DRAFT } },
+      where: { subjectUserId: 7, status: { not: CONTRACT_STATUS.DRAFT }, issuedAt: { not: null } },
     }))
   })
 
@@ -132,6 +141,57 @@ describe('contract user boundaries', () => {
         status: CONTRACT_STATUS.PENDING_SIGNATURE,
       },
     }))
+  })
+
+  it('hides cancelled unissued drafts and their attachments from the recipient', async () => {
+    mocks.prisma.contract.findUnique.mockResolvedValue(contractRecord({ status: -2, issuedAt: null }))
+    await expect(getUserContract(7, 22)).rejects.toMatchObject({ status: 404 })
+    await expect(readAuthorizedContractAttachment({ id: 22, userId: 7, isAdmin: false })).rejects.toMatchObject({ status: 404 })
+  })
+
+  it('atomically creates the frozen contract and both administrator audit records', async () => {
+    mocks.prisma.user.findUnique.mockResolvedValue({ id: 7, role: 'USER', status: 1 })
+    mocks.prisma.systemInstallation.findFirst.mockResolvedValue({ installationId: 'installation' })
+    mocks.prisma.contract.create.mockResolvedValue(contractRecord())
+    await createAdminContract({ issuerUserId: 1, subjectUserId: 7, title: 'Development', body: 'Scope and fees', issueImmediately: true })
+    expect(mocks.prisma.contract.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
+      issuerUserId: 1, subjectUserId: 7, status: 1, installationId: 'installation', issuedAt: expect.any(Date),
+      bodyHash: contractBodyHash('Scope and fees'),
+      adminAudits: { create: [
+        { actorUserId: 1, action: 'DRAFT_CREATED' },
+        { actorUserId: 1, action: 'ISSUED' },
+      ] },
+    }) }))
+  })
+
+  it('does not create a partial contract when installation is missing or the recipient is disabled', async () => {
+    mocks.prisma.user.findUnique.mockResolvedValue({ id: 7, role: 'USER', status: 1 })
+    mocks.prisma.systemInstallation.findFirst.mockResolvedValue(null)
+    await expect(createAdminContract({ issuerUserId: 1, subjectUserId: 7, title: 'Development', body: 'Terms', issueImmediately: true })).rejects.toMatchObject({ status: 409 })
+    mocks.prisma.user.findUnique.mockResolvedValue({ id: 7, role: 'USER', status: 0 })
+    await expect(createAdminContract({ issuerUserId: 1, subjectUserId: 7, title: 'Development', body: 'Terms', issueImmediately: true })).rejects.toMatchObject({ status: 400 })
+    expect(mocks.prisma.contract.create).not.toHaveBeenCalled()
+  })
+
+  it('rejects a stale draft edit and issuance rather than overwriting another state', async () => {
+    mocks.prisma.contract.findUnique.mockResolvedValue(contractRecord({ status: 0 }))
+    mocks.prisma.user.findUnique.mockResolvedValue({ id: 7, role: 'USER', status: 1 })
+    mocks.prisma.systemInstallation.findFirst.mockResolvedValue({ installationId: 'installation' })
+    mocks.prisma.contract.update.mockRejectedValue({ code: 'P2025' })
+    await expect(updateAdminContract({ id: 22, issuerUserId: 1, subjectUserId: 7, title: 'Changed', body: 'Changed' })).rejects.toMatchObject({ status: 409 })
+    await expect(issueAdminContract({ id: 22, issuerUserId: 1 })).rejects.toMatchObject({ status: 409 })
+    for (const [args] of mocks.prisma.contract.update.mock.calls) {
+      expect(args.where).toEqual({ id: 22, status: 0, updatedAt: issuedAt })
+    }
+  })
+
+  it('does not cancel a contract whose signature wins the race or record a cancellation audit', async () => {
+    mocks.prisma.contract.findUnique.mockResolvedValue(contractRecord())
+    const tx = { contract: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) }, contractAdminAudit: { create: vi.fn() } }
+    mocks.execute.mockImplementation((callback) => callback(tx))
+    await expect(cancelAdminContract({ id: 22, issuerUserId: 1 })).rejects.toMatchObject({ status: 409 })
+    expect(tx.contract.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 22, status: 1, updatedAt: issuedAt } }))
+    expect(tx.contractAdminAudit.create).not.toHaveBeenCalled()
   })
 
   it('only allows a signed contract to enter the chain-evidence state machine', async () => {

@@ -9,10 +9,12 @@
  * @author holic512
  */
 import 'server-only'
+import { deleteCommissionCollections } from '@/server/commissions/backup'
 
 import type { Prisma } from '@generated/prisma-postgresql/client'
 
 export async function deleteBusinessData(tx: Prisma.TransactionClient) {
+  const commissionChildren = await deleteCommissionCollections(tx, false)
   const fileReferences = await tx.fileReference.deleteMany({})
   const articleMemberships = await tx.articleMembership.deleteMany({})
   const projectReadMemberships = await tx.projectReadMembership.deleteMany({})
@@ -27,6 +29,7 @@ export async function deleteBusinessData(tx: Prisma.TransactionClient) {
   const contractCredentialAttempts = await tx.contractCredentialAttempt.deleteMany({})
   const contractCredentials = await tx.contractCredential.deleteMany({})
   const contracts = await tx.contract.deleteMany({})
+  const commissionParents = await deleteCommissionCollections(tx, true)
   const releaseCredentialAttempts = await tx.releaseCredentialAttempt.deleteMany({})
   const releaseCredentials = await tx.releaseCredential.deleteMany({})
   const noteContents = await tx.noteContent.deleteMany({})
@@ -41,6 +44,7 @@ export async function deleteBusinessData(tx: Prisma.TransactionClient) {
   const systemHomepages = await tx.systemHomepage.deleteMany({})
 
   const deleted = {
+    ...commissionChildren, ...commissionParents,
     fileReferences: fileReferences.count,
     articleMemberships: articleMemberships.count,
     projectReadMemberships: projectReadMemberships.count,

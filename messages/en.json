@@ -177,10 +177,10 @@
   },
   "IndexPage": {
     "hero": {
-        "badge": "Powered by Next.js 16 + PostgreSQL",
+      "badge": "Powered by Next.js 16 + PostgreSQL",
       "title_line1": "For a single administrator",
       "title_line2": "Private Document Universe",
-        "desc": "Unified publishing and management with project versions, Markdown workflows, file storage, and optional Solana release transaction evidence.",
+      "desc": "Unified publishing and management with project versions, Markdown workflows, file storage, and optional Solana release transaction evidence.",
       "actions": {
         "build": "Get Started",
         "console": "Open Console"
@@ -206,8 +206,8 @@
         "desc": "Dual content types for rich text and docs."
       },
       "search": {
-            "title": "Versioned Reading",
-            "desc": "Navigate stable project versions and structured document collections."
+        "title": "Versioned Reading",
+        "desc": "Navigate stable project versions and structured document collections."
       },
       "fs": {
         "title": "Built-in File System",
@@ -225,7 +225,7 @@
     },
     "highlight": {
       "title": "Verifiable Releases",
-        "desc": "An administrator wallet signs each release hash through a publicly verifiable Solana Memo transaction while reading remains public.",
+      "desc": "An administrator wallet signs each release hash through a publicly verifiable Solana Memo transaction while reading remains public.",
       "tags": {
         "walletSign": "🔗 Wallet Signature",
         "onChainCert": "📜 Transaction Evidence",
@@ -469,7 +469,10 @@
     "maintenance": "System maintenance",
     "evidenceReceipt": "Evidence {signature}",
     "contractEvidenceReceipt": "Contract evidence {signature}",
-    "siteName": "SlothVault"
+    "siteName": "SlothVault",
+    "accountCommissions": "My commissions",
+    "adminCommissions": "Commission management",
+    "adminContractTemplates": "Contract templates"
   },
   "AdminMM": {
     "title": "Admin Dashboard",
@@ -488,7 +491,9 @@
       "solana": "Evidence System",
       "backup": "Backup Management",
       "mcpKeys": "MCP Keys",
-      "settings": "System Settings"
+      "settings": "System Settings",
+      "commissions": "Commissions",
+      "contractTemplates": "Contract templates"
     },
     "menuGroups": {
       "overview": "Overview",
@@ -706,13 +711,73 @@
         "includeDeleted": "Include deleted",
         "newVersion": "New version",
         "deleteConfirm": "Delete version \"{version}\"?",
-        "table": { "version": "Version", "description": "Description", "weight": "Weight", "lifecycle": "Lifecycle", "hash": "Release hash", "actions": "Actions" },
-        "status": { "deleted": "Deleted", "draft": "Draft", "published": "Published", "hidden": "Hidden" },
-        "actions": { "edit": "Edit", "content": "Edit Content", "restore": "Restore", "hide": "Hide release", "show": "Restore release", "copyHash": "Copy hash", "manifest": "Download manifest", "integrity": "Verify integrity", "clone": "Clone to draft", "release": "Release", "publish": "Publish", "delete": "Delete" },
-        "form": { "newTitle": "New version", "editTitle": "Edit version", "version": "Version label", "description": "Description", "weight": "Weight", "status": "Status" },
-        "clone": { "title": "Clone {version} to draft", "version": "New version label", "destination": "Clone into", "newDraft": "Create a new draft" },
-        "messages": { "saved": "Saved", "published": "Version published", "publishValidationFailed": "Publish validation failed", "restored": "Release restored", "hidden": "Release hidden", "integrityVerified": "Release integrity verified", "integrityFailed": "Release integrity failed", "manifestFailed": "Manifest download failed", "cloned": "Draft cloned", "hashCopied": "Hash copied", "copyFailed": "Unable to copy hash" },
-        "validation": { "projectInactive": "The parent project must be enabled", "noEnabledCategory": "At least one enabled category is required", "categoryNoEnabledNote": "Every enabled category needs at least one enabled note", "notePrimaryCount": "Every enabled note must have exactly one primary content version", "notePrimaryDisabled": "A note's primary content version must be enabled", "notePrimaryEmpty": "A note's primary content version cannot be empty", "metadataIncomplete": "Release metadata is incomplete", "manifestUnsupported": "This release uses an unsupported manifest version", "hashMismatch": "The saved release hash no longer matches the current content", "unknown": "The release content did not pass validation" }
+        "table": {
+          "version": "Version",
+          "description": "Description",
+          "weight": "Weight",
+          "lifecycle": "Lifecycle",
+          "hash": "Release hash",
+          "actions": "Actions"
+        },
+        "status": {
+          "deleted": "Deleted",
+          "draft": "Draft",
+          "published": "Published",
+          "hidden": "Hidden"
+        },
+        "actions": {
+          "edit": "Edit",
+          "content": "Edit Content",
+          "restore": "Restore",
+          "hide": "Hide release",
+          "show": "Restore release",
+          "copyHash": "Copy hash",
+          "manifest": "Download manifest",
+          "integrity": "Verify integrity",
+          "clone": "Clone to draft",
+          "release": "Release",
+          "publish": "Publish",
+          "delete": "Delete"
+        },
+        "form": {
+          "newTitle": "New version",
+          "editTitle": "Edit version",
+          "version": "Version label",
+          "description": "Description",
+          "weight": "Weight",
+          "status": "Status"
+        },
+        "clone": {
+          "title": "Clone {version} to draft",
+          "version": "New version label",
+          "destination": "Clone into",
+          "newDraft": "Create a new draft"
+        },
+        "messages": {
+          "saved": "Saved",
+          "published": "Version published",
+          "publishValidationFailed": "Publish validation failed",
+          "restored": "Release restored",
+          "hidden": "Release hidden",
+          "integrityVerified": "Release integrity verified",
+          "integrityFailed": "Release integrity failed",
+          "manifestFailed": "Manifest download failed",
+          "cloned": "Draft cloned",
+          "hashCopied": "Hash copied",
+          "copyFailed": "Unable to copy hash"
+        },
+        "validation": {
+          "projectInactive": "The parent project must be enabled",
+          "noEnabledCategory": "At least one enabled category is required",
+          "categoryNoEnabledNote": "Every enabled category needs at least one enabled note",
+          "notePrimaryCount": "Every enabled note must have exactly one primary content version",
+          "notePrimaryDisabled": "A note's primary content version must be enabled",
+          "notePrimaryEmpty": "A note's primary content version cannot be empty",
+          "metadataIncomplete": "Release metadata is incomplete",
+          "manifestUnsupported": "This release uses an unsupported manifest version",
+          "hashMismatch": "The saved release hash no longer matches the current content",
+          "unknown": "The release content did not pass validation"
+        }
       },
       "permissions": {
         "read": "Reading access",
@@ -951,7 +1016,11 @@
         "versionDeleteDescription": "This draft will no longer appear in the version list after deletion.",
         "refresh": "Refresh",
         "mobileNavigation": "Editing steps",
-        "mobile": { "tree": "Directory", "versions": "Versions", "content": "Content" },
+        "mobile": {
+          "tree": "Directory",
+          "versions": "Versions",
+          "content": "Content"
+        },
         "structure": "Document structure",
         "category": "Category",
         "revisions": "Content versions",
@@ -980,12 +1049,24 @@
         "deleteTitle": "Confirm deletion",
         "deleteDescription": "Delete “{name}”? View or restore it in Trash afterward.",
         "deletedRevision": "This content version is deleted. Restore it before editing.",
-        "versionDialog": { "title": "New draft project version", "placeholder": "For example: v2.0-draft" },
-        "entityDialog": {
-          "category": { "create": "Create category", "edit": "Edit category" },
-          "note": { "create": "Create note", "edit": "Edit note" }
+        "versionDialog": {
+          "title": "New draft project version",
+          "placeholder": "For example: v2.0-draft"
         },
-        "revisionDialog": { "create": "Create content version", "edit": "Edit content version" },
+        "entityDialog": {
+          "category": {
+            "create": "Create category",
+            "edit": "Edit category"
+          },
+          "note": {
+            "create": "Create note",
+            "edit": "Edit note"
+          }
+        },
+        "revisionDialog": {
+          "create": "Create content version",
+          "edit": "Edit content version"
+        },
         "empty": {
           "project": "No project selected. Create or select one in Project Management first.",
           "manageProjects": "Open Project Management",
@@ -1200,10 +1281,10 @@
           "CHECK_FAILED": "GitHub update status is temporarily unavailable"
         },
         "errors": {
-      "targetNotEmpty": "The target draft already contains documents.",
-      "differentProject": "Source and target must belong to the same project.",
-      "publishedBodyFrozen": "Published content and structure are frozen; names and descriptions remain editable.",
-      "versionWriteConflict": "Another operation changed this version. Refresh and try again.",
+          "targetNotEmpty": "The target draft already contains documents.",
+          "differentProject": "Source and target must belong to the same project.",
+          "publishedBodyFrozen": "Published content and structure are frozen; names and descriptions remain editable.",
+          "versionWriteConflict": "Another operation changed this version. Refresh and try again.",
           "RELEASE_SOURCE_NOT_FOUND": "No published GitHub Release is available.",
           "RELEASE_RATE_LIMITED": "The GitHub API is rate limited; try again later.",
           "RELEASE_REQUEST_TIMEOUT": "The GitHub request timed out; check server networking and try again.",
@@ -1243,7 +1324,10 @@
       "configured": "Configured",
       "enabled": "Enabled",
       "disabled": "Disabled",
-      "network": { "devnet": "Devnet · Test", "mainnet": "Mainnet · Formal" },
+      "network": {
+        "devnet": "Devnet · Test",
+        "mainnet": "Mainnet · Formal"
+      },
       "unsavedChanges": "Unsaved changes",
       "empty": "No configuration items found",
       "actions": {
@@ -1602,39 +1686,213 @@
       }
     },
     "membershipLevels": {
-      "actions": { "refresh": "Refresh", "create": "New membership type", "edit": "Edit", "save": "Save", "cancel": "Cancel" },
-      "messages": { "created": "Membership type created", "updated": "Membership type updated" },
-      "table": { "level": "Membership type", "rank": "Display order", "pricePoints": "Point price", "validity": "Validity", "status": "Status", "updatedAt": "Updated", "operations": "Actions" },
+      "actions": {
+        "refresh": "Refresh",
+        "create": "New membership type",
+        "edit": "Edit",
+        "save": "Save",
+        "cancel": "Cancel"
+      },
+      "messages": {
+        "created": "Membership type created",
+        "updated": "Membership type updated"
+      },
+      "table": {
+        "level": "Membership type",
+        "rank": "Display order",
+        "pricePoints": "Point price",
+        "validity": "Validity",
+        "status": "Status",
+        "updatedAt": "Updated",
+        "operations": "Actions"
+      },
       "level": "Display order {rank}",
       "validityDays": "{count} days",
       "permanent": "Permanent",
-      "status": { "available": "Available", "disabled": "Not for sale", "disabledWithRetention": "Not for sale (existing benefits retained)" },
-      "dialog": { "createTitle": "New membership type", "editTitle": "Edit membership type" },
-      "form": { "name": "Membership name", "rank": "Display order (does not affect access)", "pricePoints": "Point price", "validityDays": "Validity in days (empty means permanent)", "status": "Sales status" }
+      "status": {
+        "available": "Available",
+        "disabled": "Not for sale",
+        "disabledWithRetention": "Not for sale (existing benefits retained)"
+      },
+      "dialog": {
+        "createTitle": "New membership type",
+        "editTitle": "Edit membership type"
+      },
+      "form": {
+        "name": "Membership name",
+        "rank": "Display order (does not affect access)",
+        "pricePoints": "Point price",
+        "validityDays": "Validity in days (empty means permanent)",
+        "status": "Sales status"
+      }
     },
     "giftCards": {
-      "actions": { "refresh": "Refresh", "create": "Issue gift cards", "generate": "Generate codes", "cancel": "Cancel", "confirmSaved": "I saved them", "copyAll": "Copy all codes" },
-      "messages": { "codesCopied": "Gift card codes copied" },
-      "table": { "batch": "Batch", "points": "Value", "quantity": "Quantity", "redemption": "Redemption", "expiresAt": "Expires", "issuer": "Issuer" },
+      "actions": {
+        "refresh": "Refresh",
+        "create": "Issue gift cards",
+        "generate": "Generate codes",
+        "cancel": "Cancel",
+        "confirmSaved": "I saved them",
+        "copyAll": "Copy all codes"
+      },
+      "messages": {
+        "codesCopied": "Gift card codes copied"
+      },
+      "table": {
+        "batch": "Batch",
+        "points": "Value",
+        "quantity": "Quantity",
+        "redemption": "Redemption",
+        "expiresAt": "Expires",
+        "issuer": "Issuer"
+      },
       "pointsValue": "{value} points",
       "permanent": "No expiry",
-      "dialog": { "createTitle": "Issue point gift cards", "codesTitle": "Gift cards generated", "codesDescription": "Only hashes are stored. The plaintext codes cannot be viewed again after this dialog closes." },
-      "form": { "name": "Batch name", "points": "Points per card", "quantity": "Quantity", "expiresAt": "Expiry time (optional)" }
+      "dialog": {
+        "createTitle": "Issue point gift cards",
+        "codesTitle": "Gift cards generated",
+        "codesDescription": "Only hashes are stored. The plaintext codes cannot be viewed again after this dialog closes."
+      },
+      "form": {
+        "name": "Batch name",
+        "points": "Points per card",
+        "quantity": "Quantity",
+        "expiresAt": "Expiry time (optional)"
+      }
     },
     "contracts": {
-      "status": { "cancelled": "Cancelled", "declined": "Declined", "draft": "Draft", "pending": "Awaiting signature", "signed": "Signed", "unknown": "Unknown" },
-      "credentialStatus": { "failed": "Failed", "awaitingWallet": "Awaiting wallet signature", "confirming": "Confirming on-chain", "anchored": "Anchored on-chain" },
-      "audit": { "DRAFT_CREATED": "Draft created", "DRAFT_UPDATED": "Draft updated", "ISSUED": "Contract issued and frozen", "CANCELLED": "Contract cancelled", "EVIDENCE_PREPARED": "Prepared on-chain transaction", "EVIDENCE_SUBMITTED": "Submitted on-chain transaction", "EVIDENCE_RECONCILED": "Reconciled on-chain status", "EVIDENCE_ATTEMPT_CANCELLED": "Cancelled wallet signature request" },
-      "actions": { "refresh": "Refresh", "create": "New contract", "details": "Details", "edit": "Edit", "issue": "Issue", "cancel": "Cancel", "evidence": "Anchor on-chain", "reconcile": "Reconcile", "saveDraft": "Save draft", "uploadPdf": "Upload PDF", "removeAttachment": "Remove draft attachment", "back": "Back to edit", "prepare": "Prepare on-chain transaction", "sign": "Confirm hash and request administrator wallet signature" },
-      "messages": { "draftSaved": "Contract draft saved", "draftCreated": "Contract draft created", "issued": "Contract frozen and sent to the selected user", "cancelled": "Contract cancelled", "submitted": "Transaction submitted; the system will continue verifying finality", "reconciled": "On-chain status rechecked", "attachmentUploaded": "PDF attachment uploaded and will be linked when the draft is saved", "connectWallet": "Connect the administrator wallet first", "walletMismatch": "The current wallet does not match the prepared contract credential" },
-      "filters": { "keyword": "Search contract title", "allStatus": "All statuses" },
-      "table": { "contract": "Contract", "subject": "Signing user", "status": "Status", "evidenceStatus": "On-chain status", "issuedAt": "Issued", "operations": "Actions" },
+      "flow": {
+        "title": "Draft → Review → Send → Recipient accepts",
+        "description": "Specify both parties, scope, fees, delivery, acceptance and change terms. Review before issuing; chain evidence is optional after acceptance.",
+        "pending": "Waiting for the recipient to review and accept in My contracts.",
+        "declined": "No reason was provided. Discuss changes before issuing a new contract."
+      },
+      "status": {
+        "cancelled": "Cancelled",
+        "declined": "Declined",
+        "draft": "Draft",
+        "pending": "Awaiting signature",
+        "signed": "Signed",
+        "unknown": "Unknown"
+      },
+      "credentialStatus": {
+        "failed": "Failed",
+        "awaitingWallet": "Awaiting wallet signature",
+        "confirming": "Confirming on-chain",
+        "anchored": "Anchored on-chain"
+      },
+      "audit": {
+        "DRAFT_CREATED": "Draft created",
+        "DRAFT_UPDATED": "Draft updated",
+        "ISSUED": "Contract issued and frozen",
+        "CANCELLED": "Contract cancelled",
+        "EVIDENCE_PREPARED": "Prepared on-chain transaction",
+        "EVIDENCE_SUBMITTED": "Submitted on-chain transaction",
+        "EVIDENCE_RECONCILED": "Reconciled on-chain status",
+        "EVIDENCE_ATTEMPT_CANCELLED": "Cancelled wallet signature request"
+      },
+      "actions": {
+        "refresh": "Refresh",
+        "create": "New contract",
+        "details": "Details",
+        "edit": "Edit",
+        "issue": "Issue",
+        "cancel": "Cancel",
+        "evidence": "Anchor on-chain",
+        "reconcile": "Reconcile",
+        "saveDraft": "Save draft",
+        "uploadPdf": "Upload PDF",
+        "removeAttachment": "Remove draft attachment",
+        "back": "Back to edit",
+        "prepare": "Prepare on-chain transaction",
+        "sign": "Confirm hash and request administrator wallet signature"
+      },
+      "messages": {
+        "draftSaved": "Contract draft saved",
+        "draftCreated": "Contract draft created",
+        "issued": "Contract frozen and sent to the selected user",
+        "cancelled": "Contract cancelled",
+        "submitted": "Transaction submitted; the system will continue verifying finality",
+        "reconciled": "On-chain status rechecked",
+        "attachmentUploaded": "PDF attachment uploaded and will be linked when the draft is saved",
+        "connectWallet": "Connect the administrator wallet first",
+        "walletMismatch": "The current wallet does not match the prepared contract credential"
+      },
+      "filters": {
+        "keyword": "Search contract title",
+        "allStatus": "All statuses"
+      },
+      "table": {
+        "contract": "Contract",
+        "subject": "Signing user",
+        "status": "Status",
+        "evidenceStatus": "On-chain status",
+        "issuedAt": "Issued",
+        "operations": "Actions"
+      },
       "empty": "—",
       "notIssued": "Not issued",
-      "drawer": { "create": "New contract draft", "edit": "Edit contract draft", "detail": "Contract snapshot and signature audit", "evidence": "Administrator on-chain evidence" },
-      "form": { "subject": "Signing user", "selectSubject": "Choose user", "subjectRequired": "Choose one active user", "title": "Contract title", "titlePlaceholder": "For example: Service confirmation agreement", "body": "Authoritative contract body (Markdown)", "bodyPlaceholder": "This body is frozen and hashed with SHA-256 when issued.", "attachment": "PDF attachment (optional)", "attachmentHint": "The PDF is a protected frozen attachment; the body above remains the authoritative contract content.", "network": "Evidence network" },
-      "dialog": { "issueTitle": "Issue contract", "issueContent": "The body and PDF attachment will be frozen, then the selected user can sign from the account center.", "issueOk": "Freeze and send", "cancelTitle": "Cancel contract", "cancelContent": "A cancelled contract cannot be restored or edited.", "cancelOk": "Confirm cancellation", "adminWallet": "Only the administrator wallet signs the on-chain transaction", "adminWalletDescription": "The user signed the contract through a Web2 session. The Memo contains only contract-hash and verification fields, never the body, PDF, or identity data.", "mainnetFee": "Mainnet consumes real SOL", "devnetTest": "Devnet is for testing only", "feeExpires": "Estimated fee: {fee} SOL; this request expires at {date}." },
-      "detail": { "frozen": "FROZEN CONTRACT", "state": "State", "id": "Contract ID", "bodyHash": "Body SHA-256", "rootHash": "Contract root hash", "pendingRootHash": "Generated after the user signs", "attachment": "PDF attachment", "none": "None", "issuedAt": "Issued", "signedAt": "Signed", "notSigned": "Not signed", "declined": "User declined the contract", "web2Audit": "Web2 signing audit", "session": "Session reference", "ip": "Client IP", "userAgent": "User-Agent", "adminAudit": "Administrator audit", "mainnetCredential": "Mainnet credential", "devnetCredential": "Devnet test credential", "noSignature": "No transaction signature has been generated", "openVerification": "Open public verification", "contract": "Contract", "summary": "Contract digest", "wallet": "Current wallet", "notConnected": "Not connected", "selectedPdf": "Selected {size} KB PDF" }
+      "drawer": {
+        "create": "New contract draft",
+        "edit": "Edit contract draft",
+        "detail": "Contract snapshot and signature audit",
+        "evidence": "Administrator on-chain evidence"
+      },
+      "form": {
+        "subject": "Signing user",
+        "selectSubject": "Choose user",
+        "subjectRequired": "Choose one active user",
+        "title": "Contract title",
+        "titlePlaceholder": "For example: Service confirmation agreement",
+        "body": "Authoritative contract body (Markdown)",
+        "bodyPlaceholder": "Specify both parties, scope and exclusions, payment, delivery, acceptance, revisions, intellectual property and termination terms. Content cannot change once issued.",
+        "preview": "Preview contract body",
+        "attachment": "PDF attachment (optional)",
+        "attachmentHint": "The PDF is a protected frozen attachment; the body above remains the authoritative contract content.",
+        "network": "Evidence network"
+      },
+      "dialog": {
+        "issueTitle": "Issue contract",
+        "issueContent": "The body and PDF attachment will be frozen, then the selected user can sign from the account center.",
+        "issueOk": "Freeze and send",
+        "cancelTitle": "Cancel contract",
+        "cancelContent": "A cancelled contract cannot be restored or edited.",
+        "cancelOk": "Confirm cancellation",
+        "adminWallet": "Only the administrator wallet signs the on-chain transaction",
+        "adminWalletDescription": "The user signed the contract through a Web2 session. The Memo contains only contract-hash and verification fields, never the body, PDF, or identity data.",
+        "mainnetFee": "Mainnet consumes real SOL",
+        "devnetTest": "Devnet is for testing only",
+        "feeExpires": "Estimated fee: {fee} SOL; this request expires at {date}."
+      },
+      "detail": {
+        "issuer": "Issuer",
+        "frozen": "Frozen contract",
+        "state": "State",
+        "id": "Contract ID",
+        "bodyHash": "Body SHA-256",
+        "rootHash": "Contract root hash",
+        "pendingRootHash": "Generated after the user signs",
+        "attachment": "PDF attachment",
+        "none": "None",
+        "issuedAt": "Issued",
+        "signedAt": "Signed",
+        "notSigned": "Not signed",
+        "declined": "User declined the contract",
+        "web2Audit": "Web2 signing audit",
+        "session": "Session reference",
+        "ip": "Client IP",
+        "userAgent": "User-Agent",
+        "adminAudit": "Administrator audit",
+        "mainnetCredential": "Mainnet credential",
+        "devnetCredential": "Devnet test credential",
+        "noSignature": "No transaction signature has been generated",
+        "openVerification": "Open public verification",
+        "contract": "Contract",
+        "summary": "Contract digest",
+        "wallet": "Current wallet",
+        "notConnected": "Not connected",
+        "selectedPdf": "Selected {size} KB PDF"
+      }
     },
     "users": {
       "filters": {
@@ -1888,7 +2146,8 @@
       "membership": "Membership",
       "contracts": "My contracts",
       "admin": "Admin console",
-      "logout": "Sign out"
+      "logout": "Sign out",
+      "commissions": "My commissions"
     },
     "shell": {
       "kicker": "Account workspace",
@@ -1905,7 +2164,8 @@
       "privacyNotice": "Your account data and sign-in credentials are visible only to you.",
       "appearance": "Card style",
       "loadFailed": "Account data could not be loaded. Please try again.",
-      "retry": "Retry"
+      "retry": "Retry",
+      "commissions": "My commissions"
     },
     "overview": {
       "kicker": "Overview",
@@ -1931,7 +2191,8 @@
         "security": "Manage security and sign-in",
         "points": "Redeem codes and view points",
         "membership": "Manage membership benefits",
-        "contracts": "Review and sign contracts"
+        "contracts": "Review and sign contracts",
+        "commissions": "My commissions"
       },
       "identity": {
         "title": "Profile and sign-in security",

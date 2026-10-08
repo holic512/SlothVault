@@ -4,6 +4,20 @@ import { describe, expect, it } from 'vitest'
 
 const providers = ['postgresql', 'mysql', 'sqlite'] as const
 const expectedTables = {
+  ContractTemplate: 'commission_contract_template',
+  ContractTemplateVersion: 'commission_contract_template_version',
+  CommissionSettings: 'commission_settings',
+  Commission: 'commission',
+  CommissionMilestone: 'commission_milestone',
+  CommissionPaymentPlan: 'commission_payment_plan',
+  CommissionPayment: 'commission_payment',
+  CommissionChange: 'commission_change',
+  CommissionIssue: 'commission_issue',
+  CommissionFile: 'commission_file',
+  CommissionDelivery: 'commission_delivery',
+  CommissionDeliveryItem: 'commission_delivery_item',
+  CommissionAcceptance: 'commission_acceptance',
+  CommissionEvent: 'commission_event',
   Session: 'auth_session',
   User: 'auth_user',
   McpApiKey: 'mcp_api_key',

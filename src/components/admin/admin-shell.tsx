@@ -93,7 +93,8 @@ export function AdminShell({ children, branding }: { children: ReactNode; brandi
       { group: 'content', key: '/admin/mm/files', icon: <FileStack size={16} />, label: t('menu.files') },
       { group: 'users', key: '/admin/mm/users', icon: <Users size={16} />, label: t('menu.users') },
       { group: 'users', key: '/admin/mm/membership-levels', icon: <Crown size={16} />, label: t('menu.membershipLevels') },
-      { group: 'users', key: '/admin/mm/contracts', icon: <FileSignature size={16} />, label: t('menu.contracts') },
+      { group: 'users', key: '/admin/mm/commissions', icon: <FileSignature size={16} />, label: t('menu.commissions') },
+      { group: 'system', key: '/admin/mm/contract-templates', icon: <FileSignature size={16} />, label: t('menu.contractTemplates') },
       { group: 'users', key: '/admin/mm/gift-cards', icon: <TicketCheck size={16} />, label: t('menu.giftCards') },
       { group: 'system', key: '/admin/mm/evidence', icon: <ArchiveRestore size={16} />, label: t('menu.solana') },
       { group: 'system', key: '/admin/mm/backup', icon: <ArchiveRestore size={16} />, label: t('menu.backup') },
@@ -126,7 +127,7 @@ export function AdminShell({ children, branding }: { children: ReactNode; brandi
       .filter((key) => pathname === key || (key !== '/admin/mm' && pathname.startsWith(`${key}/`)))
       .sort((a, b) => b.length - a.length)[0] || '/admin/mm'
   const currentLabel = menuRoutes.find((item) => item.key === selectedKey)?.label || t('title')
-  const walletEnabled = pathname === '/admin/mm/evidence' || pathname === '/admin/mm/contracts'
+  const walletEnabled = pathname === '/admin/mm/evidence' || pathname === '/admin/mm/contracts' || pathname.startsWith('/admin/mm/commissions')
 
   const logout = async () => {
     await apiFetch('/api/admin/auth/logout', { method: 'POST', body: JSON.stringify({}) })

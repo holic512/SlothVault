@@ -10,6 +10,7 @@
  */
 import 'server-only'
 
+import { commissionCollectionKeys } from '@/server/commissions/backup'
 import { BUSINESS_TYPE_CONFIG } from '@/server/services/admin-files'
 
 export const DATABASE_IMPORT_CONTENT_LENGTH_MAX_BYTES = 50 * 1024 * 1024
@@ -33,6 +34,7 @@ export const STANDARD_RESET_DIRECTORIES = [
 ]
 
 export const BACKUP_COLLECTION_KEYS = [
+  ...commissionCollectionKeys,
   'users',
   'pointTransactions',
   'giftCardBatches',

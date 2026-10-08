@@ -2,13 +2,14 @@
  * @file database-export.ts
  * @project SlothVault
  * @module Admin Database Backup Export
- * @description Exports a relation-closed portable 2.8 snapshot of membership entitlements, articles, project content, accounts, contracts, configuration, and transaction evidence.
+ * @description Exports a relation-closed portable 2.9 snapshot of membership entitlements, articles, project content, accounts, contracts, configuration, and transaction evidence.
  * @logic Read one repeatable transaction snapshot, retain member access and independent articles, close project relations, serialize evidence BigInts and frozen contract identity, then validate the portable result.
  * @dependencies database unit-of-work, Prisma, HTTP JSON serialization, backup schema and validation
  * @index_tags admin,backup,database,export,snapshot,relations
  * @author holic512
  */
 import 'server-only'
+import { exportCommissionCollections } from '@/server/commissions/backup'
 
 import { databaseSnapshotIsolationLevel } from '@/server/database/client'
 import { unitOfWork } from '@/server/database/unit-of-work'
@@ -144,6 +145,7 @@ export async function exportDatabaseBackup() {
     const fileIds = new Set(fileManagements.map((item) => item.id))
     const fileReferences = (await tx.fileReference.findMany()).filter((item) => fileIds.has(item.fileId) && sourceIds[item.sourceType as keyof typeof sourceIds]?.has(item.sourceId))
     return {
+      commissionCollections: await exportCommissionCollections(tx),
       fileReferences,
       users,
       pointTransactions,
@@ -177,6 +179,7 @@ export async function exportDatabaseBackup() {
   })
 
   const portableSnapshot = {
+    ...snapshot.commissionCollections,
     users: snapshot.users.map(({ id, ...item }) => ({
       ...item,
       id: id.toString(),
@@ -295,6 +298,7 @@ export async function exportDatabaseBackup() {
       issuerUserId,
       subjectUserId,
       attachmentFileId,
+      commissionId, templateVersionId, sourceRecordId,
       ...item
     }) => ({
       ...item,
@@ -302,6 +306,7 @@ export async function exportDatabaseBackup() {
       issuerUserId: issuerUserId.toString(),
       subjectUserId: subjectUserId.toString(),
       attachmentFileId: attachmentFileId?.toString() ?? null,
+      commissionId: commissionId?.toString() ?? null, templateVersionId: templateVersionId?.toString() ?? null, sourceRecordId: sourceRecordId?.toString() ?? null,
     })),
     contractAdminAudits: snapshot.contractAdminAudits.map(({
       id,
@@ -361,7 +366,7 @@ export async function exportDatabaseBackup() {
   void _legacyCompressedNfts
 
   return {
-    version: '2.8.0',
+    version: '2.9.0',
     exportedAt,
     data: activeData,
   }

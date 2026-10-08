@@ -6,11 +6,13 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const toolDirectory = path.join(projectRoot, 'src', 'server', 'mcp', 'tools')
 const outputPath = path.join(projectRoot, 'docs', 'MCP_REGISTRY.md')
 
-const EXPECTED_TOOL_COUNT = 61
+const EXPECTED_TOOL_COUNT = 68
 const TOOL_ANNOTATION_METADATA = {
   READ_ONLY_ANNOTATIONS: { risk: 'read', idempotency: 'idempotent' },
   CREATE_ANNOTATIONS: { risk: 'write', idempotency: 'non-idempotent' },
   UPDATE_ANNOTATIONS: { risk: 'write', idempotency: 'non-idempotent' },
+  IDEMPOTENT_CREATE_ANNOTATIONS: { risk: 'write', idempotency: 'idempotent' },
+  IDEMPOTENT_UPDATE_ANNOTATIONS: { risk: 'write', idempotency: 'idempotent' },
 }
 
 /** Reads Tool names and their authoritative annotation metadata from declaration modules. */

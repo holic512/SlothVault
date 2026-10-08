@@ -53,4 +53,14 @@ describe('contract evidence protocol', () => {
     expect(memo).not.toContain('username')
     expect(memo).not.toContain('subjectUserId')
   })
+  it('uses protocol v2 to bind the full template snapshot while preserving legacy v1 roots', () => {
+    const input = { installationId, contractId, title: '委托协议', bodyHash: 'a'.repeat(64), attachmentHash: null, partyCommitment: 'b'.repeat(64), issuedAt: new Date('2026-10-08T01:00:00Z'), signedAt: new Date('2026-10-08T02:00:00Z') }
+    const v1 = contractRootHash(input), v2 = contractRootHash({ ...input, snapshotHash: 'c'.repeat(64) })
+    expect(v2).not.toBe(v1)
+    expect(contractRootHash({ ...input, snapshotHash: null })).toBe(v1)
+    expect(contractRootHash({ ...input, snapshotHash: 'd'.repeat(64) })).not.toBe(v2)
+    const memo = JSON.parse(canonicalContractEvidenceMemo({ installationId, contractId, contractHash: v2, bodyHash: input.bodyHash, attachmentHash: null, network: 'devnet', signer: '11111111111111111111111111111111', snapshotHash: 'c'.repeat(64) }))
+    expect(memo).toMatchObject({ version: 2, snapshotHash: 'c'.repeat(64), contractHash: v2 })
+    expect(Object.keys(memo)).not.toContain('values')
+  })
 })

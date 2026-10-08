@@ -9,6 +9,10 @@
  * @author holic512
  */
 import 'server-only'
+import { validateCommissionBackup } from '@/server/commissions/backup'
+import { assertDocumentSnapshot } from '@/server/commissions/documents'
+import { assertDocumentAttachments } from '@/server/commissions/storage'
+import { contractBodyHash, contractRootHash } from '@/server/services/contract-evidence-protocol'
 
 import { HttpError } from '@/server/http/errors'
 import { extractManagedFiles, managedUploadPath } from '@/lib/managed-files'
@@ -68,6 +72,7 @@ function assertReference<T>(
 }
 
 export function validateBackupRelations(data: BackupData) {
+  try { validateCommissionBackup(data) } catch (error) { invalidBackup(error instanceof Error ? error.message : 'Invalid commission backup') }
   const totalRecords = BACKUP_COLLECTION_KEYS.reduce(
     (total, key) => total + data[key].length,
     0,
@@ -296,6 +301,19 @@ export function validateBackupRelations(data: BackupData) {
     assertReference(users, item.issuerUserId, 'releaseCredentialAttempt issuerUserId')
   }
   for (const item of data.contracts) {
+    if (item.commissionId) {
+      if (!data.commissions.some((c) => c.id === item.commissionId && c.subjectUserId === item.subjectUserId) || !data.commissionTemplateVersions.some((v) => v.id === item.templateVersionId)) invalidBackup('Contract commission or template reference mismatch')
+      assertDocumentSnapshot({ commissionId: Number(item.commissionId), snapshotJson: item.snapshotJson, snapshotHash: item.snapshotHash, body: item.body })
+      if (item.bodyHash !== contractBodyHash(item.body)) invalidBackup('Contract frozen body hash mismatch')
+      if (item.status === 2 && item.installationId && item.issuedAt && item.signedAt && contractRootHash({ installationId: item.installationId, contractId: item.contractId, title: item.title, bodyHash: item.bodyHash, attachmentHash: item.attachmentHash, partyCommitment: item.partyCommitment, issuedAt: new Date(item.issuedAt), signedAt: new Date(item.signedAt), snapshotHash: item.snapshotHash }) !== item.contractHash) invalidBackup('Contract signed root hash mismatch')
+      const snapshot = JSON.parse(item.snapshotJson!), template = data.commissionTemplateVersions.find((v) => v.id === item.templateVersionId)!
+      assertDocumentAttachments(snapshot.attachments || [], data.commissionFiles.filter((f) => f.commissionId === item.commissionId).map((f) => ({ ...f, file: { ...fileManagements.get(f.fileId)!, fileSize: BigInt(fileManagements.get(f.fileId)!.fileSize) } })))
+      if (snapshot.version !== template.version || JSON.stringify(snapshot.documents) !== template.documentsJson || JSON.stringify(snapshot.fields) !== template.fieldsJson) invalidBackup('Contract template snapshot does not match its published version')
+      if (item.documentType !== 'AGREEMENT') {
+        const source = item.documentType === 'CHANGE' ? data.commissionChanges.find((c) => c.id === item.sourceRecordId) : data.commissionAcceptances.find((c) => c.id === item.sourceRecordId)
+        if (!source || source.commissionId !== item.commissionId) invalidBackup('Contract source record crosses commission boundaries')
+      }
+    }
     assertReference(users, item.issuerUserId, 'contract issuerUserId')
     assertReference(users, item.subjectUserId, 'contract subjectUserId')
     if (item.attachmentFileId) assertReference(fileManagements, item.attachmentFileId, 'contract attachmentFileId')
@@ -427,7 +445,12 @@ export function validateBackupRelations(data: BackupData) {
 }
 
 export function parseDatabaseImportPayload(input: unknown): DatabaseImportPayload {
-  const parsed = databaseImportPayloadSchema.safeParse(input)
+  let sourceInput = input
+  if (input && typeof input === 'object' && 'data' in input && input.data && typeof input.data === 'object' && !('version' in input && input.version === '2.9.0')) {
+    const data = input.data as Record<string, unknown>
+    sourceInput = { ...input, ignoredLegacyContracts: Array.isArray(data.contracts) ? data.contracts.length : 0, data: { ...data, contracts: [], contractAdminAudits: [], contractCredentials: [], contractCredentialAttempts: [] } }
+  }
+  const parsed = databaseImportPayloadSchema.safeParse(sourceInput)
   if (!parsed.success) {
     const issue = parsed.error.issues[0]
     const path = issue?.path.length ? `${issue.path.join('.')}: ` : ''
@@ -435,7 +458,7 @@ export function parseDatabaseImportPayload(input: unknown): DatabaseImportPayloa
   }
 
   // Defaults are for older formats; an incomplete current backup must not silently open protected content.
-  if (parsed.data.version === '2.8.0') {
+  if (['2.8.0', '2.9.0'].includes(parsed.data.version)) {
     const source = input as { data: { projects: Record<string, unknown>[]; articles?: Record<string, unknown>[] } }
     for (const project of source.data.projects) {
       for (const key of ['readAccessMode', 'downloadAccessMode', 'readMembershipLevelIds', 'downloadMembershipLevelIds']) {

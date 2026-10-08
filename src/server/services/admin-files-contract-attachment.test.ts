@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   prisma: {
     contract: { findFirst: vi.fn(), findUnique: vi.fn() },
-    fileManagement: { update: vi.fn(), updateMany: vi.fn() },
+    fileManagement: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   },
 }))
 
@@ -37,5 +37,14 @@ describe('contract attachment storage boundaries', () => {
   it('refuses the private attachment directory through the public uploads route', async () => {
     await expect(inspectPublicUpload(['contract-attachment', 'agreement.pdf']))
       .rejects.toMatchObject({ status: 403 })
+  })
+  it('refuses commission artifact bytes through public uploads', async () => {
+    await expect(inspectPublicUpload(['commission-attachment', 'private.zip'])).rejects.toMatchObject({ status: 403 })
+  })
+  it('protects commission artifacts from individual and batch deletion', async () => {
+    mocks.prisma.fileManagement.findUnique.mockResolvedValue({ businessType: 'CommissionAttachment' })
+    await expect(softDeleteFile(41)).rejects.toMatchObject({ status: 409 })
+    mocks.prisma.fileManagement.findFirst.mockResolvedValue({ id: 41 })
+    await expect(batchSoftDelete([41])).rejects.toMatchObject({ status: 409 })
   })
 })

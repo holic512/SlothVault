@@ -2,7 +2,7 @@
  * @file index.ts
  * @project SlothVault
  * @module MCP Tool Registry
- * @description Aggregates the MCP 3.0 content-management and safe administrator read-only tool registries.
+ * @description Aggregates the MCP 4.0 content-management and private commission draft tool registries.
  * @logic Bind authenticated administrator identity only where authorship is required and keep every tool delegated to established service-layer operations rather than web routes.
  * @dependencies MCP TypeScript SDK, domain tool registries, services/mcp-api-keys
  * @index_tags mcp,tools,registry,administrator,catalog,notes
@@ -13,6 +13,7 @@ import 'server-only'
 import type { McpPrincipal } from '@/server/services/mcp-api-keys'
 import { registerMcpToolDefinitions, type McpToolDefinition } from '@/server/mcp/registry'
 
+import { contractToolDefinitions } from './contracts'
 import { categoryToolDefinitions } from './categories'
 import { fileToolDefinitions } from './files'
 import { articleToolDefinitions } from './articles'
@@ -34,6 +35,7 @@ export const adminMcpToolDefinitions: McpToolDefinition[] = [
   ...pageToolDefinitions,
   ...fileToolDefinitions,
   ...adminReadToolDefinitions,
+  ...contractToolDefinitions,
 ]
 
 /** Registers every administrator Tool through the single declaration adapter. */

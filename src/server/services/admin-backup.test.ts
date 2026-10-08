@@ -13,6 +13,7 @@ function backupWithReservation(options: {
   cnftStatus?: -1 | 0 | 1
 } = {}): BackupData {
   return {
+    commissionTemplates: [], commissionTemplateVersions: [], commissionSettings: [], commissions: [], commissionMilestones: [], commissionPlans: [], commissionFiles: [], commissionChanges: [], commissionDeliveries: [], commissionDeliveryItems: [], commissionPayments: [], commissionIssues: [], commissionAcceptances: [], commissionEvents: [],
     users: [],
     pointTransactions: [],
     giftCardBatches: [],

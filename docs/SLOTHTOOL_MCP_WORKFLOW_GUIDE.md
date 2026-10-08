@@ -1,6 +1,6 @@
 # SlothTool 与 SlothVault 管理流程
 
-本版本支持 SlothVault MCP `3.1.0`：61 个工具、4 个 Prompt、2 个受保护 Resource 模板。客户端应按需读取实时目录；本文中的工具名是本版本示例。
+本版本支持 SlothVault MCP `4.0.0`：68 个工具、4 个 Prompt、2 个受保护 Resource 模板。客户端应按需读取实时目录；本文中的工具名是本版本示例。
 
 ## 连接
 
@@ -71,3 +71,7 @@ slothtool update slothvault --check --json
 在线更新由 SlothTool 分别检查界面与三个 Vault 包版本，再同步新版 Skill。`--local` 仅使用当前已安装 Skill 包修复受管链接。当前和旧受管链接可同步；用户自定义文件保持原状并报告冲突。网络检查失败显示“未能检查”。`slothtool bundle slothvault` 只包含界面插件，用该归档安装时仍需联网取得三个 Vault 包。
 
 正文哈希的字节规则、元数据边界和数据库升级方式参见 [Manifest v2](./RELEASE_MANIFEST_V2.md)。
+
+## 委托项目工作流
+
+先核对客户账户，调用 `admin.commission.create` 建立项目；`admin.commission.get` 提供最新 revision、事实和待办。需求与报价使用 `admin.commission.update`，开发安排使用 `admin.commission.progress.update`。模板及字段从 `admin.contract-template.list` 读取，用 `admin.commission.document.draft.create` 保存正式文件草稿。每次写请求保留 commandId，冲突时先读取最新 revision。正式发起、双方签署、收退款确认和交付发布在委托网页完成。原独立合同发起工具已移除。

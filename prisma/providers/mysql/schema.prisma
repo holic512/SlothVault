@@ -1,7 +1,7 @@
 // @file prisma/providers/mysql/schema.prisma
 // @project SlothVault
 // @module MySQL persistence model
-// @description Defines the flat, domain-prefixed MySQL 8 schema for independent articles, project publishing, user identity, revocable MCP API keys, contracts, points, gift cards, and transaction evidence.
+// @description Defines the flat, domain-prefixed MySQL 8 schema for independent articles, project publishing, user identity, revocable MCP API keys, contracts, commissioned development lifecycles, points, gift cards, and transaction evidence.
 // @logic Preserve the provider-neutral article, project, identity, and MCP key models while applying MySQL-native types and binding optional Solana evidence only to immutable project releases and frozen contracts.
 // @dependencies Prisma ORM 7.3.0, @prisma/adapter-mariadb 7.3.0
 // @index_tags prisma, mysql, schema, persistence, articles, projects, mcp, api-key, installation, contracts
@@ -62,6 +62,8 @@ model User {
   contractCredentials   ContractCredential[] @relation("ContractCredentialIssuer")
   contractCredentialAttempts ContractCredentialAttempt[] @relation("ContractCredentialAttemptIssuer")
   contractAdminAudits  ContractAdminAudit[] @relation("ContractAdminAuditActor")
+  commissions Commission[]
+  commissionEvents CommissionEvent[]
   mcpApiKeys          McpApiKey[]
 
   @@index([role, status], map: "idx_auth_user_role_status")
@@ -349,11 +351,23 @@ model FileManagement {
   createTime   DateTime @default(now()) @map("create_time") @db.DateTime(3)
   references   FileReference[]
   contractAttachment Contract? @relation("ContractAttachment")
+  commissionFile CommissionFile?
 
   @@map("files_file_management")
 }
 
 model Contract {
+  commissionId Int? @map("commission_id")
+  templateVersionId Int? @map("template_version_id")
+  documentType String @default("AGREEMENT") @map("document_type") @db.VarChar(255)
+  sourceRecordId Int? @map("source_record_id")
+  snapshotHash String? @map("snapshot_hash") @db.Char(64)
+  snapshotJson String? @map("snapshot_json") @db.LongText
+  providerSessionId String? @map("provider_session_id") @db.VarChar(255)
+  providerIp String? @map("provider_ip") @db.VarChar(255)
+  providerUserAgent String? @map("provider_user_agent") @db.LongText
+  commission Commission? @relation(fields: [commissionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  templateVersion ContractTemplateVersion? @relation(fields: [templateVersionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   id               Int       @id @default(autoincrement())
   contractId       String    @unique(map: "uq_contract_contract_id") @map("contract_id") @db.Char(36)
   installationId   String?   @map("installation_id") @db.Char(36)
@@ -386,6 +400,7 @@ model Contract {
   @@index([subjectUserId, status], map: "idx_contract_subject_status")
   @@index([issuerUserId, createdAt], map: "idx_contract_issuer_created")
   @@map("contract")
+  @@index([commissionId, documentType, status], map: "idx_contract_commission_type_status")
 }
 
 model ContractAdminAudit {
@@ -595,4 +610,251 @@ model FileReference {
   @@index([sourceType, sourceId], map: "idx_file_reference_source")
   @@index([projectId], map: "idx_file_reference_project")
   @@map("files_file_reference")
+}
+
+model ContractTemplate {
+  id Int @id @default(autoincrement())
+  key String @unique(map: "uq_contract_template_key") @db.VarChar(255)
+  name String @db.VarChar(255)
+  status String @default("ACTIVE") @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  versions ContractTemplateVersion[]
+  @@map("commission_contract_template")
+}
+
+model ContractTemplateVersion {
+  id Int @id @default(autoincrement())
+  templateId Int @map("template_id")
+  version Int
+  status String @default("DRAFT") @db.VarChar(255)
+  documentsJson String @map("documents_json") @db.LongText
+  fieldsJson String @map("fields_json") @db.LongText
+  defaultsJson String @map("defaults_json") @db.LongText
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  publishedAt DateTime? @map("published_at") @db.DateTime(3)
+  template ContractTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  contracts Contract[]
+  @@unique([templateId, version], map: "uq_commission_template_version")
+  @@map("commission_contract_template_version")
+}
+
+model CommissionSettings {
+  id Int @id @default(1)
+  providerJson String @default("{}") @map("provider_json") @db.LongText
+  calendarJson String @default("{}") @map("calendar_json") @db.LongText
+  @@map("commission_settings")
+}
+
+model Commission {
+  id Int @id @default(autoincrement())
+  commissionId String @unique(map: "uq_commission_identity") @map("commission_id") @db.VarChar(255)
+  subjectUserId Int @map("subject_user_id")
+  title String @db.VarChar(255)
+  purpose String @db.LongText
+  requirements String @db.LongText
+  partyAJson String @default("{}") @map("party_a_json") @db.LongText
+  partyBJson String @default("{}") @map("party_b_json") @db.LongText
+  quotationFen BigInt? @map("quotation_fen")
+  agreementFen BigInt? @map("agreement_fen")
+  stage String @default("ASSESSMENT") @db.VarChar(255)
+  progress Int @default(0)
+  progressNote String @default("") @map("progress_note") @db.LongText
+  revision Int @default(0)
+  expectedDeliveryAt DateTime? @map("expected_delivery_at") @db.DateTime(3)
+  startedAt DateTime? @map("started_at") @db.DateTime(3)
+  acceptedAt DateTime? @map("accepted_at") @db.DateTime(3)
+  adjustmentDays Int @default(15) @map("adjustment_days")
+  maintenanceDays Int @default(30) @map("maintenance_days")
+  settlementJson String @default("{}") @map("settlement_json") @db.LongText
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.DateTime(3)
+  subjectUser User @relation(fields: [subjectUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  contracts Contract[]
+  milestones CommissionMilestone[]
+  plans CommissionPaymentPlan[]
+  payments CommissionPayment[]
+  changes CommissionChange[]
+  issues CommissionIssue[]
+  deliveries CommissionDelivery[]
+  acceptances CommissionAcceptance[]
+  files CommissionFile[]
+  events CommissionEvent[]
+  @@index([subjectUserId, stage], map: "idx_commission_subject_stage")
+  @@map("commission")
+}
+
+model CommissionMilestone {
+  id Int @id @default(autoincrement())
+  commissionId Int @map("commission_id")
+  title String @db.VarChar(255)
+  description String @db.LongText
+  dueAt DateTime? @map("due_at") @db.DateTime(3)
+  completedAt DateTime? @map("completed_at") @db.DateTime(3)
+  commission Commission @relation(fields: [commissionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  @@map("commission_milestone")
+  @@index([commissionId], map: "idx_commission_milestone_owner")
+}
+
+model CommissionPaymentPlan {
+  id Int @id @default(autoincrement())
+  commissionId Int @map("commission_id")
+  key String @db.VarChar(255)
+  kind String @db.VarChar(255)
+  title String @db.VarChar(255)
+  amountFen BigInt @map("amount_fen")
+  dueAt DateTime? @map("due_at") @db.DateTime(3)
+  basis String @default("") @db.LongText
+  remindedAt DateTime? @map("reminded_at") @db.DateTime(3)
+  commission Commission @relation(fields: [commissionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  payments CommissionPayment[]
+  @@unique([commissionId, key], map: "uq_commission_payment_plan_key")
+  @@map("commission_payment_plan")
+  @@index([commissionId], map: "idx_commission_plan_owner")
+}
+
+model CommissionPayment {
+  id Int @id @default(autoincrement())
+  commissionId Int @map("commission_id")
+  planId Int @map("plan_id")
+  amountFen BigInt @map("amount_fen")
+  kind String @default("RECEIPT") @db.VarChar(255)
+  status String @default("PENDING") @db.VarChar(255)
+  note String @db.LongText
+  evidenceFileId Int? @map("evidence_file_id")
+  createdById Int @map("created_by_id")
+  confirmedById Int? @map("confirmed_by_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  confirmedAt DateTime? @map("confirmed_at") @db.DateTime(3)
+  commission Commission @relation(fields: [commissionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  plan CommissionPaymentPlan @relation(fields: [planId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  evidenceFile CommissionFile? @relation(fields: [evidenceFileId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  @@map("commission_payment")
+  @@index([commissionId, status], map: "idx_commission_payment_owner_status")
+}
+
+model CommissionChange {
+  id Int @id @default(autoincrement())
+  commissionId Int @map("commission_id")
+  title String @db.VarChar(255)
+  original String @db.LongText
+  proposed String @db.LongText
+  reason String @db.VarChar(255)
+  impact String @default("") @db.LongText
+  feeFen BigInt @default(0) @map("fee_fen")
+  extensionDays Int @default(0) @map("extension_days")
+  status String @default("PROPOSED") @db.VarChar(255)
+  createdById Int @map("created_by_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  confirmedAt DateTime? @map("confirmed_at") @db.DateTime(3)
+  commission Commission @relation(fields: [commissionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  @@map("commission_change")
+  @@index([commissionId, status], map: "idx_commission_change_owner_status")
+}
+
+model CommissionIssue {
+  id Int @id @default(autoincrement())
+  commissionId Int @map("commission_id")
+  deliveryId Int? @map("delivery_id")
+  title String @db.VarChar(255)
+  kind String @default("BUG") @db.VarChar(255)
+  severity String @default("GENERAL") @db.VarChar(255)
+  status String @default("OPEN") @db.VarChar(255)
+  steps String @db.LongText
+  expected String @db.LongText
+  actual String @db.LongText
+  resolution String @default("") @db.LongText
+  fileIdsJson String @default("[]") @map("file_ids_json") @db.LongText
+  dueAt DateTime? @map("due_at") @db.DateTime(3)
+  createdById Int @map("created_by_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  resolvedAt DateTime? @map("resolved_at") @db.DateTime(3)
+  commission Commission @relation(fields: [commissionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  delivery CommissionDelivery? @relation(fields: [deliveryId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  @@map("commission_issue")
+  @@index([commissionId, status], map: "idx_commission_issue_owner_status")
+}
+
+model CommissionFile {
+  id Int @id @default(autoincrement())
+  commissionId Int @map("commission_id")
+  fileId Int @unique(map: "uq_commission_managed_file") @map("file_id")
+  purpose String @db.LongText
+  sha256 String @db.VarChar(255)
+  uploaderUserId Int @map("uploader_user_id")
+  shared Boolean @default(false)
+  commission Commission @relation(fields: [commissionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  file FileManagement @relation(fields: [fileId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  items CommissionDeliveryItem[]
+  payments CommissionPayment[]
+  @@map("commission_file")
+  @@index([commissionId], map: "idx_commission_file_owner")
+}
+
+model CommissionDelivery {
+  id Int @id @default(autoincrement())
+  commissionId Int @map("commission_id")
+  version String @db.VarChar(255)
+  kind String @default("FINAL") @db.VarChar(255)
+  note String @db.LongText
+  testInstructions String @default("") @map("test_instructions") @db.LongText
+  manifestJson String @default("[]") @map("manifest_json") @db.LongText
+  status String @default("DRAFT") @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  publishedAt DateTime? @map("published_at") @db.DateTime(3)
+  receivedAt DateTime? @map("received_at") @db.DateTime(3)
+  receiptNote String @default("") @map("receipt_note") @db.LongText
+  commission Commission @relation(fields: [commissionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  items CommissionDeliveryItem[]
+  issues CommissionIssue[]
+  acceptances CommissionAcceptance[]
+  @@map("commission_delivery")
+  @@index([commissionId, status], map: "idx_commission_delivery_owner_status")
+}
+
+model CommissionDeliveryItem {
+  id Int @id @default(autoincrement())
+  deliveryId Int @map("delivery_id")
+  fileId Int? @map("file_id")
+  label String @db.VarChar(255)
+  url String? @db.VarChar(255)
+  versionNote String @default("") @map("version_note") @db.VarChar(255)
+  delivery CommissionDelivery @relation(fields: [deliveryId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  file CommissionFile? @relation(fields: [fileId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  @@map("commission_delivery_item")
+  @@index([deliveryId], map: "idx_commission_delivery_item_batch")
+}
+
+model CommissionAcceptance {
+  id Int @id @default(autoincrement())
+  commissionId Int @map("commission_id")
+  deliveryId Int @map("delivery_id")
+  result String @db.VarChar(255)
+  basis String @db.LongText
+  outstanding String @db.LongText
+  status String @default("DRAFT") @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  confirmedAt DateTime? @map("confirmed_at") @db.DateTime(3)
+  remindedAt DateTime? @map("reminded_at") @db.DateTime(3)
+  supplementalDueAt DateTime? @map("supplemental_due_at") @db.DateTime(3)
+  deemedBasis String? @map("deemed_basis") @db.LongText
+  commission Commission @relation(fields: [commissionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  delivery CommissionDelivery @relation(fields: [deliveryId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  @@map("commission_acceptance")
+  @@index([commissionId, status], map: "idx_commission_acceptance_owner_status")
+}
+
+model CommissionEvent {
+  id Int @id @default(autoincrement())
+  commissionId Int @map("commission_id")
+  actorUserId Int @map("actor_user_id")
+  commandId String @map("command_id") @db.VarChar(255)
+  type String @db.VarChar(255)
+  note String @db.LongText
+  dataJson String @default("{}") @map("data_json") @db.LongText
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  commission Commission @relation(fields: [commissionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  actor User @relation(fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  @@unique([commissionId, commandId], map: "uq_commission_event_command")
+  @@map("commission_event")
+  @@index([commissionId, createdAt], map: "idx_commission_event_owner_created")
 }

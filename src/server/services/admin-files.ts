@@ -71,6 +71,7 @@ export const BUSINESS_TYPE_CONFIG = {
   NoteAttachment: { dir: 'note-attachment', imagesOnly: false },
   HomeworkFile: { dir: 'homework', imagesOnly: false },
   ContractAttachment: { dir: 'contract-attachment', imagesOnly: false },
+  CommissionAttachment: { dir: 'commission-attachment', imagesOnly: false },
   Markdown: { dir: 'markdown', imagesOnly: false },
   TempFile: { dir: 'temp', imagesOnly: false },
   Other: { dir: 'other', imagesOnly: false },
@@ -358,6 +359,7 @@ function createPreparedUpload(
 }
 
 async function prepareUploads(files: File[], businessType: BusinessType) {
+  if (businessType === 'CommissionAttachment') throw new HttpError('委托资料请通过所属项目上传', 400, 400)
   const config = BUSINESS_TYPE_CONFIG[businessType]
   const maxFileSize =
     businessType === 'SystemLogo' ||
@@ -440,14 +442,14 @@ export function fileDto(file: FileRecordLike) {
     businessType: file.businessType,
     status: file.status,
     createTime: file.createTime,
-    url: file.businessType === 'ContractAttachment' ? null : `/${file.filePath}`,
+    url: ['ContractAttachment', 'CommissionAttachment'].includes(file.businessType) ? null : `/${file.filePath}`,
   }
 }
 
 export function uploadedFileDto(file: FileRecordLike) {
   return {
     id: file.id.toString(),
-    url: file.businessType === 'ContractAttachment' ? null : `/${file.filePath}`,
+    url: ['ContractAttachment', 'CommissionAttachment'].includes(file.businessType) ? null : `/${file.filePath}`,
     originalName: file.originalName,
     fileName: file.fileName,
     filePath: file.filePath,
@@ -535,6 +537,8 @@ export async function readManagedFile(id: number) {
 }
 
 async function assertFileIsNotContractAttachment(id: number) {
+  const protectedFile = await prisma.fileManagement.findUnique({ where: { id }, select: { businessType: true } })
+  if (protectedFile?.businessType === 'CommissionAttachment') throw new HttpError('委托资料不能通过公共文件管理修改或删除', 409, 409)
   const contract = await prisma.contract.findUnique({
     where: { attachmentFileId: id },
     select: { contractId: true },
@@ -668,6 +672,7 @@ export async function uploadUserAvatar(request: Request) {
 }
 
 export async function updateFileBusinessType(id: number, businessType: BusinessType) {
+  if (businessType === 'CommissionAttachment') throw new HttpError('委托资料不能通过公共文件转换', 400, 400)
   await assertFileIsNotContractAttachment(id)
   try {
     return await prisma.fileManagement.update({
@@ -751,6 +756,7 @@ export async function hardDeleteFile(id: number) {
 }
 
 export async function batchSoftDelete(ids: number[]) {
+  if (await prisma.fileManagement.findFirst({ where: { id: { in: ids }, businessType: 'CommissionAttachment' }, select: { id: true } })) throw new HttpError('委托资料不能批量删除', 409, 409)
   const linked = await prisma.contract.findFirst({
     where: { attachmentFileId: { in: ids } },
     select: { contractId: true },
@@ -785,7 +791,7 @@ export async function inspectPublicUpload(pathSegments: string[]) {
   }
 
   const safeSegments = pathSegments.map(decodePublicSegment)
-  if (safeSegments[0] === BUSINESS_TYPE_CONFIG.ContractAttachment.dir) {
+  if ([BUSINESS_TYPE_CONFIG.ContractAttachment.dir, BUSINESS_TYPE_CONFIG.CommissionAttachment.dir].some((directory) => directory === safeSegments[0])) {
     throw new HttpError('Access denied', 403, 403)
   }
   const candidate = resolveWithinUploads(...safeSegments)

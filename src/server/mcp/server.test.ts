@@ -25,7 +25,8 @@ const mocks = vi.hoisted(() => ({
   getManagedUser: vi.fn(), listGiftCardBatches: vi.fn(),
   listUserPointTransactions: vi.fn(), listUsers: vi.fn(),
   getManagedUserMembership: vi.fn(), listMembershipLevels: vi.fn(),
-  getAdminContract: vi.fn(), listAdminContracts: vi.fn(),
+  createCommissionDocument: vi.fn(), createCommission: vi.fn(), getCommission: vi.fn(), listCommissions: vi.fn(), executeCommissionCommand: vi.fn(), listContractTemplates: vi.fn(),
+  createAdminContract: vi.fn(), getAdminContract: vi.fn(), listAdminContracts: vi.fn(),
   readAuthorizedContractAttachment: vi.fn(),
   getAdminReleaseEvidence: vi.fn(), listReleaseEvidence: vi.fn(),
   getSystemUpdateInfo: vi.fn(),
@@ -122,7 +123,12 @@ vi.mock('@/server/services/membership', () => ({
   listMembershipLevels: mocks.listMembershipLevels,
 }))
 
+vi.mock('@/server/commissions/service', () => ({ createCommission: mocks.createCommission, getCommission: mocks.getCommission, listCommissions: mocks.listCommissions, executeCommissionCommand: mocks.executeCommissionCommand }))
+vi.mock('@/server/commissions/documents', () => ({ createCommissionDocument: mocks.createCommissionDocument }))
+vi.mock('@/server/commissions/templates', () => ({ listContractTemplates: mocks.listContractTemplates }))
+
 vi.mock('@/server/services/contracts', () => ({
+  createAdminContract: mocks.createAdminContract,
   getAdminContract: mocks.getAdminContract,
   listAdminContracts: mocks.listAdminContracts,
   readAuthorizedContractAttachment: mocks.readAuthorizedContractAttachment,
@@ -231,7 +237,7 @@ describe('administrator MCP server', () => {
       },
     })
     expect(initialize).toMatchObject({
-      result: { serverInfo: { name: 'slothvault-admin-mcp', version: '3.1.0' } },
+      result: { serverInfo: { name: 'slothvault-admin-mcp', version: '4.0.0' } },
     })
 
     const listed = await resultOf({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} })
@@ -258,6 +264,7 @@ describe('administrator MCP server', () => {
       'admin.points.transaction.list', 'admin.gift_card.batch.list',
       'admin.contract.list', 'admin.contract.get', 'admin.contract.attachment.get',
       'admin.evidence.list', 'admin.evidence.get', 'admin.settings.get', 'admin.system.update.get',
+      'admin.commission.list', 'admin.commission.get', 'admin.commission.create', 'admin.commission.update', 'admin.commission.progress.update', 'admin.commission.document.draft.create', 'admin.contract-template.list',
     ])
     expect(names).not.toContain('admin_project_list')
     expect(names.some((name: string) =>
@@ -265,6 +272,20 @@ describe('administrator MCP server', () => {
     )).toBe(false)
     expect(listed.result.tools.every((tool: { inputSchema?: unknown }) => tool.inputSchema)).toBe(true)
     expect(listed.result.tools.every((tool: { outputSchema?: unknown }) => tool.outputSchema)).toBe(true)
+  })
+
+  it('creates only a template draft with the authenticated administrator and refuses raw issuance', async () => {
+    const record = { id: '9', commissionId: 'SV-test', title: 'Development', subjectUserId: '8', stage: 'CONTRACT', progress: 0, revision: 2, progressNote: '', paymentSummary: '待付款', quotationFen: '10000', totalFen: null, expectedDeliveryAt: null, todos: [], warnings: [], purpose: '业务', requirements: '需求', documents: [], files: [], plans: [], changes: [], deliveries: [], acceptances: [] }
+    mocks.createCommissionDocument.mockResolvedValue(record)
+    const args = { commissionId: '9', templateVersionId: '1', documentType: 'AGREEMENT', revision: 1, commandId: '0c4e9e9e-4ac6-4dc6-9600-696c8898d777', values: { totalFen: '10000' } }
+    const called = await resultOf({ jsonrpc: '2.0', id: 71, method: 'tools/call', params: { name: 'admin.commission.document.draft.create', arguments: args } })
+    expect(called.result.isError).not.toBe(true)
+    expect(mocks.createCommissionDocument).toHaveBeenCalledWith(9, { userId: 7, isAdmin: true }, { templateVersionId: 1, documentType: 'AGREEMENT', revision: 1, commandId: args.commandId, values: args.values, sourceRecordId: undefined, documentId: undefined })
+    const invalid = await resultOf({ jsonrpc: '2.0', id: 72, method: 'tools/call', params: { name: 'admin.commission.document.draft.create', arguments: { ...args, issuerUserId: '99' } } })
+    expect(invalid.result.isError).toBe(true)
+    expect(mocks.createCommissionDocument).toHaveBeenCalledTimes(1)
+    const retired = await resultOf({ jsonrpc: '2.0', id: 73, method: 'tools/call', params: { name: 'admin.contract.issue', arguments: {} } })
+    expect(retired.result.isError).toBe(true)
   })
 
   it('delegates administrator publication and returns the refreshed version', async () => {

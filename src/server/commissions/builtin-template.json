@@ -1,0 +1,987 @@
+{
+  "key": "software-custom-development",
+  "name": "软件定制开发服务合同",
+  "documents": {
+    "AGREEMENT": "# 软件定制开发服务合同\n\n合同编号：{{contractNumber}}\n\n签订地点：{{signingPlace}}\n\n签订日期：{{date contractDate}}\n\n## 第一条 合同主体\n\n**甲方（委托方）**\n\n姓名或单位名称：{{partyAName}}\n\n身份证号码或统一社会信用代码：{{partyAIdentity}}\n\n联系电话：{{partyAPhone}}\n\n电子邮箱：{{partyAEmail}}\n\n微信号：{{partyAWechat}}\n\n联系地址：{{partyAAddress}}\n\n**乙方（开发方）**\n\n姓名或单位名称：{{partyBName}}\n\n身份证号码或统一社会信用代码：{{partyBIdentity}}\n\n联系电话：{{partyBPhone}}\n\n电子邮箱：{{partyBEmail}}\n\n微信号：{{partyBWechat}}\n\n联系地址：{{partyBAddress}}\n\n甲乙双方依据《中华人民共和国民法典》《中华人民共和国著作权法》《计算机软件保护条例》等有关法律法规，在平等、自愿、公平、诚信的基础上，就软件定制开发及相关服务事宜达成本合同。\n\n## 第二条 项目基本信息\n\n2.1 项目名称：{{projectName}}\n\n2.2 项目类型：\n\n{{check projectTypes \"Web 网站开发\"}} Web 网站开发\n\n{{check projectTypes \"Web 后台管理系统\"}} Web 后台管理系统\n\n{{check projectTypes \"微信小程序\"}} 微信小程序\n\n{{check projectTypes \"移动端 App\"}} 移动端 App\n\n{{check projectTypes \"桌面应用程序\"}} 桌面应用程序\n\n{{check projectTypes \"API 接口及后端服务\"}} API 接口及后端服务\n\n{{check projectTypes \"数据处理或自动化程序\"}} 数据处理或自动化程序\n\n{{check projectTypes \"其他\"}} 其他：{{projectOther}}\n\n2.3 主要开发技术：\n\n前端技术：{{frontend}}\n\n后端技术：{{backend}}\n\n数据库：{{database}}\n\n其他框架或组件：{{frameworks}}\n\n2.4 项目主要用途：\n\n{{purpose}}\n\n2.5 项目开发内容、功能模块、技术要求、运行环境和交付清单，以双方确认的《附件一：项目需求及交付清单》为准。\n\n2.6 双方确认，本项目属于根据约定需求提供的软件定制开发服务，不代表乙方承诺实现甲方未明确提出或未纳入确认范围的全部功能。\n\n2.7 甲方应确保项目用途及其提供的数据、素材、业务要求合法。乙方发现明显违法违规需求的，有权拒绝实施并要求调整。\n\n## 第三条 开发范围及需求确认\n\n3.1 乙方负责完成附件一列明的软件功能及相应开发工作。\n\n3.2 项目范围以双方确认的书面需求、功能清单、原型或设计文件为准。双方通过约定联系方式明确确认的电子记录，可以作为需求确认依据。\n\n3.3 下列事项原则上不属于原合同开发范围，除非附件一明确包含：\n\n（1）新增业务模块、页面、接口或数据库功能。\n\n（2）对已确认的核心业务流程进行重新设计。\n\n（3）改变既定技术架构或主要技术栈。\n\n（4）增加新的第三方平台、支付渠道或硬件设备对接。\n\n（5）开发多语言、多租户、多端适配等原需求之外的能力。\n\n（6）增加高并发、高可用、分布式架构等专项技术要求。\n\n（7）新增 AI、大模型、数据分析、报表或自动化能力。\n\n（8）第三方账号申请、平台审核、资质办理和持续运营。\n\n（9）对非乙方负责的系统、服务或历史代码进行改造。\n\n3.4 开发过程中，甲方提出新增或重大变更需求的，双方应明确变更内容、增加费用和交付期限，确认后再实施。\n\n3.5 未经双方确认的新增需求，乙方有权暂不执行，但应继续履行原合同中不受影响的义务。\n\n3.6 若双方未形成完整需求文档，应在开始开发前至少确认功能清单、关键流程、运行平台及验收标准。未确定事项不得当然解释为乙方承担无限开发义务。\n\n## 第四条 合同金额及付款方式\n\n4.1 本项目合同总价为：\n\n人民币（大写）：{{amountUppercase}}\n\n人民币（小写）：¥{{money totalFen}}\n\n4.2 上述费用包含附件一所列的软件设计、编码、基础功能测试及约定交付服务。\n\n4.3 付款安排：\n\n**第一阶段：项目启动款**\n\n支付比例：{{startBpsPercent}}%\n\n支付条件：合同生效、需求范围确认后支付。\n\n**第二阶段：开发进度款**\n\n支付比例：{{progressBpsPercent}}%\n\n支付条件：乙方完成约定的主要功能，并提供可供甲方查看或测试的阶段性成果。\n\n**第三阶段：项目验收尾款**\n\n支付比例：{{finalBpsPercent}}%\n\n支付条件：项目按照第七条验收通过，且在完整交付前支付。\n\n4.4 具体支付日期和金额以双方填写的付款安排为准。开发进度款应有可供核验的阶段成果，不得仅以乙方单方声称完成作为付款依据。\n\n4.5 收款信息：\n\n收款人：{{payee}}\n\n收款账号：{{payeeAccount}}\n\n开户银行或支付平台：{{payeePlatform}}\n\n4.6 乙方收到款项后，应向甲方提供收款凭证；发票类型、税费承担及开票安排如下：\n\n{{invoiceArrangement}}\n\n4.7 甲方未按约支付到期款项，经乙方书面催告后超过{{paymentReminderDays}}个工作日仍未支付的，乙方有权暂停尚未履行的开发或交付工作，并书面通知甲方。因合理暂停而产生的工期影响，由双方相应调整。\n\n4.8 甲方应按照双方确认的开发进度支付款项，不得无正当理由以合同范围外的新增需求作为拒付已到期款项的依据。\n\n4.9 合同总价不因乙方实际投入工时变化而自动调整。但双方确认的需求变更、第三方费用或其他新增工作，可另行计费。\n\n## 第五条 开发周期与进度管理\n\n5.1 预计开发周期：{{durationDays}}个{{durationUnit}}。\n\n5.2 开始计算工期应满足以下条件：\n\n（1）合同已经生效。\n\n（2）甲方已支付约定启动款。\n\n（3）双方已确认基本需求。\n\n（4）甲方已提供启动开发必需的资料、账号及其他条件。\n\n5.3 项目开始日期：{{date startDate}}。\n\n预计交付日期：{{date deliveryDate}}。\n\n5.4 因下列原因影响开发进度的，乙方应及时说明原因并提供相关记录，经双方核实后合理顺延工期：\n\n（1）甲方延期提供必要资料或接口权限。\n\n（2）甲方提出并确认新增或变更需求。\n\n（3）甲方未按约完成必要的确认、测试或付款。\n\n（4）甲方提供的第三方系统或接口存在障碍。\n\n（5）不可抗力或双方认可的其他客观障碍。\n\n5.5 因乙方自身原因造成开发延期的，应按照第十四条承担相应责任。\n\n5.6 乙方应根据项目规模提供适当的进度反馈。阶段性演示不等于最终验收或完整交付。\n\n## 第六条 双方责任与义务\n\n### 6.1 甲方责任\n\n（1）明确项目用途、功能需求和验收标准。\n\n（2）及时提供开发所需的文字、图片、资料、测试数据及接口说明。\n\n（3）确保其提供的素材、数据和第三方资源具有合法使用权限。\n\n（4）指定有效联系人，及时处理需求确认和测试反馈。\n\n（5）按照合同约定支付开发款项。\n\n（6）在合理期限内完成测试验收。\n\n（7）自行负责项目上线后的业务运营、内容审核以及法律法规要求由运营主体承担的义务。\n\n### 6.2 乙方责任\n\n（1）按照确认的需求开展开发工作。\n\n（2）合理安排开发进度并完成约定功能。\n\n（3）对开发过程中发现的重大技术问题及时说明。\n\n（4）对所交付软件进行必要的基础测试。\n\n（5）按照约定交付软件及相关材料。\n\n（6）在约定维护期限内修复属于乙方开发责任范围的程序缺陷。\n\n（7）妥善保护甲方提供的非公开资料和敏感信息。\n\n（8）未经甲方授权，不擅自使用甲方生产环境数据进行其他项目开发、展示或训练。\n\n## 第七条 项目测试与验收\n\n7.1 乙方完成约定开发内容后，应通过双方认可的方式向甲方发出验收通知，并提供测试地址、安装包或其他可验证成果。\n\n7.2 甲方应在收到完整可测试成果及必要测试说明后的{{acceptanceDays}}个工作日内开展测试，并集中反馈问题。\n\n7.3 验收依据包括：\n\n（1）附件一确认的功能范围。\n\n（2）双方确认的关键业务流程。\n\n（3）约定运行环境中的功能表现。\n\n（4）合同明确规定的其他验收指标。\n\n7.4 验收问题分为：\n\n**严重缺陷：** 约定核心业务流程无法完成、主要功能不可用，或者存在经验证的严重数据错误、严重安全漏洞等问题。\n\n**一般缺陷：** 非核心功能异常、部分交互错误、兼容性问题或其他影响正常使用但不阻断核心业务的问题。\n\n**轻微问题：** 不影响主要功能的文字、样式、提示信息或其他细节问题。\n\n7.5 对于严重缺陷，乙方应合理优先修复，并在修复后重新提交相关部分测试。\n\n7.6 对于一般缺陷和轻微问题，双方可约定修复清单及完成日期。对于不影响主要使用且双方同意后续修复的问题，可先进行附条件验收。\n\n7.7 甲方反馈的问题应尽量包含具体操作步骤、预期结果、实际结果和必要的截图或错误信息，以便复现与处理。\n\n7.8 甲方在验收期内既未提出具体异议，也未确认验收的，乙方应再次书面提醒，并给予不少于{{supplementalDays}}个工作日的补充反馈期限。届满后仍无正当理由不反馈的，可视为约定功能通过验收，但不免除乙方对隐蔽缺陷、已知未修复问题和维护义务应承担的责任。\n\n7.9 甲方将软件实际用于正式生产或商业运营的，可作为相应功能已经接受的重要验收证据，但不能当然证明所有功能均已验收合格。\n\n7.10 验收不以甲方主观满意程度作为唯一标准，应以合同约定的客观要求为依据。\n\n## 第八条 修改、返工及需求变更\n\n8.1 乙方应免费修复经核实属于原约定功能范围内的程序缺陷。\n\n8.2 对于甲方新增需求或改变已确认方案导致的修改，双方应事先确认费用和工期。\n\n8.3 如项目包含免费调整服务，其具体期限、范围及工作量限制如下：\n\n免费调整期限：验收完成后{{adjustmentDays}}个自然日。\n\n免费调整范围：原有功能范围内、不改变核心业务逻辑的小幅文字、布局、颜色、展示顺序及类似调整。\n\n每次调整内容以双方确认的修改清单为准。\n\n免费调整次数：{{adjustmentRounds}}轮。\n\n如未填写次数，双方应在附件一具体约定免费调整工作量；不得将免费调整解释为无限制新增开发。\n\n8.4 下列情况不属于免费调整：\n\n（1）新增功能模块。\n\n（2）增加新的页面、接口或业务流程。\n\n（3）已确认设计方案的整体推翻或重做。\n\n（4）改变数据库结构或核心系统架构。\n\n（5）新增外部系统或硬件设备对接。\n\n（6）变更原约定运行平台。\n\n8.5 乙方不得将本应履行的缺陷修复义务认定为收费需求变更。\n\n8.6 甲方对修改项目存在异议的，双方应先根据原需求及变更记录确定责任，再决定是否收费。\n\n## 第九条 软件交付方式\n\n9.1 项目验收通过且甲方支付约定的到期款项后，乙方应按照附件一完整交付约定成果。\n\n9.2 交付内容由双方勾选确定：\n\n{{check deliverables \"前端源代码\"}} 前端源代码\n\n{{check deliverables \"后端源代码\"}} 后端源代码\n\n{{check deliverables \"数据库建表或初始化脚本\"}} 数据库建表或初始化脚本\n\n{{check deliverables \"编译后的程序或安装包\"}} 编译后的程序或安装包\n\n{{check deliverables \"部署配置及运行说明\"}} 部署配置及运行说明\n\n{{check deliverables \"必要的依赖安装说明\"}} 必要的依赖安装说明\n\n{{check deliverables \"API 接口文档\"}} API 接口文档\n\n{{check deliverables \"项目操作说明\"}} 项目操作说明\n\n{{check deliverables \"约定的测试账号\"}} 约定的测试账号\n\n{{check deliverables \"约定的视频演示\"}} 约定的视频演示\n\n{{check deliverables \"约定的项目截图\"}} 约定的项目截图\n\n{{check deliverables \"其他\"}} 其他：{{deliveryOther}}\n\n9.3 对于源码交付项目，乙方应确保交付内容与验收版本相对应，且在约定环境下具有合理的构建、部署或运行条件。\n\n9.4 未明确约定交付的内容，例如乙方个人开发工具、内部自动化脚本、通用代码库、商业软件许可证和第三方服务账号，不视为交付物。\n\n9.5 双方可采用 Git 仓库、压缩文件、加密文件传输、云盘或其他认可方式交付。\n\n9.6 乙方应将必要的项目资料交付至甲方指定的存储位置，并提供可验证的交付记录。\n\n9.7 交付完成后，双方应通过书面或电子记录确认。\n\n9.8 乙方不得在已交付软件中设置未披露的后门、恶意程序、未经授权的远程控制功能或其他损害甲方权益的技术措施。\n\n## 第十条 部署及第三方服务\n\n10.1 如合同包含免费部署服务，其范围限于附件一约定的首次部署环境和部署次数。\n\n10.2 甲方应提供具备必要权限的服务器、域名、数据库或其他环境，并配合完成访问授权。\n\n10.3 以下费用除非另有明确约定，均不包含在开发费用内：\n\n（1）云服务器和云数据库费用。\n\n（2）域名购买、续费及备案成本。\n\n（3）短信、邮件、地图及第三方 API 调用费用。\n\n（4）微信、支付宝等平台涉及的服务费用。\n\n（5）第三方软件授权费用。\n\n（6）大模型 API 调用、算力及云存储费用。\n\n（7）持续运维及其他按量计费资源费用。\n\n10.4 第三方费用应由双方事先确认，不得擅自发生额外收费项目。\n\n10.5 如因第三方平台审核、接口调整、服务停止、政策变化等原因影响项目，双方应协商处理。乙方对自身提供的代码适配错误仍应承担相应责任。\n\n10.6 乙方不对无法由其控制的第三方服务持续可用性作无条件保证。\n\n## 第十一条 售后维护与技术支持\n\n11.1 项目验收完成后，乙方提供{{maintenanceDays}}个自然日的免费缺陷维护服务。\n\n11.2 默认建议维护期限为30个自然日，实际期限以双方填写为准。\n\n11.3 免费维护范围：\n\n（1）修复乙方开发代码中的可复现程序缺陷。\n\n（2）修复与约定验收标准不符的功能异常。\n\n（3）提供交付软件运行所需的合理技术说明。\n\n11.4 以下事项不属于免费维护范围，但因乙方交付缺陷直接造成的除外：\n\n（1）甲方或第三方自行修改代码造成的异常。\n\n（2）服务器、数据库、操作系统环境发生重大变化。\n\n（3）新增功能及新的业务需求。\n\n（4）第三方平台接口变更引起的新增适配工作。\n\n（5）甲方擅自删除或修改数据造成的故障。\n\n（6）超出约定运行环境范围的迁移和适配。\n\n11.5 如发现严重缺陷，乙方应在合理时间内响应并安排修复。双方可在附件一约定具体响应时间及服务级别。\n\n11.6 免费维护期结束后，双方可以另行约定收费维护服务。\n\n11.7 合同约定维护期限届满，不免除乙方依法应承担的其他责任。\n\n## 第十二条 软件著作权与知识产权\n\n12.1 本项目中甲方提供的原有资料、商标、图片、文案、业务数据及其他合法拥有的知识产权，仍归其原权利人所有。\n\n12.2 乙方在本合同签订前已拥有的通用框架、代码库、技术方案、开发工具及其他原有成果，其原有知识产权不因本合同签订而自动转移。\n\n12.3 本项目定制开发成果的著作权归属，双方选择以下一种方式：\n\n{{check ipMode \"A\"}} **方式A：甲方取得约定定制成果的软件著作权**\n\n甲方在履行全部约定付款义务后，取得附件一明确列明的可转让的软件著作财产权。乙方原有技术成果及第三方知识产权不在转让范围内。\n\n对于项目运行不可缺少的乙方原有组件，乙方应按约授予甲方必要、合法、持续的使用许可。\n\n{{check ipMode \"B\"}} **方式B：乙方保留软件著作权，甲方取得使用许可**\n\n乙方保留其开发成果的软件著作权。甲方在支付全部合同费用后，根据双方约定的期限、地域、用途及授权范围使用软件。\n\n许可类型：{{check licenseType \"独占\"}} 独占 {{check licenseType \"排他\"}} 排他 {{check licenseType \"普通\"}} 普通\n\n许可期限：{{licenseTerm}}\n\n许可使用范围：{{licenseScope}}\n\n是否允许转授权：{{sublicense}}\n\n12.4 双方未作明确选择的，应在签约前补充确认，不得将源码交付直接等同于著作权转让。\n\n12.5 项目中使用的开源软件和第三方组件，应遵守相应许可证要求。乙方应告知甲方可能对商业使用、分发或源代码公开产生实质影响的重要许可证限制。\n\n12.6 乙方保证其自主提供的开发成果不会故意侵犯第三方合法知识产权。对于双方确认由甲方提供的侵权素材，按照各自过错及法律规定承担责任。\n\n12.7 乙方是否可将项目列入作品集或展示案例：\n\n{{check portfolio \"consent\"}} 经甲方事先书面同意后可以\n\n{{check portfolio \"no\"}} 不可以\n\n无论选择何种方式，乙方均不得擅自公开甲方的个人信息、账号密码、商业秘密和非公开业务数据。\n\n## 第十三条 保密与数据安全\n\n13.1 双方对合作过程中获悉的非公开技术资料、商业信息、源代码、经营数据、客户资料和其他明确标识或依其性质应当保密的信息负有保密义务。\n\n13.2 未经信息提供方同意，不得向无关第三方披露上述保密信息，但法律要求披露的除外。\n\n13.3 接触真实个人信息的，应根据实际情况另行或通过附件明确约定个人信息处理目的、期限、方式、信息种类、安全措施以及返还或删除要求。\n\n13.4 乙方不得擅自复制、出售、传播或将甲方数据用于其他项目。\n\n13.5 项目终止后，乙方应根据合同及法律要求返还或删除甲方提供的非公开数据；依法必须留存的除外。\n\n13.6 双方应采取合理安全措施保护项目账号、密钥、令牌和其他敏感凭据。\n\n13.7 保密义务不因本合同终止而当然消失。商业秘密在依法构成商业秘密期间持续受到保护。\n\n## 第十四条 违约责任\n\n14.1 双方应诚信履行本合同。任何一方违约，均应依约及法律规定承担相应责任。\n\n14.2 甲方未按约定付款的，经合理催告仍不履行，乙方可以暂停相应未履行义务，并要求支付到期款项。\n\n14.3 对经核实属于乙方责任的延期交付，乙方应承担约定违约金：\n\n每日按照延期部分对应合同价款的{{delayRate}}%计算。\n\n累计违约金上限：延期部分对应合同价款的{{delayCap}}%。\n\n14.4 建议双方根据项目规模、风险与损失情况填写合理比例；约定违约金依法可能受到调整。\n\n14.5 甲方无正当理由拒绝提供必要协作、长期停止响应或拒绝履行付款义务，致使项目无法继续的，双方应就已完成工作量、已付款项及实际损失进行核算。\n\n14.6 任一方违反保密义务、非法使用对方资料或侵犯知识产权的，应依法承担相应责任。\n\n14.7 双方对损失及责任有争议的，应结合合同、需求记录、开发成果、付款凭证及其他证据确定。\n\n14.8 双方可以就一般违约责任约定合理的责任上限，但该约定不得排除法律规定不得免除或限制的责任。\n\n## 第十五条 合同变更、暂停与解除\n\n15.1 合同履行过程中，任何一方均可提出变更，但应取得双方一致确认。\n\n15.2 因甲方业务需求变化需要终止项目的，应及时书面通知乙方，双方根据已完成且可核实的开发工作、已发生的合理费用及依法应承担的责任进行结算。\n\n15.3 因乙方原因导致项目无法继续或构成根本违约的，甲方可以依法要求补救、解除合同、退还相应款项或主张损失。\n\n15.4 项目启动款及其他已支付款项不当然全部不予退还，也不当然全部退还，应根据实际履行情况、合同性质和法律规定处理。\n\n15.5 合同解除时，双方应确认：\n\n（1）已经完成的开发内容。\n\n（2）甲方已经支付的费用。\n\n（3）尚未支付或应退还的费用。\n\n（4）阶段成果及知识产权处理方式。\n\n（5）保密资料及账号权限处理方式。\n\n15.6 因不可抗力影响合同履行的，受影响方应依法履行通知及证明义务，并采取合理措施减少损失。\n\n15.7 合同解除不影响保密、争议解决、结算及其他依其性质应持续有效的条款。\n\n## 第十六条 沟通记录与电子证据\n\n16.1 双方确认以下方式可以用于日常业务沟通、需求确认和项目反馈：\n\n甲方指定微信或邮箱：{{partyAChannel}}\n\n乙方指定微信或邮箱：{{partyBChannel}}\n\n16.2 双方指定联系方式发送的需求文档、确认信息、修改清单、验收记录、付款通知等，可以作为合同履行依据。\n\n16.3 对合同金额、开发范围、交付期限、知识产权及其他重大事项的修改，应有双方明确同意的记录。\n\n16.4 任何一方不应通过单方发送信息或单方修改文件的方式直接变更合同约定。\n\n16.5 双方应妥善保存必要的聊天记录、需求确认文件、支付凭证、代码交付记录及验收证据。\n\n16.6 本合同可以通过纸质签署或符合法律要求的电子签署方式订立。\n\n## 第十七条 争议解决\n\n17.1 因本合同发生争议，双方应优先通过友好协商解决。\n\n17.2 协商不成的，任何一方可向依法具有管辖权的人民法院提起诉讼。\n\n17.3 双方也可以另行书面约定与本合同争议具有实际联系的法院，但不得违反级别管辖和专属管辖等法律规定。\n\n17.4 合同争议处理过程中，不涉及争议且能够独立履行的部分，双方应根据实际情况继续履行。\n\n## 第十八条 合同生效及其他约定\n\n18.1 本合同自双方签名、盖章或以双方约定的有效电子签署方式签署之日起生效；双方另有明确约定的除外。\n\n18.2 本合同正文和经双方确认的附件具有合同效力。\n\n18.3 附件与正文有冲突的，双方应按具体签署时间、条款约定及合同解释规则确定；重大变更应通过补充协议明确。\n\n18.4 未尽事项，双方可以另行签订补充协议。\n\n18.5 本合同适用中华人民共和国法律。\n\n18.6 其他特别约定：\n\n{{specialTerms}}\n\n## 第十九条 合同签署\n\n**甲方（委托方）**\n\n签名或盖章：见本文件在线签署记录\n\n日期：见本文件在线签署记录\n\n**乙方（开发方）**\n\n签名或盖章：见本文件在线签署记录\n\n日期：见本文件在线签署记录\n",
+    "REQUIREMENTS": "# 附件一：项目需求及交付清单\n\n本附件为《软件定制开发服务合同》的组成部分。\n\n## 一、项目基本情况\n\n项目名称：{{projectName}}\n\n项目版本：{{projectVersion}}\n\n需求确认日期：{{date requirementsDate}}\n\n## 二、功能模块清单\n\n| 序号 | 功能模块 | 具体功能 | 是否包含 |\n|---|---|---|---|\n{{#each modules}}| {{index}} | {{this.module}} | {{this.function}} | {{check this.included \"true\"}} |\n{{/each}}\n\n以上为填写示例，不作为乙方默认承诺的开发范围。\n\n## 三、交付要求\n\n源代码是否交付：{{check sourceIncluded \"true\"}} 是 {{check sourceIncluded \"false\"}} 否\n\n数据库脚本是否交付：{{check databaseIncluded \"true\"}} 是 {{check databaseIncluded \"false\"}} 否\n\n是否包含部署：{{check deploymentIncluded \"true\"}} 是 {{check deploymentIncluded \"false\"}} 否\n\n部署次数：{{deploymentCount}}次\n\n是否提供演示视频：{{check videoIncluded \"true\"}} 是 {{check videoIncluded \"false\"}} 否\n\n是否提供功能截图：{{check screenshotsIncluded \"true\"}} 是 {{check screenshotsIncluded \"false\"}} 否\n\n是否提供操作文档：{{check manualIncluded \"true\"}} 是 {{check manualIncluded \"false\"}} 否\n\n运行环境：{{environment}}\n\n适配终端或浏览器：{{platforms}}\n\n其他交付要求：{{deliveryNotes}}\n\n## 四、质量与验收要求\n\n核心业务流程：{{coreFlows}}\n\n性能要求：{{performance}}\n\n安全要求：{{security}}\n\n兼容性要求：{{compatibility}}\n\n测试数据与方法：{{testMethod}}\n\n明确不包含的事项：{{excluded}}\n\n## 五、开发及售后安排\n\n开发工期：{{durationDays}}天\n\n免费调整期限：{{adjustmentDays}}天\n\n免费调整次数：{{adjustmentRounds}}轮\n\n免费缺陷维护期限：{{maintenanceDays}}天\n\n售后联系渠道：{{supportChannel}}\n\n## 六、费用确认\n\n项目总价：¥{{money totalFen}}\n\n启动款：¥{{money startFen}}\n\n进度款：¥{{money progressFen}}\n\n尾款：¥{{money finalFen}}\n\n第三方费用承担：{{thirdPartyFees}}\n\n## 七、确认签署\n\n甲方确认：见本文件在线签署记录\n\n乙方确认：见本文件在线签署记录\n\n日期：见本文件在线签署记录\n\n免费调整工作量：{{adjustmentWorkload}}\n",
+    "CHANGE": "# 附件二：需求变更确认单\n\n项目名称：{{projectName}}\n\n变更编号：{{changeNumber}}\n\n申请日期：{{date changeDate}}\n\n原需求内容：{{original}}\n\n拟变更内容：{{proposed}}\n\n变更原因：{{changeReason}}\n\n新增费用：¥{{money changeFen}}\n\n增加工期：{{extensionDays}}天\n\n对其他模块的影响：{{impact}}\n\n甲方确认：见本文件在线签署记录\n\n乙方确认：见本文件在线签署记录\n\n确认日期：见本文件在线签署记录\n",
+    "ACCEPTANCE": "# 附件三：项目验收确认单\n\n项目名称：{{projectName}}\n\n交付版本：{{deliveryVersion}}\n\n验收日期：{{date acceptanceDate}}\n\n交付内容：{{deliveredContent}}\n\n验收依据：{{acceptanceBasis}}\n\n验收结果：\n\n{{check acceptanceResult \"PASS\"}} 验收通过\n\n{{check acceptanceResult \"CONDITIONAL\"}} 附条件验收通过\n\n{{check acceptanceResult \"FAIL\"}} 验收未通过，需继续整改\n\n尚待处理的问题及期限：\n\n{{outstanding}}\n\n双方确认，本验收记录仅证明所列范围内的验收结果，不免除合同约定的售后维护、保密及其他依法应承担的义务。\n\n甲方签名：见本文件在线签署记录\n\n乙方签名：见本文件在线签署记录\n\n日期：见本文件在线签署记录\n"
+  },
+  "fields": [
+    {
+      "key": "contractNumber",
+      "label": "合同编号",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "signingPlace",
+      "label": "签订地点",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "contractDate",
+      "label": "签订日期",
+      "type": "date",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "partyAName",
+      "label": "甲方姓名或单位名称",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "partyAIdentity",
+      "label": "甲方身份证号码或统一社会信用代码",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "partyAPhone",
+      "label": "甲方联系电话",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "partyAEmail",
+      "label": "甲方电子邮箱",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "partyAWechat",
+      "label": "甲方微信号",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "partyAAddress",
+      "label": "甲方联系地址",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "partyBName",
+      "label": "乙方姓名或单位名称",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "partyBIdentity",
+      "label": "乙方身份证号码或统一社会信用代码",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "partyBPhone",
+      "label": "乙方联系电话",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "partyBEmail",
+      "label": "乙方电子邮箱",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "partyBWechat",
+      "label": "乙方微信号",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "partyBAddress",
+      "label": "乙方联系地址",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "projectName",
+      "label": "项目名称",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT",
+        "CHANGE",
+        "ACCEPTANCE"
+      ]
+    },
+    {
+      "key": "projectOther",
+      "label": "其他项目类型",
+      "type": "text",
+      "required": false,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "frontend",
+      "label": "前端技术",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "backend",
+      "label": "后端技术",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "database",
+      "label": "数据库",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "frameworks",
+      "label": "其他框架或组件",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "purpose",
+      "label": "项目主要用途",
+      "type": "multiline",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "totalFen",
+      "label": "合同总价",
+      "type": "money",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "payee",
+      "label": "收款人",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "payeeAccount",
+      "label": "收款账号",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "payeePlatform",
+      "label": "开户银行或支付平台",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "invoiceArrangement",
+      "label": "发票及税费安排",
+      "type": "multiline",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "durationDays",
+      "label": "开发周期",
+      "type": "number",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "durationUnit",
+      "label": "工期单位",
+      "type": "select",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ],
+      "options": [
+        {
+          "value": "自然日",
+          "label": "自然日"
+        },
+        {
+          "value": "工作日",
+          "label": "工作日"
+        }
+      ]
+    },
+    {
+      "key": "startDate",
+      "label": "计划开始日期",
+      "type": "date",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "deliveryDate",
+      "label": "预计交付日期",
+      "type": "date",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "adjustmentRounds",
+      "label": "免费调整次数",
+      "type": "number",
+      "required": false,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "deliveryOther",
+      "label": "其他交付内容",
+      "type": "text",
+      "required": false,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "maintenanceDays",
+      "label": "免费缺陷维护天数",
+      "type": "number",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "licenseTerm",
+      "label": "许可期限",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ],
+      "when": {
+        "key": "ipMode",
+        "value": "B"
+      }
+    },
+    {
+      "key": "licenseScope",
+      "label": "许可使用范围",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ],
+      "when": {
+        "key": "ipMode",
+        "value": "B"
+      }
+    },
+    {
+      "key": "sublicense",
+      "label": "是否允许转授权",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ],
+      "when": {
+        "key": "ipMode",
+        "value": "B"
+      }
+    },
+    {
+      "key": "delayRate",
+      "label": "每日延期违约金比例（%）",
+      "type": "number",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "delayCap",
+      "label": "延期违约金上限（%）",
+      "type": "number",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "partyAChannel",
+      "label": "甲方指定沟通渠道",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "partyBChannel",
+      "label": "乙方指定沟通渠道",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "specialTerms",
+      "label": "特别约定",
+      "type": "multiline",
+      "required": false,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "startBps",
+      "label": "启动款比例（基点，3000=30%）",
+      "type": "number",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "progressBps",
+      "label": "进度款比例（基点，3000=30%）",
+      "type": "number",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "adjustmentDays",
+      "label": "免费调整天数",
+      "type": "number",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "adjustmentWorkload",
+      "label": "免费调整工作量说明",
+      "type": "multiline",
+      "required": false,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "projectTypes",
+      "label": "项目类型",
+      "type": "multiselect",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ],
+      "options": [
+        {
+          "value": "Web 网站开发",
+          "label": "Web 网站开发"
+        },
+        {
+          "value": "Web 后台管理系统",
+          "label": "Web 后台管理系统"
+        },
+        {
+          "value": "微信小程序",
+          "label": "微信小程序"
+        },
+        {
+          "value": "移动端 App",
+          "label": "移动端 App"
+        },
+        {
+          "value": "桌面应用程序",
+          "label": "桌面应用程序"
+        },
+        {
+          "value": "API 接口及后端服务",
+          "label": "API 接口及后端服务"
+        },
+        {
+          "value": "数据处理或自动化程序",
+          "label": "数据处理或自动化程序"
+        },
+        {
+          "value": "其他",
+          "label": "其他"
+        }
+      ]
+    },
+    {
+      "key": "deliverables",
+      "label": "交付清单",
+      "type": "multiselect",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ],
+      "options": [
+        {
+          "value": "前端源代码",
+          "label": "前端源代码"
+        },
+        {
+          "value": "后端源代码",
+          "label": "后端源代码"
+        },
+        {
+          "value": "数据库建表或初始化脚本",
+          "label": "数据库建表或初始化脚本"
+        },
+        {
+          "value": "编译后的程序或安装包",
+          "label": "编译后的程序或安装包"
+        },
+        {
+          "value": "部署配置及运行说明",
+          "label": "部署配置及运行说明"
+        },
+        {
+          "value": "必要的依赖安装说明",
+          "label": "必要的依赖安装说明"
+        },
+        {
+          "value": "API 接口文档",
+          "label": "API 接口文档"
+        },
+        {
+          "value": "项目操作说明",
+          "label": "项目操作说明"
+        },
+        {
+          "value": "约定的测试账号",
+          "label": "约定的测试账号"
+        },
+        {
+          "value": "约定的视频演示",
+          "label": "约定的视频演示"
+        },
+        {
+          "value": "约定的项目截图",
+          "label": "约定的项目截图"
+        },
+        {
+          "value": "其他",
+          "label": "其他"
+        }
+      ]
+    },
+    {
+      "key": "ipMode",
+      "label": "知识产权方式",
+      "type": "select",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ],
+      "options": [
+        {
+          "value": "A",
+          "label": "甲方取得约定定制成果著作权"
+        },
+        {
+          "value": "B",
+          "label": "乙方保留著作权，甲方取得使用许可"
+        }
+      ]
+    },
+    {
+      "key": "licenseType",
+      "label": "使用许可类型",
+      "type": "select",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ],
+      "options": [
+        {
+          "value": "独占",
+          "label": "独占"
+        },
+        {
+          "value": "排他",
+          "label": "排他"
+        },
+        {
+          "value": "普通",
+          "label": "普通"
+        }
+      ],
+      "when": {
+        "key": "ipMode",
+        "value": "B"
+      }
+    },
+    {
+      "key": "portfolio",
+      "label": "作品集展示许可",
+      "type": "select",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ],
+      "options": [
+        {
+          "value": "consent",
+          "label": "经甲方事先书面同意后可以"
+        },
+        {
+          "value": "no",
+          "label": "不可以"
+        }
+      ]
+    },
+    {
+      "key": "modules",
+      "label": "功能模块清单",
+      "type": "rows",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ],
+      "fields": [
+        {
+          "key": "module",
+          "label": "功能模块",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "function",
+          "label": "具体功能",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "included",
+          "label": "是否包含",
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "key": "projectVersion",
+      "label": "项目版本",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "requirementsDate",
+      "label": "需求确认日期",
+      "type": "date",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "deploymentCount",
+      "label": "首次部署次数",
+      "type": "number",
+      "required": false,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "environment",
+      "label": "运行环境",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "platforms",
+      "label": "适配终端或浏览器",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "deliveryNotes",
+      "label": "其他交付要求",
+      "type": "multiline",
+      "required": false,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "coreFlows",
+      "label": "核心业务流程",
+      "type": "multiline",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "performance",
+      "label": "性能要求",
+      "type": "multiline",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "security",
+      "label": "安全要求",
+      "type": "multiline",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "compatibility",
+      "label": "兼容性要求",
+      "type": "multiline",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "testMethod",
+      "label": "测试数据与方法",
+      "type": "multiline",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "excluded",
+      "label": "明确不包含的事项",
+      "type": "multiline",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "supportChannel",
+      "label": "售后联系渠道",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "thirdPartyFees",
+      "label": "第三方费用承担",
+      "type": "multiline",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "changeNumber",
+      "label": "变更编号",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "CHANGE"
+      ]
+    },
+    {
+      "key": "changeDate",
+      "label": "申请日期",
+      "type": "date",
+      "required": true,
+      "documents": [
+        "CHANGE"
+      ]
+    },
+    {
+      "key": "original",
+      "label": "原需求内容",
+      "type": "multiline",
+      "required": true,
+      "documents": [
+        "CHANGE"
+      ]
+    },
+    {
+      "key": "proposed",
+      "label": "拟变更内容",
+      "type": "multiline",
+      "required": true,
+      "documents": [
+        "CHANGE"
+      ]
+    },
+    {
+      "key": "changeReason",
+      "label": "变更原因",
+      "type": "multiline",
+      "required": true,
+      "documents": [
+        "CHANGE"
+      ]
+    },
+    {
+      "key": "changeFen",
+      "label": "新增费用",
+      "type": "money",
+      "required": true,
+      "documents": [
+        "CHANGE"
+      ]
+    },
+    {
+      "key": "extensionDays",
+      "label": "增加工期",
+      "type": "number",
+      "required": true,
+      "documents": [
+        "CHANGE"
+      ]
+    },
+    {
+      "key": "impact",
+      "label": "对其他模块的影响",
+      "type": "multiline",
+      "required": true,
+      "documents": [
+        "CHANGE"
+      ]
+    },
+    {
+      "key": "deliveryVersion",
+      "label": "交付版本",
+      "type": "text",
+      "required": true,
+      "documents": [
+        "ACCEPTANCE"
+      ]
+    },
+    {
+      "key": "acceptanceDate",
+      "label": "验收日期",
+      "type": "date",
+      "required": true,
+      "documents": [
+        "ACCEPTANCE"
+      ]
+    },
+    {
+      "key": "deliveredContent",
+      "label": "交付内容",
+      "type": "multiline",
+      "required": true,
+      "documents": [
+        "ACCEPTANCE"
+      ]
+    },
+    {
+      "key": "acceptanceBasis",
+      "label": "验收依据",
+      "type": "multiline",
+      "required": true,
+      "documents": [
+        "ACCEPTANCE"
+      ]
+    },
+    {
+      "key": "outstanding",
+      "label": "尚待处理的问题及期限",
+      "type": "multiline",
+      "required": false,
+      "documents": [
+        "ACCEPTANCE"
+      ]
+    },
+    {
+      "key": "acceptanceResult",
+      "label": "验收结果",
+      "type": "select",
+      "required": true,
+      "documents": [
+        "ACCEPTANCE"
+      ],
+      "options": [
+        {
+          "value": "PASS",
+          "label": "验收通过"
+        },
+        {
+          "value": "CONDITIONAL",
+          "label": "附条件验收通过"
+        },
+        {
+          "value": "FAIL",
+          "label": "验收未通过，需继续整改"
+        }
+      ]
+    },
+    {
+      "key": "paymentReminderDays",
+      "label": "付款催告期限（工作日）",
+      "type": "number",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "acceptanceDays",
+      "label": "首次验收反馈期限（工作日）",
+      "type": "number",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    },
+    {
+      "key": "supplementalDays",
+      "label": "补充验收反馈期限（工作日，至少3日）",
+      "type": "number",
+      "required": true,
+      "documents": [
+        "AGREEMENT"
+      ]
+    }
+  ],
+  "defaults": {
+    "startBps": 3000,
+    "progressBps": 4000,
+    "adjustmentDays": 15,
+    "maintenanceDays": 30,
+    "adjustmentWorkload": "",
+    "specialTerms": "无",
+    "deliveryNotes": "无",
+    "projectOther": "",
+    "deliveryOther": "",
+    "delayRate": 0,
+    "delayCap": 0,
+    "modules": [
+      {
+        "module": "用户管理",
+        "function": "登录、注册、资料维护",
+        "included": false
+      },
+      {
+        "module": "角色权限",
+        "function": "角色、菜单、权限控制",
+        "included": false
+      },
+      {
+        "module": "业务管理",
+        "function": "按具体业务填写",
+        "included": false
+      },
+      {
+        "module": "数据管理",
+        "function": "查询、筛选、分页、导出",
+        "included": false
+      },
+      {
+        "module": "系统配置",
+        "function": "参数配置、字典管理",
+        "included": false
+      },
+      {
+        "module": "其他模块",
+        "function": "按具体需求填写",
+        "included": false
+      }
+    ],
+    "paymentReminderDays": 3,
+    "acceptanceDays": 5,
+    "supplementalDays": 3
+  },
+  "sourceSha256": "f6ff80a516517b4891431ba4041c494f0903b728186652fdb0997bf3780bb6ea"
+}

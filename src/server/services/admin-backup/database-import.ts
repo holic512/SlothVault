@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { importCommissionCollections } from '@/server/commissions/backup'
 import { syncFileReferences } from '@/server/services/file-references'
 
 import { unitOfWork } from '@/server/database/unit-of-work'
@@ -89,9 +90,12 @@ function requiredMappedId(map: Map<string, number>, id: string, label: string) {
 }
 
 export async function importDatabaseBackup(payload: DatabaseImportPayload) {
-  const { data, mode, version } = payload
+  const { mode, version } = payload
+  const legacyContractCount = version === '2.9.0' ? 0 : (payload.ignoredLegacyContracts || payload.data.contracts.length)
+  const data = version === '2.9.0' ? payload.data : { ...payload.data, contracts: [], contractAdminAudits: [], contractCredentials: [], contractCredentialAttempts: [] }
   const primaryContentIds = version === '2.0.0' ? selectedPrimaryContentIds(data) : new Map()
   const ignoredLegacy = {
+    contracts: legacyContractCount,
     merkleTrees: data.merkleTrees.length,
     compressedNfts: data.compressedNfts.length,
     deprecatedConfigs: data.systemConfigs.filter((item) => DEPRECATED_CONFIG_KEYS.has(item.configKey)).length,
@@ -477,9 +481,15 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
       ids.systemHomepages.set(item.id, created.id)
     }
 
+    const commissionMaps: Record<string, Map<string, number>> = { ...ids }
+    const commissionParentCounts = await importCommissionCollections(tx, data, commissionMaps, true)
     for (const item of data.contracts) {
       const record = await tx.contract.create({
         data: {
+          commissionId: item.commissionId ? requiredMappedId(commissionMaps.commissions, item.commissionId, 'contract commission') : null,
+          templateVersionId: item.templateVersionId ? requiredMappedId(commissionMaps.commissionTemplateVersions, item.templateVersionId, 'contract template') : null,
+          documentType: item.documentType, sourceRecordId: null, snapshotJson: item.snapshotJson, snapshotHash: item.snapshotHash,
+          providerSessionId: item.providerSessionId, providerIp: item.providerIp, providerUserAgent: item.providerUserAgent,
           contractId: item.contractId,
           installationId: item.installationId,
           issuerUserId: requiredMappedId(ids.users, item.issuerUserId, 'contract issuerUserId'),
@@ -568,6 +578,12 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
       ids.contractCredentialAttempts.set(item.id, record.id)
     }
 
+    const commissionChildCounts = await importCommissionCollections(tx, data, commissionMaps, false)
+    for (const contract of data.contracts) {
+      if (!contract.sourceRecordId) continue
+      const sourceMap = contract.documentType === 'CHANGE' ? commissionMaps.commissionChanges : commissionMaps.commissionAcceptances
+      await tx.contract.update({ where: { id: requiredMappedId(ids.contracts, contract.id, 'contract') }, data: { sourceRecordId: requiredMappedId(sourceMap, contract.sourceRecordId, 'contract source record') } })
+    }
     for (const item of data.releaseCredentials) {
       const sourceVersion = data.projectVersions.find((version) => version.id === item.projectVersionId)
       const subjectId = item.subjectId || sourceVersion?.releaseId
@@ -660,6 +676,7 @@ export async function importDatabaseBackup(payload: DatabaseImportPayload) {
       message: 'Database import completed successfully',
       mode,
       imported: {
+        ...commissionParentCounts, ...commissionChildCounts,
         fileReferences: fileReferenceCount,
         users: ids.users.size,
         pointTransactions: ids.pointTransactions.size,

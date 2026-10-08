@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { upgradeCommissionLifecycle } from '@/server/commissions/upgrade'
 import { upgradeContentManifests } from './content-manifest-upgrade'
 import { rebuildFileReferences } from '@/server/services/file-references'
 
@@ -151,6 +152,8 @@ export async function deployInitialDatabaseSchema(connection: DatabaseConnection
       console.error('[database-install] Prisma migrate deploy failed', safeDetail)
       throw new DatabaseMigrationError('Unable to initialize database tables')
     }
+    const upgradeClient = createDatabaseClient(connection)
+    try { await upgradeCommissionLifecycle(upgradeClient) } finally { await disconnectDatabaseClient(upgradeClient) }
   } finally {
     if (caPath) rmSync(caPath, { force: true })
   }

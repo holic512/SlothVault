@@ -2,9 +2,9 @@
  * @file contracts.ts
  * @project SlothVault
  * @module Web2 Contract and Evidence Service
- * @description Owns one-to-one contract drafts, frozen content snapshots, Web2 acceptance or rejection, protected PDF access, and independent Solana evidence lifecycle.
- * @logic Freeze normalized body and optional PDF hashes before inviting one active user, record only server-side acceptance audit facts, and accept a chain credential only when its finalized Memo matches the stored private snapshot.
- * @dependencies Prisma contracts/files/users, Solana Memo transaction/runtime, system installation/network configuration
+ * @description Owns explicit document confirmation, protected attachments, and optional Solana evidence for commissioned work.
+ * @logic Delegate commission draft freezing to the snapshot service, append real account confirmation audit facts atomically, and accept a chain credential only when its finalized Memo matches the stored private snapshot.
+ * @dependencies Commission document snapshots, Prisma contracts/files/users, Solana Memo transaction/runtime, installation/network configuration
  * @index_tags contracts,web2,signature,attachment,authorization,solana,evidence,verification
  * @author holic512
  */
@@ -16,6 +16,7 @@ import type { Prisma } from '@generated/prisma-postgresql/client'
 import { PublicKey } from '@solana/web3.js'
 
 import { unitOfWork } from '@/server/database/unit-of-work'
+import { applyCommissionSignature, assertDocumentSnapshot, endCommissionDocument, issueCommissionDocument } from '@/server/commissions/documents'
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
 import {
@@ -83,6 +84,11 @@ const PREPARE_TTL_MS = 10 * 60 * 1_000
 const CONTRACT_BODY_MAX_LENGTH = 100_000
 
 type ContractRecord = {
+  commissionId?: number | null
+  documentType?: string
+  sourceRecordId?: number | null
+  snapshotJson?: string | null
+  snapshotHash?: string | null
   id: number
   contractId: string
   installationId: string | null
@@ -268,6 +274,10 @@ function contractDto(contract: ContractRecord, includeAdminAudit = false) {
   return {
     id: contract.id.toString(),
     contractId: contract.contractId,
+    snapshotHash: contract.snapshotHash || null,
+    providerAccount: contract.adminAudits.find((audit) => audit.action === 'ISSUED')?.actorUser.username || contract.issuerUser.username,
+    customerAccount: contract.subjectUser.username,
+    associatedFiles: contract.snapshotJson ? (JSON.parse(contract.snapshotJson).attachments || []) as Array<{ originalName: string; fileSize: string; sha256: string }> : [],
     title: contract.title,
     body: contract.body,
     bodyHash: contract.bodyHash,
@@ -326,6 +336,7 @@ async function requireContract(id: number) {
 }
 
 async function assertFrozenContractIntegrity(contract: ContractRecord) {
+  if (contract.commissionId) assertDocumentSnapshot({ ...contract, snapshotJson: contract.snapshotJson || null })
   if (!contract.issuedAt || !contract.installationId) throw new HttpError('Contract issuance record is missing', 409, 409)
   if (contractBodyHash(contract.body) !== contract.bodyHash) {
     throw new HttpError('Contract body integrity verification failed', 409, 409)
@@ -347,6 +358,7 @@ async function verifiedContractHash(contract: ContractRecord) {
     throw new HttpError('Contract issuance record is missing', 409, 409)
   }
   const computed = contractRootHash({
+    snapshotHash: contract.snapshotHash,
     installationId: contract.installationId,
     contractId: contract.contractId,
     title: contract.title,
@@ -400,15 +412,21 @@ export async function createAdminContract(input: {
   title: string
   body: string
   attachmentFileId?: number | null
+  issueImmediately?: boolean
 }) {
   await requireSubjectUser(input.subjectUserId)
   const contractId = randomUUID()
   const body = normalizedBody(input.body)
   const attachment = await contractAttachment({ attachmentFileId: input.attachmentFileId ?? null })
+  const issuedAt = input.issueImmediately ? new Date() : null
+  const currentInstallationId = input.issueImmediately ? await installationId() : null
   try {
     const contract = await prisma.contract.create({
       data: {
         contractId,
+        status: input.issueImmediately ? CONTRACT_STATUS.PENDING_SIGNATURE : CONTRACT_STATUS.DRAFT,
+        issuedAt,
+        installationId: currentInstallationId,
         issuerUserId: input.issuerUserId,
         subjectUserId: input.subjectUserId,
         title: normalizedTitle(input.title),
@@ -418,16 +436,17 @@ export async function createAdminContract(input: {
         attachmentHash: attachment.attachmentHash,
         partyCommitment: nextPartyCommitment(contractId, input.subjectUserId),
         adminAudits: {
-          create: {
-            actorUserId: input.issuerUserId,
-            action: CONTRACT_ADMIN_AUDIT_ACTION.DRAFT_CREATED,
-          },
+          create: [
+            { actorUserId: input.issuerUserId, action: CONTRACT_ADMIN_AUDIT_ACTION.DRAFT_CREATED },
+            ...(input.issueImmediately ? [{ actorUserId: input.issuerUserId, action: CONTRACT_ADMIN_AUDIT_ACTION.ISSUED }] : []),
+          ],
         },
       },
       include: contractInclude,
     })
     return contractDto(contract as ContractRecord, true)
   } catch (error) {
+    if (hasPrismaCode(error, 'P2025')) throw new HttpError('Contract changed; refresh and try again', 409, 409)
     if (hasPrismaCode(error, 'P2002')) throw new HttpError('Contract attachment is already in use', 409, 409)
     throw error
   }
@@ -450,7 +469,7 @@ export async function updateAdminContract(input: {
   const attachment = await contractAttachment({ attachmentFileId: input.attachmentFileId ?? null })
   try {
     const contract = await prisma.contract.update({
-      where: { id: input.id },
+      where: { id: input.id, status: CONTRACT_STATUS.DRAFT, updatedAt: current.updatedAt },
       data: {
         subjectUserId: input.subjectUserId,
         title: normalizedTitle(input.title),
@@ -471,13 +490,20 @@ export async function updateAdminContract(input: {
     })
     return contractDto(contract as ContractRecord, true)
   } catch (error) {
+    if (hasPrismaCode(error, 'P2025')) throw new HttpError('Contract changed; refresh and try again', 409, 409)
     if (hasPrismaCode(error, 'P2002')) throw new HttpError('Contract attachment is already in use', 409, 409)
     throw error
   }
 }
 
-export async function issueAdminContract(input: { id: number; issuerUserId: number }) {
+export async function issueAdminContract(input: { id: number; issuerUserId: number; sessionId?: string; ip?: string; userAgent?: string | null }) {
   const contract = await requireContract(input.id)
+  if (contract.commissionId && contract.status === CONTRACT_STATUS.PENDING_SIGNATURE) return getAdminContract(input.id)
+  if (contract.commissionId) {
+    await requireSubjectUser(contract.subjectUserId)
+    await issueCommissionDocument(input.id, { userId: input.issuerUserId, isAdmin: true, sessionId: input.sessionId, ip: input.ip, userAgent: input.userAgent })
+    return getAdminContract(input.id)
+  }
   if (contract.status !== CONTRACT_STATUS.DRAFT) {
     throw new HttpError('Only a draft contract can be issued', 409, 409)
   }
@@ -487,7 +513,7 @@ export async function issueAdminContract(input: { id: number; issuerUserId: numb
   const issuedAt = new Date()
   const currentInstallationId = await installationId()
   const issued = await prisma.contract.update({
-    where: { id: input.id },
+    where: { id: input.id, status: CONTRACT_STATUS.DRAFT, updatedAt: contract.updatedAt },
     data: {
       body,
       bodyHash: contractBodyHash(body),
@@ -505,37 +531,44 @@ export async function issueAdminContract(input: { id: number; issuerUserId: numb
       },
     },
     include: contractInclude,
+  }).catch((error: unknown) => {
+    if (hasPrismaCode(error, 'P2025')) throw new HttpError('Contract changed; refresh and try again', 409, 409)
+    throw error
   })
   return contractDto(issued as ContractRecord, true)
 }
 
 export async function cancelAdminContract(input: { id: number; issuerUserId: number }) {
   const contract = await requireContract(input.id)
+  if (contract.commissionId && contract.status === CONTRACT_STATUS.CANCELLED) return getAdminContract(input.id)
   if (contract.status !== CONTRACT_STATUS.DRAFT && contract.status !== CONTRACT_STATUS.PENDING_SIGNATURE) {
     throw new HttpError('Only a draft or pending contract can be cancelled', 409, 409)
   }
   const cancelledAt = new Date()
   const cancelled = await unitOfWork.execute(async (tx) => {
-    const record = await tx.contract.update({
-      where: { id: input.id },
+    const record = await tx.contract.updateMany({
+      where: { id: input.id, status: contract.status, updatedAt: contract.updatedAt },
       data: { status: CONTRACT_STATUS.CANCELLED, cancelledAt, updatedAt: cancelledAt },
     })
+    if (record.count !== 1) throw new HttpError('Contract changed; refresh and try again', 409, 409)
     await tx.contractAdminAudit.create({
       data: {
-        contractId: record.id,
+        contractId: input.id,
         actorUserId: input.issuerUserId,
         action: CONTRACT_ADMIN_AUDIT_ACTION.CANCELLED,
       },
     })
-    return record
+    await endCommissionDocument(tx, contract, input.issuerUserId, 'CANCELLED')
+    return input.id
   })
-  return getAdminContract(cancelled.id)
+  return getAdminContract(cancelled)
 }
 
 export async function listUserContracts(userId: number, input: { page: number; pageSize: number }) {
   const where: Prisma.ContractWhereInput = {
     subjectUserId: userId,
     status: { not: CONTRACT_STATUS.DRAFT },
+    issuedAt: { not: null },
   }
   const [total, list] = await Promise.all([
     prisma.contract.count({ where }),
@@ -557,7 +590,7 @@ export async function listUserContracts(userId: number, input: { page: number; p
 
 export async function getUserContract(userId: number, id: number) {
   const contract = await requireContract(id)
-  if (contract.subjectUserId !== userId || contract.status === CONTRACT_STATUS.DRAFT) {
+  if (contract.subjectUserId !== userId || contract.status === CONTRACT_STATUS.DRAFT || !contract.issuedAt) {
     throw new HttpError('Contract not found', 404, 404)
   }
   return contractDto(contract)
@@ -572,12 +605,14 @@ export async function signUserContract(input: {
 }) {
   const contract = await requireContract(input.id)
   if (contract.subjectUserId !== input.userId) throw new HttpError('Contract not found', 404, 404)
+  if (contract.commissionId && contract.status === CONTRACT_STATUS.SIGNED) return getUserContract(input.userId, input.id)
   if (contract.status !== CONTRACT_STATUS.PENDING_SIGNATURE) {
     throw new HttpError('This contract is not awaiting your signature', 409, 409)
   }
   await assertFrozenContractIntegrity(contract)
   const signedAt = new Date()
   const hash = contractRootHash({
+    snapshotHash: contract.snapshotHash,
     installationId: contract.installationId!,
     contractId: contract.contractId,
     title: contract.title,
@@ -587,7 +622,7 @@ export async function signUserContract(input: {
     issuedAt: contract.issuedAt!,
     signedAt,
   })
-  const signed = await prisma.contract.updateMany({
+  const signatureUpdate = {
     where: {
       id: input.id,
       subjectUserId: input.userId,
@@ -602,7 +637,13 @@ export async function signUserContract(input: {
       contractHash: hash,
       updatedAt: signedAt,
     },
-  })
+  }
+  const signed = contract.commissionId ? await unitOfWork.execute(async (tx) => {
+    const result = await tx.contract.updateMany(signatureUpdate)
+    if (result.count !== 1) throw new HttpError('This contract is not awaiting your signature', 409, 409)
+    await applyCommissionSignature(tx, { id: contract.id, commissionId: contract.commissionId || null, documentType: contract.documentType || 'AGREEMENT', sourceRecordId: contract.sourceRecordId || null, snapshotJson: contract.snapshotJson || null, subjectUserId: contract.subjectUserId }, signedAt)
+    return result
+  }) : await prisma.contract.updateMany(signatureUpdate)
   if (signed.count !== 1) {
     throw new HttpError('This contract is not awaiting your signature', 409, 409)
   }
@@ -612,11 +653,12 @@ export async function signUserContract(input: {
 export async function declineUserContract(input: { id: number; userId: number; reason?: string | null }) {
   const contract = await requireContract(input.id)
   if (contract.subjectUserId !== input.userId) throw new HttpError('Contract not found', 404, 404)
+  if (contract.commissionId && contract.status === CONTRACT_STATUS.DECLINED) return getUserContract(input.userId, input.id)
   if (contract.status !== CONTRACT_STATUS.PENDING_SIGNATURE) {
     throw new HttpError('This contract is not awaiting your response', 409, 409)
   }
   const declinedAt = new Date()
-  const declined = await prisma.contract.updateMany({
+  const declineUpdate = {
     where: {
       id: input.id,
       subjectUserId: input.userId,
@@ -628,7 +670,13 @@ export async function declineUserContract(input: { id: number; userId: number; r
       declineReason: input.reason?.trim().slice(0, 500) || null,
       updatedAt: declinedAt,
     },
-  })
+  }
+  const declined = contract.commissionId ? await unitOfWork.execute(async (tx) => {
+    const result = await tx.contract.updateMany(declineUpdate)
+    if (result.count !== 1) throw new HttpError('This contract is not awaiting your response', 409, 409)
+    await endCommissionDocument(tx, contract, input.userId, 'DECLINED', input.reason || '')
+    return result
+  }) : await prisma.contract.updateMany(declineUpdate)
   if (declined.count !== 1) {
     throw new HttpError('This contract is not awaiting your response', 409, 409)
   }
@@ -729,6 +777,7 @@ export async function prepareContractEvidence(input: {
   const signer = parseSigner(input.signerAddress)
   const { contract, contractHash } = await contractForEvidence(input.contractId)
   const memo = canonicalContractEvidenceMemo({
+    snapshotHash: contract.snapshotHash,
     installationId: contract.installationId!,
     contractId: contract.contractId,
     contractHash,
@@ -1138,7 +1187,7 @@ export async function verifyPublicContractEvidence(signature: string) {
 
 export async function readAuthorizedContractAttachment(input: { id: number; userId: number; isAdmin: boolean }) {
   const contract = await requireContract(input.id)
-  if (!input.isAdmin && (contract.subjectUserId !== input.userId || contract.status === CONTRACT_STATUS.DRAFT)) {
+  if (!input.isAdmin && (contract.subjectUserId !== input.userId || contract.status === CONTRACT_STATUS.DRAFT || !contract.issuedAt)) {
     throw new HttpError('Contract not found', 404, 404)
   }
   if (!contract.attachmentFileId) throw new HttpError('Contract attachment not found', 404, 404)

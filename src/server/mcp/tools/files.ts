@@ -127,7 +127,7 @@ export const fileToolDefinitions: McpToolDefinition[] = collectMcpToolDefinition
     },
     async ({ fileId }) => runMcpTool('content.file.get', async () => {
       const file = await getAdminFile(mcpId(fileId, 'fileId'))
-      if (file.businessType === 'ContractAttachment') {
+      if (['ContractAttachment', 'CommissionAttachment'].includes(file.businessType)) {
         throw new HttpError('Contract attachments require the contract Resource', 403, 403)
       }
       return {

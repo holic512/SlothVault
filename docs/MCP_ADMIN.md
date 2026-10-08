@@ -122,6 +122,21 @@ Prompt 返回给 MCP 客户端模型的是标准化执行指令，不会由服�
 
 `content.project.version.check_draft` 检查父项目状态、启用分类、启用笔记、唯一未删除主正文、主正文启用状态和非空正文。结果仅代表本次读取时刻；网页后台正式发布时会在事务中重新执行同一校验。
 
-MCP 不注册项目、版本、分类、笔记、正文、文章、首页、菜单和文件的删除/恢复 Tool，也不注册发布、撤回、批量操作、版本可见性调整、密码重置、积分调整、卡密发行、会员授予/撤销、合同写入、链上提交、备份恢复、系统设置写入或系统更新执行 Tool。上述高风险操作继续由网页后台确认；后续如开放 MCP 发布，应采用独立的两段式确认协议。
+MCP 不注册项目、版本、分类、笔记、正文、文章、首页、菜单和文件的删除/恢复 Tool，也不注册发布、撤回、批量操作、版本可见性调整、密码重置、积分调整、卡密发行、会员授予/撤销、合同取消或代签、链上提交、备份恢复、系统设置写入或系统更新执行 Tool。上述高风险操作继续由网页后台确认；后续如开放 MCP 发布，应采用独立的两段式确认协议。
 
 Tool、Prompt 与 Resource 注册分别位于 `src/server/mcp/tools/`、`src/server/mcp/prompts.ts` 和 `src/server/mcp/resources.ts`，均复用 `/mcp` 的 MCP Key 鉴权边界。
+
+
+## 委托项目与合同草稿（MCP 4.0.0）
+
+委托项目连接需求、报价、合同、付款事实、开发进度、变更、验收、交付和维护。它与公开文档项目独立。
+
+1. 使用 `admin.user.list` 核对启用的客户账户，再用 `admin.commission.create` 建立委托。
+2. 用 `admin.commission.get` 读取最新 `revision`，通过 `admin.commission.update` 编辑需求、未生效报价和双方资料。
+3. `admin.commission.progress.update` 可以按实际合作调整阶段、进度和预计日期。跨阶段、回退、暂停及终止须填写原因；阶段调整不会改变收款、签署或验收事实。
+4. 用 `admin.contract-template.list` 读取发布版本和字段定义，再调用 `admin.commission.document.draft.create`。正文与附件一属于同一次签署；变更、验收确认单须关联实际业务记录。
+5. 管理员在 `/admin/mm/commissions` 预览草稿并正式发起，客户在 `/account/commissions` 本人签署、提交付款凭证、验收和确认接收。
+
+所有委托写请求须提供 UUID `commandId`；更新及文件草稿同时须提供最新 `revision`。响应丢失时保留原 UUID 重试；版本冲突时读取最新详情并核对变更。
+
+原 `admin.contract.issue` 已移除。MCP 仅生成草稿，不正式发起合同，不代客户签署，不确认收退款，不正式发布交付。私有文件仅返回元数据；文件字节通过所属委托的网页授权接口访问。金额以“分”的非负整数字符串传递。

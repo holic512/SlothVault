@@ -9,19 +9,14 @@
  * @author holic512
  */
 import { z } from 'zod'
+import { documentDraftInput } from '@/server/commissions/input'
+import { createCommissionDocument } from '@/server/commissions/documents'
 
 import { requireAdminSession } from '@/server/auth/session'
 import { defineRoute } from '@/server/http/handler'
 import { readJson } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
-import { createAdminContract, listAdminContracts } from '@/server/services/contracts'
-
-const contractSchema = z.object({
-  subjectUserId: z.coerce.number().int().positive(),
-  title: z.string().min(1).max(255),
-  body: z.string().min(1).max(100_000),
-  attachmentFileId: z.coerce.number().int().positive().nullable().optional(),
-})
+import { listAdminContracts } from '@/server/services/contracts'
 
 function positiveInt(value: string | null, fallback: number, maximum: number) {
   const parsed = Number(value || fallback)
@@ -45,6 +40,7 @@ export const GET = defineRoute(async (request) => {
 
 export const POST = defineRoute(async (request) => {
   const session = await requireAdminSession(request)
-  const body = await readJson(request, contractSchema, { maxBytes: 150_000 })
-  return apiOk(await createAdminContract({ ...body, issuerUserId: session.User.id }), 'created', 201)
+  const body = await readJson(request, documentDraftInput.extend({ commissionId: z.number().int().positive() }), { maxBytes: 500000 })
+  const { commissionId, ...values } = body
+  return apiOk(await createCommissionDocument(commissionId, { userId: session.User.id, isAdmin: true }, values), 'created', 201)
 })

@@ -45,7 +45,7 @@ export function AccountShell({
     { href: '/account', label: t('overview'), icon: LayoutDashboard },
     { href: '/account/profile', label: t('profile'), icon: UserRound },
     { href: '/account/security', label: t('security'), icon: ShieldCheck },
-    { href: '/account/contracts', label: t('contracts'), icon: FileSignature },
+    { href: '/account/commissions', label: t('commissions'), icon: FileSignature },
     { href: '/account/points', label: t('points'), icon: Coins },
     { href: '/account/membership', label: t('membership'), icon: Crown },
   ]

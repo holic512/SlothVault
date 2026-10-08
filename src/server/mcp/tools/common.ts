@@ -88,6 +88,9 @@ export const UPDATE_ANNOTATIONS = {
   openWorldHint: false,
 } satisfies ToolAnnotations
 
+export const IDEMPOTENT_CREATE_ANNOTATIONS = { ...CREATE_ANNOTATIONS, idempotentHint: true } satisfies ToolAnnotations
+export const IDEMPOTENT_UPDATE_ANNOTATIONS = { ...UPDATE_ANNOTATIONS, idempotentHint: true } satisfies ToolAnnotations
+
 export function mcpId(value: string, label: string) {
   return parseJsonDecimalId(value, label)
 }

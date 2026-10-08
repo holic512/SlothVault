@@ -10,7 +10,7 @@
  */
 import { requireAdminSession } from '@/server/auth/session'
 import { defineRoute } from '@/server/http/handler'
-import { parseBigIntId } from '@/server/http/request'
+import { parseBigIntId, requestClientIp } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
 import { issueAdminContract } from '@/server/services/contracts'
 
@@ -22,5 +22,8 @@ export const POST = defineRoute<{ id: string }>(async (request, context) => {
   return apiOk(await issueAdminContract({
     id: parseBigIntId(id, 'contract id'),
     issuerUserId: session.User.id,
+    sessionId: session.id,
+    ip: requestClientIp(request),
+    userAgent: request.headers.get('user-agent'),
   }))
 })

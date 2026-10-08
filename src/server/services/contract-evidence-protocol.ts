@@ -58,10 +58,11 @@ export function canonicalContractSnapshot(input: {
   partyCommitment: string
   issuedAt: Date
   signedAt: Date
+  snapshotHash?: string | null
 }) {
   return JSON.stringify({
     protocol: CONTRACT_EVIDENCE_PROTOCOL,
-    version: CONTRACT_EVIDENCE_PROTOCOL_VERSION,
+    version: input.snapshotHash ? 2 : CONTRACT_EVIDENCE_PROTOCOL_VERSION,
     installationId: input.installationId,
     contractId: input.contractId,
     titleHash: contractTitleHash(input.title),
@@ -70,6 +71,7 @@ export function canonicalContractSnapshot(input: {
     partyCommitment: input.partyCommitment,
     issuedAt: input.issuedAt.toISOString(),
     signedAt: input.signedAt.toISOString(),
+    ...(input.snapshotHash ? { snapshotHash: input.snapshotHash } : {}),
   })
 }
 
@@ -85,10 +87,11 @@ export function canonicalContractEvidenceMemo(input: {
   attachmentHash: string | null
   network: SolanaNetwork
   signer: string
+  snapshotHash?: string | null
 }) {
   return JSON.stringify({
     protocol: CONTRACT_EVIDENCE_PROTOCOL,
-    version: CONTRACT_EVIDENCE_PROTOCOL_VERSION,
+    version: input.snapshotHash ? 2 : CONTRACT_EVIDENCE_PROTOCOL_VERSION,
     installationId: input.installationId,
     contractId: input.contractId,
     contractHash: input.contractHash,
@@ -96,5 +99,6 @@ export function canonicalContractEvidenceMemo(input: {
     attachmentHash: input.attachmentHash,
     network: input.network,
     signer: input.signer,
+    ...(input.snapshotHash ? { snapshotHash: input.snapshotHash } : {}),
   })
 }
