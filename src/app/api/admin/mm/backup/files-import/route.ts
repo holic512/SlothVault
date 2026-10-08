@@ -12,6 +12,7 @@ import { requireAdminSession } from '@/server/auth/session'
 import { HttpError } from '@/server/http/errors'
 import { defineRoute } from '@/server/http/handler'
 import { apiOk } from '@/server/http/response'
+import { assertBackupIdle } from '@/server/services/admin-backup/complete'
 import {
   assertRequestContentLength,
   FILES_IMPORT_CONTENT_LENGTH_MAX_BYTES,
@@ -25,6 +26,7 @@ export const runtime = 'nodejs'
 
 export const POST = defineRoute(async (request) => {
   await requireAdminSession(request)
+  await assertBackupIdle()
   assertRequestContentLength(request, FILES_IMPORT_CONTENT_LENGTH_MAX_BYTES)
   const contentType = request.headers.get('content-type')?.toLowerCase() || ''
   if (!contentType.startsWith('multipart/form-data')) {

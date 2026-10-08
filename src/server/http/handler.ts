@@ -167,14 +167,20 @@ export function defineRoute<Params extends Record<string, unknown> = Record<stri
       options.lockMode && options.lockMode !== 'auto'
         ? options.lockMode
         : methodLockMode(request.method)
-    const release = await acquireMaintenanceLock(mode)
-    const response = await executeRoute(handler, request, context)
+    const response = await executeRoute(async (lockedRequest, lockedContext) => {
+      const release = await acquireMaintenanceLock(mode)
+      let retained = false
+      try {
+        const result = await handler(lockedRequest, lockedContext)
+        if (options.holdLockUntilBodyClosed) {
+          const streamed = responseWithLockRelease(result, release)
+          retained = true
+          return streamed
+        }
+        return result
+      } finally { if (!retained) release() }
+    }, request, context)
     if (options.cacheControl) response.headers.set('Cache-Control', options.cacheControl)
-
-    if (options.holdLockUntilBodyClosed) {
-      return responseWithLockRelease(response, release)
-    }
-    release()
     return response
   }
 }

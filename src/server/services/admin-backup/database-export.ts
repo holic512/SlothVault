@@ -2,8 +2,8 @@
  * @file database-export.ts
  * @project SlothVault
  * @module Admin Database Backup Export
- * @description Exports a relation-closed portable 2.9 snapshot of membership entitlements, articles, project content, accounts, contracts, configuration, and transaction evidence.
- * @logic Read one repeatable transaction snapshot, retain member access and independent articles, close project relations, serialize evidence BigInts and frozen contract identity, then validate the portable result.
+ * @description Exports a relation-closed portable 2.10 complete snapshot of membership entitlements, articles, project content, accounts, contracts, configuration, and transaction evidence.
+ * @logic Read one repeatable transaction snapshot, retain member access and independent articles, include trash and disabled file records, serialize evidence BigInts and frozen contract identity, then validate the portable result.
  * @dependencies database unit-of-work, Prisma, HTTP JSON serialization, backup schema and validation
  * @index_tags admin,backup,database,export,snapshot,relations
  * @author holic512
@@ -13,52 +13,19 @@ import { exportCommissionCollections } from '@/server/commissions/backup'
 
 import { databaseSnapshotIsolationLevel } from '@/server/database/client'
 import { unitOfWork } from '@/server/database/unit-of-work'
+import { HttpError } from '@/server/http/errors'
 import { toJsonSafe } from '@/server/http/response'
 
 import {
+  DATABASE_BACKUP_VERSION,
+  DATABASE_IMPORT_CONTENT_LENGTH_MAX_BYTES,
+  RESTORE_COMMIT_CONFIG_KEY,
   DATABASE_TRANSACTION_MAX_WAIT_MS,
   DATABASE_TRANSACTION_TIMEOUT_MS,
   DEPRECATED_CONFIG_KEYS,
 } from './constants'
 import { backupDataSchema } from './database-schema'
 import { validateBackupRelations } from './database-validation'
-
-function relationClosedMenus<T extends {
-  id: number
-  parentId: number | null
-  projectId: number
-}>(menus: T[]) {
-  const byId = new Map(menus.map((menu) => [menu.id.toString(), menu]))
-  const decisions = new Map<string, boolean>()
-
-  const belongsToActiveRoot = (menu: T, visiting: Set<string>): boolean => {
-    const id = menu.id.toString()
-    const decided = decisions.get(id)
-    if (decided !== undefined) return decided
-    if (!menu.parentId) {
-      decisions.set(id, true)
-      return true
-    }
-    if (visiting.has(id)) {
-      decisions.set(id, false)
-      return false
-    }
-
-    const parent = byId.get(menu.parentId.toString())
-    if (!parent || parent.projectId !== menu.projectId) {
-      decisions.set(id, false)
-      return false
-    }
-
-    const nextVisiting = new Set(visiting)
-    nextVisiting.add(id)
-    const included = belongsToActiveRoot(parent, nextVisiting)
-    decisions.set(id, included)
-    return included
-  }
-
-  return menus.filter((menu) => belongsToActiveRoot(menu, new Set()))
-}
 
 export async function exportDatabaseBackup() {
   const exportedAt = new Date().toISOString()
@@ -78,45 +45,44 @@ export async function exportDatabaseBackup() {
       tx.giftCard.findMany(),
       tx.membershipLevel.findMany(),
       tx.membershipGrant.findMany(),
-      tx.article.findMany({ where: { isDeleted: false }, include: { allowedMemberships: true } }),
+      tx.article.findMany({ include: { allowedMemberships: true } }),
     ])
-    const projects = await tx.project.findMany({ where: { isDeleted: false }, include: { readMemberships: true, downloadMemberships: true } })
+    const projects = await tx.project.findMany({ include: { readMemberships: true, downloadMemberships: true } })
     const projectIds = projects.map((item) => item.id)
 
     const [projectVersions, candidateMenus, projectHomes] =
       await Promise.all([
         tx.projectVersion.findMany({
-          where: { isDeleted: false, projectId: { in: projectIds } },
+          where: { projectId: { in: projectIds } },
         }),
         tx.projectMenu.findMany({
-          where: { isDeleted: false, projectId: { in: projectIds } },
+          where: { projectId: { in: projectIds } },
         }),
         tx.projectHome.findMany({
-          where: { isDeleted: false, projectId: { in: projectIds } },
+          where: { projectId: { in: projectIds } },
         }),
       ])
 
-    const projectMenus = relationClosedMenus(candidateMenus)
+    const projectMenus = candidateMenus
     const projectVersionIds = projectVersions.map((item) => item.id)
     const categories = await tx.category.findMany({
       where: {
-        isDeleted: false,
         projectVersionId: { in: projectVersionIds },
       },
     })
     const categoryIds = categories.map((item) => item.id)
     const noteInfos = await tx.noteInfo.findMany({
-      where: { isDeleted: false, categoryId: { in: categoryIds } },
+      where: { categoryId: { in: categoryIds } },
     })
     const noteInfoIds = noteInfos.map((item) => item.id)
     const noteContents = await tx.noteContent.findMany({
-      where: { isDeleted: false, noteInfoId: { in: noteInfoIds } },
+      where: { noteInfoId: { in: noteInfoIds } },
     })
 
     const [fileManagements, systemConfigs, systemHomepages, releaseCredentials, contracts] = await Promise.all([
-      tx.fileManagement.findMany({ where: { status: 1 } }),
-      tx.systemConfig.findMany(),
-      tx.systemHomepage.findMany({ where: { isDeleted: false } }),
+      tx.fileManagement.findMany(),
+      tx.systemConfig.findMany({ where: { configKey: { not: RESTORE_COMMIT_CONFIG_KEY } } }),
+      tx.systemHomepage.findMany(),
       tx.releaseCredential.findMany({ where: { projectVersionId: { in: projectVersionIds } } }),
       tx.contract.findMany(),
     ])
@@ -365,9 +331,9 @@ export async function exportDatabaseBackup() {
   void _legacyMerkleTrees
   void _legacyCompressedNfts
 
-  return {
-    version: '2.9.0',
-    exportedAt,
-    data: activeData,
+  const backup = { version: DATABASE_BACKUP_VERSION, exportedAt, data: activeData }
+  if (Buffer.byteLength(JSON.stringify(backup), 'utf8') > DATABASE_IMPORT_CONTENT_LENGTH_MAX_BYTES) {
+    throw new HttpError('Database backup exceeds the 50MB limit', 413, 413)
   }
+  return backup
 }

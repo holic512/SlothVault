@@ -1569,10 +1569,24 @@
 .root :global(.backup-grid) {
   display: grid;
   min-height: 0;
-  flex: 1;
+  flex: 0 0 auto;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto auto;
   gap: 10px;
+}
+
+.root :global(.backup-complete-actions) {
+  margin: 12px 0;
+}
+
+.root :global(.backup-storage-path) {
+  overflow-wrap: anywhere;
+}
+
+.root :global(.backup-schedule-fields) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
 }
 
 .root :global(.backup-card-next) {

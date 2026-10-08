@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { open, stat } from 'node:fs/promises'
 
 import {
   isAbsolute,
@@ -42,7 +43,7 @@ function isZipSignature(buffer: Buffer) {
   return signature === 0x04034b50 || signature === 0x06054b50
 }
 
-function preflightZipCentralDirectory(buffer: Buffer) {
+function preflightZipCentralDirectory(buffer: Buffer, baseOffset = 0) {
   const minimumOffset = Math.max(0, buffer.length - (65_535 + 22))
   let endOffset = -1
   for (let offset = buffer.length - 22; offset >= minimumOffset; offset -= 1) {
@@ -84,7 +85,7 @@ function preflightZipCentralDirectory(buffer: Buffer) {
   if (numberOfRecords > ZIP_ENTRY_LIMIT) {
     throw new HttpError(`ZIP entry count exceeds ${ZIP_ENTRY_LIMIT}`, 400, 400)
   }
-  if (centralOffset + centralSize > endOffset) {
+  if (centralOffset + centralSize > endOffset + baseOffset) {
     throw new HttpError('Invalid ZIP central directory bounds', 400, 400)
   }
 
@@ -170,6 +171,32 @@ export async function validateZipArchive(buffer: Buffer) {
     throw new HttpError('Invalid ZIP archive', 400, 400)
   }
 
+  return validateZipDirectory(directory, preflight)
+}
+
+export async function validateZipFile(path: string, maxBytes = ZIP_FILE_MAX_BYTES) {
+  const size = (await stat(path)).size
+  if (size > maxBytes) throw new HttpError('ZIP file exceeds the size limit', 413, 413)
+  if (size < 22) throw new HttpError('Invalid ZIP archive', 400, 400)
+  const handle = await open(path, 'r')
+  let tail: Buffer
+  let baseOffset: number
+  try {
+    const signature = Buffer.alloc(4)
+    await handle.read(signature, 0, 4, 0)
+    if (!isZipSignature(signature)) throw new HttpError('Invalid ZIP archive', 400, 400)
+    baseOffset = Math.max(0, size - 65_557)
+    tail = Buffer.alloc(size - baseOffset)
+    const read = await handle.read(tail, 0, tail.length, baseOffset)
+    if (read.bytesRead !== tail.length) throw new HttpError('Invalid ZIP archive', 400, 400)
+  } finally { await handle.close() }
+  const preflight = preflightZipCentralDirectory(tail, baseOffset)
+  let directory: Awaited<ReturnType<typeof unzipper.Open.file>>
+  try { directory = await unzipper.Open.file(path) } catch { throw new HttpError('Invalid ZIP archive', 400, 400) }
+  return validateZipDirectory(directory, preflight)
+}
+
+function validateZipDirectory(directory: Awaited<ReturnType<typeof unzipper.Open.buffer>>, preflight: ReturnType<typeof preflightZipCentralDirectory>) {
   if (
     directory.diskNumber !== 0 ||
     directory.diskStart !== 0 ||

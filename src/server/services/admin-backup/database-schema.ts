@@ -2,7 +2,7 @@
  * @file database-schema.ts
  * @project SlothVault
  * @module Admin Database Backup Schema
- * @description Defines the portable 2.9 database-backup shape with membership entitlements, independent articles, contracts, project-version evidence, and legacy cNFT input compatibility.
+ * @description Defines the portable 2.10 database-backup shape with membership entitlements, independent articles, contracts, project-version evidence, and legacy cNFT input compatibility.
  * @logic Validate active collections strictly, retain member access and standalone blog content, accept deprecated Tree/cNFT arrays only for ignore accounting, and retain prior import envelopes.
  * @dependencies Zod, Node path rules, backup constants
  * @index_tags admin,backup,database,schema,zod,portable
@@ -552,7 +552,7 @@ export const backupDataSchema = z.object({
 export const databaseImportPayloadSchema = z.object({
   data: backupDataSchema,
   mode: z.enum(['insert', 'overwrite']).optional().default('insert'),
-  version: z.enum(['2.0.0', '2.1.0', '2.2.0', '2.3.0', '2.4.0', '2.5.0', '2.6.0', '2.7.0', '2.8.0', '2.9.0']).optional().default('2.0.0'),
+  version: z.enum(['2.0.0', '2.1.0', '2.2.0', '2.3.0', '2.4.0', '2.5.0', '2.6.0', '2.7.0', '2.8.0', '2.9.0', '2.10.0']).optional().default('2.0.0'),
   ignoredLegacyContracts: z.number().int().nonnegative().optional().default(0),
 }).strict()
 

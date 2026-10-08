@@ -2,15 +2,16 @@
  * @file instrumentation-node.ts
  * @project SlothVault
  * @module Server Bootstrap
- * @description Initializes private storage, optionally bootstraps a Compose-managed database, applies committed migrations, and starts the selected database runtime before serving traffic.
- * @logic Persist the master key, materialize an opt-in Compose connection before normal startup, acquire the SQLite single-instance lock when needed, migrate the configured schema, and fail startup on unsafe version drift.
- * @dependencies master-key, database/compose-bootstrap, database/config-store, database/client, database/migrations, sqlite-instance-lock
- * @index_tags nodejs,startup,migrations,master-key,sqlite,compose,single-instance
+ * @description Initializes persistence, migrates the configured database, resolves interrupted restores, and registers local automatic backups before serving traffic.
+ * @logic Persist the master key, bootstrap opt-in Compose storage, migrate and lock SQLite when needed, preserve unresolved restore evidence, and register one backup scheduler outside builds.
+ * @dependencies master-key, database/compose-bootstrap, database/config-store, database/client, database/migrations, sqlite-instance-lock, backup scheduler
+ * @index_tags nodejs,startup,migrations,master-key,sqlite,compose,single-instance,backup,recovery
  * @author holic512
  */
 import 'server-only'
 
 import { getMasterKey } from '@/server/config/master-key'
+import { initializeBackupRuntime } from '@/server/services/admin-backup/scheduler'
 import {
   DatabaseConfigurationError,
   readDatabaseConfiguration,
@@ -36,7 +37,7 @@ export async function initializeNodeRuntime() {
   try {
     configuration = readDatabaseConfiguration()
   } catch (error) {
-    if (error instanceof DatabaseConfigurationError) return
+    if (error instanceof DatabaseConfigurationError) { await initializeBackupRuntime(); return }
     throw error
   }
 
@@ -53,4 +54,5 @@ export async function initializeNodeRuntime() {
       throw error
     }
   }
+  await initializeBackupRuntime()
 }

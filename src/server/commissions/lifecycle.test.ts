@@ -9,7 +9,7 @@ import type { AppPrismaClient } from '@/server/database/client'
 import type { CommissionActor, CommissionCommand } from './input'
 const fixture = vi.hoisted(() => ({ client: null as unknown as AppPrismaClient, root: `/tmp/slothvault-commissions-tests-${process.pid}-${Date.now()}`, queue: Promise.resolve() }))
 vi.mock('next/cache', async (load) => ({ ...await load<typeof import('next/cache')>(), revalidateTag: vi.fn() }))
-vi.mock('@/server/database/client', () => ({ databaseSnapshotIsolationLevel: () => undefined }))
+vi.mock('@/server/database/client', () => ({ configuredDatabaseProvider: () => 'sqlite', databaseSnapshotIsolationLevel: () => undefined }))
 vi.mock('@/server/prisma', () => ({ prisma: new Proxy({}, { get: (_target, key) => { const v = Reflect.get(fixture.client, key, fixture.client); return typeof v === 'function' ? v.bind(fixture.client) : v } }) }))
 vi.mock('@/server/database/unit-of-work', () => ({ unitOfWork: { execute: async (fn: Parameters<AppPrismaClient['$transaction']>[0]) => {
   const previous = fixture.queue
@@ -162,7 +162,7 @@ describe('private commission lifecycle with real SQLite transactions', () => {
     await command({ action: 'delivery.create', version: 'v1', kind: 'FINAL', note: '', testInstructions: '运行应用', items: [{ fileId: Number(d.files[0].id), label: '源码', versionNote: 'v1' }] })
     await command({ action: 'delivery.publish', id: Number(d.deliveries[0].id) })
     await saveCommissionSettings({ provider: { Name: '开发方' }, calendar: { holidays: ['2026-10-09'], workdays: [] } }); expect((await getCommissionSettings()).provider.Name).toBe('开发方')
-    const backup = await exportDatabaseBackup(); expect(backup.version).toBe('2.9.0')
+    const backup = await exportDatabaseBackup(); expect(backup.version).toBe('2.10.0')
     const payload = parseDatabaseImportPayload({ version: backup.version, data: backup.data, mode: 'overwrite' })
     await importDatabaseBackup(payload)
     const restored = await fixture.client.commission.findUniqueOrThrow({ where: { commissionId: d.commissionId } }); expect(restored.id).not.toBe(Number(d.id))

@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { backupRecoveryError } from '@/server/services/admin-backup/recovery-state'
 
 import { getDatabaseClient } from '@/server/database/client'
 import { readInstallationPublicStatus } from '@/server/database/installation-state'
@@ -78,6 +79,8 @@ async function probeInstalledDatabase(
 
 export async function readRuntimeInstallationPublicStatus() {
   const local = readInstallationPublicStatus()
+  const recoveryError = backupRecoveryError()
+  if (recoveryError) return maintenanceStatus(local, recoveryError)
   if (local.status !== 'INSTALLED') {
     globalForRuntimeHealth.slothVaultRuntimeHealth = undefined
     globalForRuntimeHealth.slothVaultRuntimeHealthProbe = undefined

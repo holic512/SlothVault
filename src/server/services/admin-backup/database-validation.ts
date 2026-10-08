@@ -19,6 +19,11 @@ import { extractManagedFiles, managedUploadPath } from '@/lib/managed-files'
 import { CONFIG_KEYS } from '@/server/services/system-config'
 
 import {
+  ACTIVE_BACKUP_COLLECTION_KEYS,
+  DATABASE_BACKUP_VERSION,
+  RESTORE_COMMIT_CONFIG_KEY,
+  hasCommissionContracts,
+  hasMembershipPolicies,
   BACKUP_COLLECTION_KEYS,
   DATABASE_RECORD_LIMIT,
 } from './constants'
@@ -446,7 +451,7 @@ export function validateBackupRelations(data: BackupData) {
 
 export function parseDatabaseImportPayload(input: unknown): DatabaseImportPayload {
   let sourceInput = input
-  if (input && typeof input === 'object' && 'data' in input && input.data && typeof input.data === 'object' && !('version' in input && input.version === '2.9.0')) {
+  if (input && typeof input === 'object' && 'data' in input && input.data && typeof input.data === 'object' && !('version' in input && typeof input.version === 'string' && hasCommissionContracts(input.version))) {
     const data = input.data as Record<string, unknown>
     sourceInput = { ...input, ignoredLegacyContracts: Array.isArray(data.contracts) ? data.contracts.length : 0, data: { ...data, contracts: [], contractAdminAudits: [], contractCredentials: [], contractCredentialAttempts: [] } }
   }
@@ -458,9 +463,9 @@ export function parseDatabaseImportPayload(input: unknown): DatabaseImportPayloa
   }
 
   // Defaults are for older formats; an incomplete current backup must not silently open protected content.
-  if (['2.8.0', '2.9.0'].includes(parsed.data.version)) {
+  if (hasMembershipPolicies(parsed.data.version)) {
     const source = input as { data: { projects: Record<string, unknown>[]; articles?: Record<string, unknown>[] } }
-    for (const project of source.data.projects) {
+    for (const project of source.data.projects ?? []) {
       for (const key of ['readAccessMode', 'downloadAccessMode', 'readMembershipLevelIds', 'downloadMembershipLevelIds']) {
         if (project[key] === undefined) invalidBackup(`2.8.0 project policy is missing ${key}`)
       }
@@ -478,6 +483,15 @@ export function parseDatabaseImportPayload(input: unknown): DatabaseImportPayloa
       version.manifestVersion = null
       version.publishedAt = null
     }
+  }
+  if (parsed.data.version === DATABASE_BACKUP_VERSION) {
+    const source = (input as { data: Record<string, unknown> }).data
+    for (const key of ACTIVE_BACKUP_COLLECTION_KEYS) {
+      if (!Array.isArray(source[key])) invalidBackup(`complete backup is missing ${key}`)
+    }
+  }
+  if (parsed.data.data.systemConfigs.some((item) => item.configKey === RESTORE_COMMIT_CONFIG_KEY)) {
+    invalidBackup('restore control metadata cannot be imported')
   }
   validateBackupRelations(parsed.data.data)
   return parsed.data

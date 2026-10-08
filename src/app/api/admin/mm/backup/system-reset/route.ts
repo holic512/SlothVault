@@ -16,6 +16,7 @@ import { defineRoute } from '@/server/http/handler'
 import { readJson } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
 import { resetSystem } from '@/server/services/admin-backup'
+import { assertBackupIdle } from '@/server/services/admin-backup/complete'
 
 const resetSchema = z.object({
   confirm: z.unknown().optional(),
@@ -28,6 +29,7 @@ export const runtime = 'nodejs'
 
 export const POST = defineRoute(async (request) => {
   await requireAdminSession(request)
+  await assertBackupIdle()
   const body = await readJson(request, resetSchema)
   if (body.confirm !== 'RESET_ALL_DATA') {
     throw new HttpError(

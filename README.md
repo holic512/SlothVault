@@ -213,6 +213,7 @@ flowchart LR
 | --- | --- |
 | `APP_DATA_PATH` | 应用配置和本地数据库目录；本地默认 `<cwd>/data`，容器默认 `/app/data`。 |
 | `UPLOAD_STORAGE_PATH` | 受控上传目录；本地默认 `<cwd>/data/uploads`，容器默认 `/app/data/uploads`。 |
+| `BACKUP_STORAGE_PATH` | 完整备份的独立本地存储目录；默认 `${APP_DATA_PATH}/backups`，可挂载独立磁盘。 |
 | `ENCRYPTION_KEY` | 配置加密主密钥；未提供时系统会在配置目录生成持久化密钥。 |
 | `SOLANA_RPC_URL` | Mainnet 主 RPC 的环境回退值；建议在后台敏感设置中维护实际地址。 |
 | `SOLANA_MAINNET_RPC_FALLBACK` | Mainnet 备用 RPC。 |
@@ -228,7 +229,7 @@ flowchart LR
 
 对外集成拆分为独立的 [MCP Client](./integrations/mcp-client/)、[Skill](./integrations/skill/) 和 [Deployment](./integrations/deployment/) 包，分别使用 `mcp-client-v*`、`skill-v*` 和 `deployment-v*` Release。三个包各自从 `1.0.0` 起步，归档与清单包含独立版本、协议主版本及 SHA-256。Python MCP 脚本和部署脚本可从源码运行，Skill 可手动复制；SlothTool 负责统一安装、更新、TUI 和 `slothtool sv` 分发。受 Bearer Key 保护的 `GET /mcp/compatibility` 声明最低客户端版本与 MCP 协议支持范围。跨仓库架构、接口和更新步骤见 [integrations 文档](./integrations/ARCHITECTURE.md)。旧 `toolkit-v*` 整包不再发布。仅修改集成包不递增应用版本，也不触发 Docker 镜像发布；应用内 `/mcp` 路由和注册表仍随业务服务留在 `src/server/mcp/`。
 
-上传文件不进入 `public/`。数据库 JSON 与上传 ZIP 可独立导出、严格校验并恢复；备份包含账户、密码哈希、内容、积分、卡密哈希和存证索引，应按敏感数据管理。
+上传文件不进入 `public/`。后台提供包含数据库与附件的完整 ZIP、恢复预检、恢复前保护备份和任务历史，保留回收站、停用文件、会员权限及委托/合同/发布存证。自动备份默认关闭；手动开启后默认每天 `Asia/Shanghai` 时间 03:00 执行，保留 7 份成功自动备份。数据库 JSON 与上传 ZIP 仍可独立操作。备份包含账户、密码哈希、个人资料、积分和卡密哈希，应按敏感数据管理；部署、覆盖范围、账号保留规则及中断恢复见 [本地完整备份与恢复](./docs/BACKUP_AND_RESTORE.md)。
 
 ## 项目结构
 

@@ -140,11 +140,11 @@ describe('project permissions, file references and portable backup', () => {
     expect(await resolveProjectAccess(s.projectId, viewer)).toMatchObject({ canRead: true, canDownload: false })
     expect(await client.pointTransaction.count({ where: { userId: viewer.userId } })).toBe(2)
   })
-  it('preserves explicit permissions, grant dates, references and hashes through 2.8 export and overwrite restore', async () => {
+  it('preserves explicit permissions, grant dates, references and hashes through 2.10 export and overwrite restore', async () => {
     const s = await seed()
     await client.$transaction(tx => rebuildFileReferences(tx))
     const backup = await exportDatabaseBackup()
-    expect(backup.version).toBe('2.8.0')
+    expect(backup.version).toBe('2.10.0')
     const parsed = parseDatabaseImportPayload({ data: backup.data, version: backup.version, mode: 'overwrite' })
     await importDatabaseBackup(parsed)
     const restored = await exportDatabaseBackup()

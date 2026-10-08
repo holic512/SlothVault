@@ -62,7 +62,7 @@ async function createStagingDirectory(prefix: string) {
   return stagingDirectory
 }
 
-async function extractZipToStaging(entries: ValidatedZipEntry[], stagingDirectory: string) {
+export async function extractZipToStaging(entries: ValidatedZipEntry[], stagingDirectory: string) {
   let actualTotal = 0
   let filesImported = 0
 
@@ -81,6 +81,10 @@ async function extractZipToStaging(entries: ValidatedZipEntry[], stagingDirector
         const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
         entryBytes += buffer.length
         actualTotal += buffer.length
+        if (entryBytes > item.declaredSize) {
+          callback(new HttpError('ZIP entry size or checksum mismatch', 400, 400))
+          return
+        }
         if (entryBytes > ZIP_ENTRY_MAX_BYTES) {
           callback(new HttpError('ZIP entry exceeds the size limit', 400, 400))
           return

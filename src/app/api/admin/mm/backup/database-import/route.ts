@@ -12,6 +12,7 @@ import { requireAdminSession } from '@/server/auth/session'
 import { HttpError } from '@/server/http/errors'
 import { defineRoute } from '@/server/http/handler'
 import { apiOk } from '@/server/http/response'
+import { assertBackupIdle } from '@/server/services/admin-backup/complete'
 import {
   assertRequestContentLength,
   DATABASE_IMPORT_CONTENT_LENGTH_MAX_BYTES,
@@ -23,7 +24,8 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export const POST = defineRoute(async (request) => {
-  await requireAdminSession(request)
+  const session = await requireAdminSession(request)
+  await assertBackupIdle()
   assertRequestContentLength(request, DATABASE_IMPORT_CONTENT_LENGTH_MAX_BYTES)
 
   let body: unknown
@@ -40,10 +42,10 @@ export const POST = defineRoute(async (request) => {
 
   const payload = parseDatabaseImportPayload(body)
   try {
-    return apiOk(await importDatabaseBackup(payload))
+    return apiOk(await importDatabaseBackup(payload, { actorUserId: session.userId, preserveSessionId: session.id, replaceUsers: payload.mode === 'overwrite' }))
   } catch (error) {
     if (error instanceof HttpError) throw error
-    console.error('[backup] Database import failed', error)
+    console.error('[backup] Database import failed')
     throw new HttpError('Database import failed', 500, 500)
   }
 })

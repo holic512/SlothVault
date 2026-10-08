@@ -9,6 +9,8 @@
  * @author holic512
  */
 import 'server-only'
+import { HttpError } from '@/server/http/errors'
+import { backupRecoveryError } from './admin-backup/recovery-state'
 
 export type MaintenanceLockMode = 'shared' | 'exclusive'
 
@@ -17,6 +19,7 @@ type ReleaseLock = () => void
 type LockWaiter = {
   mode: MaintenanceLockMode
   resolve: (release: ReleaseLock) => void
+  reject: (error: Error) => void
 }
 
 class MaintenanceLock {
@@ -25,14 +28,18 @@ class MaintenanceLock {
   private readonly queue: LockWaiter[] = []
 
   acquire(mode: MaintenanceLockMode): Promise<ReleaseLock> {
-    return new Promise((resolve) => {
-      this.queue.push({ mode, resolve })
+    return new Promise((resolve, reject) => {
+      this.queue.push({ mode, resolve, reject })
       this.drain()
     })
   }
 
   private drain() {
     if (this.writerActive) return
+    if (backupRecoveryError()) {
+      for (const waiter of this.queue.splice(0)) waiter.reject(new HttpError('Backup recovery requires maintenance', 503, 503))
+      return
+    }
 
     const first = this.queue[0]
     if (!first) return

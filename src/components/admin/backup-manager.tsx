@@ -4,9 +4,9 @@
  * @file backup-manager.tsx
  * @project SlothVault
  * @module Backup Administration
- * @description Provides explicit export, transactional import, file restore, and typed reset confirmation flows.
- * @logic Download authenticated artifacts, stage selected restore files, require elevated confirmation for overwrite/reset, and surface server validation failures.
- * @dependencies Ant Design, next-intl, api-client, browser Blob/File APIs
+ * @description Combines complete local backups and protected restores with the existing independent database/file and reset flows.
+ * @logic Poll durable complete operations, disable conflicting actions, download bounded artifacts, and require explicit overwrite/reset confirmation.
+ * @dependencies complete-backup-manager, Ant Design, next-intl, api-client, browser Blob/File APIs
  * @index_tags admin,backup,restore,reset,download
  * @author holic512
  */
@@ -36,6 +36,7 @@ import {
 import { useTranslations } from 'next-intl'
 
 import { AdminPage } from '@/components/admin/admin-page'
+import { CompleteBackupManager } from '@/components/admin/complete-backup-manager'
 import { formatAdminError } from '@/lib/admin-localization'
 import { apiFetch } from '@/lib/api-client'
 
@@ -59,6 +60,8 @@ export function BackupManager() {
   const [databaseMode, setDatabaseMode] = useState<ImportMode>('insert')
   const [filesMode, setFilesMode] = useState<ImportMode>('insert')
   const [busy, setBusy] = useState<string | null>(null)
+  const [completeBusy, setCompleteBusy] = useState(false)
+  const disabled = Boolean(busy || completeBusy)
   const [resetOpen, setResetOpen] = useState(false)
   const [resetPhrase, setResetPhrase] = useState('')
   const [clearDatabase, setClearDatabase] = useState(true)
@@ -69,7 +72,7 @@ export function BackupManager() {
     try {
       const backup = await apiFetch<unknown>('/api/admin/mm/backup/database-export')
       downloadBlob(
-        new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }),
+        new Blob([JSON.stringify(backup)], { type: 'application/json' }),
         `slothvault-database-${new Date().toISOString().replaceAll(':', '-')}.json`,
       )
       message.success(t('messages.dbExportSuccess'))
@@ -194,6 +197,8 @@ export function BackupManager() {
     <AdminPage>
       <Alert showIcon type="warning" title={t('warning.title')} description={t('warning.content')} />
 
+      <CompleteBackupManager externalBusy={Boolean(busy)} onBusyChange={setCompleteBusy} />
+
       <div className="backup-grid">
         <BackupCard
           icon={<DatabaseBackup />}
@@ -202,12 +207,13 @@ export function BackupManager() {
         >
           <div className="backup-action-row">
             <span><Download size={15} />{t('database.export')}</span>
-            <Button loading={busy === 'db-export'} onClick={() => void exportDatabase()}>
+            <Button disabled={disabled} loading={busy === 'db-export'} onClick={() => void exportDatabase()}>
               {t('actions.exportDb')}
             </Button>
           </div>
           <div className="backup-action-row">
             <Segmented
+              disabled={disabled}
               value={databaseMode}
               onChange={(value) => setDatabaseMode(value as ImportMode)}
               options={[
@@ -216,6 +222,7 @@ export function BackupManager() {
               ]}
             />
             <Upload
+              disabled={disabled}
               accept="application/json,.json"
               maxCount={1}
               showUploadList={false}
@@ -224,7 +231,7 @@ export function BackupManager() {
                 return Upload.LIST_IGNORE
               }}
             >
-              <Button loading={busy === 'db-import'} icon={<UploadCloud size={14} />}>
+              <Button disabled={disabled} loading={busy === 'db-import'} icon={<UploadCloud size={14} />}>
                 {t('actions.importDb')}
               </Button>
             </Upload>
@@ -238,12 +245,13 @@ export function BackupManager() {
         >
           <div className="backup-action-row">
             <span><Download size={15} />{t('files.export')}</span>
-            <Button loading={busy === 'files-export'} onClick={() => void exportFiles()}>
+            <Button disabled={disabled} loading={busy === 'files-export'} onClick={() => void exportFiles()}>
               {t('actions.exportFiles')}
             </Button>
           </div>
           <div className="backup-action-row">
             <Segmented
+              disabled={disabled}
               value={filesMode}
               onChange={(value) => setFilesMode(value as ImportMode)}
               options={[
@@ -252,6 +260,7 @@ export function BackupManager() {
               ]}
             />
             <Upload
+              disabled={disabled}
               accept="application/zip,.zip"
               maxCount={1}
               showUploadList={false}
@@ -260,7 +269,7 @@ export function BackupManager() {
                 return Upload.LIST_IGNORE
               }}
             >
-              <Button loading={busy === 'files-import'} icon={<UploadCloud size={14} />}>
+              <Button disabled={disabled} loading={busy === 'files-import'} icon={<UploadCloud size={14} />}>
                 {t('actions.importFiles')}
               </Button>
             </Upload>
@@ -275,7 +284,7 @@ export function BackupManager() {
         >
           <div className="backup-action-row">
             <span><RotateCcw size={15} />{t('reset.action')}</span>
-            <Button danger type="primary" onClick={() => setResetOpen(true)}>
+            <Button danger type="primary" disabled={disabled} onClick={() => setResetOpen(true)}>
               {t('actions.reset')}
             </Button>
           </div>
@@ -290,7 +299,7 @@ export function BackupManager() {
         okButtonProps={{
           danger: true,
           disabled:
-            resetPhrase !== 'RESET_ALL_DATA' || (!clearDatabase && !clearFiles),
+            disabled || resetPhrase !== 'RESET_ALL_DATA' || (!clearDatabase && !clearFiles),
         }}
         confirmLoading={busy === 'reset'}
         onCancel={() => setResetOpen(false)}

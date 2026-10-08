@@ -21,6 +21,10 @@ export const ZIP_ENTRY_LIMIT = 10_000
 export const ZIP_ENTRY_MAX_BYTES = 256 * 1024 * 1024
 export const ZIP_TOTAL_UNCOMPRESSED_MAX_BYTES = 1024 * 1024 * 1024
 export const ZIP_PATH_MAX_BYTES = 1024
+export const DATABASE_BACKUP_VERSION = '2.10.0' as const
+export const COMPLETE_BACKUP_MAX_BYTES = 320 * 1024 * 1024
+export const BACKUP_MANIFEST_MAX_BYTES = 16 * 1024 * 1024
+export const RESTORE_COMMIT_CONFIG_KEY = '__backup_restore_commit__'
 
 export const DATABASE_BIGINT_MAX = 9_223_372_036_854_775_807n
 export const INT_MIN = -2_147_483_648
@@ -62,6 +66,18 @@ export const BACKUP_COLLECTION_KEYS = [
   'merkleTrees',
   'compressedNfts',
 ] as const
+
+export const ACTIVE_BACKUP_COLLECTION_KEYS = BACKUP_COLLECTION_KEYS.filter(
+  (key) => key !== 'merkleTrees' && key !== 'compressedNfts',
+)
+
+export function hasMembershipPolicies(version: string) {
+  return ['2.8.0', '2.9.0', DATABASE_BACKUP_VERSION].includes(version)
+}
+
+export function hasCommissionContracts(version: string) {
+  return ['2.9.0', DATABASE_BACKUP_VERSION].includes(version)
+}
 
 export const DEPRECATED_CONFIG_KEYS = new Set([
   'solana_network',

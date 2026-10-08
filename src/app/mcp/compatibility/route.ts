@@ -3,8 +3,8 @@
  * @project SlothVault
  * @module MCP Client Compatibility API
  * @description Reports authenticated minimum client and supported protocol versions before MCP initialization.
- * @logic Apply the existing installation and Bearer Key checks, then publish non-secret compatibility metadata.
- * @dependencies Next.js, MCP SDK, mcp/authentication, mcp/server, database/runtime-health
+ * @logic Coordinate authentication writes with backups and restores, apply installation and Bearer Key checks, then publish non-secret compatibility metadata.
+ * @dependencies Next.js, MCP SDK, mcp/authentication, mcp/server, database/runtime-health, maintenance-lock
  * @index_tags mcp,compatibility,version,protocol,api
  * @author holic512
  */
@@ -13,6 +13,8 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 import { readRuntimeInstallationPublicStatus } from '@/server/database/runtime-health'
 import { authenticateMcpRequest } from '@/server/mcp/authentication'
+import { withMaintenanceLock } from '@/server/services/maintenance-lock'
+import { HttpError } from '@/server/http/errors'
 import {
   ADMIN_MCP_SERVER_NAME,
   ADMIN_MCP_SERVER_VERSION,
@@ -23,6 +25,15 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest) {
+  try { return await withMaintenanceLock('exclusive', () => compatibilityResponse(request)) }
+  catch (error) {
+    return NextResponse.json({ error: error instanceof HttpError && error.status === 503 ? 'MCP_UNAVAILABLE' : 'MCP_REQUEST_FAILED' }, {
+      status: error instanceof HttpError && error.status === 503 ? 503 : 500, headers: { 'cache-control': 'no-store' },
+    })
+  }
+}
+
+async function compatibilityResponse(request: NextRequest) {
   const installation = await readRuntimeInstallationPublicStatus()
   if (installation.status !== 'INSTALLED') {
     return NextResponse.json({ error: 'MCP_UNAVAILABLE' }, {

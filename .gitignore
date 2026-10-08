@@ -38,6 +38,7 @@ public/uploads
 data/uploads
 data/config
 data/database
+data/backups
 
 # Docker local persistent data
 docker-data/
