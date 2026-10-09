@@ -1566,27 +1566,57 @@
   line-height: 1.4;
 }
 
-.root :global(.backup-grid) {
-  display: grid;
-  min-height: 0;
-  flex: 0 0 auto;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: auto auto;
-  gap: 10px;
+.root :global(.backup-workspace),
+.root :global(.backup-panel-stack) {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.root :global(.backup-tabs) {
+  min-width: 0;
+}
+
+.root :global(.backup-tabs) > :global(.ant-tabs-nav) {
+  margin-bottom: 16px;
 }
 
 .root :global(.backup-complete-actions) {
-  margin: 12px 0;
+  margin: 16px 0 12px;
 }
 
 .root :global(.backup-storage-path) {
   overflow-wrap: anywhere;
 }
 
-.root :global(.backup-schedule-fields) {
+.root :global(.backup-schedule-form),
+.root :global(.backup-transfer-form) {
+  width: 100%;
+  max-width: 720px;
+}
+
+.root :global(.backup-schedule-fields),
+.root :global(.backup-transfer-fields) {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 24px;
+}
+
+.root :global(.backup-schedule-fields) :global(.ant-input-number) {
+  width: 100%;
+}
+
+.root :global(.backup-table-filter) {
+  margin-bottom: 16px;
+}
+
+.root :global(.backup-table-filter) :global(.ant-select) {
+  min-width: 180px;
+}
+
+.root :global(.backup-transfer-hint) {
+  margin: 12px 0 16px;
 }
 
 .root :global(.backup-card-next) {
@@ -1603,7 +1633,6 @@
 }
 
 .root :global(.backup-card-next):global(.is-danger) {
-  grid-column: 1 / -1;
   border-color: color-mix(in srgb, var(--sv-danger) 36%, var(--sv-border)) !important;
   background: color-mix(in srgb, var(--sv-danger) 4%, var(--sv-bg-solid)) !important;
 }
@@ -1648,26 +1677,6 @@
   gap: 6px;
   margin-top: auto;
   padding-top: 10px;
-}
-
-.root :global(.backup-action-row) {
-  display: flex;
-  min-height: 36px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 4px 6px 4px 8px;
-  border: 1px solid var(--sv-admin-border);
-  border-radius: var(--sv-admin-radius);
-  background: var(--sv-bg-soft);
-}
-
-.root :global(.backup-action-row) > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12px;
-  font-weight: 650;
 }
 
 .root :global(.solana-tabs) > :global(.ant-tabs-nav) {
@@ -2739,18 +2748,9 @@
     grid-row: 3;
   }
 
-  .root :global(.backup-grid) {
-    grid-template-columns: 1fr;
-    grid-template-rows: repeat(3, minmax(0, 1fr));
-  }
-
-  .root :global(.backup-card-next):global(.is-danger) {
-    grid-column: auto;
-  }
-
-  .root :global(.backup-action-row) {
-    align-items: stretch;
-    flex-direction: column;
+  .root :global(.backup-schedule-fields),
+  .root :global(.backup-transfer-fields) {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .root :global(.note-editor-topbar) {

@@ -1405,7 +1405,7 @@
         "create": "创建完整备份",
         "upload": "上传备份并预检",
         "refresh": "刷新状态",
-        "queued": "备份任务已提交，可在下方查看服务端进度",
+        "queued": "备份任务已提交，可在页面顶部或「任务记录」中查看进度",
         "restoreQueued": "恢复任务已提交，请等待服务端完成",
         "download": "下载",
         "preview": "恢复预检",
@@ -1450,7 +1450,8 @@
           "duration": "耗时",
           "seconds": "{seconds} 秒",
           "result": "结果与提示",
-          "protection": "下载恢复前保护备份"
+          "protection": "下载恢复前保护备份",
+          "statusFilter": "任务状态"
         },
         "kinds": {
           "manual": "手动备份",
@@ -1511,6 +1512,12 @@
           "RECOVERED_AFTER_RESTART": "已根据恢复日志在启动时完成协调",
           "LEGACY_BACKUP_SCOPE": "旧格式可能缺少回收站、停用文件或较新业务集合，缺失集合将按旧格式规则处理",
           "LEGACY_RECORDS_IGNORED": "旧格式的历史合同或已移除 Tree/cNFT 数据不会恢复"
+        },
+        "uploadHint": "恢复本地备份：上传完整 ZIP 备份（最大 320 MiB），预检后确认恢复。",
+        "filters": {
+          "allKinds": "全部类型",
+          "allStatuses": "全部状态",
+          "empty": "没有符合筛选条件的记录"
         }
       },
       "warning": {
@@ -1564,6 +1571,26 @@
         "filesImportFailed": "文件导入失败",
         "resetSuccess": "系统初始化成功",
         "resetFailed": "系统初始化失败"
+      },
+      "tabs": {
+        "snapshots": "完整备份",
+        "schedule": "自动备份",
+        "jobs": "任务记录",
+        "transfer": "导入与导出",
+        "danger": "危险操作"
+      },
+      "transfer": {
+        "title": "导入与导出",
+        "description": "单独处理数据库或上传文件。需要同时保存两者时，请使用「完整备份」。",
+        "scope": "数据类型",
+        "database": "数据库（JSON）",
+        "files": "上传文件（ZIP）",
+        "action": "操作类型",
+        "export": "导出到本地",
+        "import": "从本地导入",
+        "mode": "导入方式",
+        "databaseHint": "请选择数据库 JSON 备份，最大 50 MiB。选择文件后开始导入，覆盖模式需再次确认。",
+        "filesHint": "请选择上传文件 ZIP 备份，最大 250 MiB。选择文件后开始导入，覆盖模式需再次确认。"
       }
     },
     "breadcrumb": {

@@ -4,15 +4,15 @@
  * @file complete-backup-manager.tsx
  * @project SlothVault
  * @module Complete Backup Administration
- * @description Manages local complete snapshots, daily schedules, durable progress, and protected restore previews.
- * @logic Poll server history, edit opt-in schedules, upload bounded bundles, inspect restore scope, and require typed confirmation before submitting a durable restore task.
+ * @description Organizes backup, schedule, job history, transfer, and reset panels in a tabbed workspace.
+ * @logic Keep task polling and operation locks above tabs, show focused panels, and require preflight and typed confirmation before restore.
  * @dependencies Ant Design, TanStack Query, next-intl, backup API contracts
  * @index_tags admin,backup,restore,scheduler,history,preflight
  * @author holic512
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, App, Button, Card, Descriptions, Form, Input, InputNumber, Modal, Space, Switch, Table, Tag, Typography, Upload } from 'antd'
+import { Alert, App, Button, Card, Descriptions, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Tabs, Tag, Typography, Upload } from 'antd'
 import { Archive, CalendarClock, Download, RefreshCw, Trash2, UploadCloud } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { ApiClientError, apiFetch } from '@/lib/api-client'
@@ -26,8 +26,14 @@ const emptyHistory: BackupHistoryResponse = { snapshots: [], jobs: [], activeJob
 const statusColors = { queued: 'default', running: 'processing', succeeded: 'success', failed: 'error', interrupted: 'warning' } as const
 function bytes(size: number | string) { return `${(Number(size) / 1024 / 1024).toFixed(1)} MiB` }
 
-export function CompleteBackupManager({ externalBusy, onBusyChange }: { externalBusy: boolean; onBusyChange: (busy: boolean) => void }) {
+export function CompleteBackupManager({ externalBusy, onBusyChange, transferPanel, dangerPanel }: {
+  externalBusy: boolean
+  onBusyChange: (busy: boolean) => void
+  transferPanel: ReactNode
+  dangerPanel: ReactNode
+}) {
   const t = useTranslations('AdminMM.backup.complete')
+  const tabsT = useTranslations('AdminMM.backup.tabs')
   const errorT = useTranslations('AdminMM.errors')
   const locale = useLocale()
   const { message, modal } = App.useApp()
@@ -35,6 +41,8 @@ export function CompleteBackupManager({ externalBusy, onBusyChange }: { external
   const [pending, setPending] = useState<string | null>(null)
   const [preview, setPreview] = useState<RestorePreview | null>(null)
   const [phrase, setPhrase] = useState('')
+  const [snapshotKind, setSnapshotKind] = useState('all')
+  const [jobStatus, setJobStatus] = useState('all')
   const historyQuery = useQuery({
     queryKey: historyKey,
     queryFn: () => apiFetch<BackupHistoryResponse>(`${prefix}/snapshots`),
@@ -113,8 +121,8 @@ export function CompleteBackupManager({ externalBusy, onBusyChange }: { external
     })
   }
   const latest = active ?? history.jobs[0]
-  return (
-    <Space orientation="vertical" size={12} className="full-width">
+  const snapshotsPanel = (
+    <div className="backup-panel-stack">
       <Card className="backup-card-next" loading={historyQuery.isLoading}>
         <div className="backup-card-heading">
           <span><Archive size={20} /></span>
@@ -125,39 +133,21 @@ export function CompleteBackupManager({ externalBusy, onBusyChange }: { external
           <Upload accept=".zip,application/zip" disabled={disabled} showUploadList={false} beforeUpload={(file) => { void upload(file); return Upload.LIST_IGNORE }}>
             <Button disabled={disabled} loading={pending === 'upload' || pending === 'preview'} icon={<UploadCloud size={15} />}>{t('upload')}</Button>
           </Upload>
-          <Button icon={<RefreshCw size={14} />} onClick={() => void refresh()}>{t('refresh')}</Button>
         </Space>
-        {historyQuery.isError && <Alert type="error" showIcon title={t('statusUnavailable')} description={t('statusUnavailableHint')} />}
-        {latest && <Alert
-          type={latest.status === 'failed' ? 'error' : latest.status === 'succeeded' ? (latest.warnings.length ? 'warning' : 'success') : 'info'}
-          showIcon
-          title={`${t(`kinds.${latest.kind}`)} · ${t(`statuses.${latest.status}`)} · ${t(`phases.${latest.phase}`)}`}
-          description={<Space orientation="vertical" size={4}>
-            {active && <span>{t('durableHint')}</span>}
-            {latest.error && <span>{codeText(latest.error)}</span>}
-            {latest.warnings.map((warning, index) => <span key={`${warning}-${index}`}>{codeText(warning)}</span>)}
-          </Space>}
-        />}
-      </Card>
-      <Card className="backup-card-next" loading={settingsQuery.isLoading}>
-        <div className="backup-card-heading">
-          <span><CalendarClock size={20} /></span>
-          <div><Typography.Title level={4}>{t('schedule.title')}</Typography.Title><Typography.Text type="secondary">{t('schedule.description')}</Typography.Text></div>
-        </div>
-        {settingsQuery.isError && <Alert type="error" showIcon title={t('schedule.unavailable')} />}
-        {settingsQuery.data && <>
-          <Descriptions size="small" column={1} className="backup-complete-actions">
-            <Descriptions.Item label={t('schedule.location')}><Typography.Text code className="backup-storage-path">{settingsQuery.data.storage.path}</Typography.Text></Descriptions.Item>
-            <Descriptions.Item label={t('schedule.storage')}>{settingsQuery.data.storage.error ? codeText(settingsQuery.data.storage.error) : t('schedule.available', { space: bytes(settingsQuery.data.storage.availableBytes ?? '0') })}</Descriptions.Item>
-            <Descriptions.Item label={t('schedule.next')}>{settingsQuery.data.nextRunAt ? date(settingsQuery.data.nextRunAt) : t('schedule.disabled')}</Descriptions.Item>
-          </Descriptions>
-          <BackupScheduleForm settings={settingsQuery.data.settings} disabled={disabled} onSaved={refresh} />
-        </>}
+        <Typography.Text type="secondary">{t('uploadHint')}</Typography.Text>
       </Card>
       <Card title={t('history.title')} className="backup-card-next">
+        <Form layout="inline" className="backup-table-filter">
+          <Form.Item label={t('history.kind')} htmlFor="backup-kind-filter">
+            <Select id="backup-kind-filter" value={snapshotKind} onChange={setSnapshotKind} options={[
+              { value: 'all', label: t('filters.allKinds') },
+              ...['manual', 'scheduled', 'protect'].map((value) => ({ value, label: t(`kinds.${value}`) })),
+            ]} />
+          </Form.Item>
+        </Form>
         <Table<BackupSnapshotSummary>
-          size="small" rowKey="id" dataSource={history.snapshots} pagination={{ pageSize: 7, showSizeChanger: false }} scroll={{ x: 780 }}
-          locale={{ emptyText: t('history.empty') }}
+          size="small" rowKey="id" dataSource={history.snapshots.filter((snapshot) => snapshotKind === 'all' || snapshot.kind === snapshotKind)} pagination={{ pageSize: 7, showSizeChanger: false }} scroll={{ x: 780 }}
+          locale={{ emptyText: t(snapshotKind === 'all' ? 'history.empty' : 'filters.empty') }}
           columns={[
             { title: t('history.time'), dataIndex: 'createdAt', render: date },
             { title: t('history.kind'), dataIndex: 'kind', render: (kind: BackupSnapshotSummary['kind']) => <Tag>{t(`kinds.${kind}`)}</Tag> },
@@ -170,26 +160,81 @@ export function CompleteBackupManager({ externalBusy, onBusyChange }: { external
             </Space> },
           ]}
         />
+      </Card>
+    </div>
+  )
+  const schedulePanel = (
+    <Card className="backup-card-next" loading={settingsQuery.isLoading}>
+      <div className="backup-card-heading">
+        <span><CalendarClock size={20} /></span>
+        <div><Typography.Title level={4}>{t('schedule.title')}</Typography.Title><Typography.Text type="secondary">{t('schedule.description')}</Typography.Text></div>
+      </div>
+      {settingsQuery.isError && <Alert type="error" showIcon title={t('schedule.unavailable')} />}
+      {settingsQuery.data && <>
+        <Descriptions size="small" column={1} className="backup-complete-actions">
+          <Descriptions.Item label={t('schedule.location')}><Typography.Text code className="backup-storage-path">{settingsQuery.data.storage.path}</Typography.Text></Descriptions.Item>
+          <Descriptions.Item label={t('schedule.storage')}>{settingsQuery.data.storage.error ? codeText(settingsQuery.data.storage.error) : t('schedule.available', { space: bytes(settingsQuery.data.storage.availableBytes ?? '0') })}</Descriptions.Item>
+          <Descriptions.Item label={t('schedule.next')}>{settingsQuery.data.nextRunAt ? date(settingsQuery.data.nextRunAt) : t('schedule.disabled')}</Descriptions.Item>
+        </Descriptions>
         <Typography.Paragraph type="secondary">{t('history.retentionHint')}</Typography.Paragraph>
-      </Card>
-      <Card title={t('jobs.title')} className="backup-card-next">
-        <Table<BackupJob>
-          size="small" rowKey="id" dataSource={history.jobs} pagination={{ pageSize: 5, showSizeChanger: false }} scroll={{ x: 760 }}
-          locale={{ emptyText: t('jobs.empty') }}
-          columns={[
-            { title: t('history.time'), dataIndex: 'createdAt', render: date },
-            { title: t('history.kind'), dataIndex: 'kind', render: (kind: BackupJob['kind']) => t(`kinds.${kind}`) },
-            { title: t('jobs.status'), render: (_, job) => <Space orientation="vertical" size={2}><Tag color={statusColors[job.status]}>{t(`statuses.${job.status}`)}</Tag><span>{t(`phases.${job.phase}`)}</span></Space> },
-            { title: t('jobs.duration'), render: (_, job) => job.durationMs === undefined ? '—' : t('jobs.seconds', { seconds: (job.durationMs / 1000).toFixed(1) }) },
-            { title: t('jobs.result'), render: (_, job) => <Space orientation="vertical" size={2}>
-              {job.error && <Typography.Text type="danger">{codeText(job.error)}</Typography.Text>}
-              {job.warnings.map((warning, index) => <Typography.Text type="warning" key={`${warning}-${index}`}>{codeText(warning)}</Typography.Text>)}
-              {job.protectionId && <Button size="small" href={`${prefix}/snapshots/${job.protectionId}/download`}>{t('jobs.protection')}</Button>}
-              {['failed', 'interrupted'].includes(job.status) && ['manual', 'scheduled'].includes(job.kind) && <Button size="small" disabled={disabled} onClick={() => void queueBackup(job.id)}>{t('retry')}</Button>}
-            </Space> },
-          ]}
-        />
-      </Card>
+        <BackupScheduleForm settings={settingsQuery.data.settings} disabled={disabled} onSaved={refresh} />
+      </>}
+    </Card>
+  )
+  const jobsPanel = (
+    <Card title={t('jobs.title')} className="backup-card-next">
+      <Form layout="inline" className="backup-table-filter">
+        <Form.Item label={t('jobs.statusFilter')} htmlFor="backup-status-filter">
+          <Select id="backup-status-filter" value={jobStatus} onChange={setJobStatus} options={[
+            { value: 'all', label: t('filters.allStatuses') },
+            ...Object.keys(statusColors).map((value) => ({ value, label: t(`statuses.${value}`) })),
+          ]} />
+        </Form.Item>
+      </Form>
+      <Table<BackupJob>
+        size="small" rowKey="id" dataSource={history.jobs.filter((job) => jobStatus === 'all' || job.status === jobStatus)} pagination={{ pageSize: 5, showSizeChanger: false }} scroll={{ x: 760 }}
+        locale={{ emptyText: t(jobStatus === 'all' ? 'jobs.empty' : 'filters.empty') }}
+        columns={[
+          { title: t('history.time'), dataIndex: 'createdAt', render: date },
+          { title: t('history.kind'), dataIndex: 'kind', render: (kind: BackupJob['kind']) => t(`kinds.${kind}`) },
+          { title: t('jobs.status'), render: (_, job) => <Space orientation="vertical" size={2}><Tag color={statusColors[job.status]}>{t(`statuses.${job.status}`)}</Tag><span>{t(`phases.${job.phase}`)}</span></Space> },
+          { title: t('jobs.duration'), render: (_, job) => job.durationMs === undefined ? '—' : t('jobs.seconds', { seconds: (job.durationMs / 1000).toFixed(1) }) },
+          { title: t('jobs.result'), render: (_, job) => <Space orientation="vertical" size={2}>
+            {job.error && <Typography.Text type="danger">{codeText(job.error)}</Typography.Text>}
+            {job.warnings.map((warning, index) => <Typography.Text type="warning" key={`${warning}-${index}`}>{codeText(warning)}</Typography.Text>)}
+            {job.protectionId && <Button size="small" href={`${prefix}/snapshots/${job.protectionId}/download`}>{t('jobs.protection')}</Button>}
+            {['failed', 'interrupted'].includes(job.status) && ['manual', 'scheduled'].includes(job.kind) && <Button size="small" disabled={disabled} onClick={() => void queueBackup(job.id)}>{t('retry')}</Button>}
+          </Space> },
+        ]}
+      />
+    </Card>
+  )
+
+  return (
+    <div className="backup-workspace">
+      {historyQuery.isError && <Alert type="error" showIcon title={t('statusUnavailable')} description={t('statusUnavailableHint')} />}
+      {latest && (active || latest.status !== 'succeeded' || latest.warnings.length > 0) && <Alert
+        type={latest.status === 'failed' ? 'error' : latest.status === 'succeeded' ? (latest.warnings.length ? 'warning' : 'success') : 'info'}
+        showIcon
+        title={`${t(`kinds.${latest.kind}`)} · ${t(`statuses.${latest.status}`)} · ${t(`phases.${latest.phase}`)}`}
+        description={<Space orientation="vertical" size={4}>
+          {active && <span>{t('durableHint')}</span>}
+          {latest.error && <span>{codeText(latest.error)}</span>}
+          {latest.warnings.map((warning, index) => <span key={`${warning}-${index}`}>{codeText(warning)}</span>)}
+        </Space>}
+      />}
+      <Tabs
+        defaultActiveKey="snapshots"
+        className="backup-tabs"
+        tabBarExtraContent={<Button type="text" icon={<RefreshCw size={14} />} loading={historyQuery.isFetching || settingsQuery.isFetching} onClick={() => void refresh()} aria-label={t('refresh')} title={t('refresh')} />}
+        items={[
+          { key: 'snapshots', label: tabsT('snapshots'), children: snapshotsPanel },
+          { key: 'schedule', label: tabsT('schedule'), children: schedulePanel },
+          { key: 'jobs', label: tabsT('jobs'), children: jobsPanel },
+          { key: 'transfer', label: tabsT('transfer'), children: transferPanel },
+          { key: 'danger', label: tabsT('danger'), children: dangerPanel },
+        ]}
+      />
       <Modal open={Boolean(preview)} title={t('restore.title')} width={720} okText={t('restore.confirm')} cancelText={t('restore.cancel')}
         confirmLoading={pending === 'restore'} okButtonProps={{ danger: true, disabled: phrase !== 'RESTORE_BACKUP' || disabled }}
         onCancel={() => { if (pending !== 'restore') setPreview(null) }} onOk={() => void restore()}>
@@ -209,7 +254,7 @@ export function CompleteBackupManager({ externalBusy, onBusyChange }: { external
           <Input value={phrase} placeholder="RESTORE_BACKUP" aria-label={t('restore.phrase')} autoComplete="off" onChange={(event) => setPhrase(event.target.value)} />
         </Space>}
       </Modal>
-    </Space>
+    </div>
   )
 }
 
@@ -218,17 +263,18 @@ function BackupScheduleForm({ settings, disabled, onSaved }: { settings: BackupS
   const errorT = useTranslations('AdminMM.errors')
   const { message } = App.useApp()
   const [saving, setSaving] = useState(false)
+  const timeZones = useMemo(() => [...new Set(['UTC', settings.timeZone, ...Intl.supportedValuesOf('timeZone')])].map((value) => ({ value, label: value.replaceAll('_', ' ') })), [settings.timeZone])
   const save = async (values: BackupSettings) => {
     setSaving(true)
     try { await apiFetch(`${prefix}/settings`, { method: 'PUT', body: JSON.stringify(values) }); message.success(t('saved')); await onSaved() }
     catch (error) { message.error(formatAdminError(error, errorT)) }
     finally { setSaving(false) }
   }
-  return <Form layout="vertical" initialValues={settings} disabled={disabled || saving} onFinish={(values: BackupSettings) => void save(values)}>
+  return <Form layout="vertical" className="backup-schedule-form" initialValues={settings} disabled={disabled || saving} onFinish={(values: BackupSettings) => void save(values)}>
     <div className="backup-schedule-fields">
       <Form.Item name="enabled" label={t('enabled')} valuePropName="checked"><Switch /></Form.Item>
       <Form.Item name="dailyTime" label={t('time')} rules={[{ required: true }, { pattern: /^(?:[01]\d|2[0-3]):[0-5]\d$/, message: t('invalidTime') }]}><Input type="time" /></Form.Item>
-      <Form.Item name="timeZone" label={t('timezone')} rules={[{ required: true }]}><Input placeholder="Asia/Shanghai" /></Form.Item>
+      <Form.Item name="timeZone" label={t('timezone')} rules={[{ required: true }]}><Select showSearch={{ optionFilterProp: 'label' }} options={timeZones} /></Form.Item>
       <Form.Item name="retentionCount" label={t('retention')} rules={[{ required: true }]}><InputNumber min={1} max={365} precision={0} /></Form.Item>
     </div>
     <Button htmlType="submit" type="primary" loading={saving} disabled={disabled}>{t('save')}</Button>

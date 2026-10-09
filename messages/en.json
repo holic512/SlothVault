@@ -1405,7 +1405,7 @@
         "create": "Create complete backup",
         "upload": "Upload and preview restore",
         "refresh": "Refresh status",
-        "queued": "Backup queued. Server progress is shown below.",
+        "queued": "Backup queued. Check progress above or in Task history.",
         "restoreQueued": "Restore queued. Wait for the server result.",
         "download": "Download",
         "preview": "Preview restore",
@@ -1450,7 +1450,8 @@
           "duration": "Duration",
           "seconds": "{seconds} s",
           "result": "Result and notices",
-          "protection": "Download pre-restore protection backup"
+          "protection": "Download pre-restore protection backup",
+          "statusFilter": "Task status"
         },
         "kinds": {
           "manual": "Manual backup",
@@ -1511,6 +1512,12 @@
           "RECOVERED_AFTER_RESTART": "Reconciled from the recovery journal during startup",
           "LEGACY_BACKUP_SCOPE": "Older formats may omit trash, disabled files or newer collections. Missing collections follow legacy import rules.",
           "LEGACY_RECORDS_IGNORED": "Legacy contracts or removed Tree/cNFT records will be ignored"
+        },
+        "uploadHint": "Restore a local backup: upload a complete ZIP backup (up to 320 MiB), review the preview, then confirm.",
+        "filters": {
+          "allKinds": "All types",
+          "allStatuses": "All statuses",
+          "empty": "No records match this filter"
         }
       },
       "warning": {
@@ -1564,6 +1571,26 @@
         "filesImportFailed": "Files import failed",
         "resetSuccess": "System reset successfully",
         "resetFailed": "System reset failed"
+      },
+      "tabs": {
+        "snapshots": "Complete backups",
+        "schedule": "Schedule",
+        "jobs": "Task history",
+        "transfer": "Import & export",
+        "danger": "Danger zone"
+      },
+      "transfer": {
+        "title": "Import & export",
+        "description": "Manage the database or uploaded files separately. Use Complete backups to save both together.",
+        "scope": "Data type",
+        "database": "Database (JSON)",
+        "files": "Uploaded files (ZIP)",
+        "action": "Operation",
+        "export": "Export to your device",
+        "import": "Import from your device",
+        "mode": "Import mode",
+        "databaseHint": "Choose a database JSON backup, up to 50 MiB. Import starts after file selection; overwrite requires confirmation.",
+        "filesHint": "Choose an uploaded-files ZIP backup, up to 250 MiB. Import starts after file selection; overwrite requires confirmation."
       }
     },
     "breadcrumb": {

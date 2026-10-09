@@ -4,8 +4,8 @@
  * @file backup-manager.tsx
  * @project SlothVault
  * @module Backup Administration
- * @description Combines complete local backups and protected restores with the existing independent database/file and reset flows.
- * @logic Poll durable complete operations, disable conflicting actions, download bounded artifacts, and require explicit overwrite/reset confirmation.
+ * @description Supplies focused data transfer and system reset panels to the tabbed backup workspace.
+ * @logic Select one transfer scope and operation, preserve cross-tab operation locks, and require explicit overwrite/reset confirmation.
  * @dependencies complete-backup-manager, Ant Design, next-intl, api-client, browser Blob/File APIs
  * @index_tags admin,backup,restore,reset,download
  * @author holic512
@@ -18,9 +18,10 @@ import {
   Button,
   Card,
   Checkbox,
+  Form,
   Input,
   Modal,
-  Segmented,
+  Select,
   Space,
   Typography,
   Upload,
@@ -61,6 +62,8 @@ export function BackupManager() {
   const [filesMode, setFilesMode] = useState<ImportMode>('insert')
   const [busy, setBusy] = useState<string | null>(null)
   const [completeBusy, setCompleteBusy] = useState(false)
+  const [transferScope, setTransferScope] = useState<'database' | 'files'>('database')
+  const [transferAction, setTransferAction] = useState<'export' | 'import'>('export')
   const disabled = Boolean(busy || completeBusy)
   const [resetOpen, setResetOpen] = useState(false)
   const [resetPhrase, setResetPhrase] = useState('')
@@ -195,101 +198,106 @@ export function BackupManager() {
 
   return (
     <AdminPage>
-      <Alert showIcon type="warning" title={t('warning.title')} description={t('warning.content')} />
-
-      <CompleteBackupManager externalBusy={Boolean(busy)} onBusyChange={setCompleteBusy} />
-
-      <div className="backup-grid">
-        <BackupCard
-          icon={<DatabaseBackup />}
-          title={t('database.title')}
-          description={t('database.desc')}
-        >
-          <div className="backup-action-row">
-            <span><Download size={15} />{t('database.export')}</span>
-            <Button disabled={disabled} loading={busy === 'db-export'} onClick={() => void exportDatabase()}>
-              {t('actions.exportDb')}
-            </Button>
-          </div>
-          <div className="backup-action-row">
-            <Segmented
-              disabled={disabled}
-              value={databaseMode}
-              onChange={(value) => setDatabaseMode(value as ImportMode)}
-              options={[
-                { value: 'insert', label: t('mode.insert') },
-                { value: 'overwrite', label: t('mode.overwrite') },
-              ]}
-            />
-            <Upload
-              disabled={disabled}
-              accept="application/json,.json"
-              maxCount={1}
-              showUploadList={false}
-              beforeUpload={(file) => {
-                void importDatabase(file)
-                return Upload.LIST_IGNORE
-              }}
-            >
-              <Button disabled={disabled} loading={busy === 'db-import'} icon={<UploadCloud size={14} />}>
-                {t('actions.importDb')}
+      <CompleteBackupManager
+        externalBusy={Boolean(busy)}
+        onBusyChange={setCompleteBusy}
+        transferPanel={
+          <BackupCard
+            icon={transferScope === 'database' ? <DatabaseBackup /> : <FolderArchive />}
+            title={t('transfer.title')}
+            description={t('transfer.description')}
+          >
+            <Form layout="vertical" className="backup-transfer-form">
+              <div className="backup-transfer-fields">
+                <Form.Item label={t('transfer.scope')} htmlFor="backup-transfer-scope">
+                  <Select
+                    id="backup-transfer-scope"
+                    disabled={disabled}
+                    value={transferScope}
+                    onChange={setTransferScope}
+                    options={[
+                      { value: 'database', label: t('transfer.database') },
+                      { value: 'files', label: t('transfer.files') },
+                    ]}
+                  />
+                </Form.Item>
+                <Form.Item label={t('transfer.action')} htmlFor="backup-transfer-action">
+                  <Select
+                    id="backup-transfer-action"
+                    disabled={disabled}
+                    value={transferAction}
+                    onChange={setTransferAction}
+                    options={[
+                      { value: 'export', label: t('transfer.export') },
+                      { value: 'import', label: t('transfer.import') },
+                    ]}
+                  />
+                </Form.Item>
+              </div>
+              <Typography.Paragraph type="secondary">{t(`${transferScope}.desc`)}</Typography.Paragraph>
+              {transferAction === 'import' && <>
+                <Form.Item label={t('transfer.mode')} htmlFor="backup-import-mode">
+                  <Select
+                    id="backup-import-mode"
+                    disabled={disabled}
+                    value={transferScope === 'database' ? databaseMode : filesMode}
+                    onChange={transferScope === 'database' ? setDatabaseMode : setFilesMode}
+                    options={[
+                      { value: 'insert', label: t('mode.insert') },
+                      { value: 'overwrite', label: t('mode.overwrite') },
+                    ]}
+                  />
+                </Form.Item>
+                <Alert showIcon type="warning" title={t('warning.title')} description={t('warning.content')} />
+                <Typography.Paragraph type="secondary" className="backup-transfer-hint">
+                  {t(transferScope === 'database' ? 'transfer.databaseHint' : 'transfer.filesHint')}
+                </Typography.Paragraph>
+              </>}
+              {transferAction === 'export' ? (
+                <Button
+                  type="primary"
+                  icon={<Download size={15} />}
+                  disabled={disabled}
+                  loading={busy === (transferScope === 'database' ? 'db-export' : 'files-export')}
+                  onClick={() => void (transferScope === 'database' ? exportDatabase() : exportFiles())}
+                >
+                  {t(transferScope === 'database' ? 'actions.exportDb' : 'actions.exportFiles')}
+                </Button>
+              ) : (
+                <Upload
+                  disabled={disabled}
+                  accept={transferScope === 'database' ? 'application/json,.json' : 'application/zip,.zip'}
+                  maxCount={1}
+                  showUploadList={false}
+                  beforeUpload={(file) => {
+                    void (transferScope === 'database' ? importDatabase(file) : importFiles(file))
+                    return Upload.LIST_IGNORE
+                  }}
+                >
+                  <Button
+                    type="primary"
+                    disabled={disabled}
+                    loading={busy === (transferScope === 'database' ? 'db-import' : 'files-import')}
+                    icon={<UploadCloud size={15} />}
+                  >
+                    {t(transferScope === 'database' ? 'actions.importDb' : 'actions.importFiles')}
+                  </Button>
+                </Upload>
+              )}
+            </Form>
+          </BackupCard>
+        }
+        dangerPanel={
+          <BackupCard danger icon={<ShieldAlert />} title={t('reset.title')} description={t('reset.desc')}>
+            <Typography.Paragraph>{t('reset.dialogWarning')}</Typography.Paragraph>
+            <div>
+              <Button danger disabled={disabled} icon={<RotateCcw size={15} />} onClick={() => setResetOpen(true)}>
+                {t('actions.reset')}
               </Button>
-            </Upload>
-          </div>
-        </BackupCard>
-
-        <BackupCard
-          icon={<FolderArchive />}
-          title={t('files.title')}
-          description={t('files.desc')}
-        >
-          <div className="backup-action-row">
-            <span><Download size={15} />{t('files.export')}</span>
-            <Button disabled={disabled} loading={busy === 'files-export'} onClick={() => void exportFiles()}>
-              {t('actions.exportFiles')}
-            </Button>
-          </div>
-          <div className="backup-action-row">
-            <Segmented
-              disabled={disabled}
-              value={filesMode}
-              onChange={(value) => setFilesMode(value as ImportMode)}
-              options={[
-                { value: 'insert', label: t('mode.insert') },
-                { value: 'overwrite', label: t('mode.overwrite') },
-              ]}
-            />
-            <Upload
-              disabled={disabled}
-              accept="application/zip,.zip"
-              maxCount={1}
-              showUploadList={false}
-              beforeUpload={(file) => {
-                void importFiles(file)
-                return Upload.LIST_IGNORE
-              }}
-            >
-              <Button disabled={disabled} loading={busy === 'files-import'} icon={<UploadCloud size={14} />}>
-                {t('actions.importFiles')}
-              </Button>
-            </Upload>
-          </div>
-        </BackupCard>
-
-        <BackupCard
-          danger
-          icon={<ShieldAlert />}
-          title={t('reset.title')}
-          description={t('reset.desc')}
-        >
-          <div className="backup-action-row">
-            <span><RotateCcw size={15} />{t('reset.action')}</span>
-            <Button danger type="primary" disabled={disabled} onClick={() => setResetOpen(true)}>
-              {t('actions.reset')}
-            </Button>
-          </div>
-        </BackupCard>
-      </div>
+            </div>
+          </BackupCard>
+        }
+      />
 
       <Modal
         open={resetOpen}
