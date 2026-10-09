@@ -225,9 +225,9 @@ flowchart LR
 
 ## 管理员 MCP
 
-系统内置管理员 MCP Streamable HTTP 入口 `POST /mcp`，通过独立、可撤销的管理员 MCP Key 鉴权，不复用网页 Cookie Session。MCP server `3.1.0` 的 Tool、Resource 和风险边界由声明式注册表统一管理，Prompt 引用受契约测试约束；完整清单见 [MCP Registry](./docs/MCP_REGISTRY.md)，接入方式见 [管理员 MCP 接入说明](./docs/MCP_ADMIN.md)。普通文件下载统一通过受保护 Resource URI，发布、撤回、删除、恢复、批量和其他高风险操作仍由网页后台确认。
+系统内置管理员 MCP Streamable HTTP 入口 `POST /mcp`，通过可撤销的管理员 MCP Key 鉴权，不复用网页 Cookie。当前服务端 `4.0.0` 提供 68 个 Tool、4 个 Prompt、2 个受保护 Resource，复用现有业务校验；清单见 [MCP Registry](./docs/MCP_REGISTRY.md)。Codex、Claude Code 等宿主通过原生 MCP 直连，管理员在 Key 页明确创建后可一次性复制接入配置，详见 [管理员 MCP 接入](./docs/MCP_ADMIN.md)。宿主审批策略不改变服务端权限。
 
-对外集成拆分为独立的 [MCP Client](./integrations/mcp-client/)、[Skill](./integrations/skill/) 和 [Deployment](./integrations/deployment/) 包，分别使用 `mcp-client-v*`、`skill-v*` 和 `deployment-v*` Release。三个包各自从 `1.0.0` 起步，归档与清单包含独立版本、协议主版本及 SHA-256。Python MCP 脚本和部署脚本可从源码运行，Skill 可手动复制；SlothTool 负责统一安装、更新、TUI 和 `slothtool sv` 分发。受 Bearer Key 保护的 `GET /mcp/compatibility` 声明最低客户端版本与 MCP 协议支持范围。跨仓库架构、接口和更新步骤见 [integrations 文档](./integrations/ARCHITECTURE.md)。旧 `toolkit-v*` 整包不再发布。仅修改集成包不递增应用版本，也不触发 Docker 镜像发布；应用内 `/mcp` 路由和注册表仍随业务服务留在 `src/server/mcp/`。
+[Skill](./integrations/skill/) 与 [Deployment](./integrations/deployment/) 继续以 `skill-v*`、`deployment-v*` 独立发布，归档和清单含版本、桥主版本及 SHA-256。Skill 1.1.0 使用宿主已发现工具；SlothTool skill install/update 可直接同步受管链接。Deployment 1.0.0 保持独立部署脚本、JSON 行桥和应用更新能力。独立 MCP Client、旧整包执行/发布入口及 `/mcp/compatibility` 已退役；原生接入无需专用 Python 包或 SlothTool。历史 Release 和本地数据保留，明确迁移清理流程见 [集成架构](./integrations/ARCHITECTURE.md)。应用版本和独立包版本分别准备。
 
 上传文件不进入 `public/`。后台提供包含数据库与附件的完整 ZIP、恢复预检、恢复前保护备份和任务历史，保留回收站、停用文件、会员权限及委托/合同/发布存证。自动备份默认关闭；手动开启后默认每天 `Asia/Shanghai` 时间 03:00 执行，保留 7 份成功自动备份。数据库 JSON 与上传 ZIP 仍可独立操作。备份包含账户、密码哈希、个人资料、积分和卡密哈希，应按敏感数据管理；部署、覆盖范围、账号保留规则及中断恢复见 [本地完整备份与恢复](./docs/BACKUP_AND_RESTORE.md)。
 

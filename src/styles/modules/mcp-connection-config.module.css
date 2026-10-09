@@ -1,0 +1,111 @@
+.dialog :global(.ant-modal-body) {
+  max-height: calc(100dvh - 190px);
+  overflow-y: auto;
+}
+
+.notice {
+  border-color: var(--sv-text-muted) !important;
+  background: var(--sv-bg-soft) !important;
+}
+
+.dialog :global(.ant-modal-close) {
+  color: var(--sv-text-muted);
+}
+
+.notice :global(.ant-alert-title),
+.notice :global(.ant-alert-icon) {
+  color: var(--sv-text);
+}
+
+.description {
+  margin: 16px 0 !important;
+  color: var(--sv-text);
+}
+
+.block {
+  min-width: 0;
+  margin-top: 16px;
+}
+
+.block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--sv-text);
+}
+
+.copy {
+  flex-shrink: 0;
+  border-color: var(--sv-text-muted) !important;
+  color: var(--sv-text) !important;
+}
+
+.confirm {
+  border-color: var(--sv-text) !important;
+  background: var(--sv-text) !important;
+  color: var(--sv-bg-solid) !important;
+}
+
+.confirm:focus-visible {
+  outline: 2px solid var(--sv-text-muted);
+  outline-offset: 2px;
+}
+
+.hint {
+  margin: 8px 0 !important;
+  color: var(--sv-text-muted);
+  font-size: 13px;
+}
+
+.code {
+  width: 100%;
+  padding: 12px !important;
+  overflow: auto !important;
+  border-color: var(--sv-text-muted) !important;
+  border-radius: 8px;
+  background: var(--sv-bg-solid) !important;
+  color: var(--sv-text) !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre;
+  resize: none !important;
+}
+
+.code:focus-visible {
+  outline: 2px solid var(--sv-text-muted);
+  outline-offset: 2px;
+}
+
+.feedback {
+  display: flex;
+  min-height: 24px;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 6px;
+  color: var(--sv-text);
+  font-size: 13px;
+}
+
+.feedback svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.guide-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 480px) {
+  .dialog :global(.ant-modal-body) {
+    max-height: calc(100dvh - 180px);
+  }
+
+  .code {
+    font-size: 12px;
+  }
+}

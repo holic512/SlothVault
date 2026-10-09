@@ -101,6 +101,10 @@ describe('MCP API key service', () => {
       where: { userId: 7 },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     })
+    const list = await listMcpApiKeys(7)
+    expect(list[0]).not.toHaveProperty('secretHash')
+    expect(list[0]).not.toHaveProperty('publicId')
+    expect(list[0]).not.toHaveProperty('key')
   })
 
   it('changes status and deletes only a key owned by the current administrator', async () => {
@@ -164,5 +168,41 @@ describe('MCP API key service', () => {
     await expect(authenticateMcpApiKey(`svmcp_${'a'.repeat(24)}.${'b'.repeat(43)}`)).resolves.toBeNull()
     expect(mocks.verifyPassword).not.toHaveBeenCalled()
     expect(mocks.prisma.mcpApiKey.updateMany).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { status: 0, user: { id: 7, username: 'admin', role: 'ADMIN', status: 1 } },
+    { user: { id: 7, username: 'admin', role: 'ADMIN', status: 0 } },
+  ])('rejects disabled keys and accounts before verifying their hash', async (overrides) => {
+    mocks.prisma.mcpApiKey.findUnique.mockResolvedValue(apiKeyRecord(overrides))
+    await expect(authenticateMcpApiKey(`svmcp_${'a'.repeat(24)}.${'b'.repeat(43)}`)).resolves.toBeNull()
+    expect(mocks.verifyPassword).not.toHaveBeenCalled()
+    expect(mocks.prisma.mcpApiKey.updateMany).not.toHaveBeenCalled()
+  })
+
+  it('rejects hash mismatches and corrupt hashes', async () => {
+    mocks.prisma.mcpApiKey.findUnique.mockResolvedValue(apiKeyRecord({ user: { id: 7, username: 'admin', role: 'ADMIN', status: 1 } }))
+    const key = `svmcp_${'a'.repeat(24)}.${'b'.repeat(43)}`
+    mocks.verifyPassword.mockResolvedValue(false)
+    await expect(authenticateMcpApiKey(key)).resolves.toBeNull()
+    mocks.verifyPassword.mockRejectedValue(new Error('Corrupt hash'))
+    await expect(authenticateMcpApiKey(key)).resolves.toBeNull()
+    expect(mocks.prisma.mcpApiKey.updateMany).not.toHaveBeenCalled()
+  })
+
+  it('rejects a key revoked while its hash was being checked', async () => {
+    mocks.prisma.mcpApiKey.findUnique.mockResolvedValue(apiKeyRecord({ user: { id: 7, username: 'admin', role: 'ADMIN', status: 1 } }))
+    mocks.verifyPassword.mockResolvedValue(true)
+    mocks.prisma.mcpApiKey.updateMany.mockResolvedValue({ count: 0 })
+    await expect(authenticateMcpApiKey(`svmcp_${'a'.repeat(24)}.${'b'.repeat(43)}`)).resolves.toBeNull()
+  })
+
+  it('refuses management mutations for another owner and invalid expiry', async () => {
+    mocks.prisma.mcpApiKey.updateMany.mockResolvedValue({ count: 0 })
+    mocks.prisma.mcpApiKey.deleteMany.mockResolvedValue({ count: 0 })
+    await expect(setMcpApiKeyStatus({ userId: 8, apiKeyId: 4, status: 0 })).rejects.toMatchObject({ status: 404 })
+    await expect(deleteMcpApiKey({ userId: 8, apiKeyId: 4 })).rejects.toMatchObject({ status: 404 })
+    await expect(createMcpApiKey({ userId: 7, name: 'Example', expiresAt: new Date('2020-01-01') })).rejects.toMatchObject({ status: 400 })
+    expect(mocks.prisma.mcpApiKey.create).not.toHaveBeenCalled()
   })
 })

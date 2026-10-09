@@ -28,9 +28,33 @@ MCP Key 管理 API 均位于现有管理员 API 下，并要求普通管理员�
 }
 ```
 
-`expiresAt` 可省略或设为 `null`，表示 Key 不设置到期时间。创建响应会在 `data.key` 中返回完整 Key；这是唯一一次返回明文 Key。后续查询只返回 Key 名称、脱敏提示、状态、创建时间、到期时间和最后使用时间。
+`expiresAt` 可省略或设为 `null`，表示 Key 不设置到期时间。创建响应会在 `data.key` 中返回完整 Key；这是唯一一次返回明文 Key。管理响应均为 private, no-store；创建 mutation 仅缓存安全元数据，本次 Key 不进入持久化。后续查询只返回 Key 名称、脱敏提示、状态、创建时间、到期时间和最后使用时间。
 
 ## MCP 客户端配置
+
+在管理员 MCP Key 页点击“获取接入配置”，填写名称和有效期并明确“创建 Key 并生成配置”。创建成功后弹窗一次性展示下面两种配置，关闭或“我已保存配置”会清除本次明文。已有 Key 的“接入说明”只显示占位模板，不恢复明文、不静默轮换 Key。复制成功只代表配置已复制；是否连接成功须由宿主验证。
+
+地址优先使用严格验证的 NEXT_PUBLIC_SITE_ORIGIN，缺失时为当前页面 origin；支持 HTTPS、localhost、端口和显式合法路径前缀，已有 /mcp 不重复追加。不读取 Host/Forwarded Header，不从 locale 或管理路径推导。无效配置会在创建前阻止提交。当前应用部署在根路径；使用前缀时须由反向代理保证该路径可达。
+
+Codex（加入用户 config.toml）：
+
+```toml
+[mcp_servers.slothvault]
+url = "https://your-vault.example/mcp"
+http_headers = { Authorization = "Bearer SLOTHVAULT_MCP_KEY_EXAMPLE_ONLY" }
+default_tools_approval_mode = "auto"
+tool_timeout_sec = 120
+```
+
+Claude Code（Bash / zsh，用户级）：
+
+```bash
+claude mcp add --transport http --scope user slothvault 'https://your-vault.example/mcp' --header 'Authorization: Bearer SLOTHVAULT_MCP_KEY_EXAMPLE_ONLY'
+```
+
+以上仅使用明显占位令牌。模板生成器分别使用合法 TOML 字符串和 POSIX Shell 单引号转义；没有 Windows 命令模板。Codex auto 表示宿主审批策略，服务器仍验证 Key 权限。两个模板直连标准 HTTP，无 stdio 转发器或专用 Python 包。
+
+配置依据：[Codex MCP](https://learn.chatgpt.com/docs/extend/mcp)、[配置参考](https://learn.chatgpt.com/docs/config-file/config-reference)、[Claude Code MCP](https://code.claude.com/docs/en/mcp)，已按当前官方页面核验。Claude --header 为可变参数，放在名称与 URL 之后。
 
 将完整 Key 配置为 MCP 客户端请求 `/mcp` 时的 Bearer 凭据：
 
@@ -46,13 +70,13 @@ Authorization: Bearer svmcp_<public-id>.<secret>
 
 任一检查失败都会返回 HTTP `401` 和 MCP JSON-RPC 未认证错误。禁用或删除 Key 在下一次外部 MCP 请求时立即生效。
 
-## MCP 3.0 Tool
+## MCP 4.0 Tool
 
-MCP server identity 为 `slothvault-admin-mcp@3.0.0`。3.0 使用点号分层命名，所有 2.0 Tool 名称均已停用且不保留别名；升级后应同步修改客户端保存的 Tool 名称。当前注册表共 55 个 Tool。
+MCP server identity 为 `slothvault-admin-mcp@4.0.0`。当前注册表共 68 个 Tool、4 个 Prompt、2 个 Resource 模板；按实时 schema 发现并使用点号分层的业务名称。
 
 完整 Tool/Resource 清单、领域、风险、幂等性、URI、文件名和大小上限由注册表生成：[MCP Registry 清单](./MCP_REGISTRY.md)。修改 `src/server/mcp/tools/` 或 `src/server/mcp/resource-catalog.json` 后运行 `npm run mcp:docs`；CI 使用 `npm run mcp:docs:check` 阻止文档过期。
 
-面向独立 `slothvault-mcp` 命令的端到端调用范例、人工交接边界和 Skill 设计约束见：[SlothVault MCP Client 全场景操作与 Skill 设计指南](./SLOTHTOOL_MCP_WORKFLOW_GUIDE.md)。首次使用前先运行 `slothtool install slothvault` 和 `slothtool slothvault mcp register`。
+原生宿主的调用范例、人工交接和 Skill 更新见 [原生 MCP 工作流指南](./SLOTHTOOL_MCP_WORKFLOW_GUIDE.md)。
 
 所有 ID 参数都必须是正十进制字符串，例如：
 
@@ -102,6 +126,8 @@ slothvault://contract-attachment/{contractId}
 
 每次 `resources/read` 都会重新验证当前 MCP Key。托管文件 Resource 只读取状态有效且非合同附件的文件；合同附件 Resource 通过合同授权 Service 返回原始文件名、`application/pdf` 和 blob，不暴露合同附件公共 URL。已删除、失效、缺失或业务类型不匹配的文件会返回受控错误。
 
+托管 Resource 上限 10 MiB，合同 PDF 上限 25 MiB，文件名上限 255。宿主可保存二进制 blob 时使用宿主能力；无法保存或处理容量不足时通过网站现有授权下载。服务端不提供带 Key 的公共下载 URL。
+
 Resource 内容遵循标准 MCP `ReadResourceResult`：二进制数据位于 `blob`，原始文件名位于 `_meta["slothvault/file-name"]`，不使用非标准的顶层 `name` 字段。
 
 ## 工作流 Prompt
@@ -111,18 +137,19 @@ Resource 内容遵循标准 MCP `ReadResourceResult`：二进制数据位于 `bl
 | `workflow.create_project_draft` | 检查精确同名项目，然后创建项目、版本草稿，并可按提纲建立分类、笔记和正文。 |
 | `workflow.organize_notes` | 读取现有草稿树，按要求创建或更新分类、笔记、正文和主正文。 |
 | `workflow.pre_publish_check` | 调用只读预检，解释阻塞问题并给出按实体 ID 定位的修复建议。 |
+| `workflow.publish_version` | 校验用户指定的草稿并按任务要求发布、回读状态。 |
 
 Prompt 返回给 MCP 客户端模型的是标准化执行指令，不会由服务端自行递归调用 Tool，也不增加工作流级二次确认。实际 Tool 是否逐次审批由 MCP 客户端决定。
 
 ## 草稿与发布边界
 
-项目版本一旦发布，版本本身及其分类、笔记、正文即被冻结。所有文档树写 Tool 都调用与网页后台相同的 Service、可串行化事务和版本锁；遇到发布版本会返回 `VERSION_FROZEN`，不会绕过业务规则或部分写入。
+项目版本一旦发布，正文、主正文选择、文档树成员及其启停状态即被冻结；名称、标题、说明和权重仍可编辑。所有文档树写 Tool 都调用与网页后台相同的 Service、可串行化事务和版本锁；遇到发布版本会返回 `VERSION_FROZEN`，不会绕过业务规则或部分写入。
 
-`content.project.update` 有一个明确例外：已有发布版本的项目仍可调整权重，这可能立即改变公开排序；名称和头像必须在网页后台修改。含名称或头像的混合更新会整体失败，不会只应用其中的权重。
+发布后的元数据编辑只发送需要变化的字段，混合正文或结构修改仍整体受冻结规则约束。
 
-`content.project.version.check_draft` 检查父项目状态、启用分类、启用笔记、唯一未删除主正文、主正文启用状态和非空正文。结果仅代表本次读取时刻；网页后台正式发布时会在事务中重新执行同一校验。
+`content.project.version.check_draft` 检查父项目状态、启用分类、启用笔记、唯一未删除主正文、主正文启用状态和非空正文。结果仅代表本次读取时刻；正式发布时会在事务中重新执行同一校验。
 
-MCP 不注册项目、版本、分类、笔记、正文、文章、首页、菜单和文件的删除/恢复 Tool，也不注册发布、撤回、批量操作、版本可见性调整、密码重置、积分调整、卡密发行、会员授予/撤销、合同取消或代签、链上提交、备份恢复、系统设置写入或系统更新执行 Tool。上述高风险操作继续由网页后台确认；后续如开放 MCP 发布，应采用独立的两段式确认协议。
+MCP 支持项目版本发布、可见性调整及文章发布/撤回，复用网页业务规则。用户任务、宿主审批和服务端权限共同约束调用；没有额外 CLI 确认机制。删除/恢复、批量操作、密码重置、积分调整、卡密发行、会员授予/撤销、正式合同发起或代签、链上提交、备份恢复、设置写入和系统更新执行仍通过网站。
 
 Tool、Prompt 与 Resource 注册分别位于 `src/server/mcp/tools/`、`src/server/mcp/prompts.ts` 和 `src/server/mcp/resources.ts`，均复用 `/mcp` 的 MCP Key 鉴权边界。
 

@@ -16,9 +16,7 @@ on:
       - main
     paths-ignore:
       - 'integrations/**'
-      - '.github/workflows/release-toolkit.yml'
       - '.github/workflows/release-vault-module.yml'
-      - '.github/workflows/release-mcp-client.yml'
       - '.github/workflows/release-skill.yml'
       - '.github/workflows/release-deployment.yml'
   push:
@@ -27,9 +25,7 @@ on:
       - main
     paths-ignore:
       - 'integrations/**'
-      - '.github/workflows/release-toolkit.yml'
       - '.github/workflows/release-vault-module.yml'
-      - '.github/workflows/release-mcp-client.yml'
       - '.github/workflows/release-skill.yml'
       - '.github/workflows/release-deployment.yml'
 

@@ -2,26 +2,40 @@
 
 ## 职责边界
 
-| 能力 | 所属仓库 | 发布单元 | 用户入口 |
+| 能力 | 维护方 | 发布单元 | 用户入口 |
 | --- | --- | --- | --- |
-| 管理员 MCP 服务端、业务 Tool/Prompt/Resource、部署应用 | SlothVault | 应用 Docker/源码 Release | `/mcp`、网页 |
-| MCP 连接、配置档案、调用确认、安全下载、脱敏历史 | SlothVault | `mcp-client-vX.Y.Z` | Python 脚本或 SlothTool 适配器 |
-| 智能体操作说明 | SlothVault | `skill-vX.Y.Z` | 手动复制或 SlothTool 管理链接 |
-| 主机部署、应用更新、JSON 行事件桥 | SlothVault | `deployment-vX.Y.Z` | Python 脚本或 SlothTool 管理页 |
-| 下载校验、版本指针、TUI、命令注册、Skill 链接 | SlothTool | 根包与 SlothVault 插件 | `slothtool sv` |
+| 标准 MCP、业务 Tool/Prompt/Resource、Key 和网站 | SlothVault | 应用 Docker/源码 Release | `/mcp`、网站 |
+| 连接、发现、调用、审批与配置 | Codex、Claude Code 等宿主 | 宿主自身 | 原生 Streamable HTTP MCP |
+| 智能体业务说明 | SlothVault | `skill-vX.Y.Z` | 手动安装或 SlothTool 受管链接 |
+| 主机部署、应用更新、JSON 行桥 | SlothVault | `deployment-vX.Y.Z` | 独立 Python 脚本或 SlothTool |
+| 包校验、版本指针、TUI、Skill 链接 | SlothTool | 根包与界面插件 | `slothtool slothvault` / `slothtool sv` |
 
-旧 `integrations/slothvault-runtime` 只作为迁移期的回退来源保留，`toolkit-v*` 不再发布。新模块均从 `1.0.0` 开始独立递增。应用版本仍由应用文件提交决定；只修改 `integrations/` 或这三个模块的发布 workflow，不触发 Docker 应用发布。服务端 `/mcp/compatibility` 属于应用边界，修改它按应用版本规则处理。
+独立 MCP Client 和旧 `integrations/slothvault-runtime` 整包源码、执行入口和发布入口已退役。原生 MCP 无需 SlothTool；Deployment 不依赖 MCP 接入。Skill 安装和连接配置分别进行。
 
-## 包结构与安装
+## 原生接入与一次性凭据
 
-每个模块的 `module.json` 提供模块名、版本、桥协议主版本和最低 Python 版本；`CHANGELOG.md` 的同版本小节提供 Release 变更说明。`README.md` 和 `CHANGELOG.md` 留在源码中，不进入运行归档；仅修改文档不重发同版本包。独立 Action 以固定的 `package/` 根打出 `slothvault-<module>-<version>.tgz`，发布同名 `slothvault-<module>-manifest.json`。清单含归档 SHA-256、逐文件 SHA-256、`protocolMajor` 与 `bridgeApiMajor`。SlothTool 先下载三个清单和归档、校验摘要和文件列表，为 MCP Client 创建独立 `.venv` 并使用 `--require-hashes` 安装依赖，再切换各模块 `current` 指针。首次安装若任一包准备失败，不切换任何运行指针；逐包更新失败时旧指针仍可用。
+管理员明确提交名称和有效期后，服务端仅在该次创建响应返回完整 Key。页面在短暂内存中生成 Codex TOML 和 Claude Code Bash/zsh 命令，两者直连同一 `/mcp`。关闭、确认、切换创建流程和卸载时移除敏感引用。列表和 mutation 缓存仅保留安全元数据，数据库只保存 secret 哈希。
 
-版本目录：`~/.pipker/slothtool/runtimes/slothvault/components/<module>/releases/<version>`。`current` 指向验证过的版本。旧整包目录 `~/.pipker/slothtool/runtimes/slothvault/` 保留供迁移回退，不作为新执行入口。已有配置档案和历史继续留在原规范路径，新包不会清空或重置。已验证属于旧整包的 Codex/Claude Skill 链接可改指新 Skill；自定义目录或其他链接保持原样。
+外部地址优先使用严格验证的 `NEXT_PUBLIC_SITE_ORIGIN`，缺失时使用浏览器 origin；显式合法路径前缀保留。当前应用没有 Next.js basePath；路径部署须保证前缀实际路由至应用。地址不从管理员页面、locale、Host 或 Forwarded Header 推导。已有 Key 的接入说明仅展示占位模板，无法恢复明文，也不会静默创建或轮换。
 
-SlothTool 根注册表仅保留 `slothvault` 一项，`sv` 是非弃用命令别名，`slothvault-mcp` 是兼容旧命令别名。`slothtool install slothvault` 安装 UI 插件及三包；`slothtool update slothvault --check` 与 `slothtool update slothvault` 统一检查、更新；`--module mcp-client|skill|deployment` 定向处理。`slothtool sv` 打开管理 TUI。插件 UI 的 MCP、Skill、部署页分别展示包版本、检查状态和更新结果；部署页另显示已部署应用版本。
+每个 MCP 请求重验 Bearer Key、有效期、启停、账户状态及管理员角色。标准 SDK 协商 MCP 日期协议；身份由 `initialize.serverInfo` 返回，跨工具指导由初始化 `instructions` 提供。宿主审批不会改变服务端权限。
 
-## 运行边界
+## 独立包
 
-MCP Client 只进行连接与本地安全控制，不内置业务 Tool 名称。远端操作先调用受 Bearer Key 保护的 `/mcp/compatibility`，再执行 MCP 握手并验证服务端名称、协议交集；版本过低或协议不兼容时阻止操作，SlothTool 提供更新入口。旧服务端 404 回退到握手，最低客户端版本显示“未验证”。即使最新包仍不满足服务端要求，也继续阻止远端操作。MCP Key 只经 stdin、隐藏终端输入或环境变量进入客户端，不通过命令参数、TUI 状态或历史输出。
+两模块各自使用 module.json 和 CHANGELOG。归档固定 `package/` 根目录；清单包含归档和逐文件 SHA-256、protocolMajor、bridgeApiMajor。Skill **1.1.0**、Deployment **1.0.0**，两者桥主版本保持 **1**。README/CHANGELOG 不进入运行归档，文档更新不重发已有版本。
 
-Skill 仅提供可复制内容；智能体探测、链接安装及冲突处理由 SlothTool 执行。部署包是纯 Python 标准库程序，SlothTool 只负责调用和展示 JSON 行事件，不重新实现部署逻辑。协议细节见 [PROTOCOL.md](./PROTOCOL.md)，跨仓库变更步骤见 [SYNC_UPDATES.md](./SYNC_UPDATES.md)。
+SlothTool 目前只管理 Skill 与 Deployment。根 install/update 管理界面；`slothtool slothvault skill install|update` 下载独立 Skill并同步受管链接，无 Client 虚拟环境。Deployment 保持独立脚本和 JSON 行桥。包、宿主、服务端和已部署应用版本分别管理。
+
+## 退役和本地遗留数据
+
+不再生成 `mcp-client-v*` 或 `toolkit-v*` 新 Release，历史 Release 和 Tag 保留。应用版本算法保留退役 workflow 路径的历史识别，避免改变已有提交的版本计数。
+
+已确认没有需要保留扩展接口的外部消费者，直接移除 `/mcp/compatibility`。旧 Python Client 曾在 404 后回退标准握手，此行为仅供迁移诊断，不代表继续维护旧 Client。
+
+代码不会删除机器上的 Profile、调用历史、Key、智能体配置或部署实例。明确清理流程：先验证新的原生连接，列出并备份旧安装和受管链接，逐项选择本地遗留文件；需要撤销旧 Key 时在网站逐个禁用或删除。不要递归删除旧整包根目录，以免包含部署实例或自定义资料。迁移和清理由用户明确操作。
+
+历史规范路径包括 `~/.pipker/slothtool/plugin-configs/slothvault.json`（可能包含旧 Profile 的明文 Key）、`~/.pipker/slothtool/data/slothvault/history.json`（旧调用历史）和 `~/.pipker/slothtool/runtimes/slothvault/components/mcp-client/`（旧独立 Client）。这些路径仅用于人工核对和清理，不是现行读取或执行入口。先核实实际安装归属和备份，再处理明确选择的文件及旧命令链接；保留部署实例、Skill/Deployment 目录与用户自定义配置。
+
+附件 Resource 保留鉴权、业务域隔离和大小限制。宿主可读并保存 blob 时使用宿主能力，否则使用网站授权下载。Skill 不保证每个宿主的二进制保存能力相同。
+
+接口见 [PROTOCOL.md](./PROTOCOL.md)，交接见 [SYNC_UPDATES.md](./SYNC_UPDATES.md)。

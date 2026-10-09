@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Administrator MCP Server
  * @description Constructs the per-request, stateless SlothVault administrator MCP 4.0 server with daily content tools, safe read tools, protected Resources, and reusable workflows.
- * @logic Register the versioned server identity plus isolated Tool, Prompt, and Resource registries against one verified MCP principal while keeping protocol capabilities independent from browser routes.
+ * @logic Expose native MCP initialization guidance and the versioned Tool, Prompt, and Resource registries against one verified principal, without a dedicated-client version policy.
  * @dependencies MCP TypeScript SDK, mcp/tools, mcp/prompts, mcp/resources, services/mcp-api-keys
  * @index_tags mcp,server,streamable-http,administrator,tools,prompts,resources
  * @author holic512
@@ -20,12 +20,12 @@ import { registerAdminMcpTools } from './tools'
 
 export const ADMIN_MCP_SERVER_NAME = 'slothvault-admin-mcp'
 export const ADMIN_MCP_SERVER_VERSION = '4.0.0'
-export const MINIMUM_ADMIN_MCP_CLIENT_VERSION = '1.0.0'
+export const ADMIN_MCP_INSTRUCTIONS = 'Use the connected host\'s discovered SlothVault tools and actual schemas. The user\'s task, host approvals, and server permissions govern access. Reuse drafts and attachments. Published bodies are frozen: clone to a draft, edit, validate, and publish only when requested. After a failed or uncertain write, read back state before retrying. Protected attachments are MCP Resources; use the website\'s authorized download flow if the host cannot save them.'
 
 export function createAdminMcpServer(principal: McpPrincipal) {
   const server = new McpServer(
     { name: ADMIN_MCP_SERVER_NAME, version: ADMIN_MCP_SERVER_VERSION },
-    { capabilities: { logging: {} } },
+    { capabilities: { logging: {} }, instructions: ADMIN_MCP_INSTRUCTIONS },
   )
   registerAdminMcpTools(server, principal)
   registerAdminMcpPrompts(server)

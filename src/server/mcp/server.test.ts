@@ -1,7 +1,11 @@
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
-import { describe, expect, it, vi } from 'vitest'
+import { Client } from '@modelcontextprotocol/sdk/client/index.js'
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
+import { NextRequest } from 'next/server'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
+  health: vi.fn(), findMcpKey: vi.fn(), touchMcpKey: vi.fn(), verifyPassword: vi.fn(),
   createAdminProject: vi.fn(), getAdminProject: vi.fn(), listAdminProjects: vi.fn(),
   updateAdminProjectMetadataFromMcp: vi.fn(), createAdminProjectVersion: vi.fn(),
   updateAdminProjectVersion: vi.fn(), publishProjectVersion: vi.fn(), setProjectVersionVisibility: vi.fn(),
@@ -31,6 +35,10 @@ const mocks = vi.hoisted(() => ({
   getAdminReleaseEvidence: vi.fn(), listReleaseEvidence: vi.fn(),
   getSystemUpdateInfo: vi.fn(),
 }))
+
+vi.mock('@/server/database/runtime-health', () => ({ readRuntimeInstallationPublicStatus: mocks.health }))
+vi.mock('@/server/prisma', () => ({ prisma: { mcpApiKey: { findUnique: mocks.findMcpKey, updateMany: mocks.touchMcpKey } } }))
+vi.mock('@/server/auth/password', () => ({ verifyPassword: mocks.verifyPassword }))
 
 vi.mock('@/server/services/admin-catalog', () => ({
   createAdminProject: mocks.createAdminProject,
@@ -145,6 +153,8 @@ vi.mock('@/server/services/system-update', () => ({
 
 import { createAdminMcpServer } from '@/server/mcp/server'
 import { HttpError } from '@/server/http/errors'
+import { POST, GET, DELETE } from '@/app/mcp/route'
+import { ADMIN_MCP_INSTRUCTIONS } from '@/server/mcp/server'
 
 const principal = {
   authentication: 'mcp-api-key' as const,
@@ -228,7 +238,7 @@ async function resultOf(message: Record<string, unknown>) {
 }
 
 describe('administrator MCP server', () => {
-  it('publishes the 3.1 identity and the complete safe daily-management tool registry', async () => {
+  it('publishes the 4.0 identity and the complete safe daily-management tool registry', async () => {
     const initialize = await resultOf({
       jsonrpc: '2.0', id: 1, method: 'initialize',
       params: {
@@ -588,5 +598,143 @@ describe('administrator MCP server', () => {
     const text = prompt.result.messages[0].content.text
     expect(text).toContain('content.project.version.check_draft')
     expect(text).not.toMatch(/admin_project_list|\.delete|\.restore/)
+  })
+})
+
+const nativePlaceholderKey = `svmcp_${'EXAMPLE_ONLY'.padEnd(24, '_')}.${'EXAMPLE_ONLY_NOT_A_SECRET'.padEnd(43, '_')}`
+function activeNativeKey() {
+  return { id: 4, publicId: 'EXAMPLE_ONLY'.padEnd(24, '_'), secretHash: 'EXAMPLE_HASH_ONLY',
+    status: 1, expiresAt: null, user: { id: 7, username: 'admin', role: 'ADMIN', status: 1 } }
+}
+
+function nativeClient(name: string, key = nativePlaceholderKey) {
+  const requests: Request[] = []
+  const client = new Client({ name, version: '1.0.0' })
+  const transport = new StreamableHTTPClientTransport(new URL('https://vault.example/mcp'), {
+    requestInit: { headers: { Authorization: `Bearer ${key}` } },
+    fetch: async (input, init) => {
+      const request = new Request(input, init)
+      requests.push(request)
+      expect(new URL(request.url).pathname).toBe('/mcp')
+      if (request.method === 'GET') return GET()
+      if (request.method === 'DELETE') return DELETE()
+      return POST(new NextRequest(request))
+    },
+  })
+  return { client, transport, requests }
+}
+
+describe('standard SDK clients through the real /mcp route', () => {
+  beforeEach(() => {
+    mocks.health.mockResolvedValue({ status: 'INSTALLED' })
+    mocks.findMcpKey.mockResolvedValue(activeNativeKey())
+    mocks.touchMcpKey.mockResolvedValue({ count: 1 })
+    mocks.verifyPassword.mockResolvedValue(true)
+  })
+
+  it.each(['Codex', 'claude-code', 'standard-mcp-client'])('initializes, discovers and reads using %s', async (name) => {
+    const { client, transport, requests } = nativeClient(name)
+    mocks.listAdminProjects.mockResolvedValue({ list: [project({ latestVersion: "v1", latestVersionId: "11", categoryCount: 2 })], page: 1, pageSize: 20, total: 1 })
+    try {
+      await client.connect(transport)
+      expect(client.getServerVersion()).toEqual({ name: 'slothvault-admin-mcp', version: '4.0.0' })
+      expect(client.getInstructions()).toBe(ADMIN_MCP_INSTRUCTIONS)
+      expect((await client.listTools()).tools).toHaveLength(68)
+      expect((await client.listPrompts()).prompts).toHaveLength(4)
+      expect((await client.listResourceTemplates()).resourceTemplates).toHaveLength(2)
+      expect((await client.listResources()).resources).toEqual([])
+      const read = await client.callTool({ name: 'content.project.list', arguments: {} })
+      expect(read.isError).not.toBe(true)
+      expect(read.structuredContent).toMatchObject({ list: [{ id: '9' }] })
+      const negotiated = requests.filter((request) => request.method === 'POST').slice(1)
+      expect(negotiated.every((request) => request.headers.get('mcp-protocol-version') === '2025-11-25')).toBe(true)
+      const prompt = await client.getPrompt({ name: 'workflow.pre_publish_check', arguments: { projectVersionId: '12' } })
+      expect(prompt.messages[0].content).toMatchObject({ type: 'text' })
+      mocks.readManagedFile.mockResolvedValue({ file: { originalName: 'guide.md', businessType: 'Markdown', status: 1 }, buffer: Buffer.from('# Guide') })
+      mocks.managedFileContentType.mockReturnValue('text/markdown')
+      const file = await client.readResource({ uri: 'slothvault://managed-file/44' })
+      expect(file.contents[0]).toMatchObject({ blob: Buffer.from('# Guide').toString('base64'), _meta: { 'slothvault/file-name': 'guide.md' } })
+      mocks.readAuthorizedContractAttachment.mockResolvedValue({ originalName: 'contract.pdf', buffer: Buffer.from('%PDF-example') })
+      const attachment = await client.readResource({ uri: 'slothvault://contract-attachment/12' })
+      expect(attachment.contents[0]).toMatchObject({ mimeType: 'application/pdf', blob: Buffer.from('%PDF-example').toString('base64') })
+      expect(mocks.readAuthorizedContractAttachment).toHaveBeenCalledWith({ id: 12, userId: 7, isAdmin: true })
+    } finally { await client.close() }
+  })
+
+  it.each([
+    ['expired', { expiresAt: new Date('2020-01-01') }],
+    ['disabled', { status: 0 }],
+    ['non-admin', { user: { id: 7, username: 'example', role: 'USER', status: 1 } }],
+    ['disabled account', { user: { id: 7, username: 'example', role: 'ADMIN', status: 0 } }],
+  ])('refuses %s credentials at initialize', async (_name, overrides) => {
+    mocks.findMcpKey.mockResolvedValue({ ...activeNativeKey(), ...overrides })
+    const { client, transport } = nativeClient('Codex')
+    try { await expect(client.connect(transport)).rejects.toMatchObject({ code: 401 }) } finally { await client.close() }
+  })
+
+  it('refuses invalid keys', async () => {
+    const { client, transport } = nativeClient('claude-code', 'SLOTHVAULT_MCP_KEY_EXAMPLE_INVALID')
+    try { await expect(client.connect(transport)).rejects.toMatchObject({ code: 401 }) } finally { await client.close() }
+  })
+
+  it('requires a Bearer Key even when a browser session Cookie is present', async () => {
+    const lookups = mocks.findMcpKey.mock.calls.length
+    const response = await POST(new NextRequest('https://vault.example/mcp', {
+      method: 'POST',
+      headers: { Cookie: 'sv_session=EXAMPLE_SESSION_ONLY', 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {
+        protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'Codex', version: '1.0.0' },
+      } }),
+    }))
+    expect(response.status).toBe(401)
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(mocks.findMcpKey.mock.calls).toHaveLength(lookups)
+  })
+
+  it('revalidates revocation between requests and before Resource reads', async () => {
+    const { client, transport } = nativeClient('standard-mcp-client')
+    try {
+      await client.connect(transport)
+      mocks.findMcpKey.mockResolvedValue({ ...activeNativeKey(), status: 0 })
+      await expect(client.listTools()).rejects.toMatchObject({ code: 401 })
+      await expect(client.readResource({ uri: 'slothvault://managed-file/44' })).rejects.toMatchObject({ code: 401 })
+    } finally { await client.close() }
+  })
+
+  it('keeps Resource domains and size limits enforced', async () => {
+    const { client, transport } = nativeClient('standard-mcp-client')
+    try {
+      await client.connect(transport)
+      for (const businessType of ['ContractAttachment', 'CommissionAttachment']) {
+        mocks.readManagedFile.mockResolvedValue({ file: { originalName: 'private.pdf', businessType, status: 1 }, buffer: Buffer.from('example') })
+        await expect(client.readResource({ uri: 'slothvault://managed-file/44' })).rejects.toThrow()
+      }
+      mocks.readManagedFile.mockResolvedValue({ file: { originalName: 'large.zip', businessType: 'Other', status: 1 }, buffer: Buffer.alloc(10 * 1024 * 1024 + 1) })
+      await expect(client.readResource({ uri: 'slothvault://managed-file/44' })).rejects.toThrow()
+      mocks.readAuthorizedContractAttachment.mockResolvedValue({ originalName: 'large.pdf', buffer: Buffer.alloc(25 * 1024 * 1024 + 1) })
+      await expect(client.readResource({ uri: 'slothvault://contract-attachment/12' })).rejects.toThrow()
+      mocks.readAuthorizedContractAttachment.mockRejectedValue(new HttpError('Not found', 404, 404))
+      await expect(client.readResource({ uri: 'slothvault://contract-attachment/12' })).rejects.toThrow()
+    } finally { await client.close() }
+  })
+
+  it('never includes the Bearer credential in success or authentication-failure logs', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { client, transport } = nativeClient('standard-mcp-client')
+    mocks.listAdminProjects.mockResolvedValue({ list: [], page: 1, pageSize: 20, total: 0 })
+    try {
+      await client.connect(transport)
+      await client.callTool({ name: 'content.project.list', arguments: {} })
+      mocks.findMcpKey.mockResolvedValue({ ...activeNativeKey(), status: 0 })
+      await expect(client.listTools()).rejects.toMatchObject({ code: 401 })
+      const logged = JSON.stringify([info.mock.calls, error.mock.calls])
+      expect(logged).not.toContain(nativePlaceholderKey)
+      expect(logged).not.toContain('EXAMPLE_ONLY_NOT_A_SECRET')
+    } finally {
+      await client.close()
+      info.mockRestore()
+      error.mockRestore()
+    }
   })
 })

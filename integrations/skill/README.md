@@ -1,7 +1,17 @@
 # SlothVault Skill Package
 
-此包只包含智能体 Skill 内容和 `module.json` 版本元数据。SlothVault 维护 Skill 的业务说明；SlothTool 负责探测智能体、安装与更新受管链接、冲突展示和版本检查。
+此包仅包含 Skill 内容和 module.json，当前版本 **1.1.0**，桥主版本 **1**。Skill 使用宿主已连接并发现的 SlothVault 原生 MCP 工具；网站管理员 MCP Key 页提供接入配置。连接无需 SlothTool 或专用 Python 包。
 
-手动安装时，将 `slothvault-mcp` 整个目录复制到目标智能体的用户级 Skill 目录，例如 `$CODEX_HOME/skills/slothvault-mcp`（默认 `~/.codex/skills/slothvault-mcp`）或 `$CLAUDE_CONFIG_DIR/skills/slothvault-mcp`（默认 `~/.claude/skills/slothvault-mcp`）。复制前查看目标是否已有自定义内容，不要直接覆盖。
+手动安装时，将 `slothvault-mcp` 整个目录复制到用户级 Skill 目录，例如 `$CODEX_HOME/skills/slothvault-mcp`（默认 `~/.codex/skills/slothvault-mcp`）或 Claude Code 的 `~/.claude/skills/slothvault-mcp`。先检查已有自定义内容，避免覆盖。
 
-通过 SlothTool 运行 `slothtool install slothvault` 安装三包，`slothtool sv` 打开 Skill 管理页；`slothtool update slothvault --module skill --check` 检查版本，去掉 `--check` 更新。SlothTool 只重定向经验证属于旧运行包的受管链接，自定义 Skill 由用户保留和处理。
+SlothTool 当前独立管理 Skill 和 Deployment；根安装命令管理界面插件，Skill 使用：
+
+```bash
+slothtool slothvault skill status --check --json
+slothtool slothvault skill install
+slothtool slothvault skill update
+```
+
+命令下载、校验独立 Skill 包并同步受管链接，无需 Client。目录和 Skill 名称保持不变；自定义文件由用户处理。契约见 [PROTOCOL.md](../PROTOCOL.md)。
+
+发布前运行 `python3 -m unittest discover -s integrations/scripts/tests` 和协议校验。拟发布 `skill-v1.1.0`；本轮仅本地代码、验证和归档，实际 Release 须绑定最终提交，不重复发布已有 Tag。

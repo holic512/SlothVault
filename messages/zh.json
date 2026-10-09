@@ -2116,13 +2116,17 @@
       },
       "actions": {
         "refresh": "刷新",
-        "create": "创建 MCP Key",
+        "create": "创建 Key 并生成配置",
         "enable": "启用",
         "disable": "停用",
         "delete": "删除",
         "cancel": "取消",
-        "copy": "复制 Key",
-        "confirmSaved": "我已安全保存"
+        "copy": "复制",
+        "confirmSaved": "我已保存配置",
+        "getConfig": "获取接入配置",
+        "guide": "接入说明",
+        "createNew": "创建新 Key",
+        "close": "关闭"
       },
       "table": {
         "name": "名称",
@@ -2151,11 +2155,19 @@
         "expiresAt": "请选择未来的到期时间"
       },
       "dialog": {
-        "createTitle": "创建 MCP Key",
-        "revealTitle": "立即安全保存 MCP Key",
-        "revealWarning": "该完整 Key 只会显示这一次",
-        "revealDescription": "关闭此窗口后，系统不会再次展示完整 Key。请复制到受信任的 MCP 客户端或密码管理器；如遗失，请删除并创建新的 Key。",
-        "keyValue": "新创建的 MCP Key"
+        "createTitle": "获取接入配置",
+        "revealTitle": "智能体接入配置",
+        "revealWarning": "配置包含访问令牌，请勿提交到代码仓库或发送给他人。",
+        "revealDescription": "令牌仅展示一次。将对应配置加入客户端后即可使用。",
+        "guideTitle": "原生 MCP 接入说明",
+        "guideWarning": "已有 Key 的完整令牌无法恢复。以下配置使用占位令牌。",
+        "guideDescription": "如已安全保存 Key，请在本地替换占位令牌。需要新配置时，请明确创建新 Key；原有 Key 不会自动轮换或废弃。",
+        "codexCopy": "复制 Codex 配置",
+        "codexValue": "Codex TOML 接入配置",
+        "codexHint": "加入 Codex 的 config.toml。auto 为宿主工具审批策略，服务端仍验证管理员权限。",
+        "claudeCopy": "复制 Claude Code 命令",
+        "claudeValue": "Claude Code Bash 或 zsh 接入命令",
+        "claudeHint": "在 Bash / zsh 中执行，将 HTTP MCP 服务加入 Claude Code 用户级配置。"
       },
       "messages": {
         "loadFailed": "读取 MCP Key 失败",
@@ -2164,8 +2176,10 @@
         "deleted": "MCP Key 已删除",
         "deleteTitle": "删除 MCP Key",
         "deleteConfirm": "确认永久删除 MCP Key「{name}」？已配置此 Key 的 MCP 客户端将立即无法访问。",
-        "copied": "MCP Key 已复制",
-        "copyFailed": "无法自动复制，请手动复制 Key"
+        "copied": "配置已复制",
+        "copyFailed": "无法自动复制。已选中完整配置，请手动复制。",
+        "createFailed": "创建 MCP Key 失败。请刷新列表核对结果后再尝试。",
+        "invalidEndpoint": "外部访问地址无效，请检查 NEXT_PUBLIC_SITE_ORIGIN。仅支持有效 HTTP(S) 地址。"
       }
     },
     "homepage": {

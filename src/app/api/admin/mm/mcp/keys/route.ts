@@ -26,7 +26,7 @@ export const dynamic = 'force-dynamic'
 export const GET = defineRoute(async (request) => {
   const session = await requireAdminSession(request)
   return apiOk(await listMcpApiKeys(session.User.id))
-})
+}, { cacheControl: 'private, no-store' })
 
 export const POST = defineRoute(async (request) => {
   const session = await requireAdminSession(request)
@@ -39,4 +39,4 @@ export const POST = defineRoute(async (request) => {
     name: body.name,
     expiresAt,
   }), 'created', 201)
-})
+}, { cacheControl: 'private, no-store' })

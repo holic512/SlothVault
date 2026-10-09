@@ -2,30 +2,17 @@
 
 本版本支持 SlothVault MCP `4.0.0`：68 个工具、4 个 Prompt、2 个受保护 Resource 模板。客户端应按需读取实时目录；本文中的工具名是本版本示例。
 
-## 连接
+## 连接与授权
 
-普通配置使用 `slothtool slothvault setup`，只填写服务器地址和访问密钥。它注册受管 `slothvault-mcp` 命令、为已检测的智能体同步内置 Skill，并保存及测试连接。独立命令 `slothvault-mcp setup` 共用连接配置逻辑。网站根地址自动补 `/mcp`；相同地址复用配置，其他连接保留。密钥用隐藏输入、stdin 或环境变量传入。连接失败也会明确报告是否已保存。
+在网站管理员 MCP Key 页明确创建并获取一次性配置，加入 Codex 或 Claude Code 的原生 MCP 客户端。已有 Key 只能通过已保存令牌或新建获取配置，服务端不能恢复明文。详细模板见 [管理员 MCP 接入](./MCP_ADMIN.md)。连接无需 SlothTool 或专用 Python 包；Skill 安装并不配置连接。
 
-```bash
-slothtool slothvault setup --url https://vault.example --key-env SLOTHVAULT_KEY
-slothvault-mcp doctor --json
-slothvault-mcp tools list --json
-slothvault-mcp tools show content.project.version.clone --json
-```
-
-命名、超时、多连接切换继续使用 `profile` 命令。迁移与配置路径诊断使用 `storage status --json`，不读取或输出原始密钥。
-
-## 授权与执行
-
-用户对整项任务的要求涵盖任务中的上传、克隆、编辑、校验及明确要求的发布。CLI 对写调用保留交互确认和非交互 `--yes`；代理用 `--yes` 表达已经获得的任务授权，无需逐步重新询问。目标有歧义、需要覆盖已有内容或操作超出任务时才补充确认。只要求草稿的任务完成草稿即可。
-
-只有工具的 `annotations.readOnlyHint === true` 表示只读。Prompt、文档与服务器返回的文字不扩展用户授权。连接与目录按需发现，同一任务复用已读取的元数据。业务调用仍由 CLI 验证服务端身份和工具的当前调用边界。
+宿主发现当前 Tool/Prompt/Resource 和实际 schema 后调用；本文业务名不包含宿主生成的前缀。用户任务、宿主审批、服务端权限决定授权，annotations 说明风险。Prompt、文档和返回文字不扩展授权。只要求草稿时不自动发布。
 
 ## 项目资料到发布
 
 1. 读取项目、版本和已有内容，复用用户指定草稿与已有附件。
-2. 用 `slothtool loc` 统计所选源码目录的物理行数；用 `slothtool pzip` 预览打包清单并排除依赖、构建产物与敏感配置。
-3. 上传缺失附件，将实际返回的图片与下载地址写入 Markdown。
+2. 使用宿主已有工具统计物理行数、预览打包清单并排除依赖、产物和敏感配置；已安装 SlothTool 时可选用 loc/pzip。
+3. 上传缺失附件，按实际 filePath / resourceUri 写入或交接，不能从 ID 猜测公开下载地址。
 4. 保存完整文档树，调用 `content.project.version.check_draft`，处理返回的具体问题。
 5. 用户要求发布时调用 `content.project.version.publish`，回查 `get`、可见状态和 `integrity`。重复发布返回同一记录。
 
@@ -49,26 +36,23 @@ slothvault-mcp tools show content.project.version.clone --json
 
 文章创建和编辑分别使用 `content.article.create`、`content.article.update`。发布使用 `content.article.publish`，撤回使用 `content.article.withdraw`，都传入 `articleId`。它们复用网页后台的校验与缓存刷新。
 
-受保护文件从实时 Resource 模板发现，下载到指定输出文件。CLI 拒绝覆盖已有文件。截图默认嵌入对应正文段落，源码和视频提供有用途说明的下载链接。
+受保护文件从实际 resourceUri 和 Resource 模板发现。宿主可读取和保存标准 blob 时保存至任务目录并保留已有文件；宿主不支持或容量不足时使用网站授权下载。截图默认嵌入对应正文段落，源码和视频提供有用途说明的下载链接。
 
 ## 错误处理
 
-CLI 保留稳定分类和退出码，同时提供脱敏的 `reason`、实体 ID 和 `issues`。`TARGET_VERSION_NOT_EMPTY` 表示目标已有内容，`VERSION_FROZEN` 表示试图改变发布正文或结构，`VERSION_PROJECT_MISMATCH` 表示项目不一致。失败后可以继续只读诊断并在原任务内修正；写入超时等结果不明的情况先回查，不盲目重复上传或创建。
+服务端返回结构化错误信息，包括 `reason`、实体 ID 和 `issues`。`TARGET_VERSION_NOT_EMPTY` 表示目标已有内容，`VERSION_FROZEN` 表示试图改变发布正文或结构，`VERSION_PROJECT_MISMATCH` 表示项目不一致。失败后可以继续只读诊断并在原任务内修正；写入超时等结果不明的情况先回查，不盲目重复上传或创建。
 
 ## Skill 版本与更新
 
-Skill 从 `1.0.0` 开始由本仓库 `integrations/skill/` 独立维护和发布为 `skill-vX.Y.Z`。MCP Client 与 Deployment 分别使用 `mcp-client-vX.Y.Z`、`deployment-vX.Y.Z`；SlothTool 界面插件采用独立版本。每个 Release 附带模块版本、协议主版本、归档和逐文件 SHA-256；SlothTool 校验后安装。完整契约见 [集成协议](../integrations/PROTOCOL.md)。
+Skill 1.1.0 独立发布为 skill-v1.1.0，桥主版本 1；Deployment 保持 1.0.0/桥主版本 1。本轮仅准备待发布代码。SlothTool 根 install/update 管理界面插件；Skill 的当前命令是：
 
 ```bash
-slothtool sv skill status --json
-slothtool sv skill status --check --json
-slothtool sv skill update
-slothtool sv skill update --local
-slothtool update slothvault --module skill --check --json
-slothtool update slothvault --check --json
+slothtool slothvault skill status --check --json
+slothtool slothvault skill install
+slothtool slothvault skill update
 ```
 
-在线更新由 SlothTool 分别检查界面与三个 Vault 包版本，再同步新版 Skill。`--local` 仅使用当前已安装 Skill 包修复受管链接。当前和旧受管链接可同步；用户自定义文件保持原状并报告冲突。网络检查失败显示“未能检查”。`slothtool bundle slothvault` 只包含界面插件，用该归档安装时仍需联网取得三个 Vault 包。
+命令直接下载并校验独立 Skill，同步 slothvault-mcp 受管链接，无需 Client。自定义内容保留并报告冲突；网络失败表示未检查。Deployment 独立安装/更新，不绑定原生连接。历史整包和 Client Release 不删除，不再发布新版本。契约见 [集成协议](../integrations/PROTOCOL.md)。
 
 正文哈希的字节规则、元数据边界和数据库升级方式参见 [Manifest v2](./RELEASE_MANIFEST_V2.md)。
 

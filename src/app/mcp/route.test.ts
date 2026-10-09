@@ -5,13 +5,11 @@ vi.mock('@/server/database/runtime-health', () => ({ readRuntimeInstallationPubl
 vi.mock('@/server/mcp/authentication', () => ({ authenticateMcpRequest: mocks.auth }))
 vi.mock('@/server/mcp/server', () => ({
   createAdminMcpServer: () => ({ connect: mocks.connect }),
-  ADMIN_MCP_SERVER_NAME: 'slothvault-admin-mcp', ADMIN_MCP_SERVER_VERSION: '4.0.0', MINIMUM_ADMIN_MCP_CLIENT_VERSION: '1.0.0',
 }))
 vi.mock('@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js', () => ({
   WebStandardStreamableHTTPServerTransport: class { handleRequest = mocks.handle },
 }))
 import { POST } from './route'
-import { GET as compatibility } from './compatibility/route'
 import { acquireMaintenanceLock } from '@/server/services/maintenance-lock'
 import { setBackupRecoveryError } from '@/server/services/admin-backup/recovery-state'
 
@@ -32,14 +30,6 @@ describe('MCP maintenance coordination', () => {
     release()
     expect((await response).status).toBe(200)
     expect(mocks.auth).toHaveBeenCalledOnce(); expect(mocks.handle).toHaveBeenCalledOnce()
-  })
-  it('also coordinates compatibility authentication writes', async () => {
-    const release = await acquireMaintenanceLock('exclusive')
-    const response = compatibility(new NextRequest('http://localhost/mcp/compatibility'))
-    await Promise.resolve(); await Promise.resolve()
-    expect(mocks.auth).not.toHaveBeenCalled()
-    release()
-    expect((await response).status).toBe(200)
   })
   it('rejects queued requests when recovery enters maintenance before releasing the writer', async () => {
     const release = await acquireMaintenanceLock('exclusive')

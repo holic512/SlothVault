@@ -22,7 +22,7 @@ import tarfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MODULES = {"mcp-client", "skill", "deployment"}
+MODULES = {"skill", "deployment"}
 
 
 def _sha256(data: bytes) -> str:
@@ -79,8 +79,6 @@ def package_module(module: str, outdir: Path, commit: str, checks: list[str]) ->
         data = path.read_bytes()
         files[relative] = _sha256(data)
         payload.append((relative, data))
-    if module == "mcp-client" and not {"slothvault_mcp.py", "requirements.lock", "module.json"}.issubset(files):
-        raise ValueError("MCP Client package is incomplete")
     if module == "skill" and "slothvault-mcp/SKILL.md" not in files:
         raise ValueError("Skill package is incomplete")
     if module == "deployment" and "install.py" not in files:
@@ -97,7 +95,7 @@ def package_module(module: str, outdir: Path, commit: str, checks: list[str]) ->
                     info.mtime = 0
                     info.uid = info.gid = 0
                     info.uname = info.gname = ""
-                    info.mode = 0o755 if relative in {"slothvault_mcp.py", "install.py"} else 0o644
+                    info.mode = 0o755 if relative == "install.py" else 0o644
                     tar.addfile(info, io.BytesIO(data))
     manifest = {
         "schema": 1, "module": module, "version": version, "asset": asset,

@@ -42,18 +42,16 @@ function readToolMetadata() {
 }
 
 describe('MCP declaration registry contract', () => {
-  it('keeps the released client aligned with the server identity and protected Resources', () => {
-    const runtime = fs.readFileSync(path.join(mcpDirectory, '..', '..', '..', 'integrations', 'mcp-client', 'slothvault_mcp', 'remote.py'), 'utf8')
+  it('keeps the native server identity and protected Resource limits explicit', () => {
     const server = fs.readFileSync(path.join(mcpDirectory, 'server.ts'), 'utf8')
     const catalog = JSON.parse(fs.readFileSync(path.join(mcpDirectory, 'resource-catalog.json'), 'utf8'))
     expect(server).toContain("ADMIN_MCP_SERVER_NAME = 'slothvault-admin-mcp'")
-    expect(runtime).toContain('EXPECTED_SERVER = "slothvault-admin-mcp"')
-    expect(runtime).toContain('"managed-file": 10 * 1024 * 1024')
-    expect(runtime).toContain('"contract-attachment": 25 * 1024 * 1024')
     expect(catalog.map((item: { uriTemplate: string }) => item.uriTemplate)).toEqual([
       'slothvault://managed-file/{id}', 'slothvault://contract-attachment/{contractId}',
     ])
-    expect(runtime).toContain('get("readOnlyHint") is True')
+    expect(catalog.map((item: { maxBytes: number }) => item.maxBytes)).toEqual([
+      10 * 1024 * 1024, 25 * 1024 * 1024,
+    ])
   })
 
   it('keeps the complete 68-tool registry unique and adapter-only', () => {

@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Release Version Resolution
  * @description Synchronizes the application release version from first-parent commits that change application-owned files.
- * @logic Exclude toolkit-only commits from the application sequence, then map the remaining commits to the existing patch/minor cycle and validate the committed version in Actions.
+ * @logic Exclude independent integration commits while preserving retired-path history classification, then map application commits to the patch/minor cycle and validate the committed version in Actions.
  * @dependencies Node.js node:child_process, node:fs/promises, Git
  * @index_tags release,version,semver,github-actions,git-history,docker
  * @author holic512
@@ -69,6 +69,8 @@ function git(args) {
 }
 
 export function isApplicationChange(paths) {
+  // Retired workflow names remain here only to classify historical commits identically.
+  // This list is not a packaging or publishing entry point.
   const integrationWorkflow = /^\.github\/workflows\/release-(?:toolkit|vault-module|mcp-client|skill|deployment)\.yml$/
   return paths.some(file => file && !file.startsWith('integrations/') && !integrationWorkflow.test(file))
 }

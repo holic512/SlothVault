@@ -7,9 +7,9 @@
   "required": ["schema", "module", "version", "asset", "sha256", "bridgeApiMajor", "protocolMajor", "files"],
   "properties": {
     "schema": {"const": 1},
-    "module": {"enum": ["mcp-client", "skill", "deployment"]},
+    "module": {"enum": ["skill", "deployment"]},
     "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
-    "asset": {"type": "string", "pattern": "^slothvault-(mcp-client|skill|deployment)-[0-9]+\\.[0-9]+\\.[0-9]+\\.tgz$"},
+    "asset": {"type": "string", "pattern": "^slothvault-(skill|deployment)-[0-9]+\\.[0-9]+\\.[0-9]+\\.tgz$"},
     "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
     "bridgeApiMajor": {"type": "integer", "minimum": 1},
     "protocolMajor": {"type": "integer", "minimum": 1},

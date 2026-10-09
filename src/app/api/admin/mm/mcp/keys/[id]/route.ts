@@ -32,11 +32,11 @@ export const PATCH = defineRoute<{ id: string }>(async (request, context) => {
     apiKeyId: parseDecimalId(id),
     status: body.status,
   }))
-})
+}, { cacheControl: 'private, no-store' })
 
 export const DELETE = defineRoute<{ id: string }>(async (request, context) => {
   const session = await requireAdminSession(request)
   const { id } = await context.params
   await deleteMcpApiKey({ userId: session.User.id, apiKeyId: parseDecimalId(id) })
   return apiOk(null, 'deleted')
-})
+}, { cacheControl: 'private, no-store' })

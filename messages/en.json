@@ -2116,13 +2116,17 @@
       },
       "actions": {
         "refresh": "Refresh",
-        "create": "Create MCP Key",
+        "create": "Create Key and generate config",
         "enable": "Enable",
         "disable": "Disable",
         "delete": "Delete",
         "cancel": "Cancel",
-        "copy": "Copy Key",
-        "confirmSaved": "I saved it securely"
+        "copy": "Copy",
+        "confirmSaved": "I saved the configuration",
+        "getConfig": "Get connection config",
+        "guide": "Connection guide",
+        "createNew": "Create a new Key",
+        "close": "Close"
       },
       "table": {
         "name": "Name",
@@ -2151,11 +2155,19 @@
         "expiresAt": "Choose a future expiry time"
       },
       "dialog": {
-        "createTitle": "Create MCP Key",
-        "revealTitle": "Save your MCP Key now",
-        "revealWarning": "The complete Key is displayed only once",
-        "revealDescription": "After you close this window, the system cannot show the complete Key again. Copy it to a trusted MCP client or password manager; if it is lost, delete it and create a new Key.",
-        "keyValue": "New MCP Key"
+        "createTitle": "Get connection configuration",
+        "revealTitle": "Agent connection configuration",
+        "revealWarning": "This configuration contains an access token. Do not commit it to a repository or share it with others.",
+        "revealDescription": "The token is shown only once. Add the corresponding configuration to your client to use it.",
+        "guideTitle": "Native MCP connection guide",
+        "guideWarning": "An existing Key’s complete token cannot be recovered. These templates use a placeholder token.",
+        "guideDescription": "Replace the placeholder locally if you saved your Key securely. To get new configuration, explicitly create a new Key; existing Keys are not automatically rotated or revoked.",
+        "codexCopy": "Copy Codex configuration",
+        "codexValue": "Codex TOML connection configuration",
+        "codexHint": "Add to your Codex config.toml. auto is the host tool approval policy; the server still verifies administrator permissions.",
+        "claudeCopy": "Copy Claude Code command",
+        "claudeValue": "Claude Code Bash or zsh connection command",
+        "claudeHint": "Run in Bash / zsh to add the HTTP MCP server to Claude Code’s user configuration."
       },
       "messages": {
         "loadFailed": "Failed to load MCP Keys",
@@ -2164,8 +2176,10 @@
         "deleted": "MCP Key deleted",
         "deleteTitle": "Delete MCP Key",
         "deleteConfirm": "Permanently delete MCP Key “{name}”? MCP clients configured with it will immediately lose access.",
-        "copied": "MCP Key copied",
-        "copyFailed": "Could not copy automatically. Copy the Key manually."
+        "copied": "Configuration copied",
+        "copyFailed": "Automatic copying failed. The complete configuration is selected; copy it manually.",
+        "createFailed": "MCP Key creation failed. Refresh the list to check the result before retrying.",
+        "invalidEndpoint": "Invalid external address. Check NEXT_PUBLIC_SITE_ORIGIN. Only valid HTTP(S) addresses are supported."
       }
     },
     "homepage": {

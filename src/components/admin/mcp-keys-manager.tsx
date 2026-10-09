@@ -4,22 +4,29 @@
  * @file mcp-keys-manager.tsx
  * @project SlothVault
  * @module Administrator MCP Key Management
- * @description Lets the currently signed-in administrator create, inspect, enable, disable, copy once, and delete only their own MCP API Keys.
- * @logic Request the owner-scoped management API, reveal each generated secret exactly once in local component state, and treat expiration or disabled status as unavailable before sending a key-state mutation.
- * @dependencies Ant Design, React Query, next-intl, api-client, admin-localization
+ * @description Manages the signed-in administrator's MCP Keys and reveals native connection configurations exactly once.
+ * @logic Scope query state by administrator, consume creation secrets outside mutation results, invalidate cancelled disclosures, and keep old-key guidance free of credentials.
+ * @dependencies Ant Design, React Query, next-intl, mcp-key-creation, mcp-connection-config-dialog
  * @index_tags admin,mcp,api-key,authentication,security,create,enable,disable,delete
  * @author holic512
  */
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, App, Button, Empty, Form, Input, Modal, Space, Table, Tag, Typography } from 'antd'
-import { Copy, KeyRound, Plus, RefreshCw, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react'
+import { Info, KeyRound, Plus, RefreshCw, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { AdminPage, AdminPageActions, AdminTablePanel } from '@/components/admin/admin-page'
+import { McpConnectionConfigDialog } from '@/components/admin/mcp-connection-config-dialog'
 import { formatAdminDate, formatAdminError } from '@/lib/admin-localization'
 import { apiFetch } from '@/lib/api-client'
+import { createMcpConnectionConfig, MCP_KEY_PLACEHOLDER, resolveMcpEndpoint } from '@/lib/mcp-connection-config'
+import {
+  adminMcpKeysQueryKey, createOneTimeMcpKeyFlow, McpKeyCreationError,
+  type CreatedMcpApiKeyResponse, type McpApiKeyRow, type OneTimeMcpKey,
+} from '@/lib/mcp-key-creation'
+import configStyles from '@/styles/modules/mcp-connection-config.module.css'
 
 const MCP_API_KEY_STATUS = {
   DISABLED: 0,
@@ -27,22 +34,6 @@ const MCP_API_KEY_STATUS = {
 } as const
 
 type McpApiKeyStatus = (typeof MCP_API_KEY_STATUS)[keyof typeof MCP_API_KEY_STATUS]
-
-type McpApiKeyRow = {
-  id: string
-  name: string
-  status: McpApiKeyStatus
-  keyHint: string
-  expiresAt: string | null
-  lastUsedAt: string | null
-  createdAt: string
-  updatedAt: string
-}
-
-type CreateMcpApiKeyResult = {
-  apiKey: McpApiKeyRow
-  key: string
-}
 
 type CreateMcpApiKeyForm = {
   name: string
@@ -53,38 +44,57 @@ function isExpired(apiKey: McpApiKeyRow) {
   return Boolean(apiKey.expiresAt && new Date(apiKey.expiresAt).getTime() <= Date.now())
 }
 
-export function McpKeysManager() {
+export function McpKeysManager({ administratorId }: { administratorId: string }) {
   const t = useTranslations('AdminMM.mcpKeys')
   const errorT = useTranslations('AdminMM.errors')
   const locale = useLocale()
   const queryClient = useQueryClient()
   const { message, modal } = App.useApp()
   const [createOpen, setCreateOpen] = useState(false)
-  const [revealedKey, setRevealedKey] = useState<string | null>(null)
+  const [revealedKey, setRevealedKey] = useState<OneTimeMcpKey | null>(null)
+  const [guideEndpoint, setGuideEndpoint] = useState<string | null>(null)
+  const createButton = useRef<HTMLButtonElement>(null)
+  const guideButton = useRef<HTMLButtonElement>(null)
   const [form] = Form.useForm<CreateMcpApiKeyForm>()
+  const [creationFlow] = useState(() => createOneTimeMcpKeyFlow((value) => {
+    setRevealedKey(value)
+    if (value) {
+      setCreateOpen(false)
+      form.resetFields()
+    }
+  }))
+  const queryKey = adminMcpKeysQueryKey(administratorId)
 
   const query = useQuery({
-    queryKey: ['admin-mcp-api-keys'],
-    queryFn: () => apiFetch<McpApiKeyRow[]>('/api/admin/mm/mcp/keys'),
+    queryKey,
+    queryFn: () => apiFetch<McpApiKeyRow[]>('/api/admin/mm/mcp/keys', { cache: 'no-store' }),
   })
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['admin-mcp-api-keys'] })
+  const refresh = () => queryClient.invalidateQueries({ queryKey })
 
   const createMutation = useMutation({
-    mutationFn: (values: CreateMcpApiKeyForm) => apiFetch<CreateMcpApiKeyResult>('/api/admin/mm/mcp/keys', {
+    gcTime: 0,
+    retry: false,
+    mutationFn: ({ endpoint, ...values }: CreateMcpApiKeyForm & { endpoint: string }) => creationFlow.create(endpoint, (signal) => apiFetch<CreatedMcpApiKeyResponse>('/api/admin/mm/mcp/keys', {
       method: 'POST',
+      signal,
+      cache: 'no-store',
       body: JSON.stringify({
         name: values.name.trim(),
         expiresAt: values.expiresAt ? new Date(values.expiresAt).toISOString() : null,
       }),
-    }),
-    onSuccess: async ({ key }) => {
-      setCreateOpen(false)
-      form.resetFields()
-      setRevealedKey(key)
-      await refresh()
+    })),
+    onSuccess: () => refresh(),
+    onError: (error) => {
+      if (error instanceof McpKeyCreationError && error.cancelled) return
+      message.error(t('messages.createFailed'))
     },
-    onError: (error) => message.error(formatAdminError(error, errorT)),
   })
+  const resetCreateMutation = createMutation.reset
+
+  useEffect(() => () => {
+    creationFlow.clear()
+    resetCreateMutation()
+  }, [creationFlow, resetCreateMutation])
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: McpApiKeyStatus }) => apiFetch<McpApiKeyRow>(
@@ -107,9 +117,45 @@ export function McpKeysManager() {
     onError: (error) => message.error(formatAdminError(error, errorT)),
   })
 
+  const clearDisclosure = () => {
+    creationFlow.clear()
+    createMutation.reset()
+  }
+
+  const currentEndpoint = () => resolveMcpEndpoint({
+    configuredBaseUrl: process.env.NEXT_PUBLIC_SITE_ORIGIN,
+    pageOrigin: window.location.origin,
+  })
+
   const openCreate = () => {
+    clearDisclosure()
+    setGuideEndpoint(null)
     form.resetFields()
     setCreateOpen(true)
+  }
+
+  const openGuide = () => {
+    clearDisclosure()
+    try {
+      setGuideEndpoint(currentEndpoint())
+    } catch {
+      message.error(t('messages.invalidEndpoint'))
+    }
+  }
+
+  const submitCreate = (values: CreateMcpApiKeyForm) => {
+    if (createMutation.isPending) return
+    try {
+      createMutation.mutate({ ...values, endpoint: currentEndpoint() })
+    } catch {
+      message.error(t('messages.invalidEndpoint'))
+    }
+  }
+
+  const closeCreate = () => {
+    clearDisclosure()
+    setCreateOpen(false)
+    form.resetFields()
   }
 
   const confirmDelete = (apiKey: McpApiKeyRow) => {
@@ -121,16 +167,6 @@ export function McpKeysManager() {
       cancelText: t('actions.cancel'),
       onOk: () => deleteMutation.mutateAsync(apiKey.id),
     })
-  }
-
-  const copyRevealedKey = async () => {
-    if (!revealedKey) return
-    try {
-      await navigator.clipboard.writeText(revealedKey)
-      message.success(t('messages.copied'))
-    } catch {
-      message.error(t('messages.copyFailed'))
-    }
   }
 
   const statusLabel = (apiKey: McpApiKeyRow) => {
@@ -151,9 +187,10 @@ export function McpKeysManager() {
       />
 
       <AdminPageActions>
-        <Space>
+        <Space wrap>
           <Button icon={<RefreshCw size={15} />} onClick={() => void query.refetch()}>{t('actions.refresh')}</Button>
-          <Button type="primary" icon={<Plus size={15} />} onClick={openCreate}>{t('actions.create')}</Button>
+          <Button ref={guideButton} icon={<Info size={15} />} onClick={openGuide}>{t('actions.guide')}</Button>
+          <Button ref={createButton} className={configStyles.confirm} type="primary" icon={<Plus size={15} />} onClick={openCreate}>{t('actions.getConfig')}</Button>
         </Space>
       </AdminPageActions>
 
@@ -251,13 +288,16 @@ export function McpKeysManager() {
       <Modal
         open={createOpen}
         title={t('dialog.createTitle')}
+        closable={{ 'aria-label': t('actions.close') }}
         okText={t('actions.create')}
+        okButtonProps={{ className: configStyles.confirm, loading: createMutation.isPending }}
         cancelText={t('actions.cancel')}
-        confirmLoading={createMutation.isPending}
-        onCancel={() => setCreateOpen(false)}
+        keyboard
+        onCancel={closeCreate}
         onOk={() => form.submit()}
+        afterOpenChange={(open) => { if (open) form.getFieldInstance('name')?.focus() }}
       >
-        <Form form={form} layout="vertical" onFinish={(values) => createMutation.mutate(values)}>
+        <Form form={form} layout="vertical" onFinish={submitCreate}>
           <Form.Item
             name="name"
             label={t('form.name')}
@@ -281,20 +321,18 @@ export function McpKeysManager() {
         </Form>
       </Modal>
 
-      <Modal
-        open={Boolean(revealedKey)}
-        title={t('dialog.revealTitle')}
-        okText={t('actions.confirmSaved')}
-        cancelButtonProps={{ style: { display: 'none' } }}
-        onOk={() => setRevealedKey(null)}
-        onCancel={() => setRevealedKey(null)}
-      >
-        <Alert showIcon type="warning" title={t('dialog.revealWarning')} description={t('dialog.revealDescription')} />
-        <Typography.Paragraph className="admin-mcp-key-value">
-          <Input.TextArea aria-label={t('dialog.keyValue')} autoSize={{ minRows: 3, maxRows: 5 }} readOnly value={revealedKey || ''} />
-        </Typography.Paragraph>
-        <Button block icon={<Copy size={15} />} onClick={() => void copyRevealedKey()}>{t('actions.copy')}</Button>
-      </Modal>
+      <McpConnectionConfigDialog
+        configuration={revealedKey ? createMcpConnectionConfig({ configuredBaseUrl: revealedKey.endpoint, pageOrigin: revealedKey.endpoint, key: revealedKey.key }) : null}
+        onClose={clearDisclosure}
+        restoreFocus={() => createButton.current?.focus()}
+      />
+      <McpConnectionConfigDialog
+        template
+        configuration={guideEndpoint ? createMcpConnectionConfig({ configuredBaseUrl: guideEndpoint, pageOrigin: guideEndpoint, key: MCP_KEY_PLACEHOLDER }) : null}
+        onClose={() => setGuideEndpoint(null)}
+        onCreateKey={openCreate}
+        restoreFocus={() => guideButton.current?.focus()}
+      />
     </AdminPage>
   )
 }

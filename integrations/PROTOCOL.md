@@ -1,37 +1,32 @@
 # 跨仓库接口协议
 
-机器可读基线位于 [`protocol/contract.json`](./protocol/contract.json)。`component-manifest.schema.json` 和 `compatibility.schema.json` 使用 JSON Schema 2020-12；`python integrations/scripts/validate_protocol.py` 用标准库检查模块元数据、入口及示例。协议主版本是 SlothTool 与包之间的桥接协议，和 MCP 日期协议版本分别管理。
+机器契约位于 [protocol/contract.json](./protocol/contract.json)，清单采用 JSON Schema 2020-12。`python3 integrations/scripts/validate_protocol.py` 校验两包、入口、服务端身份和部署桥示例。桥主版本与 MCP 日期协议分别管理。
 
 ## Release 契约
 
-| 模块 | Tag | 归档 | 清单 | 协议主版本 | 入口 |
+| 模块 | Tag | 归档 | 清单 | 桥主版本 | 入口 |
 | --- | --- | --- | --- | --- | --- |
-| MCP Client | `mcp-client-vX.Y.Z` | `slothvault-mcp-client-X.Y.Z.tgz` | `slothvault-mcp-client-manifest.json` | 2 | `slothvault_mcp.py` |
 | Skill | `skill-vX.Y.Z` | `slothvault-skill-X.Y.Z.tgz` | `slothvault-skill-manifest.json` | 1 | `slothvault-mcp/SKILL.md` |
 | Deployment | `deployment-vX.Y.Z` | `slothvault-deployment-X.Y.Z.tgz` | `slothvault-deployment-manifest.json` | 1 | `install.py` |
 
-SlothTool 只读取非草稿、非预发布的相应 Tag Release。必须先校验清单字段、协议主版本、归档 SHA-256、归档内逐文件 SHA-256 和无额外文件，再运行入口。MCP Python 依赖固定在 `requirements.lock`，安装使用 `pip --require-hashes` 和模块私有 `.venv`。先用官方 PyPI；只有超时、DNS、连接失败才尝试 `SLOTHTOOL_PYPI_MIRROR` 或默认备用镜像。摘要或依赖兼容性错误直接失败。
+打包器和共享 workflow 仅接受 skill/deployment。消费方读取对应正式 Release，校验清单、桥主版本、归档和逐文件 SHA-256、无额外/危险条目后运行。Skill 不需要 Python；Deployment 为 Python 3.10+ 标准库脚本。清单 schema 保持 1。
 
-## HTTP 兼容接口
+## 标准 MCP HTTP
 
-`GET <mcp-endpoint>/compatibility`，例如 `GET /mcp/compatibility`。与 `POST /mcp` 一样，服务未安装返回 503，Bearer Key 无效或缺失返回 401；成功响应为 200，`Cache-Control: no-store`。请求头使用 `Authorization: Bearer <Key>`，Key 不出现在 URL。成功示例见 [`protocol/examples/compatibility.json`](./protocol/examples/compatibility.json)：
+`POST /mcp` 使用 Streamable HTTP 和 `Authorization: Bearer <SlothVault MCP Key>`。Session 不作为 MCP 凭据。每次请求重验 Key 和管理员账户；缺失、无效、过期、停用 Key 或非管理员返回 401，未安装/维护返回 503，现有维护锁保留。
 
-```json
-{"schema":1,"serverName":"slothvault-admin-mcp","serverVersion":"3.1.0","minimumClientVersion":"1.0.0","supportedProtocolVersions":["2025-11-25"]}
-```
+SDK 初始化协商日期协议，当前 serverInfo 为 `slothvault-admin-mcp@4.0.0`。clientInfo.name 不要求专用名称，不比较 Codex、Claude Code 版本与退役 Client 版本。instructions 提供业务指导。68 个 Tool、4 个 Prompt、2 个 Resource 模板按实时目录发现。当前无独立 SSE 会话流，GET/DELETE 返回 405；宿主可通过 POST 完成发现、调用与 Resource 读取。
 
-`schema` 不支持、名称错误、版本字段无效时客户端返回 `MCP_COMPATIBILITY_INVALID`。客户端版本低于 `minimumClientVersion` 返回 `MCP_CLIENT_OUTDATED`，支持协议无交集或握手结果不在客户端支持集合时返回 `MCP_PROTOCOL_INCOMPATIBLE`；两者均阻止远端操作。404 视为旧服务端，继续握手，`compatibility.status=legacy-unverified` 且 `minimumClientVersion=null`。旧服务端是否满足最低版本无法断言。服务端认证失败为 `MCP_AUTH_FAILED`，未安装为 `MCP_UNAVAILABLE`。
+`/mcp/compatibility`、最低 Client 版本常量及 schema 已移除，无已知外部消费者需要过渡。旧 Python Client 在 404 后的握手回退仅供迁移诊断，其源码与发布入口不再保留。
 
-## Python CLI JSON 桥
+Tool schema、annotations 和 Service 定义业务边界。Resource 二进制内容在标准 blob 中，文件名位于 `_meta["slothvault/file-name"]`。URI 不是公开下载链接；不能保存二进制时使用网站授权下载。
 
-运行形式：`python3 slothvault_mcp.py <command> [subcommand] [target] --json`。本地命令为 `config`、`storage status`、`profile list|show|add|update|use|remove`、`history list|show|clear`；远端命令为 `doctor`、`discovery`、`compatibility`、`tools list|show|call`、`prompts list|get`、`resources list|read`。标准输出是一份 JSON 文档；错误格式稳定为 `{"ok":false,"error":{"code":"MCP_CLIENT_OUTDATED","category":"compatibility","message":"..."}}`，进程退出码非零。`setup` 连接失败可返回 `saved:true, connected:false` 且退出码 4，因为档案已保存。Tool 仅在 `annotations.readOnlyHint === true` 时视为只读，其他调用在非交互模式需要 `--yes`。Resource 读取必须提供 `--output`，不得覆盖现有文件。
+## Key 管理边界
 
-配置路径：`~/.pipker/slothtool/plugin-configs/slothvault.json`；脱敏历史路径：`~/.pipker/slothtool/data/slothvault/history.json`。SlothTool 通过 stdin 提供 Key，不把原始 Key 放入 TUI state、命令行、日志或结果。状态与档案摘要仅展示掩码。默认情况下客户端不会下载更新；更新由 SlothTool 发起。
+`/api/admin/mm/mcp/keys` 使用管理员 Session，按所有者隔离。POST 仅一次返回完整 Key，GET、状态更新、删除不提供明文恢复。集合与详情响应使用 `Cache-Control: private, no-store`。纯配置生成器不访问网络或存储，Key 不进入 mutation 结果或持久化；复制由用户点击触发。
 
 ## Deployment JSON 行桥
 
-`python3 install.py --bridge --action <action> --root <path>` 输出一行一个 JSON 事件，事件 `type` 包括 `progress`、`log`、`prompt`、`snapshot`、`update`、`preview`、`error`、`done`。示例见 [`protocol/examples/bridge-events.jsonl`](./protocol/examples/bridge-events.jsonl)。`prompt` 事件的 `secret:true` 指示 TUI 隐藏输入；回应是 stdin 的 `{"type":"answer","value":"..."}` 或 `{"type":"cancel"}`。最后 `done.code` 与进程状态一致。`--snapshot-json` 返回一次当前实例快照，其中 `appVersion` 是已部署应用版本；`module.json.version` 是部署脚本包版本，两者不可混用。
+`python3 install.py --bridge --action <action> --root <path>` 输出一行一个 JSON 事件：progress、log、prompt、snapshot、update、preview、error、done，见 [示例](./protocol/examples/bridge-events.jsonl)。prompt.secret:true 要求隐藏输入；stdin 回应为 `{"type":"answer","value":"..."}` 或 `{"type":"cancel"}`。done.code 与进程状态一致。
 
-## 兼容性演进
-
-同一协议主版本内可新增可选字段；SlothTool 忽略未知可选字段。删除或改变必需字段、CLI 命令含义、事件类型或凭据边界时，先提升相应模块 `bridgeApiMajor`／`protocolMajor`，更新本文件与契约，再发布适配后的 SlothTool。服务端兼容接口 schema 变化须提升 `schema` 并在客户端明确支持；MCP 日期协议交集仍由实际 SDK 握手验证。
+`--snapshot-json` 的 appVersion 是已部署应用版本，module.json.version 是脚本包版本。桥、归档和部署能力不变。同一主版本可新增可选字段；改变必需字段或事件语义时提升主版本并协调消费方。MCP 标准协商独立于部署桥。

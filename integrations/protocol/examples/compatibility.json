@@ -1,7 +1,0 @@
-{
-  "schema": 1,
-  "serverName": "slothvault-admin-mcp",
-  "serverVersion": "3.1.0",
-  "minimumClientVersion": "1.0.0",
-  "supportedProtocolVersions": ["2025-11-25"]
-}
