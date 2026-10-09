@@ -260,7 +260,7 @@
 }
 
 .account-nav-popup-header strong {
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .account-nav-popup-header small {
@@ -276,14 +276,14 @@
   box-shadow: none;
 }
 
-.account-nav-dropdown .ant-dropdown-menu .ant-dropdown-menu-item {
+.account-nav-dropdown.ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item {
   display: flex;
   align-items: center;
   gap: 9px;
   min-height: 32px;
   padding: 5px 8px;
-  font-size: 13px;
-  line-height: 22px;
+  font-size: 12px;
+  line-height: 20px;
   border-radius: var(--sv-radius-sm);
 }
 
