@@ -1343,11 +1343,14 @@
         "mainnet": "Mainnet · Formal"
       },
       "unsavedChanges": "Unsaved changes",
+      "navigationLabel": "System settings pages",
       "empty": "No configuration items found",
       "actions": {
         "save": "Save",
         "refresh": "Refresh Cache",
         "reset": "Reset",
+        "saveAllHint": "Save changes from all settings pages",
+        "resetAllHint": "Reset unsaved changes from all settings pages",
         "uploadLogo": "Upload Logo",
         "restoreDefaultLogo": "Restore Default Logo",
         "uploadFavicon": "Upload ICO",
@@ -1384,6 +1387,7 @@
       "messages": {
         "loadFailed": "Failed to load configuration",
         "saveSuccess": "Configuration saved",
+        "saveReloadFailed": "Settings were submitted, but could not be reloaded. Your draft is retained; retry saving or refresh the cache.",
         "saveFailed": "Failed to save configuration",
         "refreshSuccess": "Cache refreshed",
         "refreshFailed": "Failed to refresh cache",

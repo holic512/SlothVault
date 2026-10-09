@@ -1328,7 +1328,9 @@
   content: '';
 }
 
-.root :global(.settings-tabs) > :global(.ant-tabs-nav) {
+.root :global(.settings-tabs-nav) {
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   margin: 0;
@@ -1345,45 +1347,63 @@
   flex-direction: column;
 }
 
-.root :global(.settings-tabs) > :global(.ant-tabs-content-holder),
-.root :global(.settings-tabs) :global(.ant-tabs-content),
-.root :global(.settings-tabs) :global(.ant-tabs-tabpane-active) {
+.root :global(.settings-route-content) {
+  display: flex;
   min-height: 0;
   flex: 1;
+  flex-direction: column;
 }
 
-.root :global(.settings-tabs) > :global(.ant-tabs-nav) > :global(.ant-tabs-nav-wrap) {
+.root :global(.settings-tabs-links) {
+  display: flex;
   min-width: 0;
+  flex: 1;
+  overflow-x: auto;
 }
 
 .root :global(.settings-tabs-actions) {
+  margin-left: auto;
   justify-content: flex-end;
 }
 
-.root :global(.settings-tabs) :global(.ant-tabs-nav::before),
-.root :global(.settings-tabs) :global(.ant-tabs-ink-bar) {
-  display: none;
-}
-
-.root :global(.settings-tabs) :global(.ant-tabs-tab) {
-  margin: 0 !important;
+.root :global(.settings-tab-link) {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
   padding: 9px 12px;
   border-radius: var(--sv-admin-radius);
+  color: var(--sv-text-muted);
+  font-size: 14px;
+  white-space: nowrap;
 }
 
-.root :global(.settings-tabs) :global(.ant-tabs-tab-active) {
+.root :global(.settings-tab-link:hover),
+.root :global(.settings-tab-link.is-active) {
   background: var(--sv-bg-soft);
+  color: var(--sv-text);
 }
 
-.root :global(.settings-tabs) :global(.ant-tabs-tab-active) :global(.ant-tabs-tab-btn) {
-  color: var(--sv-text) !important;
+.root :global(.settings-tab-link.is-active) {
   font-weight: 700;
+}
+
+.root :global(.settings-tab-link:focus-visible) {
+  outline: 2px solid var(--sv-primary-strong);
+  outline-offset: -2px;
 }
 
 .root :global(.settings-tab-label) {
   display: inline-flex;
   align-items: center;
   gap: 7px;
+}
+
+.root :global(.settings-tab-dirty-dot) {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--sv-warning);
 }
 
 .root :global(.settings-tab-panel) {
@@ -2704,20 +2724,24 @@
     grid-template-columns: 1fr;
   }
 
-  .root :global(.settings-tabs) :global(.ant-tabs-tab) {
+  .root :global(.settings-tab-link) {
     flex: 1;
     justify-content: center;
     padding-inline: 7px;
   }
 
-  .root :global(.settings-tabs) > :global(.ant-tabs-nav) {
+  .root :global(.settings-tabs-nav) {
     align-items: stretch;
     flex-wrap: wrap;
   }
 
-  .root :global(.settings-tabs) > :global(.ant-tabs-nav) > :global(.ant-tabs-nav-wrap),
-  .root :global(.settings-tabs) > :global(.ant-tabs-nav) > :global(.ant-tabs-extra-content) {
+  .root :global(.settings-tabs-links),
+  .root :global(.settings-tabs-actions) {
     width: 100%;
+  }
+
+  .root :global(.settings-tabs-links) {
+    flex: 1 0 100%;
   }
 
   .root :global(.settings-tabs-actions) {

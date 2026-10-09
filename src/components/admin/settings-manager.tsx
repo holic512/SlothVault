@@ -4,37 +4,41 @@
  * @file settings-manager.tsx
  * @project SlothVault
  * @module System Settings Administration
- * @description Provides tabbed configuration controls for branding, optional filing records, evidence policy, protected RPC endpoints, and read-only system updates without echoing stored secrets.
- * @logic Load configuration metadata, label independently optional filing fields, stage branding uploads, submit one atomic batch, re-read runtime values, and show official release history.
- * @dependencies Ant Design, React Query, next-intl, Next navigation, api-client, system-update API
- * @index_tags admin,settings,branding,filing,logo,favicon,secrets,configuration,transaction,system-update,release
+ * @description Provides route-based settings navigation with shared drafts, per-section unsaved indicators, protected RPC fields, and read-only system updates.
+ * @logic Retain drafts and upload previews in the shared layout, reconcile server reloads without discarding edits, save every changed field with confirmed readback, and render the selected child page.
+ * @dependencies Ant Design, React Query, next-intl, Next navigation, admin-settings-draft, api-client, system-update API
+ * @index_tags admin,settings,routing,draft,branding,filing,logo,favicon,secrets,configuration,system-update,release
  * @author holic512
  */
-import { useMemo, useState } from 'react'
+import { createContext, useContext, useReducer, useState, type ReactNode } from 'react'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, App, Button, Card, Descriptions, Empty, Image, Input, Segmented, Skeleton, Space, Switch, Tabs, Tag, Tooltip, Typography, Upload } from 'antd'
+import { Alert, App, Button, Card, Descriptions, Empty, Image, Input, Segmented, Skeleton, Space, Switch, Tag, Tooltip, Typography, Upload } from 'antd'
 import { CircleHelp, FileBadge, ImageUp, KeyRound, RefreshCw, RotateCcw, Save, ServerCog, Waypoints } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { useRouter, useSelectedLayoutSegment } from 'next/navigation'
 
 import { AdminPage } from '@/components/admin/admin-page'
 import { formatAdminDate, formatAdminError } from '@/lib/admin-localization'
+import {
+  ADMIN_SETTINGS_ENDPOINT,
+  ADMIN_SETTINGS_QUERY_KEY,
+  SETTINGS_SECTIONS,
+  SettingsReadbackError,
+  createSettingsDraftState,
+  getSettingsChangedKeys,
+  getSettingsDirtySections,
+  getSettingsSectionConfigs,
+  getSettingsSectionPath,
+  saveSettingsDraft,
+  settingsDraftReducer,
+  type SettingsConfigData as ConfigData,
+  type SettingsConfigItem as ConfigItem,
+  type SettingsSectionKey,
+} from '@/lib/admin-settings-draft'
 import { apiFetch } from '@/lib/api-client'
 
-type ConfigItem = {
-  key: string
-  value: string
-  description: string
-  defaultValue: string
-  sensitive?: boolean
-  configured?: boolean
-  previewUrl?: string
-  isCustom?: boolean
-  kind?: 'boolean' | 'network' | 'url' | 'image' | 'icon' | 'text'
-}
-type ConfigGroup = { key: string; label: string; configs: ConfigItem[] }
-type ConfigData = { configs: ConfigItem[]; groups: ConfigGroup[] }
 type UploadedBrandingFile = { filePath: string; url: string }
 type UploadedSystemLogo = { logo: UploadedBrandingFile; favicon: UploadedBrandingFile | null }
 type SystemUpdateStatus = 'UP_TO_DATE' | 'UPDATE_AVAILABLE' | 'LOCAL_NEWER' | 'UNVERSIONED' | 'HISTORY_INCOMPLETE' | 'CHECK_FAILED'
@@ -59,88 +63,78 @@ type SystemUpdateInfo = {
 }
 
 const SYSTEM_FAVICON_CONFIG_KEY = 'SYSTEM_FAVICON_FILE_PATH'
+const SECTION_ICONS = { branding: ImageUp, filing: FileBadge, policy: Waypoints, rpc: ServerCog, updates: RefreshCw }
 
-export function SettingsManager() {
-  const t = useTranslations('AdminMM.settings')
-  const errorT = useTranslations('AdminMM.errors')
-  const query = useQuery({
-    queryKey: ['admin-system-config'],
-    queryFn: () => apiFetch<ConfigData>('/api/admin/mm/config'),
-  })
-
-  if (query.isLoading) {
-    return (
-      <AdminPage>
-        <div className="admin-editor-loading"><Skeleton active paragraph={{ rows: 10 }} /></div>
-      </AdminPage>
-    )
-  }
-  if (query.isError) {
-    return (
-      <AdminPage>
-        <Alert showIcon type="error" title={t('messages.loadFailed')} description={formatAdminError(query.error, errorT)} />
-      </AdminPage>
-    )
-  }
-
-  return (
-    <SettingsForm
-      key={(query.data?.configs || []).map((config) => `${config.key}:${config.value}:${config.configured}`).join('|')}
-      data={query.data || { configs: [], groups: [] }}
-    />
-  )
+type SettingsContextValue = {
+  data: ConfigData | null
+  loading: boolean
+  error: Error | null
+  retry: () => void
+  renderConfig: (config: ConfigItem) => ReactNode
+  testNetwork: () => void
+  testingNetwork: boolean
 }
+const SettingsContext = createContext<SettingsContextValue | null>(null)
 
-function SettingsForm({ data }: { data: ConfigData }) {
+export function SettingsManager({ children }: { children: ReactNode }) {
   const t = useTranslations('AdminMM.settings')
   const errorT = useTranslations('AdminMM.errors')
   const queryClient = useQueryClient()
   const router = useRouter()
+  const activeSection = useSelectedLayoutSegment()
   const { message, modal } = App.useApp()
-  const initialValues = useMemo(
-    () => Object.fromEntries(data.configs.map((config) => [config.key, config.value])),
-    [data.configs],
-  )
-  const [values, setValues] = useState<Record<string, string>>(initialValues)
-  const initialPreviewUrls = useMemo(
-    () => Object.fromEntries(data.configs.map((config) => [
-      config.key,
-      config.previewUrl || (config.kind === 'icon' ? '/favicon.ico' : '/logo.png'),
-    ])),
-    [data.configs],
-  )
-  const [previewUrls, setPreviewUrls] = useState<Record<string, string>>(initialPreviewUrls)
+  const query = useQuery({
+    queryKey: ADMIN_SETTINGS_QUERY_KEY,
+    queryFn: ({ signal }) => apiFetch<ConfigData>(ADMIN_SETTINGS_ENDPOINT, { signal }),
+  })
+  const [draft, dispatch] = useReducer(settingsDraftReducer, query.data || null, createSettingsDraftState)
   const [uploadingBrandingKey, setUploadingBrandingKey] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState('branding')
 
-  const changedKeys = Object.keys(values).filter((key) => values[key] !== initialValues[key])
+  // Reconcile a new query snapshot without remounting the shared draft or its route children.
+  if (query.data && query.data !== draft.data) {
+    dispatch({ type: 'received', data: query.data })
+  }
+
+  const { values, previewUrls } = draft
+  const changedKeys = getSettingsChangedKeys(draft)
+  const dirtySections = new Set(getSettingsDirtySections(draft))
   const saveMutation = useMutation({
-    mutationFn: () =>
-      apiFetch<{ updated: number }>('/api/admin/mm/config', {
-        method: 'PUT',
-        body: JSON.stringify({
-          configs: changedKeys.map((key) => ({ key, value: values[key] })),
-        }),
-      }),
-    onSuccess: async () => {
+    mutationFn: async (configs: { key: string; value: string }[]) => {
+      await queryClient.cancelQueries({ queryKey: ADMIN_SETTINGS_QUERY_KEY })
+      return saveSettingsDraft(configs)
+    },
+    onSuccess: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ADMIN_SETTINGS_QUERY_KEY })
+      const cached = queryClient.setQueryData<ConfigData>(ADMIN_SETTINGS_QUERY_KEY, data)
+      dispatch({ type: 'saved', data: cached || data })
       message.success(t('messages.saveSuccess'))
-      await queryClient.invalidateQueries({ queryKey: ['admin-system-config'] })
       router.refresh()
     },
-    onError: (error) => message.error(formatAdminError(error, errorT)),
+    onError: (error) => message.error(error instanceof SettingsReadbackError
+      ? t('messages.saveReloadFailed')
+      : formatAdminError(error, errorT)),
   })
   const refreshMutation = useMutation({
-    mutationFn: () =>
-      apiFetch('/api/admin/mm/config/refresh', {
+    mutationFn: async () => {
+      await queryClient.cancelQueries({ queryKey: ADMIN_SETTINGS_QUERY_KEY })
+      await apiFetch('/api/admin/mm/config/refresh', {
         method: 'POST',
         body: JSON.stringify({}),
-      }),
-    onSuccess: async () => {
+      })
+      return apiFetch<ConfigData>(ADMIN_SETTINGS_ENDPOINT, { cache: 'no-store' })
+    },
+    onSuccess: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ADMIN_SETTINGS_QUERY_KEY })
+      const cached = queryClient.setQueryData<ConfigData>(ADMIN_SETTINGS_QUERY_KEY, data)
+      dispatch({ type: 'received', data: cached || data })
       message.success(t('messages.refreshSuccess'))
-      await queryClient.invalidateQueries({ queryKey: ['admin-system-config'] })
     },
     onError: (error) => message.error(formatAdminError(error, errorT)),
   })
+  const busy = saveMutation.isPending || refreshMutation.isPending || uploadingBrandingKey !== null
+  const editingLocked = saveMutation.isPending
+  const filingConfigs = getSettingsSectionConfigs(draft.data, 'filing')
+  const setValue = (key: string, value: string) => dispatch({ type: 'edit', values: { [key]: value } })
   const networkTestMutation = useMutation({
     mutationFn: () => apiFetch('/api/admin/evidence/networks/test', { method: 'POST', body: '{}' }),
     onSuccess: () => message.success(t('messages.networkTestSuccess')),
@@ -156,16 +150,17 @@ function SettingsForm({ data }: { data: ConfigData }) {
         `/api/admin/mm/branding/logo?syncFavicon=${syncFavicon}`,
         { method: 'POST', body: formData },
       )
-      setValues((current) => ({
-        ...current,
-        [key]: uploaded.logo.filePath,
-        ...(uploaded.favicon ? { [SYSTEM_FAVICON_CONFIG_KEY]: uploaded.favicon.filePath } : {}),
-      }))
-      setPreviewUrls((current) => ({
-        ...current,
-        [key]: uploaded.logo.url,
-        ...(uploaded.favicon ? { [SYSTEM_FAVICON_CONFIG_KEY]: uploaded.favicon.url } : {}),
-      }))
+      dispatch({
+        type: 'edit',
+        values: {
+          [key]: uploaded.logo.filePath,
+          ...(uploaded.favicon ? { [SYSTEM_FAVICON_CONFIG_KEY]: uploaded.favicon.filePath } : {}),
+        },
+        previewUrls: {
+          [key]: uploaded.logo.url,
+          ...(uploaded.favicon ? { [SYSTEM_FAVICON_CONFIG_KEY]: uploaded.favicon.url } : {}),
+        },
+      })
       message.success(t(uploaded.favicon ? 'messages.logoAndFaviconUploadSuccess' : 'messages.uploadSuccess'))
     } catch (error) {
       message.error(formatAdminError(error, errorT))
@@ -184,8 +179,7 @@ function SettingsForm({ data }: { data: ConfigData }) {
         { method: 'POST', body: formData },
       )
       if (!uploaded) throw new Error(t('messages.faviconUploadFailed'))
-      setValues((current) => ({ ...current, [key]: uploaded.filePath }))
-      setPreviewUrls((current) => ({ ...current, [key]: uploaded.url }))
+      dispatch({ type: 'edit', values: { [key]: uploaded.filePath }, previewUrls: { [key]: uploaded.url } })
       message.success(t('messages.faviconUploadSuccess'))
     } catch (error) {
       message.error(formatAdminError(error, errorT))
@@ -202,9 +196,9 @@ function SettingsForm({ data }: { data: ConfigData }) {
       cancelText: t('logo.syncConfirmCancel'),
       closable: false,
       keyboard: false,
-      maskClosable: false,
-      onOk: () => uploadSystemLogo(key, file, true),
-      onCancel: () => uploadSystemLogo(key, file, false),
+      mask: { closable: false },
+      onOk: () => { void uploadSystemLogo(key, file, true) },
+      onCancel: () => { void uploadSystemLogo(key, file, false) },
     })
   }
 
@@ -233,16 +227,18 @@ function SettingsForm({ data }: { data: ConfigData }) {
         </Typography.Text>
         {config.kind === 'boolean' ? (
           <Switch
+            disabled={editingLocked}
             checked={values[config.key] === 'true'}
             checkedChildren={t('enabled')}
             unCheckedChildren={t('disabled')}
-            onChange={(checked) => setValues((current) => ({ ...current, [config.key]: String(checked) }))}
+            onChange={(checked) => setValue(config.key, String(checked))}
           />
         ) : config.kind === 'network' ? (
           <Segmented
+            disabled={editingLocked}
             value={values[config.key]}
             options={[{ value: 'devnet', label: t('network.devnet') }, { value: 'mainnet', label: t('network.mainnet') }]}
-            onChange={(value) => setValues((current) => ({ ...current, [config.key]: String(value) }))}
+            onChange={(value) => setValue(config.key, String(value))}
           />
         ) : config.kind === 'image' || config.kind === 'icon' ? (
           <div className="settings-logo-control">
@@ -254,6 +250,7 @@ function SettingsForm({ data }: { data: ConfigData }) {
             />
             <Space wrap>
               <Upload
+                disabled={busy}
                 accept={config.kind === 'icon' ? '.ico,image/x-icon' : 'image/png,image/jpeg,image/gif,image/webp'}
                 maxCount={1}
                 showUploadList={false}
@@ -263,18 +260,18 @@ function SettingsForm({ data }: { data: ConfigData }) {
                   return false
                 }}
               >
-                <Button icon={<ImageUp size={15} />} loading={uploadingBrandingKey === config.key}>
+                <Button disabled={busy} icon={<ImageUp size={15} />} loading={uploadingBrandingKey === config.key}>
                   {config.kind === 'icon' ? t('actions.uploadFavicon') : t('actions.uploadLogo')}
                 </Button>
               </Upload>
               <Button
-                disabled={!values[config.key]}
+                disabled={busy || !values[config.key]}
                 onClick={() => {
-                  setValues((current) => ({ ...current, [config.key]: '' }))
-                  setPreviewUrls((current) => ({
-                    ...current,
-                    [config.key]: config.kind === 'icon' ? '/favicon.ico' : '/logo.png',
-                  }))
+                  dispatch({
+                    type: 'edit',
+                    values: { [config.key]: '' },
+                    previewUrls: { [config.key]: config.kind === 'icon' ? '/favicon.ico' : '/logo.png' },
+                  })
                 }}
               >
                 {config.kind === 'icon' ? t('actions.restoreDefaultFavicon') : t('actions.restoreDefaultLogo')}
@@ -287,127 +284,160 @@ function SettingsForm({ data }: { data: ConfigData }) {
           </div>
         ) : sensitive ? (
           <Input.Password
+            disabled={editingLocked}
             visibilityToggle
             value={values[config.key] || ''}
             placeholder={config.configured ? t('placeholderConfigured') : config.defaultValue || 'https://…'}
-            onChange={(event) => setValues((current) => ({ ...current, [config.key]: event.target.value }))}
+            onChange={(event) => setValue(config.key, event.target.value)}
           />
         ) : (
           <Input
+            disabled={editingLocked}
             value={values[config.key] || ''}
             maxLength={isFiling ? 500 : undefined}
             type={isFiling && config.kind === 'url' ? 'url' : 'text'}
             placeholder={config.defaultValue || t('placeholder')}
-            onChange={(event) => setValues((current) => ({ ...current, [config.key]: event.target.value }))}
+            onChange={(event) => setValue(config.key, event.target.value)}
           />
         )}
       </label>
     )
   }
 
-  const brandingConfigs = data.groups.find((group) => group.key === 'branding')?.configs || []
-  const filingConfigs = data.groups.find((group) => group.key === 'filing')?.configs || []
-  const evidenceConfigs = data.groups.find((group) => group.key === 'evidence')?.configs || []
-  const policyConfigs = evidenceConfigs.filter((config) => !config.key.includes('_RPC_'))
-  const rpcConfigs = evidenceConfigs.filter((config) => config.key.includes('_RPC_'))
-  const tabs = [
-    {
-      key: 'branding',
-      label: t('tabs.branding.label'),
-      description: t('tabs.branding.description'),
-      icon: <ImageUp size={16} />,
-      configs: brandingConfigs,
-    },
-    {
-      key: 'filing',
-      label: t('tabs.filing.label'),
-      description: t('tabs.filing.description'),
-      icon: <FileBadge size={16} />,
-      configs: filingConfigs,
-    },
-    {
-      key: 'policy',
-      label: t('tabs.policy.label'),
-      description: t('tabs.policy.description'),
-      icon: <Waypoints size={16} />,
-      configs: policyConfigs,
-    },
-    {
-      key: 'rpc',
-      label: t('tabs.rpc.label'),
-      description: t('tabs.rpc.description'),
-      icon: <ServerCog size={16} />,
-      configs: rpcConfigs,
-    },
-    {
-      key: 'updates',
-      label: t('tabs.updates.label'),
-      description: t('tabs.updates.description'),
-      icon: <RefreshCw size={16} />,
-      configs: [],
-    },
-  ]
-
   return (
-    <AdminPage>
-      <Tabs
-        className="settings-tabs"
-        activeKey={activeTab}
-        onChange={setActiveTab}
-        tabBarExtraContent={activeTab === 'updates' ? null : <Space className="settings-tabs-actions" wrap size={6}>
-          <Tooltip title={t('tips.content')}>
-            <Button type="text" icon={<CircleHelp size={15} />} aria-label={t('tips.title')}>
-              {t('tips.title')}
-            </Button>
-          </Tooltip>
-          <Button
-            icon={<RotateCcw size={15} />}
-            disabled={!changedKeys.length}
-            onClick={() => {
-              setValues(initialValues)
-              setPreviewUrls(initialPreviewUrls)
-            }}
-          >
-            {t('actions.reset')}
-          </Button>
-          <Button
-            icon={<RefreshCw size={15} />}
-            loading={refreshMutation.isPending}
-            onClick={() => refreshMutation.mutate()}
-          >
-            {t('actions.refresh')}
-          </Button>
-          {changedKeys.length ? <Tag color="warning">{t('unsavedChanges')}</Tag> : null}
-          <Button
-            type="primary"
-            icon={<Save size={15} />}
-            disabled={!changedKeys.length}
-            loading={saveMutation.isPending}
-            onClick={() => saveMutation.mutate()}
-          >
-            {t('actions.save')}
-          </Button>
-        </Space>}
-        items={tabs.map((tab) => ({
-          key: tab.key,
-          label: <span className="settings-tab-label">{tab.icon}<span>{tab.label}</span></span>,
-          children: <section className="settings-tab-panel">
-            <div className="settings-tab-heading">
-              <span className="settings-tab-icon">{tab.icon}</span>
-              <div>
-                <Typography.Title level={4}>{tab.label}</Typography.Title>
-                <Typography.Text type="secondary">{tab.description}</Typography.Text>
-              </div>
-            </div>
-            {tab.key === 'updates' ? <SystemUpdatePanel /> : <>
-              {tab.key === 'rpc' ? <Alert className="settings-rpc-notice" showIcon type="info" title={t('tabs.rpc.noticeTitle')} description={t('tabs.rpc.noticeDescription')} action={<Button size="small" loading={networkTestMutation.isPending} onClick={() => networkTestMutation.mutate()}>{t('tabs.rpc.test')}</Button>} /> : null}
-              {tab.configs.length ? <Card className="settings-card" title={<span className="settings-card-title">{tab.icon}{tab.key === 'branding' ? t('branding.cardTitle') : t('tabs.fieldsCount', { count: tab.configs.length })}</span>}><div className="settings-fields">{tab.configs.map(renderConfig)}</div></Card> : <Empty description={t('empty')} />}
-            </>}
-          </section>,
-        }))}
-      />
-    </AdminPage>
+    <SettingsContext.Provider value={{
+      data: draft.data,
+      loading: query.isLoading,
+      error: query.error,
+      retry: () => { void query.refetch() },
+      renderConfig,
+      testNetwork: () => networkTestMutation.mutate(),
+      testingNetwork: networkTestMutation.isPending,
+    }}>
+      <AdminPage>
+        <div className="settings-tabs">
+          <div className="settings-tabs-nav">
+            <SettingsNavigation activeSection={activeSection} dirtySections={dirtySections} />
+            {activeSection !== 'updates' || changedKeys.length ? <Space className="settings-tabs-actions" wrap size={6}>
+              {activeSection !== 'updates' ? <Tooltip title={t('tips.content')}>
+                <Button type="text" icon={<CircleHelp size={15} />} aria-label={t('tips.title')}>
+                  {t('tips.title')}
+                </Button>
+              </Tooltip> : null}
+              <Tooltip title={t('actions.resetAllHint')}>
+                <Button
+                  icon={<RotateCcw size={15} />}
+                  disabled={busy || !changedKeys.length}
+                  onClick={() => dispatch({ type: 'reset' })}
+                >
+                  {t('actions.reset')}
+                </Button>
+              </Tooltip>
+              {activeSection !== 'updates' ? <Button
+                icon={<RefreshCw size={15} />}
+                disabled={busy || !draft.data}
+                loading={refreshMutation.isPending}
+                onClick={() => refreshMutation.mutate()}
+              >
+                {t('actions.refresh')}
+              </Button> : null}
+              {changedKeys.length ? <Tag color="warning" role="status">{t('unsavedChanges')}</Tag> : null}
+              <Tooltip title={t('actions.saveAllHint')}>
+                <Button
+                  type="primary"
+                  icon={<Save size={15} />}
+                  disabled={busy || !changedKeys.length}
+                  loading={saveMutation.isPending}
+                  onClick={() => saveMutation.mutate(changedKeys.map((key) => ({ key, value: values[key] })))}
+                >
+                  {t('actions.save')}
+                </Button>
+              </Tooltip>
+            </Space> : null}
+          </div>
+          <div className="settings-route-content">{children}</div>
+        </div>
+      </AdminPage>
+    </SettingsContext.Provider>
   )
+}
+
+export function SettingsNavigation({
+  activeSection,
+  dirtySections,
+}: {
+  activeSection: string | null
+  dirtySections: ReadonlySet<SettingsSectionKey>
+}) {
+  const t = useTranslations('AdminMM.settings')
+
+  return <nav className="settings-tabs-links" aria-label={t('navigationLabel')}>
+    {SETTINGS_SECTIONS.map((section) => {
+      const Icon = SECTION_ICONS[section]
+      const label = t(`tabs.${section}.label`)
+      const dirty = dirtySections.has(section)
+      const description = dirty ? `${label}: ${t('unsavedChanges')}` : undefined
+      return <Link
+        key={section}
+        href={getSettingsSectionPath(section)}
+        scroll={false}
+        className={`settings-tab-link${activeSection === section ? ' is-active' : ''}`}
+        aria-current={activeSection === section ? 'page' : undefined}
+        aria-label={description}
+        title={description}
+      >
+        <span className="settings-tab-label">
+          <Icon size={16} />
+          <span>{label}</span>
+          {dirty ? <span className="settings-tab-dirty-dot" aria-hidden="true" /> : null}
+        </span>
+      </Link>
+    })}
+  </nav>
+}
+
+export function SettingsSection({ section }: { section: SettingsSectionKey }) {
+  const t = useTranslations('AdminMM.settings')
+  const errorT = useTranslations('AdminMM.errors')
+  const context = useContext(SettingsContext)
+  if (!context) throw new Error('SettingsSection requires the shared settings layout')
+  const Icon = SECTION_ICONS[section]
+  const configs = getSettingsSectionConfigs(context.data, section)
+
+  return <section className="settings-tab-panel">
+    <div className="settings-tab-heading">
+      <span className="settings-tab-icon"><Icon size={16} /></span>
+      <div>
+        <Typography.Title level={4}>{t(`tabs.${section}.label`)}</Typography.Title>
+        <Typography.Text type="secondary">{t(`tabs.${section}.description`)}</Typography.Text>
+      </div>
+    </div>
+    {section === 'updates' ? <SystemUpdatePanel /> : <>
+      {context.error ? <Alert
+        showIcon
+        type="error"
+        title={t('messages.loadFailed')}
+        description={formatAdminError(context.error, errorT)}
+        action={<Button size="small" onClick={context.retry}>{t('updates.actions.retry')}</Button>}
+      /> : null}
+      {!context.data && context.loading ? <Skeleton active paragraph={{ rows: 10 }} /> : context.data ? <>
+        {section === 'rpc' ? <Alert
+          className="settings-rpc-notice"
+          showIcon
+          type="info"
+          title={t('tabs.rpc.noticeTitle')}
+          description={t('tabs.rpc.noticeDescription')}
+          action={<Button size="small" loading={context.testingNetwork} onClick={context.testNetwork}>{t('tabs.rpc.test')}</Button>}
+        /> : null}
+        {configs.length ? <Card
+          className="settings-card"
+          title={<span className="settings-card-title"><Icon size={16} />{section === 'branding' ? t('branding.cardTitle') : t('tabs.fieldsCount', { count: configs.length })}</span>}
+        >
+          <div className="settings-fields">{configs.map(context.renderConfig)}</div>
+        </Card> : <Empty description={t('empty')} />}
+      </> : null}
+    </>}
+  </section>
 }
 
 function SystemUpdatePanel() {
@@ -459,7 +489,7 @@ function SystemUpdatePanel() {
     />
     {refresh.isError ? <Alert showIcon type="error" title={t('updates.messages.loadFailed')} description={formatAdminError(refresh.error, errorT)} /> : null}
     <Card className="settings-card settings-update-card" title={<span className="settings-card-title"><RefreshCw size={16} />{t('updates.cardTitle')}</span>}>
-      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+      <Space orientation="vertical" size={12} style={{ width: '100%' }}>
         <Space wrap size={8}>
           <Tag color={statusTone[data.status]}>{t(`updates.status.${data.status}`)}</Tag>
           <Typography.Text type="secondary">{t('updates.checkedAt', { date: date(data.checkedAt) })}</Typography.Text>
@@ -489,7 +519,7 @@ function SystemUpdatePanel() {
         {data.newerReleases.length ? <Card className="settings-update-next-release" size="small" title={<span className="settings-card-title"><RefreshCw size={15} />{t('updates.newerReleases.title')}</span>}>
           <div>
             {data.newerReleases.map((release) => <section className="settings-update-release-entry" key={release.tag}>
-              <Space direction="vertical" size={8} style={{ width: '100%' }}>
+              <Space orientation="vertical" size={8} style={{ width: '100%' }}>
                 <Space size={8} wrap><Typography.Text strong code>{release.tag}</Typography.Text><Typography.Text type="secondary">{release.title}</Typography.Text></Space>
                 <Typography.Text type="secondary">{date(release.publishedAt)} · {release.commitSha?.slice(0, 12) || t('updates.values.unavailable')}</Typography.Text>
                 <Typography.Paragraph className="settings-update-notes">{release.notes || t('updates.values.noNotes')}</Typography.Paragraph>
