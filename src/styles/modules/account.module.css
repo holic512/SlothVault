@@ -2,8 +2,8 @@
  * @file account.module.css
  * @project SlothVault
  * @module Account Workspace Styles
- * @description Gives private account pages a compact identity rail and consistent, switchable content surfaces.
- * @logic Separate navigation from forms and records, keep glass content readable, and collapse to a wrapping mobile navigation.
+ * @description Gives private account pages a compact identity rail, responsive dashboard, and equal-height content cards within each row.
+ * @logic Stretch cards to their grid row, keep glass and chart content readable, and collapse navigation and content grids for smaller screens.
  * @dependencies SlothVault tokens, AccountShell, AccountCard
  * @index_tags account,layout,responsive,liquid-glass
  * @author holic512
@@ -58,12 +58,17 @@
 }
 
 .root :global(.account-section-label) {
-  margin: 0 12px 10px;
+  margin: 0 12px 6px;
   color: var(--sv-text-muted);
   font-size: 12px;
 }
 
 .root :global(.account-section-nav) {
+  display: grid;
+  gap: 16px;
+}
+
+.root :global(.account-section-nav-group) {
   display: grid;
   gap: 4px;
 }
@@ -103,54 +108,24 @@
   border-top: 1px solid var(--sv-border);
 }
 
-.root :global(.account-appearance) {
-  display: grid;
-  gap: 10px;
-  color: var(--sv-text-muted);
-  font-size: 12px;
-}
-
-.root :global(.account-section-rail-note) {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  color: var(--sv-text-muted);
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.root :global(.account-section-rail-note) svg {
-  flex-shrink: 0;
-  margin-top: 3px;
-}
-
 .root :global(.account-route-content),
 .root :global(.account-route) {
   min-width: 0;
 }
 
-.root :global(.account-route-heading) {
-  margin-bottom: 28px;
-}
-
-.root :global(.account-route-heading) h1:global(.ant-typography) {
-  margin: 0 0 8px;
-  font-size: var(--sv-font-page-title);
-  font-weight: 650;
-  line-height: var(--sv-line-heading);
-  letter-spacing: -0.03em;
-}
-
-.root :global(.account-route-heading) :global(.ant-typography-secondary) {
-  display: block;
-  max-width: 68ch;
-  font-size: 14px;
-  line-height: 1.65;
-}
-
 .root :global(.account-card) {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
   min-width: 0;
   border: 1px solid transparent;
+}
+
+.root :global(.account-card-content) {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .root :global(.account-card[data-glass-enabled="false"]) {
@@ -175,6 +150,7 @@
 }
 
 .root :global(.account-card-body) {
+  flex: 1;
   padding: 24px;
 }
 
@@ -204,7 +180,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 248px;
   gap: 20px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .root :global(.account-avatar-card) {
@@ -228,11 +204,63 @@
   line-height: 1.7;
 }
 
-.root :global(.account-overview-grid) {
+.root :global(.account-dashboard) {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
   gap: 20px;
-  align-items: start;
+}
+
+.root :global(.account-dashboard-stats) {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  align-items: stretch;
+}
+
+.root :global(.account-dashboard-charts),
+.root :global(.account-dashboard-footer) {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: stretch;
+}
+
+.root :global(.account-dashboard-stat) :global(.account-card-body) {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.root :global(.account-dashboard-stat) :global(.ant-statistic-content) {
+  margin-top: 8px;
+  font-size: 36px;
+  font-weight: 600;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.root :global(.account-dashboard-stat) :global(.account-text-link) {
+  margin-top: 0;
+}
+
+.root :global(.account-dashboard-chart-card) :global(.account-card-heading) :global(.ant-typography-secondary) {
+  font-size: 12px;
+}
+
+.root :global(.account-dashboard-chart-card) :global(.account-card-heading) {
+  flex-wrap: wrap;
+}
+
+.root :global(.account-dashboard-chart) {
+  width: 100%;
+  height: 240px;
+  min-width: 0;
+}
+
+.root :global(.account-dashboard-chart-empty) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .root :global(.account-overview-balance) :global(.ant-statistic-content) {
@@ -266,17 +294,13 @@
   font-size: 14px;
 }
 
-.root :global(.account-status-list) strong {
-  color: var(--sv-text);
+.root :global(.account-status-value) {
+  color: var(--sv-text-muted);
   font-size: 13px;
 }
 
-.root :global(.account-status-list) :global(.ant-tag) {
-  margin-inline-end: 0;
-}
-
-.root :global(.account-overview-actions) {
-  grid-column: 1 / -1;
+.root :global(.account-status-value[data-attention="true"]) {
+  color: var(--sv-warning);
 }
 
 .root :global(.account-overview-actions) :global(.account-card-body) {
@@ -303,32 +327,11 @@
   background: color-mix(in srgb, var(--sv-bg-soft) 45%, transparent);
 }
 
-.root :global(.account-overview-identity) {
-  display: flex;
-  grid-column: 1 / -1;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 4px 2px;
-  color: var(--sv-text-muted);
-  font-size: 13px;
-}
-
-.root :global(.account-overview-identity) svg {
-  flex-shrink: 0;
-  margin-top: 3px;
-}
-
-.root :global(.account-overview-identity) :global(.ant-typography) {
-  display: block;
-  margin-top: 4px;
-  font-size: 13px;
-}
-
 .root :global(.account-security-grid) {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
   gap: 20px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .root :global(.account-wallet-bound),
@@ -356,7 +359,7 @@
 
 .root :global(.account-points-summary) {
   grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
-  align-items: start;
+  align-items: stretch;
 }
 
 .root :global(.membership-current-card) h3:global(.ant-typography) {
@@ -426,6 +429,14 @@
   gap: 8px;
 }
 
+.root :global(.membership-level-card-heading) {
+  margin: 0;
+  color: var(--sv-text);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
 .root :global(.membership-level-rank),
 .root :global(.membership-level-duration) {
   color: var(--sv-text-muted);
@@ -462,7 +473,9 @@
     gap: 24px;
   }
 
-  .root :global(.account-profile-grid) {
+  .root :global(.account-profile-grid),
+  .root :global(.account-dashboard-charts),
+  .root :global(.account-dashboard-footer) {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -493,14 +506,17 @@
     padding: 0 0 18px;
   }
 
-  .root :global(.account-section-label),
-  .root :global(.account-section-rail-note) {
+  .root :global(.account-section-label) {
     display: none;
   }
 
   .root :global(.account-section-nav) {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 4px;
+  }
+
+  .root :global(.account-section-nav-group) {
+    display: contents;
   }
 
   .root :global(.account-section-nav) a {
@@ -523,25 +539,22 @@
   .root :global(.account-rail-footer) > :global(.ant-btn) {
     width: auto;
   }
-
-  .root :global(.account-appearance) {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
 }
 
 @media (max-width: 600px) {
-  .root :global(.account-route-heading) {
-    margin-bottom: 20px;
+  .root :global(.account-dashboard-stats) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
   }
 
-  .root :global(.account-route-heading) h1:global(.ant-typography) {
-    font-size: var(--sv-font-page-title);
+  .root :global(.account-dashboard-stat):first-of-type {
+    grid-column: 1 / -1;
   }
 
-  .root :global(.account-overview-grid),
+  .root :global(.account-dashboard-stat) :global(.ant-statistic-content) {
+    font-size: 30px;
+  }
+
   .root :global(.account-security-grid),
   .root :global(.account-points-summary),
   .root :global(.membership-summary-grid),

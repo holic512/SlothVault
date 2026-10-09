@@ -11,7 +11,7 @@
  * @author holic512
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { App, Button, Descriptions, Space, Table, Tag, Typography } from 'antd'
+import { App, Button, Descriptions, Space, Table, Typography } from 'antd'
 import { CalendarClock, Check, Coins, Crown, Infinity, LockKeyhole, ShoppingCart } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
@@ -92,13 +92,6 @@ export function AccountMembershipView() {
 
   return (
     <div className="account-route membership-route">
-      <div className="account-route-heading">
-        <div>
-          <Typography.Title level={1}>{t('title')}</Typography.Title>
-          <Typography.Text type="secondary">{t('description')}</Typography.Text>
-        </div>
-      </div>
-
       {membershipQuery.isError ? (
         <AccountQueryError retry={() => void membershipQuery.refetch()} />
       ) : (
@@ -140,9 +133,7 @@ export function AccountMembershipView() {
                   const insufficient = (data.pointsBalance ?? 0) < level.pricePoints
                   return (
                     <AccountCard key={level.id} className="membership-level-card">
-                      <div className="membership-level-card-heading">
-                        <Tag color="gold"><Crown size={13} />{level.name}</Tag>
-                      </div>
+                      <h3 className="membership-level-card-heading">{level.name}</h3>
                       <strong className="membership-level-price"><Coins size={17} />{t('price', { points: level.pricePoints })}</strong>
                       <span className="membership-level-duration">
                         {level.validityDays ? <><CalendarClock size={14} />{t('duration', { days: level.validityDays })}</> : <><Infinity size={14} />{t('permanent')}</>}
@@ -172,11 +163,11 @@ export function AccountMembershipView() {
               pagination={{ pageSize: 10, hideOnSinglePage: true }}
               scroll={{ x: 720 }}
               columns={[
-                { title: t('table.level'), dataIndex: ['membershipLevel', 'name'], render: (_value, item) => <Space><Tag color="gold"><Crown size={13} /></Tag>{item.membershipLevel.name}</Space> },
+                { title: t('table.level'), dataIndex: ['membershipLevel', 'name'] },
                 { title: t('table.source'), dataIndex: 'source', render: (value) => value === 'POINT_PURCHASE' ? t('table.purchase') : t('table.granted') },
                 { title: t('table.grantedAt'), dataIndex: 'grantedAt', render: (value) => new Date(value).toLocaleString(locale) },
                 { title: t('table.expiresAt'), dataIndex: 'expiresAt', render: (value) => expiryLabel(value) },
-                { title: t('table.status'), dataIndex: 'active', render: (_value, item) => item.revokedAt ? <Tag>{t('table.revoked')}</Tag> : item.active ? <Tag color="success">{t('table.active')}</Tag> : <Tag color="warning">{t('table.expired')}</Tag> },
+                { title: t('table.status'), dataIndex: 'active', render: (_value, item) => <span className="account-status-value" data-attention={!item.revokedAt && !item.active ? 'true' : undefined}>{item.revokedAt ? t('table.revoked') : item.active ? t('table.active') : t('table.expired')}</span> },
               ]}
             />
           </AccountCard>

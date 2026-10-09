@@ -4,9 +4,9 @@
  * @file account-shell.tsx
  * @project SlothVault
  * @module Personal Account Workspace
- * @description Provides the compact identity rail, surface controls, section navigation, and shared session state for split account routes.
- * @logic Use the server-verified account as initial state, keep the client session query synchronized after profile mutations, and route each account concern to its own workspace view.
- * @dependencies React, React Query, Ant Design, Next navigation, SurfaceAppearanceControl, account.module.css, auth session API
+ * @description Provides the compact identity rail, grouped section navigation, and shared session state for split account routes.
+ * @logic Use the server-verified account as initial state, keep the client session query synchronized after profile mutations, and group account, collaboration, and benefit routes under concise navigation labels.
+ * @dependencies React, React Query, Ant Design, Next navigation, account.module.css, auth session API
  * @index_tags account,workspace,navigation,profile,security,points
  * @author holic512
  */
@@ -14,12 +14,11 @@ import { createContext, useContext, type ReactNode } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
 import { Avatar, Button, Typography } from 'antd'
-import { Coins, Crown, FileSignature, KeyRound, LayoutDashboard, ShieldCheck, UserRound } from 'lucide-react'
+import { Coins, Crown, FileSignature, LayoutDashboard, ShieldCheck, UserRound } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { usePathname } from 'next/navigation'
 
-import { SurfaceAppearanceControl } from '@/components/theme/surface-appearance-control'
 import { apiFetch } from '@/lib/api-client'
 import styles from '@/styles/modules/account.module.css'
 import type { SessionUser } from '@/types/user'
@@ -41,13 +40,31 @@ export function AccountShell({
 }) {
   const t = useTranslations('Account.shell')
   const pathname = usePathname()
-  const accountSections = [
-    { href: '/account', label: t('overview'), icon: LayoutDashboard },
-    { href: '/account/profile', label: t('profile'), icon: UserRound },
-    { href: '/account/security', label: t('security'), icon: ShieldCheck },
-    { href: '/account/commissions', label: t('commissions'), icon: FileSignature },
-    { href: '/account/points', label: t('points'), icon: Coins },
-    { href: '/account/membership', label: t('membership'), icon: Crown },
+  const accountGroups = [
+    {
+      id: 'account',
+      label: t('groups.account'),
+      sections: [
+        { href: '/account', label: t('overview'), icon: LayoutDashboard },
+        { href: '/account/profile', label: t('profile'), icon: UserRound },
+        { href: '/account/security', label: t('security'), icon: ShieldCheck },
+      ],
+    },
+    {
+      id: 'collaboration',
+      label: t('groups.collaboration'),
+      sections: [
+        { href: '/account/commissions', label: t('commissions'), icon: FileSignature },
+      ],
+    },
+    {
+      id: 'benefits',
+      label: t('groups.benefits'),
+      sections: [
+        { href: '/account/points', label: t('points'), icon: Coins },
+        { href: '/account/membership', label: t('membership'), icon: Crown },
+      ],
+    },
   ]
   const sessionQuery = useQuery({
     queryKey: ['session-user'],
@@ -68,26 +85,24 @@ export function AccountShell({
                 <Typography.Text type="secondary">@{user.username}</Typography.Text>
               </div>
             </div>
-            <div className="account-section-label">{t('kicker')}</div>
             <nav className="account-section-nav">
-              {accountSections.map(({ href, label, icon: Icon }) => (
-                <Link key={href} href={href} className={pathname === href ? 'is-active' : ''} aria-current={pathname === href ? 'page' : undefined}>
-                  <Icon size={18} />
-                  <span>{label}</span>
-                </Link>
+              {accountGroups.map(({ id, label, sections }) => (
+                <div key={id} className="account-section-nav-group" role="group" aria-labelledby={`account-nav-${id}`}>
+                  <div id={`account-nav-${id}`} className="account-section-label">{label}</div>
+                  {sections.map(({ href, label, icon: Icon }) => (
+                    <Link key={href} href={href} className={pathname === href ? 'is-active' : ''} aria-current={pathname === href ? 'page' : undefined}>
+                      <Icon size={18} />
+                      <span>{label}</span>
+                    </Link>
+                  ))}
+                </div>
               ))}
             </nav>
-            <div className="account-rail-footer">
-              <div className="account-appearance">
-                <span>{t('appearance')}</span>
-                <SurfaceAppearanceControl />
+            {user.role === 'ADMIN' ? (
+              <div className="account-rail-footer">
+                <Button block href="/admin/mm">{t('admin')}</Button>
               </div>
-              {user.role === 'ADMIN' ? <Button block href="/admin/mm">{t('admin')}</Button> : null}
-              <div className="account-section-rail-note">
-                <KeyRound size={14} />
-                <span>{t('privacyNotice')}</span>
-              </div>
-            </div>
+            ) : null}
           </aside>
           <section className="account-route-content">{children}</section>
         </div>

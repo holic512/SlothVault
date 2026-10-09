@@ -2338,6 +2338,11 @@
       "user": "User",
       "admin": "Admin console",
       "navigationLabel": "Account navigation",
+      "groups": {
+        "account": "Personal account",
+        "collaboration": "Project collaboration",
+        "benefits": "Points and benefits"
+      },
       "privacyNotice": "Your account data and sign-in credentials are visible only to you.",
       "appearance": "Card style",
       "loadFailed": "Account data could not be loaded. Please try again.",
@@ -2351,6 +2356,17 @@
       "points": "Current points",
       "viewPoints": "View points history",
       "quickLinks": "Quick links",
+      "dashboard": {
+        "income": "Recent points earned",
+        "spending": "Recent points spent",
+        "recentRecords": "Latest {count} transactions",
+        "balanceTrend": "Point balance history",
+        "pointFlow": "Points earned and spent",
+        "noHistory": "No point transactions yet",
+        "unavailable": "Temporarily unavailable",
+        "balanceAccessible": "Balance history for the latest {count} point transactions. The last recorded balance is {balance} points.",
+        "flowAccessible": "Recent point income: {income}. Recent spending: {spending}."
+      },
       "status": {
         "title": "Account status",
         "password": "Sign-in password",

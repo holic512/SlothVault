@@ -2338,6 +2338,11 @@
       "user": "个人用户",
       "admin": "管理后台",
       "navigationLabel": "账户功能导航",
+      "groups": {
+        "account": "个人账户",
+        "collaboration": "项目协作",
+        "benefits": "积分与权益"
+      },
       "privacyNotice": "账户数据与登录凭据仅对本人可见。",
       "appearance": "卡片风格",
       "loadFailed": "暂时无法加载账户数据，请重试。",
@@ -2351,6 +2356,17 @@
       "points": "当前积分",
       "viewPoints": "查看积分记录",
       "quickLinks": "快捷入口",
+      "dashboard": {
+        "income": "近期收入积分",
+        "spending": "近期支出积分",
+        "recentRecords": "最近 {count} 笔记录",
+        "balanceTrend": "积分余额走势",
+        "pointFlow": "积分收支",
+        "noHistory": "暂无积分变动记录",
+        "unavailable": "暂时无法加载",
+        "balanceAccessible": "最近 {count} 笔积分记录的余额走势，最后一笔余额为 {balance} 积分。",
+        "flowAccessible": "近期积分收入 {income}，支出 {spending}。"
+      },
       "status": {
         "title": "账户状态",
         "password": "登录密码",

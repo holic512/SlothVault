@@ -49,10 +49,6 @@
   background: color-mix(in srgb, var(--sv-text) 4%, transparent);
 }
 
-.account :global(.account-route-heading) {
-  margin-bottom: 18px;
-}
-
 .contract-list {
   margin: 0;
   padding: 0;

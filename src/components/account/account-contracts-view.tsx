@@ -97,10 +97,7 @@ export function AccountContractsView() {
     onError: handleActionError,
   })
 
-  return <div className={`account-route ${contractStyles.account}`}>
-    <div className="account-route-heading">
-      <div><Typography.Title level={1}>我的合同</Typography.Title><Typography.Text type="secondary">阅读合同与附件，核对开发范围、交付时间和费用，再确认签约。无需连接钱包。</Typography.Text></div>
-    </div>
+  return <div className="account-route">
     <Alert type="info" showIcon title="先阅读，再确认" description="如有条款需要调整，请先联系管理员；拒签后需由管理员重新发起合同。在线确认会记录您的账户与确认时间，不替代法定电子签名或司法公证。" />
     {contracts.isError ? (
       <AccountQueryError retry={() => void contracts.refetch()} />

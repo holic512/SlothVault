@@ -87,13 +87,6 @@ export function AccountProfileView() {
 
   return (
     <div className="account-route">
-      <div className="account-route-heading">
-        <div>
-          <Typography.Title level={1}>{t('title')}</Typography.Title>
-          <Typography.Text type="secondary">{t('description')}</Typography.Text>
-        </div>
-      </div>
-
       <div className="account-profile-grid">
         <AccountCard className="account-avatar-card" title={t('avatar')}>
           <Space wrap size={12}>

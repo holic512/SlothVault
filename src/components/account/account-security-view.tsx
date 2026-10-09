@@ -11,7 +11,7 @@
  * @author holic512
  */
 import { useMutation } from '@tanstack/react-query'
-import { App, Button, Form, Input, Tag, Typography } from 'antd'
+import { App, Button, Form, Input, Typography } from 'antd'
 import { KeyRound, ShieldCheck, WalletCards } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
@@ -49,13 +49,6 @@ export function AccountSecurityView() {
 
   return (
     <div className="account-route">
-      <div className="account-route-heading">
-        <div>
-          <Typography.Title level={1}>{t('title')}</Typography.Title>
-          <Typography.Text type="secondary">{t('description')}</Typography.Text>
-        </div>
-      </div>
-
       <div className="account-security-grid">
         <AccountCard className="account-route-card" title={<span className="account-card-title"><KeyRound size={16} />{t('passwordTitle')}</span>}>
           <Form form={passwordForm} layout="vertical" onFinish={(values) => passwordMutation.mutate(values)}>
@@ -87,7 +80,6 @@ export function AccountSecurityView() {
         <AccountCard className="account-route-card" title={<span className="account-card-title"><WalletCards size={16} />{t('walletTitle')}</span>}>
           {user.walletAddress ? (
             <div className="account-wallet-bound">
-              <Tag color="success">{t('bound')}</Tag>
               <Typography.Paragraph copyable={{ text: user.walletAddress }} className="mono-ellipsis">{user.walletAddress}</Typography.Paragraph>
               <Typography.Text type="secondary">{t('walletBoundHint')}</Typography.Text>
             </div>
