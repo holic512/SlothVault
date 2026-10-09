@@ -502,9 +502,12 @@
     },
     "menuGroups": {
       "overview": "Overview",
-      "content": "Content",
-      "users": "Users & Credits",
-      "system": "System & Evidence"
+      "content": "Site content",
+      "resources": "Files and trash",
+      "users": "Users and benefits",
+      "collaboration": "Commissions and contracts",
+      "integrations": "Evidence and integrations",
+      "system": "Settings and maintenance"
     },
     "trash": {
       "articles": "Articles",

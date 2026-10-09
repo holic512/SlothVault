@@ -502,9 +502,12 @@
     },
     "menuGroups": {
       "overview": "概览",
-      "content": "内容管理",
+      "content": "站点内容",
+      "resources": "文件与回收",
       "users": "用户与权益",
-      "system": "系统与存证"
+      "collaboration": "委托与合同",
+      "integrations": "存证与接入",
+      "system": "配置与维护"
     },
     "trash": {
       "articles": "文章",

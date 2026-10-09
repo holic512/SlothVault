@@ -390,17 +390,15 @@
 }
 
 .admin-mobile-menu .ant-menu-item-group + .ant-menu-item-group {
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
 .admin-mobile-menu .ant-menu-item-group-title {
   padding: 6px 9px 2px !important;
   color: var(--sv-text-muted) !important;
-  font-size: 10px !important;
-  font-weight: 750 !important;
-  letter-spacing: 0.1em;
-  line-height: 1.2 !important;
-  text-transform: uppercase;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  line-height: 1.4 !important;
 }
 
 .markdown-editor-shell {

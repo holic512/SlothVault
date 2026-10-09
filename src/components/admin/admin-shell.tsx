@@ -5,7 +5,7 @@
  * @project SlothVault
  * @module Administrator Shell
  * @description Provides a responsive, grouped Ant Design navigation shell with an authenticated administrator header.
- * @logic Map routes into compact labeled sidebar groups and one breadcrumb model, render the server-resolved system brand, preserve collapse state locally, and dynamically mount the client-only signing-wallet tool only for the evidence and contract workflows.
+ * @logic Group site content, resources, user benefits, commissions, integrations, and maintenance beneath a standalone dashboard, share one breadcrumb model, and mount the signing-wallet tool only for evidence and contract workflows.
  * @dependencies antd, next/dynamic, next/navigation, next-intl, brand-logo, theme-controls, wallet runtime
  * @index_tags admin,layout,navigation,sidebar,branding,menu-groups
  * @author holic512
@@ -67,7 +67,7 @@ const AdminWalletTool = dynamic(
   { loading: AdminWalletToolFallback, ssr: false },
 )
 
-type AdminMenuGroup = 'overview' | 'content' | 'users' | 'system'
+type AdminMenuGroup = 'overview' | 'content' | 'resources' | 'users' | 'collaboration' | 'integrations' | 'system'
 type AdminMenuRoute = {
   group: AdminMenuGroup
   key: string
@@ -89,16 +89,16 @@ export function AdminShell({ children, branding }: { children: ReactNode; brandi
       { group: 'content', key: '/admin/mm/articles', icon: <Newspaper size={16} />, label: t('menu.articles') },
       { group: 'content', key: '/admin/mm/projects', icon: <Blocks size={16} />, label: t('menu.projects') },
       { group: 'content', key: '/admin/mm/notes', icon: <BookOpenText size={16} />, label: t('menu.notes') },
-      { group: 'content', key: '/admin/mm/trash', icon: <Trash2 size={16} />, label: t('menu.trash') },
-      { group: 'content', key: '/admin/mm/files', icon: <FileStack size={16} />, label: t('menu.files') },
+      { group: 'resources', key: '/admin/mm/files', icon: <FileStack size={16} />, label: t('menu.files') },
+      { group: 'resources', key: '/admin/mm/trash', icon: <Trash2 size={16} />, label: t('menu.trash') },
       { group: 'users', key: '/admin/mm/users', icon: <Users size={16} />, label: t('menu.users') },
       { group: 'users', key: '/admin/mm/membership-levels', icon: <Crown size={16} />, label: t('menu.membershipLevels') },
-      { group: 'users', key: '/admin/mm/commissions', icon: <FileSignature size={16} />, label: t('menu.commissions') },
-      { group: 'system', key: '/admin/mm/contract-templates', icon: <FileSignature size={16} />, label: t('menu.contractTemplates') },
       { group: 'users', key: '/admin/mm/gift-cards', icon: <TicketCheck size={16} />, label: t('menu.giftCards') },
-      { group: 'system', key: '/admin/mm/evidence', icon: <ArchiveRestore size={16} />, label: t('menu.solana') },
+      { group: 'collaboration', key: '/admin/mm/commissions', icon: <FileSignature size={16} />, label: t('menu.commissions') },
+      { group: 'collaboration', key: '/admin/mm/contract-templates', icon: <FileSignature size={16} />, label: t('menu.contractTemplates') },
+      { group: 'integrations', key: '/admin/mm/evidence', icon: <ArchiveRestore size={16} />, label: t('menu.solana') },
+      { group: 'integrations', key: '/admin/mm/mcp', icon: <KeyRound size={16} />, label: t('menu.mcpKeys') },
       { group: 'system', key: '/admin/mm/backup', icon: <ArchiveRestore size={16} />, label: t('menu.backup') },
-      { group: 'system', key: '/admin/mm/mcp', icon: <KeyRound size={16} />, label: t('menu.mcpKeys') },
       { group: 'system', key: '/admin/mm/settings', icon: <Settings size={16} />, label: t('menu.settings') },
     ],
     [t],
@@ -114,9 +114,12 @@ export function AdminShell({ children, branding }: { children: ReactNode; brandi
         .map((item) => ({ key: item.key, icon: item.icon, label: item.label })),
     })
     return [
-      group('overview', t('menuGroups.overview')),
+      ...menuRoutes.filter((item) => item.group === 'overview').map((item) => ({ key: item.key, icon: item.icon, label: item.label })),
       group('content', t('menuGroups.content')),
+      group('resources', t('menuGroups.resources')),
       group('users', t('menuGroups.users')),
+      group('collaboration', t('menuGroups.collaboration')),
+      group('integrations', t('menuGroups.integrations')),
       group('system', t('menuGroups.system')),
     ]
   }, [menuRoutes, t])
