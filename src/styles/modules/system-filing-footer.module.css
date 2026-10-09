@@ -1,0 +1,79 @@
+/**
+ * @file system-filing-footer.module.css
+ * @project SlothVault
+ * @module Public Filing Footer Styles
+ * @description Styles the optional filing footer and adapts only shells containing a rendered footer.
+ * @logic Keep empty layouts untouched, let main content fill short pages, and wrap filing records without covering long content.
+ * @dependencies SlothVault design tokens, system-filing-footer markup, public/project/auth shells
+ * @index_tags css-module,filing,footer,public,auth,responsive
+ * @author holic512
+ */
+
+.root {
+  flex-shrink: 0;
+  padding: 18px var(--sv-page-gutter) 22px;
+  border-top: 1px solid var(--sv-border);
+  color: var(--sv-text-muted);
+  font-size: 13px;
+  line-height: 1.7;
+  text-align: center;
+}
+
+.items {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 24px;
+  max-width: var(--sv-container-content);
+  margin: 0 auto;
+}
+
+.item {
+  min-width: 0;
+  max-width: 100%;
+  color: inherit;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+a.item:hover {
+  color: var(--sv-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+a.item:focus-visible {
+  outline: 2px solid var(--sv-primary);
+  outline-offset: 4px;
+}
+
+:global(.public-page):has(> .root),
+:global(.project-page):has(> .root),
+:global(.auth-page):has(> .root) {
+  display: flex;
+  flex-direction: column;
+}
+
+:global(.public-page):has(> .root) > main,
+:global(.project-page):has(> .root) > main,
+:global(.project-page):has(> .root) > :global(.project-gate-wrap),
+:global(.project-page):has(> .root) > :global(.docs-reader),
+:global(.auth-page):has(> .root) > :global(.auth-main) {
+  flex: 1;
+  min-height: 0;
+}
+
+:global(.public-page):has(> .root) > :global(.homepage-main) {
+  display: flex;
+  flex-direction: column;
+}
+
+:global(.public-page):has(> .root) :global(.homepage-main) > :global(.content-container):has(> :global(.homepage-empty)) {
+  display: grid;
+  flex: 1;
+}
+
+:global(.public-page):has(> .root) :global(.homepage-empty) {
+  min-height: 0;
+}

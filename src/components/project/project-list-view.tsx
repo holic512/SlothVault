@@ -1,5 +1,17 @@
 'use client'
 
+/**
+ * @file project-list-view.tsx
+ * @project SlothVault
+ * @module Public Project Library
+ * @description Renders the responsive public project archive and an optional server-rendered filing footer.
+ * @logic Present project metadata and access rules with localized navigation, then render the supplied footer after the archive.
+ * @dependencies Ant Design, next-intl, PublicNavbar, public.module.css
+ * @index_tags projects,public,library,filing,footer,responsive
+ * @author holic512
+ */
+import type { ReactNode } from 'react'
+
 import { Card, Empty, Typography } from 'antd'
 import { ArrowUpRight, CalendarClock, FolderTree, GitBranch } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
@@ -25,9 +37,11 @@ export type ProjectListItem = {
 export function ProjectListView({
   projects,
   branding,
+  footer,
 }: {
   projects: ProjectListItem[]
   branding: SystemBranding
+  footer?: ReactNode
 }) {
   const locale = useLocale()
   const t = useTranslations('ProjectsPage')
@@ -85,6 +99,7 @@ export function ProjectListView({
           <Empty description={t('empty')} />
         )}
       </main>
+      {footer}
     </div>
   )
 }

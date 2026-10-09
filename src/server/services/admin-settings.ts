@@ -2,10 +2,10 @@
  * @file admin-settings.ts
  * @project SlothVault
  * @module Admin Settings Service
- * @description Owns installed-system branding and fixed Solana evidence network profiles, masked RPC reads, validated writes, and database-backed refresh checks.
- * @logic Join stored rows with a typed registry, validate managed logo and favicon references without echoing RPC endpoints, reject invalid defaults or disabled default networks, and persist changes atomically.
+ * @description Owns installed-system branding, optional filing records, fixed Solana evidence network profiles, masked RPC reads, validated writes, and database-backed refresh checks.
+ * @logic Join stored rows with a typed registry, validate optional filing links and managed branding references without echoing RPC endpoints, reject invalid evidence defaults, and persist changes atomically.
  * @dependencies Prisma SystemConfig/FileManagement models, server/http/errors, system configuration and branding services
- * @index_tags admin,settings,branding,logo,favicon,solana,evidence,rpc,validation,transaction
+ * @index_tags admin,settings,branding,filing,logo,favicon,solana,evidence,rpc,validation,transaction
  * @author holic512
  */
 import 'server-only'
@@ -35,6 +35,38 @@ export const ADMIN_CONFIG_DEFINITIONS = [
     kind: 'icon',
     sensitive: false,
     description: 'Optional managed ICO favicon used in browser metadata',
+    defaultValue: '',
+  },
+  {
+    key: CONFIG_KEYS.SYSTEM_ICP_RECORD_NUMBER,
+    group: 'filing',
+    kind: 'text',
+    sensitive: false,
+    description: 'Optional ICP filing number displayed on public pages',
+    defaultValue: '',
+  },
+  {
+    key: CONFIG_KEYS.SYSTEM_ICP_RECORD_URL,
+    group: 'filing',
+    kind: 'url',
+    sensitive: false,
+    description: 'Optional HTTP(S) link for the ICP filing number',
+    defaultValue: '',
+  },
+  {
+    key: CONFIG_KEYS.SYSTEM_PUBLIC_SECURITY_RECORD_NUMBER,
+    group: 'filing',
+    kind: 'text',
+    sensitive: false,
+    description: 'Optional public security filing number displayed on public pages',
+    defaultValue: '',
+  },
+  {
+    key: CONFIG_KEYS.SYSTEM_PUBLIC_SECURITY_RECORD_URL,
+    group: 'filing',
+    kind: 'url',
+    sensitive: false,
+    description: 'Optional HTTP(S) link for the public security filing number',
     defaultValue: '',
   },
   {

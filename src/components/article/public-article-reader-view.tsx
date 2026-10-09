@@ -4,7 +4,7 @@
  * @module Public Independent Article Reader
  * @description Renders one standalone blog article with a restrained editorial hero and the shared safe Markdown reader.
  * @logic Present publication metadata and optional cover independently from project releases, then render the authoritative Markdown body.
- * @dependencies next-intl/server, ArticleCover, MarkdownView, PublicNavbar
+ * @dependencies next-intl/server, ArticleCover, MarkdownView, PublicNavbar, SystemFilingFooter
  * @index_tags article,blog,reader,public,markdown
  * @author holic512
  */
@@ -15,6 +15,7 @@ import Link from 'next/link'
 import { ArticleCover } from '@/components/article/article-cover'
 import { MarkdownView } from '@/components/markdown/markdown-view'
 import { PublicNavbar } from '@/components/shell/public-navbar'
+import { SystemFilingFooter } from '@/components/shell/system-filing-footer'
 import publicStyles from '@/styles/modules/public.module.css'
 import type { SystemBranding } from '@/types/branding'
 
@@ -75,6 +76,7 @@ export async function PublicArticleReaderView({
           </article>
         </div>
       </main>
+      <SystemFilingFooter />
     </div>
   )
 }

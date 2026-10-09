@@ -4,17 +4,17 @@
  * @file settings-manager.tsx
  * @project SlothVault
  * @module System Settings Administration
- * @description Provides tabbed configuration controls for branding, evidence policy, protected RPC endpoints, and the latest read-only system Release update without echoing stored secrets.
- * @logic Load known configuration metadata, partition settings by operational risk, stage uploaded logo and favicon paths with explicit synchronization choices, submit one atomic batch, re-read process-independent runtime values, and show all official releases through the latest target with a fresh manual check.
+ * @description Provides tabbed configuration controls for branding, optional filing records, evidence policy, protected RPC endpoints, and read-only system updates without echoing stored secrets.
+ * @logic Load configuration metadata, label independently optional filing fields, stage branding uploads, submit one atomic batch, re-read runtime values, and show official release history.
  * @dependencies Ant Design, React Query, next-intl, Next navigation, api-client, system-update API
- * @index_tags admin,settings,branding,logo,favicon,secrets,configuration,transaction,system-update,release
+ * @index_tags admin,settings,branding,filing,logo,favicon,secrets,configuration,transaction,system-update,release
  * @author holic512
  */
 import { useMemo, useState } from 'react'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, App, Button, Card, Descriptions, Empty, Image, Input, Segmented, Skeleton, Space, Switch, Tabs, Tag, Tooltip, Typography, Upload } from 'antd'
-import { CircleHelp, ImageUp, KeyRound, RefreshCw, RotateCcw, Save, ServerCog, Waypoints } from 'lucide-react'
+import { CircleHelp, FileBadge, ImageUp, KeyRound, RefreshCw, RotateCcw, Save, ServerCog, Waypoints } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 
@@ -31,7 +31,7 @@ type ConfigItem = {
   configured?: boolean
   previewUrl?: string
   isCustom?: boolean
-  kind?: 'boolean' | 'network' | 'url' | 'image' | 'icon'
+  kind?: 'boolean' | 'network' | 'url' | 'image' | 'icon' | 'text'
 }
 type ConfigGroup = { key: string; label: string; configs: ConfigItem[] }
 type ConfigData = { configs: ConfigItem[]; groups: ConfigGroup[] }
@@ -209,6 +209,7 @@ function SettingsForm({ data }: { data: ConfigData }) {
   }
 
   const renderConfig = (config: ConfigItem) => {
+    const isFiling = filingConfigs.some((item) => item.key === config.key)
     const sensitive =
       config.sensitive ??
       (config.key.includes('SECRET') || config.key.endsWith('_KEY'))
@@ -217,11 +218,13 @@ function SettingsForm({ data }: { data: ConfigData }) {
         <span className="settings-field-label">
           <span>
             {sensitive ? <KeyRound size={13} /> : null}
-            {config.kind === 'image'
-              ? t('logo.fieldLabel')
-              : config.kind === 'icon'
-                ? t('favicon.fieldLabel')
-                : <code>{config.key}</code>}
+            {isFiling
+              ? t(`filing.fields.${config.key}`)
+              : config.kind === 'image'
+                ? t('logo.fieldLabel')
+                : config.kind === 'icon'
+                  ? t('favicon.fieldLabel')
+                  : <code>{config.key}</code>}
           </span>
           {sensitive && config.configured ? <Tag color="success">{t('configured')}</Tag> : null}
         </span>
@@ -292,6 +295,8 @@ function SettingsForm({ data }: { data: ConfigData }) {
         ) : (
           <Input
             value={values[config.key] || ''}
+            maxLength={isFiling ? 500 : undefined}
+            type={isFiling && config.kind === 'url' ? 'url' : 'text'}
             placeholder={config.defaultValue || t('placeholder')}
             onChange={(event) => setValues((current) => ({ ...current, [config.key]: event.target.value }))}
           />
@@ -301,6 +306,7 @@ function SettingsForm({ data }: { data: ConfigData }) {
   }
 
   const brandingConfigs = data.groups.find((group) => group.key === 'branding')?.configs || []
+  const filingConfigs = data.groups.find((group) => group.key === 'filing')?.configs || []
   const evidenceConfigs = data.groups.find((group) => group.key === 'evidence')?.configs || []
   const policyConfigs = evidenceConfigs.filter((config) => !config.key.includes('_RPC_'))
   const rpcConfigs = evidenceConfigs.filter((config) => config.key.includes('_RPC_'))
@@ -311,6 +317,13 @@ function SettingsForm({ data }: { data: ConfigData }) {
       description: t('tabs.branding.description'),
       icon: <ImageUp size={16} />,
       configs: brandingConfigs,
+    },
+    {
+      key: 'filing',
+      label: t('tabs.filing.label'),
+      description: t('tabs.filing.description'),
+      icon: <FileBadge size={16} />,
+      configs: filingConfigs,
     },
     {
       key: 'policy',

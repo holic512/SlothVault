@@ -4,7 +4,7 @@
  * @module Public Article Archive View
  * @description Renders a cover-led editorial archive with a featured lead story and compact responsive article cards.
  * @logic Promote the first article on the current page, display publication dates, provide cover fallbacks, and expose simple canonical pagination.
- * @dependencies Next links, next-intl/server, ArticleCover, PublicNavbar
+ * @dependencies Next links, next-intl/server, ArticleCover, PublicNavbar, SystemFilingFooter
  * @index_tags article,archive,editorial,public,responsive
  * @author holic512
  */
@@ -14,6 +14,7 @@ import Link from 'next/link'
 
 import { ArticleCover } from '@/components/article/article-cover'
 import { PublicNavbar } from '@/components/shell/public-navbar'
+import { SystemFilingFooter } from '@/components/shell/system-filing-footer'
 import publicStyles from '@/styles/modules/public.module.css'
 import type { SystemBranding } from '@/types/branding'
 
@@ -116,6 +117,7 @@ export async function PublicArticleListView({
           </nav>
         ) : null}
       </main>
+      <SystemFilingFooter />
     </div>
   )
 }

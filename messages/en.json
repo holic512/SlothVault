@@ -1,4 +1,9 @@
 {
+  "SystemFiling": {
+    "label": "Website filing information",
+    "icp": "ICP filing",
+    "publicSecurity": "Public security filing"
+  },
   "Nav": {
     "home": "Home",
     "articles": "Articles",
@@ -1229,19 +1234,24 @@
     },
     "settings": {
       "title": "System Settings",
-      "desc": "Manage system branding and transaction-evidence network profiles",
+      "desc": "Manage system branding, website filings, and transaction-evidence network profiles",
       "tips": {
         "title": "Configuration Tips",
         "content": "RPC URLs are stored as sensitive values and never echoed. Disabling a network blocks new issuance without hiding historical receipts."
       },
       "groups": {
         "branding": "System Branding",
-        "evidence": "Evidence Networks"
+        "evidence": "Evidence Networks",
+        "filing": "Filing Information"
       },
       "tabs": {
         "branding": {
           "label": "Branding",
           "description": "Manage the system identity used across the public site and administration console."
+        },
+        "filing": {
+          "label": "Filing Information",
+          "description": "Configure the footer on public pages and user sign-in and registration pages. Public security filing is optional. Save and refresh the page to apply changes; an empty number hides that entry."
         },
         "policy": {
           "label": "Evidence Policy",
@@ -1309,6 +1319,10 @@
         }
       },
       "configDesc": {
+        "SYSTEM_ICP_RECORD_NUMBER": "Enter the full ICP filing number; leave empty to hide the ICP entry",
+        "SYSTEM_ICP_RECORD_URL": "Optional HTTP(S) link; without a link, the number is displayed as plain text",
+        "SYSTEM_PUBLIC_SECURITY_RECORD_NUMBER": "Optional; leaving this empty does not affect saving or displaying the ICP filing",
+        "SYSTEM_PUBLIC_SECURITY_RECORD_URL": "Optional HTTP(S) link; displayed only when a public security filing number is provided",
         "SYSTEM_LOGO_FILE_PATH": "Saved after upload; restoring the default uses the bundled logo again",
         "SYSTEM_FAVICON_FILE_PATH": "Saved after upload; restoring the default uses the bundled favicon.ico again",
         "SOLANA_DEFAULT_NETWORK": "Default network for new evidence",
@@ -1341,6 +1355,14 @@
       },
       "branding": {
         "cardTitle": "System Branding Assets"
+      },
+      "filing": {
+        "fields": {
+          "SYSTEM_ICP_RECORD_NUMBER": "ICP filing number",
+          "SYSTEM_ICP_RECORD_URL": "ICP link (optional)",
+          "SYSTEM_PUBLIC_SECURITY_RECORD_NUMBER": "Public security filing number (optional)",
+          "SYSTEM_PUBLIC_SECURITY_RECORD_URL": "Public security filing link (optional)"
+        }
       },
       "logo": {
         "cardTitle": "System Logo",

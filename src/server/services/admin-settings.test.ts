@@ -4,6 +4,10 @@ const mocks = vi.hoisted(() => ({
   configKeys: {
     SYSTEM_LOGO_FILE_PATH: 'SYSTEM_LOGO_FILE_PATH',
     SYSTEM_FAVICON_FILE_PATH: 'SYSTEM_FAVICON_FILE_PATH',
+    SYSTEM_ICP_RECORD_NUMBER: 'SYSTEM_ICP_RECORD_NUMBER',
+    SYSTEM_ICP_RECORD_URL: 'SYSTEM_ICP_RECORD_URL',
+    SYSTEM_PUBLIC_SECURITY_RECORD_NUMBER: 'SYSTEM_PUBLIC_SECURITY_RECORD_NUMBER',
+    SYSTEM_PUBLIC_SECURITY_RECORD_URL: 'SYSTEM_PUBLIC_SECURITY_RECORD_URL',
     DEFAULT_NETWORK: 'SOLANA_DEFAULT_NETWORK',
     MAINNET_ENABLED: 'SOLANA_MAINNET_ENABLED',
     MAINNET_RPC_PRIMARY: 'SOLANA_MAINNET_RPC_PRIMARY',
@@ -35,17 +39,20 @@ vi.mock('@/server/services/system-branding', () => ({
     value.startsWith('uploads/system-favicon/') && value.endsWith('.ico') && !value.includes('..'),
 }))
 
-import { updateAdminSettings } from '@/server/services/admin-settings'
+import { listAdminSettings, updateAdminSettings } from '@/server/services/admin-settings'
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  mocks.prisma.systemConfig.findMany.mockResolvedValue([])
+  mocks.transaction.fileManagement.findFirst.mockResolvedValue({ id: 41 })
+  mocks.transaction.systemConfig.upsert.mockResolvedValue({ id: 1 })
+  mocks.prisma.$transaction.mockImplementation(async (operation) => operation(mocks.transaction))
+  mocks.getSystemBranding.mockResolvedValue({
+    logoUrl: '/logo.png', isCustom: false, faviconUrl: '/favicon.ico', isFaviconCustom: false,
+  })
+})
 
 describe('admin branding settings', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mocks.prisma.systemConfig.findMany.mockResolvedValue([])
-    mocks.transaction.fileManagement.findFirst.mockResolvedValue({ id: 41 })
-    mocks.transaction.systemConfig.upsert.mockResolvedValue({ id: 1 })
-    mocks.prisma.$transaction.mockImplementation(async (operation) => operation(mocks.transaction))
-  })
-
   it('accepts active managed logo and favicon paths in the same atomic save', async () => {
     const logoPath = 'uploads/system-logo/08bb17d6-8425-4f34-a107-735a6a4cdcda.png'
     const faviconPath = 'uploads/system-favicon/a22570cf-2906-4698-a1c3-88d625a60231.ico'
@@ -90,4 +97,78 @@ describe('admin branding settings', () => {
       value: 'uploads/system-favicon/missing.ico',
     }])).rejects.toThrow('The selected system favicon is unavailable')
   })
+})
+
+describe('admin filing settings', () => {
+  const filingKeys = [
+    mocks.configKeys.SYSTEM_ICP_RECORD_NUMBER,
+    mocks.configKeys.SYSTEM_ICP_RECORD_URL,
+    mocks.configKeys.SYSTEM_PUBLIC_SECURITY_RECORD_NUMBER,
+    mocks.configKeys.SYSTEM_PUBLIC_SECURITY_RECORD_URL,
+  ]
+
+  it('lists four optional, non-sensitive filing settings with empty defaults', async () => {
+    const settings = await listAdminSettings()
+    const filing = settings.groups.find((group) => group.key === 'filing')
+    expect(filing?.configs.map((config) => config.key)).toEqual(filingKeys)
+    for (const config of filing!.configs) {
+      expect(config).toMatchObject({ value: '', defaultValue: '', sensitive: false, configured: false })
+    }
+  })
+
+  it('saves just an ICP number without requiring public security or any link', async () => {
+    await expect(updateAdminSettings([{
+      key: mocks.configKeys.SYSTEM_ICP_RECORD_NUMBER,
+      value: '  测试ICP备12345678号-1  ',
+    }])).resolves.toMatchObject({ updated: 1 })
+    expect(mocks.prisma.$transaction).toHaveBeenCalledOnce()
+    expect(mocks.transaction.systemConfig.upsert).toHaveBeenCalledOnce()
+    expect(mocks.transaction.systemConfig.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { configKey: mocks.configKeys.SYSTEM_ICP_RECORD_NUMBER },
+      create: expect.objectContaining({ configValue: '测试ICP备12345678号-1' }),
+    }))
+  })
+
+  it('saves both filings and trims HTTP(S) links in one transaction', async () => {
+    await expect(updateAdminSettings([
+      { key: filingKeys[0], value: '测试ICP备12345678号-1' },
+      { key: filingKeys[1], value: ' https://example.com/icp ' },
+      { key: filingKeys[2], value: '测试公网安备12345678901234号' },
+      { key: filingKeys[3], value: ' http://example.com/security ' },
+    ])).resolves.toMatchObject({ updated: 4 })
+    expect(mocks.prisma.$transaction).toHaveBeenCalledOnce()
+    expect(mocks.transaction.systemConfig.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { configKey: filingKeys[1] },
+      create: expect.objectContaining({ configValue: 'https://example.com/icp' }),
+    }))
+  })
+
+  it('accepts clearing all filing fields including whitespace-only values', async () => {
+    await expect(updateAdminSettings(filingKeys.map((key) => ({ key, value: '   ' }))))
+      .resolves.toMatchObject({ updated: 4 })
+    for (const [args] of mocks.transaction.systemConfig.upsert.mock.calls) {
+      expect(args.update.configValue).toBe('')
+    }
+  })
+
+  it.each(filingKeys)('rejects values exceeding the storage limit for %s', async (key) => {
+    await expect(updateAdminSettings([{ key, value: 'a'.repeat(501) }]))
+      .rejects.toThrow('exceeds 500 characters')
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled()
+  })
+
+  it('accepts a filing number exactly at the storage limit', async () => {
+    await expect(updateAdminSettings([{ key: filingKeys[0], value: 'a'.repeat(500) }]))
+      .resolves.toMatchObject({ updated: 1 })
+  })
+
+  it.each(['not a URL', '/relative', 'javascript:alert(1)', 'data:text/html,test', 'ftp://example.com'])
+    ('rejects unsafe links without saving other changes: %s', async (value) => {
+      await expect(updateAdminSettings([
+        { key: filingKeys[0], value: 'Must not be saved' },
+        { key: filingKeys[3], value },
+      ])).rejects.toMatchObject({ status: 400 })
+      expect(mocks.prisma.$transaction).not.toHaveBeenCalled()
+      expect(mocks.transaction.systemConfig.upsert).not.toHaveBeenCalled()
+    })
 })

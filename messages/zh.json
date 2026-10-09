@@ -1,4 +1,9 @@
 {
+  "SystemFiling": {
+    "label": "网站备案信息",
+    "icp": "ICP 备案",
+    "publicSecurity": "公安备案"
+  },
   "Nav": {
     "home": "首页",
     "articles": "文章",
@@ -1229,19 +1234,24 @@
     },
     "settings": {
       "title": "系统设置",
-      "desc": "管理系统品牌与交易存证网络档案",
+      "desc": "管理系统品牌、网站备案与交易存证网络档案",
       "tips": {
         "title": "配置说明",
         "content": "RPC 地址作为敏感配置保存且不会回显；禁用网络仅阻止新存证，不影响历史核验。"
       },
       "groups": {
         "branding": "系统品牌",
-        "evidence": "交易存证网络"
+        "evidence": "交易存证网络",
+        "filing": "备案信息"
       },
       "tabs": {
         "branding": {
           "label": "品牌与外观",
           "description": "管理应用在公开页面与后台中使用的系统标识。"
+        },
+        "filing": {
+          "label": "备案信息",
+          "description": "配置公开页面和用户登录、注册页底部的备案信息。公安备案为可选项；保存后刷新页面生效，备案号留空时隐藏对应项目。"
         },
         "policy": {
           "label": "存证策略",
@@ -1309,6 +1319,10 @@
         }
       },
       "configDesc": {
+        "SYSTEM_ICP_RECORD_NUMBER": "填写完整 ICP 备案号；留空时不显示 ICP 备案",
+        "SYSTEM_ICP_RECORD_URL": "可选的 HTTP(S) 跳转链接；留空时备案号显示为普通文本",
+        "SYSTEM_PUBLIC_SECURITY_RECORD_NUMBER": "可选；不填写不影响 ICP 备案的保存与展示",
+        "SYSTEM_PUBLIC_SECURITY_RECORD_URL": "可选的 HTTP(S) 跳转链接；只有填写公安备案号时才会展示",
         "SYSTEM_LOGO_FILE_PATH": "上传后保存；恢复默认将重新使用内置 Logo",
         "SYSTEM_FAVICON_FILE_PATH": "上传后保存；恢复默认将重新使用内置 favicon.ico",
         "SOLANA_DEFAULT_NETWORK": "新存证默认选择的网络",
@@ -1341,6 +1355,14 @@
       },
       "branding": {
         "cardTitle": "系统品牌资源"
+      },
+      "filing": {
+        "fields": {
+          "SYSTEM_ICP_RECORD_NUMBER": "ICP 备案号",
+          "SYSTEM_ICP_RECORD_URL": "ICP 跳转链接（可选）",
+          "SYSTEM_PUBLIC_SECURITY_RECORD_NUMBER": "公安备案号（可选）",
+          "SYSTEM_PUBLIC_SECURITY_RECORD_URL": "公安备案跳转链接（可选）"
+        }
       },
       "logo": {
         "cardTitle": "系统 Logo",

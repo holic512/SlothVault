@@ -2,9 +2,9 @@
  * @file page.tsx
  * @project SlothVault
  * @module Public Homepage
- * @description Renders the administrator-managed Markdown homepage or a concise empty state in the shared public shell.
+ * @description Renders the administrator-managed Markdown homepage or a concise empty state with optional database-backed filing information.
  * @logic Read enabled homepage content at request time, render it when meaningful, and otherwise direct visitors to the administrator for publication.
- * @dependencies homepage service, MarkdownView, PublicNavbar, next-intl
+ * @dependencies homepage service, MarkdownView, PublicNavbar, SystemFilingFooter, next-intl
  * @index_tags homepage,public,markdown,empty-state
  * @author holic512
  */
@@ -12,6 +12,7 @@ import { getTranslations } from 'next-intl/server'
 
 import { MarkdownView } from '@/components/markdown/markdown-view'
 import { PublicNavbar } from '@/components/shell/public-navbar'
+import { SystemFilingFooter } from '@/components/shell/system-filing-footer'
 import { createPageMetadata } from '@/i18n/metadata'
 import { getSystemBranding } from '@/server/services/system-branding'
 import { getHomepageContent } from '@/server/services/homepage'
@@ -45,6 +46,7 @@ export default async function HomePage() {
           )}
         </div>
       </main>
+      <SystemFilingFooter />
     </div>
   )
 }

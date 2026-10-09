@@ -4,7 +4,7 @@
  * @module Public Evidence Receipt
  * @description Renders a durable public receipt for a legacy release or exact note-content transaction signature.
  * @logic Dispatch labels and downloads by subject type, redact non-public note revision metadata, and preserve live-chain verification and explorer access.
- * @dependencies release evidence service, public evidence verifier, Ant Design
+ * @dependencies release evidence service, public evidence verifier, SystemFilingFooter, Ant Design
  * @index_tags public,evidence,receipt,verification,solana
  * @author holic512
  */
@@ -16,6 +16,7 @@ import { notFound } from 'next/navigation'
 
 import { PublicEvidenceVerifier } from '@/components/evidence/public-evidence-verifier'
 import { PublicNavbar } from '@/components/shell/public-navbar'
+import { SystemFilingFooter } from '@/components/shell/system-filing-footer'
 import { createPageMetadata } from '@/i18n/metadata'
 import { getPageViewer } from '@/server/auth/viewer'
 import { resolveProjectAccess } from '@/server/services/content-access'
@@ -42,7 +43,7 @@ export default async function EvidenceReceiptPage({ params }: { params: Promise<
   const isNoteContent = evidence.subjectType === 'NOTE_CONTENT'
   const access = evidence.subjectVisible && evidence.projectId ? await resolveProjectAccess(Number(evidence.projectId), await getPageViewer()) : null
 
-  return <div className={evidenceStyles.root}>
+  return <div className={`${evidenceStyles.root} public-page`}>
     <PublicNavbar branding={await getSystemBranding()} />
     <main className="evidence-receipt-shell">
       <header className="evidence-receipt-header">
@@ -81,5 +82,6 @@ export default async function EvidenceReceiptPage({ params }: { params: Promise<
       <PublicEvidenceVerifier signature={transactionSignature} />
       <p className="evidence-receipt-disclaimer">本凭证仅证明所示钱包签署了包含该{isNoteContent ? '内容版本' : '发布版本'}哈希的交易，不表示 NFT 所有权、版权归属、接收人身份或可转移资产。</p>
     </main>
+    <SystemFilingFooter />
   </div>
 }

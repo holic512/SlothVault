@@ -4,7 +4,7 @@
  * @module Public Contract Evidence Receipt
  * @description Renders a public hash-only receipt for one contract chain transaction without exposing private contract material or party identity.
  * @logic Resolve the stored credential by Solana signature, present only deterministic evidence fields, and offer live verification plus explorer access.
- * @dependencies contract service, PublicContractEvidenceVerifier, PublicNavbar, Ant Design
+ * @dependencies contract service, PublicContractEvidenceVerifier, PublicNavbar, SystemFilingFooter, Ant Design
  * @index_tags public,contracts,evidence,receipt,verification,privacy,solana
  * @author holic512
  */
@@ -16,6 +16,7 @@ import { notFound } from 'next/navigation'
 
 import { PublicContractEvidenceVerifier } from '@/components/evidence/public-contract-evidence-verifier'
 import { PublicNavbar } from '@/components/shell/public-navbar'
+import { SystemFilingFooter } from '@/components/shell/system-filing-footer'
 import { createPageMetadata } from '@/i18n/metadata'
 import { getSystemBranding } from '@/server/services/system-branding'
 import { getPublicContractEvidence } from '@/server/services/contracts'
@@ -37,7 +38,7 @@ export default async function ContractEvidenceReceiptPage({ params }: { params: 
   const evidence = await getPublicContractEvidence(transactionSignature)
   if (!evidence) notFound()
   const finalized = evidence.status === 2
-  return <div className={evidenceStyles.root}>
+  return <div className={`${evidenceStyles.root} public-page`}>
     <PublicNavbar branding={await getSystemBranding()} />
     <main className="evidence-receipt-shell">
       <header className="evidence-receipt-header">
@@ -63,5 +64,6 @@ export default async function ContractEvidenceReceiptPage({ params }: { params: 
       </section>
       <TypographyParagraph className="evidence-receipt-disclaimer">本凭证证明 SlothVault 在对应链上交易中提交了此合同快照摘要。它是防篡改技术存证，不构成法定电子签名、司法公证或第三方电子签约证明。</TypographyParagraph>
     </main>
+    <SystemFilingFooter />
   </div>
 }

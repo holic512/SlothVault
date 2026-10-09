@@ -5,7 +5,7 @@
  * @project SlothVault
  * @module Public Project Shell
  * @description Provides the public article-collection layout and interactive navigation around server-rendered reading routes.
- * @logic Render shared localized built-in destinations alongside custom menus, identify active reading routes, and handle version switching and mobile menus.
+ * @logic Render localized navigation and server-rendered reading content with an optional filing footer, and handle version switching and mobile menus.
  * @dependencies Ant Design, Next navigation, next-intl, project context, navigation-shell, project-navigation
  * @index_tags project-layout,public-reading,navigation,server-data,web2
  * @author holic512
@@ -36,12 +36,14 @@ export function ProjectShell({
   versions,
   menus,
   children,
+  footer,
 }: {
   projectId: string
   project: PublicProject
   versions: ProjectVersion[]
   menus: ProjectMenu[]
   children: ReactNode
+  footer?: ReactNode
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -57,6 +59,7 @@ export function ProjectShell({
         onVersionChange={(value) => router.push(`/project/${projectId}/v/${value}/docs`)}
       />
       {children}
+      {footer}
     </div>
   )
 }
