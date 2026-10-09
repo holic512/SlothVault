@@ -29,7 +29,7 @@ type RegisterValues = {
   confirmPassword: string
 }
 
-export function UserRegisterForm() {
+export function UserRegisterForm({ returnTo = '/account' }: { returnTo?: string }) {
   const t = useTranslations('UserAuth.register')
   const router = useRouter()
   const { message } = App.useApp()
@@ -50,7 +50,7 @@ export function UserRegisterForm() {
         }),
       })
       message.success(t('success'))
-      router.replace('/account')
+      router.replace(returnTo)
       router.refresh()
     } catch (error) {
       setErrorText(error instanceof Error ? error.message : t('failed'))
@@ -116,7 +116,7 @@ export function UserRegisterForm() {
       </Form>
 
       <Typography.Paragraph className="auth-footnote" type="secondary">
-        {t('hasAccount')}<Link href="/login">{t('login')}</Link>
+        {t('hasAccount')}<Link href={returnTo === '/account' ? '/login' : `/login?next=${encodeURIComponent(returnTo)}`}>{t('login')}</Link>
       </Typography.Paragraph>
     </Card>
   )

@@ -29,7 +29,7 @@ const mocks = vi.hoisted(() => ({
   getManagedUser: vi.fn(), listGiftCardBatches: vi.fn(),
   listUserPointTransactions: vi.fn(), listUsers: vi.fn(),
   getManagedUserMembership: vi.fn(), listMembershipLevels: vi.fn(),
-  createCommissionDocument: vi.fn(), createCommission: vi.fn(), getCommission: vi.fn(), listCommissions: vi.fn(), executeCommissionCommand: vi.fn(), listContractTemplates: vi.fn(),
+  createWorkflow: vi.fn(), getWorkflow: vi.fn(), listWorkflows: vi.fn(), executeWorkflowCommand: vi.fn(), listSimpleTemplates: vi.fn(),
   createAdminContract: vi.fn(), getAdminContract: vi.fn(), listAdminContracts: vi.fn(),
   readAuthorizedContractAttachment: vi.fn(),
   getAdminReleaseEvidence: vi.fn(), listReleaseEvidence: vi.fn(),
@@ -131,9 +131,8 @@ vi.mock('@/server/services/membership', () => ({
   listMembershipLevels: mocks.listMembershipLevels,
 }))
 
-vi.mock('@/server/commissions/service', () => ({ createCommission: mocks.createCommission, getCommission: mocks.getCommission, listCommissions: mocks.listCommissions, executeCommissionCommand: mocks.executeCommissionCommand }))
-vi.mock('@/server/commissions/documents', () => ({ createCommissionDocument: mocks.createCommissionDocument }))
-vi.mock('@/server/commissions/templates', () => ({ listContractTemplates: mocks.listContractTemplates }))
+vi.mock('@/server/commissions/workflow', () => ({ createWorkflow: mocks.createWorkflow, getWorkflow: mocks.getWorkflow, listWorkflows: mocks.listWorkflows, executeWorkflowCommand: mocks.executeWorkflowCommand }))
+vi.mock('@/server/commissions/simple-templates', () => ({ listSimpleTemplates: mocks.listSimpleTemplates }))
 
 vi.mock('@/server/services/contracts', () => ({
   createAdminContract: mocks.createAdminContract,
@@ -274,7 +273,7 @@ describe('administrator MCP server', () => {
       'admin.points.transaction.list', 'admin.gift_card.batch.list',
       'admin.contract.list', 'admin.contract.get', 'admin.contract.attachment.get',
       'admin.evidence.list', 'admin.evidence.get', 'admin.settings.get', 'admin.system.update.get',
-      'admin.commission.list', 'admin.commission.get', 'admin.commission.create', 'admin.commission.update', 'admin.commission.progress.update', 'admin.commission.document.draft.create', 'admin.contract-template.list',
+      'admin.commission.list', 'admin.commission.get', 'admin.commission.create', 'admin.commission.update', 'admin.commission.document.draft.create', 'admin.contract-template.list',
     ])
     expect(names).not.toContain('admin_project_list')
     expect(names.some((name: string) =>
@@ -285,17 +284,20 @@ describe('administrator MCP server', () => {
   })
 
   it('creates only a template draft with the authenticated administrator and refuses raw issuance', async () => {
-    const record = { id: '9', commissionId: 'SV-test', title: 'Development', subjectUserId: '8', stage: 'CONTRACT', progress: 0, revision: 2, progressNote: '', paymentSummary: '待付款', quotationFen: '10000', totalFen: null, expectedDeliveryAt: null, todos: [], warnings: [], purpose: '业务', requirements: '需求', documents: [], files: [], plans: [], changes: [], deliveries: [], acceptances: [] }
-    mocks.createCommissionDocument.mockResolvedValue(record)
-    const args = { commissionId: '9', templateVersionId: '1', documentType: 'AGREEMENT', revision: 1, commandId: '0c4e9e9e-4ac6-4dc6-9600-696c8898d777', values: { totalFen: '10000' } }
+    const record = { id: '9', publicId: 'SV-test', title: 'Development', subject: 'customer', stage: 'ACCEPTED', progress: 0, revision: 2, paused: false, paymentPercent: 0, updatedAt: timestamp, bindingStatus: 'CLAIMED', nextAction: '准备合同', archived: false, requirements: '需求', totalFen: null, confirmationMode: 'ONLINE', maintenanceDays: 15, maintenanceStartedAt: null, maintenanceEndsAt: null, maintenanceClosedAt: null, maintenanceCloseReason: '', allowedActions: ['agreement.save'], events: [], agreements: [], files: [], issues: [] }
+    mocks.executeWorkflowCommand.mockResolvedValue(record)
+    const args = { commissionId: '9', templateVersionId: '1', title: '合同草稿', kind: 'AGREEMENT', revision: 1, commandId: '0c4e9e9e-4ac6-4dc6-9600-696c8898d777', values: { 委托方: '测试客户' }, totalFen: '10000' }
     const called = await resultOf({ jsonrpc: '2.0', id: 71, method: 'tools/call', params: { name: 'admin.commission.document.draft.create', arguments: args } })
     expect(called.result.isError).not.toBe(true)
-    expect(mocks.createCommissionDocument).toHaveBeenCalledWith(9, { userId: 7, isAdmin: true }, { templateVersionId: 1, documentType: 'AGREEMENT', revision: 1, commandId: args.commandId, values: args.values, sourceRecordId: undefined, documentId: undefined })
+    expect(mocks.executeWorkflowCommand).toHaveBeenCalledWith(9, { userId: 7, isAdmin: true }, { action: 'agreement.save', templateVersionId: 1, title: args.title, kind: 'AGREEMENT', revision: 1, commandId: args.commandId, values: args.values, totalFen: '10000', maintenanceDays: 15, confirmationMode: 'ONLINE', fileKeys: [] })
     const invalid = await resultOf({ jsonrpc: '2.0', id: 72, method: 'tools/call', params: { name: 'admin.commission.document.draft.create', arguments: { ...args, issuerUserId: '99' } } })
     expect(invalid.result.isError).toBe(true)
-    expect(mocks.createCommissionDocument).toHaveBeenCalledTimes(1)
+    expect(mocks.executeWorkflowCommand).toHaveBeenCalledTimes(1)
     const retired = await resultOf({ jsonrpc: '2.0', id: 73, method: 'tools/call', params: { name: 'admin.contract.issue', arguments: {} } })
     expect(retired.result.isError).toBe(true)
+    const removed = await resultOf({ jsonrpc: '2.0', id: 74, method: 'tools/call', params: { name: 'admin.commission.progress.update', arguments: {} } })
+    expect(removed.result.isError).toBe(true)
+    expect(mocks.executeWorkflowCommand).toHaveBeenCalledTimes(1)
   })
 
   it('delegates administrator publication and returns the refreshed version', async () => {
@@ -639,7 +641,7 @@ describe('standard SDK clients through the real /mcp route', () => {
       await client.connect(transport)
       expect(client.getServerVersion()).toEqual({ name: 'slothvault-admin-mcp', version: '4.0.0' })
       expect(client.getInstructions()).toBe(ADMIN_MCP_INSTRUCTIONS)
-      expect((await client.listTools()).tools).toHaveLength(68)
+      expect((await client.listTools()).tools).toHaveLength(67)
       expect((await client.listPrompts()).prompts).toHaveLength(4)
       expect((await client.listResourceTemplates()).resourceTemplates).toHaveLength(2)
       expect((await client.listResources()).resources).toEqual([])

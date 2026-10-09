@@ -72,7 +72,7 @@ Authorization: Bearer svmcp_<public-id>.<secret>
 
 ## MCP 4.0 Tool
 
-MCP server identity 为 `slothvault-admin-mcp@4.0.0`。当前注册表共 68 个 Tool、4 个 Prompt、2 个 Resource 模板；按实时 schema 发现并使用点号分层的业务名称。
+MCP server identity 为 `slothvault-admin-mcp@4.0.0`。当前注册表共 67 个 Tool、4 个 Prompt、2 个 Resource 模板；按实时 schema 发现并使用点号分层的业务名称。
 
 完整 Tool/Resource 清单、领域、风险、幂等性、URI、文件名和大小上限由注册表生成：[MCP Registry 清单](./MCP_REGISTRY.md)。修改 `src/server/mcp/tools/` 或 `src/server/mcp/resource-catalog.json` 后运行 `npm run mcp:docs`；CI 使用 `npm run mcp:docs:check` 阻止文档过期。
 
@@ -156,14 +156,12 @@ Tool、Prompt 与 Resource 注册分别位于 `src/server/mcp/tools/`、`src/ser
 
 ## 委托项目与合同草稿（MCP 4.0.0）
 
-委托项目连接需求、报价、合同、付款事实、开发进度、变更、验收、交付和维护。它与公开文档项目独立。
+委托工作区以冻结时间轴连接需求、合同、支付比例、交付与维护，与公开文档项目独立。
 
-1. 使用 `admin.user.list` 核对启用的客户账户，再用 `admin.commission.create` 建立委托。
-2. 用 `admin.commission.get` 读取最新 `revision`，通过 `admin.commission.update` 编辑需求、未生效报价和双方资料。
-3. `admin.commission.progress.update` 可以按实际合作调整阶段、进度和预计日期。跨阶段、回退、暂停及终止须填写原因；阶段调整不会改变收款、签署或验收事实。
-4. 用 `admin.contract-template.list` 读取发布版本和字段定义，再调用 `admin.commission.document.draft.create`。正文与附件一属于同一次签署；变更、验收确认单须关联实际业务记录。
-5. 管理员在 `/admin/mm/commissions` 预览草稿并正式发起，客户在 `/account/commissions` 本人签署、提交付款凭证、验收和确认接收。
+1. 使用 `admin.user.list` 核对启用的普通用户，再调用 `admin.commission.create` 建立草稿；未指定用户时保留为待邀请状态。
+2. 用 `admin.commission.get` 读取最新 `revision` 和可用操作，`admin.commission.update` 仅能编辑草稿阶段的名称和需求。
+3. 用 `admin.contract-template.list` 读取 Markdown 发布版本和字段定义，再调用 `admin.commission.document.draft.create` 保存合同或补充协议草稿。
+4. 在委托网页完成正式提交、接单、合同在线／线下确认、支付比例调整、交付与维护。正式交付立即开启维护期。
+5. 链上存证由管理员在网页连接钱包，确认网络与手续费后签名。MCP 不代签，也不直接广播钱包交易。
 
-所有委托写请求须提供 UUID `commandId`；更新及文件草稿同时须提供最新 `revision`。响应丢失时保留原 UUID 重试；版本冲突时读取最新详情并核对变更。
-
-原 `admin.contract.issue` 已移除。MCP 仅生成草稿，不正式发起合同，不代客户签署，不确认收退款，不正式发布交付。私有文件仅返回元数据；文件字节通过所属委托的网页授权接口访问。金额以“分”的非负整数字符串传递。
+旧的通用阶段更新工具已删除。正式记录只能追加补充；写入须带 `commandId` 与最新 `revision`，冲突时先重新读取。历史合同查询及受保护附件 Resource 继续可用。

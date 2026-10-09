@@ -14,7 +14,7 @@ import { requireAdminSession } from '@/server/auth/session'
 import { defineRoute } from '@/server/http/handler'
 import { readJson } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
-import { listContractTemplates } from '@/server/commissions/templates'
+import { listSimpleTemplates } from '@/server/commissions/simple-templates'
 const input = z.object({ name: z.string().trim().min(1).max(255), key: z.string().regex(/^[a-z][a-z0-9-]{1,79}$/) }).strict()
-export const GET = defineRoute(async (request) => { await requireAdminSession(request); return apiOk(await listContractTemplates()) })
+export const GET = defineRoute(async (request) => { await requireAdminSession(request); return apiOk(await listSimpleTemplates()) })
 export const POST = defineRoute(async (request) => { await requireAdminSession(request); return apiOk(await prisma.contractTemplate.create({ data: await readJson(request, input, { maxBytes: 2000 }) }), 'created', 201) })

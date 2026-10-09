@@ -623,6 +623,7 @@ model ContractTemplate {
 }
 
 model ContractTemplateVersion {
+  format String @default("LEGACY")
   id Int @id @default(autoincrement())
   templateId Int @map("template_id")
   version Int
@@ -648,7 +649,7 @@ model CommissionSettings {
 model Commission {
   id Int @id @default(autoincrement())
   commissionId String @unique(map: "uq_commission_identity") @map("commission_id")
-  subjectUserId Int @map("subject_user_id")
+  subjectUserId Int? @map("subject_user_id")
   title String
   purpose String
   requirements String
@@ -668,7 +669,7 @@ model Commission {
   settlementJson String @default("{}") @map("settlement_json")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @map("updated_at")
-  subjectUser User @relation(fields: [subjectUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  subjectUser User? @relation(fields: [subjectUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   contracts Contract[]
   milestones CommissionMilestone[]
   plans CommissionPaymentPlan[]
@@ -681,6 +682,18 @@ model Commission {
   events CommissionEvent[]
   @@index([subjectUserId, stage], map: "idx_commission_subject_stage")
   @@map("commission")
+  workflowVersion Int @default(1) @map("workflow_version")
+  paused Boolean @default(false)
+  paymentPercent Int @default(0) @map("payment_percent")
+  confirmationMode String @default("ONLINE") @map("confirmation_mode")
+  maintenanceStartedAt DateTime? @map("maintenance_started_at")
+  maintenanceEndsAt DateTime? @map("maintenance_ends_at")
+  maintenanceClosedAt DateTime? @map("maintenance_closed_at")
+  maintenanceCloseReason String @default("") @map("maintenance_close_reason")
+  invitations CommissionInvitation[]
+  agreements CommissionAgreement[]
+  submissions CommissionSubmission[]
+
 }
 
 model CommissionMilestone {
@@ -857,4 +870,86 @@ model CommissionEvent {
   @@unique([commissionId, commandId], map: "uq_commission_event_command")
   @@map("commission_event")
   @@index([commissionId, createdAt], map: "idx_commission_event_owner_created")
+}
+
+model CommissionInvitation {
+  id Int @id @default(autoincrement())
+  commissionId Int @map("commission_id")
+  tokenHash String @unique(map: "uq_commission_invitation_token") @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  claimedAt DateTime? @map("claimed_at")
+  claimedById Int? @map("claimed_by_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  commission Commission @relation(fields: [commissionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  @@index([commissionId], map: "idx_commission_invitation_owner")
+  @@map("commission_invitation")
+}
+
+model CommissionAgreement {
+  id Int @id @default(autoincrement())
+  publicId String @unique(map: "uq_commission_agreement_public") @map("public_id")
+  commissionId Int @map("commission_id")
+  kind String @default("AGREEMENT")
+  status String @default("DRAFT")
+  title String
+  body String
+  templateJson String @map("template_json")
+  valuesJson String @map("values_json")
+  fileKeysJson String @default("[]") @map("file_keys_json")
+  totalFen BigInt? @map("total_fen")
+  maintenanceDays Int @default(15) @map("maintenance_days")
+  confirmationMode String @default("ONLINE") @map("confirmation_mode")
+  publishedEventId String? @map("published_event_id")
+  confirmedAt DateTime? @map("confirmed_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  commission Commission @relation(fields: [commissionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  @@index([commissionId, status], map: "idx_commission_agreement_owner_status")
+  @@map("commission_agreement")
+}
+
+model CommissionSubmission {
+  id Int @id @default(autoincrement())
+  publicId String @unique(map: "uq_commission_submission_public") @map("public_id")
+  commissionId Int @map("commission_id")
+  sequence Int
+  commandId String @map("command_id")
+  requestHash String @map("request_hash")
+  actorUserId Int? @map("actor_user_id")
+  type String
+  snapshotJson String @map("snapshot_json")
+  snapshotHash String @map("snapshot_hash")
+  previousHash String? @map("previous_hash")
+  proofRevision Int @default(0) @map("proof_revision")
+  createdAt DateTime @default(now()) @map("created_at")
+  commission Commission @relation(fields: [commissionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  proofs CommissionProofAttempt[]
+  @@unique([commissionId, sequence], map: "uq_commission_submission_sequence")
+  @@unique([commissionId, commandId], map: "uq_commission_submission_command")
+  @@map("commission_submission")
+}
+
+model CommissionProofAttempt {
+  id Int @id @default(autoincrement())
+  submissionId Int @map("submission_id")
+  network String
+  issuerUserId Int @map("issuer_user_id")
+  signerAddress String @map("signer_address")
+  status String @default("PREPARED")
+  memo String
+  messageHash String @map("message_hash")
+  transactionBase64 String @map("transaction_base64")
+  lastValidBlockHeight BigInt @map("last_valid_block_height")
+  expiresAt DateTime @map("expires_at")
+  transactionSignature String? @unique(map: "uq_commission_proof_signature") @map("transaction_signature")
+  slot BigInt?
+  blockTime DateTime? @map("block_time")
+  feeLamports BigInt? @map("fee_lamports")
+  error String?
+  createdAt DateTime @default(now()) @map("created_at")
+  finalizedAt DateTime? @map("finalized_at")
+  submission CommissionSubmission @relation(fields: [submissionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  @@index([submissionId, network], map: "idx_commission_proof_submission_network")
+  @@index([status], map: "idx_commission_proof_status")
+  @@map("commission_proof_attempt")
 }

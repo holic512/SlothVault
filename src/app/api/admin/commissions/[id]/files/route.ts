@@ -12,7 +12,7 @@ import { defineRoute } from '@/server/http/handler'
 import { parseBigIntId } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
 import { commissionActor } from '@/server/commissions/http'
-import { uploadCommissionFile } from '@/server/commissions/files'
+import { uploadCommissionFile } from '@/server/commissions/workflow-files'
 export const runtime = 'nodejs'
 export const POST = defineRoute<{ id: string }>(async (request, context) => {
  const query = request.nextUrl.searchParams

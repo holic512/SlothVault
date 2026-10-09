@@ -10,6 +10,7 @@
  */
 import 'server-only'
 
+import { initializeCommissionRuntime } from '@/server/commissions/scheduler'
 import { getMasterKey } from '@/server/config/master-key'
 import { initializeBackupRuntime } from '@/server/services/admin-backup/scheduler'
 import {
@@ -55,4 +56,5 @@ export async function initializeNodeRuntime() {
     }
   }
   await initializeBackupRuntime()
+  if (configuration && configuration.status !== 'CONFIGURING') initializeCommissionRuntime()
 }

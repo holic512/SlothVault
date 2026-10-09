@@ -2,7 +2,7 @@
 
 <!-- GENERATED FILE: run `npm run mcp:docs` after changing MCP declarations. -->
 
-Tool count: **68**
+Tool count: **67**
 
 | Tool | Domain | Risk | Idempotency | Resource permission |
 | --- | --- | --- | --- | --- |
@@ -33,7 +33,6 @@ Tool count: **68**
 | `admin.commission.get` | `admin.commission` | read | idempotent | - |
 | `admin.commission.create` | `admin.commission` | write | idempotent | - |
 | `admin.commission.update` | `admin.commission` | write | idempotent | - |
-| `admin.commission.progress.update` | `admin.commission.progress` | write | idempotent | - |
 | `admin.commission.document.draft.create` | `admin.commission.document.draft` | write | idempotent | - |
 | `admin.contract-template.list` | `admin.contract-template` | read | idempotent | - |
 | `content.file.list` | `content.file` | read | idempotent | - |

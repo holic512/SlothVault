@@ -12,5 +12,5 @@ import { requireAdminSession } from '@/server/auth/session'
 import { defineRoute } from '@/server/http/handler'
 import { parseBigIntId } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
-import { publishTemplateVersion } from '@/server/commissions/templates'
-export const POST = defineRoute<{ id: string }>(async (request, context) => { await requireAdminSession(request); return apiOk(await publishTemplateVersion(parseBigIntId((await context.params).id))) })
+import { publishSimpleVersion } from '@/server/commissions/simple-templates'
+export const POST = defineRoute<{ id: string }>(async (request, context) => { await requireAdminSession(request); return apiOk(await publishSimpleVersion(parseBigIntId((await context.params).id))) })

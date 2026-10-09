@@ -13,9 +13,8 @@ import type { NextRequest } from 'next/server'
 import { requireAdminSession, requireUserSession } from '@/server/auth/session'
 import { readJson, requestClientIp } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
-import { commissionCommandInput, createCommissionInput, documentDraftInput } from './input'
-import { createCommission, executeCommissionCommand, getCommission, listCommissions } from './service'
-import { createCommissionDocument } from './documents'
+import { workflowCommandInput as commissionCommandInput, workflowCreateInput as createCommissionInput } from './workflow-input'
+import { createWorkflow as createCommission, executeWorkflowCommand as executeCommissionCommand, getWorkflow as getCommission, listWorkflows as listCommissions } from './workflow'
 export async function commissionActor(request: NextRequest, admin: boolean) {
   const session = await (admin ? requireAdminSession(request) : requireUserSession(request))
   return { userId: session.User.id, isAdmin: admin, sessionId: session.id, ip: requestClientIp(request), userAgent: request.headers.get('user-agent') }
@@ -33,4 +32,3 @@ export async function commissionRead(request: NextRequest, admin: boolean, id: n
 export async function commissionCommand(request: NextRequest, admin: boolean, id: number) {
   return apiOk(await executeCommissionCommand(id, await commissionActor(request, admin), await readJson(request, commissionCommandInput, { maxBytes: 200000 })))
 }
-export async function commissionDocumentDraft(request: NextRequest, id: number) { return apiOk(await createCommissionDocument(id, await commissionActor(request, true), await readJson(request, documentDraftInput, { maxBytes: 500000 })), 'created', 201) }

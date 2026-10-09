@@ -305,7 +305,7 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
         avatar: item.avatar,
         weight: item.weight,
         status: item.status,
-        requireAuth: version === DATABASE_BACKUP_VERSION ? item.requireAuth : false,
+        requireAuth: ['2.10.0', DATABASE_BACKUP_VERSION].includes(version) ? item.requireAuth : false,
         readAccessMode: hasMembershipPolicies(version) ? item.readAccessMode : 'PUBLIC',
         downloadAccessMode: hasMembershipPolicies(version) ? item.downloadAccessMode : 'FOLLOW_READ',
         readMemberships: { create: (hasMembershipPolicies(version) ? item.readMembershipLevelIds : []).map((id) => ({ membershipLevelId: requiredMappedId(ids.membershipLevels, id, 'project read membership') })) },

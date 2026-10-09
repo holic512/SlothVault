@@ -1,6 +1,6 @@
 # SlothTool 与 SlothVault 管理流程
 
-本版本支持 SlothVault MCP `4.0.0`：68 个工具、4 个 Prompt、2 个受保护 Resource 模板。客户端应按需读取实时目录；本文中的工具名是本版本示例。
+本版本支持 SlothVault MCP `4.0.0`：67 个工具、4 个 Prompt、2 个受保护 Resource 模板。客户端应按需读取实时目录；本文中的工具名是本版本示例。
 
 ## 连接与授权
 
@@ -58,4 +58,4 @@ slothtool slothvault skill update
 
 ## 委托项目工作流
 
-先核对客户账户，调用 `admin.commission.create` 建立项目；`admin.commission.get` 提供最新 revision、事实和待办。需求与报价使用 `admin.commission.update`，开发安排使用 `admin.commission.progress.update`。模板及字段从 `admin.contract-template.list` 读取，用 `admin.commission.document.draft.create` 保存正式文件草稿。每次写请求保留 commandId，冲突时先读取最新 revision。正式发起、双方签署、收退款确认和交付发布在委托网页完成。原独立合同发起工具已移除。
+先核对普通用户账户，调用 `admin.commission.create` 建立草稿；也可以不指定用户，之后在网页邀请认领。`admin.commission.get` 提供最新 revision、冻结时间轴和可用操作，`admin.commission.update` 仅编辑草稿名称与需求。使用 `admin.contract-template.list` 读取 Markdown 模板，用 `admin.commission.document.draft.create` 保存合同或补充协议草稿。每次写请求保留 commandId，冲突时重新读取 revision。正式提交、合同确认、支付比例调整、交付与维护在委托网页完成。旧阶段更新和独立合同发起工具均已删除。

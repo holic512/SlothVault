@@ -74,7 +74,7 @@
 .scope :global(.ant-tabs-tab-active .ant-tabs-tab-btn),
 .scope :global(.ant-segmented-item-selected),
 .scope :global(.ant-select-item-option-selected),
-.scope :global(strong:not([data-presentation] *, .commission-document-paper *)) {
+.scope :global(strong:not([data-presentation] *)) {
   font-weight: var(--sv-admin-weight-strong);
 }
 

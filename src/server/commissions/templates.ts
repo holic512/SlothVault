@@ -48,7 +48,7 @@ export async function seedCommissionTemplates(client: Pick<Prisma.TransactionCli
 }
 export async function listContractTemplates(): Promise<TemplateDto[]> {
   await seedCommissionTemplates()
-  return (await prisma.contractTemplate.findMany({ include: { versions: { orderBy: { version: 'desc' } } }, orderBy: { id: 'asc' } })).map((item) => ({ id: String(item.id), key: item.key, name: item.name, status: item.status, versions: item.versions.map(templateVersionDto) }))
+  return (await prisma.contractTemplate.findMany({ where: { versions: { some: { format: 'LEGACY' } } }, include: { versions: { where: { format: 'LEGACY' }, orderBy: { version: 'desc' } } }, orderBy: { id: 'asc' } })).map((item) => ({ id: String(item.id), key: item.key, name: item.name, status: item.status, versions: item.versions.map(templateVersionDto) }))
 }
 export async function requireTemplateVersion(id: number) {
   const record = await prisma.contractTemplateVersion.findUnique({ where: { id }, include: { template: true } })

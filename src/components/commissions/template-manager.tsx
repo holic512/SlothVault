@@ -2,91 +2,50 @@
 /**
  * @file template-manager.tsx
  * @project SlothVault
- * @module Contract Template Administration
- * @description Edits legal document bodies, typed fields, choices, repeated rows, defaults, and provider/calendar presets.
- * @logic Clone published definitions into new drafts, preview deterministic output, and publish immutable versions after explicit review.
- * @dependencies Ant Design, template APIs, restricted template renderer
- * @index_tags templates,versions,editor,calendar,commissions
+ * @module Markdown Template Workspace
+ * @description Separates template discovery from a full-page Markdown and variable editor.
+ * @logic Infer fields from placeholders, preview escaped defaults and create new versions instead of mutating published text.
+ * @dependencies React Query, Ant Design, simple template functions
+ * @index_tags commissions,templates,markdown,preview
  * @author holic512
  */
 import { useState } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, App, Button, Card, Drawer, Form, Input, List, Modal, Select, Space, Tabs, Tag } from 'antd'
+import { Alert, App, Button, Checkbox, Empty, Form, Grid, Input, Modal, Select, Space, Spin, Table, Tabs, Tag } from 'antd'
 import { apiFetch } from '@/lib/api-client'
-import { renderContractDocument } from '@/lib/contract-template'
+import { renderSimpleTemplate, synchronizeFields, type SimpleField, type SimpleTemplate, type SimpleTemplateVersion } from '@/lib/commission-workflow'
 import { MarkdownView } from '@/components/markdown/markdown-view'
-import { TemplateFields } from './template-fields'
-import type { TemplateDto, TemplateField, TemplateVersionDto } from '@/types/commissions'
-import type { CommissionDocumentType, WorkingCalendar } from '@/lib/commissions'
-import styles from '@/styles/modules/commissions.module.css'
-
-const kinds = { AGREEMENT: '正文与附件一', CHANGE: '附件二：变更确认单', ACCEPTANCE: '附件三：验收确认单' } as const
-const bodies = { AGREEMENT: '合同正文', REQUIREMENTS: '附件一', CHANGE: '附件二', ACCEPTANCE: '附件三' } as const
-const types: TemplateField['type'][] = ['text', 'multiline', 'date', 'money', 'number', 'select', 'multiselect', 'boolean', 'rows']
-const typeNames = ['文本', '多行文本', '日期', '金额', '数字', '单选', '多选', '勾选', '重复表格']
-function FieldEditor({ fields, onChange }: { fields: TemplateField[]; onChange: (fields: TemplateField[]) => void }) {
-  const [editing, setEditing] = useState<{ index: number; value: TemplateField } | null>(null)
-  const update = (value: Partial<TemplateField>) => setEditing((e) => e && ({ ...e, value: { ...e.value, ...value } }))
-  return <>
-    <Button onClick={() => setEditing({ index: fields.length, value: { key: '', label: '', type: 'text', documents: ['AGREEMENT'] } })}>添加字段</Button>
-    <List dataSource={fields} renderItem={(f, index) => <List.Item actions={[<Button key="edit" onClick={() => setEditing({ index, value: structuredClone(f) })}>编辑</Button>, <Button key="delete" danger onClick={() => onChange(fields.filter((_, i) => i !== index))}>移除</Button>]}><List.Item.Meta title={`${f.label} · ${f.key}`} description={`${typeNames[types.indexOf(f.type)]}${f.required ? '，必填' : ''}；插入语法：{{${f.key}}}`} /></List.Item>} />
-    <Modal title="字段与选项" open={Boolean(editing)} width={760} okText="保存字段" cancelText="返回" onCancel={() => setEditing(null)} onOk={() => { if (!editing?.value.key.trim() || !editing.value.label.trim()) return; onChange(fields.map((f, i) => i === editing.index ? editing.value : f).concat(editing.index === fields.length ? [editing.value] : [])); setEditing(null) }}>
-      {editing ? <Space orientation="vertical" style={{ width: '100%' }}>
-        <label>变量名<Input value={editing.value.key} onChange={(e) => update({ key: e.target.value })} placeholder="例如 projectName，只能使用字母、数字和下划线" /></label>
-        <label>填写标签<Input value={editing.value.label} onChange={(e) => update({ label: e.target.value })} /></label>
-        <Select style={{ width: '100%' }} value={editing.value.type} options={types.map((value, i) => ({ value, label: typeNames[i] }))} onChange={(type) => update({ type, ...(type === 'rows' ? { fields: editing.value.fields || [] } : {}), ...(['select', 'multiselect'].includes(type) ? { options: editing.value.options || [] } : {}) })} />
-        <Select style={{ width: '100%' }} value={editing.value.required ? 'yes' : 'no'} options={[{ value: 'yes', label: '必填' }, { value: 'no', label: '可选' }]} onChange={(v) => update({ required: v === 'yes' })} />
-        <Select<CommissionDocumentType[]> style={{ width: '100%' }} mode="multiple" value={editing.value.documents || ['AGREEMENT', 'CHANGE', 'ACCEPTANCE']} options={Object.entries(kinds).map(([value, label]) => ({ value, label }))} onChange={(documents) => update({ documents })} />
-        <label>填写提示<Input value={editing.value.help} onChange={(e) => update({ help: e.target.value })} /></label>
-        {['select', 'multiselect'].includes(editing.value.type) ? <label>选项（每行：值 | 显示文字）<Input.TextArea rows={5} value={editing.value.options?.map((o) => `${o.value} | ${o.label}`).join('\n')} onChange={(e) => update({ options: e.target.value.split('\n').filter(Boolean).map((line) => { const [value, ...labels] = line.split('|'); return { value: value.trim(), label: labels.join('|').trim() || value.trim() } }) })} /></label> : null}
-        <label>条件显示（可选：变量名 | 值）<Input value={editing.value.when ? `${editing.value.when.key} | ${editing.value.when.value}` : ''} onChange={(e) => { const [key, value] = e.target.value.split('|').map((s) => s.trim()); update({ when: key ? { key, value: value || '' } : undefined }) }} /></label>
-        {editing.value.type === 'rows' ? <div><p>表格列</p><FieldEditor fields={editing.value.fields || []} onChange={(fields) => update({ fields })} /></div> : null}
-      </Space> : null}
-    </Modal>
-  </>
-}
-export function ContractTemplateManager() {
-  const { message, modal } = App.useApp(), cache = useQueryClient()
-  const list = useQuery({ queryKey: ['commission-templates'], queryFn: () => apiFetch<TemplateDto[]>('/api/admin/contract-templates') })
-  const settings = useQuery({ queryKey: ['commission-settings'], queryFn: () => apiFetch<{ provider: Record<string, string>; calendar: WorkingCalendar }>('/api/admin/commissions/settings') })
-  const [editor, setEditor] = useState<(TemplateVersionDto & { name: string; newVersion: boolean }) | null>(null)
-  const [kind, setKind] = useState<CommissionDocumentType>('AGREEMENT'), [bodyKind, setBodyKind] = useState<keyof typeof bodies>('AGREEMENT'), [insertKey, setInsertKey] = useState<string>(), [presetOpen, setPresetOpen] = useState(false), [newOpen, setNewOpen] = useState(false)
-  const [previewForm] = Form.useForm(), [presetForm] = Form.useForm(), [newForm] = Form.useForm()
-  const watched = Form.useWatch([], previewForm)
-  const refresh = () => cache.invalidateQueries({ queryKey: ['commission-templates'] })
-  const save = useMutation({ mutationFn: () => apiFetch(`/api/admin/contract-templates/${editor!.templateId}/versions`, { method: 'POST', body: JSON.stringify({ ...(editor!.newVersion ? {} : { versionId: Number(editor!.id) }), documents: editor!.documents, fields: editor!.fields, defaults: previewForm.getFieldsValue(true) }) }), onSuccess: async () => { setEditor(null); message.success('模板草稿已保存'); await refresh() }, onError: (e) => message.error(e.message) })
-  const publish = useMutation({ mutationFn: (id: string) => apiFetch(`/api/admin/contract-templates/versions/${id}/publish`, { method: 'POST', body: '{}' }), onSuccess: async () => { message.success('模板版本已发布'); await refresh() }, onError: (e) => message.error(e.message) })
-  const status = useMutation({ mutationFn: (t: TemplateDto) => apiFetch(`/api/admin/contract-templates/${t.id}`, { method: 'PUT', body: JSON.stringify({ status: t.status === 'ACTIVE' ? 'RETIRED' : 'ACTIVE' }) }), onSuccess: refresh, onError: (e) => message.error(e.message) })
-  const create = useMutation({ mutationFn: (values: Record<string, unknown>) => apiFetch('/api/admin/contract-templates', { method: 'POST', body: JSON.stringify(values) }), onSuccess: async () => { setNewOpen(false); await refresh(); message.success('模板已建立，可从内置模板复制一份版本后编辑') }, onError: (e) => message.error(e.message) })
-  const presetSave = useMutation({ mutationFn: (values: Record<string, string>) => apiFetch('/api/admin/commissions/settings', { method: 'PUT', body: JSON.stringify({ provider: Object.fromEntries(Object.entries(values).filter(([key]) => !['holidays', 'workdays'].includes(key))), calendar: { holidays: (values.holidays || '').split(/\s+/).filter(Boolean), workdays: (values.workdays || '').split(/\s+/).filter(Boolean) } }) }), onSuccess: () => { setPresetOpen(false); message.success('资料预设与工作日历已保存'); void cache.invalidateQueries({ queryKey: ['commission-settings'] }) }, onError: (e) => message.error(e.message) })
-  const openEditor = (t: TemplateDto, v?: TemplateVersionDto) => {
-    const source = v || t.versions[0] || list.data?.find((item) => item.key === 'software-custom-development')?.versions[0]
-    if (!source) return
-    const clone = structuredClone(source)
-    setEditor({ ...clone, templateId: t.id, name: t.name, newVersion: !v || v.status !== 'DRAFT' })
-    previewForm.resetFields(); previewForm.setFieldsValue(clone.defaults)
-  }
-  let preview = ''
-  try { if (editor) preview = renderContractDocument(editor.documents, editor.fields, { ...editor.defaults, ...watched }, kind) } catch (e) { preview = e instanceof Error ? e.message : '请检查变量与字段定义' }
-  return <div className={`${styles.workspace} admin-commission-workspace`}>
-    <div className={styles.heading}><div><h1>合同模板与合作规则</h1><p>已发布版本固定保留。调整条款或字段时创建新版本，已发起文件继续使用原快照。</p></div><Space wrap><Button onClick={() => { presetForm.resetFields(); presetForm.setFieldsValue({ ...settings.data?.provider, holidays: settings.data?.calendar.holidays?.join('\n'), workdays: settings.data?.calendar.workdays?.join('\n') }); setPresetOpen(true) }} disabled={!settings.data}>乙方资料与工作日历</Button><Button type="primary" onClick={() => { newForm.resetFields(); setNewOpen(true) }}>建立模板</Button></Space></div>
-    {list.isError || settings.isError ? <Alert type="error" title="模板或设置加载失败" action={<Button onClick={() => { void list.refetch(); void settings.refetch() }}>重试</Button>} /> : null}
-    <List loading={list.isPending} dataSource={list.data || []} renderItem={(t) => <List.Item><Card title={<>{t.name} <Tag>{t.status === 'ACTIVE' ? '启用' : '已停用'}</Tag></>} style={{ width: '100%' }} extra={<Space><Button onClick={() => status.mutate(t)}>{t.status === 'ACTIVE' ? '停用' : '启用'}</Button><Button onClick={() => openEditor(t)}>创建新版本</Button></Space>}>
-      <List dataSource={t.versions} locale={{ emptyText: '创建首个版本，默认复制完整内置模板' }} renderItem={(v) => <List.Item actions={[<Button key="edit" onClick={() => openEditor(t, v)}>{v.status === 'DRAFT' ? '编辑草稿' : '以此版本创建新草稿'}</Button>, ...(v.status === 'DRAFT' ? [<Button key="publish" type="primary" loading={publish.isPending} onClick={() => modal.confirm({ title: '发布此模板版本', content: '发布后该版本正文与字段不可修改。请先完成填写预览并检查条款。', onOk: () => publish.mutateAsync(v.id) })}>发布</Button>] : [])]}><List.Item.Meta title={`版本 ${v.version} · ${v.status === 'DRAFT' ? '草稿' : '已发布'}`} description={`${v.fields.length} 个字段${v.publishedAt ? '；发布时间：' + new Date(v.publishedAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) : ''}`} /></List.Item>} />
-    </Card></List.Item>} />
-    <Drawer open={Boolean(editor)} size={1000} title={`${editor?.name} · ${editor?.newVersion ? '新版本草稿' : '编辑草稿'}`} onClose={() => !save.isPending && setEditor(null)} extra={<Button type="primary" loading={save.isPending} onClick={() => save.mutate()}>保存草稿</Button>}>
-      {editor ? <Tabs items={[{ key: 'body', label: '文件正文与变量', children: <Space orientation="vertical" style={{ width: '100%' }}>
-        <Alert type="info" title="支持变量、勾选、条件与重复表格" description={'例如 {{projectName}}、{{money totalFen}}、{{check ipMode "transfer"}}、{{#if licenseScope}}…{{/if}}、{{#each modules}}| {{this.name}} |{{/each}}。金额和重复信息由字段计算。'} />
-        <Select value={bodyKind} onChange={setBodyKind} options={Object.entries(bodies).map(([value, label]) => ({ value, label }))} />
-        <Space wrap><Select showSearch style={{ minWidth: 260 }} placeholder="选择字段" value={insertKey} onChange={setInsertKey} options={editor.fields.map((f) => ({ value: f.key, label: `${f.label} (${f.key})` }))} /><Button disabled={!insertKey} onClick={() => setEditor({ ...editor, documents: { ...editor.documents, [bodyKind]: `${editor.documents[bodyKind]}\n{{${insertKey}}}` } })}>插入字段到正文末尾</Button></Space>
-        <Input.TextArea rows={26} value={editor.documents[bodyKind]} onChange={(e) => setEditor({ ...editor, documents: { ...editor.documents, [bodyKind]: e.target.value } })} />
-      </Space> }, { key: 'fields', label: '字段、选项与表格', children: <FieldEditor fields={editor.fields} onChange={(fields) => setEditor({ ...editor, fields })} /> }, { key: 'preview', label: '默认填写与完整预览', forceRender: true, children: <Space orientation="vertical" style={{ width: '100%' }}><Select value={kind} onChange={setKind} options={Object.entries(kinds).map(([value, label]) => ({ value, label }))} /><Form form={previewForm} layout="vertical"><TemplateFields fields={editor.fields} kind={kind} /></Form><MarkdownView content={preview} /></Space> }]} /> : null}
-    </Drawer>
-    <Modal title="建立合同模板" open={newOpen} onCancel={() => setNewOpen(false)} onOk={() => newForm.submit()} confirmLoading={create.isPending} okText="建立" cancelText="返回"><Form form={newForm} layout="vertical" onFinish={(values) => create.mutate(values)}><Form.Item name="name" label="模板名称" rules={[{ required: true }]}><Input /></Form.Item><Form.Item name="key" label="英文标识（小写字母与短横线）" rules={[{ required: true, pattern: /^[a-z][a-z0-9-]{1,79}$/ }]}><Input /></Form.Item></Form></Modal>
-    <Modal title="乙方资料预设与工作日历" open={presetOpen} width={700} onCancel={() => setPresetOpen(false)} onOk={() => presetForm.submit()} confirmLoading={presetSave.isPending} okText="保存预设" cancelText="返回"><Form form={presetForm} layout="vertical" onFinish={(values) => presetSave.mutate(values)}>
-      <p>新建项目复制乙方资料快照；已发起的文件保留原约定。所有期限使用北京时间，默认周一至周五为工作日。</p>
-      {Object.entries({ Name: '姓名或单位名称', Identity: '身份证或统一社会信用代码', Phone: '电话', Email: '邮箱', Wechat: '微信', Address: '地址', payeeName: '收款人', payeeAccount: '收款账号', paymentChannel: '收款平台', supportChannel: '售后联系渠道' }).map(([key, label]) => <Form.Item key={key} name={key} label={label}><Input maxLength={1000} /></Form.Item>)}
-      <Form.Item name="holidays" label="休息日（每行 YYYY-MM-DD）"><Input.TextArea rows={4} /></Form.Item><Form.Item name="workdays" label="调休工作日（每行 YYYY-MM-DD）"><Input.TextArea rows={4} /></Form.Item>
-    </Form></Modal>
+import styles from '@/styles/modules/commission-workflow.module.css'
+export function ContractTemplateManager({ id }: { id?: string }) {
+  const router = useRouter(), cache = useQueryClient(), { message } = App.useApp(), screens = Grid.useBreakpoint()
+  const [newOpen, setNewOpen] = useState(false), [form] = Form.useForm(), [draft, setEditor] = useState<SimpleTemplateVersion | null>(null)
+  const query = useQuery({ queryKey: ['simple-templates'], queryFn: () => apiFetch<SimpleTemplate[]>('/api/admin/contract-templates') })
+  const template = query.data?.find((item) => item.id === id)
+  const editor = draft || (template ? template.versions[0] || { id: '', version: 1, status: 'DRAFT', body: '# 委托合同\n\n项目名称：{{项目名称}}\n\n委托方：{{委托方}}\n', fields: synchronizeFields('# 委托合同\n\n项目名称：{{项目名称}}\n\n委托方：{{委托方}}\n') } : null)
+  const refresh = () => cache.invalidateQueries({ queryKey: ['simple-templates'] })
+  const create = useMutation({ mutationFn: (values: { name: string }) => apiFetch<{ id: string | number }>('/api/admin/contract-templates', { method: 'POST', body: JSON.stringify({ name: values.name, key: `markdown-${crypto.randomUUID()}` }) }), onSuccess: (row) => { void refresh(); router.push(`/admin/mm/contract-templates/${row.id}`) }, onError: (error) => message.error(error.message) })
+  const save = useMutation({ mutationFn: () => apiFetch<SimpleTemplateVersion>(`/api/admin/contract-templates/${id}/versions`, { method: 'POST', body: JSON.stringify({ body: editor!.body, fields: synchronizeFields(editor!.body, editor!.fields), ...(editor!.id ? { versionId: Number(editor!.id) } : {}) }) }), onSuccess: (value) => { setEditor(value); message.success('模板草稿已保存'); void refresh() }, onError: (error) => message.error(error.message) })
+  const publish = useMutation({ mutationFn: async () => { const saved = await apiFetch<SimpleTemplateVersion>(`/api/admin/contract-templates/${id}/versions`, { method: 'POST', body: JSON.stringify({ body: editor!.body, fields: synchronizeFields(editor!.body, editor!.fields), ...(editor!.id ? { versionId: Number(editor!.id) } : {}) }) }); return apiFetch<SimpleTemplateVersion>(`/api/admin/contract-templates/versions/${saved.id}/publish`, { method: 'POST', body: '{}' }) }, onSuccess: (value) => { setEditor(value); message.success('模板版本已发布并冻结'); void refresh() }, onError: (error) => message.error(error.message) })
+  const retire = useMutation({ mutationFn: (item: SimpleTemplate) => apiFetch(`/api/admin/contract-templates/${item.id}`, { method: 'PUT', body: JSON.stringify({ status: item.status === 'ACTIVE' ? 'RETIRED' : 'ACTIVE' }) }), onSuccess: refresh, onError: (error) => message.error(error.message) })
+  const readonly = editor?.status === 'PUBLISHED'
+  let error = '', preview = '', fields = editor?.fields || []
+  try { if (editor) { fields = synchronizeFields(editor.body, editor.fields); preview = renderSimpleTemplate(editor.body, fields, {}) } } catch (failure) { error = (failure as Error).message }
+  const updateField = (key: string, patch: Partial<SimpleField>) => { if (editor) setEditor({ ...editor, fields: fields.map((field) => field.key === key ? { ...field, ...patch } : field) }) }
+  if (!id) return <div className={styles.workspace}><header className={styles.heading}><div><h1>合同模板</h1><p>编写 Markdown，用 {'{{变量名称}}'} 自动生成合同填写项。</p></div><Space><Link href="/admin/mm/commissions"><Button>委托管理</Button></Link><Button type="primary" onClick={() => { form.resetFields(); setNewOpen(true) }}>建立模板</Button></Space></header>
+    {query.error ? <Alert type="error" title={query.error.message} /> : null}
+    <Table rowKey="id" loading={query.isPending} dataSource={query.data} pagination={false} scroll={{ x: 550 }} columns={[{ title: '模板名称', render: (_, item) => <Link href={`/admin/mm/contract-templates/${item.id}`}>{item.name}</Link> }, { title: '状态', render: (_, item) => <Tag>{item.status === 'ACTIVE' ? '启用' : '停用'}</Tag> }, { title: '发布版本', render: (_, item) => item.versions.find((version) => version.status === 'PUBLISHED')?.version || '尚未发布' }, { title: '操作', render: (_, item) => <Space><Link href={`/admin/mm/contract-templates/${item.id}`}>编辑与预览</Link><Button size="small" onClick={() => retire.mutate(item)}>{item.status === 'ACTIVE' ? '停用' : '启用'}</Button></Space> }]} />
+    <Modal title="建立合同模板" open={newOpen} onCancel={() => setNewOpen(false)} onOk={() => form.submit()} confirmLoading={create.isPending} okText="建立" cancelText="返回"><Form form={form} layout="vertical" onFinish={(values) => create.mutate(values)}><Form.Item name="name" label="模板名称" rules={[{ required: true }]}><Input maxLength={255} /></Form.Item></Form></Modal>
+  </div>
+  if (query.error) return <Alert type="error" title={query.error.message} />
+  if (!editor || !template) return query.isPending ? <Spin /> : <Empty description="模板不存在" />
+  const markdown = <div><div className={styles['section-heading']}><h2>Markdown 正文</h2><span className={styles.muted}>{fields.length} 个变量</span></div><Input.TextArea className={styles['editor-text']} rows={24} readOnly={readonly} value={editor.body} onChange={(event) => { const body = event.target.value; setEditor({ ...editor, body }); }} /><p className={styles.muted}>同名变量只填写一次。支持中文、字母、数字和下划线，不执行表达式。</p></div>
+  const variables = <div>{fields.length ? fields.map((field) => <div key={field.key} className={styles['field-row']}><strong>{'{{'}{field.key}{'}}'}</strong><div className={styles['field-controls']}><Input aria-label={`${field.key}显示名称`} disabled={readonly} value={field.label} onChange={(event) => updateField(field.key, { label: event.target.value })} /><Select aria-label={`${field.key}输入类型`} disabled={readonly} value={field.type} onChange={(type) => updateField(field.key, { type })} options={[{ value: 'text', label: '单行文本' }, { value: 'multiline', label: '多行文本' }, { value: 'number', label: '数字' }, { value: 'money', label: '金额' }, { value: 'date', label: '日期' }, { value: 'select', label: '选项' }]} /><Checkbox disabled={readonly} checked={field.required} onChange={(event) => updateField(field.key, { required: event.target.checked })}>必填</Checkbox></div>
+    {field.type === 'select' ? <Input.TextArea disabled={readonly} placeholder="每行一个选项" value={(field.options || []).join('\n')} onChange={(event) => updateField(field.key, { options: event.target.value.split('\n') })} /> : null}<Input.TextArea style={{ marginTop: 10 }} disabled={readonly} rows={field.type === 'multiline' ? 3 : 1} placeholder="默认填写内容（可选）" value={field.defaultValue || ''} onChange={(event) => updateField(field.key, { defaultValue: event.target.value })} /></div>) : <Empty description="正文没有变量，将直接作为固定合同正文使用" />}</div>
+  const right = <Tabs items={[{ key: 'preview', label: '实时预览', children: <section className={styles.paper}>{error ? <Alert type="warning" title={error} /> : <MarkdownView content={preview} />}</section> }, { key: 'variables', label: '变量配置', children: variables }]} />
+  return <div className={styles.workspace}><Link className={styles.back} href="/admin/mm/contract-templates">返回模板列表</Link><header className={styles.heading}><div><h1>{template.name}</h1><p>正文、输入项与生成内容在同一处维护。</p></div><Space wrap><Select value={editor.id || 'new'} onChange={(value) => setEditor(template.versions.find((version) => version.id === value)!)} options={[...template.versions.map((version) => ({ value: version.id, label: `v${version.version} · ${version.status === 'PUBLISHED' ? '已发布' : '草稿'}` })), ...(!editor.id ? [{ value: 'new', label: '新版本草稿' }] : [])]} />{readonly ? <Button type="primary" onClick={() => setEditor({ ...editor, id: '', version: (template.versions[0]?.version || 0) + 1, status: 'DRAFT' })}>建立新版本</Button> : <><Button loading={save.isPending} disabled={Boolean(error)} onClick={() => save.mutate()}>保存草稿</Button><Button type="primary" disabled={Boolean(error) || save.isPending} loading={publish.isPending} onClick={() => publish.mutate()}>保存并发布</Button></>}</Space></header>
+    {readonly ? <Alert type="info" title="此版本已发布并冻结，建立新版本后可继续修改" /> : null}{error ? <Alert type="warning" title={error} /> : null}
+    {screens.md === false ? <Tabs items={[{ key: 'edit', label: '编辑正文', children: markdown }, { key: 'settings', label: '变量与预览', children: right }]} /> : <div className={styles['editor-grid']}>{markdown}{right}</div>}
   </div>
 }

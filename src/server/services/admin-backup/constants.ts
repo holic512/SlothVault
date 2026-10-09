@@ -21,7 +21,7 @@ export const ZIP_ENTRY_LIMIT = 10_000
 export const ZIP_ENTRY_MAX_BYTES = 256 * 1024 * 1024
 export const ZIP_TOTAL_UNCOMPRESSED_MAX_BYTES = 1024 * 1024 * 1024
 export const ZIP_PATH_MAX_BYTES = 1024
-export const DATABASE_BACKUP_VERSION = '2.10.0' as const
+export const DATABASE_BACKUP_VERSION = '2.11.0' as const
 export const COMPLETE_BACKUP_MAX_BYTES = 320 * 1024 * 1024
 export const BACKUP_MANIFEST_MAX_BYTES = 16 * 1024 * 1024
 export const RESTORE_COMMIT_CONFIG_KEY = '__backup_restore_commit__'
@@ -72,11 +72,11 @@ export const ACTIVE_BACKUP_COLLECTION_KEYS = BACKUP_COLLECTION_KEYS.filter(
 )
 
 export function hasMembershipPolicies(version: string) {
-  return ['2.8.0', '2.9.0', DATABASE_BACKUP_VERSION].includes(version)
+  return ['2.8.0', '2.9.0', '2.10.0', DATABASE_BACKUP_VERSION].includes(version)
 }
 
 export function hasCommissionContracts(version: string) {
-  return ['2.9.0', DATABASE_BACKUP_VERSION].includes(version)
+  return ['2.9.0', '2.10.0', DATABASE_BACKUP_VERSION].includes(version)
 }
 
 export const DEPRECATED_CONFIG_KEYS = new Set([

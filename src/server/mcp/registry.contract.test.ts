@@ -54,9 +54,9 @@ describe('MCP declaration registry contract', () => {
     ])
   })
 
-  it('keeps the complete 68-tool registry unique and adapter-only', () => {
+  it('keeps the complete 67-tool registry unique and adapter-only', () => {
     const names = readToolNames()
-    expect(names).toHaveLength(68)
+    expect(names).toHaveLength(67)
     expect(new Set(names).size).toBe(names.length)
     const sdkToolRegistration = ['server', 'registerTool'].join('.')
     expect(readToolSource()).not.toContain(`${sdkToolRegistration}(`)
@@ -75,9 +75,9 @@ describe('MCP declaration registry contract', () => {
 
   it('declares metadata, schemas, and handlers for every Tool', () => {
     const source = readToolSource()
-    expect([...source.matchAll(/defineTool\(/g)]).toHaveLength(68)
-    expect([...source.matchAll(/inputSchema:/g)]).toHaveLength(68)
-    expect([...source.matchAll(/outputSchema:/g)]).toHaveLength(68)
+    expect([...source.matchAll(/defineTool\(/g)]).toHaveLength(67)
+    expect([...source.matchAll(/inputSchema:/g)]).toHaveLength(67)
+    expect([...source.matchAll(/outputSchema:/g)]).toHaveLength(67)
     expect(source).toContain('READ_ONLY_ANNOTATIONS')
     expect(source).toContain('CREATE_ANNOTATIONS')
     expect(source).toContain('UPDATE_ANNOTATIONS')
@@ -125,7 +125,7 @@ describe('MCP declaration registry contract', () => {
 
   it('keeps the generated registry document current', () => {
     const document = fs.readFileSync(path.join(mcpDirectory, '..', '..', '..', 'docs', 'MCP_REGISTRY.md'), 'utf8')
-    expect(document).toContain('Tool count: **68**')
+    expect(document).toContain('Tool count: **67**')
     expect(document).toContain('Resource count: **2**')
     for (const { name, risk, idempotency } of readToolMetadata()) {
       const domain = name.split('.').slice(0, -1).join('.')

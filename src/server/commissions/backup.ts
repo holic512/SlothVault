@@ -12,12 +12,15 @@ import 'server-only'
 import { z } from 'zod'
 import type { Prisma } from '@generated/prisma-postgresql/client'
 import { moneyInput } from './input'
+import { workflowBackupShape, workflowCollectionSpecs, validateWorkflowBackup } from './workflow-backup'
+import { WORKFLOW_STAGES, renderSimpleTemplate } from '@/lib/commission-workflow'
 import { COMMISSION_STAGES } from '@/lib/commissions'
 import { validateTemplateDefinition, validateTemplateValues } from '@/lib/contract-template'
 import { templateVersionInput } from './templates'
 import { assertDeliveryManifest } from './storage'
 const idSchema = z.string().regex(/^[1-9]\d*$/).refine((id) => BigInt(id) <= 2147483647n)
 export const commissionBackupShape = {
+  ...workflowBackupShape,
   commissionTemplates: z.array(z.object({
     id: idSchema,
     key: z.string().max(10000),
@@ -28,6 +31,7 @@ export const commissionBackupShape = {
   commissionTemplateVersions: z.array(z.object({
     id: idSchema,
     templateId: idSchema,
+    format: z.enum(['LEGACY', 'SIMPLE']).default('LEGACY'),
     version: z.number().int().min(0).max(1000000),
     status: z.string().max(10000),
     documentsJson: z.string().max(500000),
@@ -44,7 +48,15 @@ export const commissionBackupShape = {
   commissions: z.array(z.object({
     id: idSchema,
     commissionId: z.string().max(10000),
-    subjectUserId: idSchema,
+    subjectUserId: idSchema.nullable(),
+    workflowVersion: z.number().int().min(1).max(2).default(1),
+    paused: z.boolean().default(false),
+    paymentPercent: z.number().int().min(0).max(100).default(0),
+    confirmationMode: z.enum(['ONLINE', 'OFFLINE']).default('ONLINE'),
+    maintenanceStartedAt: z.iso.datetime({ offset: true }).nullable().default(null),
+    maintenanceEndsAt: z.iso.datetime({ offset: true }).nullable().default(null),
+    maintenanceClosedAt: z.iso.datetime({ offset: true }).nullable().default(null),
+    maintenanceCloseReason: z.string().max(1000).default(''),
     title: z.string().max(10000),
     purpose: z.string().max(10000),
     requirements: z.string().max(10000),
@@ -52,7 +64,7 @@ export const commissionBackupShape = {
     partyBJson: z.string().max(500000),
     quotationFen: moneyInput.nullable(),
     agreementFen: moneyInput.nullable(),
-    stage: z.enum(Object.keys(COMMISSION_STAGES) as [keyof typeof COMMISSION_STAGES, ...Array<keyof typeof COMMISSION_STAGES>]),
+    stage: z.enum(Object.keys({ ...COMMISSION_STAGES, ...WORKFLOW_STAGES }) as [string, ...string[]]),
     progress: z.number().int().min(0).max(1000000),
     progressNote: z.string().max(10000),
     revision: z.number().int().min(0).max(1000000),
@@ -223,6 +235,9 @@ export const commissionCollectionSpecs = [
       "subjectUserId": "users"
     },
     "dates": [
+      "maintenanceStartedAt",
+      "maintenanceEndsAt",
+      "maintenanceClosedAt",
       "expectedDeliveryAt",
       "startedAt",
       "acceptedAt",
@@ -369,6 +384,7 @@ export const commissionCollectionSpecs = [
     ],
     "money": []
   }
+, ...workflowCollectionSpecs
 ] as const
 export const commissionCollectionKeys = commissionCollectionSpecs.map((s) => s.key)
 type Row = Record<string, unknown> & { id: string }
@@ -421,6 +437,7 @@ export async function deleteCommissionCollections(tx: Prisma.TransactionClient, 
   return counts
 }
 export function validateCommissionBackup(data: Record<string, unknown>) {
+  validateWorkflowBackup(data)
   const indexes = Object.fromEntries(Object.entries(data).filter(([,v]) => Array.isArray(v)).map(([key,rows]) => [key, new Map((rows as Row[]).map((r) => [r.id, r]))]))
   for (const spec of commissionCollectionSpecs) {
     const rows = (data[spec.key] || []) as Row[]
@@ -434,7 +451,10 @@ export function validateCommissionBackup(data: Record<string, unknown>) {
         }
       }
       for (const [key,value] of Object.entries(row)) if (key.endsWith('Json') && typeof value === 'string') JSON.parse(value)
-      if (spec.key === 'commissionTemplateVersions') {
+      if (spec.key === 'commissionTemplateVersions' && row.format === 'SIMPLE') {
+        renderSimpleTemplate(JSON.parse(String(row.documentsJson)).body, JSON.parse(String(row.fieldsJson)), {})
+      }
+      if (spec.key === 'commissionTemplateVersions' && row.format !== 'SIMPLE') {
         const definition = templateVersionInput.parse({ documents: JSON.parse(String(row.documentsJson)), fields: JSON.parse(String(row.fieldsJson)), defaults: JSON.parse(String(row.defaultsJson)) })
         validateTemplateDefinition(definition.documents, definition.fields)
         for (const kind of ['AGREEMENT', 'CHANGE', 'ACCEPTANCE'] as const) validateTemplateValues(definition.fields, definition.defaults, kind, false)
@@ -442,7 +462,7 @@ export function validateCommissionBackup(data: Record<string, unknown>) {
       if (spec.key === 'commissionFiles') {
         const file = indexes.fileManagements?.get(String(row.fileId))
         if (!file || file.businessType !== 'CommissionAttachment' || !/^uploads\/commission-attachment\/[\w-]+\.[a-z0-9]+$/.test(String(file.filePath)) || !/^[a-f0-9]{64}$/.test(String(row.sha256))) throw new Error('Private commission file metadata is invalid')
-        if (row.purpose === 'DELIVERY' && row.shared) throw new Error('Delivery drafts must remain private')
+        if (row.purpose === 'DELIVERY' && row.shared && indexes.commissions?.get(String(row.commissionId))?.workflowVersion !== 2) throw new Error('Delivery drafts must remain private')
       }
       if (spec.key === 'commissionDeliveryItems') {
         const delivery = indexes.commissionDeliveries?.get(String(row.deliveryId)), file = row.fileId ? indexes.commissionFiles?.get(String(row.fileId)) : null
@@ -457,7 +477,7 @@ export function validateCommissionBackup(data: Record<string, unknown>) {
       if (spec.key === 'commissionPayments' && row.status === 'CONFIRMED' && (!row.confirmedById || !row.confirmedAt)) throw new Error('Confirmed payments need an administrator audit')
     }
   }
-  const stateFields = { commissionTemplates: { status: ['ACTIVE', 'RETIRED'] }, commissionTemplateVersions: { status: ['DRAFT', 'PUBLISHED'] }, commissionPayments: { status: ['PENDING', 'CONFIRMED', 'REJECTED'], kind: ['RECEIPT', 'REFUND'] }, commissionChanges: { status: ['PROPOSED', 'QUOTED', 'PENDING_SIGNATURE', 'CONFIRMED', 'REJECTED'] }, commissionFiles: { purpose: ['REQUIREMENT', 'PAYMENT', 'TEST', 'DELIVERY'] }, commissionDeliveries: { status: ['DRAFT', 'PUBLISHED', 'RECEIVED', 'INCOMPLETE'], kind: ['DEMO', 'FINAL'] }, commissionIssues: { status: ['OPEN', 'RESOLVED', 'CLOSED', 'DISPUTED'], kind: ['BUG', 'ADJUSTMENT', 'NEW_WORK'], severity: ['SEVERE', 'GENERAL', 'MINOR'] }, commissionAcceptances: { status: ['DRAFT', 'SUBMITTED', 'CONFIRMED', 'DEEMED', 'REJECTED', 'CANCELLED'], result: ['PASS', 'CONDITIONAL', 'FAIL'] } }
+  const stateFields = { commissionTemplates: { status: ['ACTIVE', 'RETIRED'] }, commissionTemplateVersions: { status: ['DRAFT', 'PUBLISHED'] }, commissionPayments: { status: ['PENDING', 'CONFIRMED', 'REJECTED'], kind: ['RECEIPT', 'REFUND'] }, commissionChanges: { status: ['PROPOSED', 'QUOTED', 'PENDING_SIGNATURE', 'CONFIRMED', 'REJECTED'] }, commissionFiles: { purpose: ['REQUIREMENT', 'PAYMENT', 'TEST', 'DELIVERY', 'CONTRACT'] }, commissionDeliveries: { status: ['DRAFT', 'PUBLISHED', 'RECEIVED', 'INCOMPLETE'], kind: ['DEMO', 'FINAL'] }, commissionIssues: { status: ['OPEN', 'RESOLVED', 'CLOSED', 'DISPUTED'], kind: ['BUG', 'ADJUSTMENT', 'NEW_WORK'], severity: ['SEVERE', 'GENERAL', 'MINOR'] }, commissionAcceptances: { status: ['DRAFT', 'SUBMITTED', 'CONFIRMED', 'DEEMED', 'REJECTED', 'CANCELLED'], result: ['PASS', 'CONDITIONAL', 'FAIL'] } }
   for (const [collection, fields] of Object.entries(stateFields)) for (const row of (data[collection] || []) as Row[]) for (const [key, allowed] of Object.entries(fields)) if (!allowed.includes(String(row[key]))) throw new Error(`Invalid commission state: ${collection}.${key}`)
   for (const plan of (data.commissionPlans || []) as Row[]) {
     const entries = ((data.commissionPayments || []) as Row[]).filter((p) => p.planId === plan.id && p.status === 'CONFIRMED')

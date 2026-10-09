@@ -2,19 +2,15 @@
  * @file route.ts
  * @project SlothVault
  * @module Admin Contracts API
- * @description Lists administrator-visible contracts and creates editable one-to-one contract drafts.
- * @logic Require an administrator, bound list inputs, and delegate draft persistence to the contract domain service.
- * @dependencies zod, admin session, HTTP helpers, contracts service
+ * @description Lists read-only legacy contracts for retained history.
+ * @logic Require an administrator and bound history filters before reading retained contracts.
+ * @dependencies admin session, HTTP helpers, contracts service
  * @index_tags api,admin,contracts,list,create
  * @author holic512
  */
-import { z } from 'zod'
-import { documentDraftInput } from '@/server/commissions/input'
-import { createCommissionDocument } from '@/server/commissions/documents'
 
 import { requireAdminSession } from '@/server/auth/session'
 import { defineRoute } from '@/server/http/handler'
-import { readJson } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
 import { listAdminContracts } from '@/server/services/contracts'
 
@@ -36,11 +32,4 @@ export const GET = defineRoute(async (request) => {
     keyword: query.get('keyword')?.trim() || undefined,
     status: Number.isInteger(status) ? status : undefined,
   }))
-})
-
-export const POST = defineRoute(async (request) => {
-  const session = await requireAdminSession(request)
-  const body = await readJson(request, documentDraftInput.extend({ commissionId: z.number().int().positive() }), { maxBytes: 500000 })
-  const { commissionId, ...values } = body
-  return apiOk(await createCommissionDocument(commissionId, { userId: session.User.id, isAdmin: true }, values), 'created', 201)
 })

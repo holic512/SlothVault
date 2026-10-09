@@ -1,3 +1,4 @@
+import { safeAuthReturn } from '@/lib/auth-return'
 import { AuthFrame } from '@/components/auth/auth-frame'
 import { UserRegisterForm } from '@/components/auth/user-register-form'
 import { SystemFilingFooter } from '@/components/shell/system-filing-footer'
@@ -9,6 +10,7 @@ export async function generateMetadata() {
   return createPageMetadata('register')
 }
 
-export default function RegisterPage() {
-  return <AuthFrame footer={<SystemFilingFooter />}><UserRegisterForm /></AuthFrame>
+export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
+  const returnTo = safeAuthReturn((await searchParams).next)
+  return <AuthFrame footer={<SystemFilingFooter />}><UserRegisterForm returnTo={returnTo} /></AuthFrame>
 }

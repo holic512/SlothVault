@@ -11,6 +11,6 @@
 import { defineRoute } from '@/server/http/handler'
 import { parseBigIntId } from '@/server/http/request'
 import { commissionActor } from '@/server/commissions/http'
-import { downloadCommissionFile } from '@/server/commissions/files'
+import { downloadCommissionFile } from '@/server/commissions/workflow-files'
 export const runtime = 'nodejs'
 export const GET = defineRoute<{ id: string; fileId: string }>(async (request, context) => { const p = await context.params; return downloadCommissionFile(parseBigIntId(p.id), parseBigIntId(p.fileId), await commissionActor(request, false)) }, { holdLockUntilBodyClosed: true })

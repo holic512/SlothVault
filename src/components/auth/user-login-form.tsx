@@ -5,7 +5,7 @@
  * @project SlothVault
  * @module User Login Form
  * @description Implements conventional username/email login with wallet address login as a secondary option.
- * @logic Submit password credentials to the shared session API, keep the wallet flow visually subordinate, and send authenticated users to their account center.
+ * @logic Submit password credentials to the shared session API, keep the wallet flow visually subordinate, and return authenticated users to their validated invitation or account center.
  * @dependencies Ant Design, Next navigation, auth API, wallet-login-button
  * @index_tags login,user,password,wallet,form
  * @author holic512
@@ -28,7 +28,7 @@ type LoginValues = {
   remember: boolean
 }
 
-export function UserLoginForm() {
+export function UserLoginForm({ returnTo = '/account' }: { returnTo?: string }) {
   const t = useTranslations('UserAuth.login')
   const router = useRouter()
   const { message } = App.useApp()
@@ -38,14 +38,14 @@ export function UserLoginForm() {
   useEffect(() => {
     apiFetch<SessionUser | null>('/api/auth/session')
       .then((user) => {
-        if (user) router.replace('/account')
+        if (user) router.replace(returnTo)
       })
       .catch((error) => {
         if (!(error instanceof ApiClientError) || error.status !== 401) {
           setErrorText(error instanceof Error ? error.message : t('sessionReadFailed'))
         }
       })
-  }, [router, t])
+  }, [router, t, returnTo])
 
   const submit = async (values: LoginValues) => {
     setSubmitting(true)
@@ -56,7 +56,7 @@ export function UserLoginForm() {
         body: JSON.stringify(values),
       })
       message.success(t('success'))
-      router.replace('/account')
+      router.replace(returnTo)
       router.refresh()
     } catch (error) {
       message.error(error instanceof Error ? error.message : t('failed'))
@@ -98,9 +98,9 @@ export function UserLoginForm() {
       </Form>
 
       <Divider plain>{t('or')}</Divider>
-      <WalletLoginButton />
+      <WalletLoginButton redirectTo={returnTo} />
       <Typography.Paragraph className="auth-footnote" type="secondary">
-        {t('noAccount')}<Link href="/register">{t('register')}</Link>
+        {t('noAccount')}<Link href={returnTo === '/account' ? '/register' : `/register?next=${encodeURIComponent(returnTo)}`}>{t('register')}</Link>
       </Typography.Paragraph>
     </Card>
   )

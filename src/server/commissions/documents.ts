@@ -46,6 +46,7 @@ export async function createCommissionDocument(id: number, actor: CommissionActo
   if (template.status !== 'PUBLISHED' || template.templateStatus !== 'ACTIVE') throw new HttpError('请选择启用模板的已发布版本', 400, 400)
   await unitOfWork.execute(async (tx) => {
     const commission = await authorizeCommission(tx, id, actor)
+    if (!commission.subjectUserId) throw new HttpError('请先绑定委托用户', 409, 409)
     const duplicate = await tx.commissionEvent.findUnique({ where: { commissionId_commandId: { commissionId: id, commandId: input.commandId } } })
     if (duplicate) { if (duplicate.actorUserId !== actor.userId || duplicate.type !== 'DOCUMENT_DRAFT') throw new HttpError('请求标识已用于其他操作', 409, 409); return }
     const changed = await tx.commission.updateMany({ where: { id, revision: input.revision }, data: { revision: { increment: 1 }, updatedAt: new Date() } })

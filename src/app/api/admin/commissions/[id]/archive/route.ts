@@ -11,6 +11,6 @@
 import { defineRoute } from '@/server/http/handler'
 import { parseBigIntId } from '@/server/http/request'
 import { commissionActor } from '@/server/commissions/http'
-import { commissionArchive } from '@/server/commissions/files'
+import { commissionArchive } from '@/server/commissions/workflow-files'
 export const runtime = 'nodejs'
-export const GET = defineRoute<{ id: string }>(async (request, context) => commissionArchive(parseBigIntId((await context.params).id), await commissionActor(request, true), request.nextUrl.searchParams.has('deliveryId') ? parseBigIntId(request.nextUrl.searchParams.get('deliveryId') || undefined) : undefined), { holdLockUntilBodyClosed: true })
+export const GET = defineRoute<{ id: string }>(async (request, context) => commissionArchive(parseBigIntId((await context.params).id), await commissionActor(request, true)), { holdLockUntilBodyClosed: true })

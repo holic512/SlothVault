@@ -1,54 +1,46 @@
 /**
  * @file contracts.ts
  * @project SlothVault
- * @module Administrator MCP Commissions
- * @description Queries private commissions and manages requests, progress and template-based drafts.
- * @logic Bind the principal, use revision and idempotency guards, and leave formal commitments to the web workspace.
- * @dependencies MCP registry, commission services, published templates
+ * @module MCP Commission Draft Tools
+ * @description Reads workflow facts and edits unpublished commission and agreement drafts.
+ * @logic Keep formal submissions, account confirmation, payment changes and wallet evidence inside authenticated web workflows.
+ * @dependencies workflow services, MCP registry, zod
  * @index_tags mcp,commissions,templates,drafts
  * @author holic512
  */
 import 'server-only'
 import { z } from 'zod'
 import { collectMcpToolDefinitions } from '@/server/mcp/registry'
-import { createCommission, executeCommissionCommand, getCommission, listCommissions } from '@/server/commissions/service'
-import { createCommissionDocument } from '@/server/commissions/documents'
-import { listContractTemplates } from '@/server/commissions/templates'
-import { moneyInput } from '@/server/commissions/input'
-import { COMMISSION_STAGES } from '@/lib/commissions'
-import { decimalIdSchema, isoDateSchema, mcpId, pageSchema, pageSizeSchema, paginationOutputShape, READ_ONLY_ANNOTATIONS, IDEMPOTENT_CREATE_ANNOTATIONS, IDEMPOTENT_UPDATE_ANNOTATIONS, runMcpTool } from './common'
-const stages = z.enum(Object.keys(COMMISSION_STAGES) as [keyof typeof COMMISSION_STAGES, ...Array<keyof typeof COMMISSION_STAGES>])
-const base = { commandId: z.string().uuid().describe('重试保持同一 UUID。'), revision: z.number().int().nonnegative().describe('从最新详情读取。') }
-const party = z.record(z.string().max(40), z.string().max(1000))
-const summary = z.object({ id: decimalIdSchema, commissionId: z.string(), title: z.string(), subjectUserId: decimalIdSchema, stage: stages, progress: z.number().int(), revision: z.number().int(), progressNote: z.string(), paymentSummary: z.string(), quotationFen: moneyInput.nullable(), totalFen: moneyInput.nullable(), expectedDeliveryAt: isoDateSchema.nullable(), todos: z.array(z.object({ key: z.string(), audience: z.enum(['ADMIN', 'USER', 'BOTH']), text: z.string(), dueAt: isoDateSchema.nullable().optional() })), warnings: z.array(z.string()) })
-const detail = summary.extend({ purpose: z.string(), requirements: z.string(), documents: z.array(z.object({ id: decimalIdSchema, title: z.string(), documentType: z.string(), status: z.number().int(), body: z.string(), bodyHash: z.string(), contractHash: z.string().nullable(), sourceRecordId: decimalIdSchema.nullable(), templateVersionId: decimalIdSchema.nullable() })), files: z.array(z.object({ id: decimalIdSchema, purpose: z.string(), sha256: z.string(), shared: z.boolean(), originalName: z.string(), fileSize: z.string() })), plans: z.array(z.object({ id: decimalIdSchema, kind: z.string(), title: z.string(), amountFen: moneyInput, netFen: z.string(), remainingFen: moneyInput, status: z.string() })), changes: z.array(z.object({ id: decimalIdSchema, title: z.string(), original: z.string(), proposed: z.string(), feeFen: moneyInput, extensionDays: z.number().int(), status: z.string() })), deliveries: z.array(z.object({ id: decimalIdSchema, version: z.string(), kind: z.string(), status: z.string() })), acceptances: z.array(z.object({ id: decimalIdSchema, deliveryId: decimalIdSchema, result: z.string(), status: z.string(), basis: z.string(), outstanding: z.string() })) })
+import { createWorkflow, executeWorkflowCommand, getWorkflow, listWorkflows } from '@/server/commissions/workflow'
+import { listSimpleTemplates } from '@/server/commissions/simple-templates'
+import { workflowCommandInput } from '@/server/commissions/workflow-input'
+import { decimalIdSchema, mcpId, pageSchema, pageSizeSchema, paginationOutputShape, READ_ONLY_ANNOTATIONS, IDEMPOTENT_CREATE_ANNOTATIONS, IDEMPOTENT_UPDATE_ANNOTATIONS, runMcpTool } from './common'
+const base = { commandId: z.string().uuid(), revision: z.number().int().nonnegative() }
+const summary = z.object({ id: decimalIdSchema, publicId: z.string(), title: z.string(), subject: z.string().nullable(), stage: z.string(), paused: z.boolean(), paymentPercent: z.number().int(), updatedAt: z.string(), bindingStatus: z.string(), nextAction: z.string(), archived: z.boolean() })
+const detail = summary.extend({ revision: z.number().int(), requirements: z.string(), totalFen: z.string().nullable(), progress: z.number().int(), confirmationMode: z.string(), maintenanceDays: z.number().int(), maintenanceStartedAt: z.string().nullable(), maintenanceEndsAt: z.string().nullable(), maintenanceClosedAt: z.string().nullable(), maintenanceCloseReason: z.string(), allowedActions: z.array(z.string()), events: z.array(z.json()), agreements: z.array(z.json()), files: z.array(z.json()), issues: z.array(z.json()) })
 export const contractToolDefinitions = collectMcpToolDefinitions((server) => {
   server.defineTool('admin.commission.list', {
-    title: '查询委托项目', description: '查询客户项目阶段、进度、付款事实与待办。委托与公开文档项目独立。',
-    inputSchema: z.strictObject({ page: pageSchema, pageSize: pageSizeSchema, keyword: z.string().max(255).optional(), stage: stages.optional() }), outputSchema: z.object({ list: z.array(summary), ...paginationOutputShape }), annotations: READ_ONLY_ANNOTATIONS,
-  }, async (input, { principal }) => runMcpTool('admin.commission.list', () => listCommissions({ userId: principal.userId, isAdmin: true }, input)))
+    title: '查询委托项目', description: '查询独立的生命周期、用户支付比例、认领状态与待办。',
+    inputSchema: z.strictObject({ page: pageSchema, pageSize: pageSizeSchema, keyword: z.string().max(255).optional(), stage: z.string().max(40).optional() }), outputSchema: z.object({ list: z.array(summary), ...paginationOutputShape }), annotations: READ_ONLY_ANNOTATIONS,
+  }, async (input, { principal }) => runMcpTool('admin.commission.list', () => listWorkflows({ userId: principal.userId, isAdmin: true }, input)))
   server.defineTool('admin.commission.get', {
-    title: '读取委托履约详情', description: '读取最新 revision、需求、文件正文、账款、变更、验收、交付和私有文件元数据。文件字节在所属委托网页授权下载。',
+    title: '读取委托履约详情', description: '读取最新 revision、冻结时间轴、合同版本、私有文件元数据及维护记录。',
     inputSchema: z.strictObject({ commissionId: decimalIdSchema }), outputSchema: detail, annotations: READ_ONLY_ANNOTATIONS,
-  }, async ({ commissionId }, { principal }) => runMcpTool('admin.commission.get', () => getCommission(mcpId(commissionId, 'commissionId'), { userId: principal.userId, isAdmin: true })))
+  }, async ({ commissionId }, { principal }) => runMcpTool('admin.commission.get', () => getWorkflow(mcpId(commissionId, 'commissionId'), { userId: principal.userId, isAdmin: true })))
   server.defineTool('admin.commission.create', {
-    title: '建立客户委托', description: '先用 admin.user.list 核对启用普通客户账户，再代建需求工作台。金额为分的整数；不会发起合同或确认收款。',
-    inputSchema: z.strictObject({ commandId: base.commandId, subjectUserId: decimalIdSchema, title: z.string().trim().min(1).max(255), purpose: z.string().min(1).max(10000), requirements: z.string().min(1).max(10000), quotationFen: moneyInput.optional(), partyA: party.optional() }), outputSchema: detail, annotations: IDEMPOTENT_CREATE_ANNOTATIONS,
-  }, async ({ subjectUserId, ...input }, { principal }) => runMcpTool('admin.commission.create', () => createCommission({ userId: principal.userId, isAdmin: true }, { ...input, subjectUserId: mcpId(subjectUserId, 'subjectUserId') })))
+    title: '建立委托草稿', description: '指定启用的普通用户或保留待邀请状态。只建立草稿，不正式提交。',
+    inputSchema: z.strictObject({ commandId: base.commandId, subjectUserId: decimalIdSchema.optional(), title: z.string().min(1).max(255), requirements: z.string().max(10000).default('') }), outputSchema: detail, annotations: IDEMPOTENT_CREATE_ANNOTATIONS,
+  }, async ({ subjectUserId, ...input }, { principal }) => runMcpTool('admin.commission.create', () => createWorkflow({ userId: principal.userId, isAdmin: true }, { ...input, subjectUserId: subjectUserId ? mcpId(subjectUserId, 'subjectUserId') : undefined, draft: true })))
   server.defineTool('admin.commission.update', {
-    title: '编辑需求与报价', description: '以最新 revision 编辑需求、未签约报价及双方资料。已签约金额通过网页变更确认。',
-    inputSchema: z.strictObject({ ...base, commissionId: decimalIdSchema, title: z.string().trim().min(1).max(255).optional(), purpose: z.string().max(10000).optional(), requirements: z.string().max(10000).optional(), quotationFen: moneyInput.optional(), partyA: party.optional(), partyB: party.optional() }), outputSchema: detail, annotations: IDEMPOTENT_UPDATE_ANNOTATIONS,
-  }, async ({ commissionId, ...input }, { principal }) => runMcpTool('admin.commission.update', () => executeCommissionCommand(mcpId(commissionId, 'commissionId'), { userId: principal.userId, isAdmin: true }, { ...input, action: 'update' })))
-  server.defineTool('admin.commission.progress.update', {
-    title: '维护阶段与进度', description: '按实际业务自由调整阶段、进度和日期。跨阶段、回退、暂停、终止须填写 reason。不会产生到账、签署、验收或接收记录。',
-    inputSchema: z.strictObject({ ...base, commissionId: decimalIdSchema, stage: stages, progress: z.number().int().min(0).max(100), note: z.string().max(10000), reason: z.string().max(10000).default(''), expectedDeliveryAt: z.iso.datetime({ offset: true }).nullable().optional() }), outputSchema: detail, annotations: IDEMPOTENT_UPDATE_ANNOTATIONS,
-  }, async ({ commissionId, ...input }, { principal }) => runMcpTool('admin.commission.progress.update', () => executeCommissionCommand(mcpId(commissionId, 'commissionId'), { userId: principal.userId, isAdmin: true }, { ...input, action: 'stage' })))
+    title: '编辑委托草稿', description: '仅编辑草稿阶段的名称和需求；已正式提交的内容只能在网页追加新记录。',
+    inputSchema: z.strictObject({ ...base, commissionId: decimalIdSchema, title: z.string().min(1).max(255), requirements: z.string().max(10000) }), outputSchema: detail, annotations: IDEMPOTENT_UPDATE_ANNOTATIONS,
+  }, async ({ commissionId, ...input }, { principal }) => runMcpTool('admin.commission.update', () => executeWorkflowCommand(mcpId(commissionId, 'commissionId'), { userId: principal.userId, isAdmin: true }, { ...input, action: 'draft.update' })))
   server.defineTool('admin.commission.document.draft.create', {
-    title: '按模板生成文件草稿', description: '以发布模板及 values 生成正文与附件一、实际变更或验收确认单。sourceRecordId 须属于委托。草稿在网页预览后正式发起；签署、到账、退款及正式交付均在网页完成。',
-    inputSchema: z.strictObject({ ...base, commissionId: decimalIdSchema, templateVersionId: decimalIdSchema, documentType: z.enum(['AGREEMENT', 'CHANGE', 'ACCEPTANCE']), sourceRecordId: decimalIdSchema.optional(), documentId: decimalIdSchema.optional(), values: z.record(z.string().max(100), z.json()) }), outputSchema: detail, annotations: IDEMPOTENT_CREATE_ANNOTATIONS,
-  }, async ({ commissionId, templateVersionId, sourceRecordId, documentId, ...input }, { principal }) => runMcpTool('admin.commission.document.draft.create', () => createCommissionDocument(mcpId(commissionId, 'commissionId'), { userId: principal.userId, isAdmin: true }, { ...input, templateVersionId: mcpId(templateVersionId, 'templateVersionId'), sourceRecordId: sourceRecordId ? mcpId(sourceRecordId, 'sourceRecordId') : undefined, documentId: documentId ? mcpId(documentId, 'documentId') : undefined })))
+    title: '生成合同草稿', description: '选择已发布Markdown模板，填写变量、合同金额与维护天数。发布和确认在网页完成。',
+    inputSchema: z.strictObject({ ...base, commissionId: decimalIdSchema, templateVersionId: decimalIdSchema, title: z.string().min(1).max(255), kind: z.enum(['AGREEMENT', 'SUPPLEMENT']).default('AGREEMENT'), values: z.record(z.string(), z.union([z.string(), z.number()])), totalFen: z.string().nullable(), maintenanceDays: z.number().int().min(1).max(3650).default(15), confirmationMode: z.enum(['ONLINE', 'OFFLINE']).default('ONLINE') }), outputSchema: detail, annotations: IDEMPOTENT_CREATE_ANNOTATIONS,
+  }, async ({ commissionId, templateVersionId, ...input }, { principal }) => runMcpTool('admin.commission.document.draft.create', () => executeWorkflowCommand(mcpId(commissionId, 'commissionId'), { userId: principal.userId, isAdmin: true }, workflowCommandInput.parse({ ...input, action: 'agreement.save', templateVersionId: mcpId(templateVersionId, 'templateVersionId'), fileKeys: [] }))))
   server.defineTool('admin.contract-template.list', {
-    title: '查询模板及发布版本', description: '读取启用状态、发布版本、正文及字段定义供草稿填写。模板编辑和发布在网页完成。',
-    inputSchema: z.strictObject({}), outputSchema: z.object({ templates: z.array(z.object({ id: decimalIdSchema, key: z.string(), name: z.string(), status: z.string(), versions: z.array(z.object({ id: decimalIdSchema, templateId: decimalIdSchema, version: z.number().int(), status: z.string(), documents: z.object({ AGREEMENT: z.string(), REQUIREMENTS: z.string(), CHANGE: z.string(), ACCEPTANCE: z.string() }), fields: z.array(z.json()), defaults: z.record(z.string().max(100), z.json()) })) })) }), annotations: READ_ONLY_ANNOTATIONS,
-  }, async () => runMcpTool('admin.contract-template.list', async () => ({ templates: await listContractTemplates() })))
+    title: '查询Markdown模板', description: '读取模板发布版本、正文与自动识别的变量。编辑与发布在网页完成。',
+    inputSchema: z.strictObject({}), outputSchema: z.object({ templates: z.array(z.json()) }), annotations: READ_ONLY_ANNOTATIONS,
+  }, async () => runMcpTool('admin.contract-template.list', async () => ({ templates: await listSimpleTemplates() })))
 })

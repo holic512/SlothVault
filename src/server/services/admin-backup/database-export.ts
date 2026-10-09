@@ -2,7 +2,7 @@
  * @file database-export.ts
  * @project SlothVault
  * @module Admin Database Backup Export
- * @description Exports a relation-closed portable 2.10 complete snapshot of membership entitlements, articles, project content, accounts, contracts, configuration, and transaction evidence.
+ * @description Exports a relation-closed portable 2.11 complete snapshot of membership entitlements, articles, project content, accounts, contracts, configuration, and transaction evidence.
  * @logic Read one repeatable transaction snapshot, retain member access and independent articles, include trash and disabled file records, serialize evidence BigInts and frozen contract identity, then validate the portable result.
  * @dependencies database unit-of-work, Prisma, HTTP JSON serialization, backup schema and validation
  * @index_tags admin,backup,database,export,snapshot,relations

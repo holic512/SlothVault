@@ -225,7 +225,7 @@ flowchart LR
 
 ## 管理员 MCP
 
-系统内置管理员 MCP Streamable HTTP 入口 `POST /mcp`，通过可撤销的管理员 MCP Key 鉴权，不复用网页 Cookie。当前服务端 `4.0.0` 提供 68 个 Tool、4 个 Prompt、2 个受保护 Resource，复用现有业务校验；清单见 [MCP Registry](./docs/MCP_REGISTRY.md)。Codex、Claude Code 等宿主通过原生 MCP 直连，管理员在 Key 页明确创建后可一次性复制接入配置，详见 [管理员 MCP 接入](./docs/MCP_ADMIN.md)。宿主审批策略不改变服务端权限。
+系统内置管理员 MCP Streamable HTTP 入口 `POST /mcp`，通过可撤销的管理员 MCP Key 鉴权，不复用网页 Cookie。当前服务端 `4.0.0` 提供 67 个 Tool、4 个 Prompt、2 个受保护 Resource，复用现有业务校验；清单见 [MCP Registry](./docs/MCP_REGISTRY.md)。Codex、Claude Code 等宿主通过原生 MCP 直连，管理员在 Key 页明确创建后可一次性复制接入配置，详见 [管理员 MCP 接入](./docs/MCP_ADMIN.md)。宿主审批策略不改变服务端权限。
 
 [Skill](./integrations/skill/) 与 [Deployment](./integrations/deployment/) 继续以 `skill-v*`、`deployment-v*` 独立发布，归档和清单含版本、桥主版本及 SHA-256。Skill 1.1.0 使用宿主已发现工具；SlothTool skill install/update 可直接同步受管链接。Deployment 1.0.0 保持独立部署脚本、JSON 行桥和应用更新能力。独立 MCP Client、旧整包执行/发布入口及 `/mcp/compatibility` 已退役；原生接入无需专用 Python 包或 SlothTool。历史 Release 和本地数据保留，明确迁移清理流程见 [集成架构](./integrations/ARCHITECTURE.md)。应用版本和独立包版本分别准备。
 

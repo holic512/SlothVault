@@ -146,15 +146,15 @@ describe('private commission lifecycle with real SQLite transactions', () => {
     const customerView = await getCommission(Number(d.id), customer); expect(customerView.files).toEqual([]); expect(JSON.stringify(customerView.events)).not.toContain('private.txt')
     await expect(upload('bad.zip', 'DELIVERY', 'x')).rejects.toMatchObject({ status: 400 })
   })
-  it('cleans only legacy contracts once, preserves commissions and seeds template data', async () => {
+  it('preserves legacy contracts on every startup and seeds the current template', async () => {
     await draft('AGREEMENT')
     await fixture.client.contract.create({ data: { contractId: randomUUID(), issuerUserId: 1, subjectUserId: 2, title: '旧合同', body: 'legacy', bodyHash: 'a'.repeat(64), partyCommitment: 'b'.repeat(64) } })
     await upgradeCommissionLifecycle(fixture.client)
-    expect(await fixture.client.contract.count({ where: { commissionId: null } })).toBe(0)
+    expect(await fixture.client.contract.count({ where: { commissionId: null } })).toBe(1)
     expect(await fixture.client.contract.count({ where: { commissionId: Number(d.id) } })).toBe(1)
     await fixture.client.contract.create({ data: { contractId: randomUUID(), issuerUserId: 1, subjectUserId: 2, title: 'repeat guard', body: 'legacy', bodyHash: 'a'.repeat(64), partyCommitment: 'b'.repeat(64) } })
-    await upgradeCommissionLifecycle(fixture.client); expect(await fixture.client.contract.count()).toBe(2)
-    expect((await listContractTemplates())[0].versions).toHaveLength(1)
+    await upgradeCommissionLifecycle(fixture.client); expect(await fixture.client.contract.count()).toBe(3)
+    expect(await fixture.client.contractTemplate.count({ where: { key: 'commission-markdown-v2' } })).toBe(1)
   })
   it('round-trips business data with remapped IDs and ignores broken legacy contract collections', async () => {
     await issueAndSign((await draft('AGREEMENT')).id)
@@ -162,7 +162,7 @@ describe('private commission lifecycle with real SQLite transactions', () => {
     await command({ action: 'delivery.create', version: 'v1', kind: 'FINAL', note: '', testInstructions: '运行应用', items: [{ fileId: Number(d.files[0].id), label: '源码', versionNote: 'v1' }] })
     await command({ action: 'delivery.publish', id: Number(d.deliveries[0].id) })
     await saveCommissionSettings({ provider: { Name: '开发方' }, calendar: { holidays: ['2026-10-09'], workdays: [] } }); expect((await getCommissionSettings()).provider.Name).toBe('开发方')
-    const backup = await exportDatabaseBackup(); expect(backup.version).toBe('2.10.0')
+    const backup = await exportDatabaseBackup(); expect(backup.version).toBe('2.11.0')
     const payload = parseDatabaseImportPayload({ version: backup.version, data: backup.data, mode: 'overwrite' })
     await importDatabaseBackup(payload)
     const restored = await fixture.client.commission.findUniqueOrThrow({ where: { commissionId: d.commissionId } }); expect(restored.id).not.toBe(Number(d.id))
