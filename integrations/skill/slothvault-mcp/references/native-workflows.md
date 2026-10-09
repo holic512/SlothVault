@@ -1,37 +1,39 @@
-# Native MCP workflow examples
+# Project and attachment workflows
 
-Use business names through the host's discovered tools and actual schemas. Host-generated prefixes can differ.
+Identify the project/version and reuse specified drafts, bodies, and attachments. Published names, titles, descriptions, and weights remain editable; send only changed fields.
 
-## Clone a published source into an empty draft
+## Draft bodies and clone
 
-Read both versions and the target tree, then call `content.project.version.clone`:
+For frozen-body or structure changes, read source and target versions and inspect the target tree. To clone into an existing draft:
 
 ```json
 {"projectId":"1","sourceVersionId":"2","targetVersionId":"3"}
 ```
 
-The source must be a published, undeleted version of the same project. The target must be an undeleted draft with no undeleted categories, notes, or bodies. The service checks this in the transaction. A nonempty target is not automatically replaced.
+The source must be published, undeleted, and in the same project. The target must be an undeleted draft with no undeleted categories, notes, or bodies. Transactional checks preserve the target ID, name, description, and weight. Never replace a nonempty target automatically.
 
-To create a new draft from the source instead:
+To create a new draft instead:
 
 ```json
 {"projectId":"1","sourceVersionId":"2","version":"1.0.1","description":"Next draft"}
 ```
 
-Do not combine `targetVersionId` with new-version metadata.
+Do not combine `targetVersionId` with new-version metadata. Reuse existing entities; do not create empty placeholder bodies before the real content. The first undeleted body becomes primary automatically. Use `content.note.content.list_versions` for lightweight history and `get` only for bodies needed by the task; change primary selection explicitly when required.
 
-## Reuse and upload attachments
+## Attachments
 
-Inspect `content.file.list` and `content.file.get` before uploading. An upload of UTF-8 bytes `# Guide` uses:
+Reuse known suitable uploads. If discovery is needed, search `content.file.list` by filename/business type; use `get` only when its detail or `resourceUri` is needed. Names and sizes alone do not prove identical bytes. UTF-8 bytes `# Guide` can be uploaded as:
 
 ```json
 {"originalName":"guide.md","businessType":"Markdown","contentBase64":"IyBHdWlkZQ=="}
 ```
 
-Read returned `id`, `filePath`, `resourceUri`, MIME type, and size. Use actual paths in Markdown and protected URIs for Resource reads; never guess public attachment URLs. Re-list files after an uncertain upload result before retrying.
+Read actual `id`, `filePath`, `fileSize`, and `resourceUri`. Upload/get metadata does not promise a MIME field; Resource content supplies MIME. Use an ArticleCover upload for an article cover, not an arbitrary attachment path. Upload constraints and Base64 preparation depend on the current schema and host.
 
-Managed-file Resource URIs have the form `slothvault://managed-file/44`; contract attachments use `slothvault://contract-attachment/12`. Each Resource request requires the same Key authentication. Binary saving is a host capability, not a Skill guarantee. Use the authenticated website download if the host cannot save the blob.
+Use returned protected URIs, such as `slothvault://managed-file/44` or `slothvault://contract-attachment/12`, with the authenticated host. Do not fetch them as anonymous web URLs. Save Resource `blob` with its `_meta["slothvault/file-name"]` when the host supports it; otherwise use the website's authorized download. Preserve existing destination files.
 
-## Publication
+After an uncertain upload, inspect the inventory and available metadata before retrying; if identity remains ambiguous, stop that write chain. Do not blindly create another file.
 
-Run `content.project.version.check_draft` after bodies and links are ready. Fix issues within the task and publish only if requested. Read the resulting version and integrity. An upload or copied connection configuration is not evidence that the project was published.
+## Project publication
+
+Save final bodies, images, and links, then run `content.project.version.check_draft`. Fix reported issues within authorization and recheck changed content. Do not publish an empty draft. If publication was requested, call `content.project.version.publish`, then verify state/visibility and `content.project.version.integrity`. A draft-only request ends at the saved draft. Metadata renames alone do not require another version.

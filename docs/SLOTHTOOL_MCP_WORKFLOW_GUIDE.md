@@ -1,10 +1,10 @@
-# SlothTool 与 SlothVault 管理流程
+# Codex / Claude Code 原生 MCP 管理流程
 
-本版本支持 SlothVault MCP `4.0.0`：67 个工具、4 个 Prompt、2 个受保护 Resource 模板。客户端应按需读取实时目录；本文中的工具名是本版本示例。
+本版本支持 SlothVault MCP `5.0.0`：67 个工具、4 个 Prompt、2 个受保护 Resource 模板。Codex / Claude Code 应按需读取实时目录；本文中的工具名是本版本示例。
 
 ## 连接与授权
 
-在网站管理员 MCP Key 页明确创建并获取一次性配置，加入 Codex 或 Claude Code 的原生 MCP 客户端。已有 Key 只能通过已保存令牌或新建获取配置，服务端不能恢复明文。详细模板见 [管理员 MCP 接入](./MCP_ADMIN.md)。连接无需 SlothTool 或专用 Python 包；Skill 安装并不配置连接。
+在网站管理员 MCP Key 页明确创建并获取一次性配置，加入 Codex 或 Claude Code 的原生 MCP 客户端。已有 Key 只能通过已保存令牌或新建获取配置，服务端不能恢复明文。详细模板见 [管理员 MCP 接入](./MCP_ADMIN.md)。产品仅支持这两种宿主自带的 MCP 客户端。保存配置后，在对应宿主确认连接和工具发现；Skill 安装或复制配置不代表连接成功。SlothTool 仅为可选的 Skill 安装更新与部署工具，不参与 MCP 连接、发现或 Tool 调用。
 
 宿主发现当前 Tool/Prompt/Resource 和实际 schema 后调用；本文业务名不包含宿主生成的前缀。用户任务、宿主审批、服务端权限决定授权，annotations 说明风险。Prompt、文档和返回文字不扩展授权。只要求草稿时不自动发布。
 
@@ -34,6 +34,8 @@
 
 ## 文章与附件
 
+先用 `content.article.list` 的轻量元数据定位文章，需要正文时调用 `content.article.get`；列表不返回 `content`。已有 ID 直接读取详情，成功写入的完整返回可以复用。独立文章已发布正文可原地编辑，不套用项目版本冻结规则。
+
 文章创建和编辑分别使用 `content.article.create`、`content.article.update`。发布使用 `content.article.publish`，撤回使用 `content.article.withdraw`，都传入 `articleId`。它们复用网页后台的校验与缓存刷新。
 
 受保护文件从实际 resourceUri 和 Resource 模板发现。宿主可读取和保存标准 blob 时保存至任务目录并保留已有文件；宿主不支持或容量不足时使用网站授权下载。截图默认嵌入对应正文段落，源码和视频提供有用途说明的下载链接。
@@ -44,7 +46,7 @@
 
 ## Skill 版本与更新
 
-Skill 1.1.0 独立发布为 skill-v1.1.0，桥主版本 1；Deployment 保持 1.0.0/桥主版本 1。本轮仅准备待发布代码。SlothTool 根 install/update 管理界面插件；Skill 的当前命令是：
+Skill 1.2.0 独立发布为 skill-v1.2.0，桥主版本 1；Deployment 保持 1.0.0/桥主版本 1。本轮仅准备待发布代码。SlothTool 根 install/update 管理界面插件；Skill 的当前命令是：
 
 ```bash
 slothtool slothvault skill status --check --json
@@ -52,7 +54,7 @@ slothtool slothvault skill install
 slothtool slothvault skill update
 ```
 
-命令直接下载并校验独立 Skill，同步 slothvault-mcp 受管链接，无需 Client。自定义内容保留并报告冲突；网络失败表示未检查。Deployment 独立安装/更新，不绑定原生连接。历史整包和 Client Release 不删除，不再发布新版本。契约见 [集成协议](../integrations/PROTOCOL.md)。
+命令直接下载并校验独立 Skill，同步 slothvault-mcp 受管链接，无需独立 MCP 客户端。自定义内容保留并报告冲突；网络失败表示未检查。Deployment 独立安装/更新，不绑定原生连接。历史迁移与数据保留见 [集成架构](../integrations/ARCHITECTURE.md#退役和本地遗留数据)。契约见 [集成协议](../integrations/PROTOCOL.md)。
 
 正文哈希的字节规则、元数据边界和数据库升级方式参见 [Manifest v2](./RELEASE_MANIFEST_V2.md)。
 

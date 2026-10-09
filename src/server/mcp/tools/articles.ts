@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module MCP Article Tools
  * @description Registers MCP article reads and content mutations with explicit publication and withdrawal.
- * @logic Expose list, detail, create, and update through the article service while separating content updates from publication and withdrawal; permission writes remain in the web administrator interface.
+ * @logic List metadata without reading bodies, fetch full details on demand, and separate content updates from publication and withdrawal; permission writes remain in the web administrator interface.
  * @dependencies MCP TypeScript SDK, zod, document limits, admin article service, MCP tool contracts
  * @index_tags mcp,tools,article,content,draft
  * @author holic512
@@ -44,12 +44,11 @@ const membershipSummarySchema = z.object({
   rank: z.number().int(),
 }).nullable()
 
-const articleOutputSchema = z.object({
+const articleListOutputSchema = z.object({
   id: decimalIdSchema,
   title: z.string(),
   summary: z.string().nullable(),
   cover: z.string().nullable(),
-  content: z.string(),
   status: z.number().int(),
   requiredMembershipLevelId: decimalIdSchema.nullable(),
   requiredMembershipLevel: membershipSummarySchema,
@@ -60,6 +59,8 @@ const articleOutputSchema = z.object({
   updatedAt: isoDateSchema,
   isDeleted: z.boolean(),
 })
+
+const articleOutputSchema = articleListOutputSchema.extend({ content: z.string() })
 
 const articleValuesSchema = {
   title: z.string().trim().min(1).max(255),
@@ -86,7 +87,7 @@ export const articleToolDefinitions: McpToolDefinition[] = collectMcpToolDefinit
     'content.article.list',
     {
       title: '列出文章',
-      description: '分页读取未删除文章及会员访问要求。该工具只读。',
+      description: '分页读取未删除文章的元数据及会员访问要求，不返回正文。定位文章后用 content.article.get 按需读取正文。该工具只读。',
       inputSchema: z.strictObject({
         page: pageSchema,
         pageSize: pageSizeSchema,
@@ -94,7 +95,7 @@ export const articleToolDefinitions: McpToolDefinition[] = collectMcpToolDefinit
         status: statusSchema.optional(),
       }),
       outputSchema: z.object({
-        list: z.array(articleOutputSchema),
+        list: z.array(articleListOutputSchema),
         ...paginationOutputShape,
       }),
       annotations: READ_ONLY_ANNOTATIONS,

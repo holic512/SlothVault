@@ -1,5 +1,13 @@
 # Skill changes
 
+## 1.2.0
+
+- Limit supported connections to Codex and Claude Code native MCP; distinguish connection recovery from uncertain-write verification without replaying workflows.
+- Route article operations and technical writing to focused references while preserving project, attachment, and recovery capabilities.
+- Use MCP 5 metadata-only article lists and on-demand details; document live edits, withdrawal state, and uncertain-write recovery.
+- Ship an optional Python 3.10+ standard-library Markdown checker with line-located findings and explicit manual-review limits.
+- Keep native MCP connection independent of Python and preserve existing installation and invocation policy.
+
 ## 1.1.0
 
 - Use the host's discovered native SlothVault MCP tools and current schemas for administrator workflows.

@@ -8,6 +8,8 @@ POST https://<你的 SlothVault 域名>/mcp
 
 该入口仅接受通过管理员 MCP Key 认证的请求。它不接受、也不会回退到浏览器的 `sv_session` Cookie。
 
+产品仅支持 **Codex、Claude Code 自带的 MCP 客户端**，只维护这两种宿主的配置与使用指导，不提供第三方客户端适配、自建客户端、代理或桥接接入支持。服务端保持标准 MCP 协议，以管理员 MCP Key 鉴权，不根据 `clientInfo.name`、客户端版本或 User-Agent 判断准入。SlothTool 是可选的 Skill 安装更新与部署工具，不参与连接、发现或 Tool 调用。
+
 ## 创建与管理 MCP Key
 
 MCP Key 管理 API 均位于现有管理员 API 下，并要求普通管理员网页登录 Session：
@@ -30,9 +32,9 @@ MCP Key 管理 API 均位于现有管理员 API 下，并要求普通管理员�
 
 `expiresAt` 可省略或设为 `null`，表示 Key 不设置到期时间。创建响应会在 `data.key` 中返回完整 Key；这是唯一一次返回明文 Key。管理响应均为 private, no-store；创建 mutation 仅缓存安全元数据，本次 Key 不进入持久化。后续查询只返回 Key 名称、脱敏提示、状态、创建时间、到期时间和最后使用时间。
 
-## MCP 客户端配置
+## Codex / Claude Code 原生 MCP 配置
 
-在管理员 MCP Key 页点击“获取接入配置”，填写名称和有效期并明确“创建 Key 并生成配置”。创建成功后弹窗一次性展示下面两种配置，关闭或“我已保存配置”会清除本次明文。已有 Key 的“接入说明”只显示占位模板，不恢复明文、不静默轮换 Key。复制成功只代表配置已复制；是否连接成功须由宿主验证。
+在管理员 MCP Key 页点击“获取接入配置”，填写名称和有效期并明确“创建 Key 并生成配置”。创建成功后弹窗一次性展示下面两种配置，关闭或“我已保存配置”会清除本次明文。已有 Key 的“接入说明”只显示占位模板，不恢复明文、不静默轮换 Key。复制成功只代表配置已复制；保存配置后，须在对应宿主确认连接状态和工具发现。
 
 地址优先使用严格验证的 NEXT_PUBLIC_SITE_ORIGIN，缺失时为当前页面 origin；支持 HTTPS、localhost、端口和显式合法路径前缀，已有 /mcp 不重复追加。不读取 Host/Forwarded Header，不从 locale 或管理路径推导。无效配置会在创建前阻止提交。当前应用部署在根路径；使用前缀时须由反向代理保证该路径可达。
 
@@ -54,7 +56,7 @@ claude mcp add --transport http --scope user slothvault 'https://your-vault.exam
 
 以上仅使用明显占位令牌。模板生成器分别使用合法 TOML 字符串和 POSIX Shell 单引号转义；没有 Windows 命令模板。Codex auto 表示宿主审批策略，服务器仍验证 Key 权限。两个模板直连标准 HTTP，无 stdio 转发器或专用 Python 包。
 
-配置依据：[Codex MCP](https://learn.chatgpt.com/docs/extend/mcp)、[配置参考](https://learn.chatgpt.com/docs/config-file/config-reference)、[Claude Code MCP](https://code.claude.com/docs/en/mcp)，已按当前官方页面核验。Claude --header 为可变参数，放在名称与 URL 之后。
+配置资料：[Codex MCP](https://learn.chatgpt.com/docs/extend/mcp)、[配置参考](https://learn.chatgpt.com/docs/config-file/config-reference)、[Claude Code MCP](https://code.claude.com/docs/en/mcp)。配置字段与命令的核验范围见 [验证记录](../integrations/skill/tests/VALIDATION.md#原生宿主接入补充验证)。Claude `--header` 为可变参数，放在名称与 URL 之后。
 
 将完整 Key 配置为 MCP 客户端请求 `/mcp` 时的 Bearer 凭据：
 
@@ -70,9 +72,9 @@ Authorization: Bearer svmcp_<public-id>.<secret>
 
 任一检查失败都会返回 HTTP `401` 和 MCP JSON-RPC 未认证错误。禁用或删除 Key 在下一次外部 MCP 请求时立即生效。
 
-## MCP 4.0 Tool
+## MCP 5.0 Tool
 
-MCP server identity 为 `slothvault-admin-mcp@4.0.0`。当前注册表共 67 个 Tool、4 个 Prompt、2 个 Resource 模板；按实时 schema 发现并使用点号分层的业务名称。
+MCP server identity 为 `slothvault-admin-mcp@5.0.0`。当前注册表共 67 个 Tool、4 个 Prompt、2 个 Resource 模板；按实时 schema 发现并使用点号分层的业务名称。
 
 完整 Tool/Resource 清单、领域、风险、幂等性、URI、文件名和大小上限由注册表生成：[MCP Registry 清单](./MCP_REGISTRY.md)。修改 `src/server/mcp/tools/` 或 `src/server/mcp/resource-catalog.json` 后运行 `npm run mcp:docs`；CI 使用 `npm run mcp:docs:check` 阻止文档过期。
 
@@ -154,7 +156,7 @@ MCP 支持项目版本发布、可见性调整及文章发布/撤回，复用网
 Tool、Prompt 与 Resource 注册分别位于 `src/server/mcp/tools/`、`src/server/mcp/prompts.ts` 和 `src/server/mcp/resources.ts`，均复用 `/mcp` 的 MCP Key 鉴权边界。
 
 
-## 委托项目与合同草稿（MCP 4.0.0）
+## 委托项目与合同草稿（自 MCP 4.0.0 起）
 
 委托工作区以冻结时间轴连接需求、合同、支付比例、交付与维护，与公开文档项目独立。
 
@@ -165,3 +167,9 @@ Tool、Prompt 与 Resource 注册分别位于 `src/server/mcp/tools/`、`src/ser
 5. 链上存证由管理员在网页连接钱包，确认网络与手续费后签名。MCP 不代签，也不直接广播钱包交易。
 
 旧的通用阶段更新工具已删除。正式记录只能追加补充；写入须带 `commandId` 与最新 `revision`，冲突时先重新读取。历史合同查询及受保护附件 Resource 继续可用。
+
+## MCP 5.0：文章列表与正文分离
+
+`content.article.list` 只返回原有文章元数据，不再返回 `content`。对应数据库查询也不读取正文；需要正文的调用方应先定位文章，再调用 `content.article.get`。后台管理列表 `GET /api/admin/mm/article` 同步采用该契约；编辑器已经通过详情接口读取正文。创建、更新、发布、撤回和详情返回继续包含完整正文。
+
+这是业务输出契约的不兼容变更，依赖旧列表正文的客户端需要迁移并刷新工具发现。服务器身份版本为 5.0.0；MCP 日期协议、鉴权、维护锁、67 个 Tool、4 个 Prompt 和 2 个 Resource 模板保持不变。发布后正文冻结仅适用于项目版本；独立文章仍可原地编辑，可能立即影响公开内容。公开文章列表的默认摘要生成逻辑保持不变。

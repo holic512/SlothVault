@@ -1,7 +1,7 @@
 interface:
   display_name: "SlothVault MCP"
-  short_description: "Operate SlothVault through the host's native MCP tools"
-  default_prompt: "Use $slothvault-mcp with my host's connected SlothVault MCP tools to complete the requested operation."
+  short_description: "SlothVault native MCP for Codex and Claude Code"
+  default_prompt: "Use $slothvault-mcp with the current Codex or Claude Code host's connected native MCP tools to complete the requested operation."
 
 policy:
   allow_implicit_invocation: true

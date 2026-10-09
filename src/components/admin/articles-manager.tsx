@@ -23,12 +23,11 @@ import { AdminPage, AdminPageActions, AdminTablePanel } from '@/components/admin
 import { formatAdminDate, formatAdminError } from '@/lib/admin-localization'
 import { apiFetch } from '@/lib/api-client'
 
-type ArticleDto = {
+type ArticleListItem = {
   id: string
   title: string
   summary: string | null
   cover: string | null
-  content: string
   status: number
   requiredMembershipLevelId: string | null
   allowedMembershipLevels: Array<{ id: string; name: string; rank: number; status: number }>
@@ -39,7 +38,7 @@ type ArticleDto = {
 }
 
 type ArticleListData = {
-  list: ArticleDto[]
+  list: ArticleListItem[]
   page: number
   pageSize: number
   total: number
@@ -69,11 +68,11 @@ export function ArticlesManager() {
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['admin-articles'] })
   const lifecycle = useMutation({
-    mutationFn: async ({ article, action }: { article: ArticleDto; action: 'publish' | 'withdraw' | 'delete' }) => {
+    mutationFn: async ({ article, action }: { article: ArticleListItem; action: 'publish' | 'withdraw' | 'delete' }) => {
       if (action === 'delete') {
-        return apiFetch<ArticleDto>(`/api/admin/mm/article/${article.id}`, { method: 'DELETE' })
+        return apiFetch<ArticleListItem>(`/api/admin/mm/article/${article.id}`, { method: 'DELETE' })
       }
-      return apiFetch<ArticleDto>(`/api/admin/mm/article/${article.id}/${action}`, {
+      return apiFetch<ArticleListItem>(`/api/admin/mm/article/${article.id}/${action}`, {
         method: 'POST',
         body: JSON.stringify({}),
       })
@@ -85,7 +84,7 @@ export function ArticlesManager() {
     onError: (error) => message.error(formatAdminError(error, errorT)),
   })
 
-  const confirmDelete = (article: ArticleDto) => {
+  const confirmDelete = (article: ArticleListItem) => {
     modal.confirm({
       title: t('messages.deleteTitle'),
       content: t('messages.deleteConfirm', { title: article.title }),
@@ -96,7 +95,7 @@ export function ArticlesManager() {
     })
   }
 
-  const columns: ColumnsType<ArticleDto> = [
+  const columns: ColumnsType<ArticleListItem> = [
     {
       title: t('table.article'),
       dataIndex: 'title',
@@ -129,7 +128,7 @@ export function ArticlesManager() {
       title: t('table.access'),
       dataIndex: 'allowedMembershipLevels',
       width: 150,
-      render: (value: ArticleDto['allowedMembershipLevels']) => value?.length
+      render: (value: ArticleListItem['allowedMembershipLevels']) => value?.length
         ? <Space wrap>{value.map((item) => <Tag key={item.id} color="gold">{item.name}</Tag>)}</Space>
         : <Tag color="green">{t('table.public')}</Tag>,
     },

@@ -16,7 +16,7 @@ vi.mock('@/server/prisma', () => ({ get prisma() { return mocks.client } }))
 vi.mock('@/server/database/client', () => ({ getDatabaseClient: () => mocks.client, configuredDatabaseProvider: () => mocks.provider }))
 vi.mock('@/server/services/public-article-cache', () => ({ invalidatePublicArticleCache: vi.fn() }))
 vi.mock('@/server/services/public-project-cache', () => ({ invalidatePublicProjectCache: vi.fn() }))
-import { createAdminArticle, publishAdminArticle, withdrawAdminArticle } from './admin-articles'
+import { createAdminArticle, getAdminArticle, listAdminArticles, publishAdminArticle, withdrawAdminArticle } from './admin-articles'
 import { cloneProjectVersion, getProjectVersionIntegrity, publishProjectVersion, setProjectVersionVisibility } from './project-version-release'
 import { updateAdminCategory } from './admin-catalog/categories'
 import { listAdminProjectVersionsByProject, updateAdminProjectVersion } from './admin-catalog/project-versions'
@@ -85,6 +85,14 @@ for (const provider of providers) describe(`${provider} publication lifecycle`, 
       expect(await withdrawAdminArticle(id)).toMatchObject({ status: 0, publishedAt: released.publishedAt })
       expect(await publishAdminArticle(id)).toMatchObject({ status: 1, publishedAt: released.publishedAt })
     } finally { await client.article.delete({ where: { id } }) }
+  })
+
+  it('reads body-free lists and full details against the real database', async () => {
+    const article = await createAdminArticle({ title: 'List/detail regression', content: 'Only in detail' })
+    const listed = await listAdminArticles({ page: 1, pageSize: 10, skip: 0, keyword: 'List/detail regression', status: 0 })
+    expect(listed.list.find(item => item.id === article.id)).toMatchObject({ title: article.title, summary: null })
+    expect(listed.list.every(item => !('content' in item))).toBe(true)
+    expect(await getAdminArticle(Number(article.id))).toMatchObject({ content: 'Only in detail' })
   })
   it('publishes once, edits metadata without changing the digest, and atomically rejects mixed body changes', async () => {
     const s = await seed()

@@ -237,7 +237,37 @@ async function resultOf(message: Record<string, unknown>) {
 }
 
 describe('administrator MCP server', () => {
-  it('publishes the 4.0 identity and the complete safe daily-management tool registry', async () => {
+  it('keeps bodies out of list schemas and both wire outputs, and measures list/detail payloads', async () => {
+    const article = { id: '12', title: 'Article', summary: null, cover: null, content: '正文示例'.repeat(5_000), status: 1,
+      allowedMembershipLevelIds: [], allowedMembershipLevels: [], requiredMembershipLevelId: null,
+      requiredMembershipLevel: null, publishedAt: timestamp, createdAt: timestamp, updatedAt: timestamp, isDeleted: false }
+    const oldList = { list: Array.from({ length: 20 }, (_, index) => ({ ...article, id: String(index + 1) })), page: 1, pageSize: 20, total: 20 }
+    // Feed a full legacy DTO to prove that both SDK outputs honor the new list contract.
+    mocks.listAdminArticles.mockResolvedValue(oldList)
+    const listed = await resultOf({ jsonrpc: '2.0', id: 81, method: 'tools/call', params: { name: 'content.article.list', arguments: {} } })
+    expect(listed.result.isError).not.toBe(true)
+    expect(listed.result.structuredContent.list).toHaveLength(20)
+    for (const item of listed.result.structuredContent.list) expect(item).not.toHaveProperty('content')
+    expect(JSON.parse(listed.result.content[0].text)).toEqual(listed.result.structuredContent)
+    expect(JSON.stringify(listed)).not.toContain(article.content)
+    mocks.getAdminArticle.mockResolvedValue(article)
+    const detail = await resultOf({ jsonrpc: '2.0', id: 82, method: 'tools/call', params: { name: 'content.article.get', arguments: { articleId: '12' } } })
+    expect(detail.result.structuredContent).toMatchObject(JSON.parse(JSON.stringify(article)))
+    expect(JSON.parse(detail.result.content[0].text)).toEqual(detail.result.structuredContent)
+    const discovered = await resultOf({ jsonrpc: '2.0', id: 83, method: 'tools/list', params: {} })
+    const listTool = discovered.result.tools.find(tool => tool.name === 'content.article.list')!
+    expect(JSON.stringify(listTool.outputSchema)).not.toContain('"content"')
+    const legacy = { jsonrpc: '2.0', id: 81, result: { content: [{ type: 'text', text: JSON.stringify(oldList) }], structuredContent: oldList } }
+    const bytes = (value: unknown) => Buffer.byteLength(JSON.stringify(value))
+    const before = bytes(legacy), after = bytes(listed), detailBytes = bytes(detail)
+    expect(after / before).toBeLessThan(0.1)
+    expect((after + detailBytes) / before).toBeLessThan(0.15)
+    process.stdout.write('[article-payload-benchmark] ' + JSON.stringify({ articles: 20, charactersPerBody: article.content.length,
+      oldListBytes: before, newListBytes: after, newListPlusOneDetailBytes: after + detailBytes,
+      listReductionPercent: Number(((1 - after / before) * 100).toFixed(2)), oldLocateAndReadCalls: 1, newLocateAndReadCalls: 2 }) + '\n')
+  })
+
+  it('publishes the 5.0 identity and the complete safe daily-management tool registry', async () => {
     const initialize = await resultOf({
       jsonrpc: '2.0', id: 1, method: 'initialize',
       params: {
@@ -246,7 +276,7 @@ describe('administrator MCP server', () => {
       },
     })
     expect(initialize).toMatchObject({
-      result: { serverInfo: { name: 'slothvault-admin-mcp', version: '4.0.0' } },
+      result: { serverInfo: { name: 'slothvault-admin-mcp', version: '5.0.0' } },
     })
 
     const listed = await resultOf({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} })
@@ -603,17 +633,18 @@ describe('administrator MCP server', () => {
   })
 })
 
-const nativePlaceholderKey = `svmcp_${'EXAMPLE_ONLY'.padEnd(24, '_')}.${'EXAMPLE_ONLY_NOT_A_SECRET'.padEnd(43, '_')}`
-function activeNativeKey() {
+const sdkPlaceholderKey = `svmcp_${'EXAMPLE_ONLY'.padEnd(24, '_')}.${'EXAMPLE_ONLY_NOT_A_SECRET'.padEnd(43, '_')}`
+function activeSdkKey() {
   return { id: 4, publicId: 'EXAMPLE_ONLY'.padEnd(24, '_'), secretHash: 'EXAMPLE_HASH_ONLY',
     status: 1, expiresAt: null, user: { id: 7, username: 'admin', role: 'ADMIN', status: 1 } }
 }
 
-function nativeClient(name: string, key = nativePlaceholderKey) {
+// In-process SDK protocol harness; this does not launch Codex or Claude Code.
+function sdkTestClient(name = 'sdk-protocol-test', key = sdkPlaceholderKey, version = '1.0.0', userAgent = 'SlothVault-SDK-Test') {
   const requests: Request[] = []
-  const client = new Client({ name, version: '1.0.0' })
+  const client = new Client({ name, version })
   const transport = new StreamableHTTPClientTransport(new URL('https://vault.example/mcp'), {
-    requestInit: { headers: { Authorization: `Bearer ${key}` } },
+    requestInit: { headers: { Authorization: `Bearer ${key}`, 'User-Agent': userAgent } },
     fetch: async (input, init) => {
       const request = new Request(input, init)
       requests.push(request)
@@ -626,20 +657,20 @@ function nativeClient(name: string, key = nativePlaceholderKey) {
   return { client, transport, requests }
 }
 
-describe('standard SDK clients through the real /mcp route', () => {
+describe('SDK protocol simulation through the /mcp route', () => {
   beforeEach(() => {
     mocks.health.mockResolvedValue({ status: 'INSTALLED' })
-    mocks.findMcpKey.mockResolvedValue(activeNativeKey())
+    mocks.findMcpKey.mockResolvedValue(activeSdkKey())
     mocks.touchMcpKey.mockResolvedValue({ count: 1 })
     mocks.verifyPassword.mockResolvedValue(true)
   })
 
-  it.each(['Codex', 'claude-code', 'standard-mcp-client'])('initializes, discovers and reads using %s', async (name) => {
-    const { client, transport, requests } = nativeClient(name)
+  it('initializes, discovers and reads through the standard protocol', async () => {
+    const { client, transport, requests } = sdkTestClient()
     mocks.listAdminProjects.mockResolvedValue({ list: [project({ latestVersion: "v1", latestVersionId: "11", categoryCount: 2 })], page: 1, pageSize: 20, total: 1 })
     try {
       await client.connect(transport)
-      expect(client.getServerVersion()).toEqual({ name: 'slothvault-admin-mcp', version: '4.0.0' })
+      expect(client.getServerVersion()).toEqual({ name: 'slothvault-admin-mcp', version: '5.0.0' })
       expect(client.getInstructions()).toBe(ADMIN_MCP_INSTRUCTIONS)
       expect((await client.listTools()).tools).toHaveLength(67)
       expect((await client.listPrompts()).prompts).toHaveLength(4)
@@ -663,19 +694,40 @@ describe('standard SDK clients through the real /mcp route', () => {
     } finally { await client.close() }
   })
 
+  // Self-reported identity is protocol data, not proof of a supported host or authority.
+  it.each([
+    ['Codex', '0.0.0', 'codex-test-fixture'],
+    ['claude-code', '999.0.0', 'claude-test-fixture'],
+    ['arbitrary-protocol-fixture', '1.2.3', 'unrecognized-test-agent'],
+  ])('uses Key authorization regardless of self-reported identity: %s', async (name, version, userAgent) => {
+    mocks.listAdminProjects.mockResolvedValue({ list: [], page: 1, pageSize: 20, total: 0 })
+    const { client, transport } = sdkTestClient(name, sdkPlaceholderKey, version, userAgent)
+    try {
+      await client.connect(transport)
+      const result = await client.callTool({ name: 'content.project.list', arguments: {} })
+      expect(result.isError).not.toBe(true)
+      expect(result.structuredContent).toEqual({ list: [], page: 1, pageSize: 20, total: 0 })
+    } finally { await client.close() }
+
+    const invalid = sdkTestClient(name, 'SLOTHVAULT_MCP_KEY_EXAMPLE_INVALID', version, userAgent)
+    try {
+      await expect(invalid.client.connect(invalid.transport)).rejects.toMatchObject({ code: 401 })
+    } finally { await invalid.client.close() }
+  })
+
   it.each([
     ['expired', { expiresAt: new Date('2020-01-01') }],
     ['disabled', { status: 0 }],
     ['non-admin', { user: { id: 7, username: 'example', role: 'USER', status: 1 } }],
     ['disabled account', { user: { id: 7, username: 'example', role: 'ADMIN', status: 0 } }],
   ])('refuses %s credentials at initialize', async (_name, overrides) => {
-    mocks.findMcpKey.mockResolvedValue({ ...activeNativeKey(), ...overrides })
-    const { client, transport } = nativeClient('Codex')
+    mocks.findMcpKey.mockResolvedValue({ ...activeSdkKey(), ...overrides })
+    const { client, transport } = sdkTestClient()
     try { await expect(client.connect(transport)).rejects.toMatchObject({ code: 401 }) } finally { await client.close() }
   })
 
   it('refuses invalid keys', async () => {
-    const { client, transport } = nativeClient('claude-code', 'SLOTHVAULT_MCP_KEY_EXAMPLE_INVALID')
+    const { client, transport } = sdkTestClient('sdk-protocol-test', 'SLOTHVAULT_MCP_KEY_EXAMPLE_INVALID')
     try { await expect(client.connect(transport)).rejects.toMatchObject({ code: 401 }) } finally { await client.close() }
   })
 
@@ -685,7 +737,7 @@ describe('standard SDK clients through the real /mcp route', () => {
       method: 'POST',
       headers: { Cookie: 'sv_session=EXAMPLE_SESSION_ONLY', 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {
-        protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'Codex', version: '1.0.0' },
+        protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'sdk-protocol-test', version: '1.0.0' },
       } }),
     }))
     expect(response.status).toBe(401)
@@ -694,17 +746,17 @@ describe('standard SDK clients through the real /mcp route', () => {
   })
 
   it('revalidates revocation between requests and before Resource reads', async () => {
-    const { client, transport } = nativeClient('standard-mcp-client')
+    const { client, transport } = sdkTestClient()
     try {
       await client.connect(transport)
-      mocks.findMcpKey.mockResolvedValue({ ...activeNativeKey(), status: 0 })
+      mocks.findMcpKey.mockResolvedValue({ ...activeSdkKey(), status: 0 })
       await expect(client.listTools()).rejects.toMatchObject({ code: 401 })
       await expect(client.readResource({ uri: 'slothvault://managed-file/44' })).rejects.toMatchObject({ code: 401 })
     } finally { await client.close() }
   })
 
   it('keeps Resource domains and size limits enforced', async () => {
-    const { client, transport } = nativeClient('standard-mcp-client')
+    const { client, transport } = sdkTestClient()
     try {
       await client.connect(transport)
       for (const businessType of ['ContractAttachment', 'CommissionAttachment']) {
@@ -723,15 +775,15 @@ describe('standard SDK clients through the real /mcp route', () => {
   it('never includes the Bearer credential in success or authentication-failure logs', async () => {
     const info = vi.spyOn(console, 'info').mockImplementation(() => {})
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const { client, transport } = nativeClient('standard-mcp-client')
+    const { client, transport } = sdkTestClient()
     mocks.listAdminProjects.mockResolvedValue({ list: [], page: 1, pageSize: 20, total: 0 })
     try {
       await client.connect(transport)
       await client.callTool({ name: 'content.project.list', arguments: {} })
-      mocks.findMcpKey.mockResolvedValue({ ...activeNativeKey(), status: 0 })
+      mocks.findMcpKey.mockResolvedValue({ ...activeSdkKey(), status: 0 })
       await expect(client.listTools()).rejects.toMatchObject({ code: 401 })
       const logged = JSON.stringify([info.mock.calls, error.mock.calls])
-      expect(logged).not.toContain(nativePlaceholderKey)
+      expect(logged).not.toContain(sdkPlaceholderKey)
       expect(logged).not.toContain('EXAMPLE_ONLY_NOT_A_SECRET')
     } finally {
       await client.close()

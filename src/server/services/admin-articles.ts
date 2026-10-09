@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Administrator Article Publishing
  * @description Owns administrator-only CRUD and lifecycle operations for independent blog articles.
- * @logic Persist explicit membership allowlists and file references atomically, validate publication under a row lock, and preserve the first publication timestamp across withdrawals, soft-delete to a draft state, and invalidate public cache after every mutation.
+ * @logic Query metadata-only lists and full details separately; persist membership allowlists and file references atomically, validate publication under a row lock, preserve the first publication timestamp, and invalidate public cache after mutations.
  * @dependencies Prisma Article model, document content limits, HTTP errors, public article cache
  * @index_tags admin,article,blog,crud,publish,withdraw
  * @author holic512
@@ -45,35 +45,49 @@ const ARTICLE_SUMMARY_MAX_CHARACTERS = 500
 const ARTICLE_COVER_MAX_CHARACTERS = 500
 const ARTICLE_COVER_PATTERN = /^\/uploads\/article-cover\/[0-9a-f-]+\.(?:gif|jpe?g|png|webp)$/i
 
-type ArticleLike = {
+type ArticleMetadataLike = {
   id: number
   title: string
   summary: string | null
   cover: string | null
-  content: string
   status: number
   requiredMembershipLevelId: number | null
   publishedAt: Date | null
   createdAt: Date
   updatedAt: Date
   isDeleted: boolean
+  deletedAt?: Date | null
   allowedMemberships?: Array<{ membershipLevelId: number; membershipLevel: { id: number; name: string; rank: number; status: number } }>
   requiredMembershipLevel?: { id: number; name: string; rank: number } | null
 }
 
-export function adminArticleDto(article: ArticleLike) {
+export function adminArticleListDto(article: ArticleMetadataLike) {
   return {
-    ...article,
     id: article.id.toString(),
+    title: article.title,
+    summary: article.summary,
+    cover: article.cover,
+    status: article.status,
+    publishedAt: article.publishedAt,
+    createdAt: article.createdAt,
+    updatedAt: article.updatedAt,
+    isDeleted: article.isDeleted,
+    deletedAt: article.deletedAt,
     allowedMembershipLevelIds: (article.allowedMemberships ?? []).map((item) => String(item.membershipLevelId)),
     allowedMembershipLevels: (article.allowedMemberships ?? []).map(({ membershipLevel }) => ({ ...membershipLevel, id: String(membershipLevel.id) })),
-    allowedMemberships: undefined,
     requiredMembershipLevelId: article.requiredMembershipLevelId?.toString() ?? null,
     requiredMembershipLevel: article.requiredMembershipLevel
       ? { ...article.requiredMembershipLevel, id: article.requiredMembershipLevel.id.toString() }
       : null,
   }
 }
+
+export function adminArticleDto(article: ArticleMetadataLike & { content: string }) {
+  return { ...adminArticleListDto(article), content: article.content }
+}
+
+export type AdminArticleListDto = ReturnType<typeof adminArticleListDto>
+export type AdminArticleDto = ReturnType<typeof adminArticleDto>
 
 function titleValue(value: unknown, required = true) {
   if (value === undefined && !required) return undefined
@@ -158,12 +172,25 @@ export async function listAdminArticles(input: {
       skip: input.skip,
       take: input.pageSize,
       orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
-      include: ARTICLE_ACCESS_INCLUDE,
+      select: {
+        id: true,
+        title: true,
+        summary: true,
+        cover: true,
+        status: true,
+        requiredMembershipLevelId: true,
+        publishedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        isDeleted: true,
+        deletedAt: true,
+        ...ARTICLE_ACCESS_INCLUDE,
+      },
     }),
   ])
 
   return {
-    list: list.map(adminArticleDto),
+    list: list.map(adminArticleListDto),
     page: input.page,
     pageSize: input.pageSize,
     total,

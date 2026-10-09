@@ -2,7 +2,7 @@
  * @file index.ts
  * @project SlothVault
  * @module MCP Tool Registry
- * @description Aggregates the MCP 4.0 content-management and private commission draft tool registries.
+ * @description Aggregates the MCP 5.0 content-management and private commission draft tool registries.
  * @logic Bind authenticated administrator identity only where authorship is required and keep every tool delegated to established service-layer operations rather than web routes.
  * @dependencies MCP TypeScript SDK, domain tool registries, services/mcp-api-keys
  * @index_tags mcp,tools,registry,administrator,catalog,notes

@@ -2,6 +2,8 @@ import importlib.util
 import json
 import re
 import shutil
+import subprocess
+import sys
 import tarfile
 import tempfile
 import unittest
@@ -72,15 +74,48 @@ class IndependentPackagesTest(unittest.TestCase):
         skill = (source / "slothvault-mcp/SKILL.md").read_text()
         self.assertIn('name: slothvault-mcp', skill)
         self.assertIn(f'version: "{metadata["version"]}"', skill)
-        self.assertEqual(metadata["version"], "1.1.0")
+        self.assertEqual(metadata["version"], "1.2.0")
         self.assertNotIn("minPython", metadata)
         for relative in re.findall(r'\]\((references/[^)]+)\)', skill):
             self.assertTrue((source / "slothvault-mcp" / relative).is_file(), relative)
-        combined = "\n".join(path.read_text() for path in (source / "slothvault-mcp").rglob("*") if path.is_file())
+        # Inspect shipped text, not local files such as .DS_Store or bytecode caches.
+        with tempfile.TemporaryDirectory() as tmp:
+            archive_path, _, _ = builder.package_module("skill", Path(tmp), "pending", [])
+            with tarfile.open(archive_path) as archive:
+                combined = "\n".join(archive.extractfile(item).read().decode("utf-8")
+                                     for item in archive.getmembers()
+                                     if Path(item.name).suffix in {".md", ".yaml", ".py"})
         self.assertNotRegex(combined, r'slothvault-mcp\s+(doctor|setup|tools|profile)|--args-file|--yes|--key-stdin|mcp register')
         for invariant in ("targetVersionId", "check_draft", "VERSION_FROZEN", "resourceUri", "filePath", "commandId"):
             self.assertIn(invariant, combined)
         self.assertIn("allow_implicit_invocation: true", (source / "slothvault-mcp/agents/openai.yaml").read_text())
+
+    def test_skill_archive_ignores_system_files_and_runs_checker_without_repository(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "integrations"
+            shutil.copytree(builder.ROOT / "skill", root / "skill")
+            (root / "skill/slothvault-mcp/.DS_Store").write_bytes(b"\xff\x00")
+            with patch.object(builder, "ROOT", root):
+                path, manifest_path, _ = builder.package_module("skill", Path(tmp) / "out", "pending", [])
+            files = json.loads(manifest_path.read_text())["files"]
+            self.assertNotIn("slothvault-mcp/.DS_Store", files)
+            for name in ("references/article-workflow.md", "references/technical-writing.md", "scripts/check_article.py"):
+                self.assertIn("slothvault-mcp/" + name, files)
+            # Extract only the verified regular files; do not rely on tar extraction policies.
+            with tarfile.open(path) as archive:
+                for item in archive.getmembers():
+                    target = Path(tmp) / "installed" / item.name
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(archive.extractfile(item).read())
+            installed = Path(tmp) / "installed/package/slothvault-mcp"
+            for source in installed.rglob("*.md"):
+                for link in re.findall(r'\]\(([^)]+)\)', source.read_text()):
+                    if "://" not in link:
+                        self.assertTrue((source.parent / link.split("#")[0]).is_file(), link)
+            result = subprocess.run([sys.executable, "scripts/check_article.py", "-", "--format", "json"],
+                                    cwd=installed, input="短篇正文".encode(), capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(result.stdout)["issues"], [])
 
 
 if __name__ == "__main__":

@@ -5,6 +5,8 @@ const mocks = vi.hoisted(() => ({
   transaction: vi.fn(),
   prisma: {
     article: {
+      count: vi.fn(),
+      findMany: vi.fn(),
       create: vi.fn(),
       findFirst: vi.fn(),
       findUnique: vi.fn(),
@@ -29,6 +31,8 @@ vi.mock('@/server/services/admin-catalog', () => ({
 import {
   createAdminArticle,
   deleteAdminArticle,
+  getAdminArticle,
+  listAdminArticles,
   publishAdminArticle,
   updateAdminArticle,
   withdrawAdminArticle,
@@ -59,6 +63,37 @@ function articleRecord(overrides: Record<string, unknown> = {}) {
 
 describe('administrator independent articles', () => {
   beforeEach(() => { vi.clearAllMocks(); mocks.transaction.mockImplementation((operation) => operation(mocks.prisma)); mocks.prisma.article.updateMany.mockResolvedValue({ count: 1 }) })
+
+  it('selects only metadata while preserving filters, ordering, pagination and membership DTOs', async () => {
+    mocks.prisma.article.count.mockResolvedValue(31)
+    // Intentionally include a body in this mock: the DTO must not leak it even if a reader regresses.
+    mocks.prisma.article.findMany.mockResolvedValue([articleRecord({
+      requiredMembershipLevelId: 2,
+      requiredMembershipLevel: { id: 2, name: 'Member', rank: 1 },
+      allowedMemberships: [{ membershipLevelId: 2, membershipLevel: { id: 2, name: 'Member', rank: 1, status: 1 } }],
+    })])
+    const result = await listAdminArticles({ page: 2, pageSize: 10, skip: 10, keyword: 'guide', status: 0 })
+    const query = mocks.prisma.article.findMany.mock.calls[0][0]
+    expect(query).toMatchObject({
+      where: { isDeleted: false, status: 0, OR: [{ title: { contains: 'guide' } }, { summary: { contains: 'guide' } }] },
+      skip: 10, take: 10, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+      select: { id: true, title: true, summary: true, ...requiredMembershipLevelInclude },
+    })
+    expect(query).not.toHaveProperty('include')
+    expect(query.select).not.toHaveProperty('content')
+    expect(mocks.prisma.article.count).toHaveBeenCalledWith({ where: query.where })
+    expect(result).toMatchObject({ page: 2, pageSize: 10, total: 31, list: [{
+      id: '8', summary: null, requiredMembershipLevelId: '2',
+      allowedMembershipLevelIds: ['2'], allowedMembershipLevels: [{ id: '2', name: 'Member', rank: 1, status: 1 }],
+    }] })
+    expect(result.list[0]).not.toHaveProperty('content')
+    expect(result.list[0]).not.toHaveProperty('allowedMemberships')
+  })
+
+  it('keeps complete bodies in article details', async () => {
+    mocks.prisma.article.findUnique.mockResolvedValue(articleRecord())
+    expect(await getAdminArticle(8)).toMatchObject({ id: '8', content: '# Body' })
+  })
 
   it('creates a draft without accepting lifecycle state from the caller', async () => {
     mocks.prisma.article.create.mockResolvedValue(articleRecord())
