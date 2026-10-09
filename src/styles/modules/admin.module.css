@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Administrator Experience Styles
  * @description Scopes the administration shell, managers, editors, settings, backup, Solana, and the operations-dashboard analytics surfaces.
- * @logic Compose dense management workflows under the authenticated admin layout, derive semantic dashboard colors from theme tokens, allocate full-height editor surfaces inside padded content, and retain readable charts and activity flows on compact screens.
+ * @logic Compose dense management workflows under the authenticated admin layout, derive semantic dashboard colors from theme tokens, apply the shared admin type scale, allocate full-height editor surfaces inside padded content, and retain readable charts and activity flows on compact screens.
  * @dependencies SlothVault design tokens, administration feature markup
  * @index_tags css-module,admin,dashboard,analytics,semantic-colors,editor,responsive
  * @author holic512
@@ -11,83 +11,6 @@
 
 .root :global(.admin-mobile-trigger) {
   display: none !important;
-}
-
-@media (max-width: 1180px) {
-  .root :global(.dashboard-metric-grid) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .root :global(.dashboard-secondary-grid) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .root :global(.dashboard-attention-panel) {
-    grid-column: span 2;
-  }
-}
-
-@media (max-width: 900px) {
-  .root :global(.dashboard-toolbar),
-  .root :global(.dashboard-primary-grid) {
-    grid-template-columns: 1fr;
-  }
-
-  .root :global(.dashboard-toolbar) {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .root :global(.dashboard-toolbar-actions) {
-    justify-content: flex-start;
-  }
-
-  .root :global(.dashboard-generated-at) {
-    text-align: left;
-  }
-}
-
-@media (max-width: 640px) {
-  .root :global(.dashboard-metric-grid),
-  .root :global(.dashboard-secondary-grid),
-  .root :global(.dashboard-loading-panels) {
-    grid-template-columns: 1fr;
-  }
-
-  .root :global(.dashboard-attention-panel) {
-    grid-column: auto;
-  }
-
-  .root :global(.dashboard-metric-card) {
-    min-height: 128px;
-  }
-
-  .root :global(.dashboard-toolbar-actions) :global(.ant-segmented),
-  .root :global(.dashboard-toolbar-actions) :global(.ant-btn) {
-    flex: 1;
-  }
-
-  .root :global(.dashboard-chart-stage) svg {
-    height: 220px;
-  }
-
-  .root :global(.dashboard-activity-item) {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-  }
-
-  .root :global(.dashboard-activity-item) time {
-    grid-column: 2;
-    grid-row: 2;
-  }
-
-  .root :global(.dashboard-activity-status) {
-    grid-column: 3;
-    grid-row: 1;
-  }
-
-  .root :global(.dashboard-activity-arrow) {
-    display: none;
-  }
 }
 
 .root {
@@ -161,9 +84,9 @@
   padding: 0 11px;
   border-bottom: 1px solid var(--sv-admin-border);
   color: var(--sv-text);
-  font-size: 13px;
-  font-weight: 750;
-  letter-spacing: -0.03em;
+  font-size: var(--sv-admin-font-navigation);
+  font-weight: var(--sv-admin-weight-strong);
+  letter-spacing: normal;
   text-decoration: none;
   white-space: nowrap;
 }
@@ -201,8 +124,12 @@
   margin-block: 1px;
   line-height: 32px;
   border-radius: var(--sv-admin-radius);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--sv-admin-font-navigation);
+  font-weight: var(--sv-admin-weight-regular);
+}
+
+.root :global(.admin-menu) :global(.ant-menu-item-selected) {
+  font-weight: var(--sv-admin-weight-strong);
 }
 
 .root :global(.admin-menu:not(.ant-menu-inline-collapsed)) :global(.ant-menu-item) {
@@ -220,9 +147,10 @@
 .root :global(.admin-menu) :global(.ant-menu-item-group-title) {
   padding: 6px 9px 2px !important;
   color: var(--sv-text-muted) !important;
-  font-size: 11px;
-  font-weight: 400;
-  line-height: 1.4;
+  font-size: var(--sv-admin-font-caption);
+  font-weight: var(--sv-admin-weight-regular);
+  line-height: var(--sv-admin-line-label);
+  text-transform: none;
 }
 
 .root :global(.admin-sider):global(.ant-layout-sider-collapsed) :global(.admin-menu) :global(.ant-menu-item-group-title) {
@@ -244,7 +172,7 @@
   background: transparent;
   color: var(--sv-text-muted);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--sv-admin-font-navigation);
 }
 
 .root :global(.admin-collapse):hover {
@@ -280,7 +208,7 @@
   align-items: center;
   gap: 5px;
   color: var(--sv-text-muted);
-  font-size: 12px;
+  font-size: var(--sv-admin-font-navigation);
   line-height: 1;
 }
 
@@ -303,7 +231,7 @@
 .root :global(.admin-breadcrumb) span:last-child {
   overflow: hidden;
   color: var(--sv-text);
-  font-weight: 650;
+  font-weight: var(--sv-admin-weight-strong);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -383,10 +311,10 @@
   background: color-mix(in srgb, var(--sv-bg-solid) 90%, var(--sv-bg-soft));
   color: var(--sv-text);
   font-family: var(--sv-font-body);
-  font-size: 12px;
-  font-weight: 650;
+  font-size: var(--sv-admin-font-secondary);
+  font-weight: var(--sv-admin-weight-strong);
   line-height: 1;
-  letter-spacing: -0.01em;
+  letter-spacing: normal;
   transition: border-color var(--sv-motion-fast) var(--sv-ease-standard), background var(--sv-motion-fast) var(--sv-ease-standard);
 }
 
@@ -431,8 +359,8 @@
   border-radius: calc(var(--sv-admin-radius) - 1px);
   color: var(--sv-text);
   font-family: var(--sv-font-body);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--sv-admin-font-secondary);
+  font-weight: var(--sv-admin-weight-strong);
 }
 
 .root :global(.admin-wallet-tool .wallet-adapter-dropdown-list-item:not([disabled]):hover) {
@@ -593,7 +521,7 @@
   padding-inline: 10px;
   border-radius: var(--sv-admin-radius);
   box-shadow: none;
-  font-size: 13px;
+  font-size: var(--sv-admin-font-body);
 }
 
 .root :global(.ant-btn-icon-only) {
@@ -702,7 +630,7 @@
 
 .root :global(.ant-card-head-title) {
   padding-block: 8px;
-  font-size: 13px;
+  font-size: var(--sv-admin-font-section);
 }
 
 .root :global(.ant-card-body) {
@@ -720,7 +648,7 @@
 
 .root :global(.ant-table-wrapper) :global(th.ant-table-cell) {
   padding-block: 7px !important;
-  font-size: 12px;
+  font-size: var(--sv-admin-font-secondary);
 }
 
 .root :global(.ant-pagination) {
@@ -756,7 +684,7 @@
   align-items: center;
   gap: 8px;
   color: var(--sv-text-muted);
-  font-size: 13px;
+  font-size: var(--sv-admin-font-body);
   white-space: nowrap;
 }
 
@@ -841,8 +769,8 @@
 .root :global(.note-editor-heading) h4:global(.ant-typography) {
   margin: 0;
   overflow: hidden;
-  font-size: 17px;
-  letter-spacing: -0.025em;
+  font-size: var(--sv-admin-font-page-title);
+  letter-spacing: normal;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -850,7 +778,7 @@
 .root :global(.note-editor-heading) :global(.ant-typography-secondary) {
   display: block;
   overflow: hidden;
-  font-size: 12px;
+  font-size: var(--sv-admin-font-secondary);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -922,7 +850,7 @@
 
 .root :global(.note-context-selectors) > :global(.ant-btn) {
   padding-inline: 8px;
-  font-size: 12px;
+  font-size: var(--sv-admin-font-body);
 }
 
 .root :global(.note-version-status) {
@@ -950,9 +878,9 @@
 }
 
 .root :global(.note-panel-header) > :global(.ant-typography) {
-  font-size: 12px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: var(--sv-admin-font-section);
+  font-weight: var(--sv-admin-weight-strong);
+  letter-spacing: normal;
 }
 
 .root :global(.note-library-controls) {
@@ -967,7 +895,7 @@
   align-items: center;
   gap: 7px;
   color: var(--sv-text-muted);
-  font-size: 11px;
+  font-size: var(--sv-admin-font-secondary);
 }
 
 .root :global(.note-tree-scroll) {
@@ -990,7 +918,7 @@
 .root :global(.note-library-tree) {
   background: transparent;
   color: var(--sv-text);
-  font-size: 13px;
+  font-size: var(--sv-admin-font-body);
 }
 
 .root :global(.note-library-tree .ant-tree-treenode) {
@@ -1068,7 +996,7 @@
 .root :global(.note-tree-count) {
   flex-shrink: 0;
   color: var(--sv-text-muted);
-  font-size: 11px;
+  font-size: var(--sv-admin-font-caption);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1096,7 +1024,7 @@
   background: transparent;
   color: var(--sv-primary);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--sv-admin-font-body);
 }
 
 @media (hover: none) {
@@ -1151,7 +1079,7 @@
   align-items: center;
   gap: 5px;
   overflow: hidden;
-  font-size: 12px;
+  font-size: var(--sv-admin-font-secondary);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1164,7 +1092,7 @@
 .root :global(.note-revision-copy) small {
   margin-top: 2px;
   color: var(--sv-text-muted);
-  font-size: 10px;
+  font-size: var(--sv-admin-font-secondary);
 }
 
 .root :global(.note-revision-actions) {
@@ -1221,7 +1149,7 @@
 
 .root :global(.note-writing-header) :global(.ant-typography),
 .root :global(.note-writing-actions) :global(.ant-typography) {
-  font-size: 11px;
+  font-size: var(--sv-admin-font-secondary);
 }
 
 .root :global(.note-editor-empty) {
@@ -1250,7 +1178,7 @@
   display: grid;
   gap: 6px;
   color: var(--sv-text-muted);
-  font-size: 12px;
+  font-size: var(--sv-admin-font-body);
 }
 
 .root :global(.note-dialog-fields) :global(.ant-input-number) {
@@ -1300,7 +1228,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 17px;
+  font-size: var(--sv-admin-font-page-title);
 }
 
 .root :global(.managed-markdown-heading) :global(.ant-typography-secondary) {
@@ -1309,7 +1237,7 @@
   flex: 0 1 auto;
   overflow: hidden;
   align-items: center;
-  font-size: 12px;
+  font-size: var(--sv-admin-font-secondary);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1367,7 +1295,8 @@
   padding: 9px 12px;
   border-radius: var(--sv-admin-radius);
   color: var(--sv-text-muted);
-  font-size: 14px;
+  font-size: var(--sv-admin-font-body);
+  line-height: var(--sv-admin-line-label);
   white-space: nowrap;
 }
 
@@ -1378,7 +1307,7 @@
 }
 
 .root :global(.settings-tab-link.is-active) {
-  font-weight: 700;
+  font-weight: var(--sv-admin-weight-strong);
 }
 
 .root :global(.settings-tab-link:focus-visible) {
@@ -1421,7 +1350,7 @@
 
 .root :global(.settings-tab-heading) :global(h4.ant-typography) {
   margin: 0 0 2px;
-  font-size: 16px;
+  font-size: var(--sv-admin-font-page-title);
 }
 
 .root :global(.settings-tab-icon) {
@@ -1524,7 +1453,7 @@
 .root :global(.settings-field-label) code {
   overflow: hidden;
   color: var(--sv-text);
-  font-size: 12px;
+  font-size: var(--sv-admin-font-secondary);
   text-overflow: ellipsis;
 }
 
@@ -1532,8 +1461,8 @@
   min-height: 0;
   grid-column: 1;
   grid-row: 2;
-  font-size: 12px;
-  line-height: 1.4;
+  font-size: var(--sv-admin-font-secondary);
+  line-height: var(--sv-admin-line-body);
 }
 
 .root :global(.settings-field) > :global(.ant-input),
@@ -1576,8 +1505,8 @@
 .root :global(.settings-logo-control) > :global(.ant-typography) {
   grid-column: 2;
   grid-row: 2;
-  font-size: 12px;
-  line-height: 1.4;
+  font-size: var(--sv-admin-font-secondary);
+  line-height: var(--sv-admin-line-body);
 }
 
 .root :global(.backup-workspace),
@@ -1679,11 +1608,11 @@
 
 .root :global(.backup-card-heading) h4:global(.ant-typography) {
   margin: 0 0 3px;
-  font-size: 17px;
+  font-size: var(--sv-admin-font-section);
 }
 
 .root :global(.backup-card-heading) :global(.ant-typography) {
-  font-size: 12px;
+  font-size: var(--sv-admin-font-section);
 }
 
 .root :global(.backup-card-actions) {
@@ -1698,7 +1627,7 @@
 }
 
 .root :global(.solana-tabs) :global(.ant-tabs-tab) {
-  font-weight: 650;
+  font-weight: var(--sv-admin-weight-regular);
 }
 
 .root :global(.evidence-ledger) {
@@ -1730,11 +1659,11 @@
 }
 
 .root :global(.evidence-toolbar-heading) :global(.ant-typography:first-child) {
-  font-size: 13px;
+  font-size: var(--sv-admin-font-body);
 }
 
 .root :global(.evidence-toolbar-heading) :global(.ant-typography-secondary) {
-  font-size: 12px;
+  font-size: var(--sv-admin-font-secondary);
 }
 
 .root :global(.evidence-toolbar-filters) {
@@ -1748,9 +1677,8 @@
 
 .root :global(.evidence-ledger) :global(.ant-table-thead > tr > th) {
   color: var(--sv-text-muted);
-  font-size: 11px;
-  letter-spacing: .04em;
-  text-transform: uppercase;
+  font-size: var(--sv-admin-font-secondary);
+  letter-spacing: normal;
 }
 
 .root :global(.evidence-mobile-list) {
@@ -1784,10 +1712,10 @@
 
 .root :global(.dashboard-eyebrow) {
   color: var(--sv-primary);
-  font-size: 10px;
-  font-weight: 780;
-  letter-spacing: .12em;
-  text-transform: uppercase;
+  font-size: var(--sv-admin-font-caption);
+  font-weight: var(--sv-admin-weight-regular);
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 .root :global(.dashboard-toolbar-copy) :global(.ant-typography) {
@@ -1796,10 +1724,10 @@
 
 .root :global(.dashboard-toolbar-copy) :global(h3.ant-typography) {
   color: var(--sv-text);
-  font-family: var(--sv-font-display);
-  font-size: 24px;
-  letter-spacing: -.045em;
-  line-height: 1;
+  font-family: var(--sv-font-body);
+  font-size: var(--sv-admin-font-page-title);
+  letter-spacing: normal;
+  line-height: var(--sv-admin-line-title);
 }
 
 .root :global(.dashboard-toolbar-actions) {
@@ -1817,7 +1745,7 @@
 
 .root :global(.dashboard-generated-at) {
   width: 100%;
-  font-size: 11px;
+  font-size: var(--sv-admin-font-secondary);
   text-align: right;
 }
 
@@ -1865,7 +1793,7 @@
 
 .root :global(.dashboard-metric-arrow) {
   color: var(--sv-text-muted);
-  font-size: 16px;
+  font-size: 1rem;
 }
 
 .root :global(.dashboard-metric-card):hover :global(.dashboard-metric-arrow) {
@@ -1875,17 +1803,18 @@
 .root :global(.dashboard-metric-label),
 .root :global(.dashboard-metric-meta) {
   color: var(--sv-text-muted);
-  font-size: 11px;
-  font-weight: 650;
+  font-size: var(--sv-admin-font-secondary);
+  font-weight: var(--sv-admin-weight-regular);
 }
 
 .root :global(.dashboard-metric-value) {
   align-self: center;
   color: var(--sv-text);
-  font-size: clamp(22px, 2vw, 30px);
+  font-size: var(--sv-admin-font-metric);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -.055em;
-  line-height: 1;
+  letter-spacing: normal;
+  line-height: 1.2;
+  font-weight: var(--sv-admin-weight-strong);
 }
 
 .root :global(.dashboard-metric-card.is-users) {
@@ -1993,17 +1922,19 @@
 
 .root :global(.dashboard-panel-title) strong {
   color: var(--sv-text);
-  font-size: 12px;
-  font-weight: 760;
+  font-size: var(--sv-admin-font-section);
+  font-weight: var(--sv-admin-weight-strong);
+  line-height: var(--sv-admin-line-label);
 }
 
 .root :global(.dashboard-panel-title) small {
   overflow: hidden;
   color: var(--sv-text-muted);
-  font-size: 10px;
-  font-weight: 550;
+  font-size: var(--sv-admin-font-secondary);
+  font-weight: var(--sv-admin-weight-regular);
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  line-height: var(--sv-admin-line-body);
 }
 
 .root :global(.dashboard-trend-chart) {
@@ -2028,8 +1959,8 @@
   color: var(--sv-text);
   cursor: pointer;
   font: inherit;
-  font-size: 10px;
-  font-weight: 700;
+  font-size: var(--sv-admin-font-secondary);
+  font-weight: var(--sv-admin-weight-strong);
 }
 
 .root :global(.dashboard-trend-toggle) > span {
@@ -2081,7 +2012,8 @@
 .root :global(.dashboard-chart-stage) svg {
   display: block;
   width: 100%;
-  height: 248px;
+  height: 15.5rem;
+  font-size: var(--sv-admin-font-caption);
   overflow: visible;
 }
 
@@ -2093,8 +2025,8 @@
 
 .root :global(.dashboard-chart-axis) {
   fill: var(--sv-text-muted);
-  font-size: 9px;
-  font-weight: 600;
+  font-size: var(--sv-admin-font-caption);
+  font-weight: var(--sv-admin-weight-regular);
 }
 
 .root :global(.dashboard-chart-line) {
@@ -2118,7 +2050,7 @@
   gap: 6px;
   background: color-mix(in srgb, var(--sv-bg-solid) 76%, transparent);
   color: var(--sv-text-muted);
-  font-size: 11px;
+  font-size: var(--sv-admin-font-secondary);
 }
 
 .root :global(.dashboard-health-list),
@@ -2143,14 +2075,14 @@
 .root :global(.dashboard-health-row) span,
 .root :global(.dashboard-distribution-row) span {
   color: var(--sv-text-muted);
-  font-size: 11px;
-  font-weight: 650;
+  font-size: var(--sv-admin-font-secondary);
+  font-weight: var(--sv-admin-weight-regular);
 }
 
 .root :global(.dashboard-health-row) strong,
 .root :global(.dashboard-distribution-row) strong {
   color: var(--sv-text);
-  font-size: 11px;
+  font-size: var(--sv-admin-font-secondary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -2174,7 +2106,7 @@
   grid-row: 1 / span 2;
   align-self: center;
   color: var(--sv-text-muted);
-  font-size: 10px;
+  font-size: var(--sv-admin-font-secondary);
   text-align: right;
 }
 
@@ -2213,14 +2145,16 @@
 
 .root :global(.dashboard-evidence-status) span {
   color: var(--sv-text-muted);
-  font-size: 10px;
-  font-weight: 650;
+  font-size: var(--sv-admin-font-secondary);
+  font-weight: var(--sv-admin-weight-regular);
 }
 
 .root :global(.dashboard-evidence-status) strong {
-  font-size: 20px;
+  font-size: var(--sv-admin-font-metric-secondary);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -.04em;
+  letter-spacing: normal;
+  font-weight: var(--sv-admin-weight-strong);
+  line-height: 1.3;
 }
 
 .root :global(.dashboard-evidence-status.is-success) { color: var(--sv-dashboard-health); }
@@ -2236,8 +2170,8 @@
   align-items: center;
   justify-content: space-between;
   color: var(--sv-primary);
-  font-size: 11px;
-  font-weight: 720;
+  font-size: var(--sv-admin-font-secondary);
+  font-weight: var(--sv-admin-weight-strong);
   text-decoration: none;
 }
 
@@ -2265,7 +2199,7 @@
 .root :global(.dashboard-attention-item) strong,
 .root :global(.dashboard-all-clear) strong {
   overflow: hidden;
-  font-size: 11px;
+  font-size: var(--sv-admin-font-secondary);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2273,7 +2207,7 @@
 .root :global(.dashboard-attention-item) small,
 .root :global(.dashboard-all-clear) small {
   color: var(--sv-text-muted);
-  font-size: 10px;
+  font-size: var(--sv-admin-font-secondary);
 }
 
 .root :global(.dashboard-attention-item.is-danger) {
@@ -2365,13 +2299,13 @@
 }
 
 .root :global(.dashboard-activity-copy) strong {
-  font-size: 12px;
+  font-size: var(--sv-admin-font-secondary);
 }
 
 .root :global(.dashboard-activity-copy) small,
 .root :global(.dashboard-activity-item) time {
   color: var(--sv-text-muted);
-  font-size: 10px;
+  font-size: var(--sv-admin-font-secondary);
 }
 
 .root :global(.dashboard-activity-item) time {
@@ -2380,7 +2314,7 @@
 
 .root :global(.dashboard-activity-status) {
   margin: 0;
-  font-size: 10px;
+  font-size: var(--sv-admin-font-secondary);
 }
 
 .root :global(.dashboard-activity-status.is-active) { color: var(--sv-dashboard-health); }
@@ -2476,13 +2410,13 @@
 
 .root :global(.article-editor-field) > label {
   color: var(--sv-text);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--sv-admin-font-body);
+  font-weight: var(--sv-admin-weight-regular);
 }
 
 .root :global(.article-editor-field) > :global(.ant-typography) {
-  font-size: 11px;
-  line-height: 1.45;
+  font-size: var(--sv-admin-font-secondary);
+  line-height: var(--sv-admin-line-body);
 }
 
 .root :global(.article-editor-cover) {
@@ -2532,7 +2466,7 @@
   border: 1px solid var(--sv-admin-border);
   border-radius: var(--sv-admin-radius);
   background: var(--sv-bg-solid);
-  font-size: 11px;
+  font-size: var(--sv-admin-font-secondary);
 }
 
 .root :global(.article-editor-publication) span {
@@ -2542,7 +2476,7 @@
 .root :global(.article-editor-publication) a {
   margin-top: 5px;
   color: var(--sv-primary-strong);
-  font-weight: 700;
+  font-weight: var(--sv-admin-weight-strong);
 }
 
 .root :global(.article-editor-body) {
@@ -2564,8 +2498,8 @@
 
 .root :global(.article-editor-body .markdown-editor-header) > div:first-child span {
   color: var(--sv-text-muted);
-  font-size: 11px;
-  font-weight: 400;
+  font-size: var(--sv-admin-font-secondary);
+  font-weight: var(--sv-admin-weight-regular);
 }
 
 @media (max-width: 1180px) {
@@ -2871,5 +2805,83 @@
 
   .root :global(.article-editor-body) {
     height: 680px;
+  }
+}
+
+/* Dashboard breakpoints follow base rules so compact layouts retain readable type. */
+@media (max-width: 1180px) {
+  .root :global(.dashboard-metric-grid) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .root :global(.dashboard-secondary-grid) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .root :global(.dashboard-attention-panel) {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 900px) {
+  .root :global(.dashboard-toolbar),
+  .root :global(.dashboard-primary-grid) {
+    grid-template-columns: 1fr;
+  }
+
+  .root :global(.dashboard-toolbar) {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .root :global(.dashboard-toolbar-actions) {
+    justify-content: flex-start;
+  }
+
+  .root :global(.dashboard-generated-at) {
+    text-align: left;
+  }
+}
+
+@media (max-width: 640px) {
+  .root :global(.dashboard-metric-grid),
+  .root :global(.dashboard-secondary-grid),
+  .root :global(.dashboard-loading-panels) {
+    grid-template-columns: 1fr;
+  }
+
+  .root :global(.dashboard-attention-panel) {
+    grid-column: auto;
+  }
+
+  .root :global(.dashboard-metric-card) {
+    min-height: 128px;
+  }
+
+  .root :global(.dashboard-toolbar-actions) :global(.ant-segmented),
+  .root :global(.dashboard-toolbar-actions) :global(.ant-btn) {
+    flex: 1;
+  }
+
+  .root :global(.dashboard-chart-stage) svg {
+    height: 13.75rem;
+  }
+
+  .root :global(.dashboard-activity-item) {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .root :global(.dashboard-activity-item) time {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .root :global(.dashboard-activity-status) {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .root :global(.dashboard-activity-arrow) {
+    display: none;
   }
 }

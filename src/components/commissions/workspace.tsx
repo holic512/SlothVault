@@ -125,7 +125,7 @@ export function CommissionWorkspace({ admin, id }: { admin: boolean; id?: string
     <CommissionFileUpload base={base} admin={admin} onUploaded={() => void refresh()} />
     <Table rowKey="id" dataSource={d.files} pagination={false} scroll={{ x: 640 }} columns={[{ title: '文件', render: (_, f) => <a href={`${base}/files/${f.id}`}>{f.originalName}</a> }, { title: '用途', dataIndex: 'purpose', render: (v) => ({ REQUIREMENT: '需求资料', PAYMENT: '付款凭证', TEST: '测试资料', DELIVERY: '交付成果' } as Record<string, string>)[v] }, { title: '大小', dataIndex: 'fileSize', render: (v) => `${(Number(v) / 1024 / 1024).toFixed(2)} MiB` }, { title: '上传时间', dataIndex: 'createdAt', render: date }, { title: '校验', render: (_, f) => <details><summary>SHA-256</summary><Typography.Text copyable>{f.sha256}</Typography.Text></details> }]} />
   </> : null
-  return <div className={styles.workspace}>
+  return <div className={`${styles.workspace}${admin ? ' admin-commission-workspace' : ''}`}>
     <div className={styles.heading}>
       {admin || id ? <div>
         {id ? <Link href={prefix}><ArrowLeft size={15} />{text('返回委托项目', 'Back to commissions')}</Link> : null}

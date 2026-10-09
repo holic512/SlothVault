@@ -1,0 +1,188 @@
+/**
+ * @file admin-typography.module.css
+ * @project SlothVault
+ * @module Administrator Typography Adapter
+ * @description Applies the management type scale to native UI, Ant Design controls and isolated portals.
+ * @logic Share one scope between the admin App and its overlays without overriding authored reading content or public pages.
+ * @dependencies SlothVault admin typography tokens, Ant Design semantic classes
+ * @index_tags admin,typography,portal,accessibility
+ * @author holic512
+ */
+
+.scope {
+  font-family: var(--sv-font-body);
+  font-size: var(--sv-admin-font-body);
+  font-weight: var(--sv-admin-weight-regular);
+  line-height: var(--sv-admin-line-body);
+  letter-spacing: normal;
+}
+
+.scope :global(.ant-layout),
+.scope :global(.note-dialog-fields > label),
+.scope :global(.ant-typography:not(h1, h2, h3, h4, h5)),
+.scope :global(.ant-table),
+.scope :global(.ant-list),
+.scope :global(.ant-tree),
+.scope :global(.ant-form-item),
+.scope :global(.ant-form-item-label > label),
+.scope :global(.ant-descriptions-item-label),
+.scope :global(.ant-descriptions-item-content),
+.scope :global(.ant-checkbox-wrapper),
+.scope :global(.ant-radio-wrapper),
+.scope :global(.ant-modal-body),
+.scope :global(.ant-modal-confirm-content),
+.scope :global(.ant-drawer-body),
+.scope :global(.ant-popover-inner-content),
+.scope :global(.ant-popconfirm-description),
+.scope :global(.ant-message-notice-content),
+.scope :global(.ant-notification-notice-description),
+.scope :global(.ant-empty-description),
+.scope :global(.ant-alert-title),
+.scope :global(.ant-collapse-header-text) {
+  font-size: var(--sv-admin-font-body);
+  line-height: var(--sv-admin-line-body);
+}
+
+.scope :global(.ant-btn),
+.scope :global(.ant-input),
+.scope :global(.ant-input-number-input),
+.scope :global(.ant-select),
+.scope :global(.ant-select-item),
+.scope :global(.ant-picker-input > input),
+.scope :global(.ant-picker-panel),
+.scope :global(.ant-tabs-tab),
+.scope :global(.ant-segmented),
+.scope :global(.ant-pagination),
+.scope :global(.ant-dropdown-menu-item),
+.scope :global(.ant-steps-item-title),
+.scope :global(.ant-steps-item-content) {
+  font-size: var(--sv-admin-font-body);
+}
+
+.scope :global(.ant-btn),
+.scope :global(.ant-tabs-tab) {
+  font-weight: var(--sv-admin-weight-regular);
+  line-height: var(--sv-admin-line-label);
+}
+
+.scope :global(.ant-select-item),
+.scope :global(.ant-dropdown-menu-item) {
+  line-height: var(--sv-admin-line-label);
+}
+
+.scope :global(.ant-btn-primary),
+.scope :global(.ant-tabs-tab-active .ant-tabs-tab-btn),
+.scope :global(.ant-segmented-item-selected),
+.scope :global(.ant-select-item-option-selected),
+.scope :global(strong:not([data-presentation] *, .commission-document-paper *)) {
+  font-weight: var(--sv-admin-weight-strong);
+}
+
+.scope :global(h1.ant-typography) {
+  font-size: var(--sv-admin-font-page-title);
+  line-height: var(--sv-admin-line-title);
+}
+
+.scope :global(h2.ant-typography),
+.scope :global(h3.ant-typography),
+.scope :global(h4.ant-typography),
+.scope :global(h5.ant-typography),
+.scope :global(.ant-card-head-title),
+.scope :global(.ant-list-item-meta-title),
+.scope :global(.ant-descriptions-title),
+.scope :global(.ant-table-thead > tr > th),
+.scope :global(.ant-popover-title),
+.scope :global(.ant-popconfirm-title),
+.scope :global(.ant-notification-notice-title) {
+  font-size: var(--sv-admin-font-section);
+  font-weight: var(--sv-admin-weight-strong);
+  line-height: var(--sv-admin-line-label);
+}
+
+.scope :global(.ant-modal-title),
+.scope :global(.ant-modal-confirm-title),
+.scope :global(.ant-drawer-title) {
+  font-size: var(--sv-admin-font-dialog-title);
+  font-weight: var(--sv-admin-weight-strong);
+  line-height: var(--sv-admin-line-label);
+}
+
+.scope :global(.ant-typography.ant-typography-secondary),
+.scope :global(.ant-form-item-extra),
+.scope :global(.ant-form-item-explain),
+.scope :global(.ant-list-item-meta-description),
+.scope :global(.ant-alert-description),
+.scope :global(.ant-steps-item-subtitle),
+.scope :global(.ant-statistic-title),
+.scope :global(.ant-tooltip-container),
+.scope :global(.theme-control-section > .ant-typography),
+.scope :global(.theme-panel .ant-segmented-item-label) {
+  font-size: var(--sv-admin-font-secondary);
+  font-weight: var(--sv-admin-weight-regular);
+  line-height: var(--sv-admin-line-body);
+}
+
+.scope :global(.ant-tag),
+.scope :global(.ant-badge-status-text) {
+  font-size: var(--sv-admin-font-secondary);
+  font-weight: var(--sv-admin-weight-regular);
+  line-height: var(--sv-admin-line-label);
+}
+
+.scope :global(.ant-statistic-content) {
+  font-size: var(--sv-admin-font-metric);
+  font-weight: var(--sv-admin-weight-strong);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.scope :global(.ant-menu-item-group-title) {
+  font-size: var(--sv-admin-font-caption);
+  font-weight: var(--sv-admin-weight-regular);
+  line-height: var(--sv-admin-line-label);
+}
+
+.scope :global(.admin-mobile-menu .ant-menu-item-selected) {
+  font-weight: var(--sv-admin-weight-strong);
+}
+
+.scope :global(.note-editor-heading h4.ant-typography),
+.scope :global(.managed-markdown-heading h4.ant-typography),
+.scope :global(.settings-tab-heading h4.ant-typography) {
+  line-height: var(--sv-admin-line-title);
+}
+
+/* Editor chrome uses management typography; the preview retains Markdown's reading tokens. */
+.scope :global(.document-editor-mode strong),
+.scope :global(.document-editor-guide strong) {
+  font-size: var(--sv-admin-font-section);
+  font-weight: var(--sv-admin-weight-strong);
+  line-height: var(--sv-admin-line-label);
+}
+
+.scope :global(.document-editor-mode small),
+.scope :global(.document-editor-guide span),
+.scope :global(.document-editor-status),
+.scope :global(.document-editor-guide-toggle) {
+  font-size: var(--sv-admin-font-secondary);
+  font-weight: var(--sv-admin-weight-regular);
+  line-height: var(--sv-admin-line-body);
+}
+
+.scope :global(.markdown-editor-shell .w-md-editor-text-pre > code),
+.scope :global(.markdown-editor-shell .w-md-editor-text-input) {
+  font-size: var(--sv-admin-font-body) !important;
+  line-height: 1.72 !important;
+}
+
+.scope :global(.document-editor-mode small) {
+  white-space: normal;
+}
+
+.scope :global(.document-editor-status) {
+  flex-wrap: wrap;
+}
+
+.scope :global(.document-editor-status > span:last-child) {
+  flex-shrink: 1;
+}

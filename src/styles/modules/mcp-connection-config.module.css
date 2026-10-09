@@ -33,6 +33,9 @@
   justify-content: space-between;
   gap: 12px;
   color: var(--sv-text);
+  font-size: var(--sv-admin-font-section);
+  font-weight: var(--sv-admin-weight-strong);
+  line-height: var(--sv-admin-line-label);
 }
 
 .copy {
@@ -52,10 +55,10 @@
   outline-offset: 2px;
 }
 
-.hint {
+.dialog .hint:global(.ant-typography) {
   margin: 8px 0 !important;
   color: var(--sv-text-muted);
-  font-size: 13px;
+  font-size: var(--sv-admin-font-secondary);
 }
 
 .code {
@@ -67,7 +70,7 @@
   background: var(--sv-bg-solid) !important;
   color: var(--sv-text) !important;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 13px;
+  font-size: var(--sv-admin-font-body);
   line-height: 1.7;
   white-space: pre;
   resize: none !important;
@@ -85,7 +88,7 @@
   gap: 6px;
   margin-top: 6px;
   color: var(--sv-text);
-  font-size: 13px;
+  font-size: var(--sv-admin-font-secondary);
 }
 
 .feedback svg {
@@ -103,9 +106,5 @@
 @media (max-width: 480px) {
   .dialog :global(.ant-modal-body) {
     max-height: calc(100dvh - 180px);
-  }
-
-  .code {
-    font-size: 12px;
   }
 }

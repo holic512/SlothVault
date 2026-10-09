@@ -68,7 +68,7 @@ export function ContractTemplateManager() {
   }
   let preview = ''
   try { if (editor) preview = renderContractDocument(editor.documents, editor.fields, { ...editor.defaults, ...watched }, kind) } catch (e) { preview = e instanceof Error ? e.message : '请检查变量与字段定义' }
-  return <div className={styles.workspace}>
+  return <div className={`${styles.workspace} admin-commission-workspace`}>
     <div className={styles.heading}><div><h1>合同模板与合作规则</h1><p>已发布版本固定保留。调整条款或字段时创建新版本，已发起文件继续使用原快照。</p></div><Space wrap><Button onClick={() => { presetForm.resetFields(); presetForm.setFieldsValue({ ...settings.data?.provider, holidays: settings.data?.calendar.holidays?.join('\n'), workdays: settings.data?.calendar.workdays?.join('\n') }); setPresetOpen(true) }} disabled={!settings.data}>乙方资料与工作日历</Button><Button type="primary" onClick={() => { newForm.resetFields(); setNewOpen(true) }}>建立模板</Button></Space></div>
     {list.isError || settings.isError ? <Alert type="error" title="模板或设置加载失败" action={<Button onClick={() => { void list.refetch(); void settings.refetch() }}>重试</Button>} /> : null}
     <List loading={list.isPending} dataSource={list.data || []} renderItem={(t) => <List.Item><Card title={<>{t.name} <Tag>{t.status === 'ACTIVE' ? '启用' : '已停用'}</Tag></>} style={{ width: '100%' }} extra={<Space><Button onClick={() => status.mutate(t)}>{t.status === 'ACTIVE' ? '停用' : '启用'}</Button><Button onClick={() => openEditor(t)}>创建新版本</Button></Space>}>

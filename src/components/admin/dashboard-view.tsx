@@ -5,12 +5,12 @@
  * @project SlothVault
  * @module Admin Operations Dashboard
  * @description Renders the responsive operations command center with live metrics, accessible SVG trends, health, distribution, attention, and activity surfaces.
- * @logic Fetch one selectable dashboard window, format data in the active locale, expose metric and activity links to existing workflows, and retain readable zero, loading, and failure states across themes.
+ * @logic Fetch one selectable dashboard window, format data in the active locale, measure the chart viewport to keep labels unscaled, expose metric and activity links, and retain readable zero, loading, and failure states across themes.
  * @dependencies Ant Design, React Query, next-intl, Lucide, admin dashboard API, admin localization utilities
  * @index_tags admin,dashboard,operations,analytics,trends,i18n,responsive
  * @author holic512
  */
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
 import { Alert, Button, Card, Empty, Progress, Segmented, Skeleton, Tag, Typography } from 'antd'
@@ -108,21 +108,39 @@ function DashboardTrendChart({
     articles: true,
     notes: true,
   })
-  const width = 760
-  const height = 264
-  const left = 28
-  const right = 12
-  const top = 16
-  const bottom = 34
-  const chartWidth = width - left - right
-  const chartHeight = height - top - bottom
+  const chartRef = useRef<SVGSVGElement>(null)
+  const [viewport, setViewport] = useState({ width: 760, height: 248, fontSize: 11 })
+
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart) return
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry || entry.contentRect.width <= 0) return
+      const { width, height } = entry.contentRect
+      const fontSize = Number.parseFloat(getComputedStyle(chart).fontSize)
+      setViewport((current) => current.width === width && current.height === height && current.fontSize === fontSize
+        ? current
+        : { width, height, fontSize })
+    })
+    observer.observe(chart)
+    return () => observer.disconnect()
+  }, [])
+
+  const { width, height, fontSize } = viewport
   const visibleKeys = TREND_KEYS.filter((key) => visible[key])
   const maximum = Math.max(1, ...trend.flatMap((point) => visibleKeys.map((key) => point[key])))
+  const left = Math.max(28, String(maximum).length * fontSize * 0.65 + 12)
+  const right = fontSize * 2
+  const top = fontSize * 1.5
+  const bottom = fontSize * 3
+  const chartWidth = Math.max(1, width - left - right)
+  const chartHeight = Math.max(1, height - top - bottom)
   const hasData = trend.some((point) => TREND_KEYS.some((key) => point[key] > 0))
   const x = (index: number) => left + (trend.length <= 1 ? chartWidth / 2 : (index / (trend.length - 1)) * chartWidth)
   const y = (value: number) => top + chartHeight - (value / maximum) * chartHeight
   const polyline = (key: TrendKey) => trend.map((point, index) => `${x(index)},${y(point[key])}`).join(' ')
-  const labelStep = Math.max(1, Math.ceil(trend.length / 6))
+  const labelCount = Math.max(2, Math.min(6, trend.length, Math.floor(chartWidth / (fontSize * 6))))
+  const labelIndices = new Set(Array.from({ length: labelCount }, (_, index) => Math.round(index * (trend.length - 1) / (labelCount - 1))))
 
   return (
     <div className="dashboard-trend-chart">
@@ -141,7 +159,7 @@ function DashboardTrendChart({
         ))}
       </div>
       <div className="dashboard-chart-stage">
-        <svg aria-label={ariaLabel} role="img" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+        <svg ref={chartRef} aria-label={ariaLabel} role="img">
           {[0, .25, .5, .75, 1].map((step) => {
             const position = top + chartHeight * step
             const value = Math.round(maximum * (1 - step))
@@ -153,7 +171,7 @@ function DashboardTrendChart({
             )
           })}
           {trend.map((point, index) => (
-            index % labelStep === 0 || index === trend.length - 1 ? (
+            labelIndices.has(index) ? (
               <text className="dashboard-chart-axis" key={point.date} x={x(index)} y={height - 10} textAnchor="middle">
                 {new Intl.DateTimeFormat(locale === 'zh' ? 'zh-CN' : 'en-US', { month: 'numeric', day: 'numeric', timeZone: 'UTC' }).format(new Date(`${point.date}T00:00:00.000Z`))}
               </text>

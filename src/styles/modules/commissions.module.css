@@ -3,6 +3,27 @@
   min-width: 0;
 }
 
+.workspace:global(.admin-commission-workspace) .heading h1 {
+  font-size: var(--sv-admin-font-page-title);
+  font-weight: var(--sv-admin-weight-strong);
+  line-height: var(--sv-admin-line-title);
+  letter-spacing: normal;
+}
+
+.workspace:global(.admin-commission-workspace) .overview h2,
+.workspace:global(.admin-commission-workspace) .section-heading h3,
+.workspace:global(.admin-commission-workspace) .mobile-project h3 {
+  font-size: var(--sv-admin-font-section);
+  font-weight: var(--sv-admin-weight-strong);
+  line-height: var(--sv-admin-line-label);
+}
+
+.workspace:global(.admin-commission-workspace) .heading p,
+.workspace:global(.admin-commission-workspace) .progress-meter {
+  font-size: var(--sv-admin-font-secondary);
+  line-height: var(--sv-admin-line-body);
+}
+
 .heading,
 .section-heading {
   display: flex;

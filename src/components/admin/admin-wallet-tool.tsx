@@ -17,6 +17,8 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import { WalletReadyState } from '@solana/wallet-adapter-base'
 import { useTranslations } from 'next-intl'
 
+import typographyStyles from '@/styles/modules/admin-typography.module.css'
+
 export function AdminWalletTool() {
   const t = useTranslations('AdminMM.walletTool')
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -96,7 +98,7 @@ export function AdminWalletTool() {
             <div
               aria-labelledby="admin-wallet-picker-title"
               aria-modal="true"
-              className="admin-wallet-picker"
+              className={`${typographyStyles.scope} admin-wallet-picker`}
               onMouseDown={(event) => {
                 if (event.target === event.currentTarget) setPickerOpen(false)
               }}

@@ -20,8 +20,8 @@
 }
 
 .admin-mobile-drawer .ant-drawer-title {
-  font-size: 13px !important;
-  font-weight: 750 !important;
+  font-size: var(--sv-admin-font-dialog-title);
+  font-weight: var(--sv-admin-weight-strong);
 }
 
 .admin-mobile-drawer .ant-drawer-body {
@@ -244,21 +244,21 @@
   margin-bottom: 8px;
   color: var(--sv-text-muted);
   font-family: var(--sv-font-body);
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.12em;
+  font-size: var(--sv-admin-font-caption);
+  font-weight: var(--sv-admin-weight-regular);
+  letter-spacing: normal;
   line-height: 1;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .admin-wallet-picker-heading h2 {
   margin: 0;
   color: var(--sv-text);
-  font-family: var(--sv-font-display);
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: -0.025em;
-  line-height: 1.2;
+  font-family: var(--sv-font-body);
+  font-size: var(--sv-admin-font-dialog-title);
+  font-weight: var(--sv-admin-weight-strong);
+  letter-spacing: normal;
+  line-height: var(--sv-admin-line-label);
 }
 
 .admin-wallet-picker-heading p,
@@ -266,7 +266,7 @@
   margin: 8px 0 0;
   color: var(--sv-text-muted);
   font-family: var(--sv-font-body);
-  font-size: 13px;
+  font-size: var(--sv-admin-font-secondary);
   line-height: 1.5;
 }
 
@@ -291,8 +291,8 @@
   color: var(--sv-text);
   cursor: pointer;
   font-family: var(--sv-font-body);
-  font-size: 14px;
-  font-weight: 650;
+  font-size: var(--sv-admin-font-body);
+  font-weight: var(--sv-admin-weight-regular);
   text-align: left;
   transition: background var(--sv-motion-fast) var(--sv-ease-standard), border-color var(--sv-motion-fast) var(--sv-ease-standard);
 }
@@ -313,8 +313,8 @@
   margin-left: auto;
   color: var(--sv-text-muted);
   font-family: var(--sv-font-body);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--sv-admin-font-secondary);
+  font-weight: var(--sv-admin-weight-regular);
 }
 
 .admin-wallet-picker-list button:hover small {
@@ -340,8 +340,8 @@
   color: var(--sv-text-muted);
   cursor: pointer;
   font-family: var(--sv-font-body);
-  font-size: 12px;
-  font-weight: 650;
+  font-size: var(--sv-admin-font-body);
+  font-weight: var(--sv-admin-weight-regular);
   transition: background var(--sv-motion-fast) var(--sv-ease-standard), color var(--sv-motion-fast) var(--sv-ease-standard);
 }
 
@@ -369,8 +369,8 @@
   margin-block: 1px !important;
   padding-inline: 9px !important;
   border-radius: var(--sv-admin-radius);
-  font-size: 12px !important;
-  font-weight: 600 !important;
+  font-size: var(--sv-admin-font-navigation);
+  font-weight: var(--sv-admin-weight-regular);
   line-height: 32px !important;
 }
 
@@ -396,9 +396,9 @@
 .admin-mobile-menu .ant-menu-item-group-title {
   padding: 6px 9px 2px !important;
   color: var(--sv-text-muted) !important;
-  font-size: 11px !important;
-  font-weight: 400 !important;
-  line-height: 1.4 !important;
+  font-size: var(--sv-admin-font-caption);
+  font-weight: var(--sv-admin-weight-regular);
+  line-height: var(--sv-admin-line-label);
 }
 
 .markdown-editor-shell {
