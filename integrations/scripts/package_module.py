@@ -4,7 +4,7 @@
 @project SlothVault
 @module Integration module release builder
 @description Builds reproducible independent archives, manifests, and factual release notes.
-@logic Read one module version, hash every shipped file, produce a deterministic tarball, and summarize passed checks.
+@logic Require matching Skill metadata, read versioned notes, hash every shipped file, produce a deterministic tarball, and summarize passed checks.
 @dependencies Python standard library, integrations module.json and CHANGELOG.md
 @index_tags integrations,release,manifest,archive,sha256
 @author holic512
@@ -81,6 +81,12 @@ def package_module(module: str, outdir: Path, commit: str, checks: list[str]) ->
         payload.append((relative, data))
     if module == "skill" and "slothvault-mcp/SKILL.md" not in files:
         raise ValueError("Skill package is incomplete")
+    if module == "skill":
+        entry = next(data.decode("utf-8") for relative, data in payload if relative == "slothvault-mcp/SKILL.md")
+        frontmatter = re.match(r"\A---\r?\n(.*?)\r?\n---(?:\r?\n|$)", entry, re.DOTALL)
+        versions = re.findall(r'^  version: ["\']?(\d+\.\d+\.\d+)["\']?\s*$', frontmatter[1], re.MULTILINE) if frontmatter else []
+        if versions != [version]:
+            raise ValueError("Skill metadata version does not match module.json")
     if module == "deployment" and "install.py" not in files:
         raise ValueError("Deployment package is incomplete")
     outdir.mkdir(parents=True, exist_ok=True)

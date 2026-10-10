@@ -1,5 +1,11 @@
 # Skill changes
 
+## 1.2.1
+
+- Separate independent article body images/downloads (`ArticleImage` / `ArticleAttachment`) from project note images/downloads (`NoteImage` / `NoteAttachment`).
+- Require all material uploads to succeed before composing or saving bodies; use returned `filePath` values for website links and `resourceUri` only for MCP reads.
+- Stop body writes on upload failure, inspect uncertain results before retrying, and reuse successful assets without guessed paths or placeholder links.
+
 ## 1.2.0
 
 - Limit supported connections to Codex and Claude Code native MCP; distinguish connection recovery from uncertain-write verification without replaying workflows.

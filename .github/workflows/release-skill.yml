@@ -1,10 +1,10 @@
 name: Release SlothVault Skill
 on:
   pull_request:
-    paths: ['integrations/skill/**', 'integrations/protocol/**', 'integrations/scripts/**', '.github/workflows/release-skill.yml', '.github/workflows/release-vault-module.yml']
+    paths: ['integrations/skill/**', 'integrations/protocol/**', 'integrations/scripts/**', 'scripts/release-version.mjs', 'scripts/release-version.test.mjs', '.github/workflows/release-skill.yml', '.github/workflows/release-vault-module.yml']
   push:
     branches: [master, main]
-    paths: ['integrations/skill/**', 'integrations/protocol/**', 'integrations/scripts/**', '.github/workflows/release-skill.yml', '.github/workflows/release-vault-module.yml']
+    paths: ['integrations/skill/**', 'integrations/protocol/**', 'integrations/scripts/**', 'scripts/release-version.mjs', 'scripts/release-version.test.mjs', '.github/workflows/release-skill.yml', '.github/workflows/release-vault-module.yml']
   workflow_dispatch:
 permissions:
   contents: write

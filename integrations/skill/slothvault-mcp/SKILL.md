@@ -2,7 +2,7 @@
 name: slothvault-mcp
 description: Administer SlothVault in Codex or Claude Code through native MCP tools for drafts, articles, publication, files, and integrity checks. Use for SlothVault administration, not source development or unrelated MCP servers.
 metadata:
-  version: "1.2.0"
+  version: "1.2.1"
 ---
 
 <!--

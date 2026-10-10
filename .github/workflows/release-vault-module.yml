@@ -39,6 +39,9 @@ jobs:
             skill|deployment) ;;
             *) echo 'Unsupported integration module' >&2; exit 1 ;;
           esac
+      - name: Validate committed Skill version
+        if: inputs.module == 'skill'
+        run: node scripts/release-version.mjs --check-skill
       - name: Validate Skill and independent packaging
         run: PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s integrations/scripts/tests
       - name: Validate deployment

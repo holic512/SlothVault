@@ -74,7 +74,7 @@ class IndependentPackagesTest(unittest.TestCase):
         skill = (source / "slothvault-mcp/SKILL.md").read_text()
         self.assertIn('name: slothvault-mcp', skill)
         self.assertIn(f'version: "{metadata["version"]}"', skill)
-        self.assertEqual(metadata["version"], "1.2.0")
+        self.assertRegex(metadata["version"], r"^\d+\.\d+\.\d+$")
         self.assertNotIn("minPython", metadata)
         for relative in re.findall(r'\]\((references/[^)]+)\)', skill):
             self.assertTrue((source / "slothvault-mcp" / relative).is_file(), relative)
@@ -89,6 +89,17 @@ class IndependentPackagesTest(unittest.TestCase):
         for invariant in ("targetVersionId", "check_draft", "VERSION_FROZEN", "resourceUri", "filePath", "commandId"):
             self.assertIn(invariant, combined)
         self.assertIn("allow_implicit_invocation: true", (source / "slothvault-mcp/agents/openai.yaml").read_text())
+
+    def test_skill_version_mismatch_is_rejected_before_packaging(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "integrations"
+            shutil.copytree(builder.ROOT / "skill", root / "skill")
+            entry = root / "skill/slothvault-mcp/SKILL.md"
+            entry.write_text(re.sub(r'^  version:.*$', '  version: "0.0.0"', entry.read_text(), flags=re.MULTILINE))
+            with patch.object(builder, "ROOT", root):
+                with self.assertRaisesRegex(ValueError, "version does not match"):
+                    builder.package_module("skill", Path(tmp) / "out", "pending", [])
+            self.assertFalse((Path(tmp) / "out").exists())
 
     def test_skill_archive_ignores_system_files_and_runs_checker_without_repository(self):
         with tempfile.TemporaryDirectory() as tmp:

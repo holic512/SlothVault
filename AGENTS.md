@@ -16,7 +16,8 @@
 
 发布版本必须与 Git 提交一一对应，禁止依赖 GitHub Actions 在推送后回写版本号或创建额外版本提交。
 
-1. 应用文件发生变更时，先暂存本次新增文件，再在 `git commit` 前执行 `npm run version:prepare`，将自动计算的应用版本写入根 `package.json` 并一同提交；仅修改 `integrations/` 或工具包发布 workflow 时不修改根版本。工具包使用自己的 `package.json` 版本与 `toolkit-v` 标签。
+1. 应用文件或 Skill 发布内容发生变更时，先暂存本次新增文件，再在 `git commit` 前执行 `npm run version:prepare`。命令同步应用版本，并根据最新 `skill-v` 标签及已提交版本自动递增有变化的 Skill 版本；将版本文件和发布记录一同提交。仅修改 `integrations/` 或工具包发布 workflow 时不修改根版本。工具包使用自己的 `package.json` 版本与 `toolkit-v` 标签。
 2. 版本格式为 `major.minor.patch`。`major` 仅在需要发布新大版本时由开发者明确设置；将 `package.json` 改为新的 `M.0.0` 后执行版本同步，该提交即为新大版本的 `M.0.0` 起点。
 3. 同一大版本内，脚本按默认分支 first-parent 中包含应用文件变更的提交顺序自动递增 `patch`：`0` 至 `20`；超过 `20` 时 `minor` 加 `1`、`patch` 重置为 `0`。仅工具包变更的提交不计入应用版本。
 4. GitHub Actions 必须使用相同算法校验 `package.json`；版本不一致时必须失败且不得发布 Docker 镜像或 GitHub Release。Action 只校验和发布，不得自行写回 Git 历史，避免生成循环提交。
+5. Skill 使用独立的 `integrations/skill/module.json` 版本和 `skill-v` 标签；其版本必须与 `SKILL.md` 元数据一致。入口、参考资料、脚本或其他打包内容变化时，版本必须高于最新发布版本；重复执行准备命令不再次递增尚未发布的版本。README、CHANGELOG 和打包器排除的文件不单独触发递增。发布前核对本版 CHANGELOG；CI 拒绝版本回退、内容变化但未递增和元数据不一致。

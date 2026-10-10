@@ -2,9 +2,9 @@
  * @file scripts/release-version.mjs
  * @project SlothVault
  * @module Release Version Resolution
- * @description Synchronizes the application release version from first-parent commits that change application-owned files.
- * @logic Exclude independent integration commits while preserving retired-path history classification, then map application commits to the patch/minor cycle and validate the committed version in Actions.
- * @dependencies Node.js node:child_process, node:fs/promises, Git
+ * @description Synchronizes application and independent Skill versions before commits.
+ * @logic Advance changed Skill packages against published tags, synchronize metadata and notes, then map application commits to the patch/minor cycle; Actions only validate committed versions.
+ * @dependencies Node.js node:child_process, node:fs/promises, Git, Skill module metadata
  * @index_tags release,version,semver,github-actions,git-history,docker
  * @author holic512
  */
@@ -66,6 +66,89 @@ export function findMajorVersionBaseline(history, major) {
 
 function git(args) {
   return execFileSync('git', args, { encoding: 'utf8' }).trim()
+}
+
+function compareVersions(left, right) {
+  const a = parseSemanticVersion(left)
+  const b = parseSemanticVersion(right)
+  return a.major - b.major || a.minor - b.minor || a.patch - b.patch
+}
+
+export function isSkillPackageFile(file) {
+  if (!file.startsWith('integrations/skill/')) return false
+  const relative = file.slice('integrations/skill/'.length)
+  return !['README.md', 'CHANGELOG.md'].includes(relative)
+    && !relative.split('/').some(part => ['tests', '__pycache__', '.venv', '.DS_Store'].includes(part))
+    && !/\.py[co]$/.test(relative)
+}
+
+/** Repeat preparation against the same release without advancing an unpublished version again. */
+export async function prepareSkillVersion({ root = new URL('../', import.meta.url), check = false } = {}) {
+  const directory = new URL('integrations/skill/', root)
+  const modulePath = new URL('module.json', directory)
+  const entryPath = new URL('slothvault-mcp/SKILL.md', directory)
+  const changelogPath = new URL('CHANGELOG.md', directory)
+  const readmePath = new URL('README.md', directory)
+  const metadata = JSON.parse(await readFile(modulePath, 'utf8'))
+  const current = parseSemanticVersion(metadata.version)
+  const runGit = args => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim()
+  const tags = runGit(['tag', '--list', 'skill-v*']).split('\n')
+    .filter(tag => /^skill-v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(tag))
+    .sort((a, b) => compareVersions(a.slice(7), b.slice(7)))
+  const latestTag = tags.at(-1)
+  const releasedVersion = latestTag?.slice(7)
+  if (releasedVersion && compareVersions(metadata.version, releasedVersion) < 0) {
+    throw new Error(`Skill version ${metadata.version} is older than ${latestTag}`)
+  }
+  const untracked = runGit(['ls-files', '-z', '--others', '--exclude-standard', '--', 'integrations/skill']).split('\0')
+  const changedSince = ref => [...new Set([
+    ...runGit(['diff', '--name-only', '-z', ref, '--', 'integrations/skill']).split('\0'), ...untracked,
+  ])].filter(isSkillPackageFile)
+  const changedFiles = latestTag ? changedSince(latestTag) : untracked.filter(isSkillPackageFile)
+  let needsIncrement = changedFiles.length > 0 && releasedVersion === metadata.version
+  // A second content commit must advance even while its previous release is still running.
+  const commits = runGit(['rev-list', '--first-parent', '--max-count=2', 'HEAD']).split('\n')
+  for (const commit of commits) {
+    if (!runGit(['ls-tree', '--name-only', commit, '--', 'integrations/skill/module.json'])) continue
+    const committed = JSON.parse(runGit(['show', `${commit}:integrations/skill/module.json`])).version
+    if (compareVersions(metadata.version, committed) < 0) throw new Error(`Skill version ${metadata.version} is older than committed version ${committed}`)
+    if (committed === metadata.version && changedSince(commit).length) needsIncrement = true
+  }
+  let version = metadata.version
+  if (needsIncrement) {
+    if (check) throw new Error('Skill package changed without advancing its version; run npm run version:prepare')
+    version = `${current.major}.${current.minor}.${current.patch + 1}`
+    parseSemanticVersion(version)
+  }
+  const entry = await readFile(entryPath, 'utf8')
+  const frontmatter = entry.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)
+  const entryVersions = frontmatter ? [...frontmatter[1].matchAll(/^  version: ["']?(\d+\.\d+\.\d+)["']?[ \t]*\r?$/gm)] : []
+  if (!frontmatter || entryVersions.length !== 1 || [...frontmatter[1].matchAll(/^  version:.*$/gm)].length !== 1) {
+    throw new Error('Skill frontmatter must contain exactly one metadata version')
+  }
+  const synchronizedEntry = entryVersions[0][1] === version ? entry
+    : entry.replace(frontmatter[0], frontmatter[0].replace(/^  version:.*$/m, `  version: "${version}"`))
+  if (check && entryVersions[0][1] !== version) throw new Error('Skill metadata version does not match module.json')
+  let changelog = await readFile(changelogPath, 'utf8')
+  if (!new RegExp(`^## ${version.replaceAll('.', '\\.')}\\s*$`, 'm').test(changelog)) {
+    if (check) throw new Error(`Skill CHANGELOG.md is missing the ${version} section`)
+    if (!/^# [^\n]+\n/.test(changelog)) throw new Error('Skill CHANGELOG.md must start with a title')
+    const paths = changedFiles.map(file => `\`${file.slice('integrations/skill/'.length)}\``).join(', ')
+    changelog = changelog.replace(/^(# [^\n]+\n)/, `$1\n## ${version}\n\n- Updated packaged Skill files: ${paths || '`module.json`, `slothvault-mcp/SKILL.md`'}.\n`)
+  }
+  const readme = await readFile(readmePath, 'utf8')
+  const synchronizedReadme = readme.replace(/当前版本 \*\*\d+\.\d+\.\d+\*\*/, `当前版本 **${version}**`)
+    .replace(/skill-v\d+\.\d+\.\d+/g, `skill-v${version}`)
+  if (!check) {
+    if (metadata.version !== version) {
+      metadata.version = version
+      await writeFile(modulePath, `${JSON.stringify(metadata, null, 2)}\n`, 'utf8')
+    }
+    if (synchronizedEntry !== entry) await writeFile(entryPath, synchronizedEntry, 'utf8')
+    await writeFile(changelogPath, changelog, 'utf8')
+    if (synchronizedReadme !== readme) await writeFile(readmePath, synchronizedReadme, 'utf8')
+  }
+  return { version, releasedVersion: releasedVersion || null, changedFiles }
 }
 
 export function isApplicationChange(paths) {
@@ -159,9 +242,14 @@ export async function preparePackageVersion({
 }
 
 async function main() {
+  if (process.argv.includes('--check-skill')) {
+    process.stdout.write(`${JSON.stringify(await prepareSkillVersion({ check: true }), null, 2)}\n`)
+    return
+  }
   if (process.argv.includes('--prepare')) {
+    const skill = await prepareSkillVersion()
     const prepared = await preparePackageVersion()
-    process.stdout.write(`${JSON.stringify(prepared, null, 2)}\n`)
+    process.stdout.write(`${JSON.stringify({ ...prepared, skill }, null, 2)}\n`)
     return
   }
 
