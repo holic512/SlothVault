@@ -2,8 +2,8 @@
  * @file project-note-view.tsx
  * @project SlothVault
  * @module Public Project Document Reader
- * @description Renders immutable public project documents with navigation, exact content-version evidence, and legacy release evidence.
- * @logic Render titles and note tags for locked readers, require independent reading and download capabilities, display version evidence, and navigate rendered Markdown headings through the document outline.
+ * @description Renders public project documents and saved administrator previews with navigation, exact content-version evidence, and legacy release evidence.
+ * @logic Render titles and note tags for locked readers, require independent reading and download capabilities, display existing version evidence without fabricating draft release fields, and navigate rendered Markdown headings through the document outline.
  * @dependencies Ant Design Typography, next-intl/server, ProjectDocumentContent
  * @index_tags project,document,reader,release,evidence,transaction,public
  * @author holic512
@@ -34,10 +34,10 @@ type NoteData = {
   content: string
   versionNote: string | null
   updatedAt: string
-  releaseId: string
-  releaseHash: string
-  manifestVersion: number
-  publishedAt: string
+  releaseId: string | null
+  releaseHash: string | null
+  manifestVersion: number | null
+  publishedAt: string | null
   evidence: Array<{
     transactionSignature: string
     signerAddress: string
@@ -62,6 +62,7 @@ export async function ProjectNoteView({
   noteTitle,
   tags,
   access,
+  previewBase,
 }: {
   projectId: string
   versionId: string
@@ -71,6 +72,7 @@ export async function ProjectNoteView({
   noteTitle: string
   tags: string[]
   access: ProjectAccess
+  previewBase?: string
 }) {
   const [locale, t] = await Promise.all([getLocale(), getTranslations('ProjectDocument')])
 
@@ -85,7 +87,7 @@ export async function ProjectNoteView({
                 <Link
                   key={note.id}
                   className={note.id === noteId ? 'is-active' : ''}
-                  href={`/project/${projectId}/v/${versionId}/docs/${note.id}`}
+                  href={`${previewBase || `/project/${projectId}/v/${versionId}`}/docs/${note.id}`}
                 >
                   {note.noteTitle}
                 </Link>
@@ -109,7 +111,7 @@ export async function ProjectNoteView({
           </div> : null}
           {note?.versionNote ? <TypographyParagraph type="secondary">{note.versionNote}</TypographyParagraph> : null}
           {note ? <>
-          <aside className="docs-release-proof" aria-label={t('release.title')}>
+          {note.publishedAt && note.releaseHash && note.releaseId ? <aside className="docs-release-proof" aria-label={t('release.title')}>
             <span className="docs-copyright-mark"><Fingerprint size={18} /></span>
             <div className="docs-copyright-copy">
               <strong>{t('release.title')}</strong>
@@ -122,11 +124,11 @@ export async function ProjectNoteView({
               <span>{t('release.scope')}</span>
             </div>
             <div className="docs-copyright-links">
-              {access.canDownload ? <a href={`/api/project/${projectId}/v/${versionId}/manifest`} download>
+              {access.canDownload ? <a href={previewBase ? `/api/admin/mm/projectVersion/${versionId}/manifest` : `/api/project/${projectId}/v/${versionId}/manifest`} download>
                 {t('release.download')}<Download size={12} />
               </a> : null}
             </div>
-          </aside>
+          </aside> : null}
           {note.evidence.map((credential) => (
             <aside className="docs-copyright-proof" aria-label={t('evidence.release.label')} key={credential.transactionSignature}>
               <span className="docs-copyright-mark">

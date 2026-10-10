@@ -37,15 +37,16 @@ vi.mock('@/components/shell/navigation-shell', () => ({
 vi.mock('@/components/auth/account-nav', () => ({ AccountNav: () => null }))
 vi.mock('@/components/theme/theme-controls', () => ({ ThemeControls: () => null }))
 
-function renderShell() {
+function renderShell(previewBase?: string) {
   const props: Parameters<typeof ProjectShell>[0] = {
+    previewBase,
     projectId: '42',
     project: { id: '42', projectName: 'Example', avatar: null, status: 1, updatedAt: '' },
-    versions: [{
+    versions: previewBase ? [] : [{
       id: '8', version: '1.0', description: null, weight: 0, releaseId: 'release',
       releaseHash: 'hash', manifestVersion: 1, publishedAt: '',
     }],
-    menus: [{ id: '9', label: 'Community', url: 'https://example.com', isExternal: true, weight: 0, children: [] }],
+    menus: previewBase ? [] : [{ id: '9', label: 'Community', url: 'https://example.com', isExternal: true, weight: 0, children: [] }],
     children: null,
   }
   return renderToStaticMarkup(createElement(ProjectShell, props))
@@ -79,3 +80,12 @@ describe('public project navigation rendering', () => {
     expect(html.match(/aria-label="Select project version"/g)).toHaveLength(2)
   })
 })
+
+ it('pins desktop and mobile preview links to the selected version', () => {
+   scenario.pathname = '/preview/project/42/v/8/docs/123'
+   const html = renderShell('/preview/project/42/v/8')
+   expect(html.match(/href="\/preview\/project\/42\/v\/8\/home"/g)).toHaveLength(2)
+   expect(html.match(/aria-current="page" href="\/preview\/project\/42\/v\/8\/docs"/g)).toHaveLength(2)
+   expect(html).not.toContain('Community')
+   expect(html).not.toContain('Select project version')
+ })

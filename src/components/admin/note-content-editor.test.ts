@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getProjectVersionActions, loadProjectVersions, NoteContentEditor } from './note-content-editor'
 
 const scenario = vi.hoisted(() => ({
+  previewClick: null as (() => void) | null,
   published: false,
   hidden: false,
   selectedId: '',
@@ -21,6 +22,10 @@ vi.mock('antd', async (importOriginal) => {
   const actual = await importOriginal<typeof import('antd')>()
   return {
     ...actual,
+    Button: (props: Parameters<typeof actual.Button>[0]) => {
+      if (props.children === 'previewVersion') scenario.previewClick = props.onClick as (() => void) | undefined ?? null
+      return createElement(actual.Button, props)
+    },
     Dropdown: ({ children, menu }: { children: ReactNode; menu: { items: typeof scenario.menu } }) => {
       scenario.menu = menu.items
       return children
@@ -203,4 +208,14 @@ describe('note workspace revision controls', () => {
       body: JSON.stringify({ status: 0 }),
     }))
   })
+})
+
+it.each([false, true])('opens the selected version preview in an isolated new tab (published: %s)', published => {
+  scenario.published = published
+  const open = vi.fn()
+  vi.stubGlobal('window', { open })
+  renderToStaticMarkup(createElement(NoteContentEditor, { noteId: '2' }))
+  expect(scenario.previewClick).not.toBeNull()
+  scenario.previewClick?.()
+  expect(open).toHaveBeenCalledWith('/preview/project/2/v/2/docs', '_blank', 'noopener,noreferrer')
 })

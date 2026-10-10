@@ -1125,7 +1125,9 @@
           "selectNote": "从目录中选择一篇笔记继续",
           "revision": "当前笔记还没有内容版本",
           "createRevision": "创建首个内容版本"
-        }
+        },
+        "previewVersion": "预览版本",
+        "saveBeforePreview": "请先保存当前正文，再预览版本。"
       },
       "content": {
         "navTitle": "分类笔记",
@@ -2571,5 +2573,15 @@
       "failed": "图表无法绘制，请检查 Mermaid 语法。原始代码如下：",
       "tooLarge": "图表超过 {maximum} 字符限制。原始代码如下："
     }
+  },
+  "ProjectPreview": {
+    "title": "管理员预览",
+    "published": "已发布",
+    "draft": "草稿",
+    "hidden": "已隐藏",
+    "savedOnly": "显示已保存内容；仅管理员可见。",
+    "backToEditor": "返回版本编辑",
+    "emptyTitle": "暂无可预览笔记",
+    "emptyDescription": "请启用分类和笔记，并为笔记设置一个启用的主正文。"
   }
 }

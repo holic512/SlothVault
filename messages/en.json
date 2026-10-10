@@ -1125,7 +1125,9 @@
           "selectNote": "Select a note from the directory to continue.",
           "revision": "This note has no content versions yet.",
           "createRevision": "Create first content version"
-        }
+        },
+        "previewVersion": "Preview version",
+        "saveBeforePreview": "Save the current body before previewing the version."
       },
       "content": {
         "navTitle": "Categories & Notes",
@@ -2571,5 +2573,15 @@
       "failed": "Unable to render this diagram. Check the Mermaid syntax; source is shown below.",
       "tooLarge": "Diagram exceeds {maximum} characters. Source is shown below."
     }
+  },
+  "ProjectPreview": {
+    "title": "Administrator preview",
+    "published": "Published",
+    "draft": "Draft",
+    "hidden": "Hidden",
+    "savedOnly": "Saved content only; visible to administrators.",
+    "backToEditor": "Return to version editor",
+    "emptyTitle": "No notes to preview",
+    "emptyDescription": "Enable categories and notes, and assign each note one enabled primary body."
   }
 }

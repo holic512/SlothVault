@@ -5,7 +5,7 @@
  * @project SlothVault
  * @module Public Project Shell
  * @description Provides the public article-collection layout and interactive navigation around server-rendered reading routes.
- * @logic Render localized navigation and server-rendered reading content with an optional filing footer, and handle version switching and mobile menus.
+ * @logic Render localized navigation and server-rendered reading content with an optional filing footer, and handle version switching and mobile menus, or pin administrator preview navigation to a version.
  * @dependencies Ant Design, Next navigation, next-intl, project context, navigation-shell, project-navigation
  * @index_tags project-layout,public-reading,navigation,server-data,web2
  * @author holic512
@@ -37,6 +37,7 @@ export function ProjectShell({
   menus,
   children,
   footer,
+  previewBase,
 }: {
   projectId: string
   project: PublicProject
@@ -44,6 +45,7 @@ export function ProjectShell({
   menus: ProjectMenu[]
   children: ReactNode
   footer?: ReactNode
+  previewBase?: string
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -52,6 +54,7 @@ export function ProjectShell({
     <div className={`${projectStyles.root} project-page`}>
       <ProjectNavigation
         project={project}
+        previewBase={previewBase}
         projectId={projectId}
         versions={versions}
         menus={menus}
@@ -71,6 +74,7 @@ function ProjectNavigation({
   menus,
   pathname,
   onVersionChange,
+  previewBase,
 }: {
   project: PublicProject
   projectId: string
@@ -78,11 +82,15 @@ function ProjectNavigation({
   menus: ProjectMenu[]
   pathname: string
   onVersionChange: (value: string) => void
+  previewBase?: string
 }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const t = useTranslations('ProjectNavigation')
-  const builtinLinks = getBuiltinProjectNavigation(projectId)
-  const docsActive = isBuiltinProjectNavigationActive('docs', projectId, pathname)
+  const builtinLinks = getBuiltinProjectNavigation(projectId).map(entry => ({ ...entry, href: previewBase ? `${previewBase}${entry.path}` : entry.href }))
+  const isActive = (key: 'home' | 'docs') => previewBase
+    ? (key === 'home' ? pathname === `${previewBase}/home` : pathname.startsWith(`${previewBase}/docs`))
+    : isBuiltinProjectNavigationActive(key, projectId, pathname)
+  const docsActive = isActive('docs')
   const versionMatch = pathname.match(/\/v\/([^/]+)/)
   const currentVersion = versionMatch?.[1]
   const resolveUrl = (url: string | null) => {
@@ -96,7 +104,7 @@ function ProjectNavigation({
       <NavigationShell
         kind="project"
         brand={
-          <Link href={`/project/${projectId}/home`} className="project-brand-lockup">
+          <Link href={previewBase ? `${previewBase}/home` : `/project/${projectId}/home`} className="project-brand-lockup">
             {project.avatar ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={project.avatar} alt="" />
@@ -109,7 +117,7 @@ function ProjectNavigation({
         links={
           <>
             {builtinLinks.map((entry) => {
-              const active = isBuiltinProjectNavigationActive(entry.key, projectId, pathname)
+              const active = isActive(entry.key)
               return (
                 <Link key={entry.key} className={active ? 'is-active' : ''} aria-current={active ? 'page' : undefined} href={entry.href}>
                   {t(entry.translationKey)}
@@ -175,7 +183,7 @@ function ProjectNavigation({
       >
         <nav className="mobile-nav-links" aria-label={t('mobileNavigation')}>
           {builtinLinks.map((entry) => {
-            const active = isBuiltinProjectNavigationActive(entry.key, projectId, pathname)
+            const active = isActive(entry.key)
             return (
               <Link key={entry.key} className={active ? 'is-active' : ''} aria-current={active ? 'page' : undefined} href={entry.href} onClick={() => setMobileOpen(false)}>
                 {t(entry.translationKey)}

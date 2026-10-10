@@ -5,7 +5,7 @@
  * @project SlothVault
  * @module Unified Note Workspace
  * @description Owns project-version lifecycle actions and the linear project-to-Markdown administration flow in one responsive workspace.
- * @logic Resolve deep links and recent releases, clone into new or empty drafts, guard unsaved content, pause saves during image/attachment uploads, and allow published display metadata edits while keeping tags, bodies and document membership frozen.
+ * @logic Resolve deep links and recent releases, clone into new or empty drafts, guard unsaved content, pause saves during image/attachment uploads, open saved version previews, and allow published display metadata edits while keeping tags, bodies and document membership frozen.
  * @dependencies Ant Design, React Query, React MD Editor wrapper, Next navigation, next-intl, api-client
  * @index_tags admin,notes,workspace,project-versions,categories,content-versions,autosave,responsive
  * @author holic512
@@ -814,6 +814,10 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
         </div>
         <Space wrap className="note-version-status">
           {dirty ? <Tag color="warning">{contentT('unsaved')}</Tag> : null}
+          <Button icon={<Eye size={15} />} disabled={!selectedVersion || selectedVersion.isDeleted} onClick={() => {
+            if (dirty) { message.warning(t('saveBeforePreview')); return }
+            window.open(`/preview/project/${currentProjectId}/v/${currentVersionId}/docs`, '_blank', 'noopener,noreferrer')
+          }}>{t('previewVersion')}</Button>
           <Button icon={<RefreshCw size={15} />} onClick={() => void refreshWorkspace()}>{t('refresh')}</Button>
           {selectedVersion ? versionTag(selectedVersion) : null}
         </Space>

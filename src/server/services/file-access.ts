@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Managed File Authorization
  * @description Authorizes legacy and contextual upload URLs using live content references and independent project capabilities.
- * @logic Reject orphaned or hidden references, allow any authorized shared use, validate explicit project context, and keep contract attachments on their dedicated routes.
+ * @logic Validate live project references for administrator previews, reject orphaned or hidden public references, allow any authorized shared use, validate explicit project context, and keep contract attachments on their dedicated routes.
  * @dependencies Prisma file/content models, content-access, auth roles, lib/managed-files
  * @index_tags files,authorization,shared-attachments,uploads,read,download
  * @author holic512
@@ -21,18 +21,18 @@ const visibleProject = { isDeleted: false, status: 1 } as const
 const visibleVersion = { isDeleted: false, status: 1, publishedAt: { not: null }, releaseId: { not: null }, releaseHash: { not: null }, manifestVersion: 2, project: visibleProject } as const
 type Reference = { sourceType: string; sourceId: number; projectId: number | null; usage: string }
 
-async function liveReference(reference: Reference, filePath: string): Promise<{ projectId: number | null; publicRead: boolean; articleId?: number } | null> {
+async function liveReference(reference: Reference, filePath: string, administrator = false): Promise<{ projectId: number | null; publicRead: boolean; articleId?: number } | null> {
   switch (reference.sourceType) {
     case 'NOTE_CONTENT': {
       const item = await prisma.noteContent.findFirst({ where: {
         id: reference.sourceId, isDeleted: false, status: 1, isPrimary: true,
-        noteInfo: { isDeleted: false, status: 1, category: { isDeleted: false, status: 1, projectVersion: visibleVersion } },
+        noteInfo: { isDeleted: false, status: 1, category: { isDeleted: false, status: 1, projectVersion: administrator ? { isDeleted: false, project: { isDeleted: false } } : visibleVersion } },
       }, select: { noteInfo: { select: { category: { select: { projectVersion: { select: { projectId: true } } } } } } } })
       const projectId = item?.noteInfo.category.projectVersion.projectId
       return projectId && projectId === reference.projectId ? { projectId, publicRead: false } : null
     }
     case 'PROJECT_HOME': {
-      const item = await prisma.projectHome.findFirst({ where: { id: reference.sourceId, status: 1, isDeleted: false, project: visibleProject }, select: { projectId: true } })
+      const item = await prisma.projectHome.findFirst({ where: { id: reference.sourceId, status: 1, isDeleted: false, project: administrator ? { isDeleted: false } : visibleProject }, select: { projectId: true } })
       return item && item.projectId === reference.projectId ? { projectId: item.projectId, publicRead: true } : null
     }
     case 'PROJECT_MENU': {
@@ -51,7 +51,7 @@ async function liveReference(reference: Reference, filePath: string): Promise<{ 
       return item?.id === reference.sourceId && reference.projectId === null ? { projectId: null, publicRead: true } : null
     }
     case 'PROJECT_AVATAR': {
-      const item = await prisma.project.findFirst({ where: { id: reference.sourceId, ...visibleProject }, select: { id: true, avatar: true } })
+      const item = await prisma.project.findFirst({ where: { id: reference.sourceId, ...(administrator ? { isDeleted: false } : visibleProject) }, select: { id: true, avatar: true } })
       return item && item.id === reference.projectId && managedUploadPath(item.avatar ?? undefined) === filePath ? { projectId: item.id, publicRead: true } : null
     }
     case 'USER_AVATAR': {
@@ -81,9 +81,11 @@ export async function authorizeManagedFile(
   let reason = viewer ? 'MEMBERSHIP_REQUIRED' : 'LOGIN_REQUIRED'
   for (const reference of files.flatMap((file) => file.references)) {
     if (options.projectId !== undefined && reference.projectId !== options.projectId) continue
-    const context = await liveReference(reference, filePath)
+    const administrator = Boolean(viewer && isAdminRole(viewer.role))
+    const context = await liveReference(reference, filePath, administrator)
     if (!context) continue
     foundLiveReference = true
+    if (administrator) return
     const download = Boolean(options.download || !inlineImage || reference.usage !== 'READ_MEDIA')
     if (context.projectId !== null) {
       if (context.publicRead && !download) return

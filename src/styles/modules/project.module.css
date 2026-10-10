@@ -422,3 +422,33 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
+
+.root :global(.project-preview-notice) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 96px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--sv-border);
+}
+
+.root :global(.project-preview-notice > div) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 16px;
+}
+
+.root :global(.project-preview-notice small) {
+  color: var(--sv-text-muted);
+}
+
+.root :global(.project-preview-notice + main) {
+  padding-top: 24px;
+}
+
+.root :global(.project-preview-notice span) {
+  overflow-wrap: anywhere;
+}
