@@ -2,7 +2,7 @@
 
 <!-- GENERATED FILE: run `npm run mcp:docs` after changing MCP declarations. -->
 
-Tool count: **67**
+Tool count: **71**
 
 | Tool | Domain | Risk | Idempotency | Resource permission |
 | --- | --- | --- | --- | --- |
@@ -44,6 +44,10 @@ Tool count: **67**
 | `content.note.content.update_draft` | `content.note.content` | write | non-idempotent | - |
 | `content.note.content.set_primary` | `content.note.content` | write | non-idempotent | - |
 | `content.note.content.update_metadata` | `content.note.content` | write | non-idempotent | - |
+| `content.note.tag.list` | `content.note.tag` | read | idempotent | - |
+| `content.note.tag.add` | `content.note.tag` | write | idempotent | - |
+| `content.note.tag.rename` | `content.note.tag` | write | non-idempotent | - |
+| `content.note.tag.remove` | `content.note.tag` | write | idempotent | - |
 | `content.note.list` | `content.note` | read | idempotent | - |
 | `content.note.get` | `content.note` | read | idempotent | - |
 | `content.note.create` | `content.note` | write | non-idempotent | - |
@@ -82,3 +86,14 @@ Resource count: **2**
 | `contract-attachment` | `slothvault://contract-attachment/{contractId}` | `application/pdf` | 255 | 26214400 |
 
 This document is generated from the declaration registry. CI must run `npm run mcp:docs:check` and fail when the checked-in output is stale.
+
+## 笔记标签
+
+`content.note.list`、`content.note.get` 和笔记写入工具均返回 `tags: string[]`。
+`content.note.create`、`content.note.update` 接受可选的 `tags` 数组：创建时省略表示无标签，更新时省略保留原值，传入 `[]` 清空。
+标签去除首尾空白、忽略空项，按大小写敏感文本去重并保留输入顺序；每篇最多 10 个，每个最多 30 个字符。
+标签属于笔记元数据，同一笔记的正文版本共用标签。修改标签要求项目版本未发布，复制为草稿时保留标签。
+标签不参与发布清单和正文存证哈希计算。
+单标签操作优先使用 `content.note.tag.list/add/rename/remove`，全部返回 `{ noteId, tags }`。写操作在事务中保留其他标签，要求所属项目版本未发布。
+`list` 接受 `{ noteId }`；`add`、`remove` 接受 `{ noteId, tag }`；`rename` 接受 `{ noteId, tag, newTag }`。标签名称去首尾空白、不能为空，大小写敏感。
+重复添加和移除不存在的标签均返回当前列表；改名保持原顺序，原标签不存在返回 404，新名称被其他标签占用返回 409。

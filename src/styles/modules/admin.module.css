@@ -2885,3 +2885,16 @@
     display: none;
   }
 }
+
+.root :global(.note-tags) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 12px 16px;
+}
+
+.root :global(.note-tags) :global(.ant-tag) {
+  margin: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

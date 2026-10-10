@@ -409,3 +409,16 @@
 .root :global(.project-access-notice) {
   margin-block: 16px;
 }
+
+.root :global(.docs-note-tags) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-block: 12px;
+}
+
+.root :global(.docs-note-tags) :global(.ant-tag) {
+  margin: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

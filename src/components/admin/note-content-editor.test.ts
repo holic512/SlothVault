@@ -47,7 +47,7 @@ vi.mock('@tanstack/react-query', () => ({
   useQuery: ({ queryKey }: { queryKey: Array<string | undefined> }) => {
     const version = { id: '2', projectId: '2', version: '1.0', description: null, weight: 0, status: scenario.hidden ? 0 : 1, releaseId: scenario.published ? 'release-id' : null, releaseHash: scenario.published ? 'a'.repeat(64) : null, publishedAt: scenario.published ? '2026-09-23' : null, isDeleted: false }
     const category = { id: '2', categoryName: 'Documents', projectVersionId: '2', projectVersion: version }
-    const note = { id: '2', categoryId: '2', noteTitle: 'Example note', category }
+    const note = { id: '2', categoryId: '2', noteTitle: 'Example note', tags: ['API', '教程'], category }
     const revision = { id: '1', noteInfoId: '2', content: '# Example', versionNote: 'First revision', status: 1, updatedAt: '2026-09-23', isPrimary: true, isDeleted: false }
     const data: Record<string, unknown> = {
       'admin-note-workspace-projects': { list: [{ id: '2', projectName: 'Example project' }] },
@@ -90,6 +90,9 @@ describe('note workspace revision controls', () => {
     }
     expect(html).toContain(published ? 'status.published' : 'status.draft')
     expect(html).not.toContain('quickVersion')
+    expect(html).toContain('class="note-tags"')
+    expect(html).toContain('API')
+    expect(html).toContain('教程')
   })
 
   it('shows the hidden badge alongside the published badge', () => {

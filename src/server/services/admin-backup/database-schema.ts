@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Admin Database Backup Schema
  * @description Defines the portable 2.12 database-backup shape with membership entitlements, independent articles, contracts, project-version evidence, and legacy cNFT input compatibility.
- * @logic Validate active collections strictly, retain member access and standalone blog content, accept deprecated Tree/cNFT arrays only for ignore accounting, and retain prior import envelopes.
+ * @logic Validate active collections strictly, retain note tags, member access and standalone blog content, accept deprecated Tree/cNFT arrays only for ignore accounting, and retain prior import envelopes.
  * @dependencies Zod, Node path rules, backup constants
  * @index_tags admin,backup,database,schema,zod,portable
  * @author holic512
@@ -13,6 +13,7 @@ import 'server-only'
 import { isAbsolute } from 'node:path'
 
 import { z } from 'zod'
+import { noteTagsSchema } from '@/lib/note-tags'
 import { commissionBackupShape } from '@/server/commissions/backup'
 
 import {
@@ -286,6 +287,7 @@ const noteInfoSchema = z.object({
   categoryId: idStringSchema,
   authorId: nullableIdStringSchema.optional(),
   noteTitle: limitedString(255),
+  tags: noteTagsSchema.optional().default([]),
   weight: intSchema,
   status: smallIntSchema,
   createdAt: dateStringSchema,

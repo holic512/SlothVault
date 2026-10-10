@@ -60,6 +60,7 @@
     "description": "请联系管理员前往管理后台编辑并发布首页内容。"
   },
   "ProjectDocument": {
+    "tags": "标签",
     "outline": "本页目录",
     "updated": "更新于 {date}",
     "release": {
@@ -1068,6 +1069,11 @@
         "createNote": "创建笔记",
         "categoryName": "分类名称",
         "noteTitle": "笔记标题",
+        "tags": "标签",
+        "tagsPlaceholder": "输入标签后按回车添加",
+        "tagsHint": "最多 10 个标签，每个最多 30 个字符。",
+        "tagsReadOnly": "已发布版本的标签只读。",
+        "tagsInvalid": "最多添加 10 个标签，每个标签不能超过 30 个字符。",
         "revisionNote": "版本备注",
         "weight": "权重",
         "enabled": "启用",

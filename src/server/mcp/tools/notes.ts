@@ -11,6 +11,7 @@
 import 'server-only'
 
 import { z } from 'zod'
+import { noteTagsSchema } from '@/lib/note-tags'
 
 import { collectMcpToolDefinitions, type McpToolDefinition } from '@/server/mcp/registry'
 
@@ -62,6 +63,7 @@ const noteOutputSchema = z.object({
   categoryId: decimalIdSchema,
   authorId: decimalIdSchema.nullable(),
   noteTitle: z.string(),
+  tags: noteTagsSchema,
   weight: z.number().int(),
   status: z.number().int(),
   createdAt: isoDateSchema,
@@ -84,11 +86,12 @@ const updateNoteSchema = z.strictObject({
   noteId: decimalIdSchema,
   categoryId: decimalIdSchema.optional(),
   noteTitle: z.string().trim().min(1).max(255).optional(),
+  tags: noteTagsSchema.optional(),
   weight: databaseIntegerSchema.optional(),
   status: statusSchema.optional(),
 }).refine(
-  ({ categoryId, noteTitle, weight, status }) =>
-    categoryId !== undefined || noteTitle !== undefined || weight !== undefined || status !== undefined,
+  ({ categoryId, noteTitle, tags, weight, status }) =>
+    categoryId !== undefined || noteTitle !== undefined || tags !== undefined || weight !== undefined || status !== undefined,
   { message: '至少提供一个需要更新的笔记字段。' },
 )
 
@@ -163,17 +166,19 @@ export const noteToolDefinitions: McpToolDefinition[] = collectMcpToolDefinition
       inputSchema: z.strictObject({
         categoryId: decimalIdSchema,
         noteTitle: z.string().trim().min(1).max(255),
+        tags: noteTagsSchema.optional(),
         weight: databaseIntegerSchema.default(0),
         status: statusSchema.default(1),
       }),
       outputSchema: noteOutputSchema,
       annotations: CREATE_ANNOTATIONS,
     },
-    async ({ categoryId, noteTitle, weight, status }, context) =>
+    async ({ categoryId, noteTitle, tags, weight, status }, context) =>
       runMcpTool('content.note.create', async () => createAdminNote({
         categoryId,
         authorId: context.principal.userId,
         noteTitle,
+        tags,
         weight,
         status,
       })),
@@ -183,15 +188,15 @@ export const noteToolDefinitions: McpToolDefinition[] = collectMcpToolDefinition
     'content.note.update',
     {
       title: '更新笔记草稿',
-      description: '修改笔记元数据或移动到另一个分类；所有相关项目版本都必须未发布。',
+      description: '修改笔记元数据或移动到另一个分类；修改标签、状态或分类要求相关版本未发布，标题和权重可在发布后修改。',
       inputSchema: updateNoteSchema,
       outputSchema: noteOutputSchema,
       annotations: UPDATE_ANNOTATIONS,
     },
-    async ({ noteId, categoryId, noteTitle, weight, status }) =>
+    async ({ noteId, categoryId, noteTitle, tags, weight, status }) =>
       runMcpTool('content.note.update', async () => updateAdminNote(
         mcpId(noteId, 'noteId'),
-        { categoryId, noteTitle, weight, status },
+        { categoryId, noteTitle, tags, weight, status },
       )),
   )
 })

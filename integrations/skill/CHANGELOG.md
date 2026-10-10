@@ -1,5 +1,11 @@
 # Skill changes
 
+## 1.2.2
+
+- Add single-note tag list/add/rename/remove guidance with exact inputs and complete resulting tag lists.
+- Prefer atomic one-tag tools for local changes; preserve whole-list replacement only when explicitly requested.
+- Document draft-only tag writes, clone preservation, idempotent add/remove, rename conflicts and read-back after uncertain writes.
+
 ## 1.2.1
 
 - Separate independent article body images/downloads (`ArticleImage` / `ArticleAttachment`) from project note images/downloads (`NoteImage` / `NoteAttachment`).

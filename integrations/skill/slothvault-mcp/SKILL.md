@@ -2,7 +2,7 @@
 name: slothvault-mcp
 description: Administer SlothVault in Codex or Claude Code through native MCP tools for drafts, articles, publication, files, and integrity checks. Use for SlothVault administration, not source development or unrelated MCP servers.
 metadata:
-  version: "1.2.1"
+  version: "1.2.2"
 ---
 
 <!--
@@ -28,12 +28,12 @@ The user's task, host approvals, and server permissions govern actions. Tool ann
 
 ## Load only the relevant workflow
 
-- Project drafts, clone, publication, or protected attachments: read [native workflows](references/native-workflows.md).
+- Project note tags, drafts, clone, publication, or protected attachments: read [native workflows](references/native-workflows.md).
 - Independent article creation, editing, checking, or publication: read [article workflow](references/article-workflow.md). Lists locate articles; `content.article.get` reads bodies. Published articles can be edited in place.
 - Technical article creation or substantial rewriting: additionally read [technical writing](references/technical-writing.md). Metadata-only edits do not need the textbook or checker.
 - Project introductions, screenshots, source packages, or code statistics: read [project materials](references/project-materials.md).
 
-Reuse specified drafts and uploaded assets. Upload all required images and download attachments successfully before composing and saving a body. Independent articles use `ArticleImage` / `ArticleAttachment`; project notes use `NoteImage` / `NoteAttachment`. Use returned `filePath` values for website Markdown URLs and `resourceUri` only for MCP reads. Stop body writes on upload failure; inspect uncertain uploads before retrying. Never invent upload paths or save placeholder links. Project-version bodies, primary selection, document membership, and included-node states freeze on publication; clone to a draft to change them. Published metadata remains editable. `targetVersionId` must identify an entirely empty draft. Save bodies and links before `check_draft`; requested project publication ends with state, visibility, and integrity verification.
+Reuse specified drafts and uploaded assets. Upload all required images and download attachments successfully before composing and saving a body. Independent articles use `ArticleImage` / `ArticleAttachment`; project notes use `NoteImage` / `NoteAttachment`. Use returned `filePath` values for website Markdown URLs and `resourceUri` only for MCP reads. Stop body writes on upload failure; inspect uncertain uploads before retrying. Never invent upload paths or save placeholder links. Project-version bodies, primary selection, document membership, and included-node states and note tags freeze on publication; clone to a draft to change them. Published titles, descriptions, and weights remain editable; note tags require a draft. `targetVersionId` must identify an entirely empty draft. Save bodies and links before `check_draft`; requested project publication ends with state, visibility, and integrity verification.
 
 Use returned `filePath` for embeddable assets and `resourceUri` for protected reads, never guessed download URLs. Resource blobs carry filenames in `_meta["slothvault/file-name"]`. Preserve destination files. Save binary Resources only through capabilities the current host exposes. If unavailable or too large, use the website's authorized download flow, not a temporary client; never expose a Key in a URL.
 
@@ -41,7 +41,7 @@ Use returned `filePath` for embeddable assets and `resourceUri` for protected re
 
 Send only changed fields. Reuse successful results when they establish the required state; do not repeat discovery, detail reads, uploads, or checks without a changed input, uncertainty, or a task-specific verification need. Keep a brief task-local record of entity IDs, completed steps, last confirmed state, and next action; never record credentials.
 
-Inspect error `reason`, entity IDs, and issues. Continue read-only diagnosis after failure and correct deterministic errors within scope. A nonempty clone target needs inspection. For `VERSION_FROZEN`, use a draft for body changes or remove unintended body/state fields from metadata edits.
+Inspect error `reason`, entity IDs, and issues. Continue read-only diagnosis after failure and correct deterministic errors within scope. A nonempty clone target needs inspection. For `VERSION_FROZEN`, use a draft for body or tag changes or remove unintended body/state fields from metadata edits.
 
 Resolve connection/discovery failures through the host first. After a timeout or unknown write result, restore the connection if needed and read back the affected entities before retrying; do not restart the workflow on reconnect. Do not replay creates or uploads when success cannot be determined. Preserve `commandId` for supported idempotent commission commands; inspect conflicts before adopting a newer `revision`. Articles have neither of these concurrency fields.
 

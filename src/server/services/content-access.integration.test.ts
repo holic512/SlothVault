@@ -76,7 +76,7 @@ describe('project permissions, file references and portable backup', () => {
     const projectId = Number(project.id)
     const version = await client.projectVersion.create({ data: { projectId, version: '1.0.0', status: 0, weight: 0 } })
     const category = await client.category.create({ data: { projectVersionId: version.id, categoryName: 'Guide', status: 1, weight: 0 } })
-    const note = await client.noteInfo.create({ data: { categoryId: category.id, noteTitle: 'Secret', status: 1, weight: 0 } })
+    const note = await client.noteInfo.create({ data: { categoryId: category.id, noteTitle: 'Secret', tagsJson: JSON.stringify(['API', '教程']), status: 1, weight: 0 } })
     const files = []
     for (const name of ['source.zip', 'diagram.png', 'unused.png']) files.push(await client.fileManagement.create({ data: { originalName: name, fileName: name, filePath: `uploads/test/${name}`, fileSize: 4n, businessType: 'General', status: 1 } }))
     const content = '# Exact protected body\r\n![diagram](/uploads/test/diagram.png)\n[source](/uploads/test/source.zip)\n'
@@ -90,7 +90,7 @@ describe('project permissions, file references and portable backup', () => {
     const s = await seed()
     const calls = s.users.map(viewer => resolveProjectAccess(s.projectId, viewer))
     expect((await Promise.all(calls)).map(access => [access.canRead, access.canDownload])).toEqual([[true, false], [true, false], [true, true], [false, false]])
-    expect(await getProjectNoteMetadata(s.projectId, s.version.id, s.note.id)).toMatchObject({ noteTitle: 'Secret' })
+    expect(await getProjectNoteMetadata(s.projectId, s.version.id, s.note.id)).toMatchObject({ noteTitle: 'Secret', tags: ['API', '教程'] })
     expect((await getProjectSidebar(s.projectId, s.version.id))[0].notes).toHaveLength(1)
     await expect(getProjectNote(s.projectId, s.version.id, s.note.id)).rejects.toMatchObject({ status: 401 })
     await expect(getProjectNote(s.projectId, s.version.id, s.note.id, s.users[3])).rejects.toMatchObject({ status: 403 })
@@ -152,17 +152,32 @@ describe('project permissions, file references and portable backup', () => {
     await client.$transaction(tx => rebuildFileReferences(tx))
     const backup = await exportDatabaseBackup()
     expect(backup.version).toBe('2.12.0')
+    expect(backup.data.noteInfos[0].tags).toEqual(['API', '教程'])
+    expect(backup.data.noteInfos[0]).not.toHaveProperty('tagsJson')
     const parsed = parseDatabaseImportPayload({ data: backup.data, version: backup.version, mode: 'overwrite' })
     await importDatabaseBackup(parsed)
     const restored = await exportDatabaseBackup()
     expect(restored.data.projects[0]).toMatchObject({ readAccessMode: 'MEMBERSHIPS', downloadAccessMode: 'MEMBERSHIPS' })
     expect(restored.data.membershipGrants.map(grant => [grant.source, grant.grantedAt, grant.expiresAt, grant.revokedAt])).toEqual(backup.data.membershipGrants.map(grant => [grant.source, grant.grantedAt, grant.expiresAt, grant.revokedAt]))
+    expect(restored.data.noteInfos[0].tags).toEqual(['API', '教程'])
     expect(restored.data.noteContents[0].content).toBe(s.body.content)
     expect(restored.data.projectVersions[0].releaseHash).toBe(s.release.releaseHash)
     expect(restored.data.fileReferences.map(ref => ref.usage).sort()).toEqual(backup.data.fileReferences.map(ref => ref.usage).sort())
     const user = await client.user.findUniqueOrThrow({ where: { username: 'C' } })
     const projectId = Number(restored.data.projects[0].id)
     await expect(authorizeManagedFile(s.files[0].filePath, { userId: user.id, role: 'USER' }, { projectId })).resolves.toBeUndefined()
+  })
+  it('restores legacy backups without tags as empty arrays', async () => {
+    await seed()
+    const backup = await exportDatabaseBackup()
+    const legacyData = { ...backup.data, noteInfos: backup.data.noteInfos.map(({ tags, ...note }) => {
+      void tags
+      return note
+    }) }
+    const parsed = parseDatabaseImportPayload({ data: legacyData, version: backup.version, mode: 'overwrite' })
+    expect(parsed.data.noteInfos[0].tags).toEqual([])
+    await importDatabaseBackup(parsed)
+    expect((await exportDatabaseBackup()).data.noteInfos[0].tags).toEqual([])
   })
   it('converts old backup article thresholds once and keeps old projects publicly readable', async () => {
     const s = await seed()

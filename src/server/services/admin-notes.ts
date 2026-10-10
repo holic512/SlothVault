@@ -2,7 +2,7 @@
  * @file admin-notes.ts
  * @project SlothVault
  * @module Admin Notes
- * @description Owns editable note metadata and frozen published bodies, full or lightweight NoteContent queries, and serialized primary-version mutations for administration APIs and MCP.
+ * @description Owns note metadata and draft-only tags, and frozen published bodies, full or lightweight NoteContent queries, and serialized primary-version mutations for administration APIs and MCP.
  * @logic Validate uploaded material before new body writes and synchronize managed file references and parent moves; Keep history listings free of Markdown payloads, lock every owning project version before writes, lock cross-version moves in stable order, increment note revisions, and normalize undeleted contents to exactly one primary in the same serializable transaction.
  * @dependencies server/prisma, admin-catalog parsing, Prisma NoteInfo/NoteContent models, server/http/errors, project-version release service
  * @index_tags admin,mcp,notes,note-content,service,transaction,revision-lock,primary-version
@@ -13,6 +13,7 @@ import { assertManagedContentFiles, indexFileWrite, syncFileReferences } from '.
 
 import type { Prisma } from '@generated/prisma-postgresql/client'
 
+import { noteTagsSchema, readNoteTags } from '@/lib/note-tags'
 import { DOCUMENT_CONTENT_MAX_CHARACTERS } from '@/lib/document-content'
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
@@ -38,6 +39,7 @@ type NoteInfoLike = {
   categoryId: number
   authorId?: number | null
   noteTitle: string
+  tagsJson?: string | null
   weight: number
   status: number
   createdAt: Date
@@ -107,6 +109,7 @@ export function noteDto(note: NoteInfoLike) {
     categoryId: note.categoryId.toString(),
     authorId: note.authorId?.toString() ?? null,
     noteTitle: note.noteTitle,
+    tags: readNoteTags(note.tagsJson),
     weight: note.weight,
     status: note.status,
     createdAt: note.createdAt,
@@ -252,16 +255,24 @@ export async function listAdminNotes(query: NoteListQuery) {
   }
 }
 
+function parseNoteTags(value: unknown) {
+  const result = noteTagsSchema.safeParse(value)
+  if (!result.success) throw new HttpError('Invalid tags: use at most 10 tags, each at most 30 characters', 400, 400)
+  return JSON.stringify(result.data)
+}
+
 export async function createAdminNote(input: {
   categoryId?: unknown
   authorId: number
   noteTitle?: unknown
+  tags?: unknown
   weight?: unknown
   status?: unknown
 }) {
   const categoryId = parseJsonDecimalId(input.categoryId, 'categoryId')
   const noteTitle = typeof input.noteTitle === 'string' ? input.noteTitle.trim() : ''
   if (!noteTitle) throw new HttpError('Missing noteTitle', 400, 400)
+  const tagsJson = parseNoteTags(input.tags === undefined ? [] : input.tags)
 
   const note = await executeVersionWrite(async (tx) => {
     const projectVersionId = await projectVersionIdForCategory(tx, categoryId)
@@ -281,6 +292,7 @@ export async function createAdminNote(input: {
         categoryId,
         authorId: input.authorId,
         noteTitle,
+        tagsJson,
         weight: integerValue(input.weight, 0),
         status: integerValue(input.status, 1),
       },
@@ -309,6 +321,7 @@ export async function updateAdminNote(
   input: {
     categoryId?: unknown
     noteTitle?: unknown
+    tags?: unknown
     weight?: unknown
     status?: unknown
     isDeleted?: unknown
@@ -339,6 +352,7 @@ export async function updateAdminNote(
     if (!noteTitle) throw new HttpError('Invalid noteTitle', 400, 400)
     data.noteTitle = noteTitle
   }
+  if (input.tags !== undefined) data.tagsJson = parseNoteTags(input.tags)
   const weight = optionalIntegerValue(input.weight)
   if (weight !== null) data.weight = weight
   const status = optionalIntegerValue(input.status)
@@ -350,7 +364,7 @@ export async function updateAdminNote(
     const note = await executeVersionWrite(async (tx) => {
       for (const versionId of [...new Set([current.category.projectVersionId, targetVersionId])].sort((a, b) => a - b)) await lockProjectVersionMetadata(tx, versionId)
       const before = await tx.noteInfo.findUniqueOrThrow({ where: { id } })
-      if (targetCategoryId !== current.categoryId || (data.status !== undefined && data.status !== before.status)) {
+      if (input.tags !== undefined || targetCategoryId !== current.categoryId || (data.status !== undefined && data.status !== before.status)) {
         await lockDraftProjectVersions(tx, [current.category.projectVersionId, targetVersionId])
       }
       const fresh = await tx.noteInfo.findUnique({

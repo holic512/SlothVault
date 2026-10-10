@@ -74,7 +74,7 @@ Authorization: Bearer svmcp_<public-id>.<secret>
 
 ## MCP 5.0 Tool
 
-MCP server identity 为 `slothvault-admin-mcp@5.0.0`。当前注册表共 67 个 Tool、4 个 Prompt、2 个 Resource 模板；按实时 schema 发现并使用点号分层的业务名称。
+MCP server identity 为 `slothvault-admin-mcp@5.0.0`。当前注册表共 71 个 Tool、4 个 Prompt、2 个 Resource 模板；按实时 schema 发现并使用点号分层的业务名称。
 
 完整 Tool/Resource 清单、领域、风险、幂等性、URI、文件名和大小上限由注册表生成：[MCP Registry 清单](./MCP_REGISTRY.md)。修改 `src/server/mcp/tools/` 或 `src/server/mcp/resource-catalog.json` 后运行 `npm run mcp:docs`；CI 使用 `npm run mcp:docs:check` 阻止文档过期。
 
@@ -185,4 +185,19 @@ Tool、Prompt 与 Resource 注册分别位于 `src/server/mcp/tools/`、`src/ser
 
 `content.article.list` 只返回原有文章元数据，不再返回 `content`。对应数据库查询也不读取正文；需要正文的调用方应先定位文章，再调用 `content.article.get`。后台管理列表 `GET /api/admin/mm/article` 同步采用该契约；编辑器已经通过详情接口读取正文。创建、更新、发布、撤回和详情返回继续包含完整正文。
 
-这是业务输出契约的不兼容变更，依赖旧列表正文的客户端需要迁移并刷新工具发现。服务器身份版本为 5.0.0；MCP 日期协议、鉴权、维护锁、67 个 Tool、4 个 Prompt 和 2 个 Resource 模板保持不变。发布后正文冻结仅适用于项目版本；独立文章仍可原地编辑，可能立即影响公开内容。公开文章列表的默认摘要生成逻辑保持不变。
+这是业务输出契约的不兼容变更，依赖旧列表正文的客户端需要迁移并刷新工具发现。服务器身份版本为 5.0.0；MCP 日期协议、鉴权、维护锁、71 个 Tool、4 个 Prompt 和 2 个 Resource 模板保持不变。发布后正文冻结仅适用于项目版本；独立文章仍可原地编辑，可能立即影响公开内容。公开文章列表的默认摘要生成逻辑保持不变。
+
+## 单篇笔记的标签工具
+
+优先用单标签工具完成局部操作，避免客户端先读取列表再整组写回造成并发覆盖。
+
+| Tool | 输入 | 输出 / 语义 |
+| --- | --- | --- |
+| `content.note.tag.list` | `noteId` | 返回 `{ noteId, tags }`；已发布笔记也可读取。 |
+| `content.note.tag.add` | `noteId`, `tag` | 添加一个标签；已有同名标签时不重复添加。 |
+| `content.note.tag.rename` | `noteId`, `tag`, `newTag` | 保留原位置改名；原标签不存在返回 404，新名称被其他标签占用返回 409。 |
+| `content.note.tag.remove` | `noteId`, `tag` | 移除一个标签；不存在时返回当前列表。 |
+
+全部写操作在所属草稿版本的事务锁内执行，保留其他标签，返回完整结果列表。重复添加、移除和同名改名的结果不改变标签；已发布版本始终拒绝写入。名称去首尾空白、不能为空、大小写敏感，每篇最多 10 个标签、每个最多 30 个字符。标签不参与正文或项目发布哈希。
+
+现有 `content.note.create/update` 的 `tags` 数组接口继续用于初始化或明确的整组替换。新增工具后刷新 MCP 工具发现；Skill 使用相同名称和参数契约。

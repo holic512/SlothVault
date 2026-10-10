@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   getAdminProjectVersion: vi.fn(), listAdminProjectVersions: vi.fn(),
   createAdminCategory: vi.fn(), listAdminCategories: vi.fn(), updateAdminCategory: vi.fn(),
   createAdminNote: vi.fn(), getAdminNote: vi.fn(), listAdminNotes: vi.fn(), updateAdminNote: vi.fn(),
+  listAdminNoteTags: vi.fn(), addAdminNoteTag: vi.fn(), removeAdminNoteTag: vi.fn(), renameAdminNoteTag: vi.fn(),
   createAdminNoteContent: vi.fn(), getAdminNoteContent: vi.fn(),
   listAdminNoteContentVersions: vi.fn(), updateAdminNoteContent: vi.fn(),
   checkDraftProjectVersion: vi.fn(), cloneProjectVersion: vi.fn(),
@@ -67,6 +68,13 @@ vi.mock('@/server/services/admin-notes', () => ({
   getAdminNoteContent: mocks.getAdminNoteContent,
   listAdminNoteContentVersions: mocks.listAdminNoteContentVersions,
   updateAdminNoteContent: mocks.updateAdminNoteContent,
+}))
+
+vi.mock('@/server/services/admin-note-tags', () => ({
+  listAdminNoteTags: mocks.listAdminNoteTags,
+  addAdminNoteTag: mocks.addAdminNoteTag,
+  removeAdminNoteTag: mocks.removeAdminNoteTag,
+  renameAdminNoteTag: mocks.renameAdminNoteTag,
 }))
 
 vi.mock('@/server/services/project-version-release', () => ({
@@ -175,7 +183,7 @@ function project(overrides: Record<string, unknown> = {}) {
 
 function note(overrides: Record<string, unknown> = {}) {
   return {
-    id: '31', categoryId: '21', authorId: '7', noteTitle: 'Getting Started',
+    id: '31', categoryId: '21', authorId: '7', noteTitle: 'Getting Started', tags: [],
     weight: 0, status: 1, createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
     category: { id: '21', categoryName: 'Guide', projectVersionId: '11' },
     ...overrides,
@@ -289,6 +297,7 @@ describe('administrator MCP server', () => {
       'content.project.version.update', 'content.project.version.publish', 'content.project.version.set_visibility',
       'content.category.list', 'content.category.create', 'content.category.update',
       'content.note.list', 'content.note.get', 'content.note.create', 'content.note.update',
+      'content.note.tag.list', 'content.note.tag.add', 'content.note.tag.rename', 'content.note.tag.remove',
       'content.note.content.list_versions', 'content.note.content.get',
       'content.note.content.create_draft', 'content.note.content.update_draft',
       'content.note.content.set_primary', 'content.note.content.update_metadata',
@@ -477,6 +486,56 @@ describe('administrator MCP server', () => {
     expect(detail.result.structuredContent).toMatchObject({ id: '8', role: 'USER' })
   })
 
+  it('exposes narrow single-note tag tools and forwards normalized inputs', async () => {
+    for (const [name, args, mock, expected] of [
+      ['list', { noteId: '31' }, mocks.listAdminNoteTags, [31]],
+      ['add', { noteId: '31', tag: ' API ' }, mocks.addAdminNoteTag, [31, 'API']],
+      ['rename', { noteId: '31', tag: ' API ', newTag: ' 接口 ' }, mocks.renameAdminNoteTag, [31, 'API', '接口']],
+      ['remove', { noteId: '31', tag: ' API ' }, mocks.removeAdminNoteTag, [31, 'API']],
+    ] as const) {
+      mock.mockResolvedValue({ noteId: '31', tags: ['keep', '接口'] })
+      const called = await resultOf({ jsonrpc: '2.0', id: 50, method: 'tools/call', params: { name: `content.note.tag.${name}`, arguments: args } })
+      expect(called.result.isError).not.toBe(true)
+      expect(called.result.structuredContent).toEqual({ noteId: '31', tags: ['keep', '接口'] })
+      expect(called.result.structuredContent).not.toHaveProperty('content')
+      expect(mock).toHaveBeenCalledWith(...expected)
+    }
+  })
+  it('rejects invalid single-tag inputs and preserves frozen-version errors', async () => {
+    mocks.addAdminNoteTag.mockClear()
+    for (const tag of ['', '  ', null, 42, 'x'.repeat(31)]) {
+      const rejected = await resultOf({ jsonrpc: '2.0', id: 51, method: 'tools/call', params: { name: 'content.note.tag.add', arguments: { noteId: '31', tag } } })
+      expect(rejected.result.isError).toBe(true)
+    }
+    expect(mocks.addAdminNoteTag).not.toHaveBeenCalled()
+    mocks.addAdminNoteTag.mockRejectedValueOnce(new HttpError('Published project version is frozen', 409, 409, { reason: 'VERSION_FROZEN', projectVersionId: '11' }))
+    const frozen = await resultOf({ jsonrpc: '2.0', id: 52, method: 'tools/call', params: { name: 'content.note.tag.add', arguments: { noteId: '31', tag: 'API' } } })
+    expect(frozen.result.isError).toBe(true)
+    expect(JSON.parse(frozen.result.content[0].text).error).toMatchObject({ status: 409, data: { reason: 'VERSION_FROZEN' } })
+  })
+  it('accepts normalized note tags and tag-only updates while rejecting invalid tag input', async () => {
+    mocks.createAdminNote.mockResolvedValue(note({ tags: ['API', 'api'] }))
+    const created = await resultOf({ jsonrpc: '2.0', id: 40, method: 'tools/call', params: {
+      name: 'content.note.create', arguments: { categoryId: '21', noteTitle: 'Tagged', tags: [' API ', '', 'API', 'api'] },
+    } })
+    expect(created.result.isError).not.toBe(true)
+    expect(created.result.structuredContent).toMatchObject({ tags: ['API', 'api'] })
+    expect(mocks.createAdminNote).toHaveBeenCalledWith(expect.objectContaining({ tags: ['API', 'api'] }))
+    mocks.updateAdminNote.mockResolvedValue(note({ tags: [] }))
+    const updated = await resultOf({ jsonrpc: '2.0', id: 41, method: 'tools/call', params: {
+      name: 'content.note.update', arguments: { noteId: '31', tags: [] },
+    } })
+    expect(updated.result.isError).not.toBe(true)
+    expect(mocks.updateAdminNote).toHaveBeenCalledWith(31, expect.objectContaining({ tags: [] }))
+    mocks.updateAdminNote.mockClear()
+    for (const tags of [null, 'tag', [1], ['x'.repeat(31)], Array.from({ length: 11 }, (_, i) => String(i))]) {
+      const rejected = await resultOf({ jsonrpc: '2.0', id: 42, method: 'tools/call', params: {
+        name: 'content.note.update', arguments: { noteId: '31', tags },
+      } })
+      expect(rejected.result.isError).toBe(true)
+    }
+    expect(mocks.updateAdminNote).not.toHaveBeenCalled()
+  })
   it('binds note authorship to the principal and rejects unknown fields', async () => {
     mocks.createAdminNote.mockResolvedValue(note())
     const called = await resultOf({
@@ -485,7 +544,7 @@ describe('administrator MCP server', () => {
     })
     expect(called.result.isError).not.toBe(true)
     expect(mocks.createAdminNote).toHaveBeenCalledWith({
-      categoryId: '21', authorId: 7, noteTitle: 'Getting Started', weight: 0, status: 1,
+      categoryId: '21', authorId: 7, noteTitle: 'Getting Started', tags: undefined, weight: 0, status: 1,
     })
 
     mocks.createAdminNote.mockClear()
@@ -692,7 +751,7 @@ describe('SDK protocol simulation through the /mcp route', () => {
       await client.connect(transport)
       expect(client.getServerVersion()).toEqual({ name: 'slothvault-admin-mcp', version: '5.0.0' })
       expect(client.getInstructions()).toBe(ADMIN_MCP_INSTRUCTIONS)
-      expect((await client.listTools()).tools).toHaveLength(67)
+      expect((await client.listTools()).tools).toHaveLength(71)
       expect((await client.listPrompts()).prompts).toHaveLength(4)
       expect((await client.listResourceTemplates()).resourceTemplates).toHaveLength(2)
       expect((await client.listResources()).resources).toEqual([])

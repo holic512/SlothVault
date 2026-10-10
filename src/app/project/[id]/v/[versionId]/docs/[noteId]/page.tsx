@@ -62,6 +62,7 @@ export default async function ProjectNotePage({
       sidebar={sidebar}
       note={note}
       noteTitle={metadata.noteTitle}
+      tags={metadata.tags}
       access={access}
     />
   )

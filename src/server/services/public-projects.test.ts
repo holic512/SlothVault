@@ -103,6 +103,7 @@ describe('public project reading', () => {
       id: '18',
       noteId: '12',
       noteTitle: 'A public essay',
+      tags: [],
       content: '# Essay',
       versionNote: 'First edition',
       updatedAt,

@@ -5,7 +5,7 @@
  * @project SlothVault
  * @module Unified Note Workspace
  * @description Owns project-version lifecycle actions and the linear project-to-Markdown administration flow in one responsive workspace.
- * @logic Resolve deep links and recent releases, clone into new or empty drafts, guard unsaved content, pause saves during image/attachment uploads, and allow published metadata edits while keeping bodies and document membership frozen.
+ * @logic Resolve deep links and recent releases, clone into new or empty drafts, guard unsaved content, pause saves during image/attachment uploads, and allow published display metadata edits while keeping tags, bodies and document membership frozen.
  * @dependencies Ant Design, React Query, React MD Editor wrapper, Next navigation, next-intl, api-client
  * @index_tags admin,notes,workspace,project-versions,categories,content-versions,autosave,responsive
  * @author holic512
@@ -61,6 +61,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 
 import { MarkdownContentEditor } from '@/components/admin/markdown-content-editor'
 import { formatAdminDate, formatAdminError } from '@/lib/admin-localization'
+import { noteTagsSchema } from '@/lib/note-tags'
 import { apiFetch, ApiClientError } from '@/lib/api-client'
 
 type Project = { id: string; projectName: string }
@@ -89,6 +90,7 @@ type NoteInfo = {
   id: string
   categoryId: string
   noteTitle: string
+  tags: string[]
   weight: number
   status: number
   isDeleted: boolean
@@ -120,6 +122,7 @@ type NoteContent = {
 type UploadedFile = { url: string }
 type EntityDialog = {
   kind: 'category' | 'note'
+  tags?: string[]
   mode: 'create' | 'edit'
   id?: string
   name: string
@@ -165,7 +168,7 @@ export function getProjectVersionActions(projectId: string, version?: Pick<Proje
 function changedFields(values: Record<string, unknown>, current?: object) {
   if (!current) return values
   const before = current as Record<string, unknown>
-  return Object.fromEntries(Object.entries(values).filter(([key, value]) => value !== before[key]))
+  return Object.fromEntries(Object.entries(values).filter(([key, value]) => key === 'tags' ? JSON.stringify(value) !== JSON.stringify(before[key] ?? []) : value !== before[key]))
 }
 
 export async function loadProjectVersions(projectId: string) {
@@ -355,6 +358,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
       mode: note ? 'edit' : 'create',
       id: note?.id,
       name: note?.noteTitle || '',
+      tags: note?.tags ?? [],
       weight: note?.weight || 0,
       status: note?.status ?? 1,
     })
@@ -362,6 +366,11 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
 
   const saveEntity = async () => {
     if (!entityDialog || !entityDialog.name.trim()) return
+    const tagResult = noteTagsSchema.safeParse(entityDialog.tags ?? [])
+    if (entityDialog.kind === 'note' && !readOnly && !tagResult.success) {
+      message.error(t('tagsInvalid'))
+      return
+    }
     setBusy(true)
     try {
       const editing = entityDialog.mode === 'edit'
@@ -385,6 +394,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
       } else {
         const data = changedFields({
           noteTitle: entityDialog.name.trim(), weight: entityDialog.weight,
+          ...(!readOnly && tagResult.success ? { tags: tagResult.data } : {}),
           ...(!readOnly ? { status: entityDialog.status } : {}),
           ...(editing ? {} : { categoryId: currentCategoryId }),
         }, editing ? notesQuery.data?.find(item => item.id === entityDialog.id) : undefined)
@@ -396,7 +406,10 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
             body: JSON.stringify(data),
           },
         )
-        await queryClient.invalidateQueries({ queryKey: ['admin-note-workspace-notes'] })
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['admin-note-workspace-notes'] }),
+          queryClient.invalidateQueries({ queryKey: ['admin-note', saved.id] }),
+        ])
         setSelectedNoteId(saved.id)
         setSelectedContentId('')
         setMobilePane('versions')
@@ -873,6 +886,9 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
         </aside>
 
         <main className="note-writing-panel">
+          {selectedNote?.tags?.length ? <div className="note-tags" aria-label={t('tags')}>
+            {selectedNote.tags.map((tag) => <Tag key={tag}>{tag}</Tag>)}
+          </div> : null}
           {selectedNote && contents.length ? (
             <div className="note-compact-revision-control">
               <Select value={selectedContent?.id} options={contents.map((item) => ({ value: item.id, label: `${item.isPrimary ? '★ ' : ''}${item.versionNote || contentT('unnamedVersion')}` }))} onChange={chooseRevision} />
@@ -916,6 +932,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
       <Modal open={Boolean(entityDialog)} title={entityDialog ? t(`entityDialog.${entityDialog.kind}.${entityDialog.mode}`) : ''} okText={t('save')} cancelText={t('cancel')} confirmLoading={busy} okButtonProps={{ disabled: !entityDialog?.name.trim() }} onCancel={() => setEntityDialog(null)} onOk={() => void saveEntity()}>
         {entityDialog ? <div className="note-dialog-fields">
           <label><span>{entityDialog.kind === 'category' ? t('categoryName') : t('noteTitle')}</span><Input value={entityDialog.name} maxLength={entityDialog.kind === 'category' ? 64 : 255} onChange={(event) => setEntityDialog({ ...entityDialog, name: event.target.value })} /></label>
+          {entityDialog.kind === 'note' ? <label><span>{t('tags')}</span><Select mode="tags" value={entityDialog.tags ?? []} disabled={readOnly} placeholder={t('tagsPlaceholder')} aria-label={t('tags')} onChange={(tags: string[]) => setEntityDialog({ ...entityDialog, tags })} /><small>{readOnly ? t('tagsReadOnly') : t('tagsHint')}</small></label> : null}
           <label><span>{t('weight')}</span><InputNumber value={entityDialog.weight} onChange={(value) => setEntityDialog({ ...entityDialog, weight: value || 0 })} /></label>
           <label className="note-dialog-switch"><span>{t('enabled')}</span><Switch disabled={readOnly} checked={entityDialog.status === 1} onChange={(checked) => setEntityDialog({ ...entityDialog, status: checked ? 1 : 0 })} /></label>
         </div> : null}

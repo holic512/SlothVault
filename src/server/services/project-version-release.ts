@@ -626,6 +626,7 @@ export async function cloneProjectVersion(
             categoryId: clonedCategory.id,
             authorId: note.authorId,
             noteTitle: note.noteTitle,
+            tagsJson: note.tagsJson,
             weight: note.weight,
             status: note.status,
           },

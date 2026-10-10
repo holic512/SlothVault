@@ -2,6 +2,23 @@
 
 Identify the project/version and reuse specified drafts, bodies, and attachments. Published names, titles, descriptions, and weights remain editable; send only changed fields.
 
+## Single-note tags
+
+Tags belong to the note, shared by its body revisions. Use the narrow tools for one-tag changes instead of reading a list and overwriting the entire array through `content.note.update`. If a `noteId` is already confirmed, call the needed tool directly; otherwise locate the note within the requested project/version/category first. These tools never edit body content.
+
+| Tool | Input | Behavior |
+| --- | --- | --- |
+| `content.note.tag.list` | `{ "noteId": "31" }` | Read all tags; published notes are readable. |
+| `content.note.tag.add` | `{ "noteId": "31", "tag": "API" }` | Add one tag, retaining others; adding an existing tag is a no-op. |
+| `content.note.tag.rename` | `{ "noteId": "31", "tag": "API", "newTag": "接口" }` | Rename in place; a missing source is 404, an occupied new name is 409. |
+| `content.note.tag.remove` | `{ "noteId": "31", "tag": "API" }` | Remove only that tag; removing an absent tag is a no-op. |
+
+All return `{ "noteId": "31", "tags": ["接口"] }` with the complete resulting list. Reuse a successful result when it confirms the task; no extra read is required. Tag names are trimmed, nonempty, case-sensitive, at most 30 characters each, with at most 10 per note. A rename to the same existing name is a no-op; do not silently merge tags on a name collision.
+
+Tag writes require an unpublished project version, even when the requested change would be a no-op. `VERSION_FROZEN` means use an existing suitable draft or follow the authorized clone workflow; do not publish or clone automatically for a tag-only request. Clones preserve tags. Tags do not participate in body or project-release hashes.
+
+Keep `content.note.create` / `content.note.update` with `tags` for initial tags or an explicitly requested whole-list replacement. Omitted update `tags` preserves the list, while `[]` clears it. After an uncertain tag-write outcome, use `content.note.tag.list` to inspect the affected note before retrying; for a rename check both old and new names rather than blindly replaying it.
+
 ## Draft bodies and clone
 
 For frozen-body or structure changes, read source and target versions and inspect the target tree. To clone into an existing draft:

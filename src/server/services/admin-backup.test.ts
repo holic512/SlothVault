@@ -285,7 +285,7 @@ describe('database backup release compatibility', () => {
       createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
     })
     data.noteInfos.push({
-      id: '4', categoryId: '3', authorId: '7', noteTitle: 'Start', weight: 0, status: 1,
+      id: '4', categoryId: '3', authorId: '7', noteTitle: 'Start', tags: [], weight: 0, status: 1,
       createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
     })
     data.noteContents.push({

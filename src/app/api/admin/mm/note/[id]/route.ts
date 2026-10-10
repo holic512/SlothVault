@@ -24,6 +24,7 @@ import {
 const updateNoteSchema = z.object({
   categoryId: z.unknown().optional(),
   noteTitle: z.unknown().optional(),
+  tags: z.unknown().optional(),
   weight: z.unknown().optional(),
   status: z.unknown().optional(),
 })

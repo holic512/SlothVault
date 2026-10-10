@@ -21,7 +21,8 @@ import { cloneProjectVersion, getProjectVersionIntegrity, publishProjectVersion,
 import { updateAdminCategory } from './admin-catalog/categories'
 import { listAdminProjectVersionsByProject, updateAdminProjectVersion } from './admin-catalog/project-versions'
 import { updateAdminProjectMetadataFromMcp } from './admin-catalog/projects'
-import { updateAdminNote, updateNoteContent } from './admin-notes'
+import { createAdminNote, getAdminNote, listAdminNotes, updateAdminNote, updateNoteContent } from './admin-notes'
+import { addAdminNoteTag, listAdminNoteTags, removeAdminNoteTag, renameAdminNoteTag } from './admin-note-tags'
 import { getProjectVersions } from './public-projects'
 import { upgradeContentManifests } from '../database/content-manifest-upgrade'
 import { buildNoteMarkdownManifest } from './release-manifest'
@@ -73,6 +74,92 @@ for (const provider of providers) describe(`${provider} publication lifecycle`, 
   async function draft(projectId: number, name = '1.0.1') {
     return client.projectVersion.create({ data: { projectId, version: name, description: 'Keep me', weight: 7, status: 0 } })
   }
+  it('stores normalized note tags, preserves omitted updates, and clears explicit empty tags', async () => {
+    const s = await seed()
+    const admin = await client.user.create({ data: { username: randomUUID(), password: 'test', role: 'ADMIN' } })
+    userIds.push(admin.id)
+    const created = await createAdminNote({ categoryId: String(s.category.id), authorId: admin.id, noteTitle: 'Tagged', tags: [' API ', '', 'API', 'api', '中文'] })
+    const id = Number(created.id)
+    expect(created.tags).toEqual(['API', 'api', '中文'])
+    expect((await getAdminNote(id)).tags).toEqual(created.tags)
+    expect((await listAdminNotes({ page: 1, pageSize: 100, skip: 0, keyword: '', categoryId: s.category.id, orderByField: 'weight', order: 'asc' })).list.find(note => note.id === created.id)?.tags).toEqual(created.tags)
+    expect((await updateAdminNote(id, { noteTitle: 'Renamed' })).tags).toEqual(created.tags)
+    expect((await updateAdminNote(id, { tags: [' new ', 'new'] })).tags).toEqual(['new'])
+    expect((await getAdminNote(id)).tags).toEqual(['new'])
+    expect((await updateAdminNote(id, { tags: [] })).tags).toEqual([])
+    for (const tags of [null, 'tag', [42], ['x'.repeat(31)], Array.from({ length: 11 }, (_, i) => String(i))]) {
+      await expect(updateAdminNote(id, { tags })).rejects.toMatchObject({ status: 400 })
+    }
+    expect((await getAdminNote(id)).tags).toEqual([])
+  })
+  it('freezes published tags, retains them in cloned drafts, and leaves release hashes unchanged', async () => {
+    const s = await seed()
+    await updateAdminNote(s.note.id, { tags: ['API', '教程'] })
+    const released = await publishProjectVersion(s.version.id)
+    await expect(updateAdminNote(s.note.id, { tags: ['changed'] })).rejects.toMatchObject({ data: { reason: 'VERSION_FROZEN' } })
+    await expect(updateAdminNote(s.note.id, { tags: [] })).rejects.toMatchObject({ data: { reason: 'VERSION_FROZEN' } })
+    expect((await updateAdminNote(s.note.id, { noteTitle: 'Allowed metadata edit' })).tags).toEqual(['API', '教程'])
+    const cloned = await cloneProjectVersion(s.version.id, { version: '1.0.1' })
+    const clone = await client.noteInfo.findFirstOrThrow({ where: { category: { projectVersionId: Number(cloned.id) } } })
+    expect((await getAdminNote(clone.id)).tags).toEqual(['API', '教程'])
+    await updateAdminNote(clone.id, { tags: ['different'] })
+    const nextRelease = await publishProjectVersion(Number(cloned.id))
+    expect(nextRelease.releaseHash).toBe(released.releaseHash)
+    expect((await getProjectVersionIntegrity(s.version.id)).valid).toBe(true)
+  })
+  it('supports single-tag operations without modifying other note fields or tags', async () => {
+    const s = await seed()
+    await updateAdminNote(s.note.id, { tags: ['keep', 'API'] })
+    expect(await listAdminNoteTags(s.note.id)).toEqual({ noteId: String(s.note.id), tags: ['keep', 'API'] })
+    expect((await addAdminNoteTag(s.note.id, ' new ')).tags).toEqual(['keep', 'API', 'new'])
+    expect((await addAdminNoteTag(s.note.id, 'new')).tags).toEqual(['keep', 'API', 'new'])
+    expect((await renameAdminNoteTag(s.note.id, ' API ', '接口')).tags).toEqual(['keep', '接口', 'new'])
+    expect((await renameAdminNoteTag(s.note.id, '接口', '接口')).tags).toEqual(['keep', '接口', 'new'])
+    expect((await removeAdminNoteTag(s.note.id, ' new ')).tags).toEqual(['keep', '接口'])
+    expect((await removeAdminNoteTag(s.note.id, 'missing')).tags).toEqual(['keep', '接口'])
+    await expect(renameAdminNoteTag(s.note.id, 'missing', 'other')).rejects.toMatchObject({ status: 404 })
+    await expect(renameAdminNoteTag(s.note.id, '接口', 'keep')).rejects.toMatchObject({ status: 409 })
+    const current = await getAdminNote(s.note.id)
+    expect(current).toMatchObject({ noteTitle: s.note.noteTitle, categoryId: String(s.category.id), weight: 0, status: 1, tags: ['keep', '接口'] })
+    await removeAdminNoteTag(s.note.id, 'keep')
+    expect((await removeAdminNoteTag(s.note.id, '接口')).tags).toEqual([])
+  })
+  it('validates single tags and enforces capacity without discarding the current list', async () => {
+    const s = await seed()
+    const tags = Array.from({ length: 10 }, (_, i) => String(i))
+    await updateAdminNote(s.note.id, { tags })
+    expect((await addAdminNoteTag(s.note.id, '0')).tags).toEqual(tags)
+    await expect(addAdminNoteTag(s.note.id, 'overflow')).rejects.toMatchObject({ status: 400 })
+    for (const tag of [null, 42, '', '  ', 'x'.repeat(31)]) {
+      await expect(addAdminNoteTag(s.note.id, tag)).rejects.toMatchObject({ status: 400 })
+      await expect(removeAdminNoteTag(s.note.id, tag)).rejects.toMatchObject({ status: 400 })
+      await expect(renameAdminNoteTag(s.note.id, '0', tag)).rejects.toMatchObject({ status: 400 })
+    }
+    expect((await listAdminNoteTags(s.note.id)).tags).toEqual(tags)
+    await expect(listAdminNoteTags(2147483647)).rejects.toMatchObject({ status: 404 })
+    await client.noteInfo.update({ where: { id: s.note.id }, data: { isDeleted: true } })
+    await expect(listAdminNoteTags(s.note.id)).rejects.toMatchObject({ status: 404 })
+    await expect(addAdminNoteTag(s.note.id, 'new')).rejects.toMatchObject({ status: 404 })
+  })
+  it('keeps published tags readable and rejects all single-tag writes including no-ops', async () => {
+    const s = await seed()
+    await updateAdminNote(s.note.id, { tags: ['API'] })
+    await publishProjectVersion(s.version.id)
+    expect((await listAdminNoteTags(s.note.id)).tags).toEqual(['API'])
+    for (const operation of [
+      () => addAdminNoteTag(s.note.id, 'API'),
+      () => removeAdminNoteTag(s.note.id, 'missing'),
+      () => renameAdminNoteTag(s.note.id, 'API', 'API'),
+    ]) await expect(operation()).rejects.toMatchObject({ data: { reason: 'VERSION_FROZEN' } })
+    expect((await listAdminNoteTags(s.note.id)).tags).toEqual(['API'])
+  })
+  it('preserves simultaneous additions on the same note', async () => {
+    const s = await seed()
+    await updateAdminNote(s.note.id, { tags: ['keep'] })
+    await Promise.all([addAdminNoteTag(s.note.id, 'first'), addAdminNoteTag(s.note.id, 'second')])
+    expect((await listAdminNoteTags(s.note.id)).tags).toEqual(expect.arrayContaining(['keep', 'first', 'second']))
+    expect((await listAdminNoteTags(s.note.id)).tags).toHaveLength(3)
+  })
   it('publishes and withdraws articles through the same validated lifecycle', async () => {
     const article = await createAdminArticle({ title: 'Test article', content: '' })
     const id = Number(article.id)

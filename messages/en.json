@@ -60,6 +60,7 @@
     "description": "Please contact an administrator to edit and publish the homepage."
   },
   "ProjectDocument": {
+    "tags": "Tags",
     "outline": "On this page",
     "updated": "Updated {date}",
     "release": {
@@ -1068,6 +1069,11 @@
         "createNote": "Create note",
         "categoryName": "Category name",
         "noteTitle": "Note title",
+        "tags": "Tags",
+        "tagsPlaceholder": "Type a tag and press Enter",
+        "tagsHint": "Up to 10 tags, 30 characters per tag.",
+        "tagsReadOnly": "Tags are read-only in published versions.",
+        "tagsInvalid": "Use at most 10 tags, each at most 30 characters.",
         "revisionNote": "Version note",
         "weight": "Weight",
         "enabled": "Enabled",

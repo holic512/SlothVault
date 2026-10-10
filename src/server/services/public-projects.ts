@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { readNoteTags } from '@/lib/note-tags'
 
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
@@ -242,7 +243,7 @@ export async function getProjectNote(
       category: { projectVersionId: versionId, isDeleted: false, status: 1 },
       contents: { some: { isPrimary: true, isDeleted: false, status: 1 } },
     },
-    select: { id: true, noteTitle: true },
+    select: { id: true, noteTitle: true, tagsJson: true },
   })
   if (!note) throw new HttpError('Note not found', 404, 404)
   requireProjectCapability(await resolveProjectAccess(projectId, viewer), 'read')
@@ -274,6 +275,7 @@ export async function getProjectNote(
     id: content.id.toString(),
     noteId: note.id.toString(),
     noteTitle: note.noteTitle,
+    tags: readNoteTags(note.tagsJson),
     content: content.content,
     versionNote: content.versionNote,
     updatedAt: content.updatedAt,
@@ -301,8 +303,8 @@ export async function getProjectNoteMetadata(projectId: number, versionId: numbe
   await requireVersion(projectId, versionId)
   const note = await prisma.noteInfo.findFirst({
     where: { id: noteId, isDeleted: false, status: 1, category: { projectVersionId: versionId, isDeleted: false, status: 1 }, contents: { some: { isPrimary: true, isDeleted: false, status: 1 } } },
-    select: { id: true, noteTitle: true },
+    select: { id: true, noteTitle: true, tagsJson: true },
   })
   if (!note) throw new HttpError('Note not found', 404, 404)
-  return { id: String(note.id), noteTitle: note.noteTitle }
+  return { id: String(note.id), noteTitle: note.noteTitle, tags: readNoteTags(note.tagsJson) }
 }

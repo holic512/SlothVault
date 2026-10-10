@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Admin Database Backup Import
  * @description Imports a validated portable database backup in insert or overwrite mode while preserving immutable release identities.
- * @logic Preflight conflicts, preserve administrator credentials, normalize legacy file categories, map old identifiers to new records, preserve release metadata, rebuild each published manifest after ID remapping, reject identity/hash drift, and expose a transaction-scoped import for coordinated file recovery.
+ * @logic Preflight conflicts, preserve administrator credentials, normalize legacy file categories, restore note tags, map old identifiers to new records, preserve release metadata, rebuild each published manifest after ID remapping, reject identity/hash drift, and expose a transaction-scoped import for coordinated file recovery.
  * @dependencies database unit-of-work, server/http/errors, project-version release service, backup schema, backup validation, business-data deletion
  * @index_tags admin,backup,database,import,restore,id-mapping
  * @author holic512
@@ -405,6 +405,7 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
           ? ids.users.get(item.authorId) ?? importingAdmin.id
           : null,
         noteTitle: item.noteTitle,
+        tagsJson: JSON.stringify(item.tags),
         weight: item.weight,
         status: item.status,
         createdAt: new Date(item.createdAt),

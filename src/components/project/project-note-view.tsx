@@ -3,11 +3,12 @@
  * @project SlothVault
  * @module Public Project Document Reader
  * @description Renders immutable public project documents with navigation, exact content-version evidence, and legacy release evidence.
- * @logic Render metadata for locked readers, require independent reading and download capabilities, display version evidence, and navigate rendered Markdown headings through the document outline.
+ * @logic Render titles and note tags for locked readers, require independent reading and download capabilities, display version evidence, and navigate rendered Markdown headings through the document outline.
  * @dependencies Ant Design Typography, next-intl/server, ProjectDocumentContent
  * @index_tags project,document,reader,release,evidence,transaction,public
  * @author holic512
  */
+import Tag from 'antd/es/tag'
 import TypographyParagraph from 'antd/es/typography/Paragraph'
 import TypographyText from 'antd/es/typography/Text'
 import TypographyTitle from 'antd/es/typography/Title'
@@ -59,6 +60,7 @@ export async function ProjectNoteView({
   sidebar,
   note,
   noteTitle,
+  tags,
   access,
 }: {
   projectId: string
@@ -67,6 +69,7 @@ export async function ProjectNoteView({
   sidebar: SidebarCategory[]
   note: NoteData | null
   noteTitle: string
+  tags: string[]
   access: ProjectAccess
 }) {
   const [locale, t] = await Promise.all([getLocale(), getTranslations('ProjectDocument')])
@@ -101,6 +104,9 @@ export async function ProjectNoteView({
             </span> : null}
           </div>
           <TypographyTitle>{noteTitle}</TypographyTitle>
+          {tags.length ? <div className="docs-note-tags" aria-label={t('tags')}>
+            {tags.map((tag) => <Tag key={tag}>{tag}</Tag>)}
+          </div> : null}
           {note?.versionNote ? <TypographyParagraph type="secondary">{note.versionNote}</TypographyParagraph> : null}
           {note ? <>
           <aside className="docs-release-proof" aria-label={t('release.title')}>

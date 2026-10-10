@@ -19,6 +19,7 @@ import { fileToolDefinitions } from './files'
 import { articleToolDefinitions } from './articles'
 import { adminReadToolDefinitions } from './admin-read'
 import { noteContentToolDefinitions } from './note-content'
+import { noteTagToolDefinitions } from './note-tags'
 import { noteToolDefinitions } from './notes'
 import { pageToolDefinitions } from './pages'
 import { projectVersionToolDefinitions } from './project-versions'
@@ -30,6 +31,7 @@ export const adminMcpToolDefinitions: McpToolDefinition[] = [
   ...projectVersionToolDefinitions,
   ...categoryToolDefinitions,
   ...noteToolDefinitions,
+  ...noteTagToolDefinitions,
   ...noteContentToolDefinitions,
   ...articleToolDefinitions,
   ...pageToolDefinitions,

@@ -306,6 +306,7 @@ model NoteInfo {
   categoryId      Int        @map("category_id")
   authorId        Int?       @map("author_id")
   noteTitle       String        @map("note_title")
+  tagsJson        String?       @map("tags_json")
   weight          Int
   status          Int
   contentRevision Int           @default(0) @map("content_revision")

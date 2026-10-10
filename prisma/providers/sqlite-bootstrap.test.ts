@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3'
@@ -6,20 +6,9 @@ import Database from 'better-sqlite3'
 import { describe, expect, it } from 'vitest'
 import { PrismaClient } from '../../generated/prisma-sqlite/client'
 
-const sqliteMigrations = [
-  '20260721000000_web2_identity_points',
-  '20260812000000_project_version_releases',
-  '20260813000000_release_transaction_evidence',
-  '20260818000000_contract_evidence',
-  '20260820000000_note_content_evidence',
-  '20260820120000_independent_articles',
-  '20260827000000_membership_article_access',
-  '20260828000000_knowledge_package_import',
-  '20260911000000_remove_knowledge_package_import',
-  '20260923000000_content_trash',
-  '20260928000000_content_manifest_v2',
-  '20261008000000_parallel_membership_project_access',
-]
+const sqliteMigrations = readdirSync(resolve(process.cwd(), 'prisma/providers/sqlite/migrations'))
+  .filter((name) => /^\d/.test(name) && name !== '20260719000000_initial')
+  .sort()
 
 function migrationSql(name: string) {
   return readFileSync(
