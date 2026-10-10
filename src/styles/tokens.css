@@ -101,7 +101,7 @@
   --sv-admin-line-title: 1.4;
   --sv-admin-weight-regular: 400;
   --sv-admin-weight-strong: 600;
-  --sv-logo-filter: grayscale(1) contrast(1.15);
+  --sv-logo-filter: none;
   --sv-page-background:
     linear-gradient(90deg, transparent 0 49.92%, color-mix(in srgb, var(--sv-border) 34%, transparent) 49.92% 50.08%, transparent 50.08%),
     radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--sv-border) 46%, transparent) 0.7px, transparent 0.8px),
@@ -133,6 +133,7 @@
 }
 
 .dark {
+  --sv-logo-filter: invert(1) grayscale(1);
   --sv-bg: #0d0d0d;
   --sv-bg-elevated: rgb(20, 20, 20, 94%);
   --sv-bg-solid: #151515;
@@ -202,6 +203,7 @@
 }
 
 :root[data-style='saas'].dark {
+  --sv-logo-filter: invert(1) grayscale(1);
   --sv-bg: #141414;
   --sv-bg-elevated: rgb(29 30 31 / 96%);
   --sv-bg-solid: #1d1e1f;
