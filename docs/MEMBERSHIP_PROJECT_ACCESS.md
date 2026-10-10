@@ -34,7 +34,7 @@
 
 系统生成的上传地址是根相对路径。若历史原文含完整的本站 URL，可以在构建及运行环境设置 `NEXT_PUBLIC_SITE_ORIGIN` 为本站规范源（例如 `https://docs.example.com`），然后执行索引回填或恢复。只有与该源相同的绝对 URL 被视为托管附件，其他站点链接保留原有行为。索引函数 `rebuildFileReferences` 在事务内重建引用，不读取或改写正文文件。
 
-项目发布清单和文档存证清单包含完整正文，下载需通过下载权限。GET、HEAD 均在授权后才读取正文及处理 ETag；受保护响应，包括权限相关错误，使用 `Cache-Control: private, no-store`。项目介绍、目录和版本元数据可以共享缓存，但会员权益和权限判断每次读取数据库。
+项目发布与存证使用紧凑 Manifest v3，包含发布时项目名称、版本号和正文树聚合 contentHash，不包含正文。Manifest 下载仍需通过下载权限和内容完整性检查；GET、HEAD 均在检查通过后处理 ETag。受保护响应，包括权限相关错误，使用 `Cache-Control: private, no-store`。项目介绍、目录和版本元数据可以共享缓存，但会员权益和权限判断每次读取数据库。
 
 登录要求返回 401，会员不匹配或关闭下载返回 403，隐藏或不存在的内容返回 404。`verify-access` 返回 `canRead`、`canDownload`、两个拒绝原因和规则描述，旧 `hasAccess` 对应 `canRead`。
 

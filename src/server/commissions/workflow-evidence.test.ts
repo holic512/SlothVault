@@ -19,7 +19,7 @@ vi.mock('@/server/database/unit-of-work', () => ({ unitOfWork: { execute: async 
   try { return await fixture.client.$transaction(fn as never, { timeout: 30000 }) } finally { release() }
 } } }))
 vi.mock('@/server/services/admin-files', async (load) => ({ ...await load<typeof import('@/server/services/admin-files')>(), UPLOAD_ROOT: fixture.root + '/uploads' }))
-import { Keypair, Transaction } from '@solana/web3.js'
+import { Keypair, SendTransactionError, Transaction } from '@solana/web3.js'
 import bs58 from 'bs58'
 const rpc = vi.hoisted(() => ({ latest: vi.fn(), fee: vi.fn(), balance: vi.fn(), send: vi.fn(), height: vi.fn(), finalized: vi.fn() }))
 vi.mock('@/server/services/system-config', () => ({ requireEnabledSolanaNetwork: vi.fn() }))
@@ -88,10 +88,22 @@ describe('commission wallet evidence', () => {
   })
   it('rejects altered signed payloads and expired wallet windows', async () => {
     const prepared = await prepare(), transaction = signed(prepared.transactionBase64)
-    transaction.instructions[0].data = Buffer.from('different memo'); transaction.sign(signer)
+    transaction.instructions[2].data = Buffer.from('different memo'); transaction.sign(signer)
     await expect(submitWorkflowEvidence(Number(prepared.attemptId), 1, transaction.serialize().toString('base64'))).rejects.toThrow('does not match')
-    await fixture.client.commissionProofAttempt.update({ where: { id: Number(prepared.attemptId) }, data: { expiresAt: new Date(0) } })
-    await expect(submitWorkflowEvidence(Number(prepared.attemptId), 1, signed(prepared.transactionBase64).serialize().toString('base64'))).rejects.toThrow('失效')
+    expect(await fixture.client.commissionProofAttempt.findUniqueOrThrow({ where: { id: Number(prepared.attemptId) } })).toMatchObject({ status: 'FAILED', error: 'EVIDENCE_MESSAGE_MISMATCH', transactionSignature: null })
+    expect(rpc.send).not.toHaveBeenCalled()
+    const next = await prepare()
+    await fixture.client.commissionProofAttempt.update({ where: { id: Number(next.attemptId) }, data: { expiresAt: new Date(0) } })
+    await expect(submitWorkflowEvidence(Number(next.attemptId), 1, signed(next.transactionBase64).serialize().toString('base64'))).rejects.toMatchObject({ data: { reason: 'EVIDENCE_PREPARE_EXPIRED' } })
+    expect((await fixture.client.commissionProofAttempt.findUniqueOrThrow({ where: { id: Number(next.attemptId) } })).status).toBe('FAILED')
+  })
+  it('ends deterministic compute failures with a specific reason and permits a new attempt', async () => {
+    const prepared = await prepare(), transaction = signed(prepared.transactionBase64)
+    rpc.send.mockRejectedValue(new SendTransactionError({ action: 'simulate', signature: '', transactionMessage: 'Transaction simulation failed: Error processing Instruction 2: Program failed to complete', logs: ['Program MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr failed: exceeded CUs meter at BPF instruction'] }))
+    await expect(submitWorkflowEvidence(Number(prepared.attemptId), 1, transaction.serialize().toString('base64'))).rejects.toMatchObject({ data: { reason: 'CHAIN_COMPUTE_BUDGET_EXCEEDED' } })
+    expect(await fixture.client.commissionProofAttempt.findUniqueOrThrow({ where: { id: Number(prepared.attemptId) } })).toMatchObject({ status: 'FAILED', error: 'CHAIN_COMPUTE_BUDGET_EXCEEDED', transactionSignature: bs58.encode(transaction.signature!) })
+    expect((await prepare()).attemptId).not.toBe(prepared.attemptId)
+    expect(await fixture.client.commissionSubmission.count()).toBe(1)
   })
   it('preserves the signed bytes after RPC failure and reconciles blockhash expiry without duplicate snapshots', async () => {
     const prepared = await prepare(), transaction = signed(prepared.transactionBase64)
@@ -107,8 +119,29 @@ describe('commission wallet evidence', () => {
   it('does not finalize an incorrect chain transaction', async () => {
     const prepared = await prepare(), transaction = signed(prepared.transactionBase64)
     await submitWorkflowEvidence(Number(prepared.attemptId), 1, transaction.serialize().toString('base64'))
-    transaction.instructions[0].data = Buffer.from('wrong'); transaction.sign(signer)
+    transaction.instructions[2].data = Buffer.from('wrong'); transaction.sign(signer)
     rpc.finalized.mockResolvedValue({ transaction, failed: false, slot: 99n, blockTime: new Date(), feeLamports: 5000n })
     expect(await reconcileWorkflowEvidence(Number(prepared.attemptId))).toMatchObject({ status: 'FAILED' })
   })
+  it('retries the persisted signature after a lost submit response without downgrading finalized evidence', async () => {
+    const prepared = await prepare(), transaction = signed(prepared.transactionBase64)
+    const payload = transaction.serialize().toString('base64')
+    const first = await submitWorkflowEvidence(Number(prepared.attemptId), 1, payload)
+    expect(await submitWorkflowEvidence(Number(prepared.attemptId), 1, payload)).toMatchObject({ signature: first.signature, status: 'SUBMITTED' })
+    expect(await fixture.client.commissionProofAttempt.count()).toBe(1)
+    expect(rpc.send.mock.calls.every(([bytes]) => Buffer.from(bytes).toString('base64') === payload)).toBe(true)
+    rpc.finalized.mockResolvedValue({ transaction, failed: false, slot: 99n, blockTime: new Date(), feeLamports: 5000n })
+    await reconcileWorkflowEvidence(Number(prepared.attemptId))
+    await cancelWorkflowEvidence(Number(prepared.attemptId), 1)
+    expect((await fixture.client.commissionProofAttempt.findUniqueOrThrow({ where: { id: Number(prepared.attemptId) } })).status).toBe('FINALIZED')
+  })
+  it('expires an unsigned request during reconciliation and allows another attempt', async () => {
+    const prepared = await prepare()
+    await fixture.client.commissionProofAttempt.update({ where: { id: Number(prepared.attemptId) }, data: { expiresAt: new Date(0) } })
+    expect(await reconcileWorkflowEvidence(Number(prepared.attemptId))).toMatchObject({ status: 'FAILED', signature: null })
+    const next = await prepare()
+    expect(next.attemptId).not.toBe(prepared.attemptId)
+    expect(rpc.send).not.toHaveBeenCalled()
+  })
+
 })

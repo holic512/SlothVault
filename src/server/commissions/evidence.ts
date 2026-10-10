@@ -3,19 +3,21 @@
  * @project SlothVault
  * @module Commission Evidence Transactions
  * @description Anchors immutable event hashes using administrator-signed Solana Memo transactions.
- * @logic Bind the exact prepared message, persist signed bytes before broadcast, reconcile finality and preserve failed attempts without rewriting snapshots.
+ * @logic Record unsigned validation failures and expiry, persist signed bytes before broadcast, retry identical payloads during reconciliation, and log safe phase metadata without rewriting frozen snapshots.
  * @dependencies existing Solana Memo transaction and RPC runtime, Prisma
  * @index_tags commissions,evidence,solana,privacy,retry
  * @author holic512
  */
 import 'server-only'
 import { PublicKey } from '@solana/web3.js'
+import { evidenceLog, evidenceReason, TERMINAL_EVIDENCE_REASONS } from '@/lib/evidence-diagnostics'
 import { prisma } from '@/server/prisma'
 import { unitOfWork } from '@/server/database/unit-of-work'
 import { HttpError } from '@/server/http/errors'
 import { requireEnabledSolanaNetwork, type SolanaNetwork } from '@/server/services/system-config'
 import { assertSignedMemoTransaction, buildMemoTransaction, memoTransactionMessageHash, parseSignedMemoTransaction, serializePreparedMemoTransaction } from '@/server/services/solana-memo-transaction'
 import { finalizedEvidenceTransaction, withEvidenceRpc } from '@/server/services/release-evidence-chain'
+import { logEvidenceBroadcastError } from '@/server/services/solana-evidence-broadcast'
 import { canonicalJson, verifySubmissionChain } from './submissions'
 
 export function commissionEvidenceMemo(input: { commissionId: string; eventId: string; snapshotHash: string; previousHash: string | null; network: string }) {
@@ -29,6 +31,7 @@ async function verifiedEvent(publicId: string) {
   return event
 }
 export async function prepareWorkflowEvidence(input: { eventId: string; network: SolanaNetwork; signerAddress: string; issuerUserId: number }) {
+  evidenceLog('commission.prepare.start', { network: input.network })
   await requireEnabledSolanaNetwork(input.network)
   let signer: PublicKey
   try { signer = new PublicKey(input.signerAddress) } catch { throw new HttpError('钱包地址无效', 400, 400) }
@@ -52,6 +55,7 @@ export async function prepareWorkflowEvidence(input: { eventId: string; network:
     await tx.commissionProofAttempt.updateMany({ where: { submissionId: event.id, network: input.network, status: 'PREPARED' }, data: { status: 'FAILED', error: '钱包签名请求已过期' } })
     return tx.commissionProofAttempt.create({ data: { submissionId: event.id, issuerUserId: input.issuerUserId, network: input.network, signerAddress: signer.toBase58(), memo, messageHash: prepared.messageHash, transactionBase64: prepared.transactionBase64, lastValidBlockHeight: prepared.lastValidBlockHeight, feeLamports: BigInt(prepared.feeLamports), expiresAt } })
   })
+  evidenceLog('commission.prepare.stored', { attemptId: attempt.id, network: input.network })
   return { attemptId: String(attempt.id), transactionBase64: prepared.transactionBase64, signerAddress: attempt.signerAddress, network: input.network, feeLamports: prepared.feeLamports, balanceLamports: prepared.balanceLamports, expiresAt: expiresAt.getTime(), memo }
 }
 export async function cancelWorkflowEvidence(id: number, issuerUserId: number) {
@@ -59,28 +63,69 @@ export async function cancelWorkflowEvidence(id: number, issuerUserId: number) {
   return { cancelled: Boolean(changed.count) }
 }
 export async function submitWorkflowEvidence(id: number, issuerUserId: number, signedTransactionBase64: string) {
+  const started = performance.now()
+  evidenceLog('commission.submit.start', { attemptId: id })
+  try {
+    const result = await submitWorkflowEvidenceInternal(id, issuerUserId, signedTransactionBase64)
+    evidenceLog('commission.submit.result', { attemptId: id, status: result.status, transactionSignature: result.signature, elapsedMs: Math.round(performance.now() - started) })
+    return result
+  } catch (error) {
+    evidenceLog('commission.submit.failed', { attemptId: id, reason: evidenceReason(error), httpStatus: error instanceof HttpError ? error.status : 500, elapsedMs: Math.round(performance.now() - started) }, true)
+    throw error
+  }
+}
+async function submitWorkflowEvidenceInternal(id: number, issuerUserId: number, signedTransactionBase64: string) {
   const attempt = await prisma.commissionProofAttempt.findFirst({ where: { id, issuerUserId }, include: { submission: true } })
   if (!attempt) throw new HttpError('存证请求不存在', 404, 404)
   if (['SUBMITTED', 'FINALIZED'].includes(attempt.status)) return reconcileWorkflowEvidence(id)
-  if (attempt.status !== 'PREPARED' || attempt.expiresAt <= new Date()) throw new HttpError('钱包签名请求已失效，请重新准备', 409, 409)
+  if (attempt.status !== 'PREPARED') throw new HttpError('钱包签名请求已失效，请重新准备', 409, 409, { reason: 'EVIDENCE_ATTEMPT_FAILED' })
+  if (attempt.expiresAt <= new Date()) {
+    await prisma.commissionProofAttempt.updateMany({ where: { id, status: 'PREPARED', transactionSignature: null }, data: { status: 'FAILED', error: '钱包签名请求已过期，请重新准备' } })
+    throw new HttpError('钱包签名请求已失效，请重新准备', 409, 409, { reason: 'EVIDENCE_PREPARE_EXPIRED' })
+  }
   const event = await verifiedEvent(attempt.submission.publicId)
   if (attempt.memo !== commissionEvidenceMemo({ commissionId: event.commission.commissionId, eventId: event.publicId, snapshotHash: event.snapshotHash, previousHash: event.previousHash, network: attempt.network })) throw new HttpError('存证摘要不匹配', 409, 409)
-  const transaction = parseSignedMemoTransaction(signedTransactionBase64)
-  const signature = assertSignedMemoTransaction({ transaction, memo: attempt.memo, signerAddress: attempt.signerAddress, messageHash: attempt.messageHash })
-  const changed = await prisma.commissionProofAttempt.updateMany({ where: { id, status: 'PREPARED', expiresAt: { gt: new Date() } }, data: { status: 'SUBMITTED', transactionSignature: signature, transactionBase64: signedTransactionBase64 } })
-  if (!changed.count) throw new HttpError('存证请求已被处理', 409, 409)
+  const context = { attemptId: id, network: attempt.network }
+  let transaction: ReturnType<typeof parseSignedMemoTransaction>
+  let signature: string
   try {
+    transaction = parseSignedMemoTransaction(signedTransactionBase64)
+    const preparedTransaction = parseSignedMemoTransaction(attempt.transactionBase64)
+    signature = assertSignedMemoTransaction({ transaction, memo: attempt.memo, signerAddress: attempt.signerAddress, messageHash: attempt.messageHash, recentBlockhash: preparedTransaction.recentBlockhash, logContext: context })
+  } catch (error) {
+    const reason = evidenceReason(error)
+    if (TERMINAL_EVIDENCE_REASONS.has(reason)) await prisma.commissionProofAttempt.updateMany({ where: { id, status: 'PREPARED', transactionSignature: null }, data: { status: 'FAILED', error: reason } })
+    throw error
+  }
+  const changed = await prisma.commissionProofAttempt.updateMany({ where: { id, status: 'PREPARED', expiresAt: { gt: new Date() } }, data: { status: 'SUBMITTED', transactionSignature: signature, transactionBase64: signedTransactionBase64 } })
+  if (!changed.count) throw new HttpError('存证请求已被处理', 409, 409, { reason: 'EVIDENCE_ATTEMPT_STALE' })
+  evidenceLog('commission.submit.signature_stored', { ...context, transactionSignature: signature })
+  try {
+    evidenceLog('commission.broadcast.start', { ...context, transactionSignature: signature })
     const sent = await withEvidenceRpc(attempt.network as SolanaNetwork, (connection) => connection.sendRawTransaction(transaction.serialize(), { skipPreflight: false }))
     if (sent !== signature) throw new HttpError('RPC 返回的交易签名不匹配', 502, 502)
-  } catch {
+    evidenceLog('commission.broadcast.accepted', { ...context, transactionSignature: signature })
+  } catch (error) {
+    const failure = logEvidenceBroadcastError('commission.broadcast.failed', error, { ...context, transactionSignature: signature })
+    if (failure.definitive) {
+      await prisma.commissionProofAttempt.updateMany({ where: { id, status: 'SUBMITTED' }, data: { status: 'FAILED', error: failure.reason } })
+      throw new HttpError(failure.message, 400, 400, { reason: failure.reason })
+    }
     // The RPC may have accepted the bytes before disconnecting. Preserve the signature for reconciliation.
-    await prisma.commissionProofAttempt.update({ where: { id }, data: { error: '广播结果待核实，将根据原交易签名重试' } })
+    evidenceLog('commission.broadcast.unknown', { ...context, transactionSignature: signature }, true)
+    await prisma.commissionProofAttempt.updateMany({ where: { id, status: 'SUBMITTED' }, data: { error: '广播结果待核实，将根据原交易签名重试' } })
   }
   return { id: String(id), status: 'SUBMITTED', signature }
 }
 export async function reconcileWorkflowEvidence(id: number) {
+  evidenceLog('commission.reconcile.start', { attemptId: id })
   const attempt = await prisma.commissionProofAttempt.findUnique({ where: { id }, include: { submission: true } })
   if (!attempt) throw new HttpError('存证记录不存在', 404, 404)
+  if (attempt.status === 'PREPARED' && attempt.expiresAt <= new Date()) {
+    await prisma.commissionProofAttempt.updateMany({ where: { id, status: 'PREPARED', transactionSignature: null }, data: { status: 'FAILED', error: '钱包签名请求已过期，请重新准备' } })
+    const current = await prisma.commissionProofAttempt.findUniqueOrThrow({ where: { id } })
+    return { id: String(id), status: current.status, signature: current.transactionSignature }
+  }
   if (attempt.status !== 'SUBMITTED') return { id: String(id), status: attempt.status, signature: attempt.transactionSignature }
   const event = await verifiedEvent(attempt.submission.publicId)
   if (attempt.memo !== commissionEvidenceMemo({ commissionId: event.commission.commissionId, eventId: event.publicId, snapshotHash: event.snapshotHash, previousHash: event.previousHash, network: attempt.network })) throw new HttpError('存证与冻结快照不一致', 409, 409)
@@ -95,6 +140,7 @@ export async function reconcileWorkflowEvidence(id: number) {
     } catch { failure = '链上交易与准备的存证内容不匹配' }
     if (!failure) {
       await prisma.commissionProofAttempt.updateMany({ where: { id, status: 'SUBMITTED' }, data: { status: 'FINALIZED', slot: chain.slot, blockTime: chain.blockTime, feeLamports: chain.feeLamports, finalizedAt: new Date(), error: null } })
+      evidenceLog('commission.reconcile.finalized', { attemptId: id, transactionSignature: attempt.transactionSignature })
       return { id: String(id), status: 'FINALIZED', signature: attempt.transactionSignature }
     }
   } else {
@@ -106,6 +152,7 @@ export async function reconcileWorkflowEvidence(id: number) {
     }
   }
   if (failure) await prisma.commissionProofAttempt.updateMany({ where: { id, status: 'SUBMITTED' }, data: { status: 'FAILED', error: failure } })
+  evidenceLog('commission.reconcile.result', { attemptId: id, status: failure ? 'FAILED' : 'SUBMITTED', transactionSignature: attempt.transactionSignature })
   return { id: String(id), status: failure ? 'FAILED' : 'SUBMITTED', signature: attempt.transactionSignature }
 }
 export async function publicWorkflowEvidence(signature: string) {

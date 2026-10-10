@@ -69,7 +69,7 @@ export type SubmissionSnapshot = {
   type: string; submittedAt: string; actor: { role: 'ADMIN' | 'USER' | 'SYSTEM'; name: string; commitment: string; nonce: string };
   note: string; data: Record<string, unknown>; reference: string | null; attachments: SnapshotAttachment[]; previousHash: string | null;
 }
-export type WorkflowProof = { id: string; network: string; status: string; signature: string | null; blockTime: string | null; error: string | null }
+export type WorkflowProof = { id: string; network: string; status: string; signature: string | null; blockTime: string | null; error: string | null; expiresAt?: string }
 export type WorkflowEvent = { id: string; hash: string; snapshot: SubmissionSnapshot; proofs: WorkflowProof[] }
 export type WorkflowAgreement = { id: string; publicId: string; kind: string; status: string; title: string; body: string; template: SimpleTemplateVersion; values: Record<string, unknown>; fileKeys: string[]; totalFen: string | null; maintenanceDays: number; confirmationMode: string; publishedEventId: string | null; confirmedAt: string | null }
 export type WorkflowIssue = { id: string; title: string; status: string; resolution: string }

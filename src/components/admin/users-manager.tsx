@@ -250,7 +250,7 @@ export function UsersManager() {
     modal.confirm({
       title: t('messages.deleteConfirmTitle'),
       content: (
-        <Space direction="vertical" size={4}>
+        <Space orientation="vertical" size={4}>
           <span>{t('messages.deleteConfirm', { name: user.displayName || user.username })}</span>
           <span>{t('messages.deleteNotice')}</span>
         </Space>
@@ -432,7 +432,7 @@ export function UsersManager() {
         onOk={() => membershipForm.submit()}
         footer={(_origin, { OkBtn, CancelBtn }) => <Space><Button danger loading={revokeMembershipMutation.isPending} onClick={() => modal.confirm({ title: t('membership.revokeAll'), content: t('membership.revokeAllConfirm'), okButtonProps: { danger: true }, onOk: () => revokeMembershipMutation.mutateAsync(undefined) })}>{t('membership.revokeAll')}</Button><CancelBtn /><OkBtn /></Space>}
       >
-        <Space direction="vertical" size={12} className="full-width">
+        <Space orientation="vertical" size={12} className="full-width">
           <div>
             <strong>{t('membership.current')}</strong>
             {membershipQuery.data?.activeMemberships.length ? membershipQuery.data.activeMemberships.map((item) => <span key={item.id}><Tag color="gold">{item.name}</Tag><Button size="small" type="link" danger onClick={() => modal.confirm({ title: t('membership.revokeType', { name: item.name }), content: t('membership.revokeTypeConfirm'), okButtonProps: { danger: true }, onOk: () => revokeMembershipMutation.mutateAsync(item.id) })}>{t('membership.revoke')}</Button></span>) : t('membership.regular')}

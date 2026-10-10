@@ -12,6 +12,10 @@ releaseHash 为紧凑 Manifest 的 SHA-256。发布名称和版本号影响凭�
 
 准备接口接收 `subject: {type: "projectVersion", projectVersionId}`，同一发布 ID、同一网络使用一份当前凭证，可以保留失败或取消的尝试。Memo 协议为 `slothvault.project-version`，包含协议版本 1、installationId、releaseId、紧凑 manifest、releaseHash、network 和 signer。签名前检查实际交易序列化后的 1232 字节限制；超限明确报错，不截断、不拆分。提交先持久化签名再广播，仅匹配的 finalized 交易可确认为已上链。
 
+项目版本和委托存证的 Devnet 签名仅允许当前选中的 Phantom 适配器；切换到不支持的账户或钱包后清空网络选择，不自动改选 Mainnet。Wallet Standard 签名显式传入目标链。新交易预先包含 1,400,000 CU 上限和零优先费指令，再加入一条 Memo；预算覆盖较长 UTF-8 Memo 的执行，基础手续费仍正常收取。返回交易必须保持消息字节一致且签名有效，服务端也校验原消息哈希和固定指令结构。历史单 Memo 和 200,000 CU 结构继续按各自原哈希核验。
+
+未提交的过期请求显示为“签名请求已过期”，通过重新准备或对账结束旧尝试，保留历史记录。广播预检的明确执行失败返回具体 reason，例如 CHAIN_COMPUTE_BUDGET_EXCEEDED；网络中断、节点暂时找不到区块哈希或响应丢失保留原签名和提交状态，当前页面可重试相同签名交易或对账，不再次签名。阶段日志通过 attemptId、credentialId 串联，并记录安全的消息哈希、指令类型和计算量；不输出完整交易、Memo、钱包地址或 RPC 地址。
+
 公共版本凭证摘要 API 按需读取快照、Mainnet/Devnet 状态和请求用户下载能力，不加载正文或调用 RPC。顶部版本菜单只有“查看凭证”和“下载 Manifest”；抽屉刷新读取已存状态，实时链上核验由交易回执页面的显式操作发起。链上交易匹配与站内内容完整性分别显示。所有下载路径在处理 ETag 前检查下载权限和内容完整性，摘要响应头为 releaseHash。
 
 三种数据库 schema revision 14 新增 release_manifest_json 并删除旧内容凭证与尝试；合同及委托存证不受影响。启动、安装及生产升级不重新计算旧发布快照，旧版本不会进入 v3 公共列表。当前备份格式为 2.13.0，保存并校验 v3 快照，恢复后从文档树重算核验；旧内容凭证退出恢复流程。

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { SendTransactionError } from '@solana/web3.js'
 
 import { HttpError } from '@/server/http/errors'
 
@@ -49,6 +50,11 @@ describe('release evidence RPC failover', () => {
       'Transaction simulation failed',
     )
     expect(chainOperation).toHaveBeenCalledOnce()
+  })
+  it('does not mistake the network field inside a Memo log for a connection failure', async () => {
+    const operation = vi.fn().mockRejectedValue(new SendTransactionError({ action: 'simulate', signature: '', transactionMessage: 'Transaction simulation failed: Error processing Instruction 2: custom program error', logs: ['Program log: Memo: {"network":"devnet","projectName":"network"}'] }))
+    await expect(withEvidenceRpc('devnet', operation)).rejects.toThrow('Transaction simulation failed')
+    expect(operation).toHaveBeenCalledOnce()
   })
 })
 

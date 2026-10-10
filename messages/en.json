@@ -1764,7 +1764,8 @@
         "awaitingSignature": "Awaiting signature",
         "confirming": "Awaiting confirmation",
         "finalized": "Finalized",
-        "unknown": "Unknown status"
+        "unknown": "Unknown status",
+        "expired": "Signing request expired"
       },
       "subject": {
         "noHash": "No hash",
@@ -1790,7 +1791,8 @@
         "backToEdit": "Back to edit",
         "prepare": "Validate and prepare transaction",
         "sign": "Confirm receipt and request wallet signature",
-        "retryLoad": "Retry"
+        "retryLoad": "Retry",
+        "retrySubmission": "Retry signed transaction"
       },
       "toolbar": {
         "ledger": "Evidence ledger",
@@ -1810,7 +1812,7 @@
       },
       "messages": {
         "reconciled": "On-chain status rechecked",
-        "submitted": "Transaction submitted; the system will continue awaiting finality",
+        "submitted": "The transaction was submitted and is awaiting finality. Reconcile its chain status later.",
         "cancelPending": "The unsigned request will expire automatically.",
         "loadFailed": "Failed to load evidence records",
         "walletScope": "After connecting a wallet, only credentials signed by that address in this service are shown. The wallet's full chain history is not scanned.",
@@ -1821,7 +1823,25 @@
         "networkDisabled": "This network is disabled. Choose another enabled network or adjust it in System Settings.",
         "integrityFailed": "Release integrity validation failed. Fix the mismatch between the version content and published hash first.",
         "failure": "Evidence issuance failed",
-        "tooLarge": "Publication names exceed the single-transaction capacity."
+        "tooLarge": "Publication names exceed the single-transaction capacity.",
+        "phantomRequired": "Devnet evidence requires Phantom. Please switch wallets.",
+        "walletUnsupported": "This wallet or account cannot sign for the selected network. Check the wallet network settings.",
+        "signatureRejected": "The wallet did not complete signing or rejected the request. Prepare a new transaction to retry.",
+        "messageMismatch": "The wallet returned a different transaction message. Submission stopped. Prepare again; signing logs identify the changes.",
+        "signatureInvalid": "The returned transaction signature is invalid. Submission stopped. Prepare again.",
+        "transactionInvalid": "The signed transaction format or structure is invalid. Prepare again.",
+        "expired": "The signing request expired. Prepare a new transaction.",
+        "attemptStale": "This signing request was processed or replaced. Refresh the ledger and check its status.",
+        "attemptFailed": "This signing request failed. Prepare a new request.",
+        "alreadySubmitted": "This credential already has a submitted transaction. Reconcile its chain status.",
+        "alreadyFinalized": "This credential is finalized. Another transaction is unnecessary.",
+        "prepareActive": "An active signing request already exists. Complete or cancel it before retrying.",
+        "chainFailed": "The chain transaction failed. Check the attempt timeline before preparing again.",
+        "computeBudgetExceeded": "The credential Memo exceeded the transaction compute budget. Refresh the page and prepare a new transaction.",
+        "balanceInsufficient": "The signing wallet has insufficient SOL for the transaction fee or account rent requirements.",
+        "blockhashExpired": "The transaction blockhash expired. Prepare a new transaction.",
+        "submissionUnknown": "The submission outcome is unknown. Retry the same signed transaction or reconcile its status before signing again.",
+        "finalized": "The transaction is finalized and the credential can be independently verified."
       },
       "receipt": {
         "title": "Evidence issuance receipt",

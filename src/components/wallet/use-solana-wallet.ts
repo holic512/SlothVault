@@ -5,7 +5,7 @@
  * @project SlothVault
  * @module Solana Wallet Capability Boundary
  * @description Exposes the application-level Solana wallet capabilities used by authentication and evidence business flows.
- * @logic Hide Wallet Adapter and Wallet Standard details behind address, selector, message-signing, and prepared-transaction-signing operations so business components do not depend on a wallet vendor or injected provider shape.
+ * @logic Expose network signing eligibility from the selected adapter, restrict Devnet evidence to Phantom, and bind every prepared signature to its target chain without changing login signing.
  * @dependencies @solana/wallet-adapter-react, @solana/wallet-adapter-react-ui, bs58, solana-transaction
  * @index_tags solana,wallet,adapter,wallet-standard,authentication,evidence,client
  * @author holic512
@@ -16,10 +16,11 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import { useWalletModal } from '@solana/wallet-adapter-react-ui'
 import bs58 from 'bs58'
 
-import { signPreparedSolanaTransaction } from '@/components/wallet/solana-transaction'
+import { assertWalletEvidenceNetwork, canWalletSignEvidence, signPreparedSolanaTransaction } from '@/components/wallet/solana-transaction'
+import type { EvidenceNetwork } from '@/lib/evidence-diagnostics'
 
 export function useSolanaWallet() {
-  const { connected, publicKey, signMessage, signTransaction } = useWallet()
+  const { connected, publicKey, signMessage, signTransaction, wallet } = useWallet()
   const { setVisible } = useWalletModal()
   const address = publicKey?.toBase58() ?? null
   const openWalletSelector = useCallback(() => setVisible(true), [setVisible])
@@ -31,13 +32,16 @@ export function useSolanaWallet() {
   }, [address, signMessage])
 
   const signPreparedTransaction = useCallback(
-    (transactionBase64: string) => signPreparedSolanaTransaction(transactionBase64, signTransaction),
-    [signTransaction],
+    (transactionBase64: string, network: EvidenceNetwork, attemptId?: string) => signPreparedSolanaTransaction(transactionBase64, network, wallet?.adapter, address, signTransaction, attemptId),
+    [wallet?.adapter, address, signTransaction],
   )
 
   return {
     address,
     connected,
+    walletName: wallet?.adapter.name ?? null,
+    canSignForNetwork: (network: EvidenceNetwork) => canWalletSignEvidence(wallet?.adapter, address, network),
+    assertEvidenceNetwork: (network: EvidenceNetwork) => assertWalletEvidenceNetwork(wallet?.adapter, address, network),
     canSignMessage: Boolean(signMessage),
     canSignTransaction: Boolean(signTransaction),
     openWalletSelector,

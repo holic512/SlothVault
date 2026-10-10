@@ -33,7 +33,6 @@ vi.mock('@/server/services/release-evidence-chain', () => ({
   withEvidenceRpc: mocks.withEvidenceRpc,
   finalizedEvidenceTransaction: mocks.finalizedEvidenceTransaction,
   testEvidenceEndpoint: vi.fn(),
-  isEvidenceRpcConnectionFailure: (error: unknown) => error instanceof Error && error.message.includes('fetch failed'),
   evidenceRpcError: (error: unknown) => { throw error },
 }))
 

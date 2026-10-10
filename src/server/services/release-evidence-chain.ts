@@ -10,7 +10,7 @@
  */
 import 'server-only'
 
-import { Connection, Message, SolanaJSONRPCError, Transaction } from '@solana/web3.js'
+import { Connection, Message, SendTransactionError, SolanaJSONRPCError, Transaction } from '@solana/web3.js'
 
 import { HttpError } from '@/server/http/errors'
 import {
@@ -18,6 +18,7 @@ import {
   type SolanaNetwork,
 } from '@/server/services/system-config'
 import type { RpcProbeResult } from '@/types/admin-rpc'
+import { evidenceLog } from '@/lib/evidence-diagnostics'
 
 export const RPC_PROBE_TIMEOUT_MS = 8_000
 
@@ -29,7 +30,10 @@ function rpcConnection(url: string) {
 }
 
 export function isEvidenceRpcConnectionFailure(error: unknown) {
-  const text = error instanceof Error ? `${error.name} ${error.message}` : String(error)
+  // SendTransactionError.message embeds program logs, including arbitrary Memo
+  // content. Only inspect the RPC message when deciding whether to fail over.
+  const text = error instanceof SendTransactionError ? error.transactionError.message
+    : error instanceof Error ? `${error.name} ${error.message}` : String(error)
   return /fetch|network|socket|timeout|timed out|ECONN|ENOTFOUND|429|503|502|504|failed to get/i.test(text)
 }
 
@@ -48,7 +52,7 @@ export async function withEvidenceRpc<T>(
 
 export function evidenceRpcError(error: unknown, operation: string): never {
   if (error instanceof HttpError) throw error
-  console.error(`[release-evidence] ${operation} failed`, error)
+  evidenceLog(`rpc.${operation.replaceAll(' ', '_')}.failed`, { rpcUnavailable: isEvidenceRpcConnectionFailure(error) }, true)
   if (isEvidenceRpcConnectionFailure(error)) {
     throw new HttpError('Solana RPC is unavailable; the evidence record can be reconciled later', 503, 503)
   }

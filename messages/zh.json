@@ -1764,7 +1764,8 @@
         "awaitingSignature": "待签名",
         "confirming": "待确认",
         "finalized": "已确认",
-        "unknown": "未知状态"
+        "unknown": "未知状态",
+        "expired": "签名请求已过期"
       },
       "subject": {
         "noHash": "无哈希",
@@ -1790,7 +1791,8 @@
         "backToEdit": "返回修改",
         "prepare": "校验内容并生成待签交易",
         "sign": "确认回执内容并请求钱包签名",
-        "retryLoad": "重试"
+        "retryLoad": "重试",
+        "retrySubmission": "重试原签名交易"
       },
       "toolbar": {
         "ledger": "存证总账",
@@ -1810,7 +1812,7 @@
       },
       "messages": {
         "reconciled": "链上状态已重新核验",
-        "submitted": "交易已提交，系统将持续等待最终确认",
+        "submitted": "交易已提交，尚未获得最终确认，请随后核对链上状态。",
         "cancelPending": "未签请求将在到期后自动失效。",
         "loadFailed": "存证记录加载失败",
         "walletScope": "连接钱包后，将只显示本站由该地址签署的凭证；不会扫描钱包的全部链上历史。",
@@ -1821,7 +1823,25 @@
         "networkDisabled": "该网络已禁用，请选择其他已启用网络或前往系统设置调整。",
         "integrityFailed": "版本完整性校验失败，请先修复版本内容与发布哈希的不一致。",
         "failure": "存证办理失败",
-        "tooLarge": "项目名称或版本号过长，凭证超出单笔交易容量。"
+        "tooLarge": "项目名称或版本号过长，凭证超出单笔交易容量。",
+        "phantomRequired": "Devnet 测试网上链仅支持 Phantom，请更换钱包。",
+        "walletUnsupported": "当前钱包或账户不支持所选网络的交易签名，请检查钱包网络设置。",
+        "signatureRejected": "钱包未完成签名或拒绝了请求，请重新准备后再试。",
+        "messageMismatch": "钱包返回的交易内容与准备交易不一致，已停止提交。请重新准备；可通过签名日志定位变化。",
+        "signatureInvalid": "钱包返回的交易签名无效，已停止提交，请重新准备。",
+        "transactionInvalid": "签名交易格式或结构无效，请重新准备。",
+        "expired": "签名请求已过期，请重新准备交易。",
+        "attemptStale": "该签名请求已被处理或替换，请刷新记录后核对状态。",
+        "attemptFailed": "该签名请求已失败，请重新办理。",
+        "alreadySubmitted": "该凭证已有已提交交易，请核对链上状态。",
+        "alreadyFinalized": "该凭证已获得最终确认，无需重复上链。",
+        "prepareActive": "该凭证已有有效的签名请求，请完成或取消原请求后再试。",
+        "chainFailed": "链上交易失败，请查看办理时间线后重新准备。",
+        "computeBudgetExceeded": "凭证 Memo 执行超出交易计算预算，请刷新页面并重新准备交易。",
+        "balanceInsufficient": "签名钱包的 SOL 不足以支付交易手续费或满足账户租金要求。",
+        "blockhashExpired": "交易区块哈希已过期，请重新准备签名。",
+        "submissionUnknown": "提交结果尚未确认。请重试同一份已签交易或核对状态，暂勿重新签名。",
+        "finalized": "链上交易已获得最终确认，凭证可独立核验。"
       },
       "receipt": {
         "title": "存证办理回执",

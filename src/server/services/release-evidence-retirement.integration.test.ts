@@ -6,7 +6,7 @@ import Database from 'better-sqlite3'
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3'
 import { PrismaClient as SQLiteClient } from '../../../generated/prisma-sqlite/client'
 import type { PrismaClient } from '../../../generated/prisma-postgresql/client'
-import { Keypair, Transaction } from '@solana/web3.js'
+import { Keypair, SendTransactionError, Transaction } from '@solana/web3.js'
 import { NextRequest } from 'next/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -20,6 +20,7 @@ vi.mock('@/server/database/unit-of-work', () => {
     tail = result.then(() => undefined, () => undefined)
     return result
   } } }
+
 })
 vi.mock('@/server/auth/session', () => ({ requireAdminSession: async () => ({ User: { id: 1 } }) }))
 vi.mock('@/server/database/runtime-health', () => ({ readRuntimeInstallationPublicStatus: async () => ({ status: 'INSTALLED' }), isDatabaseConnectivityError: () => false }))
@@ -32,7 +33,7 @@ vi.mock('@/server/services/system-config', async (load) => ({
 }))
 vi.mock('@/server/services/release-evidence-chain', () => ({
   withEvidenceRpc: mocks.rpc, finalizedEvidenceTransaction: mocks.finalized,
-  evidenceRpcError: (error: unknown) => { throw error }, isEvidenceRpcConnectionFailure: () => false, testEvidenceEndpoint: vi.fn(),
+  evidenceRpcError: (error: unknown) => { throw error }, testEvidenceEndpoint: vi.fn(),
 }))
 import { cancelReleaseEvidenceAttempt, getAdminReleaseEvidence, getPublicReleaseEvidenceManifest, getPublicReleaseEvidence, listReleaseEvidence, prepareEvidence, reconcileReleaseEvidence, submitReleaseEvidence, verifyPublicReleaseEvidence } from './release-evidence'
 import { publishProjectVersion } from './project-version-release'
@@ -73,6 +74,40 @@ beforeEach(async () => {
 afterEach(async () => { await client.$disconnect(); rmSync(directory, { recursive: true, force: true }) })
 
 describe('project-version v3 evidence boundaries with SQLite', () => {
+  it('persists a specific compute rejection and allows preparing a fresh attempt', async () => {
+    const wallet = Keypair.generate()
+    mocks.rpc.mockImplementation(async (_network: string, operation: (connection: unknown) => Promise<unknown>) => operation({
+      getLatestBlockhash: async () => ({ blockhash: '11111111111111111111111111111111', lastValidBlockHeight: 100 }),
+      getFeeForMessage: async () => ({ value: 5000 }), getBalance: async () => 100000,
+    }))
+    const input = { subject: { type: 'projectVersion' as const, projectVersionId: versionId }, network: 'devnet' as const, signerAddress: wallet.publicKey.toBase58(), issuerUserId: 1 }
+    const prepared = await prepareEvidence(input)
+    const transaction = Transaction.from(Buffer.from(prepared.transactionBase64, 'base64')); transaction.sign(wallet)
+    mocks.rpc.mockImplementation(async (_network: string, operation: (connection: unknown) => Promise<unknown>) => operation({
+      sendRawTransaction: async () => { throw new SendTransactionError({ action: 'simulate', signature: '', transactionMessage: 'Transaction simulation failed: Error processing Instruction 2: Program failed to complete', logs: ['Program MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr failed: exceeded CUs meter at BPF instruction'] }) },
+    }))
+    await expect(submitReleaseEvidence({ attemptId: Number(prepared.attemptId), issuerUserId: 1, signedTransactionBase64: transaction.serialize().toString('base64') })).rejects.toMatchObject({ data: { reason: 'CHAIN_COMPUTE_BUDGET_EXCEEDED' } })
+    expect(await client.releaseCredentialAttempt.findUniqueOrThrow({ where: { id: Number(prepared.attemptId) } })).toMatchObject({ status: -1, failureCode: 'CHAIN_COMPUTE_BUDGET_EXCEEDED', transactionSignature: expect.any(String) })
+    expect((await client.releaseCredential.findUniqueOrThrow({ where: { id: Number(prepared.credentialId) } })).status).toBe(-1)
+    mocks.rpc.mockImplementation(async (_network: string, operation: (connection: unknown) => Promise<unknown>) => operation({
+      getLatestBlockhash: async () => ({ blockhash: '11111111111111111111111111111111', lastValidBlockHeight: 100 }), getFeeForMessage: async () => ({ value: 5000 }), getBalance: async () => 100000,
+    }))
+    expect((await prepareEvidence(input)).attemptId).not.toBe(prepared.attemptId)
+  })
+  it.each(['Blockhash not found', 'Node is unhealthy'])('does not turn an uncertain preflight response into a terminal failure: %s', async transactionMessage => {
+    const wallet = Keypair.generate()
+    mocks.rpc.mockImplementation(async (_network: string, operation: (connection: unknown) => Promise<unknown>) => operation({
+      getLatestBlockhash: async () => ({ blockhash: '11111111111111111111111111111111', lastValidBlockHeight: 100 }), getFeeForMessage: async () => ({ value: 5000 }), getBalance: async () => 100000,
+    }))
+    const prepared = await prepareEvidence({ subject: { type: 'projectVersion', projectVersionId: versionId }, network: 'devnet', signerAddress: wallet.publicKey.toBase58(), issuerUserId: 1 })
+    const transaction = Transaction.from(Buffer.from(prepared.transactionBase64, 'base64')); transaction.sign(wallet)
+    mocks.finalized.mockResolvedValue(null)
+    mocks.rpc.mockImplementation(async (_network: string, operation: (connection: unknown) => Promise<unknown>) => operation({
+      sendRawTransaction: async () => { throw new SendTransactionError({ action: 'simulate', signature: '', transactionMessage }) }, getBlockHeight: async () => 99,
+    }))
+    expect(await submitReleaseEvidence({ attemptId: Number(prepared.attemptId), issuerUserId: 1, signedTransactionBase64: transaction.serialize().toString('base64') })).toMatchObject({ status: 1 })
+    expect(await client.releaseCredentialAttempt.findUniqueOrThrow({ where: { id: Number(prepared.attemptId) } })).toMatchObject({ status: 1, failureCode: null, transactionSignature: expect.any(String) })
+  })
   it('rejects retired preparation at the API and service boundaries before RPC or writes', async () => {
     const response = await preparePost(new NextRequest('http://localhost/api/admin/evidence/prepare', { method: 'POST', body: JSON.stringify({ subject: { type: 'noteContent', noteContentId: contentId }, network: 'devnet', signerAddress: '11111111111111111111111111111111' }) }), { params: Promise.resolve({}) })
     expect(response.status).toBe(400)
@@ -191,6 +226,114 @@ describe('project-version v3 evidence boundaries with SQLite', () => {
     const mainnet = await prepareEvidence({ ...input, network: 'mainnet' })
     expect(mainnet.credentialId).not.toBe(next.credentialId)
     expect((await getProjectVersionEvidenceSummary(versionId)).networks.map(n => n.status)).toEqual([0, 0])
+  })
+
+  it('records invalid signed messages as failed, retains history, and allows a new attempt', async () => {
+    const wallet = Keypair.generate()
+    mocks.rpc.mockImplementation(async (_network: string, operation: (connection: unknown) => Promise<unknown>) => operation({
+      getLatestBlockhash: async () => ({ blockhash: '11111111111111111111111111111111', lastValidBlockHeight: 100 }),
+      getFeeForMessage: async () => ({ value: 5000 }), getBalance: async () => 100000,
+    }))
+    const input = { subject: { type: 'projectVersion' as const, projectVersionId: versionId }, network: 'devnet' as const, signerAddress: wallet.publicKey.toBase58(), issuerUserId: 1 }
+    const prepared = await prepareEvidence(input)
+    const tx = Transaction.from(Buffer.from(prepared.transactionBase64, 'base64'))
+    tx.recentBlockhash = Keypair.generate().publicKey.toBase58()
+    tx.sign(wallet)
+    await expect(submitReleaseEvidence({ attemptId: Number(prepared.attemptId), issuerUserId: 1, signedTransactionBase64: tx.serialize().toString('base64') })).rejects.toMatchObject({ status: 409, data: { reason: 'EVIDENCE_MESSAGE_MISMATCH' } })
+    expect(await client.releaseCredentialAttempt.findUniqueOrThrow({ where: { id: Number(prepared.attemptId) } })).toMatchObject({ status: -1, failureCode: 'EVIDENCE_MESSAGE_MISMATCH', transactionSignature: null })
+    expect((await client.releaseCredential.findUniqueOrThrow({ where: { id: Number(prepared.credentialId) } })).status).toBe(-1)
+    const next = await prepareEvidence(input)
+    expect(next.credentialId).toBe(prepared.credentialId)
+    expect(next.attemptId).not.toBe(prepared.attemptId)
+    expect(await client.releaseCredentialAttempt.count({ where: { credentialId: Number(next.credentialId) } })).toBe(2)
+    await expect(submitReleaseEvidence({ attemptId: Number(prepared.attemptId), issuerUserId: 1, signedTransactionBase64: tx.serialize().toString('base64') })).rejects.toMatchObject({ data: { reason: 'EVIDENCE_ATTEMPT_FAILED' } })
+    expect((await client.releaseCredential.findUniqueOrThrow({ where: { id: Number(next.credentialId) } })).status).toBe(0)
+  })
+  it('ends expired unsigned attempts through reconciliation without changing the ledger on reads', async () => {
+    const wallet = Keypair.generate()
+    mocks.rpc.mockImplementation(async (_network: string, operation: (connection: unknown) => Promise<unknown>) => operation({
+      getLatestBlockhash: async () => ({ blockhash: '11111111111111111111111111111111', lastValidBlockHeight: 100 }),
+      getFeeForMessage: async () => ({ value: 5000 }), getBalance: async () => 100000,
+    }))
+    const prepared = await prepareEvidence({ subject: { type: 'projectVersion', projectVersionId: versionId }, network: 'devnet', signerAddress: wallet.publicKey.toBase58(), issuerUserId: 1 })
+    await client.releaseCredentialAttempt.update({ where: { id: Number(prepared.attemptId) }, data: { expiresAt: new Date(0) } })
+    const listed = await listReleaseEvidence({ page: 1, pageSize: 20 })
+    expect(listed.list[0]).toMatchObject({ status: 0 })
+    expect((await client.releaseCredentialAttempt.findUniqueOrThrow({ where: { id: Number(prepared.attemptId) } })).status).toBe(0)
+    expect(await reconcileReleaseEvidence(Number(prepared.credentialId))).toMatchObject({ status: -1 })
+    expect((await client.releaseCredentialAttempt.findUniqueOrThrow({ where: { id: Number(prepared.attemptId) } })).failureCode).toBe('PREPARE_EXPIRED')
+    await expect(reconcileReleaseEvidence(Number(prepared.credentialId))).resolves.toMatchObject({ status: -1 })
+  })
+
+  it('reuses the exact signature after a lost submit response and protects persisted submissions from invalid retries', async () => {
+    const wallet = Keypair.generate()
+    mocks.rpc.mockImplementation(async (_network: string, operation: (connection: unknown) => Promise<unknown>) => operation({
+      getLatestBlockhash: async () => ({ blockhash: '11111111111111111111111111111111', lastValidBlockHeight: 100 }),
+      getFeeForMessage: async () => ({ value: 5000 }), getBalance: async () => 100000,
+    }))
+    const prepared = await prepareEvidence({ subject: { type: 'projectVersion', projectVersionId: versionId }, network: 'devnet', signerAddress: wallet.publicKey.toBase58(), issuerUserId: 1 })
+    const tx = Transaction.from(Buffer.from(prepared.transactionBase64, 'base64')); tx.sign(wallet)
+    const bytes = tx.serialize().toString('base64')
+    const { default: bs58 } = await import('bs58')
+    const signature = bs58.encode(tx.signature!)
+    const broadcast = vi.fn<(raw: Buffer) => Promise<string>>(async () => signature)
+    mocks.rpc.mockImplementation(async (_network: string, operation: (connection: unknown) => Promise<unknown>) => operation({ sendRawTransaction: broadcast, getBlockHeight: async () => 99 }))
+    mocks.finalized.mockResolvedValue(null)
+    const input = { attemptId: Number(prepared.attemptId), issuerUserId: 1, signedTransactionBase64: bytes }
+    expect(await submitReleaseEvidence(input)).toMatchObject({ status: 1, transactionSignature: signature })
+    expect(await submitReleaseEvidence(input)).toMatchObject({ status: 1, transactionSignature: signature })
+    expect(broadcast).toHaveBeenCalledTimes(2)
+    expect(broadcast.mock.calls.every(([raw]) => Buffer.from(raw).toString('base64') === bytes)).toBe(true)
+    expect(await client.releaseCredentialAttempt.count({ where: { credentialId: Number(prepared.credentialId) } })).toBe(1)
+    tx.recentBlockhash = Keypair.generate().publicKey.toBase58(); tx.sign(wallet)
+    await expect(submitReleaseEvidence({ ...input, signedTransactionBase64: tx.serialize().toString('base64') })).rejects.toMatchObject({ data: { reason: 'EVIDENCE_MESSAGE_MISMATCH' } })
+    expect((await client.releaseCredentialAttempt.findUniqueOrThrow({ where: { id: input.attemptId } })).status).toBe(1)
+    expect((await client.releaseCredential.findUniqueOrThrow({ where: { id: Number(prepared.credentialId) } })).status).toBe(1)
+    mocks.finalized.mockResolvedValue({ failed: false, transaction: Transaction.from(Buffer.from(bytes, 'base64')), slot: 42n, blockTime: new Date(), feeLamports: 5000n })
+    await reconcileReleaseEvidence(Number(prepared.credentialId))
+    await expect(cancelReleaseEvidenceAttempt({ attemptId: input.attemptId, issuerUserId: 1 })).rejects.toMatchObject({ status: 409 })
+    expect((await client.releaseCredential.findUniqueOrThrow({ where: { id: Number(prepared.credentialId) } })).status).toBe(2)
+  })
+
+  it('retains a durable signature when the RPC response is unexpected, instead of treating payment as failed', async () => {
+    const wallet = Keypair.generate()
+    mocks.rpc.mockImplementation(async (_network: string, operation: (connection: unknown) => Promise<unknown>) => operation({
+      getLatestBlockhash: async () => ({ blockhash: '11111111111111111111111111111111', lastValidBlockHeight: 100 }),
+      getFeeForMessage: async () => ({ value: 5000 }), getBalance: async () => 100000,
+    }))
+    const prepared = await prepareEvidence({ subject: { type: 'projectVersion', projectVersionId: versionId }, network: 'devnet', signerAddress: wallet.publicKey.toBase58(), issuerUserId: 1 })
+    const tx = Transaction.from(Buffer.from(prepared.transactionBase64, 'base64')); tx.sign(wallet)
+    mocks.rpc.mockImplementation(async (_network: string, operation: (connection: unknown) => Promise<unknown>) => operation({ sendRawTransaction: async () => 'unexpected-rpc-signature', getBlockHeight: async () => 99 }))
+    mocks.finalized.mockResolvedValue(null)
+    expect(await submitReleaseEvidence({ attemptId: Number(prepared.attemptId), issuerUserId: 1, signedTransactionBase64: tx.serialize().toString('base64') })).toMatchObject({ status: 1 })
+    expect(await client.releaseCredentialAttempt.findUniqueOrThrow({ where: { id: Number(prepared.attemptId) } })).toMatchObject({ status: 1, failureCode: null })
+  })
+
+  it('does not downgrade a submission committed while another request is validating an invalid message', async () => {
+    const wallet = Keypair.generate()
+    mocks.rpc.mockImplementation(async (_network: string, operation: (connection: unknown) => Promise<unknown>) => operation({
+      getLatestBlockhash: async () => ({ blockhash: '11111111111111111111111111111111', lastValidBlockHeight: 100 }),
+      getFeeForMessage: async () => ({ value: 5000 }), getBalance: async () => 100000,
+    }))
+    const prepared = await prepareEvidence({ subject: { type: 'projectVersion', projectVersionId: versionId }, network: 'devnet', signerAddress: wallet.publicKey.toBase58(), issuerUserId: 1 })
+    const valid = Transaction.from(Buffer.from(prepared.transactionBase64, 'base64')); valid.sign(wallet)
+    const { default: bs58 } = await import('bs58')
+    const signature = bs58.encode(valid.signature!)
+    const invalid = Transaction.from(valid.serialize()); invalid.recentBlockhash = Keypair.generate().publicKey.toBase58(); invalid.sign(wallet)
+    const delegate = client.releaseCredentialAttempt.findUnique.bind(client.releaseCredentialAttempt)
+    const spy = vi.spyOn(client.releaseCredentialAttempt, 'findUnique')
+    spy.mockImplementationOnce((async (args: Parameters<typeof delegate>[0]) => {
+      const snapshot = await delegate(args)
+      // Another authenticated submit completes its signature persistence after this request's read.
+      await client.releaseCredentialAttempt.update({ where: { id: Number(prepared.attemptId) }, data: { status: 1, transactionSignature: signature, submittedAt: new Date() } })
+      await client.releaseCredential.update({ where: { id: Number(prepared.credentialId) }, data: { status: 1, transactionSignature: signature } })
+      return snapshot
+    }) as unknown as typeof delegate)
+    try {
+      await expect(submitReleaseEvidence({ attemptId: Number(prepared.attemptId), issuerUserId: 1, signedTransactionBase64: invalid.serialize().toString('base64') })).rejects.toMatchObject({ data: { reason: 'EVIDENCE_MESSAGE_MISMATCH' } })
+      expect(await client.releaseCredentialAttempt.findUniqueOrThrow({ where: { id: Number(prepared.attemptId) } })).toMatchObject({ status: 1, transactionSignature: signature, failureCode: null })
+      expect(await client.releaseCredential.findUniqueOrThrow({ where: { id: Number(prepared.credentialId) } })).toMatchObject({ status: 1, transactionSignature: signature })
+    } finally { spy.mockRestore() }
   })
 
 })

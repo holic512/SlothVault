@@ -167,13 +167,14 @@ docker compose -f /data/slothvault/compose.yml up -d
 
 ## 内容与委托存证
 
-发布内容和区块链存证彼此独立：项目版本可先公开，后续由管理员钱包为具体笔记内容版本进行存证。凭证绑定该篇 Markdown 内容的 manifest 哈希，使用 Solana 官方 Memo Program，不表示 NFT 所有权、版权归属或可转移资产。委托存证绑定不可变提交记录，通过委托工作区办理。整版发布存证已退役，历史整版凭证不再提供查询、办理或公开核验；项目版本本身的完整性哈希和 manifest 下载仍保留。
+发布内容和区块链存证彼此独立：项目版本可先公开，后续由管理员钱包为发布版本进行存证。凭证绑定紧凑 Manifest v3 的 releaseHash 和正文树聚合 contentHash，使用 Solana 官方 Memo Program，不表示 NFT 所有权、版权归属或可转移资产。委托存证绑定不可变提交记录，通过委托工作区办理。旧单篇内容凭证已退役，当前项目版本凭证规则见 [Manifest v3](./docs/RELEASE_MANIFEST_V3.md)。
 
 后台的文章、项目、草稿版本及其文档、项目菜单和首页采用软删除。管理员在 `/admin/mm/trash` 按文章或项目层级查看、预览并恢复；删除父级会连带软删除未冻结的子级，恢复父级不会自动恢复子级，恢复子级则恢复必要的祖先。已发布版本与内容保持冻结，删除项目仅使其下线；恢复项目会立即重新启用并可能公开原有发布内容。历史已删记录的删除时间显示为未知。
 
-- Mainnet 凭证用于正式存证，Devnet 用于测试；同一笔记内容版本在每个网络最多保留一条最终凭证。
-- 办理前会重新计算该篇内容的 manifest、展示网络与费用信息；提交后保留交易签名，并可继续对账最终状态。
-- 公开凭证路由为 `/evidence/<transactionSignature>`；来源内容不再作为公开主版本时，正文、来源信息和 manifest 不再公开。
+- Mainnet 凭证用于正式存证，Devnet 用于测试且仅允许 Phantom；同一发布版本在每个网络最多保留一条最终凭证。
+- 办理前校验发布快照与正文树完整性、展示网络与费用信息；交易显式设置计算预算和零优先费，基础手续费仍正常收取。
+- 未提交的过期请求可重新准备；提交结果不明时，当前页面保留已签交易供原请求重试，或按原交易签名对账。
+- 公开凭证路由为 `/evidence/<transactionSignature>`；来源版本下线后仍可核验链上记录，站内内容完整性可能无法核验，Manifest 下载继续遵守可见性和下载权限。
 
 ## 架构
 
@@ -221,7 +222,7 @@ flowchart LR
 | `SOLANA_DEVNET_RPC_FALLBACK` | Devnet 备用 RPC。 |
 | `NEXT_PUBLIC_SOLANA_RPC_URL` | 浏览器 Wallet Adapter 使用的公共集群地址。 |
 
-浏览器钱包通过 Solana Wallet Standard 自动发现，不需要为每个扩展单独引入 SDK。安装且启用 Solana 账户的兼容钱包（例如 OKX Wallet）会出现在钱包选择器中；当前签名、登录和存证协议均为 Solana，尚不包含 EVM/OKB Chain 地址或交易支持。
+浏览器钱包通过 Solana Wallet Standard 自动发现，不需要为每个扩展单独引入 SDK。安装且启用 Solana 账户的兼容钱包（例如 OKX Wallet）会出现在钱包选择器中；Devnet 存证仅允许 Phantom，其他兼容钱包仍可用于登录和支持的 Mainnet 签名。当前签名、登录和存证协议均为 Solana，尚不包含 EVM/OKB Chain 地址或交易支持。
 
 ## 管理员 MCP
 

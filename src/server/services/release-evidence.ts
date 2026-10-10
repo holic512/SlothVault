@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Unified Content Evidence Ledger
  * @description Owns project-version Solana Memo evidence preparation, durable submission, reconciliation, listing, and public verification in one ledger.
- * @logic Keep public verification metadata free of bodies and require project download access for manifests; Resolve an immutable subject, reserve its network singleton, use the compact publication protocol, persist a signed attempt before broadcast, and finalize only from matching chain facts.
+ * @logic Reserve immutable subjects, record precise unsigned failures, persist signatures before broadcast, retry only identical signed bytes after uncertain responses, and finalize from matching chain facts while keeping public metadata free of bodies.
  * @dependencies Prisma transactions, release integrity, project-version evidence protocol, Solana RPC runtime, system configuration
  * @index_tags release,notes,content,evidence,solana,memo,ledger,verification
  * @author holic512
@@ -13,6 +13,7 @@ import type { AccessViewer } from '@/lib/content-access'
 import { resolveProjectAccess } from './content-access'
 import type { Prisma } from '@generated/prisma-postgresql/client'
 import { PublicKey } from '@solana/web3.js'
+import { evidenceLog, evidenceReason, TERMINAL_EVIDENCE_REASONS } from '@/lib/evidence-diagnostics'
 
 import { unitOfWork } from '@/server/database/unit-of-work'
 import { HttpError } from '@/server/http/errors'
@@ -20,10 +21,10 @@ import { prisma } from '@/server/prisma'
 import {
   evidenceRpcError,
   finalizedEvidenceTransaction,
-  isEvidenceRpcConnectionFailure,
   testEvidenceEndpoint,
   withEvidenceRpc,
 } from '@/server/services/release-evidence-chain'
+import { logEvidenceBroadcastError } from '@/server/services/solana-evidence-broadcast'
 import {
   PROJECT_VERSION_EVIDENCE_SUBJECT,
   assertSignedProjectVersionEvidenceTransaction,
@@ -104,6 +105,7 @@ async function failAttempt(
   code: string,
   message: string,
   onlyPrepared = false,
+  ignoreChanged = false,
 ) {
   const owner = await prisma.releaseCredentialAttempt.findUnique({ where: { id: attemptId }, select: { credential: { select: { projectVersionId: true } } } })
   if (!owner) return null
@@ -111,7 +113,10 @@ async function failAttempt(
     await lockProjectVersionMetadata(tx, owner.credential.projectVersionId)
     const attempt = await tx.releaseCredentialAttempt.findUnique({ where: { id: attemptId } })
     if (!attempt || attempt.status === ATTEMPT_STATUS.FINALIZED) return attempt
-    if (onlyPrepared && attempt.status !== ATTEMPT_STATUS.PREPARED) throw new HttpError('Only an unsigned evidence attempt can be cancelled or expired', 409, 409)
+    if (onlyPrepared && attempt.status !== ATTEMPT_STATUS.PREPARED) {
+      if (ignoreChanged) return attempt
+      throw new HttpError('Only an unsigned evidence attempt can be cancelled or expired', 409, 409, { reason: 'EVIDENCE_ATTEMPT_STALE' })
+    }
     const changed = await tx.releaseCredentialAttempt.updateMany({
       where: { id: attempt.id, status: onlyPrepared ? ATTEMPT_STATUS.PREPARED : { not: ATTEMPT_STATUS.FINALIZED } },
       data: {
@@ -122,9 +127,11 @@ async function failAttempt(
       },
     })
     if (!changed.count) {
+      if (ignoreChanged) return attempt
       if (onlyPrepared) throw new HttpError('Evidence signing attempt is no longer unsigned', 409, 409)
       return attempt
     }
+    evidenceLog('attempt.failed', { attemptId: attempt.id, credentialId: attempt.credentialId, reason: code, status: ATTEMPT_STATUS.FAILED }, true)
     const latestAttempt = await tx.releaseCredentialAttempt.findFirst({
       where: { credentialId: attempt.credentialId },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -134,7 +141,8 @@ async function failAttempt(
     await tx.releaseCredential.updateMany({
       where: {
         id: attempt.credentialId,
-        status: { not: CREDENTIAL_STATUS.FINALIZED },
+        status: onlyPrepared ? CREDENTIAL_STATUS.PREPARED : { not: CREDENTIAL_STATUS.FINALIZED },
+        ...(onlyPrepared ? { transactionSignature: null } : {}),
       },
       data: { status: CREDENTIAL_STATUS.FAILED, updatedAt: new Date() },
     })
@@ -159,7 +167,7 @@ export async function cancelReleaseEvidenceAttempt(input: {
   }
   await failAttempt(
     attempt.id,
-    'WALLET_SIGNATURE_CANCELLED',
+    input.reason && TERMINAL_EVIDENCE_REASONS.has(input.reason) ? input.reason : 'WALLET_SIGNATURE_CANCELLED',
     (input.reason || 'The wallet declined or cancelled the signature request').slice(0, 500),
     true,
   )
@@ -207,6 +215,8 @@ export async function prepareEvidence(input: {
   signerAddress: string
   issuerUserId: number
 }) {
+  const started = performance.now()
+  evidenceLog('prepare.start', { network: input.network })
   if (input.subject.type !== 'projectVersion') {
     throw new HttpError('Unsupported evidence subject', 400, 400)
   }
@@ -365,6 +375,7 @@ export async function prepareEvidence(input: {
       })
       return { credential, attempt }
     })
+    evidenceLog('prepare.stored', { attemptId: stored.attempt.id, credentialId: stored.credential.id, network: input.network, elapsedMs: Math.round(performance.now() - started) })
     return {
       credentialId: String(stored.credential.id),
       attemptId: String(stored.attempt.id),
@@ -394,6 +405,21 @@ export async function submitReleaseEvidence(input: {
   signedTransactionBase64: string
   issuerUserId: number
 }) {
+  const started = performance.now()
+  evidenceLog('submit.start', { attemptId: input.attemptId })
+  try {
+    const result = await submitReleaseEvidenceInternal(input)
+    evidenceLog('submit.result', { attemptId: input.attemptId, credentialId: result.credentialId,
+      network: result.network, status: result.status, transactionSignature: result.transactionSignature, elapsedMs: Math.round(performance.now() - started) })
+    return result
+  } catch (error) {
+    evidenceLog('submit.failed', { attemptId: input.attemptId, reason: evidenceReason(error),
+      httpStatus: error instanceof HttpError ? error.status : 500, elapsedMs: Math.round(performance.now() - started) }, true)
+    throw error
+  }
+}
+
+async function submitReleaseEvidenceInternal(input: { attemptId: number; signedTransactionBase64: string; issuerUserId: number }) {
   const attempt = await prisma.releaseCredentialAttempt.findUnique({
     where: { id: input.attemptId },
     include: { credential: true },
@@ -405,10 +431,20 @@ export async function submitReleaseEvidence(input: {
     return credentialResult(attempt.credential)
   }
   if (attempt.status === ATTEMPT_STATUS.SUBMITTED) {
+    // A previous response may have been lost after persistence. Reuse only the same signed transaction.
+    const transaction = parseSignedProjectVersionEvidence(input.signedTransactionBase64)
+    const signature = assertSignedProjectVersionEvidenceTransaction({ transaction, memo: attempt.memo,
+      signerAddress: attempt.signerAddress, messageHash: attempt.messageHash, recentBlockhash: attempt.recentBlockhash,
+      logContext: { attemptId: attempt.id, credentialId: attempt.credentialId, network: attempt.credential.network } })
+    if (signature !== attempt.transactionSignature) throw new HttpError('Retry signature does not match the submitted attempt', 409, 409, { reason: 'EVIDENCE_MESSAGE_MISMATCH' })
+    evidenceLog('broadcast.retry', { attemptId: attempt.id, credentialId: attempt.credentialId, transactionSignature: signature })
+    await withEvidenceRpc(attempt.credential.network as SolanaNetwork,
+      (connection) => connection.sendRawTransaction(transaction.serialize(), { maxRetries: 3, preflightCommitment: 'confirmed' }))
+      .catch(error => { logEvidenceBroadcastError('broadcast.retry_failed', error, { attemptId: attempt.id, transactionSignature: signature }) })
     return credentialResult(await reconcileReleaseEvidence(attempt.credentialId))
   }
   if (attempt.status === ATTEMPT_STATUS.FAILED) {
-    throw new HttpError('Evidence signing attempt has failed; prepare a new one', 409, 409)
+    throw new HttpError('Evidence signing attempt has failed; prepare a new one', 409, 409, { reason: 'EVIDENCE_ATTEMPT_FAILED' })
   }
   if (attempt.credential.status === CREDENTIAL_STATUS.FINALIZED) {
     throw new HttpError('This subject already has finalized evidence on the selected network', 409, 409, {
@@ -428,17 +464,24 @@ export async function submitReleaseEvidence(input: {
   }
   if (attempt.status === ATTEMPT_STATUS.PREPARED && attempt.expiresAt.getTime() <= Date.now()) {
     await failAttempt(attempt.id, 'PREPARE_EXPIRED', 'The signing window expired', true)
-    throw new HttpError('Evidence signing request expired', 409, 409)
+    throw new HttpError('Evidence signing request expired', 409, 409, { reason: 'EVIDENCE_PREPARE_EXPIRED' })
   }
 
-  await requireReleaseIntegrity(attempt.credential.projectVersionId, attempt.credential.subjectHash)
-  const transaction = parseSignedProjectVersionEvidence(input.signedTransactionBase64)
-  const signature = assertSignedProjectVersionEvidenceTransaction({
-    transaction,
-    memo: attempt.memo,
-    signerAddress: attempt.signerAddress,
-    messageHash: attempt.messageHash,
-  })
+  const context = { attemptId: attempt.id, credentialId: attempt.credentialId, network: attempt.credential.network }
+  let transaction: ReturnType<typeof parseSignedProjectVersionEvidence>
+  let signature: string
+  try {
+    await requireReleaseIntegrity(attempt.credential.projectVersionId, attempt.credential.subjectHash)
+    transaction = parseSignedProjectVersionEvidence(input.signedTransactionBase64)
+    signature = assertSignedProjectVersionEvidenceTransaction({ transaction, memo: attempt.memo,
+      signerAddress: attempt.signerAddress, messageHash: attempt.messageHash,
+      recentBlockhash: attempt.recentBlockhash, logContext: context })
+  } catch (error) {
+    const reason = evidenceReason(error)
+    if (TERMINAL_EVIDENCE_REASONS.has(reason)) await failAttempt(attempt.id, reason, reason, true, true)
+    throw error
+  }
+  evidenceLog('submit.validated', { ...context, transactionSignature: signature })
 
   try {
     await unitOfWork.execute(async (tx) => {
@@ -454,7 +497,7 @@ export async function submitReleaseEvidence(input: {
           updatedAt: new Date(),
         },
       })
-      if (claimed.count !== 1) throw new HttpError('Evidence signing attempt is no longer active', 409, 409)
+      if (claimed.count !== 1) throw new HttpError('Evidence signing attempt is no longer active', 409, 409, { reason: 'EVIDENCE_ATTEMPT_STALE' })
       const bound = await tx.releaseCredential.updateMany({
         where: { id: attempt.credentialId, status: CREDENTIAL_STATUS.PREPARED },
         data: {
@@ -463,7 +506,7 @@ export async function submitReleaseEvidence(input: {
           updatedAt: new Date(),
         },
       })
-      if (bound.count !== 1) throw new HttpError('Evidence credential is no longer unsigned', 409, 409)
+      if (bound.count !== 1) throw new HttpError('Evidence credential is no longer unsigned', 409, 409, { reason: 'EVIDENCE_ATTEMPT_STALE' })
     })
   } catch (error) {
     if (hasPrismaCode(error, 'P2002')) {
@@ -472,8 +515,10 @@ export async function submitReleaseEvidence(input: {
     throw error
   }
 
+  evidenceLog('submit.signature_stored', { ...context, transactionSignature: signature })
   try {
     const raw = transaction.serialize()
+    evidenceLog('broadcast.start', { ...context, transactionSignature: signature })
     const submitted = await withEvidenceRpc(
       attempt.credential.network as SolanaNetwork,
       (connection) => connection.sendRawTransaction(raw, {
@@ -484,16 +529,16 @@ export async function submitReleaseEvidence(input: {
     if (submitted !== signature) {
       throw new HttpError('RPC returned an unexpected transaction signature', 502, 502)
     }
+    evidenceLog('broadcast.accepted', { ...context, transactionSignature: signature })
   } catch (error) {
-    if (isEvidenceRpcConnectionFailure(error)) {
-      console.warn('[release-evidence] Submission outcome is unknown; reconciliation retained', error)
-    } else {
+    const failure = logEvidenceBroadcastError('broadcast.failed', error, { ...context, transactionSignature: signature })
+    if (failure.definitive) {
       await failAttempt(
         attempt.id,
-        'CHAIN_SUBMISSION_FAILED',
-        error instanceof Error ? error.message : 'Solana rejected the transaction submission',
+        failure.reason,
+        failure.message,
       )
-      evidenceRpcError(error, 'submit release evidence')
+      throw new HttpError(failure.message, 400, 400, { reason: failure.reason })
     }
   }
 
@@ -515,6 +560,7 @@ function credentialResult(credential: {
 }
 
 export async function reconcileReleaseEvidence(credentialId: number) {
+  evidenceLog('reconcile.start', { credentialId })
   const credential = await prisma.releaseCredential.findUnique({
     where: { id: credentialId },
     include: {
@@ -527,7 +573,7 @@ export async function reconcileReleaseEvidence(credentialId: number) {
   if (!attempt) throw new HttpError('Release credential attempt is missing', 409, 409)
 
   if (!credential.transactionSignature) {
-    if (attempt.expiresAt.getTime() <= Date.now()) {
+    if (attempt.status === ATTEMPT_STATUS.PREPARED && attempt.expiresAt.getTime() <= Date.now()) {
       await failAttempt(attempt.id, 'PREPARE_EXPIRED', 'The signing window expired', true)
       return prisma.releaseCredential.findUniqueOrThrow({ where: { id: credential.id } })
     }
@@ -544,6 +590,7 @@ export async function reconcileReleaseEvidence(credentialId: number) {
     evidenceRpcError(error, 'reconcile release evidence')
   }
   if (!chain) {
+    evidenceLog('reconcile.pending', { credentialId, attemptId: attempt.id, status: credential.status, transactionSignature: credential.transactionSignature })
     if (alreadyFinalized) return credential
     try {
       const expired = await withEvidenceRpc(
@@ -587,6 +634,7 @@ export async function reconcileReleaseEvidence(credentialId: number) {
       data: { lastVerifiedAt: finalizedAt, updatedAt: finalizedAt },
     })
   }
+  evidenceLog('reconcile.chain_finalized', { credentialId, attemptId: attempt.id, transactionSignature: credential.transactionSignature })
   return unitOfWork.execute(async (tx) => {
     await lockProjectVersionMetadata(tx, credential.projectVersionId)
     const current = await tx.releaseCredential.findUniqueOrThrow({ where: { id: credential.id } })
