@@ -5,12 +5,12 @@
  * @project SlothVault
  * @module Public Project Shell
  * @description Provides the public article-collection layout and interactive navigation around server-rendered reading routes.
- * @logic Render localized navigation and server-rendered reading content with an optional filing footer, and handle version switching and mobile menus, or pin administrator preview navigation to a version.
+ * @logic Render localized navigation and server-rendered reading content with an optional filing footer, and handle version switching, version-bound credential actions and mobile menus, or pin administrator preview navigation to a version.
  * @dependencies Ant Design, Next navigation, next-intl, project context, navigation-shell, project-navigation
  * @index_tags project-layout,public-reading,navigation,server-data,web2
  * @author holic512
  */
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 
 import { Button, Drawer, Dropdown, Select } from 'antd'
 import { ChevronDown, Library, Menu } from 'lucide-react'
@@ -23,6 +23,7 @@ import {
   type ProjectVersion,
   type PublicProject,
 } from '@/components/project/project-context'
+import { ProjectCredentialMenu } from './project-credential-menu'
 import { NavigationShell } from '@/components/shell/navigation-shell'
 import { ThemeControls } from '@/components/theme/theme-controls'
 import { AccountNav } from '@/components/auth/account-nav'
@@ -38,6 +39,7 @@ export function ProjectShell({
   children,
   footer,
   previewBase,
+  previewVersion,
 }: {
   projectId: string
   project: PublicProject
@@ -46,6 +48,7 @@ export function ProjectShell({
   children: ReactNode
   footer?: ReactNode
   previewBase?: string
+  previewVersion?: { id: string; version: string; publishedAt: string | null }
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -55,6 +58,7 @@ export function ProjectShell({
       <ProjectNavigation
         project={project}
         previewBase={previewBase}
+        previewVersion={previewVersion}
         projectId={projectId}
         versions={versions}
         menus={menus}
@@ -75,6 +79,7 @@ function ProjectNavigation({
   pathname,
   onVersionChange,
   previewBase,
+  previewVersion,
 }: {
   project: PublicProject
   projectId: string
@@ -83,8 +88,14 @@ function ProjectNavigation({
   pathname: string
   onVersionChange: (value: string) => void
   previewBase?: string
+  previewVersion?: { id: string; version: string; publishedAt: string | null }
 }) {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const afterMobileClose = useRef<(() => void) | null>(null)
+  const viewMobileCredential = () => new Promise<void>((resolve) => {
+    afterMobileClose.current = resolve
+    setMobileOpen(false)
+  })
   const t = useTranslations('ProjectNavigation')
   const builtinLinks = getBuiltinProjectNavigation(projectId).map(entry => ({ ...entry, href: previewBase ? `${previewBase}${entry.path}` : entry.href }))
   const isActive = (key: 'home' | 'docs') => previewBase
@@ -93,6 +104,8 @@ function ProjectNavigation({
   const docsActive = isActive('docs')
   const versionMatch = pathname.match(/\/v\/([^/]+)/)
   const currentVersion = versionMatch?.[1]
+  const selectedVersion = previewBase ? previewVersion : versions.find(version => version.id === currentVersion)
+  const credentialVersion = docsActive && selectedVersion?.publishedAt ? selectedVersion.id : null
   const resolveUrl = (url: string | null) => {
     if (!url) return `/project/${projectId}/home`
     if (managedUploadPath(url)) return contextualFileUrl(url, projectId, true)!
@@ -161,6 +174,8 @@ function ProjectNavigation({
                 suffixIcon={<ChevronDown size={13} />}
               />
             ) : null}
+            {previewBase && docsActive && previewVersion ? <span className="project-preview-version">{previewVersion.version}</span> : null}
+            {credentialVersion ? <ProjectCredentialMenu key={credentialVersion} projectId={projectId} versionId={credentialVersion} preview={Boolean(previewBase)} /> : null}
             <Button className="project-nav-library" aria-label={t('library')} icon={<Library size={16} />} href="/project/projectList" />
             <AccountNav compact />
             <ThemeControls />
@@ -179,6 +194,9 @@ function ProjectNavigation({
         placement="right"
         size={340}
         open={mobileOpen}
+        afterOpenChange={(visible) => {
+          if (!visible) { afterMobileClose.current?.(); afterMobileClose.current = null }
+        }}
         onClose={() => setMobileOpen(false)}
       >
         <nav className="mobile-nav-links" aria-label={t('mobileNavigation')}>
@@ -190,6 +208,7 @@ function ProjectNavigation({
               </Link>
             )
           })}
+          <div className="project-mobile-version-actions">
           {docsActive && versions.length ? (
             <Select
               className="project-mobile-version-select"
@@ -203,6 +222,9 @@ function ProjectNavigation({
               suffixIcon={<ChevronDown size={13} />}
             />
           ) : null}
+          {previewBase && docsActive && previewVersion ? <span>{previewVersion.version}</span> : null}
+          {credentialVersion ? <ProjectCredentialMenu key={credentialVersion} projectId={projectId} versionId={credentialVersion} preview={Boolean(previewBase)} mobile onView={viewMobileCredential} /> : null}
+          </div>
           {menus.flatMap((menu) =>
             menu.children.length
               ? menu.children.map((child) =>

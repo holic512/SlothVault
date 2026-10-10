@@ -18,7 +18,7 @@ import { prisma } from '@/server/prisma'
 import { resolveArticleAccess, resolveProjectAccess } from './content-access'
 
 const visibleProject = { isDeleted: false, status: 1 } as const
-const visibleVersion = { isDeleted: false, status: 1, publishedAt: { not: null }, releaseId: { not: null }, releaseHash: { not: null }, manifestVersion: 2, project: visibleProject } as const
+const visibleVersion = { isDeleted: false, status: 1, publishedAt: { not: null }, releaseId: { not: null }, releaseHash: { not: null }, manifestVersion: 3, project: visibleProject } as const
 type Reference = { sourceType: string; sourceId: number; projectId: number | null; usage: string }
 
 async function liveReference(reference: Reference, filePath: string, administrator = false): Promise<{ projectId: number | null; publicRead: boolean; articleId?: number } | null> {

@@ -1,3 +1,4 @@
+import { canonicalReleaseManifest, releaseManifestHash } from './release-manifest'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -277,7 +278,7 @@ describe('database backup release compatibility', () => {
     })
     data.projectVersions.push({
       id: '2', projectId: '1', version: 'published', description: null, weight: 1, status: 1,
-      releaseId, releaseHash: 'a'.repeat(64), manifestVersion: 2, publishedAt: timestamp,
+      releaseId, ...snapshot('published'), manifestVersion: 3, publishedAt: timestamp,
       createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
     })
     data.categories.push({
@@ -302,9 +303,7 @@ describe('database backup release compatibility', () => {
 
     const parsed = parseDatabaseImportPayload({ data, version: '2.5.0' })
     expect(parsed.data.noteContents[0].evidenceId).toBe(evidenceId)
-    expect(parsed.data.releaseCredentials[0]).toMatchObject({
-      subjectType: 'NOTE_CONTENT', subjectId: evidenceId, noteContentId: '5',
-    })
+    expect(parsed.data.releaseCredentials).toEqual([])
 
     parsed.data.categories[0].projectVersionId = '999'
     expect(() => parseDatabaseImportPayload({ data: parsed.data, version: '2.5.0' })).toThrow(/projectVersionId/)
@@ -320,7 +319,7 @@ describe('database backup release compatibility', () => {
     })
     data.projectVersions.push({
       id: '2', projectId: '1', version: 'v2.2', description: null, weight: 1, status: 1,
-      releaseId, releaseHash: 'a'.repeat(64), manifestVersion: 2, publishedAt: timestamp,
+      releaseId, ...snapshot('v2.2'), manifestVersion: 3, publishedAt: timestamp,
       createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
     })
     data.releaseCredentials.push({
@@ -340,7 +339,7 @@ describe('database backup release compatibility', () => {
       failureCode: null, failureMessage: null, expiresAt: timestamp,
       submittedAt: null, finalizedAt: null, createdAt: timestamp, updatedAt: timestamp,
     })
-    expect(parseDatabaseImportPayload({ data, version: '2.2.0' }).data.releaseCredentialAttempts).toHaveLength(1)
+    expect(parseDatabaseImportPayload({ data, version: '2.2.0' }).data.releaseCredentialAttempts).toHaveLength(0)
   })
 
   it('forces legacy 2.0 project versions to drafts', () => {
@@ -354,6 +353,7 @@ describe('database backup release compatibility', () => {
       status: 1,
       releaseId: null,
       releaseHash: null,
+      releaseManifestJson: null,
       manifestVersion: null,
       publishedAt: null,
       createdAt: timestamp,
@@ -366,6 +366,7 @@ describe('database backup release compatibility', () => {
       status: 0,
       releaseId: null,
       releaseHash: null,
+      releaseManifestJson: null,
       manifestVersion: null,
       publishedAt: null,
     })
@@ -382,6 +383,7 @@ describe('database backup release compatibility', () => {
       status: 1,
       releaseId: releaseId,
       releaseHash: null,
+      releaseManifestJson: null,
       manifestVersion: null,
       publishedAt: null,
       createdAt: timestamp,
@@ -398,13 +400,13 @@ describe('database backup release compatibility', () => {
 const releaseId = '550e8400-e29b-41d4-a716-446655440000'
 
 
-describe('content manifest v2 backup contract', () => {
+describe('content manifest v3 backup contract', () => {
   it('allows repeated body hashes and keeps release IDs unique', () => {
     const data = backupWithReservation()
     data.projectVersions = [1, 2].map(id => ({
       id: String(id), projectId: '1', version: `v${id}`, description: null, weight: 0,
       status: 1, releaseId: `550e8400-e29b-41d4-a716-44665544000${id}`,
-      releaseHash: 'a'.repeat(64), manifestVersion: 2, publishedAt: timestamp,
+      ...snapshot(`v${id}`), manifestVersion: 3, publishedAt: timestamp,
       createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
     }))
     expect(parseDatabaseImportPayload({ data, version: '2.7.0' }).data.projectVersions).toHaveLength(2)
@@ -412,3 +414,8 @@ describe('content manifest v2 backup contract', () => {
     expect(() => parseDatabaseImportPayload({ data, version: '2.7.0' })).toThrow(/releaseId/)
   })
 })
+
+function snapshot(version: string) {
+  const releaseManifestJson = canonicalReleaseManifest({ schema: 3, projectName: 'project', version, contentHash: 'a'.repeat(64) })
+  return { releaseManifestJson, releaseHash: releaseManifestHash(releaseManifestJson) }
+}

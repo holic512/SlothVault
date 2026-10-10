@@ -28,7 +28,7 @@
 
 第二种保留目标的 ID、版本号、说明和权重。来源必须是同项目未删除的发布版本；目标必须是未删除草稿且没有任何未删除分类、笔记或正文。回收站记录保留。锁、检查与复制在同一事务内，失败不留下部分文档树。列表返回 `isEmpty` 供选择空目标使用；实际操作仍在事务内复核。
 
-发布后可用 `content.project.update`、`content.project.version.update`、`content.category.update`、`content.note.update`、`content.note.content.update_metadata` 修改名称、标题、说明和权重。文档结构与正文变更需要草稿。只提交发生变化的字段，混合请求不能绕过冻结规则。
+发布后可用 `content.project.update`、`content.project.version.update`、`content.category.update`、`content.note.update`、`content.note.content.update_metadata` 修改项目名称、说明和权重。版本号、分类名称、笔记标题、文档结构与正文变更需要草稿。只提交发生变化的字段，混合请求不能绕过冻结规则。
 
 `content.project.version.set_visibility` 设置已发布版本的 `status`（1 显示、0 隐藏）。公开版本按 `publishedAt DESC, id DESC` 排序，仅包含已发布且可见的版本；后台草稿位于发布版本后，按创建时间与 ID 倒序。默认入口选择最近发布的版本，显式版本链接保持原目标。
 
@@ -56,7 +56,7 @@ slothtool slothvault skill update
 
 命令直接下载并校验独立 Skill，同步 slothvault-mcp 受管链接，无需独立 MCP 客户端。自定义内容保留并报告冲突；网络失败表示未检查。Deployment 独立安装/更新，不绑定原生连接。历史迁移与数据保留见 [集成架构](../integrations/ARCHITECTURE.md#退役和本地遗留数据)。契约见 [集成协议](../integrations/PROTOCOL.md)。
 
-正文哈希的字节规则、元数据边界和数据库升级方式参见 [Manifest v2](./RELEASE_MANIFEST_V2.md)。
+正文哈希的字节规则、元数据边界和数据库升级方式参见 [Manifest v3](./RELEASE_MANIFEST_V3.md)。
 
 ## 委托项目工作流
 

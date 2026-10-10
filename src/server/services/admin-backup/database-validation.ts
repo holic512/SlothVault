@@ -9,6 +9,8 @@
  * @author holic512
  */
 import 'server-only'
+import { canonicalProjectVersionEvidenceMemo } from '@/server/services/project-version-evidence-protocol'
+import { canonicalReleaseManifest, parseReleaseManifest, releaseManifestHash } from '@/server/services/release-manifest'
 import { validateCommissionBackup } from '@/server/commissions/backup'
 import { assertDocumentSnapshot } from '@/server/commissions/documents'
 import { assertDocumentAttachments } from '@/server/commissions/storage'
@@ -229,6 +231,12 @@ export function validateBackupRelations(data: BackupData) {
     if (present === releaseFields.length && item.status !== 0 && item.status !== 1) {
       invalidBackup(`published projectVersion ${item.id} must have status 0 or 1`)
     }
+    if (present === releaseFields.length) {
+      try {
+        const snapshot = parseReleaseManifest(item.releaseManifestJson)
+        if (snapshot.version !== item.version || releaseManifestHash(item.releaseManifestJson!) !== item.releaseHash) throw new Error('Snapshot digest mismatch')
+      } catch { invalidBackup(`projectVersion ${item.id} has invalid v3 publication snapshot`) }
+    } else if (item.releaseManifestJson !== null) invalidBackup(`draft projectVersion ${item.id} has a publication snapshot`)
     if (present === releaseFields.length && item.isDeleted) {
       invalidBackup(`published projectVersion ${item.id} cannot be deleted`)
     }
@@ -263,30 +271,6 @@ export function validateBackupRelations(data: BackupData) {
     }
     assertReference(users, item.issuerUserId, 'releaseCredential issuerUserId')
 
-    if (item.subjectType === 'NOTE_CONTENT') {
-      if (
-        !item.noteContentId ||
-        !item.subjectId ||
-        !item.subjectHash ||
-        item.subjectManifestVersion === null
-      ) {
-        invalidBackup(`releaseCredential ${item.id} has incomplete note-content subject metadata`)
-      }
-      const content = noteContents.get(item.noteContentId)
-      if (!content) {
-        invalidBackup(`unknown releaseCredential noteContentId ${item.noteContentId}`)
-      }
-      if (!content.evidenceId || content.evidenceId !== item.subjectId) {
-        invalidBackup(`releaseCredential ${item.id} does not match noteContent evidenceId`)
-      }
-      const note = noteInfos.get(content.noteInfoId)
-      const category = note ? categories.get(note.categoryId) : undefined
-      if (!note || !category || category.projectVersionId !== item.projectVersionId) {
-        invalidBackup(`releaseCredential ${item.id} note content belongs to another project version`)
-      }
-      continue
-    }
-
     if (item.noteContentId !== null) {
       invalidBackup(`project-version releaseCredential ${item.id} cannot reference note content`)
     }
@@ -294,16 +278,28 @@ export function validateBackupRelations(data: BackupData) {
       invalidBackup(`releaseCredential ${item.id} references an unpublished project version`)
     }
     if (
-      (item.subjectId !== null && item.subjectId !== version.releaseId) ||
-      (item.subjectHash !== null && item.subjectHash !== version.releaseHash) ||
-      (item.subjectManifestVersion !== null && item.subjectManifestVersion !== version.manifestVersion)
+      item.subjectId !== version.releaseId ||
+      item.subjectHash !== version.releaseHash ||
+      item.subjectManifestVersion !== version.manifestVersion
     ) {
       invalidBackup(`releaseCredential ${item.id} does not match project version release metadata`)
     }
+    try {
+      const memo = JSON.parse(item.memo)
+      const manifest = parseReleaseManifest(canonicalReleaseManifest(memo.manifest))
+      const canonical = canonicalProjectVersionEvidenceMemo({ installationId: memo.installationId, releaseId: version.releaseId!, manifest, releaseHash: version.releaseHash!, network: item.network, signer: item.signerAddress })
+      if (typeof memo.installationId !== 'string' || !memo.installationId || canonical !== item.memo || canonicalReleaseManifest(manifest) !== version.releaseManifestJson) throw new Error('Memo snapshot mismatch')
+    } catch { invalidBackup(`releaseCredential ${item.id} has invalid publication Memo`) }
   }
   for (const item of data.releaseCredentialAttempts) {
     assertReference(releaseCredentials, item.credentialId, 'releaseCredentialAttempt credentialId')
     assertReference(users, item.issuerUserId, 'releaseCredentialAttempt issuerUserId')
+    const credential = releaseCredentials.get(item.credentialId)!
+    try {
+      const memo = JSON.parse(item.memo)
+      const current = JSON.parse(credential.memo)
+      if (memo.releaseId !== current.releaseId || memo.releaseHash !== current.releaseHash || memo.network !== credential.network || memo.signer !== item.signerAddress || canonicalReleaseManifest(memo.manifest) !== canonicalReleaseManifest(current.manifest)) throw new Error('Attempt snapshot mismatch')
+    } catch { invalidBackup(`releaseCredentialAttempt ${item.id} differs from its publication snapshot`) }
   }
   for (const item of data.contracts) {
     if (item.commissionId) {
@@ -475,6 +471,10 @@ export function parseDatabaseImportPayload(input: unknown): DatabaseImportPayloa
     }
   }
 
+  const retiredCredentialIds = new Set(parsed.data.data.releaseCredentials.filter(item => item.subjectType !== 'PROJECT_VERSION' || item.subjectManifestVersion !== 3).map(item => item.id))
+  parsed.data.data.releaseCredentials = parsed.data.data.releaseCredentials.filter(item => !retiredCredentialIds.has(item.id))
+  parsed.data.data.releaseCredentialAttempts = parsed.data.data.releaseCredentialAttempts.filter(item => !retiredCredentialIds.has(item.credentialId))
+
   if (parsed.data.version === '2.0.0') {
     for (const version of parsed.data.data.projectVersions) {
       version.status = 0
@@ -484,7 +484,7 @@ export function parseDatabaseImportPayload(input: unknown): DatabaseImportPayloa
       version.publishedAt = null
     }
   }
-  if (['2.11.0', DATABASE_BACKUP_VERSION].includes(parsed.data.version)) {
+  if (['2.11.0', '2.12.0', DATABASE_BACKUP_VERSION].includes(parsed.data.version)) {
     const source = (input as { data: Record<string, unknown> }).data
     for (const key of ACTIVE_BACKUP_COLLECTION_KEYS) {
       if (!Array.isArray(source[key])) invalidBackup(`complete backup is missing ${key}`)

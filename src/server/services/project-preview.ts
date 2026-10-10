@@ -54,7 +54,7 @@ export async function getPreviewSidebar(projectId: number, versionId: number) {
 }
 
 export async function getPreviewNote(projectId: number, versionId: number, noteId: number) {
-  const version = await getPreviewVersion(projectId, versionId)
+  await getPreviewVersion(projectId, versionId)
   if (!Number.isSafeInteger(noteId) || noteId < 1 || noteId > 2_147_483_647) notFound()
   const note = await prisma.noteInfo.findFirst({
     where: { id: noteId, isDeleted: false, status: 1, category: { projectVersionId: versionId, isDeleted: false, status: 1 } },
@@ -62,16 +62,10 @@ export async function getPreviewNote(projectId: number, versionId: number, noteI
   })
   if (!note || note.contents.length !== 1) notFound()
   const content = note.contents[0]
-  const evidence = await prisma.releaseCredential.findMany({
-    where: { noteContentId: content.id, subjectType: 'NOTE_CONTENT', status: 2 }, orderBy: { finalizedAt: 'desc' },
-    select: { network: true, transactionSignature: true, signerAddress: true, subjectHash: true, finalizedAt: true },
-  })
   return {
     id: String(content.id), noteId: String(note.id), noteTitle: note.noteTitle, tags: readNoteTags(note.tagsJson),
     content: content.content, versionNote: content.versionNote, updatedAt: content.updatedAt.toISOString(),
-    releaseId: version.releaseId, releaseHash: version.releaseHash, manifestVersion: version.manifestVersion,
-    publishedAt: version.publishedAt?.toISOString() ?? null,
-    noteEvidence: evidence.map(item => ({ network: item.network, transactionSignature: item.transactionSignature!, signerAddress: item.signerAddress, contentHash: item.subjectHash!, finalizedAt: item.finalizedAt!.toISOString() })),
+
   }
 }
 

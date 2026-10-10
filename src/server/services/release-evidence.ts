@@ -2,18 +2,15 @@
  * @file release-evidence.ts
  * @project SlothVault
  * @module Unified Content Evidence Ledger
- * @description Owns note-content Solana Memo evidence preparation, durable submission, reconciliation, listing, and public verification in one ledger.
- * @logic Keep public verification metadata free of bodies and require project download access for manifests; Resolve an immutable subject, reserve its network singleton, use the note-content protocol, persist a signed attempt before broadcast, and finalize only from matching chain facts.
- * @dependencies Prisma transactions, release integrity, note evidence protocol, Solana RPC runtime, system configuration
+ * @description Owns project-version Solana Memo evidence preparation, durable submission, reconciliation, listing, and public verification in one ledger.
+ * @logic Keep public verification metadata free of bodies and require project download access for manifests; Resolve an immutable subject, reserve its network singleton, use the compact publication protocol, persist a signed attempt before broadcast, and finalize only from matching chain facts.
+ * @dependencies Prisma transactions, release integrity, project-version evidence protocol, Solana RPC runtime, system configuration
  * @index_tags release,notes,content,evidence,solana,memo,ledger,verification
  * @author holic512
  */
 import 'server-only'
 import type { AccessViewer } from '@/lib/content-access'
-import { resolveProjectAccess, requireProjectCapability } from './content-access'
-
-import { randomUUID } from 'node:crypto'
-
+import { resolveProjectAccess } from './content-access'
 import type { Prisma } from '@generated/prisma-postgresql/client'
 import { PublicKey } from '@solana/web3.js'
 
@@ -28,18 +25,17 @@ import {
   withEvidenceRpc,
 } from '@/server/services/release-evidence-chain'
 import {
-  NOTE_CONTENT_EVIDENCE_SUBJECT,
-  NOTE_CONTENT_MANIFEST_VERSION,
-  assertSignedNoteContentEvidenceTransaction,
-  buildNoteContentEvidenceTransaction,
-  buildNoteContentManifest,
-  canonicalNoteContentEvidenceMemo,
-  noteContentEvidenceMessageHash,
-  parseSignedNoteContentEvidence,
-  serializePreparedNoteContentEvidence,
+  PROJECT_VERSION_EVIDENCE_SUBJECT,
+  assertSignedProjectVersionEvidenceTransaction,
+  buildProjectVersionEvidenceTransaction,
+  canonicalProjectVersionEvidenceMemo,
+  projectVersionEvidenceMessageHash,
+  parseSignedProjectVersionEvidence,
+  serializePreparedProjectVersionEvidence,
   type EvidenceSubjectType,
-} from '@/server/services/note-content-evidence-protocol'
-import { getProjectVersionIntegrity } from '@/server/services/project-version-release'
+} from '@/server/services/project-version-evidence-protocol'
+import { canonicalReleaseManifest, parseReleaseManifest, releaseManifestHash, RELEASE_MANIFEST_VERSION, type ReleaseManifest } from './release-manifest'
+import { getProjectVersionIntegrity, getProjectVersionManifest, lockProjectVersionMetadata } from '@/server/services/project-version-release'
 import {
   getDefaultSolanaNetwork,
   getSolanaNetworkProfile,
@@ -65,7 +61,7 @@ export const ATTEMPT_STATUS = {
 
 const PREPARE_TTL_MS = 10 * 60 * 1_000
 
-export type EvidenceSubjectInput = { type: 'noteContent'; noteContentId: number }
+export type EvidenceSubjectInput = { type: 'projectVersion'; projectVersionId: number }
 
 type ResolvedEvidenceSubject = {
   subjectType: EvidenceSubjectType
@@ -77,9 +73,7 @@ type ResolvedEvidenceSubject = {
   releaseId: string
   project: string
   version: string
-  category: string | null
-  note: string | null
-  contentVersion: string | null
+  manifest: ReleaseManifest
   memo: string
 }
 
@@ -109,12 +103,17 @@ async function failAttempt(
   attemptId: number,
   code: string,
   message: string,
+  onlyPrepared = false,
 ) {
+  const owner = await prisma.releaseCredentialAttempt.findUnique({ where: { id: attemptId }, select: { credential: { select: { projectVersionId: true } } } })
+  if (!owner) return null
   return unitOfWork.execute(async (tx) => {
+    await lockProjectVersionMetadata(tx, owner.credential.projectVersionId)
     const attempt = await tx.releaseCredentialAttempt.findUnique({ where: { id: attemptId } })
     if (!attempt || attempt.status === ATTEMPT_STATUS.FINALIZED) return attempt
-    await tx.releaseCredentialAttempt.update({
-      where: { id: attempt.id },
+    if (onlyPrepared && attempt.status !== ATTEMPT_STATUS.PREPARED) throw new HttpError('Only an unsigned evidence attempt can be cancelled or expired', 409, 409)
+    const changed = await tx.releaseCredentialAttempt.updateMany({
+      where: { id: attempt.id, status: onlyPrepared ? ATTEMPT_STATUS.PREPARED : { not: ATTEMPT_STATUS.FINALIZED } },
       data: {
         status: ATTEMPT_STATUS.FAILED,
         failureCode: code,
@@ -122,9 +121,13 @@ async function failAttempt(
         updatedAt: new Date(),
       },
     })
+    if (!changed.count) {
+      if (onlyPrepared) throw new HttpError('Evidence signing attempt is no longer unsigned', 409, 409)
+      return attempt
+    }
     const latestAttempt = await tx.releaseCredentialAttempt.findFirst({
       where: { credentialId: attempt.credentialId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       select: { id: true },
     })
     if (latestAttempt?.id !== attempt.id) return attempt
@@ -146,9 +149,9 @@ export async function cancelReleaseEvidenceAttempt(input: {
 }) {
   const attempt = await prisma.releaseCredentialAttempt.findUnique({
     where: { id: input.attemptId },
-    select: { id: true, issuerUserId: true, status: true, credential: { select: { subjectType: true } } },
+    select: { id: true, issuerUserId: true, status: true, credential: { select: { subjectType: true, subjectManifestVersion: true } } },
   })
-  if (!attempt || attempt.credential.subjectType !== NOTE_CONTENT_EVIDENCE_SUBJECT || attempt.issuerUserId !== input.issuerUserId) {
+  if (!attempt || !isCurrentCredential(attempt.credential) || attempt.issuerUserId !== input.issuerUserId) {
     throw new HttpError('Evidence signing attempt not found', 404, 404)
   }
   if (attempt.status !== ATTEMPT_STATUS.PREPARED) {
@@ -158,6 +161,7 @@ export async function cancelReleaseEvidenceAttempt(input: {
     attempt.id,
     'WALLET_SIGNATURE_CANCELLED',
     (input.reason || 'The wallet declined or cancelled the signature request').slice(0, 500),
+    true,
   )
   return { attemptId: String(attempt.id), status: ATTEMPT_STATUS.FAILED }
 }
@@ -173,116 +177,28 @@ async function requireReleaseIntegrity(projectVersionId: number, releaseHash: st
 }
 
 async function resolveEvidenceSubject(input: {
-  subject: EvidenceSubjectInput
-  network: SolanaNetwork
-  signerAddress: string
+  subject: EvidenceSubjectInput; network: SolanaNetwork; signerAddress: string
 }): Promise<ResolvedEvidenceSubject> {
-  const installation = await installationId()
-  const signer = parseSigner(input.signerAddress).toBase58()
-  const content = await prisma.noteContent.findUnique({
-    where: { id: input.subject.noteContentId },
-    select: {
-      id: true,
-      evidenceId: true,
-      content: true,
-      versionNote: true,
-      isPrimary: true,
-      status: true,
-      isDeleted: true,
-      noteInfo: {
-        select: {
-          noteTitle: true,
-          isDeleted: true,
-          category: {
-            select: {
-              categoryName: true,
-              isDeleted: true,
-              projectVersion: {
-                select: {
-                  id: true,
-                  version: true,
-                  isDeleted: true,
-                  releaseId: true,
-                  releaseHash: true,
-                  manifestVersion: true,
-                  publishedAt: true,
-                  project: { select: { projectName: true, isDeleted: true } },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  })
-  const version = content?.noteInfo.category.projectVersion
-  if (
-    !content ||
-    content.isDeleted ||
-    content.noteInfo.isDeleted ||
-    content.noteInfo.category.isDeleted ||
-    !version ||
-    version.isDeleted ||
-    version.project.isDeleted ||
-    !version.publishedAt ||
-    !version.releaseId ||
-    !version.releaseHash ||
-    version.manifestVersion === null
-  ) {
-    throw new HttpError('Published note content not found', 404, 404)
+  const version = await prisma.projectVersion.findUnique({ where: { id: input.subject.projectVersionId } })
+  if (!version || version.isDeleted || !version.publishedAt || !version.releaseId || !version.releaseHash || version.manifestVersion !== RELEASE_MANIFEST_VERSION) {
+    throw new HttpError('Published project version not found', 404, 404)
   }
-  await requireReleaseIntegrity(version.id, version.releaseHash)
-
-  let contentEvidenceId = content.evidenceId
-  if (!contentEvidenceId) {
-    const generated = randomUUID()
-    await prisma.noteContent.updateMany({
-      where: { id: content.id, evidenceId: null },
-      data: { evidenceId: generated },
-    })
-    const identified = await prisma.noteContent.findUnique({
-      where: { id: content.id },
-      select: { evidenceId: true },
-    })
-    contentEvidenceId = identified?.evidenceId || null
+  const integrity = await getProjectVersionIntegrity(version.id)
+  if (!integrity.valid || !integrity.manifest || integrity.computedHash !== version.releaseHash) {
+    throw new HttpError('Release integrity verification failed', 409, 409, { reason: 'RELEASE_INTEGRITY_FAILED', issues: integrity.issues })
   }
-  if (!contentEvidenceId) {
-    throw new HttpError('Unable to assign note content evidence identity', 409, 409)
-  }
-
-  const built = buildNoteContentManifest({
-    releaseId: version.releaseId,
-    projectVersion: version.version,
-    categoryName: content.noteInfo.category.categoryName,
-    noteTitle: content.noteInfo.noteTitle,
-    versionNote: content.versionNote,
-    isPrimary: content.isPrimary,
-    status: content.status,
-    markdown: content.content,
-  })
+  const manifest = integrity.manifest
   return {
-    subjectType: NOTE_CONTENT_EVIDENCE_SUBJECT,
-    subjectId: contentEvidenceId,
-    subjectHash: built.hash,
-    subjectManifestVersion: NOTE_CONTENT_MANIFEST_VERSION,
-    projectVersionId: version.id,
-    noteContentId: content.id,
-    releaseId: version.releaseId,
-    project: version.project.projectName,
-    version: version.version,
-    category: content.noteInfo.category.categoryName,
-    note: content.noteInfo.noteTitle,
-    contentVersion: content.versionNote,
-    memo: canonicalNoteContentEvidenceMemo({
-      installationId: installation,
-      contentEvidenceId,
-      releaseId: version.releaseId,
-      manifestVersion: NOTE_CONTENT_MANIFEST_VERSION,
-      contentHash: built.hash,
-      network: input.network,
-      signer,
-    }),
+    subjectType: PROJECT_VERSION_EVIDENCE_SUBJECT, subjectId: version.releaseId,
+    subjectHash: version.releaseHash, subjectManifestVersion: RELEASE_MANIFEST_VERSION,
+    projectVersionId: version.id, noteContentId: null, releaseId: version.releaseId,
+    project: manifest.projectName, version: manifest.version, manifest,
+    memo: canonicalProjectVersionEvidenceMemo({ installationId: await installationId(), releaseId: version.releaseId, manifest, releaseHash: version.releaseHash, network: input.network, signer: parseSigner(input.signerAddress).toBase58() }),
   }
+}
+
+function isCurrentCredential(value: { subjectType: string; subjectManifestVersion: number }) {
+  return value.subjectType === PROJECT_VERSION_EVIDENCE_SUBJECT && value.subjectManifestVersion === RELEASE_MANIFEST_VERSION
 }
 
 export async function prepareEvidence(input: {
@@ -291,14 +207,14 @@ export async function prepareEvidence(input: {
   signerAddress: string
   issuerUserId: number
 }) {
-  if (input.subject.type !== 'noteContent') {
+  if (input.subject.type !== 'projectVersion') {
     throw new HttpError('Unsupported evidence subject', 400, 400)
   }
   await requireEnabledSolanaNetwork(input.network)
   const signer = parseSigner(input.signerAddress)
   const subject = await resolveEvidenceSubject(input)
 
-  const existing = await prisma.releaseCredential.findUnique({
+  const found = await prisma.releaseCredential.findUnique({
     where: {
       subjectType_subjectId_network: {
         subjectType: subject.subjectType,
@@ -306,8 +222,9 @@ export async function prepareEvidence(input: {
         network: input.network,
       },
     },
-    include: { attempts: { orderBy: { createdAt: 'desc' }, take: 1 } },
+    include: { attempts: { orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 1 } },
   })
+  const existing = found && isCurrentCredential(found) ? found : null
   if (existing?.status === CREDENTIAL_STATUS.FINALIZED) {
     throw new HttpError('This subject already has finalized evidence on the selected network', 409, 409, {
       reason: 'EVIDENCE_ALREADY_FINALIZED',
@@ -334,9 +251,6 @@ export async function prepareEvidence(input: {
       attemptId: String(latestAttempt.id),
     })
   }
-  if (latestAttempt?.status === ATTEMPT_STATUS.PREPARED) {
-    await failAttempt(latestAttempt.id, 'PREPARE_EXPIRED', 'The signing window expired')
-  }
 
   let prepared: {
     transactionBase64: string
@@ -349,7 +263,7 @@ export async function prepareEvidence(input: {
   try {
     prepared = await withEvidenceRpc(input.network, async (connection) => {
       const latest = await connection.getLatestBlockhash('confirmed')
-      const transaction = buildNoteContentEvidenceTransaction({
+      const transaction = buildProjectVersionEvidenceTransaction({
         memo: subject.memo,
         signer,
         blockhash: latest.blockhash,
@@ -368,8 +282,8 @@ export async function prepareEvidence(input: {
         })
       }
       return {
-        transactionBase64: serializePreparedNoteContentEvidence(transaction),
-        messageHash: noteContentEvidenceMessageHash(transaction),
+        transactionBase64: serializePreparedProjectVersionEvidence(transaction),
+        messageHash: projectVersionEvidenceMessageHash(transaction),
         blockhash: latest.blockhash,
         lastValidBlockHeight: latest.lastValidBlockHeight,
         feeLamports,
@@ -383,9 +297,28 @@ export async function prepareEvidence(input: {
   const expiresAt = new Date(Date.now() + PREPARE_TTL_MS)
   try {
     const stored = await unitOfWork.execute(async (tx) => {
-      const credential = existing
+      // Serialize reservations for the release, including first creation and expired retries.
+      await lockProjectVersionMetadata(tx, subject.projectVersionId)
+      let current = await tx.releaseCredential.findUnique({
+        where: { subjectType_subjectId_network: { subjectType: subject.subjectType, subjectId: subject.subjectId, network: input.network } },
+        include: { attempts: { orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 1 } },
+      })
+      if (current && !isCurrentCredential(current)) {
+        await tx.releaseCredentialAttempt.deleteMany({ where: { credentialId: current.id } })
+        await tx.releaseCredential.delete({ where: { id: current.id } })
+        current = null
+      }
+      if (current?.status === CREDENTIAL_STATUS.FINALIZED || current?.status === CREDENTIAL_STATUS.SUBMITTED) {
+        throw new HttpError('Evidence already submitted on this network', 409, 409, { reason: current.status === CREDENTIAL_STATUS.FINALIZED ? 'EVIDENCE_ALREADY_FINALIZED' : 'EVIDENCE_ALREADY_SUBMITTED' })
+      }
+      const active = current?.attempts[0]
+      if (active?.status === ATTEMPT_STATUS.PREPARED) {
+        if (active.expiresAt.getTime() > Date.now()) throw new HttpError('An evidence signing request is already active', 409, 409, { reason: 'EVIDENCE_PREPARE_ACTIVE', attemptId: String(active.id) })
+        await tx.releaseCredentialAttempt.update({ where: { id: active.id }, data: { status: ATTEMPT_STATUS.FAILED, failureCode: 'PREPARE_EXPIRED', failureMessage: 'The signing window expired', updatedAt: new Date() } })
+      }
+      const credential = current
         ? await tx.releaseCredential.update({
-            where: { id: existing.id },
+            where: { id: current.id },
             data: {
               issuerUserId: input.issuerUserId,
               signerAddress: signer.toBase58(),
@@ -444,9 +377,7 @@ export async function prepareEvidence(input: {
       subjectType: subject.subjectType,
       project: subject.project,
       version: subject.version,
-      category: subject.category,
-      note: subject.note,
-      contentVersion: subject.contentVersion,
+      manifest: subject.manifest,
       releaseHash: subject.subjectHash,
       network: input.network,
     }
@@ -467,7 +398,7 @@ export async function submitReleaseEvidence(input: {
     where: { id: input.attemptId },
     include: { credential: true },
   })
-  if (!attempt || attempt.credential.subjectType !== NOTE_CONTENT_EVIDENCE_SUBJECT || attempt.issuerUserId !== input.issuerUserId) {
+  if (!attempt || !isCurrentCredential(attempt.credential) || attempt.issuerUserId !== input.issuerUserId) {
     throw new HttpError('Evidence signing attempt not found', 404, 404)
   }
   if (attempt.status === ATTEMPT_STATUS.FINALIZED) {
@@ -487,7 +418,7 @@ export async function submitReleaseEvidence(input: {
   }
   const latestAttempt = await prisma.releaseCredentialAttempt.findFirst({
     where: { credentialId: attempt.credentialId },
-    orderBy: { createdAt: 'desc' },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     select: { id: true },
   })
   if (latestAttempt?.id !== attempt.id || attempt.credential.status !== CREDENTIAL_STATUS.PREPARED) {
@@ -496,12 +427,13 @@ export async function submitReleaseEvidence(input: {
     })
   }
   if (attempt.status === ATTEMPT_STATUS.PREPARED && attempt.expiresAt.getTime() <= Date.now()) {
-    await failAttempt(attempt.id, 'PREPARE_EXPIRED', 'The signing window expired')
+    await failAttempt(attempt.id, 'PREPARE_EXPIRED', 'The signing window expired', true)
     throw new HttpError('Evidence signing request expired', 409, 409)
   }
 
-  const transaction = parseSignedNoteContentEvidence(input.signedTransactionBase64)
-  const signature = assertSignedNoteContentEvidenceTransaction({
+  await requireReleaseIntegrity(attempt.credential.projectVersionId, attempt.credential.subjectHash)
+  const transaction = parseSignedProjectVersionEvidence(input.signedTransactionBase64)
+  const signature = assertSignedProjectVersionEvidenceTransaction({
     transaction,
     memo: attempt.memo,
     signerAddress: attempt.signerAddress,
@@ -510,8 +442,9 @@ export async function submitReleaseEvidence(input: {
 
   try {
     await unitOfWork.execute(async (tx) => {
-      await tx.releaseCredentialAttempt.update({
-        where: { id: attempt.id },
+      await lockProjectVersionMetadata(tx, attempt.credential.projectVersionId)
+      const claimed = await tx.releaseCredentialAttempt.updateMany({
+        where: { id: attempt.id, status: ATTEMPT_STATUS.PREPARED, expiresAt: { gt: new Date() } },
         data: {
           transactionSignature: signature,
           status: ATTEMPT_STATUS.SUBMITTED,
@@ -521,14 +454,16 @@ export async function submitReleaseEvidence(input: {
           updatedAt: new Date(),
         },
       })
-      await tx.releaseCredential.update({
-        where: { id: attempt.credentialId },
+      if (claimed.count !== 1) throw new HttpError('Evidence signing attempt is no longer active', 409, 409)
+      const bound = await tx.releaseCredential.updateMany({
+        where: { id: attempt.credentialId, status: CREDENTIAL_STATUS.PREPARED },
         data: {
           transactionSignature: signature,
           status: CREDENTIAL_STATUS.SUBMITTED,
           updatedAt: new Date(),
         },
       })
+      if (bound.count !== 1) throw new HttpError('Evidence credential is no longer unsigned', 409, 409)
     })
   } catch (error) {
     if (hasPrismaCode(error, 'P2002')) {
@@ -583,17 +518,17 @@ export async function reconcileReleaseEvidence(credentialId: number) {
   const credential = await prisma.releaseCredential.findUnique({
     where: { id: credentialId },
     include: {
-      attempts: { orderBy: { createdAt: 'desc' }, take: 1 },
+      attempts: { orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 1 },
     },
   })
-  if (!credential || credential.subjectType !== NOTE_CONTENT_EVIDENCE_SUBJECT) throw new HttpError('Release credential not found', 404, 404)
+  if (!credential || !isCurrentCredential(credential)) throw new HttpError('Release credential not found', 404, 404)
   const alreadyFinalized = credential.status === CREDENTIAL_STATUS.FINALIZED
   const attempt = credential.attempts[0]
   if (!attempt) throw new HttpError('Release credential attempt is missing', 409, 409)
 
   if (!credential.transactionSignature) {
     if (attempt.expiresAt.getTime() <= Date.now()) {
-      await failAttempt(attempt.id, 'PREPARE_EXPIRED', 'The signing window expired')
+      await failAttempt(attempt.id, 'PREPARE_EXPIRED', 'The signing window expired', true)
       return prisma.releaseCredential.findUniqueOrThrow({ where: { id: credential.id } })
     }
     return credential
@@ -630,7 +565,7 @@ export async function reconcileReleaseEvidence(credentialId: number) {
     return prisma.releaseCredential.findUniqueOrThrow({ where: { id: credential.id } })
   }
   try {
-    const chainSignature = assertSignedNoteContentEvidenceTransaction({
+    const chainSignature = assertSignedProjectVersionEvidenceTransaction({
       transaction: chain.transaction,
       memo: credential.memo,
       signerAddress: credential.signerAddress,
@@ -653,6 +588,9 @@ export async function reconcileReleaseEvidence(credentialId: number) {
     })
   }
   return unitOfWork.execute(async (tx) => {
+    await lockProjectVersionMetadata(tx, credential.projectVersionId)
+    const current = await tx.releaseCredential.findUniqueOrThrow({ where: { id: credential.id } })
+    if (current.transactionSignature !== credential.transactionSignature) throw new HttpError('Evidence attempt changed during reconciliation', 409, 409)
     await tx.releaseCredentialAttempt.update({
       where: { id: attempt.id },
       data: {
@@ -687,7 +625,8 @@ function evidenceWhere(input: {
 }): Prisma.ReleaseCredentialWhereInput {
   return {
     ...(input.projectVersionId ? { projectVersionId: input.projectVersionId } : {}),
-    subjectType: NOTE_CONTENT_EVIDENCE_SUBJECT,
+    subjectType: PROJECT_VERSION_EVIDENCE_SUBJECT,
+    subjectManifestVersion: RELEASE_MANIFEST_VERSION,
     ...(input.projectId
       ? { projectVersion: { projectId: input.projectId } }
       : {}),
@@ -704,15 +643,9 @@ function evidenceWhere(input: {
 
 const evidenceRelations = {
   projectVersion: { include: { project: true } },
-  noteContent: { select: {
-    id: true, noteInfoId: true, evidenceId: true, versionNote: true,
-    isPrimary: true, status: true, createdAt: true, updatedAt: true,
-    isDeleted: true, deletedAt: true,
-    noteInfo: { include: { category: true } },
-  } },
   issuerUser: true,
-  attempts: { orderBy: { createdAt: 'desc' } },
-} as const
+  attempts: { orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] },
+} satisfies Prisma.ReleaseCredentialInclude
 
 function evidenceDto(credential: Prisma.ReleaseCredentialGetPayload<{ include: typeof evidenceRelations }>) {
   const versionVisible =
@@ -720,18 +653,14 @@ function evidenceDto(credential: Prisma.ReleaseCredentialGetPayload<{ include: t
     credential.projectVersion.status === 1 &&
     !credential.projectVersion.project.isDeleted &&
     credential.projectVersion.project.status === 1
-  const noteContent = credential.noteContent
-  const subjectVisible = Boolean(
-    versionVisible &&
-    noteContent &&
-    !noteContent.isDeleted &&
-    noteContent.status === 1 &&
-    noteContent.isPrimary &&
-    !noteContent.noteInfo.isDeleted &&
-    noteContent.noteInfo.status === 1 &&
-    !noteContent.noteInfo.category.isDeleted &&
-    noteContent.noteInfo.category.status === 1,
-  )
+  const subjectVisible = versionVisible
+  let manifest: ReleaseManifest
+  try {
+    const memo = JSON.parse(credential.memo) as { manifest: ReleaseManifest; installationId: string }
+    manifest = parseReleaseManifest(canonicalReleaseManifest(memo.manifest))
+    if (releaseManifestHash(canonicalReleaseManifest(manifest)) !== credential.subjectHash) throw new Error('Evidence digest mismatch')
+    if (typeof memo.installationId !== 'string' || !memo.installationId || canonicalProjectVersionEvidenceMemo({ installationId: memo.installationId, releaseId: credential.subjectId, manifest, releaseHash: credential.subjectHash, network: credential.network as SolanaNetwork, signer: credential.signerAddress }) !== credential.memo) throw new Error('Evidence publication binding mismatch')
+  } catch { throw new HttpError('Stored publication evidence snapshot is invalid', 409, 409) }
   return {
     id: String(credential.id),
     subjectType: credential.subjectType as EvidenceSubjectType,
@@ -741,19 +670,15 @@ function evidenceDto(credential: Prisma.ReleaseCredentialGetPayload<{ include: t
     projectVersionId: String(credential.projectVersionId),
     noteContentId: credential.noteContentId?.toString() ?? null,
     projectId: String(credential.projectVersion.projectId),
-    projectName: credential.projectVersion.project.projectName,
-    version: credential.projectVersion.version,
+    projectName: manifest.projectName,
+    version: manifest.version,
+    manifest,
+    contentHash: manifest.contentHash,
     releaseId: credential.projectVersion.releaseId,
     releaseHash: credential.projectVersion.releaseHash,
     manifestVersion: credential.projectVersion.manifestVersion,
     versionVisible,
     subjectVisible,
-    categoryName: noteContent?.noteInfo.category.categoryName ?? null,
-    noteId: noteContent?.noteInfo.id.toString() ?? null,
-    noteTitle: noteContent?.noteInfo.noteTitle ?? null,
-    contentVersion: noteContent?.versionNote ?? null,
-    isPrimary: noteContent?.isPrimary ?? null,
-    contentStatus: noteContent?.status ?? null,
     issuer: credential.issuerUser.displayName || credential.issuerUser.username,
     network: credential.network,
     signerAddress: credential.signerAddress,
@@ -800,12 +725,12 @@ export async function listReleaseEvidence(input: {
       where,
       skip: (input.page - 1) * input.pageSize,
       take: input.pageSize,
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: {
         ...evidenceRelations,
       },
     }),
-    prisma.releaseCredential.groupBy({ where: { subjectType: NOTE_CONTENT_EVIDENCE_SUBJECT }, by: ['network', 'status'], _count: { id: true } }),
+    prisma.releaseCredential.groupBy({ where: { subjectType: PROJECT_VERSION_EVIDENCE_SUBJECT, subjectManifestVersion: RELEASE_MANIFEST_VERSION }, by: ['network', 'status'], _count: { id: true } }),
     getDefaultSolanaNetwork(),
   ])
   const [mainnet, devnet] = await Promise.all([
@@ -839,7 +764,7 @@ export async function getAdminReleaseEvidence(id: number) {
       ...evidenceRelations,
     },
   })
-  if (!credential || credential.subjectType !== NOTE_CONTENT_EVIDENCE_SUBJECT) throw new HttpError('Release evidence not found', 404, 404)
+  if (!credential || !isCurrentCredential(credential)) throw new HttpError('Release evidence not found', 404, 404)
   return evidenceDto(credential)
 }
 
@@ -850,7 +775,7 @@ export async function getPublicReleaseEvidence(signature: string) {
       ...evidenceRelations,
     },
   })
-  if (!credential || credential.subjectType !== NOTE_CONTENT_EVIDENCE_SUBJECT) return null
+  if (!credential || !isCurrentCredential(credential)) return null
   const stored = evidenceDto(credential)
   const redactEditorialSource =
     !stored.subjectVisible
@@ -863,13 +788,10 @@ export async function getPublicReleaseEvidence(signature: string) {
     projectVersionId: redactEditorialSource ? null : stored.projectVersionId,
     noteContentId: redactEditorialSource ? null : stored.noteContentId,
     projectId: redactEditorialSource ? null : stored.projectId,
-    projectName: stored.subjectVisible ? stored.projectName : null,
-    version: stored.subjectVisible ? stored.version : null,
-    categoryName: stored.subjectVisible ? stored.categoryName : null,
-    noteId: stored.subjectVisible ? stored.noteId : null,
-    noteTitle: stored.subjectVisible ? stored.noteTitle : null,
-    contentVersion: stored.subjectVisible ? stored.contentVersion : null,
-    isPrimary: stored.subjectVisible ? stored.isPrimary : null,
+    projectName: stored.projectName,
+    version: stored.version,
+    manifest: stored.manifest,
+    contentHash: stored.contentHash,
     releaseId: stored.releaseId,
     releaseHash: redactEditorialSource ? null : stored.releaseHash,
     manifestVersion: redactEditorialSource ? null : stored.manifestVersion,
@@ -889,53 +811,41 @@ export async function getPublicReleaseEvidence(signature: string) {
   }
 }
 
-export async function getPublicNoteContentEvidenceManifest(signature: string, viewer: AccessViewer = null) {
-  const publicEvidence = await getPublicReleaseEvidence(signature)
-  if (
-    !publicEvidence ||
-    publicEvidence.subjectType !== NOTE_CONTENT_EVIDENCE_SUBJECT ||
-    !publicEvidence.subjectVisible
-  ) {
-    throw new HttpError('Public note content evidence manifest not found', 404, 404)
-  }
-  if (!publicEvidence.projectId) throw new HttpError('Project not found', 404, 404)
-  requireProjectCapability(await resolveProjectAccess(Number(publicEvidence.projectId), viewer), 'download')
-  const credential = await prisma.releaseCredential.findUnique({
-    where: { transactionSignature: signature },
-    include: {
-      noteContent: {
-        include: {
-          noteInfo: {
-            include: {
-              category: { include: { projectVersion: true } },
-            },
-          },
-        },
-      },
+export async function getPublicReleaseEvidenceManifest(signature: string, viewer: AccessViewer = null) {
+  const evidence = await getPublicReleaseEvidence(signature)
+  if (!evidence || !evidence.subjectVisible || !evidence.projectVersionId || !evidence.projectId) throw new HttpError('Public version evidence manifest not found', 404, 404)
+  const release = await getProjectVersionManifest(Number(evidence.projectVersionId), { publicProjectId: Number(evidence.projectId), viewer })
+  if (release.releaseHash !== evidence.subjectHash) throw new HttpError('Evidence no longer matches the publication', 409, 409)
+  return { ...release, manifest: evidence.manifest, hash: release.releaseHash, subjectId: release.releaseId }
+}
+
+/** Read only stored compact snapshots and ledger metadata; never load bodies or call RPC. */
+export async function getProjectVersionEvidenceSummary(projectVersionId: number, options: { publicProjectId?: number; viewer?: AccessViewer } = {}) {
+  const version = await prisma.projectVersion.findFirst({
+    where: { id: projectVersionId, isDeleted: false, publishedAt: { not: null }, manifestVersion: RELEASE_MANIFEST_VERSION,
+      ...(options.publicProjectId !== undefined ? { projectId: options.publicProjectId, status: 1, project: { isDeleted: false, status: 1 } } : {}),
     },
+    select: { id: true, version: true, projectId: true, releaseId: true, releaseHash: true, releaseManifestJson: true, publishedAt: true },
   })
-  const content = credential?.noteContent
-  const version = content?.noteInfo.category.projectVersion
-  if (!credential || !content || !version?.releaseId) {
-    throw new HttpError('Public note content evidence manifest not found', 404, 404)
-  }
-  const built = buildNoteContentManifest({
-    releaseId: version.releaseId,
-    projectVersion: version.version,
-    categoryName: content.noteInfo.category.categoryName,
-    noteTitle: content.noteInfo.noteTitle,
-    versionNote: content.versionNote,
-    isPrimary: content.isPrimary,
-    status: content.status,
-    markdown: content.content,
-  })
-  if (built.hash !== credential.subjectHash) {
-    throw new HttpError('Note content evidence manifest no longer matches its stored hash', 409, 409)
-  }
-  return {
-    manifest: built.manifest,
-    hash: built.hash,
-    subjectId: credential.subjectId,
+  if (!version || !version.releaseId || !version.releaseHash || !version.publishedAt) throw new HttpError('Published version not found', 404, 404)
+  let manifest: ReleaseManifest
+  try {
+    manifest = parseReleaseManifest(version.releaseManifestJson)
+    if (manifest.version !== version.version || releaseManifestHash(version.releaseManifestJson!) !== version.releaseHash) throw new Error('Digest mismatch')
+  } catch { throw new HttpError('Publication snapshot integrity failed', 409, 409) }
+  const [credentials, access] = await Promise.all([
+    prisma.releaseCredential.findMany({ where: { projectVersionId, subjectType: PROJECT_VERSION_EVIDENCE_SUBJECT, subjectManifestVersion: RELEASE_MANIFEST_VERSION, subjectId: version.releaseId },
+      select: { network: true, subjectHash: true, status: true, transactionSignature: true, signerAddress: true, blockTime: true, finalizedAt: true },
+    }),
+    resolveProjectAccess(version.projectId, options.viewer ?? null),
+  ])
+  if (credentials.some(item => item.subjectHash !== version.releaseHash)) throw new HttpError('Evidence digest differs from publication', 409, 409)
+  return { projectVersionId: String(version.id), releaseId: version.releaseId, releaseHash: version.releaseHash, manifest, publishedAt: version.publishedAt,
+    canDownload: access.canDownload, downloadReason: access.downloadReason,
+    networks: (['mainnet', 'devnet'] as const).map(network => {
+      const credential = credentials.find(item => item.network === network)
+      return { network, status: credential?.status ?? null, transactionSignature: credential?.transactionSignature ?? null, signerAddress: credential?.signerAddress ?? null, blockTime: credential?.blockTime ?? null, finalizedAt: credential?.finalizedAt ?? null }
+    }),
   }
 }
 
@@ -948,33 +858,24 @@ export async function verifyPublicReleaseEvidence(signature: string) {
   } catch (error) {
     evidenceRpcError(error, 'verify public release evidence')
   }
-  if (!chain || chain.failed) return { verified: false, evidence }
-  const storedAttempt = await prisma.releaseCredentialAttempt.findFirst({
-    where: {
-      credentialId: Number(evidence.id),
-      transactionSignature: signature,
-    },
-    orderBy: { createdAt: 'desc' },
-  })
-  if (!storedAttempt) return { verified: false, evidence }
-  try {
-    const chainSignature = assertSignedNoteContentEvidenceTransaction({
-      transaction: chain.transaction,
-      memo: evidence.memo,
-      signerAddress: evidence.signerAddress,
-      messageHash: storedAttempt.messageHash,
+  const integrity = evidence.subjectVisible && evidence.projectVersionId
+    ? await getProjectVersionIntegrity(Number(evidence.projectVersionId)) : null
+  const integrityVerified = integrity ? integrity.valid && integrity.computedHash === evidence.subjectHash : null
+  let chainVerified = false
+  if (chain && !chain.failed) {
+    const storedAttempt = await prisma.releaseCredentialAttempt.findFirst({
+      where: { credentialId: Number(evidence.id), transactionSignature: signature },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     })
-    return {
-      verified: chainSignature === signature,
-      evidence,
-      chain: {
-        slot: chain.slot.toString(),
-        blockTime: chain.blockTime,
-        feeLamports: chain.feeLamports.toString(),
-      },
+    if (storedAttempt) {
+      try {
+        chainVerified = assertSignedProjectVersionEvidenceTransaction({ transaction: chain.transaction, memo: evidence.memo, signerAddress: evidence.signerAddress, messageHash: storedAttempt.messageHash }) === signature
+      } catch { chainVerified = false }
     }
-  } catch {
-    return { verified: false, evidence }
+  }
+  return {
+    verified: chainVerified && integrityVerified === true, chainVerified, integrityVerified, evidence,
+    ...(chain && !chain.failed ? { chain: { slot: chain.slot.toString(), blockTime: chain.blockTime, feeLamports: chain.feeLamports.toString() } } : {}),
   }
 }
 

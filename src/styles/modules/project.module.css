@@ -242,92 +242,6 @@
   text-underline-offset: 4px;
 }
 
-.root :global(.docs-copyright-proof) {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  margin-top: 22px;
-  padding: 14px;
-  border: 1px solid var(--sv-border-strong);
-  border-radius: var(--sv-radius);
-  background: var(--sv-bg-soft);
-}
-
-.root :global(.docs-release-proof) {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  margin-top: 22px;
-  padding: 14px;
-  border: 1px solid var(--sv-border-strong);
-  border-radius: var(--sv-radius);
-  background: var(--sv-bg-soft);
-}
-
-.root :global(.docs-copyright-mark) {
-  display: grid;
-  width: 36px;
-  height: 36px;
-  border: 1px solid var(--sv-border-strong);
-  border-radius: 50%;
-  background: var(--sv-bg-solid);
-  place-items: center;
-}
-
-.root :global(.docs-copyright-copy) {
-  display: grid;
-  min-width: 0;
-  gap: 2px;
-}
-
-.root :global(.docs-copyright-copy) strong {
-  font-size: 13px;
-}
-
-.root :global(.docs-copyright-copy) span {
-  color: var(--sv-text-muted);
-  font-size: 12px;
-}
-
-.root :global(.docs-copyright-copy) code {
-  color: var(--sv-text-muted);
-  font-size: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.root :global(.docs-release-proof) :global(.docs-copyright-copy) code {
-  overflow: visible;
-  overflow-wrap: anywhere;
-  text-overflow: clip;
-  white-space: normal;
-}
-
-.root :global(.docs-copyright-links) {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 6px 10px;
-}
-
-.root :global(.docs-copyright-links) a {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--sv-text);
-  font-size: 12px;
-  font-weight: 650;
-  text-decoration: none;
-}
-
-.root :global(.docs-copyright-links) a:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
 @media (max-width: 900px) {
   .root :global(.docs-reader) {
     grid-template-columns: 205px minmax(0, 1fr);
@@ -390,20 +304,6 @@
     width: 100%;
     padding: 1.5rem 0 3.75rem;
   }
-
-  .root :global(.docs-copyright-proof) {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .root :global(.docs-release-proof) {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .root :global(.docs-copyright-links) {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-    padding-left: 48px;
-  }
 }
 
 .root :global(.project-access-notice) {
@@ -451,4 +351,15 @@
 
 .root :global(.project-preview-notice span) {
   overflow-wrap: anywhere;
+}
+
+.root :global(.project-mobile-version-actions) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.root :global(.project-mobile-version-actions) :global(.project-mobile-version-select) {
+  flex: 1;
+  min-width: 0;
 }

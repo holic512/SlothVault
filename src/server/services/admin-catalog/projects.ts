@@ -53,7 +53,7 @@ export async function listAdminProjects(query: ProjectListQuery) {
             publishedAt: { not: null },
             releaseId: { not: null },
             releaseHash: { not: null },
-            manifestVersion: 2,
+            manifestVersion: 3,
           },
           orderBy: publishedVersionOrder,
           take: 1,

@@ -129,10 +129,5 @@ export async function getCachedProjectNote(projectId: number, versionId: number,
   return {
     ...note,
     updatedAt: iso(note.updatedAt),
-    publishedAt: iso(note.publishedAt),
-    noteEvidence: note.noteEvidence.map((item) => ({
-      ...item,
-      finalizedAt: iso(item.finalizedAt),
-    })),
   }
 }

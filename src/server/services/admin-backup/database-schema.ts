@@ -2,8 +2,8 @@
  * @file database-schema.ts
  * @project SlothVault
  * @module Admin Database Backup Schema
- * @description Defines the portable 2.12 database-backup shape with membership entitlements, independent articles, contracts, project-version evidence, and legacy cNFT input compatibility.
- * @logic Validate active collections strictly, retain note tags, member access and standalone blog content, accept deprecated Tree/cNFT arrays only for ignore accounting, and retain prior import envelopes.
+ * @description Defines the portable 2.13 database-backup shape with membership entitlements, independent articles, contracts, project-version evidence, and legacy cNFT input compatibility.
+ * @logic Validate active collections strictly, retain v3 publication snapshots, note tags, member access and standalone blog content, accept deprecated Tree/cNFT arrays only for ignore accounting, and retain prior import envelopes.
  * @dependencies Zod, Node path rules, backup constants
  * @index_tags admin,backup,database,schema,zod,portable
  * @author holic512
@@ -236,7 +236,8 @@ const projectVersionSchema = z.object({
   status: smallIntSchema,
   releaseId: z.string().uuid().nullable().optional().default(null),
   releaseHash: z.string().regex(/^[a-f0-9]{64}$/).nullable().optional().default(null),
-  manifestVersion: z.literal(2).nullable().optional().default(null),
+  releaseManifestJson: z.string().nullable().optional().default(null),
+  manifestVersion: z.literal(3).nullable().optional().default(null),
   publishedAt: dateStringSchema.nullable().optional().default(null),
   createdAt: dateStringSchema,
   updatedAt: dateStringSchema,
@@ -554,7 +555,7 @@ export const backupDataSchema = z.object({
 export const databaseImportPayloadSchema = z.object({
   data: backupDataSchema,
   mode: z.enum(['insert', 'overwrite']).optional().default('insert'),
-  version: z.enum(['2.0.0', '2.1.0', '2.2.0', '2.3.0', '2.4.0', '2.5.0', '2.6.0', '2.7.0', '2.8.0', '2.9.0', '2.10.0', '2.11.0', '2.12.0']).optional().default('2.0.0'),
+  version: z.enum(['2.0.0', '2.1.0', '2.2.0', '2.3.0', '2.4.0', '2.5.0', '2.6.0', '2.7.0', '2.8.0', '2.9.0', '2.10.0', '2.11.0', '2.12.0', '2.13.0']).optional().default('2.0.0'),
   ignoredLegacyContracts: z.number().int().nonnegative().optional().default(0),
 }).strict()
 

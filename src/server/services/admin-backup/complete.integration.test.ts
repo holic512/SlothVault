@@ -1,3 +1,5 @@
+import { canonicalProjectVersionEvidenceMemo } from '@/server/services/project-version-evidence-protocol'
+import { parseReleaseManifest } from '@/server/services/release-manifest'
 import { createHash, randomUUID } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, readFileSync, readdirSync } from 'node:fs'
@@ -244,7 +246,7 @@ describe(`complete backups with isolated ${fixture.provider} and uploads`, () =>
       projectVersionId: Number(s.release.projectVersionId), issuerUserId: s.admin.id,
       subjectType: 'PROJECT_VERSION', subjectId: s.release.releaseId, subjectHash: s.release.releaseHash,
       subjectManifestVersion: s.release.manifestVersion, network: 'devnet',
-      signerAddress: '11111111111111111111111111111111', memo: '{}',
+      signerAddress: '11111111111111111111111111111111', memo: canonicalProjectVersionEvidenceMemo({ installationId: randomUUID(), releaseId: s.release.releaseId, manifest: parseReleaseManifest((await client.projectVersion.findUniqueOrThrow({ where: { id: Number(s.release.projectVersionId) } })).releaseManifestJson), releaseHash: s.release.releaseHash, network: 'devnet', signer: '11111111111111111111111111111111' }),
       transactionSignature: '5'.repeat(88), status: 2,
     } })
     const before = await exportDatabaseBackup(), complete = await snapshot()
@@ -268,8 +270,8 @@ describe(`complete backups with isolated ${fixture.provider} and uploads`, () =>
     expect(restored.data.projectVersions.find((version) => version.releaseId === s.release.releaseId)?.releaseHash).toBe(s.release.releaseHash)
     expect(restored.data.releaseCredentials).toHaveLength(1)
     expect(restored.data.releaseCredentials[0]).toMatchObject({ subjectType: 'PROJECT_VERSION', transactionSignature: '5'.repeat(88) })
-    expect(await getPublicReleaseEvidence('5'.repeat(88))).toBeNull()
-    await expect(getAdminReleaseEvidence(Number(restored.data.releaseCredentials[0].id))).rejects.toMatchObject({ status: 404 })
+    expect(await getPublicReleaseEvidence('5'.repeat(88))).toMatchObject({ subjectType: 'PROJECT_VERSION', subjectHash: s.release.releaseHash })
+    expect(await getAdminReleaseEvidence(Number(restored.data.releaseCredentials[0].id))).toMatchObject({ manifest: { schema: 3 } })
     expect(restored.data.contracts[0]).toMatchObject({ status: 2, bodyHash: before.data.contracts[0].bodyHash, snapshotHash: before.data.contracts[0].snapshotHash })
     const order = await client.commission.findUniqueOrThrow({ where: { commissionId: commission.commissionId } })
     expect((await getCommission(order.id, actor)).documents[0].bodyHash).toBe(document.bodyHash)

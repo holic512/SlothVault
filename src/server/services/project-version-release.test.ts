@@ -26,7 +26,7 @@ function source(): ReleaseTreeSource {
     weight: 12,
     publishedAt: null,
     isDeleted: false,
-    project: { id: 99, status: 1, isDeleted: false },
+    project: { id: 99, projectName: '项目', status: 1, isDeleted: false },
     categories: [
       {
         id: 8,
@@ -88,10 +88,12 @@ function source(): ReleaseTreeSource {
   }
 }
 
-describe('project release manifest v2', () => {
+describe('project release manifest v3', () => {
   it('emits fixed UTF-8 JSON bytes with exact quotes, CRLF, and UTF-8 ordering', () => {
     const built = buildReleaseManifest(source())
-    const expected = JSON.stringify({ schema: 2, contents: ['不同正文', '第一行\r\n第二行 "值"'] })
+    const sha = (text: string) => createHash('sha256').update(text, 'utf8').digest('hex')
+    const notes = source().categories.slice(0, 2).map(category => ({ name: category.categoryName, notes: [{ title: '文档', hash: sha(category.noteInfos[0].contents[0].content) }] })).sort((a, b) => Buffer.compare(Buffer.from(JSON.stringify(a.notes)), Buffer.from(JSON.stringify(b.notes))))
+    const expected = JSON.stringify({ schema: 3, projectName: '项目', version: '版本 "一"', contentHash: sha(JSON.stringify({ schema: 3, categories: notes })) })
 
     expect(Buffer.from(built.bytes!).toString('utf8')).toBe(expected)
     expect(built.hash).toBe(createHash('sha256').update(expected, 'utf8').digest('hex'))
@@ -120,15 +122,12 @@ describe('project release manifest v2', () => {
   it('ignores editorial metadata, retains duplicates, and detects exact body changes', () => {
     const baseline = source()
     const changed = structuredClone(baseline)
-    changed.version = 'renamed'
     changed.description = 'new description'
     changed.weight = 999
     changed.categories.reverse()
     for (const category of changed.categories) {
-      category.categoryName = 'Renamed'
       category.weight = 500
       for (const note of category.noteInfos) {
-        note.noteTitle = 'New title'
         note.weight = 100
         note.contents[0].versionNote = 'Edited description'
       }
@@ -136,13 +135,49 @@ describe('project release manifest v2', () => {
     expect(buildReleaseManifest(changed).hash).toBe(buildReleaseManifest(baseline).hash)
     const note = baseline.categories[0].noteInfos[0]
     baseline.categories[0].noteInfos.push(structuredClone(note))
-    expect(buildReleaseManifest(baseline).manifest?.contents).toHaveLength(3)
     expect(buildReleaseManifest(baseline).hash).not.toBe(buildReleaseManifest(changed).hash)
     for (const suffix of [' ', '\n', '![image](/new-link.png)']) {
       const modified = source()
       modified.categories[0].noteInfos[0].contents[0].content += suffix
       expect(buildReleaseManifest(modified).hash).not.toBe(buildReleaseManifest(source()).hash)
     }
+  })
+
+  it('binds category and note names and keeps a project name snapshot separate from the aggregate', () => {
+    const original = source()
+    const baseline = buildReleaseManifest(original)
+    for (const mutate of [
+      (tree: ReleaseTreeSource) => { tree.categories[0].categoryName += ' renamed' },
+      (tree: ReleaseTreeSource) => { tree.categories[0].noteInfos[0].noteTitle += ' renamed' },
+      (tree: ReleaseTreeSource) => { const moved = structuredClone(tree.categories[0].noteInfos[0]); tree.categories[0].noteInfos.push(moved); tree.categories[1].noteInfos.push(tree.categories[0].noteInfos.pop()!) },
+    ]) {
+      const tree = structuredClone(original); mutate(tree)
+      expect(buildReleaseManifest(tree).hash).not.toBe(baseline.hash)
+    }
+    const renamed = structuredClone(original); renamed.project.projectName = '新名称'
+    expect(buildReleaseManifest(renamed).manifest?.contentHash).toBe(baseline.manifest?.contentHash)
+    expect(buildReleaseManifest(renamed).hash).not.toBe(baseline.hash)
+    expect(buildReleaseManifest(renamed, '项目').hash).toBe(baseline.hash)
+    renamed.version = 'next'
+    expect(buildReleaseManifest(renamed).manifest?.contentHash).toBe(baseline.manifest?.contentHash)
+    const hashes = ['é', 'e\u0301', '原文\r\n', '原文\n'].map(body => {
+      const tree = source(); tree.categories[0].noteInfos[0].contents[0].content = body
+      return buildReleaseManifest(tree).hash
+    })
+    expect(new Set(hashes).size).toBe(4)
+  })
+
+  it('sorts duplicate category names and note title ties by their canonical UTF-8 bytes', () => {
+    const original = source()
+    original.categories[0].noteInfos.push(structuredClone(original.categories[1].noteInfos[0]))
+    original.categories[1].noteInfos[0].noteTitle = '另一篇'
+    const expected = buildReleaseManifest(original)
+    const shuffled = structuredClone(original)
+    shuffled.categories.reverse()
+    shuffled.categories.forEach(category => category.noteInfos.reverse())
+    expect(buildReleaseManifest(shuffled).hash).toBe(expected.hash)
+    original.categories.push(structuredClone(original.categories[0]))
+    expect(buildReleaseManifest(original).manifest?.contentHash).not.toBe(expected.manifest?.contentHash)
   })
 
   it('excludes disabled nodes and non-primary content from the digest', () => {

@@ -14,8 +14,8 @@ import { HttpError } from '@/server/http/errors'
 import { apiOk } from '@/server/http/response'
 import { listReleaseEvidence } from '@/server/services/release-evidence'
 import {
-  NOTE_CONTENT_EVIDENCE_SUBJECT,
-} from '@/server/services/note-content-evidence-protocol'
+  PROJECT_VERSION_EVIDENCE_SUBJECT,
+} from '@/server/services/project-version-evidence-protocol'
 
 function positiveInt(value: string | null, fallback?: number) {
   if (!value) return fallback
@@ -32,10 +32,10 @@ export const GET = defineRoute(async (request) => {
   const statusText = query.get('status')
   const status = statusText === null || statusText === '' ? undefined : Number(statusText)
   const subjectTypeText = query.get('subjectType')
-  if (subjectTypeText && subjectTypeText !== NOTE_CONTENT_EVIDENCE_SUBJECT) {
+  if (subjectTypeText && subjectTypeText !== PROJECT_VERSION_EVIDENCE_SUBJECT) {
     throw new HttpError('Unsupported evidence subject', 400, 400)
   }
-  const subjectType = subjectTypeText === NOTE_CONTENT_EVIDENCE_SUBJECT
+  const subjectType = subjectTypeText === PROJECT_VERSION_EVIDENCE_SUBJECT
     ? subjectTypeText
     : undefined
   if (network && network !== 'mainnet' && network !== 'devnet') {

@@ -927,7 +927,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
             ...(versionsQuery.data?.list || []).filter((item) => !item.publishedAt && !item.isDeleted && item.isEmpty).map((item) => ({ value: item.id, label: item.version })),
           ]} onChange={(value) => setVersionDialog({ ...versionDialog, targetVersionId: value || undefined })} /></label> : null}
           {!versionDialog.targetVersionId ? <>
-            <label><span>{vt('form.version')}</span><Input value={versionDialog.version} maxLength={64} placeholder={t('versionDialog.placeholder')} onChange={(event) => setVersionDialog({ ...versionDialog, version: event.target.value })} /></label>
+            <label><span>{vt('form.version')}</span><Input disabled={versionDialog.mode === 'edit' && readOnly} value={versionDialog.version} maxLength={64} placeholder={t('versionDialog.placeholder')} onChange={(event) => setVersionDialog({ ...versionDialog, version: event.target.value })} /></label>
             <label><span>{vt('form.description')}</span><Input.TextArea rows={3} value={versionDialog.description} onChange={(event) => setVersionDialog({ ...versionDialog, description: event.target.value })} /></label>
             <label><span>{vt('form.weight')}</span><InputNumber value={versionDialog.weight} min={0} onChange={(value) => setVersionDialog({ ...versionDialog, weight: value ?? 0 })} /></label>
           </> : null}
@@ -935,7 +935,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
       </Modal>
       <Modal open={Boolean(entityDialog)} title={entityDialog ? t(`entityDialog.${entityDialog.kind}.${entityDialog.mode}`) : ''} okText={t('save')} cancelText={t('cancel')} confirmLoading={busy} okButtonProps={{ disabled: !entityDialog?.name.trim() }} onCancel={() => setEntityDialog(null)} onOk={() => void saveEntity()}>
         {entityDialog ? <div className="note-dialog-fields">
-          <label><span>{entityDialog.kind === 'category' ? t('categoryName') : t('noteTitle')}</span><Input value={entityDialog.name} maxLength={entityDialog.kind === 'category' ? 64 : 255} onChange={(event) => setEntityDialog({ ...entityDialog, name: event.target.value })} /></label>
+          <label><span>{entityDialog.kind === 'category' ? t('categoryName') : t('noteTitle')}</span><Input disabled={readOnly} value={entityDialog.name} maxLength={entityDialog.kind === 'category' ? 64 : 255} onChange={(event) => setEntityDialog({ ...entityDialog, name: event.target.value })} /></label>
           {entityDialog.kind === 'note' ? <label><span>{t('tags')}</span><Select mode="tags" value={entityDialog.tags ?? []} disabled={readOnly} placeholder={t('tagsPlaceholder')} aria-label={t('tags')} onChange={(tags: string[]) => setEntityDialog({ ...entityDialog, tags })} /><small>{readOnly ? t('tagsReadOnly') : t('tagsHint')}</small></label> : null}
           <label><span>{t('weight')}</span><InputNumber value={entityDialog.weight} onChange={(value) => setEntityDialog({ ...entityDialog, weight: value || 0 })} /></label>
           <label className="note-dialog-switch"><span>{t('enabled')}</span><Switch disabled={readOnly} checked={entityDialog.status === 1} onChange={(checked) => setEntityDialog({ ...entityDialog, status: checked ? 1 : 0 })} /></label>

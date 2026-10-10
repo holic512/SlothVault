@@ -270,6 +270,7 @@ model ProjectVersion {
   documentRevision Int        @default(0) @map("document_revision")
   releaseId        String?    @unique(map: "uq_collections_project_version_release_id") @map("release_id") @db.VarChar(36)
   releaseHash      String?    @map("release_hash") @db.Char(64)
+  releaseManifestJson String? @map("release_manifest_json") @db.Text
   manifestVersion  Int?       @map("manifest_version")
   publishedAt      DateTime?  @map("published_at") @db.Timestamptz(3)
   createdAt        DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)

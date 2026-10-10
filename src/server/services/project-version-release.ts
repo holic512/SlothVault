@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Project Version Release
  * @description Owns publication, content integrity, metadata locks, and atomic cloning into new or empty drafts.
- * @logic Serialize draft writes through a version revision lock, share publishability validation with non-mutating preflight, publish one immutable release identity, rebuild it for verification, and clone frozen trees into new drafts.
+ * @logic Serialize draft writes through a version revision lock, share publishability validation with non-mutating preflight, atomically save an immutable v3 publication snapshot, rebuild it using the frozen name for verification, and clone frozen trees into new drafts.
  * @dependencies node:crypto, Prisma transactions, database unit-of-work, public project cache
  * @index_tags project-version,release,manifest,sha256,publication,preflight,integrity,clone,transaction
  * @author holic512
@@ -23,7 +23,7 @@ import { prisma } from '@/server/prisma'
 import { invalidatePublicProjectCache } from '@/server/services/public-project-cache'
 
 import {
-  RELEASE_MANIFEST_VERSION, buildReleaseManifest, issue, issueCompare,
+  RELEASE_MANIFEST_VERSION, buildReleaseManifest, parseReleaseManifest, canonicalReleaseManifest, issue, issueCompare,
   type ReleaseTreeSource, type BuiltRelease, type ReleaseIssue,
 } from './release-manifest'
 export { RELEASE_MANIFEST_VERSION, buildReleaseManifest } from './release-manifest'
@@ -57,7 +57,7 @@ export async function projectVersionIdForNote(
   return note.category.projectVersionId
 }
 
-function inactiveProjectIssues(project: ReleaseTreeSource['project']) {
+function inactiveProjectIssues(project: Pick<ReleaseTreeSource['project'], 'id' | 'status' | 'isDeleted'>) {
   if (!project.isDeleted && project.status === 1) return []
   return [
     issue(
@@ -89,7 +89,7 @@ export async function loadReleaseTree(
       weight: true,
       publishedAt: true,
       isDeleted: true,
-      project: { select: { id: true, status: true, isDeleted: true } },
+      project: { select: { id: true, projectName: true, status: true, isDeleted: true } },
       categories: {
         select: {
           id: true,
@@ -358,6 +358,7 @@ export async function publishProjectVersion(projectVersionId: number) {
         data: {
           releaseId,
           releaseHash: built.hash,
+          releaseManifestJson: canonicalReleaseManifest(built.manifest),
           manifestVersion: RELEASE_MANIFEST_VERSION,
           publishedAt,
           status: 1,
@@ -458,6 +459,7 @@ export async function getProjectVersionIntegrity(projectVersionId: number) {
       isDeleted: true,
       releaseId: true,
       releaseHash: true,
+      releaseManifestJson: true,
       manifestVersion: true,
       publishedAt: true,
     },
@@ -494,7 +496,15 @@ export async function getProjectVersionIntegrity(projectVersionId: number) {
   if (metadataIssues.length === 0 && version.releaseId) {
     const source = await loadReleaseTree(prisma, projectVersionId)
     if (!source) throw new HttpError('ProjectVersion not found', 404, 404)
-    built = buildReleaseManifest(source)
+    try {
+      const snapshot = parseReleaseManifest(version.releaseManifestJson)
+      built = buildReleaseManifest(source, snapshot.projectName)
+      if (built.bytes && Buffer.from(built.bytes).toString('utf8') !== version.releaseManifestJson) {
+        metadataIssues.push(issue('RELEASE_SNAPSHOT_MISMATCH', 'release', version.id, 'Publication snapshot differs from the frozen document tree'))
+      }
+    } catch {
+      metadataIssues.push(issue('RELEASE_SNAPSHOT_INVALID', 'release', version.id, 'Publication manifest snapshot is missing or invalid'))
+    }
   }
   const issues = [...metadataIssues, ...built.issues].sort(issueCompare)
   if (built.hash && version.releaseHash && built.hash !== version.releaseHash) {
@@ -598,7 +608,7 @@ export async function cloneProjectVersion(
           reason: 'TARGET_VERSION_NOT_EMPTY', projectVersionId: String(target.id),
         })
       }
-      created = target
+      created = await tx.projectVersion.update({ where: { id: target.id }, data: { releaseId: null, releaseHash: null, releaseManifestJson: null, manifestVersion: null, publishedAt: null, status: 0 } })
     } else {
       created = await tx.projectVersion.create({
         data: {
@@ -607,6 +617,11 @@ export async function cloneProjectVersion(
           description: input.description === undefined ? source.description : input.description,
           weight: input.weight ?? source.weight,
           status: 0,
+          releaseId: null,
+          releaseHash: null,
+          releaseManifestJson: null,
+          manifestVersion: null,
+          publishedAt: null,
         },
       })
     }
@@ -654,6 +669,7 @@ export async function cloneProjectVersion(
       status: created.status,
       releaseId: null,
       releaseHash: null,
+      releaseManifestJson: null,
       manifestVersion: null,
       publishedAt: null,
       createdAt: created.createdAt,

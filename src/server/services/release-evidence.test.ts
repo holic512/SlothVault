@@ -20,7 +20,8 @@ vi.mock('@/server/database/unit-of-work', () => ({
 }))
 vi.mock('@/server/prisma', () => ({ prisma: mocks.prisma }))
 vi.mock('@/server/services/project-version-release', () => ({
-  getProjectVersionIntegrity: vi.fn(),
+  getProjectVersionIntegrity: vi.fn(async () => ({ valid: true, computedHash: 'a'.repeat(64) })),
+  lockProjectVersionMetadata: vi.fn(),
 }))
 vi.mock('@/server/services/system-config', () => ({
   getDefaultSolanaNetwork: vi.fn(),
@@ -42,9 +43,9 @@ import {
   submitReleaseEvidence,
 } from '@/server/services/release-evidence'
 import {
-  buildNoteContentEvidenceTransaction,
-  noteContentEvidenceMessageHash,
-} from '@/server/services/note-content-evidence-protocol'
+  buildProjectVersionEvidenceTransaction,
+  projectVersionEvidenceMessageHash,
+} from '@/server/services/project-version-evidence-protocol'
 
 describe('release evidence durable submission', () => {
   beforeEach(() => {
@@ -54,14 +55,14 @@ describe('release evidence durable submission', () => {
 
   it('commits the transaction signature before the first RPC broadcast', async () => {
     const wallet = Keypair.generate()
-    const memo = '{"protocol":"slothvault.note-content"}'
-    const transaction = buildNoteContentEvidenceTransaction({
+    const memo = '{"protocol":"slothvault.project-version"}'
+    const transaction = buildProjectVersionEvidenceTransaction({
       memo,
       signer: wallet.publicKey,
       blockhash: '11111111111111111111111111111111',
       lastValidBlockHeight: 123,
     })
-    const messageHash = noteContentEvidenceMessageHash(transaction)
+    const messageHash = projectVersionEvidenceMessageHash(transaction)
     transaction.sign(wallet)
     const signedTransactionBase64 = transaction.serialize().toString('base64')
 
@@ -74,16 +75,16 @@ describe('release evidence durable submission', () => {
       messageHash,
       expiresAt: new Date(Date.now() + 60_000),
       status: 0,
-      credential: { id: 9, subjectType: 'NOTE_CONTENT', network: 'devnet', status: 0, transactionSignature: null },
+      credential: { id: 9, subjectType: 'PROJECT_VERSION', subjectManifestVersion: 3, projectVersionId: 1, subjectHash: 'a'.repeat(64), network: 'devnet', status: 0, transactionSignature: null },
     })
     mocks.prisma.releaseCredentialAttempt.findFirst.mockResolvedValue({ id: 7 })
     mocks.execute.mockImplementation(async (operation: unknown) => {
       const tx = {
         releaseCredentialAttempt: {
-          update: vi.fn(async () => { events.push('attempt-signature-committed') }),
+          updateMany: vi.fn(async () => { events.push('attempt-signature-committed'); return { count: 1 } }),
         },
         releaseCredential: {
-          update: vi.fn(async () => { events.push('credential-signature-committed') }),
+          updateMany: vi.fn(async () => { events.push('credential-signature-committed'); return { count: 1 } }),
         },
       }
       return (operation as (client: typeof tx) => Promise<unknown>)(tx)
@@ -98,7 +99,7 @@ describe('release evidence durable submission', () => {
     )
     mocks.prisma.releaseCredential.findUnique.mockResolvedValue({
       id: 9,
-      subjectType: 'NOTE_CONTENT',
+      subjectType: 'PROJECT_VERSION', subjectManifestVersion: 3, projectVersionId: 1, subjectHash: 'a'.repeat(64),
       network: 'devnet',
       status: CREDENTIAL_STATUS.FINALIZED,
       transactionSignature: bs58.encode(transaction.signature!),
@@ -118,7 +119,7 @@ describe('release evidence durable submission', () => {
   it('never downgrades an already finalized credential when historical RPC data is unavailable', async () => {
     const finalized = {
       id: 9,
-      subjectType: 'NOTE_CONTENT',
+      subjectType: 'PROJECT_VERSION', subjectManifestVersion: 3, projectVersionId: 1, subjectHash: 'a'.repeat(64),
       network: 'mainnet',
       status: CREDENTIAL_STATUS.FINALIZED,
       transactionSignature: 'finalized-signature',

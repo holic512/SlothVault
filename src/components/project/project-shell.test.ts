@@ -25,6 +25,8 @@ vi.mock('next-intl', async (importOriginal) => ({
   }),
 }))
 
+vi.mock('./project-credential-menu', () => ({ ProjectCredentialMenu: ({ versionId, preview }: { versionId: string; preview?: boolean }) => createElement('button', { 'data-version': versionId, 'data-preview': Boolean(preview) }, 'credential') }))
+
 vi.mock('antd', async (importOriginal) => ({
   ...await importOriginal<typeof import('antd')>(),
   Drawer: ({ children }: { children: ReactNode }) => children,
@@ -37,14 +39,15 @@ vi.mock('@/components/shell/navigation-shell', () => ({
 vi.mock('@/components/auth/account-nav', () => ({ AccountNav: () => null }))
 vi.mock('@/components/theme/theme-controls', () => ({ ThemeControls: () => null }))
 
-function renderShell(previewBase?: string) {
+function renderShell(previewBase?: string, published = false) {
   const props: Parameters<typeof ProjectShell>[0] = {
     previewBase,
+    previewVersion: previewBase ? { id: '8', version: '1.0', publishedAt: published ? '2026-10-10T00:00:00Z' : null } : undefined,
     projectId: '42',
     project: { id: '42', projectName: 'Example', avatar: null, status: 1, updatedAt: '' },
     versions: previewBase ? [] : [{
       id: '8', version: '1.0', description: null, weight: 0, releaseId: 'release',
-      releaseHash: 'hash', manifestVersion: 1, publishedAt: '',
+      releaseHash: 'hash', manifestVersion: 3, publishedAt: '2026-10-10T00:00:00Z',
     }],
     menus: previewBase ? [] : [{ id: '9', label: 'Community', url: 'https://example.com', isExternal: true, weight: 0, children: [] }],
     children: null,
@@ -78,6 +81,7 @@ describe('public project navigation rendering', () => {
     const html = renderShell()
     expect(html.match(/aria-current="page" href="\/project\/42\/docs"/g)).toHaveLength(2)
     expect(html.match(/aria-label="Select project version"/g)).toHaveLength(2)
+    expect(html.match(/data-version="8"/g)).toHaveLength(2)
   })
 })
 
@@ -89,3 +93,11 @@ describe('public project navigation rendering', () => {
    expect(html).not.toContain('Community')
    expect(html).not.toContain('Select project version')
  })
+
+it('does not bind a credential on the project home or a draft preview', () => {
+  scenario.pathname = '/project/42/home'
+  expect(renderShell()).not.toContain('data-version')
+  scenario.pathname = '/preview/project/42/v/8/docs/123'
+  expect(renderShell('/preview/project/42/v/8')).not.toContain('data-version')
+  expect(renderShell('/preview/project/42/v/8', true).match(/data-version="8"/g)).toHaveLength(2)
+})

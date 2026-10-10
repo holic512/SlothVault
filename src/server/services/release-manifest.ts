@@ -2,22 +2,15 @@
  * @file release-manifest.ts
  * @project SlothVault
  * @module Content Integrity
- * @description Builds byte-exact v2 publication manifests from Markdown alone.
- * @logic Validate enabled primary contents, preserve duplicate bodies and exact text, sort by UTF-8 bytes, then hash canonical JSON independently of editorial metadata.
+ * @description Builds compact v3 version credentials from a deterministic category and Markdown hash tree.
+ * @logic Hash exact primary bodies and their named hierarchy, then bind the aggregate to a publication name snapshot without exposing bodies or database identities.
  * @dependencies node:crypto
  * @index_tags manifest,sha256,content,release,migration
  * @author holic512
  */
 import { createHash } from 'node:crypto'
 
-export const RELEASE_MANIFEST_VERSION = 2
-export const NOTE_CONTENT_MANIFEST_VERSION = 2
-
-export function buildNoteMarkdownManifest(markdown: string) {
-  const manifest = { schema: NOTE_CONTENT_MANIFEST_VERSION, markdown } as const
-  const bytes = Buffer.from(JSON.stringify(manifest), 'utf8')
-  return { manifest, bytes, hash: createHash('sha256').update(bytes).digest('hex') }
-}
+export const RELEASE_MANIFEST_VERSION = 3
 
 export type ReleaseIssue = {
   code: string
@@ -26,7 +19,24 @@ export type ReleaseIssue = {
   message: string
 }
 
-export type ReleaseManifest = { schema: 2; contents: string[] }
+export type ReleaseManifest = { schema: 3; projectName: string; version: string; contentHash: string }
+
+export function canonicalReleaseManifest(manifest: ReleaseManifest) {
+  return JSON.stringify({ schema: RELEASE_MANIFEST_VERSION, projectName: manifest.projectName, version: manifest.version, contentHash: manifest.contentHash })
+}
+
+export function parseReleaseManifest(json: string | null): ReleaseManifest {
+  if (!json) throw new Error('Publication manifest snapshot is missing')
+  const value = JSON.parse(json) as ReleaseManifest
+  if (value.schema !== RELEASE_MANIFEST_VERSION || typeof value.projectName !== 'string' || !value.projectName || typeof value.version !== 'string' || !value.version || typeof value.contentHash !== 'string' || !/^[a-f0-9]{64}$/.test(value.contentHash) || canonicalReleaseManifest(value) !== json) {
+    throw new Error('Publication manifest snapshot is not canonical v3 JSON')
+  }
+  return value
+}
+
+export function releaseManifestHash(json: string) {
+  return sha256(utf8(json))
+}
 
 export type ReleaseTreeSource = {
   id: number
@@ -35,7 +45,7 @@ export type ReleaseTreeSource = {
   weight: number
   publishedAt: Date | null
   isDeleted: boolean
-  project: { id: number; status: number; isDeleted: boolean }
+  project: { id: number; projectName: string; status: number; isDeleted: boolean }
   categories: Array<{
     id: number
     categoryName: string
@@ -99,6 +109,7 @@ export function issueCompare(left: ReleaseIssue, right: ReleaseIssue) {
 
 export function buildReleaseManifest(
   source: ReleaseTreeSource,
+  projectNameSnapshot = source.project.projectName,
 ): BuiltRelease {
   const issues: ReleaseIssue[] = []
   const enabledCategories = source.categories.filter(
@@ -168,19 +179,24 @@ export function buildReleaseManifest(
         )
       }
 
-      return [content.content]
+      return [{ title: note.noteTitle, hash: sha256(utf8(content.content)) }]
     })
 
-    return notes
+    notes.sort((left, right) => byteCompare(utf8(left.title), utf8(right.title)) || byteCompare(utf8(left.hash), utf8(right.hash)))
+    return { name: category.categoryName, notes }
   })
 
   issues.sort(issueCompare)
   if (issues.length > 0) return { manifest: null, bytes: null, hash: null, issues }
 
+  categories.sort((left, right) => byteCompare(utf8(left.name), utf8(right.name)) || byteCompare(utf8(JSON.stringify(left.notes)), utf8(JSON.stringify(right.notes))))
+  const contentHash = sha256(utf8(JSON.stringify({ schema: RELEASE_MANIFEST_VERSION, categories })))
   const manifest: ReleaseManifest = {
     schema: RELEASE_MANIFEST_VERSION,
-    contents: categories.flat().sort((left, right) => byteCompare(utf8(left), utf8(right))),
+    projectName: projectNameSnapshot,
+    version: source.version,
+    contentHash,
   }
-  const bytes = utf8(JSON.stringify(manifest))
+  const bytes = utf8(canonicalReleaseManifest(manifest))
   return { manifest, bytes, hash: sha256(bytes), issues: [] }
 }

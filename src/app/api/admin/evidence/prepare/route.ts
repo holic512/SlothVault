@@ -2,7 +2,7 @@
  * @file route.ts
  * @project SlothVault
  * @module Admin Release Evidence Prepare API
- * @description Prepares one wallet-signed Solana Memo transaction for an immutable note content revision.
+ * @description Prepares one wallet-signed Solana Memo transaction for an immutable project publication.
  * @logic Authenticate the issuer, validate a discriminated evidence subject plus network and wallet, then persist a bounded signing attempt.
  * @dependencies admin session, zod, release-evidence service
  * @index_tags api,admin,evidence,prepare,wallet
@@ -17,7 +17,7 @@ import { apiOk } from '@/server/http/response'
 import { prepareEvidence } from '@/server/services/release-evidence'
 
 const schema = z.object({
-  subject: z.object({ type: z.literal('noteContent'), noteContentId: z.coerce.number().int().positive() }),
+  subject: z.object({ type: z.literal('projectVersion'), projectVersionId: z.coerce.number().int().positive() }),
   network: z.enum(['mainnet', 'devnet']),
   signerAddress: z.string().min(32).max(64),
 })

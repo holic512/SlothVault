@@ -1,6 +1,6 @@
 # Project and attachment workflows
 
-Identify the project/version and reuse specified drafts, bodies, and attachments. Published names, titles, descriptions, and weights remain editable; send only changed fields.
+Identify the project/version and reuse specified drafts, bodies, and attachments. Published project names, descriptions, and weights remain editable; send only changed fields. Version numbers, category names, note titles, bodies and document membership are frozen. Version evidence uses one compact Manifest v3 per publication and network; use the website wallet flow for signing.
 
 ## Single-note tags
 
@@ -53,4 +53,4 @@ After an uncertain upload, inspect the inventory and available metadata before r
 
 ## Project publication
 
-Save final bodies, images, and links, then run `content.project.version.check_draft`. Fix reported issues within authorization and recheck changed content. Do not publish an empty draft. If publication was requested, call `content.project.version.publish`, then verify state/visibility and `content.project.version.integrity`. A draft-only request ends at the saved draft. Metadata renames alone do not require another version.
+Save final bodies, images, and links, then run `content.project.version.check_draft`. Fix reported issues within authorization and recheck changed content. Do not publish an empty draft. If publication was requested, call `content.project.version.publish`, then verify state/visibility and `content.project.version.integrity`. A draft-only request ends at the saved draft. Project-name, description, and weight edits do not require another version; version-number, category-name, and note-title edits require a draft.

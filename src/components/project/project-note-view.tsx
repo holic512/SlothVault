@@ -2,8 +2,8 @@
  * @file project-note-view.tsx
  * @project SlothVault
  * @module Public Project Document Reader
- * @description Renders public project documents and saved administrator previews with navigation, exact content-version evidence, evidence.
- * @logic Render titles and note tags for locked readers, require independent reading and download capabilities, display existing version evidence without fabricating draft release fields, and navigate rendered Markdown headings through the document outline.
+ * @description Renders public project documents and saved administrator previews with navigation, protected document bodies and metadata.
+ * @logic Render titles and note tags for locked readers, require independent reading and download capabilities, keep publication evidence in the project navigation, and navigate rendered Markdown headings through the document outline.
  * @dependencies Ant Design Typography, next-intl/server, ProjectDocumentContent
  * @index_tags project,document,reader,release,evidence,transaction,public
  * @author holic512
@@ -12,7 +12,6 @@ import Tag from 'antd/es/tag'
 import TypographyParagraph from 'antd/es/typography/Paragraph'
 import TypographyText from 'antd/es/typography/Text'
 import TypographyTitle from 'antd/es/typography/Title'
-import { BadgeCheck, Download, ExternalLink, Fingerprint, FlaskConical } from 'lucide-react'
 import { getLocale, getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 
@@ -34,17 +33,7 @@ type NoteData = {
   content: string
   versionNote: string | null
   updatedAt: string
-  releaseId: string | null
-  releaseHash: string | null
-  manifestVersion: number | null
-  publishedAt: string | null
-  noteEvidence: Array<{
-    transactionSignature: string
-    signerAddress: string
-    network: string
-    contentHash: string
-    finalizedAt: string
-  }>
+
 }
 
 export async function ProjectNoteView({
@@ -104,43 +93,6 @@ export async function ProjectNoteView({
             {tags.map((tag) => <Tag key={tag}>{tag}</Tag>)}
           </div> : null}
           {note?.versionNote ? <TypographyParagraph type="secondary">{note.versionNote}</TypographyParagraph> : null}
-          {note ? <>
-          {note.publishedAt && note.releaseHash && note.releaseId ? <aside className="docs-release-proof" aria-label={t('release.title')}>
-            <span className="docs-copyright-mark"><Fingerprint size={18} /></span>
-            <div className="docs-copyright-copy">
-              <strong>{t('release.title')}</strong>
-              <span>
-                {t('release.published', {
-                  date: new Date(note.publishedAt).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US'),
-                })}
-              </span>
-              <code title={note.releaseHash}>{note.releaseHash}</code>
-              <span>{t('release.scope')}</span>
-            </div>
-            <div className="docs-copyright-links">
-              {access.canDownload ? <a href={previewBase ? `/api/admin/mm/projectVersion/${versionId}/manifest` : `/api/project/${projectId}/v/${versionId}/manifest`} download>
-                {t('release.download')}<Download size={12} />
-              </a> : null}
-            </div>
-          </aside> : null}
-          {note.noteEvidence.map((credential) => (
-            <aside className="docs-copyright-proof" aria-label={t('evidence.content.label')} key={credential.transactionSignature}>
-              <span className="docs-copyright-mark">
-                {credential.network === 'devnet' ? <FlaskConical size={18} /> : <BadgeCheck size={18} />}
-              </span>
-              <div className="docs-copyright-copy">
-                <strong>{credential.network === 'devnet' ? t('evidence.content.devnet') : t('evidence.content.mainnet')}</strong>
-                <span>{t('evidence.content.description')}</span>
-                <code title={credential.contentHash}>{credential.contentHash}</code>
-              </div>
-              <div className="docs-copyright-links">
-                <Link href={`/evidence/${credential.transactionSignature}`}>
-                  {t('evidence.verify')}<ExternalLink size={12} />
-                </Link>
-              </div>
-            </aside>
-          ))}
-          </> : null}
           <ProjectAccessNotice access={access} capability={note ? 'download' : 'read'} />
         </header>
         {note ? <ProjectDocumentContent key={note.id} content={note.content} outlineLabel={t('outline')} projectId={projectId} canDownload={access.canDownload} downloadMessage={t('permissions.downloadUnavailable')} /> : null}

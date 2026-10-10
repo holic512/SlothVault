@@ -149,9 +149,9 @@ export async function getAdminDashboard({
       _count: { id: true },
       _sum: { fileSize: true },
     }),
-    prisma.releaseCredential.count({ where: { subjectType: 'NOTE_CONTENT' } }),
-    prisma.releaseCredential.count({ where: { subjectType: 'NOTE_CONTENT', status: 2 } }),
-    prisma.releaseCredential.count({ where: { subjectType: 'NOTE_CONTENT', status: -1 } }),
+    prisma.releaseCredential.count({ where: { subjectType: 'PROJECT_VERSION', subjectManifestVersion: 3 } }),
+    prisma.releaseCredential.count({ where: { subjectType: 'PROJECT_VERSION', subjectManifestVersion: 3, status: 2 } }),
+    prisma.releaseCredential.count({ where: { subjectType: 'PROJECT_VERSION', subjectManifestVersion: 3, status: -1 } }),
     prisma.project.findMany({
       where: { isDeleted: false },
       orderBy: { createdAt: 'desc' },

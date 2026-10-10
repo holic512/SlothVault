@@ -142,7 +142,7 @@ export async function updateAdminCategory(
     const category = await executeVersionWrite(async (tx) => {
       for (const versionId of [...new Set([current.projectVersionId, targetVersionId])].sort((a, b) => a - b)) await lockProjectVersionMetadata(tx, versionId)
       const before = await tx.category.findUniqueOrThrow({ where: { id } })
-      if (targetVersionId !== current.projectVersionId || (data.status !== undefined && data.status !== before.status)) {
+      if ((data.categoryName !== undefined && data.categoryName !== before.categoryName) || targetVersionId !== current.projectVersionId || (data.status !== undefined && data.status !== before.status)) {
         await lockDraftProjectVersions(tx, [current.projectVersionId, targetVersionId])
       }
       const fresh = await tx.category.findUnique({

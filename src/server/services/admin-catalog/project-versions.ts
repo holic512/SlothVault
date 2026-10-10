@@ -140,7 +140,7 @@ export async function updateAdminProjectVersion(
     status?: unknown
   },
 ) {
-  // Published metadata and visibility remain editable; document membership does not.
+  // Publication identity fields are frozen; descriptions, weight and visibility remain editable.
   const data: Prisma.ProjectVersionUncheckedUpdateInput = { updatedAt: new Date() }
   if (input.projectId !== undefined) {
     const projectId = parseJsonDecimalId(input.projectId, 'projectId')
@@ -164,6 +164,7 @@ export async function updateAdminProjectVersion(
       await lockProjectVersionMetadata(tx, id)
       const current = await tx.projectVersion.findUniqueOrThrow({ where: { id } })
       if (current.publishedAt) {
+        if (data.version !== undefined && data.version !== current.version) await lockDraftProjectVersions(tx, [id])
         if (data.projectId !== undefined && data.projectId !== current.projectId) {
           throw new HttpError('Published document membership is frozen', 409, 409, { reason: 'VERSION_FROZEN', projectVersionId: String(id) })
         }

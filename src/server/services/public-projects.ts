@@ -29,7 +29,7 @@ export async function listPublicProjects() {
           publishedAt: { not: null },
           releaseId: { not: null },
           releaseHash: { not: null },
-          manifestVersion: 2,
+          manifestVersion: 3,
         },
       },
     },
@@ -43,7 +43,7 @@ export async function listPublicProjects() {
           publishedAt: { not: null },
           releaseId: { not: null },
           releaseHash: { not: null },
-          manifestVersion: 2,
+          manifestVersion: 3,
         },
         orderBy: publishedVersionOrder,
         take: 1,
@@ -150,7 +150,7 @@ export async function getProjectVersions(projectId: number) {
       publishedAt: { not: null },
       releaseId: { not: null },
       releaseHash: { not: null },
-      manifestVersion: 2,
+      manifestVersion: 3,
     },
     orderBy: publishedVersionOrder,
     select: {
@@ -177,7 +177,7 @@ async function requireVersion(projectId: number, versionId: number) {
       publishedAt: { not: null },
       releaseId: { not: null },
       releaseHash: { not: null },
-      manifestVersion: 2,
+      manifestVersion: 3,
     },
     include: {
       project: { select: { isDeleted: true, status: true } },
@@ -224,7 +224,7 @@ export async function getProjectNote(
   noteId: number,
   viewer: AccessViewer = null,
 ) {
-  const version = await requireVersion(projectId, versionId)
+  await requireVersion(projectId, versionId)
   const note = await prisma.noteInfo.findFirst({
     where: {
       id: noteId,
@@ -245,22 +245,6 @@ export async function getProjectNote(
   const content = contents.length === 1 ? contents[0] : null
   if (!content) throw new HttpError('Note content not found', 404, 404)
 
-  const noteEvidence = await prisma.releaseCredential.findMany({
-    where: {
-      noteContentId: content.id,
-      subjectType: 'NOTE_CONTENT',
-      status: 2,
-    },
-    orderBy: { finalizedAt: 'desc' },
-    select: {
-      network: true,
-      transactionSignature: true,
-      signerAddress: true,
-      subjectHash: true,
-      finalizedAt: true,
-    },
-  })
-
   return {
     id: content.id.toString(),
     noteId: note.id.toString(),
@@ -269,17 +253,7 @@ export async function getProjectNote(
     content: content.content,
     versionNote: content.versionNote,
     updatedAt: content.updatedAt,
-    releaseId: version.releaseId!,
-    releaseHash: version.releaseHash!,
-    manifestVersion: version.manifestVersion!,
-    publishedAt: version.publishedAt!,
-    noteEvidence: noteEvidence.map((credential) => ({
-      network: credential.network,
-      transactionSignature: credential.transactionSignature!,
-      signerAddress: credential.signerAddress,
-      contentHash: credential.subjectHash!,
-      finalizedAt: credential.finalizedAt!,
-    })),
+
   }
 }
 

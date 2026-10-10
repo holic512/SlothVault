@@ -10,7 +10,6 @@
  */
 import 'server-only'
 import { upgradeCommissionLifecycle } from '@/server/commissions/upgrade'
-import { upgradeContentManifests } from './content-manifest-upgrade'
 import { upgradeFileClassifications } from './file-classification-upgrade'
 import { rebuildFileReferences } from '@/server/services/file-references'
 
@@ -176,7 +175,6 @@ export async function upgradeConfiguredDatabaseSchema(connection: DatabaseConnec
       throw new DatabaseMigrationError('Installed database schema is newer than this application')
     }
     if (marker.schemaRevision < CURRENT_SCHEMA_REVISION) {
-      await upgradeContentManifests(client)
       if (marker.schemaRevision < 12) await upgradeFileClassifications(client)
       if (marker.schemaRevision < 9) {
         await client.$transaction((tx) => rebuildFileReferences(tx), { timeout: 120_000 })

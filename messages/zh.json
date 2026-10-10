@@ -63,26 +63,11 @@
     "tags": "标签",
     "outline": "本页目录",
     "updated": "更新于 {date}",
-    "release": {
-      "title": "项目版本完整性",
-      "published": "发布于 {date}",
-      "scope": "此哈希证明版本 manifest 与 Markdown 逻辑内容，不包含附件二进制或外部 URL 当前内容。",
-      "download": "下载 manifest"
-    },
-    "evidence": {
-      "verify": "核验凭证",
-      "content": {
-        "label": "本文内容版本存证",
-        "devnet": "本文测试存证 · Devnet",
-        "mainnet": "本文内容版本存证 · Mainnet",
-        "description": "此凭证仅绑定当前公开主内容版本。"
-      }
-    },
     "permissions": {
       "readLocked": "此文档需要阅读权限",
       "downloadLocked": "可在线阅读，下载需要额外权限",
       "downloadClosed": "作者已关闭下载",
-      "closedDescription": "在线阅读仍按项目阅读权限开放；本项目的附件和正文清单暂不提供下载。",
+      "closedDescription": "在线阅读仍按项目阅读权限开放；本项目的附件和凭证暂不提供下载。",
       "loginDescription": "请先登录，再查看可用的阅读与下载权益。",
       "memberDescription": "持有以下任一有效会员即可获得此权限：{names}。",
       "configuredMembers": "管理员指定的会员",
@@ -715,7 +700,7 @@
         "batchUpdateFailed": "批量更新失败",
         "selectFirst": "请先选择要操作的项目",
         "requestFailed": "请求失败",
-        "releasedReadOnly": "正文已发布；名称和说明可修改，正文改动请克隆草稿"
+        "releasedReadOnly": "正文已发布；名称、版本号及正文已冻结；说明和权重可修改，内容改动请克隆草稿"
       },
       "versionRelease": {
         "title": "版本管理 · {name}",
@@ -810,7 +795,7 @@
           "PUBLIC": "所有访客可阅读项目正文。",
           "LOGIN": "登录后可访问，无需开通会员。",
           "FOLLOW_READ": "能阅读本项目的用户也能下载。",
-          "DISABLED": "保留在线阅读，关闭附件和正文清单下载。"
+          "DISABLED": "保留在线阅读，关闭附件和 Manifest 下载。"
         }
       }
     },
@@ -1014,7 +999,7 @@
         "restored": "已恢复",
         "restoreFailed": "恢复失败",
         "requestFailed": "请求失败",
-        "releasedReadOnly": "正文已发布；名称和说明可修改，正文改动请克隆草稿"
+        "releasedReadOnly": "正文已发布；名称、版本号及正文已冻结；说明和权重可修改，内容改动请克隆草稿"
       },
       "workspace": {
         "selectProject": "选择项目",
@@ -1023,7 +1008,7 @@
         "newBlankDraft": "新建空白草稿",
         "saveBeforeVersionAction": "请先保存未提交的正文，再操作该版本",
         "publishConfirm": "确认发布版本「{version}」？",
-        "publishImmutable": "发布后正文和文档结构将冻结，名称、说明和展示顺序仍可修改。请确认正文已保存。",
+        "publishImmutable": "发布后版本号、分类名、笔记标题、正文和文档结构将冻结；项目名称、说明和展示顺序仍可修改。请确认正文已保存。",
         "versionDeleteDescription": "删除后该草稿将不再出现在版本列表中。",
         "refresh": "刷新",
         "mobileNavigation": "编辑步骤",
@@ -1132,7 +1117,7 @@
         "saveHint": "Ctrl+S 保存",
         "save": "保存",
         "releasedReadOnly": "已发布版本（正文已冻结）",
-        "releasedReadOnlyTip": "名称和说明可直接修改。修改正文或文档结构时，请先克隆到新草稿或已有空草稿。",
+        "releasedReadOnlyTip": "项目名称、说明和权重可修改。修改版本号、分类名称、笔记标题、正文或文档结构时，请先克隆到新草稿或已有空草稿。",
         "selectOrCreate": "请从左侧选择或创建一个内容版本",
         "newVersionDialog": {
           "title": "新建内容版本",
@@ -1308,7 +1293,7 @@
         "errors": {
           "targetNotEmpty": "目标草稿已有内容，无法克隆到此版本。",
           "differentProject": "来源和目标版本必须属于同一项目。",
-          "publishedBodyFrozen": "发布正文与文档结构已冻结；名称和说明仍可修改。",
+          "publishedBodyFrozen": "发布正文与文档结构已冻结；项目名称、说明和权重仍可修改。",
           "versionWriteConflict": "版本正在被其他操作修改，请刷新后重试。",
           "RELEASE_SOURCE_NOT_FOUND": "未找到可用的正式 GitHub Release。",
           "RELEASE_RATE_LIMITED": "GitHub API 当前限流，请稍后重试。",
@@ -1756,11 +1741,8 @@
         "unknown": "未知状态"
       },
       "subject": {
-        "noteContent": "笔记内容",
-        "noteFallback": "笔记",
-        "unnamedVersion": "未命名版本",
         "noHash": "无哈希",
-        "primaryVersion": "★ 主版本 · "
+        "projectVersion": "项目版本"
       },
       "network": {
         "label": "网络",
@@ -1773,7 +1755,7 @@
       },
       "actions": {
         "refresh": "刷新",
-        "issue": "办理笔记存证",
+        "issue": "办理项目版本存证",
         "details": "详情",
         "retry": "重试",
         "reconcile": "对账",
@@ -1812,12 +1794,13 @@
         "mainnetCancelled": "已取消 Mainnet 签名",
         "networkDisabled": "该网络已禁用，请选择其他已启用网络或前往系统设置调整。",
         "integrityFailed": "版本完整性校验失败，请先修复版本内容与发布哈希的不一致。",
-        "failure": "存证办理失败"
+        "failure": "存证办理失败",
+        "tooLarge": "项目名称或版本号过长，凭证超出单笔交易容量。"
       },
       "receipt": {
         "title": "存证办理回执",
         "subject": "存证对象",
-        "contentHash": "内容版本哈希",
+        "contentHash": "凭证哈希",
         "networkTrust": "网络可信级别",
         "wallet": "签名钱包",
         "transaction": "公开编号",
@@ -1826,23 +1809,17 @@
       },
       "drawer": {
         "retryTitle": "重试存证",
-        "issueTitle": "办理笔记内容版本存证",
+        "issueTitle": "办理项目版本存证",
         "independentTitle": "发布与存证相互独立",
-        "independentDescription": "新存证精确绑定已发布树中的一个笔记内容版本；该笔记的其他修订不会共享此凭证。",
+        "independentDescription": "每个已发布项目版本生成一份聚合凭证，Memo 不包含正文。",
         "retryTitleAlert": "沿用原存证对象重试",
         "loadOptionsFailed": "可存证内容加载失败",
         "project": "项目",
         "selectProject": "选择项目",
         "publishedVersion": "已发布项目版本",
         "selectPublishedVersion": "选择已发布项目版本",
-        "category": "分类",
-        "selectCategory": "选择分类",
-        "note": "笔记",
-        "selectNote": "选择笔记",
-        "contentVersion": "内容版本",
-        "selectContentVersion": "选择该笔记的内容版本",
         "network": "存证网络",
-        "preparedTitle": "内容哈希、父级发布与钱包余额校验通过",
+        "preparedTitle": "发布凭证、内容完整性与钱包余额校验通过",
         "preparedDescription": "请逐项核对以下回执内容。点击确认后才会打开钱包签名窗口。",
         "signer": "签名钱包 / Fee Payer",
         "notConnected": "未连接",
@@ -1855,10 +1832,6 @@
         "mainnetConfirmTitle": "确认使用真实 SOL 办理正式存证？",
         "mainnetConfirmDescription": "预计费用 {fee} SOL。Mainnet 存证将作为本站正式凭证。",
         "mainnetConfirm": "确认签名"
-      },
-      "contentStatus": {
-        "enabled": "启用",
-        "disabled": "停用"
       },
       "units": {
         "lamports": "{value} lamports"
@@ -2380,7 +2353,12 @@
       "releaseVerified": "链上交易与本站存证协议、版本哈希和签名钱包完全一致。",
       "releaseUnverified": "当前未能完成实时链上核验；已确认凭证的本地状态不会因此被降级。",
       "contractVerified": "链上交易与本站合同防篡改协议、合同摘要和管理员签名钱包完全一致。",
-      "contractUnverified": "当前未能完成实时链上核验；这不会公开合同正文或签约身份。"
+      "contractUnverified": "当前未能完成实时链上核验；这不会公开合同正文或签约身份。",
+      "chain": "链上交易匹配",
+      "integrity": "站内内容完整性",
+      "matched": "通过",
+      "mismatched": "未通过",
+      "unavailable": "来源当前不可见，无法核验"
     }
   },
   "Maintenance": {
@@ -2409,5 +2387,37 @@
     "backToEditor": "返回版本编辑",
     "emptyTitle": "暂无可预览笔记",
     "emptyDescription": "请启用分类和笔记，并为笔记设置一个启用的主正文。"
+  },
+  "ProjectCredential": {
+    "menu": "项目版本凭证",
+    "view": "查看凭证",
+    "download": "下载 Manifest",
+    "title": "项目版本凭证",
+    "refresh": "刷新状态",
+    "retry": "重试",
+    "loadFailed": "凭证加载失败",
+    "permissionLoading": "正在检查下载权限",
+    "downloadDisabled": "本项目已关闭下载",
+    "loginRequired": "登录后才能下载",
+    "membershipRequired": "需要相应会员下载权限",
+    "description": "此凭证绑定发布时的项目名称、版本号，以及分类、笔记名称和 Markdown 正文的聚合摘要。",
+    "projectName": "发布时项目名称",
+    "version": "版本号",
+    "publishedAt": "发布时间",
+    "contentHash": "版本内容哈希",
+    "releaseHash": "凭证哈希",
+    "wallet": "签名钱包",
+    "transaction": "交易签名",
+    "blockTime": "链上时间",
+    "receipt": "查看链上回执",
+    "devnetNote": "Devnet 为测试网络，测试凭证与正式凭证分开显示。",
+    "noTransaction": "尚无链上交易。",
+    "status": {
+      "notSubmitted": "未上链",
+      "awaitingSignature": "待签名",
+      "confirming": "确认中",
+      "finalized": "已上链",
+      "failed": "失败"
+    }
   }
 }

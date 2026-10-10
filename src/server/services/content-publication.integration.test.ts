@@ -24,8 +24,6 @@ import { updateAdminProjectMetadataFromMcp } from './admin-catalog/projects'
 import { createAdminNote, getAdminNote, listAdminNotes, updateAdminNote, updateNoteContent } from './admin-notes'
 import { addAdminNoteTag, listAdminNoteTags, removeAdminNoteTag, renameAdminNoteTag } from './admin-note-tags'
 import { getProjectVersions } from './public-projects'
-import { upgradeContentManifests } from '../database/content-manifest-upgrade'
-import { buildNoteMarkdownManifest } from './release-manifest'
 
 const providers = ['sqlite', ...(process.env.RUN_MULTI_PROVIDER_SQL_SMOKE === '1' ? ['postgresql', 'mysql'] : [])]
 for (const provider of providers) describe(`${provider} publication lifecycle`, () => {
@@ -98,13 +96,13 @@ for (const provider of providers) describe(`${provider} publication lifecycle`, 
     const released = await publishProjectVersion(s.version.id)
     await expect(updateAdminNote(s.note.id, { tags: ['changed'] })).rejects.toMatchObject({ data: { reason: 'VERSION_FROZEN' } })
     await expect(updateAdminNote(s.note.id, { tags: [] })).rejects.toMatchObject({ data: { reason: 'VERSION_FROZEN' } })
-    expect((await updateAdminNote(s.note.id, { noteTitle: 'Allowed metadata edit' })).tags).toEqual(['API', '教程'])
+    expect((await updateAdminNote(s.note.id, { weight: 2 })).tags).toEqual(['API', '教程'])
     const cloned = await cloneProjectVersion(s.version.id, { version: '1.0.1' })
     const clone = await client.noteInfo.findFirstOrThrow({ where: { category: { projectVersionId: Number(cloned.id) } } })
     expect((await getAdminNote(clone.id)).tags).toEqual(['API', '教程'])
     await updateAdminNote(clone.id, { tags: ['different'] })
     const nextRelease = await publishProjectVersion(Number(cloned.id))
-    expect(nextRelease.releaseHash).toBe(released.releaseHash)
+    expect(nextRelease.releaseHash).not.toBe(released.releaseHash)
     expect((await getProjectVersionIntegrity(s.version.id)).valid).toBe(true)
   })
   it('supports single-tag operations without modifying other note fields or tags', async () => {
@@ -186,16 +184,19 @@ for (const provider of providers) describe(`${provider} publication lifecycle`, 
     const first = await publishProjectVersion(s.version.id)
     expect(await publishProjectVersion(s.version.id)).toEqual(first)
     await updateAdminProjectMetadataFromMcp(s.project.id, { projectName: 'Renamed project', avatar: '/avatar.png' })
-    await updateAdminProjectVersion(s.version.id, { version: 'Renamed release', description: 'More detail', weight: 10 })
-    await updateAdminCategory(s.category.id, { categoryName: 'Renamed category', status: 1, weight: 42 })
-    await updateAdminNote(s.note.id, { noteTitle: 'Renamed note', weight: 9 })
+    await expect(updateAdminProjectVersion(s.version.id, { version: 'Renamed release' })).rejects.toMatchObject({ data: { reason: 'VERSION_FROZEN' } })
+    await updateAdminProjectVersion(s.version.id, { description: 'More detail', weight: 10 })
+    await expect(updateAdminCategory(s.category.id, { categoryName: 'Renamed category' })).rejects.toMatchObject({ data: { reason: 'VERSION_FROZEN' } })
+    await updateAdminCategory(s.category.id, { status: 1, weight: 42 })
+    await expect(updateAdminNote(s.note.id, { noteTitle: 'Renamed note' })).rejects.toMatchObject({ data: { reason: 'VERSION_FROZEN' } })
+    await updateAdminNote(s.note.id, { weight: 9 })
     await updateNoteContent(s.body.id, { versionNote: 'Renamed body', content: s.body.content, status: 1 })
     expect(await getProjectVersionIntegrity(s.version.id)).toMatchObject({ valid: true, computedHash: first.releaseHash })
     await expect(updateNoteContent(s.body.id, { versionNote: 'Must roll back', content: 'changed' })).rejects.toMatchObject({ data: { reason: 'VERSION_FROZEN' } })
     await expect(updateAdminCategory(s.category.id, { categoryName: 'Must roll back', status: 0 })).rejects.toMatchObject({ data: { reason: 'VERSION_FROZEN' } })
     await expect(updateAdminNote(s.note.id, { noteTitle: 'Must roll back', status: 0 })).rejects.toMatchObject({ data: { reason: 'VERSION_FROZEN' } })
     expect(await client.noteContent.findUniqueOrThrow({ where: { id: s.body.id } })).toMatchObject({ versionNote: 'Renamed body', content: s.body.content })
-    expect(await client.category.findUniqueOrThrow({ where: { id: s.category.id } })).toMatchObject({ categoryName: 'Renamed category', status: 1 })
+    expect(await client.category.findUniqueOrThrow({ where: { id: s.category.id } })).toMatchObject({ categoryName: s.category.categoryName, status: 1 })
   })
   it('clones into an empty existing draft, keeps its identity and trash, and permits identical-body releases', async () => {
     const s = await seed()
@@ -205,7 +206,8 @@ for (const provider of providers) describe(`${provider} publication lifecycle`, 
     expect(await cloneProjectVersion(s.version.id, { targetVersionId: target.id })).toMatchObject({ id: String(target.id), version: '1.0.1', description: 'Keep me', weight: 7, isEmpty: false })
     expect(await client.category.findUniqueOrThrow({ where: { id: trash.id } })).toMatchObject({ isDeleted: true })
     const second = await publishProjectVersion(target.id)
-    expect(second.releaseHash).toBe(released.releaseHash)
+    expect(second.releaseHash).not.toBe(released.releaseHash)
+    expect((await getProjectVersionIntegrity(target.id)).manifest?.contentHash).toBe((await getProjectVersionIntegrity(s.version.id)).manifest?.contentHash)
     expect(second.releaseId).not.toBe(released.releaseId)
     await expect(cloneProjectVersion(s.version.id, { targetVersionId: target.id })).rejects.toMatchObject({ data: { reason: 'VERSION_FROZEN' } })
   })
@@ -244,30 +246,24 @@ for (const provider of providers) describe(`${provider} publication lifecycle`, 
     expect((await getProjectVersions(s.project.id)).map(item => item.id)).toEqual([String(s.version.id)])
     expect((await listAdminProjectVersionsByProject({ ...query, orderByField: 'weight' })).list[0].id).toBe(String(s.version.id))
   })
-  it('rehashes legacy records idempotently, preserves identity, and stops for signed evidence', async () => {
+  it('detects direct body, hierarchy and snapshot tampering while preserving the publication name', async () => {
     const s = await seed()
-    const published = await publishProjectVersion(s.version.id)
-    await client.projectVersion.update({ where: { id: s.version.id }, data: { manifestVersion: 1, releaseHash: 'f'.repeat(64) } })
-    const user = await client.user.create({ data: { username: randomUUID(), password: 'test', role: 'ADMIN' } })
-    userIds.push(user.id)
-    const credential = await client.releaseCredential.create({ data: { projectVersionId: s.version.id, issuerUserId: user.id, subjectType: 'PROJECT_VERSION', subjectId: published.releaseId, subjectHash: 'f'.repeat(64), subjectManifestVersion: 1, network: 'devnet', signerAddress: 'test', memo: '{}', transactionSignature: 'test-signature' } })
-    await expect(upgradeContentManifests(client)).rejects.toThrow(`credential ${credential.id}`)
-    expect((await client.projectVersion.findUniqueOrThrow({ where: { id: s.version.id } })).manifestVersion).toBe(1)
-    await client.releaseCredential.update({ where: { id: credential.id }, data: { transactionSignature: null } })
-    const evidenceId = randomUUID()
-    await client.noteContent.update({ where: { id: s.body.id }, data: { evidenceId } })
-    const noteCredential = await client.releaseCredential.create({ data: { projectVersionId: s.version.id, noteContentId: s.body.id, issuerUserId: user.id, subjectType: 'NOTE_CONTENT', subjectId: evidenceId, subjectHash: 'e'.repeat(64), subjectManifestVersion: 1, network: 'devnet', signerAddress: 'test', memo: '{}' } })
-    const attempt = await client.releaseCredentialAttempt.create({ data: { credentialId: credential.id, issuerUserId: user.id, signerAddress: 'test', memo: '{}', messageHash: 'e'.repeat(64), recentBlockhash: 'test', lastValidBlockHeight: 100n, expiresAt: new Date('2030-01-01') } })
-    expect(await upgradeContentManifests(client)).toEqual({ updated: 1 })
-    expect(await upgradeContentManifests(client)).toEqual({ updated: 0 })
-    expect(await client.projectVersion.findUniqueOrThrow({ where: { id: s.version.id } })).toMatchObject({ releaseId: published.releaseId, releaseHash: published.releaseHash, publishedAt: published.publishedAt, manifestVersion: 2 })
-    const migratedCredential = await client.releaseCredential.findUniqueOrThrow({ where: { id: credential.id } })
-    expect(migratedCredential).toMatchObject({ subjectHash: published.releaseHash, subjectManifestVersion: 2 })
-    expect(JSON.parse(migratedCredential.memo)).toMatchObject({ releaseHash: published.releaseHash, manifestVersion: 2 })
-    const migratedNote = await client.releaseCredential.findUniqueOrThrow({ where: { id: noteCredential.id } })
-    const noteHash = buildNoteMarkdownManifest(s.body.content).hash
-    expect(migratedNote).toMatchObject({ subjectHash: noteHash, subjectManifestVersion: 2 })
-    expect(JSON.parse(migratedNote.memo)).toMatchObject({ contentHash: noteHash, manifestVersion: 2 })
-    expect(await client.releaseCredentialAttempt.findUniqueOrThrow({ where: { id: attempt.id } })).toMatchObject({ expiresAt: new Date(0), failureCode: 'MANIFEST_UPGRADED' })
+    await publishProjectVersion(s.version.id)
+    const released = await getProjectVersionIntegrity(s.version.id)
+    await client.project.update({ where: { id: s.project.id }, data: { projectName: 'Changed display name' } })
+    expect(await getProjectVersionIntegrity(s.version.id)).toMatchObject({ valid: true, manifest: released.manifest })
+    for (const [model, id, field, original] of [
+      ['noteContent', s.body.id, 'content', s.body.content],
+      ['noteInfo', s.note.id, 'noteTitle', s.note.noteTitle],
+      ['category', s.category.id, 'categoryName', s.category.categoryName],
+    ] as const) {
+      const update = client[model].update as unknown as (input: { where: { id: number }; data: Record<string, string> }) => Promise<unknown>
+      await update({ where: { id }, data: { [field]: original + ' tampered' } })
+      expect((await getProjectVersionIntegrity(s.version.id)).valid).toBe(false)
+      await update({ where: { id }, data: { [field]: original } })
+    }
+    const version = await client.projectVersion.findUniqueOrThrow({ where: { id: s.version.id } })
+    await client.projectVersion.update({ where: { id: s.version.id }, data: { releaseManifestJson: version.releaseManifestJson + ' ' } })
+    expect((await getProjectVersionIntegrity(s.version.id)).valid).toBe(false)
   })
 })

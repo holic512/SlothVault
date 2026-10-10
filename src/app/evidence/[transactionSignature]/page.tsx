@@ -48,20 +48,22 @@ export default async function EvidenceReceiptPage({ params }: { params: Promise<
       <header className="evidence-receipt-header">
         <span className="evidence-receipt-seal">{evidence.network === 'devnet' ? <FlaskConical /> : <BadgeCheck />}</span>
         <div>
-          <p>SLOTHVAULT · NOTE CONTENT EVIDENCE</p>
-          <h1>{evidence.network === 'devnet' ? '笔记内容测试存证' : '笔记内容版本存证'}</h1>
+          <p>SLOTHVAULT · PROJECT VERSION EVIDENCE</p>
+          <h1>{evidence.network === 'devnet' ? '项目版本测试凭证' : '项目版本凭证'}</h1>
           <span>公开编号由 Solana 交易签名唯一确定</span>
         </div>
         <Tag color={evidence.network === 'devnet' ? 'warning' : 'success'}>{evidence.network === 'devnet' ? 'DEVNET · 测试凭证' : 'MAINNET · 正式存证'}</Tag>
       </header>
 
       {evidence.network === 'devnet' ? <Alert showIcon type="warning" title="这是 Devnet 测试凭证，不具备 Mainnet 正式存证标识。" /> : null}
-      {!evidence.subjectVisible ? <Alert showIcon type="info" title={'来源内容当前不公开'} description={'该凭证绑定的内容不是当前公开、启用的主版本；仅展示不可逆标识、哈希和链上信息。'} /> : null}
+      {!evidence.subjectVisible ? <Alert showIcon type="info" title={'来源内容当前不公开'} description={'该凭证绑定的内容不是当前公开、启用的项目版本；仅展示不可逆标识、哈希和链上信息。'} /> : null}
 
       <section className="evidence-receipt-paper">
-        {evidence.subjectVisible ? <div className="evidence-receipt-title"><span>{'来源内容'}</span><strong>{`${evidence.projectName} / ${evidence.version} / ${evidence.categoryName} / ${evidence.noteTitle} / ${evidence.contentVersion || '未命名版本'}`}</strong></div> : null}
+        {evidence.subjectVisible ? <div className="evidence-receipt-title"><span>{'来源内容'}</span><strong>{`${evidence.projectName} / ${evidence.version}`}</strong></div> : null}
         <dl>
-          <div><dt><Fingerprint size={16} />{'内容版本哈希'}</dt><dd><code>{evidence.subjectHash}</code></dd></div>
+          <div><dt>版本内容哈希</dt><dd><code>{evidence.contentHash}</code></dd></div>
+          <div><dt>上链状态</dt><dd>{evidence.status === 2 ? '已上链' : evidence.status === 1 ? '确认中' : evidence.status === -1 ? '失败' : '待签名'}</dd></div>
+          <div><dt><Fingerprint size={16} />{'凭证哈希'}</dt><dd><code>{evidence.subjectHash}</code></dd></div>
           <div><dt>稳定对象标识</dt><dd><code>{evidence.subjectId}</code></dd></div>
           <div><dt><WalletCards size={16} />签名钱包</dt><dd><code>{evidence.signerAddress}</code></dd></div>
           <div><dt><FileKey2 size={16} />交易签名</dt><dd><code>{evidence.transactionSignature}</code></dd></div>
@@ -74,12 +76,12 @@ export default async function EvidenceReceiptPage({ params }: { params: Promise<
         <div className="evidence-receipt-actions">
           {access?.canDownload ? <a href={`/api/evidence/${transactionSignature}/manifest`} download>下载 Manifest <Download size={14} /></a> : null}
           <a href={explorerUrl(transactionSignature, evidence.network)} target="_blank" rel="noreferrer">Solana Explorer <ExternalLink size={14} /></a>
-          {evidence.subjectVisible ? <Link href={`/project/${evidence.projectId}/v/${evidence.projectVersionId}/docs/${evidence.noteId}`}>{'查看正文'}</Link> : null}
+          {evidence.subjectVisible ? <Link href={`/project/${evidence.projectId}/v/${evidence.projectVersionId}/docs`}>{'查看正文'}</Link> : null}
         </div>
       </section>
       {access ? <ProjectAccessNotice access={access} capability="download" /> : null}
       <PublicEvidenceVerifier signature={transactionSignature} />
-      <p className="evidence-receipt-disclaimer">本凭证仅证明所示钱包签署了包含该{'内容版本'}哈希的交易，不表示 NFT 所有权、版权归属、接收人身份或可转移资产。</p>
+      <p className="evidence-receipt-disclaimer">本凭证仅证明所示钱包签署了包含该{'项目版本凭证'}哈希的交易，不表示 NFT 所有权、版权归属、接收人身份或可转移资产。</p>
     </main>
     <SystemFilingFooter />
   </div>

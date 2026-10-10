@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { parseReleaseManifest } from '@/server/services/release-manifest'
 import { normalizeLegacyFileBusinessType } from '@/lib/file-business-types'
 import type { Prisma } from '@generated/prisma-postgresql/client'
 import { inspectImportAccounts, prepareRestoreAccounts, type DatabaseRestoreOptions } from './accounts'
@@ -306,7 +307,7 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
         avatar: item.avatar,
         weight: item.weight,
         status: item.status,
-        requireAuth: ['2.10.0', '2.11.0', DATABASE_BACKUP_VERSION].includes(version) ? item.requireAuth : false,
+        requireAuth: ['2.10.0', '2.11.0', '2.12.0', DATABASE_BACKUP_VERSION].includes(version) ? item.requireAuth : false,
         readAccessMode: hasMembershipPolicies(version) ? item.readAccessMode : 'PUBLIC',
         downloadAccessMode: hasMembershipPolicies(version) ? item.downloadAccessMode : 'FOLLOW_READ',
         readMemberships: { create: (hasMembershipPolicies(version) ? item.readMembershipLevelIds : []).map((id) => ({ membershipLevelId: requiredMappedId(ids.membershipLevels, id, 'project read membership') })) },
@@ -330,6 +331,7 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
         status: item.status,
         releaseId: item.releaseId,
         releaseHash: item.releaseHash,
+        releaseManifestJson: item.releaseManifestJson,
         manifestVersion: item.manifestVersion,
         publishedAt: item.publishedAt ? new Date(item.publishedAt) : null,
         createdAt: new Date(item.createdAt),
@@ -451,7 +453,7 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
         fileName: item.fileName,
         filePath: item.filePath,
         fileSize: BigInt(item.fileSize),
-        businessType: payload.version === '2.12.0' ? item.businessType : normalizeLegacyFileBusinessType(item.businessType, item.fileName),
+        businessType: ['2.12.0', DATABASE_BACKUP_VERSION].includes(payload.version) ? item.businessType : normalizeLegacyFileBusinessType(item.businessType, item.fileName),
         status: item.status,
         createTime: new Date(item.createTime),
       },
@@ -664,8 +666,9 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
     )
     const source = await loadReleaseTree(tx, mappedVersionId)
     if (!source) throw new Error('Imported project version mapping is missing')
-    const built = buildReleaseManifest(source)
-    if (built.issues.length > 0 || built.hash !== item.releaseHash) {
+    const snapshot = parseReleaseManifest(item.releaseManifestJson)
+    const built = buildReleaseManifest(source, snapshot.projectName)
+    if (built.issues.length > 0 || built.hash !== item.releaseHash || Buffer.from(built.bytes!).toString('utf8') !== item.releaseManifestJson) {
       throw new HttpError('Backup release integrity verification failed', 409, 409, {
         reason: 'BACKUP_RELEASE_INTEGRITY_FAILED',
         projectVersionId: item.id,

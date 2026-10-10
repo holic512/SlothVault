@@ -218,7 +218,7 @@ export async function listAdminNotes(query: NoteListQuery) {
       publishedAt: { not: null },
       releaseId: { not: null },
       releaseHash: { not: null },
-      manifestVersion: 2,
+      manifestVersion: 3,
     }
     categoryWhere.projectVersion = query.projectId === undefined
       ? releaseWhere
@@ -364,7 +364,7 @@ export async function updateAdminNote(
     const note = await executeVersionWrite(async (tx) => {
       for (const versionId of [...new Set([current.category.projectVersionId, targetVersionId])].sort((a, b) => a - b)) await lockProjectVersionMetadata(tx, versionId)
       const before = await tx.noteInfo.findUniqueOrThrow({ where: { id } })
-      if (input.tags !== undefined || targetCategoryId !== current.categoryId || (data.status !== undefined && data.status !== before.status)) {
+      if ((data.noteTitle !== undefined && data.noteTitle !== before.noteTitle) || input.tags !== undefined || targetCategoryId !== current.categoryId || (data.status !== undefined && data.status !== before.status)) {
         await lockDraftProjectVersions(tx, [current.category.projectVersionId, targetVersionId])
       }
       const fresh = await tx.noteInfo.findUnique({

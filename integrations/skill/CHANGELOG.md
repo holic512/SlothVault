@@ -1,5 +1,10 @@
 # Skill changes
 
+## 1.2.3
+
+- Document compact Manifest v3 credentials for published project versions and direct wallet signing to the website flow.
+- Freeze published version numbers, category names, and note titles alongside bodies and document structure; retain project-name, description, and weight edits.
+
 ## 1.2.2
 
 - Add single-note tag list/add/rename/remove guidance with exact inputs and complete resulting tag lists.

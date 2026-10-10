@@ -2,8 +2,8 @@
  * @file database-export.ts
  * @project SlothVault
  * @module Admin Database Backup Export
- * @description Exports a relation-closed portable 2.11 complete snapshot of membership entitlements, articles, project content, accounts, contracts, configuration, and transaction evidence.
- * @logic Read one repeatable transaction snapshot, retain member access and independent articles, include trash and disabled file records, decode note tags, serialize evidence BigInts and frozen contract identity, then validate the portable result.
+ * @description Exports a relation-closed portable 2.13 complete snapshot of membership entitlements, articles, project content, accounts, contracts, configuration, and transaction evidence.
+ * @logic Read one repeatable transaction snapshot, retain member access and independent articles, include trash and disabled file records, decode note tags, preserve compact v3 publication snapshots and serialize evidence BigInts and frozen contract identity, then validate the portable result.
  * @dependencies database unit-of-work, Prisma, HTTP JSON serialization, backup schema and validation
  * @index_tags admin,backup,database,export,snapshot,relations
  * @author holic512
@@ -84,7 +84,7 @@ export async function exportDatabaseBackup() {
       tx.fileManagement.findMany(),
       tx.systemConfig.findMany({ where: { configKey: { not: RESTORE_COMMIT_CONFIG_KEY } } }),
       tx.systemHomepage.findMany(),
-      tx.releaseCredential.findMany({ where: { projectVersionId: { in: projectVersionIds } } }),
+      tx.releaseCredential.findMany({ where: { projectVersionId: { in: projectVersionIds }, subjectType: 'PROJECT_VERSION', subjectManifestVersion: 3 } }),
       tx.contract.findMany(),
     ])
     const credentialIds = releaseCredentials.map((item) => item.id)

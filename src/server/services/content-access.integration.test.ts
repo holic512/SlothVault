@@ -34,8 +34,9 @@ import { authorizeManagedFile } from './file-access'
 import { rebuildFileReferences } from './file-references'
 import { getProjectNote, getProjectNoteMetadata, getProjectSidebar } from './public-projects'
 import { getProjectVersionManifest, publishProjectVersion } from './project-version-release'
-import { getPublicNoteContentEvidenceManifest, getPublicReleaseEvidence } from './release-evidence'
-import { buildNoteMarkdownManifest } from './release-manifest'
+import { getPublicReleaseEvidenceManifest, getPublicReleaseEvidence } from './release-evidence'
+import { canonicalProjectVersionEvidenceMemo } from './project-version-evidence-protocol'
+import { parseReleaseManifest } from './release-manifest'
 import { getPublicArticleMetadata, resolvePublicArticleReader } from './public-articles'
 import { getActiveMemberships, purchaseMembership, replaceManagedUserMembership, revokeManagedUserMembership } from './membership'
 import { exportDatabaseBackup } from './admin-backup/database-export'
@@ -83,7 +84,7 @@ describe('project permissions, file references and portable backup', () => {
     const body = await client.noteContent.create({ data: { noteInfoId: note.id, content, status: 1, isPrimary: true, evidenceId: randomUUID() } })
     const release = await publishProjectVersion(version.id)
     const signature = '3'.repeat(88)
-    await client.releaseCredential.create({ data: { projectVersionId: version.id, noteContentId: body.id, issuerUserId: admin.id, subjectType: 'NOTE_CONTENT', subjectId: body.evidenceId!, subjectHash: buildNoteMarkdownManifest(content).hash, subjectManifestVersion: 2, network: 'devnet', signerAddress: '1'.repeat(32), memo: '{}', transactionSignature: signature, status: 2, finalizedAt: new Date() } })
+    await client.releaseCredential.create({ data: { projectVersionId: version.id, issuerUserId: admin.id, subjectType: 'PROJECT_VERSION', subjectId: release.releaseId, subjectHash: release.releaseHash, subjectManifestVersion: 3, network: 'devnet', signerAddress: '1'.repeat(32), memo: canonicalProjectVersionEvidenceMemo({ installationId: randomUUID(), releaseId: release.releaseId, manifest: parseReleaseManifest((await client.projectVersion.findUniqueOrThrow({ where: { id: version.id } })).releaseManifestJson), releaseHash: release.releaseHash, network: 'devnet', signer: '1'.repeat(32) }), transactionSignature: signature, status: 2, finalizedAt: new Date() } })
     return { admin, types, users, projectId, version, category, note, body, files, release, signature }
   }
   it('implements A/B reading, C downloading and no implicit access for high rank D', async () => {
@@ -96,10 +97,10 @@ describe('project permissions, file references and portable backup', () => {
     await expect(getProjectNote(s.projectId, s.version.id, s.note.id, s.users[3])).rejects.toMatchObject({ status: 403 })
     expect((await getProjectNote(s.projectId, s.version.id, s.note.id, s.users[0])).content).toBe(s.body.content)
     await expect(getProjectVersionManifest(s.version.id, { publicProjectId: s.projectId, viewer: s.users[0] })).rejects.toMatchObject({ status: 403 })
-    await expect(getPublicNoteContentEvidenceManifest(s.signature, s.users[0])).rejects.toMatchObject({ status: 403 })
+    await expect(getPublicReleaseEvidenceManifest(s.signature, s.users[0])).rejects.toMatchObject({ status: 403 })
     expect((await getProjectVersionManifest(s.version.id, { publicProjectId: s.projectId, viewer: s.users[2] })).releaseHash).toBe(s.release.releaseHash)
-    expect((await getPublicNoteContentEvidenceManifest(s.signature, s.users[2])).hash).toBe(buildNoteMarkdownManifest(s.body.content).hash)
-    expect(await getPublicReleaseEvidence(s.signature)).toMatchObject({ subjectVisible: true, subjectHash: buildNoteMarkdownManifest(s.body.content).hash })
+    expect((await getPublicReleaseEvidenceManifest(s.signature, s.users[2])).hash).toBe(s.release.releaseHash)
+    expect(await getPublicReleaseEvidence(s.signature)).toMatchObject({ subjectVisible: true, subjectHash: s.release.releaseHash })
   })
   it('immediately revokes downloads without breaking reading/images or changing release bytes', async () => {
     const s = await seed()
@@ -113,7 +114,7 @@ describe('project permissions, file references and portable backup', () => {
     const administrator = { userId: s.admin.id, role: 'ADMIN' }
     expect((await getProjectVersionManifest(s.version.id, { publicProjectId: s.projectId, viewer: administrator })).bytes).toEqual(original.bytes)
     expect((await getProjectNote(s.projectId, s.version.id, s.note.id, s.users[0])).content).toBe(s.body.content)
-    await expect(getPublicNoteContentEvidenceManifest(s.signature, s.users[2])).rejects.toMatchObject({ status: 403 })
+    await expect(getPublicReleaseEvidenceManifest(s.signature, s.users[2])).rejects.toMatchObject({ status: 403 })
   })
   it('authorizes shared files only through actual visible references and checks explicit project context', async () => {
     const s = await seed()
@@ -151,7 +152,7 @@ describe('project permissions, file references and portable backup', () => {
     const s = await seed()
     await client.$transaction(tx => rebuildFileReferences(tx))
     const backup = await exportDatabaseBackup()
-    expect(backup.version).toBe('2.12.0')
+    expect(backup.version).toBe('2.13.0')
     expect(backup.data.noteInfos[0].tags).toEqual(['API', '教程'])
     expect(backup.data.noteInfos[0]).not.toHaveProperty('tagsJson')
     const parsed = parseDatabaseImportPayload({ data: backup.data, version: backup.version, mode: 'overwrite' })
@@ -227,7 +228,7 @@ describe('project permissions, file references and portable backup', () => {
     const evidenceParams = { params: Promise.resolve({ transactionSignature: s.signature }) }
     const noteRequest = new NextRequest('http://localhost/api/project/1/v/1/note/1')
     const manifestRequest = new NextRequest('http://localhost/api/project/1/v/1/manifest', { headers: { 'If-None-Match': `"${s.release.releaseHash}"` } })
-    const evidenceRequest = new NextRequest(`http://localhost/api/evidence/${s.signature}/manifest`)
+    const evidenceRequest = new NextRequest(`http://localhost/api/evidence/${s.signature}/manifest`, { headers: { 'If-None-Match': `"${s.release.releaseHash}"` } })
     for (const [viewer, expected] of [[null, 401], [s.users[0], 403], [s.users[3], 403]] as const) {
       mocks.viewer = viewer
       for (const route of [getManifestResponse, headManifestResponse]) {
@@ -248,7 +249,7 @@ describe('project permissions, file references and portable backup', () => {
     expect((await compatibility.json()).data).toMatchObject({ hasAccess: true, canRead: true, canDownload: false })
     mocks.viewer = s.users[2]
     expect((await getManifestResponse(manifestRequest, params)).status).toBe(304)
-    expect((await getEvidenceManifestResponse(evidenceRequest, evidenceParams)).status).toBe(200)
+    expect((await getEvidenceManifestResponse(evidenceRequest, evidenceParams)).status).toBe(304)
     await updateAdminProject(s.projectId, { downloadAccess: { mode: 'DISABLED' } })
     expect((await getManifestResponse(manifestRequest, params)).status).toBe(403)
     expect((await getEvidenceManifestResponse(evidenceRequest, evidenceParams)).status).toBe(403)

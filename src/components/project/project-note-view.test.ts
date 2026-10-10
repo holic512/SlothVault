@@ -20,8 +20,7 @@ const policy = {
 async function render(tags: string[], canRead: boolean) {
   const note = canRead ? {
     id: '4', noteId: '3', noteTitle: 'Guide', content: '# Guide', versionNote: null,
-    updatedAt: '2026-10-10T00:00:00Z', releaseId: 'release', releaseHash: 'a'.repeat(64),
-    manifestVersion: 2, publishedAt: '2026-10-10T00:00:00Z', noteEvidence: [],
+    updatedAt: '2026-10-10T00:00:00Z',
   } : null
   return renderToStaticMarkup(await ProjectNoteView({
     projectId: '1', versionId: '2', noteId: '3', sidebar: [], note,
@@ -47,7 +46,7 @@ it('renders draft bodies with preview directory links and without release claims
   const html = renderToStaticMarkup(await ProjectNoteView({
     projectId: '1', versionId: '2', noteId: '3',
     sidebar: [{ id: '5', categoryName: 'Guide', weight: 0, notes: [{ id: '3', noteTitle: 'Intro', weight: 0 }, { id: '6', noteTitle: 'Next', weight: 0 }] }],
-    note: { id: '4', noteId: '3', noteTitle: 'Intro', content: '# Saved', versionNote: null, updatedAt: '2026-10-10T00:00:00Z', releaseId: null, releaseHash: null, manifestVersion: null, publishedAt: null, noteEvidence: [] },
+    note: { id: '4', noteId: '3', noteTitle: 'Intro', content: '# Saved', versionNote: null, updatedAt: '2026-10-10T00:00:00Z' },
     noteTitle: 'Intro', tags: ['API'], access: evaluateProjectAccess(policy, true, [], true), previewBase: '/preview/project/1/v/2',
   }))
   expect(html).toContain('Protected body')

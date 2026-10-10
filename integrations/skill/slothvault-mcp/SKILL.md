@@ -2,7 +2,7 @@
 name: slothvault-mcp
 description: Administer SlothVault in Codex or Claude Code through native MCP tools for drafts, articles, publication, files, and integrity checks. Use for SlothVault administration, not source development or unrelated MCP servers.
 metadata:
-  version: "1.2.2"
+  version: "1.2.3"
 ---
 
 <!--
@@ -33,7 +33,7 @@ The user's task, host approvals, and server permissions govern actions. Tool ann
 - Technical article creation or substantial rewriting: additionally read [technical writing](references/technical-writing.md). Metadata-only edits do not need the textbook or checker.
 - Project introductions, screenshots, source packages, or code statistics: read [project materials](references/project-materials.md).
 
-Reuse specified drafts and uploaded assets. Upload all required images and download attachments successfully before composing and saving a body. Independent articles use `ArticleImage` / `ArticleAttachment`; project notes use `NoteImage` / `NoteAttachment`. Use returned `filePath` values for website Markdown URLs and `resourceUri` only for MCP reads. Stop body writes on upload failure; inspect uncertain uploads before retrying. Never invent upload paths or save placeholder links. Project-version bodies, primary selection, document membership, and included-node states and note tags freeze on publication; clone to a draft to change them. Published titles, descriptions, and weights remain editable; note tags require a draft. `targetVersionId` must identify an entirely empty draft. Save bodies and links before `check_draft`; requested project publication ends with state, visibility, and integrity verification.
+Reuse specified drafts and uploaded assets. Upload all required images and download attachments successfully before composing and saving a body. Independent articles use `ArticleImage` / `ArticleAttachment`; project notes use `NoteImage` / `NoteAttachment`. Use returned `filePath` values for website Markdown URLs and `resourceUri` only for MCP reads. Stop body writes on upload failure; inspect uncertain uploads before retrying. Never invent upload paths or save placeholder links. Project-version numbers, category names, note titles, bodies, primary selection, document membership, included-node states, and note tags freeze on publication; clone to a draft to change them. Project names, descriptions, and weights remain editable. Project-version evidence uses compact Manifest v3 and the website wallet signing flow. `targetVersionId` must identify an entirely empty draft. Save bodies and links before `check_draft`; requested project publication ends with state, visibility, and integrity verification.
 
 Use returned `filePath` for embeddable assets and `resourceUri` for protected reads, never guessed download URLs. Resource blobs carry filenames in `_meta["slothvault/file-name"]`. Preserve destination files. Save binary Resources only through capabilities the current host exposes. If unavailable or too large, use the website's authorized download flow, not a temporary client; never expose a Key in a URL.
 

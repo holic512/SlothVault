@@ -63,26 +63,11 @@
     "tags": "Tags",
     "outline": "On this page",
     "updated": "Updated {date}",
-    "release": {
-      "title": "Project version integrity",
-      "published": "Published {date}",
-      "scope": "This hash covers the version manifest and logical Markdown content, not attachment bytes or the current contents of external URLs.",
-      "download": "Download manifest"
-    },
-    "evidence": {
-      "verify": "Verify receipt",
-      "content": {
-        "label": "Document-content version evidence",
-        "devnet": "Document test evidence · Devnet",
-        "mainnet": "Document-content evidence · Mainnet",
-        "description": "This receipt is bound only to the current public primary content version."
-      }
-    },
     "permissions": {
       "readLocked": "This document requires reading access",
       "downloadLocked": "Online reading is available; downloads require additional access",
       "downloadClosed": "Downloads are disabled by the author",
-      "closedDescription": "Online reading follows the project reading rules. Attachments and document manifests are unavailable for download.",
+      "closedDescription": "Reading follows project access rules; attachments and credentials cannot currently be downloaded.",
       "loginDescription": "Sign in to check your reading and download benefits.",
       "memberDescription": "Any active membership in this list grants access: {names}.",
       "configuredMembers": "the memberships configured by the administrator",
@@ -715,7 +700,7 @@
         "batchUpdateFailed": "Batch update failed",
         "selectFirst": "Please select items first",
         "requestFailed": "Request failed",
-        "releasedReadOnly": "Published content is frozen; names and descriptions remain editable. Clone a draft to change content."
+        "releasedReadOnly": "Published content is frozen; project name, descriptions and weights remain editable. Clone a draft to change content."
       },
       "versionRelease": {
         "title": "Versions · {name}",
@@ -1014,7 +999,7 @@
         "restored": "Restored",
         "restoreFailed": "Restore failed",
         "requestFailed": "Request failed",
-        "releasedReadOnly": "Published content is frozen; names and descriptions remain editable. Clone a draft to change content."
+        "releasedReadOnly": "Published content is frozen; project name, descriptions and weights remain editable. Clone a draft to change content."
       },
       "workspace": {
         "selectProject": "Select project",
@@ -1023,7 +1008,7 @@
         "newBlankDraft": "New blank draft",
         "saveBeforeVersionAction": "Save your pending content before changing this version",
         "publishConfirm": "Publish version “{version}”?",
-        "publishImmutable": "Publication freezes the content and document structure. Names, descriptions, and display order remain editable. Save your content first.",
+        "publishImmutable": "Publication freezes the version number, category names, note titles, bodies and document structure. Project name, descriptions and display order remain editable. Save your content first.",
         "versionDeleteDescription": "This draft will no longer appear in the version list after deletion.",
         "refresh": "Refresh",
         "mobileNavigation": "Editing steps",
@@ -1132,7 +1117,7 @@
         "saveHint": "Ctrl+S to save",
         "save": "Save",
         "releasedReadOnly": "Published version (content frozen)",
-        "releasedReadOnlyTip": "Names and descriptions remain editable. Clone into a new or existing empty draft to change content or document structure.",
+        "releasedReadOnlyTip": "Project name, descriptions and weights remain editable. Clone into a new or existing empty draft to change content or document structure.",
         "selectOrCreate": "Please select or create a content version from the left",
         "newVersionDialog": {
           "title": "New Content Version",
@@ -1308,7 +1293,7 @@
         "errors": {
           "targetNotEmpty": "The target draft already contains documents.",
           "differentProject": "Source and target must belong to the same project.",
-          "publishedBodyFrozen": "Published content and structure are frozen; names and descriptions remain editable.",
+          "publishedBodyFrozen": "Published content and structure are frozen; project name, descriptions and weights remain editable.",
           "versionWriteConflict": "Another operation changed this version. Refresh and try again.",
           "RELEASE_SOURCE_NOT_FOUND": "No published GitHub Release is available.",
           "RELEASE_RATE_LIMITED": "The GitHub API is rate limited; try again later.",
@@ -1756,11 +1741,8 @@
         "unknown": "Unknown status"
       },
       "subject": {
-        "noteContent": "Note content",
-        "noteFallback": "Note",
-        "unnamedVersion": "Unnamed version",
         "noHash": "No hash",
-        "primaryVersion": "★ Primary · "
+        "projectVersion": "Project version"
       },
       "network": {
         "label": "Network",
@@ -1773,7 +1755,7 @@
       },
       "actions": {
         "refresh": "Refresh",
-        "issue": "Issue note evidence",
+        "issue": "Issue version evidence",
         "details": "Details",
         "retry": "Retry",
         "reconcile": "Reconcile",
@@ -1812,12 +1794,13 @@
         "mainnetCancelled": "Mainnet signature cancelled",
         "networkDisabled": "This network is disabled. Choose another enabled network or adjust it in System Settings.",
         "integrityFailed": "Release integrity validation failed. Fix the mismatch between the version content and published hash first.",
-        "failure": "Evidence issuance failed"
+        "failure": "Evidence issuance failed",
+        "tooLarge": "Publication names exceed the single-transaction capacity."
       },
       "receipt": {
         "title": "Evidence issuance receipt",
         "subject": "Evidence subject",
-        "contentHash": "Content version hash",
+        "contentHash": "Credential hash",
         "networkTrust": "Network trust level",
         "wallet": "Signing wallet",
         "transaction": "Public signature",
@@ -1826,23 +1809,17 @@
       },
       "drawer": {
         "retryTitle": "Retry evidence",
-        "issueTitle": "Issue note-content evidence",
+        "issueTitle": "Issue project version evidence",
         "independentTitle": "Publishing and evidence are independent",
-        "independentDescription": "New evidence binds exactly one note-content version in the published tree. Other revisions of that note do not share this credential.",
+        "independentDescription": "Each published project version has one aggregate credential. The Memo contains no document bodies.",
         "retryTitleAlert": "Retry the original evidence subject",
         "loadOptionsFailed": "Failed to load issuable content",
         "project": "Project",
         "selectProject": "Select project",
         "publishedVersion": "Published project version",
         "selectPublishedVersion": "Select published project version",
-        "category": "Category",
-        "selectCategory": "Select category",
-        "note": "Note",
-        "selectNote": "Select note",
-        "contentVersion": "Content version",
-        "selectContentVersion": "Select a content version for this note",
         "network": "Evidence network",
-        "preparedTitle": "Content hash, parent release, and wallet balance all passed validation",
+        "preparedTitle": "Publication snapshot, content integrity and wallet balance checked",
         "preparedDescription": "Review every receipt field below. Your wallet signature window opens only after confirmation.",
         "signer": "Signing wallet / Fee payer",
         "notConnected": "Not connected",
@@ -1855,10 +1832,6 @@
         "mainnetConfirmTitle": "Use real SOL to issue formal evidence?",
         "mainnetConfirmDescription": "Estimated fee: {fee} SOL. Mainnet evidence becomes this service's formal credential.",
         "mainnetConfirm": "Confirm signature"
-      },
-      "contentStatus": {
-        "enabled": "Enabled",
-        "disabled": "Disabled"
       },
       "units": {
         "lamports": "{value} lamports"
@@ -2380,7 +2353,12 @@
       "releaseVerified": "The on-chain transaction, this site's evidence protocol, version hash, and signing wallet all match.",
       "releaseUnverified": "Live on-chain verification could not be completed. This does not downgrade a receipt's confirmed local status.",
       "contractVerified": "The on-chain transaction, contract tamper-evidence protocol, contract digest, and administrator signing wallet all match.",
-      "contractUnverified": "Live on-chain verification could not be completed. This does not disclose the contract body or signer identity."
+      "contractUnverified": "Live on-chain verification could not be completed. This does not disclose the contract body or signer identity.",
+      "chain": "On-chain transaction match",
+      "integrity": "Publication content integrity",
+      "matched": "Passed",
+      "mismatched": "Failed",
+      "unavailable": "Source is unavailable for verification"
     }
   },
   "Maintenance": {
@@ -2409,5 +2387,37 @@
     "backToEditor": "Return to version editor",
     "emptyTitle": "No notes to preview",
     "emptyDescription": "Enable categories and notes, and assign each note one enabled primary body."
+  },
+  "ProjectCredential": {
+    "menu": "Project version credential",
+    "view": "View credential",
+    "download": "Download Manifest",
+    "title": "Project version credential",
+    "refresh": "Refresh status",
+    "retry": "Retry",
+    "loadFailed": "Unable to load credential",
+    "permissionLoading": "Checking download access",
+    "downloadDisabled": "Downloads are disabled for this project",
+    "loginRequired": "Sign in to download",
+    "membershipRequired": "A qualifying membership is required",
+    "description": "This credential binds the publication name, version, and aggregate digest of category names, note titles, and exact Markdown bodies.",
+    "projectName": "Publication project name",
+    "version": "Version",
+    "publishedAt": "Published",
+    "contentHash": "Version content hash",
+    "releaseHash": "Credential hash",
+    "wallet": "Signing wallet",
+    "transaction": "Transaction signature",
+    "blockTime": "Block time",
+    "receipt": "View chain receipt",
+    "devnetNote": "Devnet is a test network. Test and mainnet credentials are shown separately.",
+    "noTransaction": "No chain transaction yet.",
+    "status": {
+      "notSubmitted": "Not on chain",
+      "awaitingSignature": "Awaiting signature",
+      "confirming": "Confirming",
+      "finalized": "On chain",
+      "failed": "Failed"
+    }
   }
 }
