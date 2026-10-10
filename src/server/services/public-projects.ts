@@ -181,16 +181,6 @@ async function requireVersion(projectId: number, versionId: number) {
     },
     include: {
       project: { select: { isDeleted: true, status: true } },
-      releaseCredentials: {
-        where: { status: 2, subjectType: 'PROJECT_VERSION' },
-        orderBy: { finalizedAt: 'desc' },
-        select: {
-          network: true,
-          transactionSignature: true,
-          signerAddress: true,
-          finalizedAt: true,
-        },
-      },
     },
   })
   if (!version || version.project.isDeleted || version.project.status !== 1) {
@@ -283,12 +273,6 @@ export async function getProjectNote(
     releaseHash: version.releaseHash!,
     manifestVersion: version.manifestVersion!,
     publishedAt: version.publishedAt!,
-    evidence: version.releaseCredentials.map((credential) => ({
-      network: credential.network,
-      transactionSignature: credential.transactionSignature!,
-      signerAddress: credential.signerAddress,
-      finalizedAt: credential.finalizedAt!,
-    })),
     noteEvidence: noteEvidence.map((credential) => ({
       network: credential.network,
       transactionSignature: credential.transactionSignature!,

@@ -26,12 +26,9 @@ import type { SolanaNetwork } from '@/server/services/system-config'
 
 export const NOTE_CONTENT_EVIDENCE_PROTOCOL = 'slothvault.note-content'
 export const NOTE_CONTENT_EVIDENCE_PROTOCOL_VERSION = 1
-export const PROJECT_VERSION_EVIDENCE_SUBJECT = 'PROJECT_VERSION'
 export const NOTE_CONTENT_EVIDENCE_SUBJECT = 'NOTE_CONTENT'
 
-export type EvidenceSubjectType =
-  | typeof PROJECT_VERSION_EVIDENCE_SUBJECT
-  | typeof NOTE_CONTENT_EVIDENCE_SUBJECT
+export type EvidenceSubjectType = typeof NOTE_CONTENT_EVIDENCE_SUBJECT
 
 export type NoteContentEvidenceSource = {
   releaseId: string

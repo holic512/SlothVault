@@ -42,9 +42,9 @@ import {
   submitReleaseEvidence,
 } from '@/server/services/release-evidence'
 import {
-  buildEvidenceTransaction,
-  evidenceMessageHash,
-} from '@/server/services/release-evidence-protocol'
+  buildNoteContentEvidenceTransaction,
+  noteContentEvidenceMessageHash,
+} from '@/server/services/note-content-evidence-protocol'
 
 describe('release evidence durable submission', () => {
   beforeEach(() => {
@@ -54,14 +54,14 @@ describe('release evidence durable submission', () => {
 
   it('commits the transaction signature before the first RPC broadcast', async () => {
     const wallet = Keypair.generate()
-    const memo = '{"protocol":"slothvault.release"}'
-    const transaction = buildEvidenceTransaction({
+    const memo = '{"protocol":"slothvault.note-content"}'
+    const transaction = buildNoteContentEvidenceTransaction({
       memo,
       signer: wallet.publicKey,
       blockhash: '11111111111111111111111111111111',
       lastValidBlockHeight: 123,
     })
-    const messageHash = evidenceMessageHash(transaction)
+    const messageHash = noteContentEvidenceMessageHash(transaction)
     transaction.sign(wallet)
     const signedTransactionBase64 = transaction.serialize().toString('base64')
 
@@ -74,7 +74,7 @@ describe('release evidence durable submission', () => {
       messageHash,
       expiresAt: new Date(Date.now() + 60_000),
       status: 0,
-      credential: { id: 9, network: 'devnet', status: 0, transactionSignature: null },
+      credential: { id: 9, subjectType: 'NOTE_CONTENT', network: 'devnet', status: 0, transactionSignature: null },
     })
     mocks.prisma.releaseCredentialAttempt.findFirst.mockResolvedValue({ id: 7 })
     mocks.execute.mockImplementation(async (operation: unknown) => {
@@ -98,6 +98,7 @@ describe('release evidence durable submission', () => {
     )
     mocks.prisma.releaseCredential.findUnique.mockResolvedValue({
       id: 9,
+      subjectType: 'NOTE_CONTENT',
       network: 'devnet',
       status: CREDENTIAL_STATUS.FINALIZED,
       transactionSignature: bs58.encode(transaction.signature!),
@@ -117,6 +118,7 @@ describe('release evidence durable submission', () => {
   it('never downgrades an already finalized credential when historical RPC data is unavailable', async () => {
     const finalized = {
       id: 9,
+      subjectType: 'NOTE_CONTENT',
       network: 'mainnet',
       status: CREDENTIAL_STATUS.FINALIZED,
       transactionSignature: 'finalized-signature',

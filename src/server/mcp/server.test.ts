@@ -31,7 +31,7 @@ const mocks = vi.hoisted(() => ({
   listUserPointTransactions: vi.fn(), listUsers: vi.fn(),
   getManagedUserMembership: vi.fn(), listMembershipLevels: vi.fn(),
   createWorkflow: vi.fn(), getWorkflow: vi.fn(), listWorkflows: vi.fn(), executeWorkflowCommand: vi.fn(), listSimpleTemplates: vi.fn(),
-  createAdminContract: vi.fn(), getAdminContract: vi.fn(), listAdminContracts: vi.fn(),
+  getAdminContract: vi.fn(), listAdminContracts: vi.fn(),
   readAuthorizedContractAttachment: vi.fn(),
   getAdminReleaseEvidence: vi.fn(), listReleaseEvidence: vi.fn(),
   getSystemUpdateInfo: vi.fn(),
@@ -143,7 +143,6 @@ vi.mock('@/server/commissions/workflow', () => ({ createWorkflow: mocks.createWo
 vi.mock('@/server/commissions/simple-templates', () => ({ listSimpleTemplates: mocks.listSimpleTemplates }))
 
 vi.mock('@/server/services/contracts', () => ({
-  createAdminContract: mocks.createAdminContract,
   getAdminContract: mocks.getAdminContract,
   listAdminContracts: mocks.listAdminContracts,
   readAuthorizedContractAttachment: mocks.readAuthorizedContractAttachment,

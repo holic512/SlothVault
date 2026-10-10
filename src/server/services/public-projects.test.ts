@@ -55,7 +55,7 @@ describe('public project reading', () => {
     expect(mocks.prisma.projectHome.findUnique).toHaveBeenCalledWith({ where: { projectId: 4 } })
   })
 
-  it('returns finalized evidence shared by every article in a release', async () => {
+  it('returns only content evidence and does not expose retired release credentials', async () => {
     const updatedAt = new Date('2026-07-30T12:00:00.000Z')
     const issuedAt = new Date('2026-07-30T13:00:00.000Z')
     mocks.prisma.projectVersion.findFirst.mockResolvedValue({
@@ -111,12 +111,6 @@ describe('public project reading', () => {
       releaseHash: 'a'.repeat(64),
       manifestVersion: 1,
       publishedAt: new Date('2026-07-30T11:00:00.000Z'),
-      evidence: [{
-        transactionSignature: 'Signature1111111111111111111111111111111',
-        signerAddress: 'Owner111111111111111111111111111111111111',
-        network: 'devnet',
-        finalizedAt: issuedAt,
-      }],
       noteEvidence: [{
         transactionSignature: 'ContentSignature111111111111111111111111111',
         signerAddress: 'Owner111111111111111111111111111111111111',

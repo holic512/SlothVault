@@ -113,6 +113,9 @@ describe('admin dashboard service', () => {
     expect(result.overview.users.totalPoints).toBe(0)
     expect(result.overview.files).toMatchObject({ total: 0, totalSizeBytes: 0n, byType: [] })
     expect(result.overview.blockchain.evidence).toEqual({ total: 5, finalized: 2, failed: 1, pending: 2 })
+    expect(mocks.prisma.releaseCredential.count.mock.calls.map(([input]) => input.where)).toEqual([
+      { subjectType: 'NOTE_CONTENT' }, { subjectType: 'NOTE_CONTENT', status: 2 }, { subjectType: 'NOTE_CONTENT', status: -1 },
+    ])
     expect(result.health).toEqual({
       projectUtilization: 0,
       articlePublicationRate: 0,

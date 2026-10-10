@@ -71,12 +71,6 @@
     },
     "evidence": {
       "verify": "Verify receipt",
-      "release": {
-        "label": "Release transaction evidence",
-        "devnet": "Test evidence · Devnet",
-        "mainnet": "Verified evidence · Mainnet",
-        "description": "The signing wallet recorded the complete hash of this version in a Solana Memo."
-      },
       "content": {
         "label": "Document-content version evidence",
         "devnet": "Document test evidence · Devnet",
@@ -296,22 +290,6 @@
       "error": "Invalid username or password"
     }
   },
-  "AdminInit": {
-    "hero": {
-      "badge": "Admin Setup",
-      "title": "Initialize Admin",
-      "desc": "Set up your admin account to get started"
-    },
-    "form": {
-      "username": "Admin Username",
-      "password": "Password",
-      "submit": "Initialize Account"
-    },
-    "status": {
-      "required": "Please fill in all required fields",
-      "error": "Initialization failed, please try again"
-    }
-  },
   "Install": {
     "hero": {
       "badge": "First-run deployment protocol",
@@ -475,23 +453,19 @@
     "login": "Sign in",
     "register": "Create account",
     "account": "Account overview",
-    "accountContracts": "My contracts",
     "accountPoints": "Points center",
     "accountMembership": "Membership center",
     "accountProfile": "Profile",
     "accountSecurity": "Security & sign-in",
     "adminLogin": "Admin Login",
-    "adminInit": "Initialize Admin",
     "adminArticles": "Article Management",
     "adminArticleEdit": "Article Editor",
     "adminDashboard": "Admin Dashboard",
     "adminProjects": "Project Management",
     "adminTrash": "Trash",
-    "adminContracts": "Contract Management",
     "adminNotes": "Note Editor",
     "adminNoteContent": "Note Editor",
     "adminFiles": "File Management",
-    "adminSolana": "Release Transaction Evidence",
     "adminBackup": "Backup Management",
     "adminSettings": "System Settings",
     "adminProjectHome": "Home Editor",
@@ -522,7 +496,6 @@
       "files": "File Management",
       "users": "User Management",
       "membershipLevels": "Membership Types",
-      "contracts": "Contracts",
       "giftCards": "Gift Cards",
       "solana": "Evidence System",
       "backup": "Backup Management",
@@ -676,7 +649,6 @@
       "actions": {
         "search": "Search",
         "reset": "Reset",
-        "importKnowledge": "Import knowledge",
         "create": "New Project",
         "batchDelete": "Batch Delete",
         "batchRestore": "Batch Restore",
@@ -1275,10 +1247,6 @@
         "selectFirst": "Please select files to delete"
       }
     },
-    "solana": {
-      "title": "Release Transaction Evidence",
-      "desc": "Sign published release hashes with the connected wallet and verify them through Solana Memo transactions"
-    },
     "settings": {
       "title": "System Settings",
       "desc": "Manage system branding, website filings, and transaction-evidence network profiles",
@@ -1789,8 +1757,6 @@
       },
       "subject": {
         "noteContent": "Note content",
-        "projectVersion": "Published release",
-        "legacyProjectVersion": "Published release (legacy)",
         "noteFallback": "Note",
         "unnamedVersion": "Unnamed version",
         "noHash": "No hash",
@@ -1823,7 +1789,6 @@
         "recordCount": "{count} records",
         "all": "All",
         "myWallet": "My wallet",
-        "subjectType": "Subject type",
         "status": "Status",
         "transaction": "Transaction signature"
       },
@@ -1853,7 +1818,6 @@
         "title": "Evidence issuance receipt",
         "subject": "Evidence subject",
         "contentHash": "Content version hash",
-        "releaseHash": "Published release hash",
         "networkTrust": "Network trust level",
         "wallet": "Signing wallet",
         "transaction": "Public signature",
@@ -1866,7 +1830,6 @@
         "independentTitle": "Publishing and evidence are independent",
         "independentDescription": "New evidence binds exactly one note-content version in the published tree. Other revisions of that note do not share this credential.",
         "retryTitleAlert": "Retry the original evidence subject",
-        "legacyRetry": "{project} / {version} (legacy release credential)",
         "loadOptionsFailed": "Failed to load issuable content",
         "project": "Project",
         "selectProject": "Select project",
@@ -1974,140 +1937,6 @@
         "points": "Points per card",
         "quantity": "Quantity",
         "expiresAt": "Expiry time (optional)"
-      }
-    },
-    "contracts": {
-      "flow": {
-        "title": "Draft → Review → Send → Recipient accepts",
-        "description": "Specify both parties, scope, fees, delivery, acceptance and change terms. Review before issuing; chain evidence is optional after acceptance.",
-        "pending": "Waiting for the recipient to review and accept in My contracts.",
-        "declined": "No reason was provided. Discuss changes before issuing a new contract."
-      },
-      "status": {
-        "cancelled": "Cancelled",
-        "declined": "Declined",
-        "draft": "Draft",
-        "pending": "Awaiting signature",
-        "signed": "Signed",
-        "unknown": "Unknown"
-      },
-      "credentialStatus": {
-        "failed": "Failed",
-        "awaitingWallet": "Awaiting wallet signature",
-        "confirming": "Confirming on-chain",
-        "anchored": "Anchored on-chain"
-      },
-      "audit": {
-        "DRAFT_CREATED": "Draft created",
-        "DRAFT_UPDATED": "Draft updated",
-        "ISSUED": "Contract issued and frozen",
-        "CANCELLED": "Contract cancelled",
-        "EVIDENCE_PREPARED": "Prepared on-chain transaction",
-        "EVIDENCE_SUBMITTED": "Submitted on-chain transaction",
-        "EVIDENCE_RECONCILED": "Reconciled on-chain status",
-        "EVIDENCE_ATTEMPT_CANCELLED": "Cancelled wallet signature request"
-      },
-      "actions": {
-        "refresh": "Refresh",
-        "create": "New contract",
-        "details": "Details",
-        "edit": "Edit",
-        "issue": "Issue",
-        "cancel": "Cancel",
-        "evidence": "Anchor on-chain",
-        "reconcile": "Reconcile",
-        "saveDraft": "Save draft",
-        "uploadPdf": "Upload PDF",
-        "removeAttachment": "Remove draft attachment",
-        "back": "Back to edit",
-        "prepare": "Prepare on-chain transaction",
-        "sign": "Confirm hash and request administrator wallet signature"
-      },
-      "messages": {
-        "draftSaved": "Contract draft saved",
-        "draftCreated": "Contract draft created",
-        "issued": "Contract frozen and sent to the selected user",
-        "cancelled": "Contract cancelled",
-        "submitted": "Transaction submitted; the system will continue verifying finality",
-        "reconciled": "On-chain status rechecked",
-        "attachmentUploaded": "PDF attachment uploaded and will be linked when the draft is saved",
-        "connectWallet": "Connect the administrator wallet first",
-        "walletMismatch": "The current wallet does not match the prepared contract credential"
-      },
-      "filters": {
-        "keyword": "Search contract title",
-        "allStatus": "All statuses"
-      },
-      "table": {
-        "contract": "Contract",
-        "subject": "Signing user",
-        "status": "Status",
-        "evidenceStatus": "On-chain status",
-        "issuedAt": "Issued",
-        "operations": "Actions"
-      },
-      "empty": "—",
-      "notIssued": "Not issued",
-      "drawer": {
-        "create": "New contract draft",
-        "edit": "Edit contract draft",
-        "detail": "Contract snapshot and signature audit",
-        "evidence": "Administrator on-chain evidence"
-      },
-      "form": {
-        "subject": "Signing user",
-        "selectSubject": "Choose user",
-        "subjectRequired": "Choose one active user",
-        "title": "Contract title",
-        "titlePlaceholder": "For example: Service confirmation agreement",
-        "body": "Authoritative contract body (Markdown)",
-        "bodyPlaceholder": "Specify both parties, scope and exclusions, payment, delivery, acceptance, revisions, intellectual property and termination terms. Content cannot change once issued.",
-        "preview": "Preview contract body",
-        "attachment": "PDF attachment (optional)",
-        "attachmentHint": "The PDF is a protected frozen attachment; the body above remains the authoritative contract content.",
-        "network": "Evidence network"
-      },
-      "dialog": {
-        "issueTitle": "Issue contract",
-        "issueContent": "The body and PDF attachment will be frozen, then the selected user can sign from the account center.",
-        "issueOk": "Freeze and send",
-        "cancelTitle": "Cancel contract",
-        "cancelContent": "A cancelled contract cannot be restored or edited.",
-        "cancelOk": "Confirm cancellation",
-        "adminWallet": "Only the administrator wallet signs the on-chain transaction",
-        "adminWalletDescription": "The user signed the contract through a Web2 session. The Memo contains only contract-hash and verification fields, never the body, PDF, or identity data.",
-        "mainnetFee": "Mainnet consumes real SOL",
-        "devnetTest": "Devnet is for testing only",
-        "feeExpires": "Estimated fee: {fee} SOL; this request expires at {date}."
-      },
-      "detail": {
-        "issuer": "Issuer",
-        "frozen": "Frozen contract",
-        "state": "State",
-        "id": "Contract ID",
-        "bodyHash": "Body SHA-256",
-        "rootHash": "Contract root hash",
-        "pendingRootHash": "Generated after the user signs",
-        "attachment": "PDF attachment",
-        "none": "None",
-        "issuedAt": "Issued",
-        "signedAt": "Signed",
-        "notSigned": "Not signed",
-        "declined": "User declined the contract",
-        "web2Audit": "Web2 signing audit",
-        "session": "Session reference",
-        "ip": "Client IP",
-        "userAgent": "User-Agent",
-        "adminAudit": "Administrator audit",
-        "mainnetCredential": "Mainnet credential",
-        "devnetCredential": "Devnet test credential",
-        "noSignature": "No transaction signature has been generated",
-        "openVerification": "Open public verification",
-        "contract": "Contract",
-        "summary": "Contract digest",
-        "wallet": "Current wallet",
-        "notConnected": "Not connected",
-        "selectedPdf": "Selected {size} KB PDF"
       }
     },
     "users": {
@@ -2374,7 +2203,6 @@
       "security": "Security and sign-in",
       "points": "Points",
       "membership": "Membership",
-      "contracts": "My contracts",
       "admin": "Admin console",
       "logout": "Sign out",
       "commissions": "My commissions"
@@ -2384,7 +2212,6 @@
       "overview": "Account overview",
       "profile": "Profile",
       "security": "Security and sign-in",
-      "contracts": "My contracts",
       "points": "Points",
       "membership": "Membership",
       "administrator": "Administrator",
@@ -2437,7 +2264,6 @@
         "security": "Manage security and sign-in",
         "points": "Redeem codes and view points",
         "membership": "Manage membership benefits",
-        "contracts": "Review and sign contracts",
         "commissions": "My commissions"
       },
       "identity": {

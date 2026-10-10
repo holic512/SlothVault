@@ -2,48 +2,28 @@
  * @file contracts.ts
  * @project SlothVault
  * @module Web2 Contract and Evidence Service
- * @description Owns explicit document confirmation, protected attachments, and optional Solana evidence for commissioned work.
- * @logic Delegate commission draft freezing to the snapshot service, append real account confirmation audit facts atomically, and accept a chain credential only when its finalized Memo matches the stored private snapshot.
- * @dependencies Commission document snapshots, Prisma contracts/files/users, Solana Memo transaction/runtime, installation/network configuration
+ * @description Reads retained contracts and protected attachments, and verifies existing contract evidence.
+ * @logic Authorize retained document reads, validate frozen snapshots, and reconcile existing credentials against finalized chain facts.
+ * @dependencies Prisma contracts/files/users, Solana Memo transaction/runtime, network configuration
  * @index_tags contracts,web2,signature,attachment,authorization,solana,evidence,verification
  * @author holic512
  */
 import 'server-only'
 
-import { randomBytes, randomUUID } from 'node:crypto'
-
 import type { Prisma } from '@generated/prisma-postgresql/client'
-import { PublicKey } from '@solana/web3.js'
 
 import { unitOfWork } from '@/server/database/unit-of-work'
-import { applyCommissionSignature, assertDocumentSnapshot, endCommissionDocument, issueCommissionDocument } from '@/server/commissions/documents'
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
 import {
-  contractAttachmentHash,
-  contractBodyHash,
-  canonicalContractEvidenceMemo,
-  contractRootHash,
-  normalizeContractBody,
-  partyCommitment,
-} from '@/server/services/contract-evidence-protocol'
-import {
   evidenceRpcError,
   finalizedEvidenceTransaction,
-  isEvidenceRpcConnectionFailure,
   withEvidenceRpc,
 } from '@/server/services/release-evidence-chain'
-import {
-  assertSignedMemoTransaction,
-  buildMemoTransaction,
-  memoTransactionMessageHash,
-  parseSignedMemoTransaction,
-  serializePreparedMemoTransaction,
-} from '@/server/services/solana-memo-transaction'
+import { assertSignedMemoTransaction } from '@/server/services/solana-memo-transaction'
 import { readManagedFile } from '@/server/services/admin-files'
 import {
   getSolanaNetworkProfile,
-  requireEnabledSolanaNetwork,
   type SolanaNetwork,
 } from '@/server/services/system-config'
 
@@ -70,18 +50,8 @@ export const CONTRACT_CREDENTIAL_ATTEMPT_STATUS = {
 } as const
 
 export const CONTRACT_ADMIN_AUDIT_ACTION = {
-  DRAFT_CREATED: 'DRAFT_CREATED',
-  DRAFT_UPDATED: 'DRAFT_UPDATED',
-  ISSUED: 'ISSUED',
-  CANCELLED: 'CANCELLED',
-  EVIDENCE_PREPARED: 'EVIDENCE_PREPARED',
-  EVIDENCE_SUBMITTED: 'EVIDENCE_SUBMITTED',
   EVIDENCE_RECONCILED: 'EVIDENCE_RECONCILED',
-  EVIDENCE_ATTEMPT_CANCELLED: 'EVIDENCE_ATTEMPT_CANCELLED',
 } as const
-
-const PREPARE_TTL_MS = 10 * 60 * 1_000
-const CONTRACT_BODY_MAX_LENGTH = 100_000
 
 type ContractRecord = {
   commissionId?: number | null
@@ -170,77 +140,6 @@ const contractInclude = {
     include: { actorUser: { select: { username: true, displayName: true } } },
   },
 } satisfies Prisma.ContractInclude
-
-function hasPrismaCode(error: unknown, code: string) {
-  return typeof error === 'object' && error !== null && 'code' in error &&
-    (error as { code?: unknown }).code === code
-}
-
-function parseSigner(address: string) {
-  try {
-    return new PublicKey(address.trim())
-  } catch {
-    throw new HttpError('Invalid signer wallet address', 400, 400)
-  }
-}
-
-function normalizedTitle(value: string) {
-  const title = value.trim()
-  if (!title || title.length > 255) throw new HttpError('Contract title must contain 1–255 characters', 400, 400)
-  return title
-}
-
-function normalizedBody(value: string) {
-  const body = normalizeContractBody(value)
-  if (body.trim().length === 0 || body.length > CONTRACT_BODY_MAX_LENGTH) {
-    throw new HttpError('Contract body must contain 1–100000 characters', 400, 400)
-  }
-  return body
-}
-
-async function installationId() {
-  const installation = await prisma.systemInstallation.findFirst({
-    orderBy: { id: 'asc' },
-    select: { installationId: true },
-  })
-  if (!installation) throw new HttpError('System installation identity is missing', 409, 409)
-  return installation.installationId
-}
-
-async function requireSubjectUser(subjectUserId: number) {
-  const user = await prisma.user.findUnique({
-    where: { id: subjectUserId },
-    select: { id: true, role: true, status: true },
-  })
-  if (!user || user.status !== 1 || user.role !== 'USER') {
-    throw new HttpError('An active regular user is required as the contract party', 400, 400)
-  }
-  return user
-}
-
-async function contractAttachment(input: { attachmentFileId: number | null }) {
-  if (!input.attachmentFileId) return { attachmentFileId: null, attachmentHash: null }
-  const { file, buffer } = await readManagedFile(input.attachmentFileId)
-  if (
-    file.businessType !== 'ContractAttachment' ||
-    !file.originalName.toLowerCase().endsWith('.pdf') ||
-    !buffer.subarray(0, 5).equals(Buffer.from('%PDF-'))
-  ) {
-    throw new HttpError('Contract attachment must be a managed PDF upload', 400, 400)
-  }
-  return {
-    attachmentFileId: file.id,
-    attachmentHash: contractAttachmentHash(buffer),
-  }
-}
-
-function nextPartyCommitment(contractId: string, subjectUserId: number) {
-  return partyCommitment({
-    contractId,
-    subjectUserId,
-    nonce: randomBytes(32).toString('hex'),
-  })
-}
 
 function credentialDto(credential: ContractRecord['credentials'][number]) {
   return {
@@ -335,45 +234,6 @@ async function requireContract(id: number) {
   return contract
 }
 
-async function assertFrozenContractIntegrity(contract: ContractRecord) {
-  if (contract.commissionId) assertDocumentSnapshot({ ...contract, snapshotJson: contract.snapshotJson || null })
-  if (!contract.issuedAt || !contract.installationId) throw new HttpError('Contract issuance record is missing', 409, 409)
-  if (contractBodyHash(contract.body) !== contract.bodyHash) {
-    throw new HttpError('Contract body integrity verification failed', 409, 409)
-  }
-  if (contract.attachmentFileId) {
-    const attachment = await contractAttachment({ attachmentFileId: contract.attachmentFileId })
-    if (attachment.attachmentHash !== contract.attachmentHash) {
-      throw new HttpError('Contract attachment integrity verification failed', 409, 409)
-    }
-  } else if (contract.attachmentHash) {
-    throw new HttpError('Contract attachment metadata is inconsistent', 409, 409)
-  }
-}
-
-async function verifiedContractHash(contract: ContractRecord) {
-  await assertFrozenContractIntegrity(contract)
-  if (!contract.signedAt || !contract.contractHash) throw new HttpError('Contract has not been signed', 409, 409)
-  if (!contract.installationId || !contract.issuedAt) {
-    throw new HttpError('Contract issuance record is missing', 409, 409)
-  }
-  const computed = contractRootHash({
-    snapshotHash: contract.snapshotHash,
-    installationId: contract.installationId,
-    contractId: contract.contractId,
-    title: contract.title,
-    bodyHash: contract.bodyHash,
-    attachmentHash: contract.attachmentHash,
-    partyCommitment: contract.partyCommitment,
-    issuedAt: contract.issuedAt,
-    signedAt: contract.signedAt,
-  })
-  if (computed !== contract.contractHash) {
-    throw new HttpError('Contract root hash integrity verification failed', 409, 409)
-  }
-  return computed
-}
-
 export async function listAdminContracts(input: {
   page: number
   pageSize: number
@@ -404,164 +264,6 @@ export async function listAdminContracts(input: {
 
 export async function getAdminContract(id: number) {
   return contractDto(await requireContract(id), true)
-}
-
-export async function createAdminContract(input: {
-  issuerUserId: number
-  subjectUserId: number
-  title: string
-  body: string
-  attachmentFileId?: number | null
-  issueImmediately?: boolean
-}) {
-  await requireSubjectUser(input.subjectUserId)
-  const contractId = randomUUID()
-  const body = normalizedBody(input.body)
-  const attachment = await contractAttachment({ attachmentFileId: input.attachmentFileId ?? null })
-  const issuedAt = input.issueImmediately ? new Date() : null
-  const currentInstallationId = input.issueImmediately ? await installationId() : null
-  try {
-    const contract = await prisma.contract.create({
-      data: {
-        contractId,
-        status: input.issueImmediately ? CONTRACT_STATUS.PENDING_SIGNATURE : CONTRACT_STATUS.DRAFT,
-        issuedAt,
-        installationId: currentInstallationId,
-        issuerUserId: input.issuerUserId,
-        subjectUserId: input.subjectUserId,
-        title: normalizedTitle(input.title),
-        body,
-        bodyHash: contractBodyHash(body),
-        attachmentFileId: attachment.attachmentFileId,
-        attachmentHash: attachment.attachmentHash,
-        partyCommitment: nextPartyCommitment(contractId, input.subjectUserId),
-        adminAudits: {
-          create: [
-            { actorUserId: input.issuerUserId, action: CONTRACT_ADMIN_AUDIT_ACTION.DRAFT_CREATED },
-            ...(input.issueImmediately ? [{ actorUserId: input.issuerUserId, action: CONTRACT_ADMIN_AUDIT_ACTION.ISSUED }] : []),
-          ],
-        },
-      },
-      include: contractInclude,
-    })
-    return contractDto(contract as ContractRecord, true)
-  } catch (error) {
-    if (hasPrismaCode(error, 'P2025')) throw new HttpError('Contract changed; refresh and try again', 409, 409)
-    if (hasPrismaCode(error, 'P2002')) throw new HttpError('Contract attachment is already in use', 409, 409)
-    throw error
-  }
-}
-
-export async function updateAdminContract(input: {
-  id: number
-  issuerUserId: number
-  subjectUserId: number
-  title: string
-  body: string
-  attachmentFileId?: number | null
-}) {
-  const current = await requireContract(input.id)
-  if (current.status !== CONTRACT_STATUS.DRAFT) {
-    throw new HttpError('Only a draft contract can be edited', 409, 409)
-  }
-  await requireSubjectUser(input.subjectUserId)
-  const body = normalizedBody(input.body)
-  const attachment = await contractAttachment({ attachmentFileId: input.attachmentFileId ?? null })
-  try {
-    const contract = await prisma.contract.update({
-      where: { id: input.id, status: CONTRACT_STATUS.DRAFT, updatedAt: current.updatedAt },
-      data: {
-        subjectUserId: input.subjectUserId,
-        title: normalizedTitle(input.title),
-        body,
-        bodyHash: contractBodyHash(body),
-        attachmentFileId: attachment.attachmentFileId,
-        attachmentHash: attachment.attachmentHash,
-        partyCommitment: nextPartyCommitment(current.contractId, input.subjectUserId),
-        updatedAt: new Date(),
-        adminAudits: {
-          create: {
-            actorUserId: input.issuerUserId,
-            action: CONTRACT_ADMIN_AUDIT_ACTION.DRAFT_UPDATED,
-          },
-        },
-      },
-      include: contractInclude,
-    })
-    return contractDto(contract as ContractRecord, true)
-  } catch (error) {
-    if (hasPrismaCode(error, 'P2025')) throw new HttpError('Contract changed; refresh and try again', 409, 409)
-    if (hasPrismaCode(error, 'P2002')) throw new HttpError('Contract attachment is already in use', 409, 409)
-    throw error
-  }
-}
-
-export async function issueAdminContract(input: { id: number; issuerUserId: number; sessionId?: string; ip?: string; userAgent?: string | null }) {
-  const contract = await requireContract(input.id)
-  if (contract.commissionId && contract.status === CONTRACT_STATUS.PENDING_SIGNATURE) return getAdminContract(input.id)
-  if (contract.commissionId) {
-    await requireSubjectUser(contract.subjectUserId)
-    await issueCommissionDocument(input.id, { userId: input.issuerUserId, isAdmin: true, sessionId: input.sessionId, ip: input.ip, userAgent: input.userAgent })
-    return getAdminContract(input.id)
-  }
-  if (contract.status !== CONTRACT_STATUS.DRAFT) {
-    throw new HttpError('Only a draft contract can be issued', 409, 409)
-  }
-  await requireSubjectUser(contract.subjectUserId)
-  const body = normalizedBody(contract.body)
-  const attachment = await contractAttachment({ attachmentFileId: contract.attachmentFileId })
-  const issuedAt = new Date()
-  const currentInstallationId = await installationId()
-  const issued = await prisma.contract.update({
-    where: { id: input.id, status: CONTRACT_STATUS.DRAFT, updatedAt: contract.updatedAt },
-    data: {
-      body,
-      bodyHash: contractBodyHash(body),
-      attachmentHash: attachment.attachmentHash,
-      partyCommitment: nextPartyCommitment(contract.contractId, contract.subjectUserId),
-      status: CONTRACT_STATUS.PENDING_SIGNATURE,
-      installationId: currentInstallationId,
-      issuedAt,
-      updatedAt: issuedAt,
-      adminAudits: {
-        create: {
-          actorUserId: input.issuerUserId,
-          action: CONTRACT_ADMIN_AUDIT_ACTION.ISSUED,
-        },
-      },
-    },
-    include: contractInclude,
-  }).catch((error: unknown) => {
-    if (hasPrismaCode(error, 'P2025')) throw new HttpError('Contract changed; refresh and try again', 409, 409)
-    throw error
-  })
-  return contractDto(issued as ContractRecord, true)
-}
-
-export async function cancelAdminContract(input: { id: number; issuerUserId: number }) {
-  const contract = await requireContract(input.id)
-  if (contract.commissionId && contract.status === CONTRACT_STATUS.CANCELLED) return getAdminContract(input.id)
-  if (contract.status !== CONTRACT_STATUS.DRAFT && contract.status !== CONTRACT_STATUS.PENDING_SIGNATURE) {
-    throw new HttpError('Only a draft or pending contract can be cancelled', 409, 409)
-  }
-  const cancelledAt = new Date()
-  const cancelled = await unitOfWork.execute(async (tx) => {
-    const record = await tx.contract.updateMany({
-      where: { id: input.id, status: contract.status, updatedAt: contract.updatedAt },
-      data: { status: CONTRACT_STATUS.CANCELLED, cancelledAt, updatedAt: cancelledAt },
-    })
-    if (record.count !== 1) throw new HttpError('Contract changed; refresh and try again', 409, 409)
-    await tx.contractAdminAudit.create({
-      data: {
-        contractId: input.id,
-        actorUserId: input.issuerUserId,
-        action: CONTRACT_ADMIN_AUDIT_ACTION.CANCELLED,
-      },
-    })
-    await endCommissionDocument(tx, contract, input.issuerUserId, 'CANCELLED')
-    return input.id
-  })
-  return getAdminContract(cancelled)
 }
 
 export async function listUserContracts(userId: number, input: { page: number; pageSize: number }) {
@@ -596,107 +298,10 @@ export async function getUserContract(userId: number, id: number) {
   return contractDto(contract)
 }
 
-export async function signUserContract(input: {
-  id: number
-  userId: number
-  sessionId: string
-  ip: string
-  userAgent: string | null
-}) {
-  const contract = await requireContract(input.id)
-  if (contract.subjectUserId !== input.userId) throw new HttpError('Contract not found', 404, 404)
-  if (contract.commissionId && contract.status === CONTRACT_STATUS.SIGNED) return getUserContract(input.userId, input.id)
-  if (contract.status !== CONTRACT_STATUS.PENDING_SIGNATURE) {
-    throw new HttpError('This contract is not awaiting your signature', 409, 409)
-  }
-  await assertFrozenContractIntegrity(contract)
-  const signedAt = new Date()
-  const hash = contractRootHash({
-    snapshotHash: contract.snapshotHash,
-    installationId: contract.installationId!,
-    contractId: contract.contractId,
-    title: contract.title,
-    bodyHash: contract.bodyHash,
-    attachmentHash: contract.attachmentHash,
-    partyCommitment: contract.partyCommitment,
-    issuedAt: contract.issuedAt!,
-    signedAt,
-  })
-  const signatureUpdate = {
-    where: {
-      id: input.id,
-      subjectUserId: input.userId,
-      status: CONTRACT_STATUS.PENDING_SIGNATURE,
-    },
-    data: {
-      status: CONTRACT_STATUS.SIGNED,
-      signedAt,
-      signedSessionId: input.sessionId,
-      signedIp: input.ip.slice(0, 255),
-      signedUserAgent: input.userAgent?.slice(0, 4_000) || null,
-      contractHash: hash,
-      updatedAt: signedAt,
-    },
-  }
-  const signed = contract.commissionId ? await unitOfWork.execute(async (tx) => {
-    const result = await tx.contract.updateMany(signatureUpdate)
-    if (result.count !== 1) throw new HttpError('This contract is not awaiting your signature', 409, 409)
-    await applyCommissionSignature(tx, { id: contract.id, commissionId: contract.commissionId || null, documentType: contract.documentType || 'AGREEMENT', sourceRecordId: contract.sourceRecordId || null, snapshotJson: contract.snapshotJson || null, subjectUserId: contract.subjectUserId }, signedAt)
-    return result
-  }) : await prisma.contract.updateMany(signatureUpdate)
-  if (signed.count !== 1) {
-    throw new HttpError('This contract is not awaiting your signature', 409, 409)
-  }
-  return getUserContract(input.userId, input.id)
-}
-
-export async function declineUserContract(input: { id: number; userId: number; reason?: string | null }) {
-  const contract = await requireContract(input.id)
-  if (contract.subjectUserId !== input.userId) throw new HttpError('Contract not found', 404, 404)
-  if (contract.commissionId && contract.status === CONTRACT_STATUS.DECLINED) return getUserContract(input.userId, input.id)
-  if (contract.status !== CONTRACT_STATUS.PENDING_SIGNATURE) {
-    throw new HttpError('This contract is not awaiting your response', 409, 409)
-  }
-  const declinedAt = new Date()
-  const declineUpdate = {
-    where: {
-      id: input.id,
-      subjectUserId: input.userId,
-      status: CONTRACT_STATUS.PENDING_SIGNATURE,
-    },
-    data: {
-      status: CONTRACT_STATUS.DECLINED,
-      declinedAt,
-      declineReason: input.reason?.trim().slice(0, 500) || null,
-      updatedAt: declinedAt,
-    },
-  }
-  const declined = contract.commissionId ? await unitOfWork.execute(async (tx) => {
-    const result = await tx.contract.updateMany(declineUpdate)
-    if (result.count !== 1) throw new HttpError('This contract is not awaiting your response', 409, 409)
-    await endCommissionDocument(tx, contract, input.userId, 'DECLINED', input.reason || '')
-    return result
-  }) : await prisma.contract.updateMany(declineUpdate)
-  if (declined.count !== 1) {
-    throw new HttpError('This contract is not awaiting your response', 409, 409)
-  }
-  return getUserContract(input.userId, input.id)
-}
-
-async function contractForEvidence(id: number) {
-  const contract = await requireContract(id)
-  if (contract.status !== CONTRACT_STATUS.SIGNED) {
-    throw new HttpError('Only a signed contract can be anchored on chain', 409, 409)
-  }
-  const contractHash = await verifiedContractHash(contract)
-  return { contract, contractHash }
-}
-
 async function failCredentialAttempt(
   attemptId: number,
   code: string,
   message: string,
-  audit?: { actorUserId: number; action: string },
 ) {
   return unitOfWork.execute(async (tx) => {
     const attempt = await tx.contractCredentialAttempt.findUnique({ where: { id: attemptId } })
@@ -721,303 +326,10 @@ async function failCredentialAttempt(
         data: { status: CONTRACT_CREDENTIAL_STATUS.FAILED, updatedAt: new Date() },
       })
     }
-    if (audit) {
-      const credential = await tx.contractCredential.findUnique({
-        where: { id: attempt.credentialId },
-        select: { contractId: true },
-      })
-      if (credential) {
-        await tx.contractAdminAudit.create({
-          data: {
-            contractId: credential.contractId,
-            actorUserId: audit.actorUserId,
-            action: audit.action,
-          },
-        })
-      }
-    }
     return attempt
   })
 }
 
-export async function cancelContractEvidenceAttempt(input: {
-  attemptId: number
-  issuerUserId: number
-  reason?: string
-}) {
-  const attempt = await prisma.contractCredentialAttempt.findUnique({
-    where: { id: input.attemptId },
-    select: { id: true, issuerUserId: true, status: true },
-  })
-  if (!attempt || attempt.issuerUserId !== input.issuerUserId) {
-    throw new HttpError('Contract signing attempt not found', 404, 404)
-  }
-  if (attempt.status !== CONTRACT_CREDENTIAL_ATTEMPT_STATUS.PREPARED) {
-    throw new HttpError('Only an unsigned contract evidence attempt can be cancelled', 409, 409)
-  }
-  await failCredentialAttempt(
-    attempt.id,
-    'WALLET_SIGNATURE_CANCELLED',
-    input.reason || 'The administrator cancelled the wallet signature request',
-    {
-      actorUserId: input.issuerUserId,
-      action: CONTRACT_ADMIN_AUDIT_ACTION.EVIDENCE_ATTEMPT_CANCELLED,
-    },
-  )
-  return { attemptId: String(attempt.id), status: CONTRACT_CREDENTIAL_ATTEMPT_STATUS.FAILED }
-}
-
-export async function prepareContractEvidence(input: {
-  contractId: number
-  network: SolanaNetwork
-  signerAddress: string
-  issuerUserId: number
-}) {
-  await requireEnabledSolanaNetwork(input.network)
-  const signer = parseSigner(input.signerAddress)
-  const { contract, contractHash } = await contractForEvidence(input.contractId)
-  const memo = canonicalContractEvidenceMemo({
-    snapshotHash: contract.snapshotHash,
-    installationId: contract.installationId!,
-    contractId: contract.contractId,
-    contractHash,
-    bodyHash: contract.bodyHash,
-    attachmentHash: contract.attachmentHash,
-    network: input.network,
-    signer: signer.toBase58(),
-  })
-  const existing = await prisma.contractCredential.findUnique({
-    where: { contractId_network: { contractId: contract.id, network: input.network } },
-    include: { attempts: { orderBy: { createdAt: 'desc' }, take: 1 } },
-  })
-  if (existing?.status === CONTRACT_CREDENTIAL_STATUS.FINALIZED) {
-    throw new HttpError('This contract already has finalized evidence on the selected network', 409, 409)
-  }
-  if (existing?.status === CONTRACT_CREDENTIAL_STATUS.SUBMITTED) {
-    await reconcileContractEvidence(existing.id)
-    const current = await prisma.contractCredential.findUnique({ where: { id: existing.id } })
-    if (current?.status !== CONTRACT_CREDENTIAL_STATUS.FAILED) {
-      throw new HttpError('This contract already has a submitted evidence transaction', 409, 409)
-    }
-  }
-  const latestAttempt = existing?.attempts[0]
-  if (existing?.status === CONTRACT_CREDENTIAL_STATUS.PREPARED && latestAttempt && latestAttempt.expiresAt.getTime() > Date.now()) {
-    throw new HttpError('A contract signing request is already active', 409, 409)
-  }
-  if (latestAttempt?.status === CONTRACT_CREDENTIAL_ATTEMPT_STATUS.PREPARED) {
-    await failCredentialAttempt(latestAttempt.id, 'PREPARE_EXPIRED', 'The signing window expired')
-  }
-
-  let prepared: {
-    transactionBase64: string
-    messageHash: string
-    blockhash: string
-    lastValidBlockHeight: number
-    feeLamports: number
-    balanceLamports: number
-  }
-  try {
-    prepared = await withEvidenceRpc(input.network, async (connection) => {
-      const latest = await connection.getLatestBlockhash('confirmed')
-      const transaction = buildMemoTransaction({
-        memo,
-        signer,
-        blockhash: latest.blockhash,
-        lastValidBlockHeight: latest.lastValidBlockHeight,
-      })
-      const [fee, balance] = await Promise.all([
-        connection.getFeeForMessage(transaction.compileMessage()),
-        connection.getBalance(signer, 'confirmed'),
-      ])
-      const feeLamports = fee.value ?? 5_000
-      if (balance < feeLamports) {
-        throw new HttpError('Wallet balance is insufficient for the evidence fee', 400, 400, {
-          reason: 'EVIDENCE_BALANCE_INSUFFICIENT',
-          balanceLamports: balance,
-          requiredLamports: feeLamports,
-        })
-      }
-      return {
-        transactionBase64: serializePreparedMemoTransaction(transaction),
-        messageHash: memoTransactionMessageHash(transaction),
-        blockhash: latest.blockhash,
-        lastValidBlockHeight: latest.lastValidBlockHeight,
-        feeLamports,
-        balanceLamports: balance,
-      }
-    })
-  } catch (error) {
-    evidenceRpcError(error, 'prepare contract evidence')
-  }
-
-  const expiresAt = new Date(Date.now() + PREPARE_TTL_MS)
-  try {
-    const stored = await unitOfWork.execute(async (tx) => {
-      const credential = existing
-        ? await tx.contractCredential.update({
-            where: { id: existing.id },
-            data: {
-              issuerUserId: input.issuerUserId,
-              signerAddress: signer.toBase58(),
-              memo,
-              transactionSignature: null,
-              status: CONTRACT_CREDENTIAL_STATUS.PREPARED,
-              slot: null,
-              blockTime: null,
-              feeLamports: null,
-              finalizedAt: null,
-              lastVerifiedAt: null,
-              updatedAt: new Date(),
-            },
-          })
-        : await tx.contractCredential.create({
-            data: {
-              contractId: contract.id,
-              issuerUserId: input.issuerUserId,
-              network: input.network,
-              signerAddress: signer.toBase58(),
-              memo,
-              status: CONTRACT_CREDENTIAL_STATUS.PREPARED,
-            },
-          })
-      const attempt = await tx.contractCredentialAttempt.create({
-        data: {
-          credentialId: credential.id,
-          issuerUserId: input.issuerUserId,
-          signerAddress: signer.toBase58(),
-          memo,
-          messageHash: prepared.messageHash,
-          recentBlockhash: prepared.blockhash,
-          lastValidBlockHeight: BigInt(prepared.lastValidBlockHeight),
-          expiresAt,
-          status: CONTRACT_CREDENTIAL_ATTEMPT_STATUS.PREPARED,
-        },
-      })
-      await tx.contractAdminAudit.create({
-        data: {
-          contractId: contract.id,
-          actorUserId: input.issuerUserId,
-          action: CONTRACT_ADMIN_AUDIT_ACTION.EVIDENCE_PREPARED,
-        },
-      })
-      return { credential, attempt }
-    })
-    return {
-      credentialId: String(stored.credential.id),
-      attemptId: String(stored.attempt.id),
-      transactionBase64: prepared.transactionBase64,
-      expiresAt: expiresAt.getTime(),
-      feeLamports: prepared.feeLamports,
-      balanceLamports: prepared.balanceLamports,
-      memo,
-      signerAddress: signer.toBase58(),
-      title: contract.title,
-      contractId: contract.contractId,
-      contractHash,
-      network: input.network,
-    }
-  } catch (error) {
-    if (hasPrismaCode(error, 'P2002')) throw new HttpError('This contract already has evidence on the selected network', 409, 409)
-    throw error
-  }
-}
-
-function credentialResult(credential: { id: number; transactionSignature: string | null; status: number; network: string }) {
-  return {
-    credentialId: String(credential.id),
-    transactionSignature: credential.transactionSignature,
-    status: credential.status,
-    network: credential.network,
-  }
-}
-
-export async function submitContractEvidence(input: {
-  attemptId: number
-  signedTransactionBase64: string
-  issuerUserId: number
-}) {
-  const attempt = await prisma.contractCredentialAttempt.findUnique({
-    where: { id: input.attemptId },
-    include: { credential: true },
-  })
-  if (!attempt || attempt.issuerUserId !== input.issuerUserId) throw new HttpError('Contract signing attempt not found', 404, 404)
-  if (attempt.status === CONTRACT_CREDENTIAL_ATTEMPT_STATUS.FINALIZED) return credentialResult(attempt.credential)
-  if (attempt.status === CONTRACT_CREDENTIAL_ATTEMPT_STATUS.SUBMITTED) {
-    return credentialResult(await reconcileContractEvidence(attempt.credentialId, input.issuerUserId))
-  }
-  if (attempt.status === CONTRACT_CREDENTIAL_ATTEMPT_STATUS.FAILED) throw new HttpError('Contract signing attempt has failed; prepare a new one', 409, 409)
-  if (attempt.credential.status === CONTRACT_CREDENTIAL_STATUS.FINALIZED) throw new HttpError('This contract already has finalized evidence on the selected network', 409, 409)
-  const latest = await prisma.contractCredentialAttempt.findFirst({
-    where: { credentialId: attempt.credentialId },
-    orderBy: { createdAt: 'desc' },
-    select: { id: true },
-  })
-  if (latest?.id !== attempt.id || attempt.credential.status !== CONTRACT_CREDENTIAL_STATUS.PREPARED) {
-    throw new HttpError('This contract signing attempt is no longer active', 409, 409)
-  }
-  if (attempt.expiresAt.getTime() <= Date.now()) {
-    await failCredentialAttempt(attempt.id, 'PREPARE_EXPIRED', 'The signing window expired')
-    throw new HttpError('Contract signing request expired', 409, 409)
-  }
-  const transaction = parseSignedMemoTransaction(input.signedTransactionBase64)
-  const signature = assertSignedMemoTransaction({
-    transaction,
-    memo: attempt.memo,
-    signerAddress: attempt.signerAddress,
-    messageHash: attempt.messageHash,
-  })
-  try {
-    await unitOfWork.execute(async (tx) => {
-      await tx.contractCredentialAttempt.update({
-        where: { id: attempt.id },
-        data: {
-          transactionSignature: signature,
-          status: CONTRACT_CREDENTIAL_ATTEMPT_STATUS.SUBMITTED,
-          submittedAt: new Date(),
-          failureCode: null,
-          failureMessage: null,
-          updatedAt: new Date(),
-        },
-      })
-      await tx.contractCredential.update({
-        where: { id: attempt.credentialId },
-        data: { transactionSignature: signature, status: CONTRACT_CREDENTIAL_STATUS.SUBMITTED, updatedAt: new Date() },
-      })
-      await tx.contractAdminAudit.create({
-        data: {
-          contractId: attempt.credential.contractId,
-          actorUserId: input.issuerUserId,
-          action: CONTRACT_ADMIN_AUDIT_ACTION.EVIDENCE_SUBMITTED,
-        },
-      })
-    })
-  } catch (error) {
-    if (hasPrismaCode(error, 'P2002')) throw new HttpError('Transaction signature is already assigned to another contract credential', 409, 409)
-    throw error
-  }
-  try {
-    const submitted = await withEvidenceRpc(
-      attempt.credential.network as SolanaNetwork,
-      (connection) => connection.sendRawTransaction(transaction.serialize(), {
-        maxRetries: 3,
-        preflightCommitment: 'confirmed',
-      }),
-    )
-    if (submitted !== signature) throw new HttpError('RPC returned an unexpected transaction signature', 502, 502)
-  } catch (error) {
-    if (isEvidenceRpcConnectionFailure(error)) {
-      console.warn('[contract-evidence] Submission outcome is unknown; reconciliation retained', error)
-    } else {
-      await failCredentialAttempt(
-        attempt.id,
-        'CHAIN_SUBMISSION_FAILED',
-        error instanceof Error ? error.message : 'Solana rejected the transaction submission',
-      )
-      evidenceRpcError(error, 'submit contract evidence')
-    }
-  }
-  return credentialResult(await reconcileContractEvidence(attempt.credentialId, input.issuerUserId))
-}
 
 export async function reconcileContractEvidence(credentialId: number, issuerUserId?: number) {
   const credential = await prisma.contractCredential.findUnique({

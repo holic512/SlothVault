@@ -28,10 +28,7 @@ export async function getPreviewVersion(projectId: number, versionId: number) {
   if (![projectId, versionId].every(id => Number.isSafeInteger(id) && id > 0 && id <= 2_147_483_647)) notFound()
   const version = await prisma.projectVersion.findFirst({
     where: { id: versionId, projectId, isDeleted: false, project: { isDeleted: false } },
-    include: { project: { include: projectAccessInclude }, releaseCredentials: {
-      where: { status: 2, subjectType: 'PROJECT_VERSION' }, orderBy: { finalizedAt: 'desc' },
-      select: { network: true, transactionSignature: true, signerAddress: true, finalizedAt: true },
-    } },
+    include: { project: { include: projectAccessInclude } },
   })
   if (!version) notFound()
   return version
@@ -74,7 +71,6 @@ export async function getPreviewNote(projectId: number, versionId: number, noteI
     content: content.content, versionNote: content.versionNote, updatedAt: content.updatedAt.toISOString(),
     releaseId: version.releaseId, releaseHash: version.releaseHash, manifestVersion: version.manifestVersion,
     publishedAt: version.publishedAt?.toISOString() ?? null,
-    evidence: version.releaseCredentials.map(item => ({ ...item, transactionSignature: item.transactionSignature!, finalizedAt: item.finalizedAt!.toISOString() })),
     noteEvidence: evidence.map(item => ({ network: item.network, transactionSignature: item.transactionSignature!, signerAddress: item.signerAddress, contentHash: item.subjectHash!, finalizedAt: item.finalizedAt!.toISOString() })),
   }
 }

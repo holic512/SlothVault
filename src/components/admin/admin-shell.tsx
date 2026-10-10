@@ -130,7 +130,7 @@ export function AdminShell({ children, branding }: { children: ReactNode; brandi
       .filter((key) => pathname === key || (key !== '/admin/mm' && pathname.startsWith(`${key}/`)))
       .sort((a, b) => b.length - a.length)[0] || '/admin/mm'
   const currentLabel = menuRoutes.find((item) => item.key === selectedKey)?.label || t('title')
-  const walletEnabled = pathname === '/admin/mm/evidence' || pathname === '/admin/mm/contracts' || pathname.startsWith('/admin/mm/commissions')
+  const walletEnabled = pathname === '/admin/mm/evidence' || pathname.startsWith('/admin/mm/commissions')
 
   const logout = async () => {
     await apiFetch('/api/admin/auth/logout', { method: 'POST', body: JSON.stringify({}) })

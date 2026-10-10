@@ -4,8 +4,8 @@
  * @file evidence-manager.tsx
  * @project SlothVault
  * @module Unified Evidence Administration
- * @description Provides one localized receipt ledger for legacy project-version and note-content evidence with cascaded content selection.
- * @logic Filter both evidence subjects, guide project-to-content signing for new records, safely map evidence failures to current-language messages, and retain subject-aware retry and reconciliation beside each attempt timeline.
+ * @description Provides one localized receipt ledger for note-content evidence with cascaded content selection.
+ * @logic Filter note-content evidence, guide project-to-content signing for new records, safely map evidence failures to current-language messages, and retain content retry and reconciliation beside each attempt timeline.
  * @dependencies React Query, Ant Design, next-intl, use-solana-wallet, release evidence APIs, admin localization utilities
  * @index_tags admin,evidence,solana,wallet,receipts,reconciliation,i18n,error-handling
  * @author holic512
@@ -51,7 +51,7 @@ import { formatAdminDate, formatAdminError, formatAdminNumber } from '@/lib/admi
 import { apiFetch, ApiClientError } from '@/lib/api-client'
 
 type Network = 'mainnet' | 'devnet'
-type SubjectType = 'PROJECT_VERSION' | 'NOTE_CONTENT'
+type SubjectType = 'NOTE_CONTENT'
 type Attempt = {
   id: string
   status: number
@@ -172,7 +172,6 @@ export function EvidenceManager() {
   const { message, modal } = App.useApp()
   const wallet = useSolanaWallet()
   const [scope, setScope] = useState<'all' | 'wallet'>('all')
-  const [subjectType, setSubjectType] = useState<SubjectType | undefined>()
   const [network, setNetwork] = useState<Network | undefined>()
   const [status, setStatus] = useState<number | undefined>()
   const [signature, setSignature] = useState('')
@@ -211,11 +210,10 @@ export function EvidenceManager() {
   }
 
   const query = useQuery({
-    queryKey: ['release-evidence', scope, signer, subjectType, network, status, signature, page],
+    queryKey: ['release-evidence', scope, signer, network, status, signature, page],
     queryFn: () => {
       const params = new URLSearchParams({ page: String(page), pageSize: '20' })
       if (scope === 'wallet' && signer) params.set('signerAddress', signer)
-      if (subjectType) params.set('subjectType', subjectType)
       if (network) params.set('network', network)
       if (status !== undefined) params.set('status', String(status))
       if (signature.trim()) params.set('transactionSignature', signature.trim())
@@ -269,9 +267,7 @@ export function EvidenceManager() {
     mutationFn: async (values: { noteContentId: number; network: Network }) => {
       if (!signer) throw new EvidenceUiError('walletNotConnected')
       const subject = retrySubject
-        ? retrySubject.subjectType === 'NOTE_CONTENT'
-          ? { type: 'noteContent' as const, noteContentId: Number(retrySubject.noteContentId) }
-          : { type: 'projectVersion' as const, projectVersionId: Number(retrySubject.projectVersionId) }
+        ? { type: 'noteContent' as const, noteContentId: Number(retrySubject.noteContentId) }
         : { type: 'noteContent' as const, noteContentId: values.noteContentId }
       return apiFetch<Prepared>('/api/admin/evidence/prepare', {
         method: 'POST',
@@ -351,12 +347,10 @@ export function EvidenceManager() {
     {
       title: t('table.subject'),
       render: (_, row) => <div>
-        <Space size={5}><strong>{row.projectName}</strong><Tag variant="filled">{row.subjectType === 'NOTE_CONTENT' ? t('subject.noteContent') : t('subject.projectVersion')}</Tag></Space>
+        <Space size={5}><strong>{row.projectName}</strong><Tag variant="filled">{t('subject.noteContent')}</Tag></Space>
         <br />
         <Typography.Text type="secondary">
-          {row.subjectType === 'NOTE_CONTENT'
-            ? `${row.version} / ${row.categoryName || t('table.emptyTransaction')} / ${row.noteTitle || t('table.emptyTransaction')} / ${row.contentVersion || t('subject.unnamedVersion')}`
-            : row.version}
+          {`${row.version} / ${row.categoryName || t('table.emptyTransaction')} / ${row.noteTitle || t('table.emptyTransaction')} / ${row.contentVersion || t('subject.unnamedVersion')}`}
         </Typography.Text>
       </div>,
     },
@@ -394,7 +388,6 @@ export function EvidenceManager() {
         <Segmented options={[{ label: t('toolbar.all'), value: 'all' }, { label: t('toolbar.myWallet'), value: 'wallet', icon: <WalletCards size={14} /> }]} value={scope} onChange={(value) => { setScope(value as 'all' | 'wallet'); setPage(1) }} />
       </div>
       <Space className="evidence-toolbar-filters" wrap>
-          <Select allowClear placeholder={t('toolbar.subjectType')} value={subjectType} onChange={(value) => { setSubjectType(value); setPage(1) }} options={[{ value: 'NOTE_CONTENT', label: t('subject.noteContent') }, { value: 'PROJECT_VERSION', label: t('subject.legacyProjectVersion') }]} />
           <Select allowClear placeholder={t('network.label')} value={network} onChange={(value) => { setNetwork(value); setPage(1) }} options={[{ value: 'mainnet', label: t('network.mainnet') }, { value: 'devnet', label: t('network.devnet') }]} />
           <Select allowClear placeholder={t('toolbar.status')} value={status} onChange={(value) => { setStatus(value); setPage(1) }} options={Object.keys(STATUS).map((value) => ({ value: Number(value), label: statusLabel(Number(value)) }))} />
           <Input allowClear prefix={<Search size={14} />} placeholder={t('toolbar.transaction')} value={signature} onChange={(event) => { setSignature(event.target.value); setPage(1) }} />
@@ -407,7 +400,7 @@ export function EvidenceManager() {
       <div className="evidence-mobile-list">
         {!query.isLoading && (query.data?.list.length || 0) === 0 ? <Empty description={t('messages.empty')} /> : null}
         {(query.data?.list || []).map((row) => <article className="evidence-mobile-card" key={row.id}>
-          <div><strong>{row.subjectType === 'NOTE_CONTENT' ? `${row.noteTitle || t('subject.noteFallback')} / ${row.contentVersion || t('subject.unnamedVersion')}` : `${row.projectName} / ${row.version}`}</strong><Tag color={row.network === 'devnet' ? 'warning' : 'success'}>{row.network === 'devnet' ? t('network.devnetCredential') : t('network.mainnetCredential')}</Tag></div>
+          <div><strong>{`${row.noteTitle || t('subject.noteFallback')} / ${row.contentVersion || t('subject.unnamedVersion')}`}</strong><Tag color={row.network === 'devnet' ? 'warning' : 'success'}>{row.network === 'devnet' ? t('network.devnetCredential') : t('network.mainnetCredential')}</Tag></div>
           <code title={row.subjectHash || ''}>{compact(row.subjectHash, 14, 10)}</code>
           <Space><Tag color={statusMeta(row.status)?.color}>{statusLabel(row.status)}</Tag><Typography.Text type="secondary">{compact(row.signerAddress)}</Typography.Text></Space>
           <Space><Button size="small" onClick={() => setSelected(row)}>{t('actions.details')}</Button>{row.status === -1 ? <Button size="small" onClick={() => openIssue(row)}>{t('actions.retry')}</Button> : null}{row.status === 0 || row.status === 1 ? <Button size="small" onClick={() => reconcile.mutate(row.id)}>{t('actions.reconcile')}</Button> : null}{row.transactionSignature ? <Button size="small" href={`/evidence/${row.transactionSignature}`}>{t('actions.verify')}</Button> : null}</Space>
@@ -418,8 +411,8 @@ export function EvidenceManager() {
     <Drawer title={t('receipt.title')} size={560} open={Boolean(selected)} onClose={() => setSelected(null)}>
       {selected ? <>
         <Descriptions bordered size="small" column={1} items={[
-          { key: 'release', label: t('receipt.subject'), children: selected.subjectType === 'NOTE_CONTENT' ? `${selected.projectName} / ${selected.version} / ${selected.categoryName || t('table.emptyTransaction')} / ${selected.noteTitle || t('subject.noteFallback')} / ${selected.contentVersion || t('subject.unnamedVersion')}` : `${selected.projectName} / ${selected.version}` },
-          { key: 'hash', label: selected.subjectType === 'NOTE_CONTENT' ? t('receipt.contentHash') : t('receipt.releaseHash'), children: <Typography.Text copyable code>{selected.subjectHash}</Typography.Text> },
+          { key: 'release', label: t('receipt.subject'), children: `${selected.projectName} / ${selected.version} / ${selected.categoryName || t('table.emptyTransaction')} / ${selected.noteTitle || t('subject.noteFallback')} / ${selected.contentVersion || t('subject.unnamedVersion')}` },
+          { key: 'hash', label: t('receipt.contentHash'), children: <Typography.Text copyable code>{selected.subjectHash}</Typography.Text> },
           { key: 'network', label: t('receipt.networkTrust'), children: networkLabel(selected.network) },
           { key: 'wallet', label: t('receipt.wallet'), children: <Typography.Text copyable code>{selected.signerAddress}</Typography.Text> },
           { key: 'tx', label: t('receipt.transaction'), children: selected.transactionSignature ? <Typography.Text copyable code>{selected.transactionSignature}</Typography.Text> : t('receipt.notGenerated') },
@@ -441,7 +434,7 @@ export function EvidenceManager() {
       void cancelPrepared('The evidence drawer was closed before signing')
     }}>
       <Alert showIcon type="info" title={t('drawer.independentTitle')} description={t('drawer.independentDescription')} />
-      {retrySubject ? <Alert showIcon type="warning" title={t('drawer.retryTitleAlert')} description={retrySubject.subjectType === 'NOTE_CONTENT' ? `${retrySubject.projectName} / ${retrySubject.version} / ${retrySubject.noteTitle || t('subject.noteFallback')} / ${retrySubject.contentVersion || t('subject.unnamedVersion')}` : t('drawer.legacyRetry', { project: retrySubject.projectName, version: retrySubject.version })} /> : null}
+      {retrySubject ? <Alert showIcon type="warning" title={t('drawer.retryTitleAlert')} description={`${retrySubject.projectName} / ${retrySubject.version} / ${retrySubject.noteTitle || t('subject.noteFallback')} / ${retrySubject.contentVersion || t('subject.unnamedVersion')}`} /> : null}
       {versionsQuery.isError || projectsQuery.isError ? <Alert showIcon type="error" title={t('drawer.loadOptionsFailed')} description={evidenceErrorMessage(versionsQuery.error || projectsQuery.error)} /> : null}
       <Form form={form} layout="vertical" onFinish={(values) => prepare.mutate(values)}>
         {!retrySubject ? <>
@@ -530,8 +523,8 @@ export function EvidenceManager() {
         <Descriptions size="small" column={1} items={[
           { key: 'signer', label: t('drawer.signer'), children: <Typography.Text code copyable>{prepared?.signerAddress || signer || t('drawer.notConnected')}</Typography.Text> },
           ...(prepared ? [
-            { key: 'release', label: t('drawer.source'), children: prepared.subjectType === 'NOTE_CONTENT' ? `${prepared.project} / ${prepared.version} / ${prepared.category || t('table.emptyTransaction')} / ${prepared.note || t('subject.noteFallback')} / ${prepared.contentVersion || t('subject.unnamedVersion')}` : `${prepared.project} / ${prepared.version}` },
-            { key: 'hash', label: prepared.subjectType === 'NOTE_CONTENT' ? t('receipt.contentHash') : t('receipt.releaseHash'), children: <Typography.Text code copyable>{prepared.releaseHash}</Typography.Text> },
+            { key: 'release', label: t('drawer.source'), children: `${prepared.project} / ${prepared.version} / ${prepared.category || t('table.emptyTransaction')} / ${prepared.note || t('subject.noteFallback')} / ${prepared.contentVersion || t('subject.unnamedVersion')}` },
+            { key: 'hash', label: t('receipt.contentHash'), children: <Typography.Text code copyable>{prepared.releaseHash}</Typography.Text> },
             { key: 'network', label: t('receipt.networkTrust'), children: networkLabel(prepared.network, true) },
             { key: 'balance', label: t('drawer.balance'), children: t('units.lamports', { value: formatAdminNumber(locale, prepared.balanceLamports) }) },
             { key: 'fee', label: t('drawer.estimatedFee'), children: t('units.lamports', { value: formatAdminNumber(locale, prepared.feeLamports) }) },

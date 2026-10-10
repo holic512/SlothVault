@@ -2,7 +2,7 @@
  * @file project-note-view.tsx
  * @project SlothVault
  * @module Public Project Document Reader
- * @description Renders public project documents and saved administrator previews with navigation, exact content-version evidence, and legacy release evidence.
+ * @description Renders public project documents and saved administrator previews with navigation, exact content-version evidence, evidence.
  * @logic Render titles and note tags for locked readers, require independent reading and download capabilities, display existing version evidence without fabricating draft release fields, and navigate rendered Markdown headings through the document outline.
  * @dependencies Ant Design Typography, next-intl/server, ProjectDocumentContent
  * @index_tags project,document,reader,release,evidence,transaction,public
@@ -38,12 +38,6 @@ type NoteData = {
   releaseHash: string | null
   manifestVersion: number | null
   publishedAt: string | null
-  evidence: Array<{
-    transactionSignature: string
-    signerAddress: string
-    network: string
-    finalizedAt: string
-  }>
   noteEvidence: Array<{
     transactionSignature: string
     signerAddress: string
@@ -129,25 +123,6 @@ export async function ProjectNoteView({
               </a> : null}
             </div>
           </aside> : null}
-          {note.evidence.map((credential) => (
-            <aside className="docs-copyright-proof" aria-label={t('evidence.release.label')} key={credential.transactionSignature}>
-              <span className="docs-copyright-mark">
-                {credential.network === 'devnet' ? <FlaskConical size={18} /> : <BadgeCheck size={18} />}
-              </span>
-              <div className="docs-copyright-copy">
-                <strong>{credential.network === 'devnet' ? t('evidence.release.devnet') : t('evidence.release.mainnet')}</strong>
-                <span>{t('evidence.release.description')}</span>
-                <code title={credential.transactionSignature}>
-                  {credential.transactionSignature.slice(0, 12)}…{credential.transactionSignature.slice(-8)}
-                </code>
-              </div>
-              <div className="docs-copyright-links">
-                <Link href={`/evidence/${credential.transactionSignature}`}>
-                  {t('evidence.verify')}<ExternalLink size={12} />
-                </Link>
-              </div>
-            </aside>
-          ))}
           {note.noteEvidence.map((credential) => (
             <aside className="docs-copyright-proof" aria-label={t('evidence.content.label')} key={credential.transactionSignature}>
               <span className="docs-copyright-mark">

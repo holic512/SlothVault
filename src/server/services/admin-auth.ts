@@ -2,24 +2,19 @@
  * @file admin-auth.ts
  * @project SlothVault
  * @module Admin Authentication Service
- * @description Owns administrator existence checks, first-account initialization, credential verification, and session issuance.
- * @logic Count administrators, serialize the first-account transaction, verify username/email credentials, and issue a duration-aware session.
+ * @description Owns administrator existence checks, credential verification, and session issuance.
+ * @logic Count administrators, verify username/email credentials, and issue a duration-aware session.
  * @dependencies Prisma User model, server/auth/password, server/auth/session, server/http/errors
- * @index_tags admin,authentication,initialization,login,session,transaction
+ * @index_tags admin,authentication,login,session,transaction
  * @author holic512
  */
 import 'server-only'
 
-import { hashPassword, verifyPassword } from '@/server/auth/password'
+import { verifyPassword } from '@/server/auth/password'
 import { USER_ROLE, USER_STATUS } from '@/server/auth/roles'
 import { issueSession } from '@/server/auth/session'
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
-
-export type InitializeAdminInput = {
-  username: string
-  password: string
-}
 
 export type LoginAdminInput = {
   username: string
@@ -31,30 +26,6 @@ export type LoginAdminInput = {
 
 export async function hasAdminAccount() {
   return (await prisma.user.count({ where: { role: USER_ROLE.ADMIN } })) > 0
-}
-
-export async function initializeAdmin(input: InitializeAdminInput) {
-  const password = await hashPassword(input.password)
-
-  return prisma.$transaction(
-    async (tx) => {
-      const count = await tx.user.count({ where: { role: USER_ROLE.ADMIN } })
-      if (count > 0) {
-        throw new HttpError('Admin already initialized', 409, 409)
-      }
-
-      return tx.user.create({
-        data: {
-          username: input.username.trim().toLowerCase(),
-          password,
-          role: USER_ROLE.ADMIN,
-          status: USER_STATUS.ACTIVE,
-        },
-        select: { id: true, username: true },
-      })
-    },
-    { isolationLevel: 'Serializable' },
-  )
 }
 
 export async function loginAdmin(input: LoginAdminInput) {

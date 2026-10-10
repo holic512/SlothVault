@@ -136,7 +136,7 @@ export const contractSchema = z.object({
 })
 const evidenceSchema = z.object({
   id: decimalIdSchema,
-  subjectType: z.string(),
+  subjectType: z.literal('NOTE_CONTENT'),
   subjectId: z.string(),
   subjectHash: z.string(),
   projectVersionId: decimalIdSchema,
@@ -337,7 +337,7 @@ export const adminReadToolDefinitions: McpToolDefinition[] = collectMcpToolDefin
     'admin.evidence.list',
     {
       title: '列出链上存证',
-      description: '读取数据库中的存证索引、网络和状态摘要，不访问链上 RPC。该工具只读。',
+      description: '读取数据库中的笔记内容版本存证索引、网络和状态摘要，不访问链上 RPC。该工具只读。',
       inputSchema: z.strictObject({
         page: pageSchema,
         pageSize: pageSizeSchema,
@@ -372,7 +372,7 @@ export const adminReadToolDefinitions: McpToolDefinition[] = collectMcpToolDefin
     'admin.evidence.get',
     {
       title: '读取链上存证',
-      description: '按存证记录 ID 读取数据库索引和状态，不执行链上核验。该工具只读。',
+      description: '按笔记内容版本存证记录 ID 读取数据库索引和状态，不执行链上核验。该工具只读。',
       inputSchema: z.strictObject({ evidenceId: decimalIdSchema }),
       outputSchema: evidenceSchema,
       annotations: READ_ONLY_ANNOTATIONS,

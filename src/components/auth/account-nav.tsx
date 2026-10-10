@@ -100,9 +100,9 @@ export function AccountNav({ compact = false }: { compact?: boolean }) {
             label: <Link href="/account/membership">{t('membership')}</Link>,
           },
           {
-            key: 'contracts',
+            key: 'commissions',
             icon: <FileSignature size={15} />,
-            label: <Link href="/account/contracts">{t('contracts')}</Link>,
+            label: <Link href="/account/commissions">{t('commissions')}</Link>,
           },
           ...(user.role === 'ADMIN'
             ? [{

@@ -48,7 +48,7 @@ export function LoginForm() {
       try {
         const state = await apiFetch<{ exists: boolean }>('/api/admin/auth/check')
         if (!state.exists) {
-          router.replace('/admin/auth/init')
+          router.replace('/install')
           return
         }
 

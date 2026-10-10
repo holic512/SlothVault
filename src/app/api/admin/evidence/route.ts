@@ -10,11 +10,11 @@
  */
 import { requireAdminSession } from '@/server/auth/session'
 import { defineRoute } from '@/server/http/handler'
+import { HttpError } from '@/server/http/errors'
 import { apiOk } from '@/server/http/response'
 import { listReleaseEvidence } from '@/server/services/release-evidence'
 import {
   NOTE_CONTENT_EVIDENCE_SUBJECT,
-  PROJECT_VERSION_EVIDENCE_SUBJECT,
 } from '@/server/services/note-content-evidence-protocol'
 
 function positiveInt(value: string | null, fallback?: number) {
@@ -32,7 +32,10 @@ export const GET = defineRoute(async (request) => {
   const statusText = query.get('status')
   const status = statusText === null || statusText === '' ? undefined : Number(statusText)
   const subjectTypeText = query.get('subjectType')
-  const subjectType = subjectTypeText === NOTE_CONTENT_EVIDENCE_SUBJECT || subjectTypeText === PROJECT_VERSION_EVIDENCE_SUBJECT
+  if (subjectTypeText && subjectTypeText !== NOTE_CONTENT_EVIDENCE_SUBJECT) {
+    throw new HttpError('Unsupported evidence subject', 400, 400)
+  }
+  const subjectType = subjectTypeText === NOTE_CONTENT_EVIDENCE_SUBJECT
     ? subjectTypeText
     : undefined
   if (network && network !== 'mainnet' && network !== 'devnet') {

@@ -71,12 +71,6 @@
     },
     "evidence": {
       "verify": "核验凭证",
-      "release": {
-        "label": "版本交易存证",
-        "devnet": "测试存证 · Devnet",
-        "mainnet": "正式存证 · Mainnet",
-        "description": "签名钱包已对本版本完整哈希进行 Solana Memo 存证。"
-      },
       "content": {
         "label": "本文内容版本存证",
         "devnet": "本文测试存证 · Devnet",
@@ -296,22 +290,6 @@
       "error": "用户名或密码错误"
     }
   },
-  "AdminInit": {
-    "hero": {
-      "badge": "Admin Setup",
-      "title": "初始化管理员",
-      "desc": "设置您的管理员账户以开始使用"
-    },
-    "form": {
-      "username": "管理员用户名",
-      "password": "密码",
-      "submit": "初始化账户"
-    },
-    "status": {
-      "required": "请填写所有必填项",
-      "error": "初始化失败，请重试"
-    }
-  },
   "Install": {
     "hero": {
       "badge": "首次部署协议",
@@ -475,23 +453,19 @@
     "login": "登录",
     "register": "注册",
     "account": "账户概览",
-    "accountContracts": "我的合同",
     "accountPoints": "积分中心",
     "accountMembership": "会员中心",
     "accountProfile": "个人资料",
     "accountSecurity": "安全与登录",
     "adminLogin": "管理员登录",
-    "adminInit": "初始化管理员",
     "adminArticles": "文章管理",
     "adminArticleEdit": "文章编辑",
     "adminDashboard": "管理后台",
     "adminProjects": "项目管理",
     "adminTrash": "回收站",
-    "adminContracts": "合同管理",
     "adminNotes": "笔记编辑",
     "adminNoteContent": "笔记编辑",
     "adminFiles": "文件管理",
-    "adminSolana": "版本交易存证",
     "adminBackup": "备份管理",
     "adminSettings": "系统设置",
     "adminProjectHome": "首页编辑",
@@ -522,7 +496,6 @@
       "files": "文件管理",
       "users": "用户管理",
       "membershipLevels": "会员类型",
-      "contracts": "合同管理",
       "giftCards": "卡密管理",
       "solana": "存证系统",
       "backup": "备份管理",
@@ -676,7 +649,6 @@
       "actions": {
         "search": "查询",
         "reset": "重置",
-        "importKnowledge": "导入知识库",
         "create": "新增项目",
         "batchDelete": "批量删除",
         "batchRestore": "批量恢复",
@@ -1275,10 +1247,6 @@
         "selectFirst": "请选择要删除的文件"
       }
     },
-    "solana": {
-      "title": "版本交易存证",
-      "desc": "使用当前钱包签署已发布版本哈希，并通过 Solana Memo 公开核验"
-    },
     "settings": {
       "title": "系统设置",
       "desc": "管理系统品牌、网站备案与交易存证网络档案",
@@ -1789,8 +1757,6 @@
       },
       "subject": {
         "noteContent": "笔记内容",
-        "projectVersion": "整版发布",
-        "legacyProjectVersion": "整版发布（兼容）",
         "noteFallback": "笔记",
         "unnamedVersion": "未命名版本",
         "noHash": "无哈希",
@@ -1823,7 +1789,6 @@
         "recordCount": "{count} 条记录",
         "all": "全部",
         "myWallet": "我的钱包",
-        "subjectType": "对象类型",
         "status": "状态",
         "transaction": "交易编号"
       },
@@ -1853,7 +1818,6 @@
         "title": "存证办理回执",
         "subject": "存证对象",
         "contentHash": "内容版本哈希",
-        "releaseHash": "整版发布哈希",
         "networkTrust": "网络可信级别",
         "wallet": "签名钱包",
         "transaction": "公开编号",
@@ -1866,7 +1830,6 @@
         "independentTitle": "发布与存证相互独立",
         "independentDescription": "新存证精确绑定已发布树中的一个笔记内容版本；该笔记的其他修订不会共享此凭证。",
         "retryTitleAlert": "沿用原存证对象重试",
-        "legacyRetry": "{project} / {version}（旧整版凭证）",
         "loadOptionsFailed": "可存证内容加载失败",
         "project": "项目",
         "selectProject": "选择项目",
@@ -1974,140 +1937,6 @@
         "points": "单卡积分",
         "quantity": "发行数量",
         "expiresAt": "到期时间（可选）"
-      }
-    },
-    "contracts": {
-      "flow": {
-        "title": "填写草稿 → 核对合同 → 发起签约 → 用户确认",
-        "description": "请明确双方身份、开发范围、费用、交付时间、验收与变更约定。保存后先预览，再发起；用户确认后可按需办理链上存证。",
-        "pending": "等待用户在账户中心「我的合同」阅读并确认。",
-        "declined": "用户未填写原因，请沟通后重新发起合同。"
-      },
-      "status": {
-        "cancelled": "已取消",
-        "declined": "已拒签",
-        "draft": "草稿",
-        "pending": "待签约",
-        "signed": "已签约",
-        "unknown": "未知"
-      },
-      "credentialStatus": {
-        "failed": "失败",
-        "awaitingWallet": "待钱包签名",
-        "confirming": "链上确认中",
-        "anchored": "已上链"
-      },
-      "audit": {
-        "DRAFT_CREATED": "创建草稿",
-        "DRAFT_UPDATED": "更新草稿",
-        "ISSUED": "发起并冻结合同",
-        "CANCELLED": "取消合同",
-        "EVIDENCE_PREPARED": "生成待签链上交易",
-        "EVIDENCE_SUBMITTED": "提交链上交易",
-        "EVIDENCE_RECONCILED": "核验链上状态",
-        "EVIDENCE_ATTEMPT_CANCELLED": "取消钱包签名请求"
-      },
-      "actions": {
-        "refresh": "刷新",
-        "create": "新建合同",
-        "details": "详情",
-        "edit": "编辑",
-        "issue": "发起",
-        "cancel": "取消",
-        "evidence": "上链存证",
-        "reconcile": "对账",
-        "saveDraft": "保存草稿",
-        "uploadPdf": "上传 PDF",
-        "removeAttachment": "移除草稿附件关联",
-        "back": "返回修改",
-        "prepare": "生成待签链上交易",
-        "sign": "确认哈希并请求管理员钱包签名"
-      },
-      "messages": {
-        "draftSaved": "合同草稿已保存",
-        "draftCreated": "合同草稿已创建",
-        "issued": "合同已冻结并发送给指定用户",
-        "cancelled": "合同已取消",
-        "submitted": "交易已提交，系统将持续核验最终状态",
-        "reconciled": "链上状态已重新核验",
-        "attachmentUploaded": "PDF 附件已上传，保存草稿后将被关联",
-        "connectWallet": "请先连接管理员钱包",
-        "walletMismatch": "当前钱包与待签合同凭证不一致"
-      },
-      "filters": {
-        "keyword": "搜索合同标题",
-        "allStatus": "全部状态"
-      },
-      "table": {
-        "contract": "合同",
-        "subject": "签约用户",
-        "status": "状态",
-        "evidenceStatus": "链上状态",
-        "issuedAt": "发起时间",
-        "operations": "操作"
-      },
-      "empty": "—",
-      "notIssued": "未发起",
-      "drawer": {
-        "create": "新建合同草稿",
-        "edit": "编辑合同草稿",
-        "detail": "合同快照与签约审计",
-        "evidence": "管理员链上存证"
-      },
-      "form": {
-        "subject": "签约用户",
-        "selectSubject": "选择用户",
-        "subjectRequired": "请选择一名已启用用户",
-        "title": "合同标题",
-        "titlePlaceholder": "例如：小程序开发服务合同",
-        "body": "权威合同正文（Markdown）",
-        "bodyPlaceholder": "请写明双方身份、开发范围与不包含的内容、费用及付款安排、交付时间、验收标准、修改次数、知识产权和终止约定。发起后正文不可修改。",
-        "preview": "预览合同正文",
-        "attachment": "PDF 附件（可选）",
-        "attachmentHint": "PDF 是受保护的冻结附件；合同权威内容始终是上方正文。",
-        "network": "存证网络"
-      },
-      "dialog": {
-        "issueTitle": "发起合同",
-        "issueContent": "发起后正文和 PDF 附件将被冻结，指定用户可在账户中心签约。",
-        "issueOk": "冻结并发送",
-        "cancelTitle": "取消合同",
-        "cancelContent": "取消后不能恢复或编辑该合同。",
-        "cancelOk": "确认取消",
-        "adminWallet": "只有管理员钱包会签署链上交易",
-        "adminWalletDescription": "用户已通过 Web2 会话完成合同签约。Memo 仅写入合同哈希与链上核验字段，不包含正文、PDF 或身份信息。",
-        "mainnetFee": "Mainnet 会消耗真实 SOL",
-        "devnetTest": "Devnet 仅用于测试",
-        "feeExpires": "预计手续费 {fee} SOL；请求将在 {date} 失效。"
-      },
-      "detail": {
-        "issuer": "发起方",
-        "frozen": "已冻结合同",
-        "state": "状态",
-        "id": "合同编号",
-        "bodyHash": "正文 SHA-256",
-        "rootHash": "合同根哈希",
-        "pendingRootHash": "待用户签约后生成",
-        "attachment": "PDF 附件",
-        "none": "无",
-        "issuedAt": "发起时间",
-        "signedAt": "签约时间",
-        "notSigned": "未签约",
-        "declined": "用户已拒签",
-        "web2Audit": "Web2 签约审计",
-        "session": "会话引用",
-        "ip": "客户端 IP",
-        "userAgent": "User-Agent",
-        "adminAudit": "管理员操作审计",
-        "mainnetCredential": "Mainnet 凭证",
-        "devnetCredential": "Devnet 测试凭证",
-        "noSignature": "尚未生成交易签名",
-        "openVerification": "打开公开核验页",
-        "contract": "合同",
-        "summary": "合同摘要",
-        "wallet": "当前钱包",
-        "notConnected": "未连接",
-        "selectedPdf": "已选择 {size} KB PDF"
       }
     },
     "users": {
@@ -2374,7 +2203,6 @@
       "security": "安全与登录",
       "points": "积分中心",
       "membership": "会员中心",
-      "contracts": "我的合同",
       "admin": "管理后台",
       "logout": "退出登录",
       "commissions": "委托项目"
@@ -2384,7 +2212,6 @@
       "overview": "账户概览",
       "profile": "个人资料",
       "security": "安全与登录",
-      "contracts": "我的合同",
       "points": "积分中心",
       "membership": "会员中心",
       "administrator": "管理员",
@@ -2437,7 +2264,6 @@
         "security": "管理安全与登录",
         "points": "兑换卡密与查看积分",
         "membership": "开通与管理会员权益",
-        "contracts": "查看与签署合同",
         "commissions": "委托项目"
       },
       "identity": {

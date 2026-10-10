@@ -69,11 +69,11 @@ import { extractZipToStaging } from './files-import'
 import { updateCrc32, validateZipArchive, validateZipFile } from './zip-validation'
 import { rebuildFileReferences } from '@/server/services/file-references'
 import { publishProjectVersion } from '@/server/services/project-version-release'
+import { getPublicReleaseEvidence, getAdminReleaseEvidence } from '@/server/services/release-evidence'
 import { createCommission, getCommission } from '@/server/commissions/service'
 import { createCommissionDocument } from '@/server/commissions/documents'
 import { listContractTemplates } from '@/server/commissions/templates'
-import { completeAgreementValues } from '@/server/commissions/test-fixtures'
-import { issueAdminContract, signUserContract } from '@/server/services/contracts'
+import { completeAgreementValues, seedSignedLegacyContract } from '@/server/commissions/test-fixtures'
 import { uploadCommissionFile } from '@/server/commissions/files'
 import { GET as settingsGet, PUT as settingsPut } from '@/app/api/admin/mm/backup/settings/route'
 import { GET as historyGet, POST as snapshotPost } from '@/app/api/admin/mm/backup/snapshots/route'
@@ -238,9 +238,15 @@ describe(`complete backups with isolated ${fixture.provider} and uploads`, () =>
     const template = (await listContractTemplates())[0].versions.find((version) => version.status === 'PUBLISHED')!
     commission = await createCommissionDocument(Number(commission.id), actor, { commandId: randomUUID(), revision: commission.revision, templateVersionId: Number(template.id), documentType: 'AGREEMENT', values: completeAgreementValues() })
     const document = commission.documents[0]
-    await issueAdminContract({ id: Number(document.id), issuerUserId: s.admin.id, sessionId: s.session.sessionId })
-    await signUserContract({ id: Number(document.id), userId: s.user.id, sessionId: s.otherSession.sessionId, ip: '127.0.0.1', userAgent: 'backup-test' })
+    await seedSignedLegacyContract(client, Number(document.id))
     await uploadCommissionFile(Number(commission.id), actor, new Request('http://localhost/file', { method: 'POST', body: 'frozen commission file' }), { name: 'source.txt', purpose: 'DELIVERY', shared: false, commandId: randomUUID() })
+    await client.releaseCredential.create({ data: {
+      projectVersionId: Number(s.release.projectVersionId), issuerUserId: s.admin.id,
+      subjectType: 'PROJECT_VERSION', subjectId: s.release.releaseId, subjectHash: s.release.releaseHash,
+      subjectManifestVersion: s.release.manifestVersion, network: 'devnet',
+      signerAddress: '11111111111111111111111111111111', memo: '{}',
+      transactionSignature: '5'.repeat(88), status: 2,
+    } })
     const before = await exportDatabaseBackup(), complete = await snapshot()
     const preview = await previewCompleteRestore({ snapshotId: complete.id }, s.admin.id)
     expect(preview.manifest.counts.noteContents).toBe(2)
@@ -260,6 +266,10 @@ describe(`complete backups with isolated ${fixture.provider} and uploads`, () =>
     expect(restored.data.fileReferences).toHaveLength(before.data.fileReferences.length)
     expect(restored.data.projects[0]).toMatchObject({ readAccessMode: 'MEMBERSHIPS', downloadAccessMode: 'DISABLED' })
     expect(restored.data.projectVersions.find((version) => version.releaseId === s.release.releaseId)?.releaseHash).toBe(s.release.releaseHash)
+    expect(restored.data.releaseCredentials).toHaveLength(1)
+    expect(restored.data.releaseCredentials[0]).toMatchObject({ subjectType: 'PROJECT_VERSION', transactionSignature: '5'.repeat(88) })
+    expect(await getPublicReleaseEvidence('5'.repeat(88))).toBeNull()
+    await expect(getAdminReleaseEvidence(Number(restored.data.releaseCredentials[0].id))).rejects.toMatchObject({ status: 404 })
     expect(restored.data.contracts[0]).toMatchObject({ status: 2, bodyHash: before.data.contracts[0].bodyHash, snapshotHash: before.data.contracts[0].snapshotHash })
     const order = await client.commission.findUniqueOrThrow({ where: { commissionId: commission.commissionId } })
     expect((await getCommission(order.id, actor)).documents[0].bodyHash).toBe(document.bodyHash)
