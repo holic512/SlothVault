@@ -28,15 +28,15 @@ function configuration(overrides: Record<string, Partial<SettingsConfigItem>> = 
     { key: 'SOLANA_DEFAULT_NETWORK', group: 'evidence', value: 'devnet', kind: 'network' },
     { key: 'SOLANA_MAINNET_ENABLED', group: 'evidence', value: 'false', kind: 'boolean' },
     { key: 'SOLANA_DEVNET_ENABLED', group: 'evidence', value: 'true', kind: 'boolean' },
-    { key: 'SOLANA_MAINNET_RPC_PRIMARY', group: 'evidence', value: '', kind: 'url', sensitive: true, configured: true },
-    { key: 'SOLANA_MAINNET_RPC_FALLBACK', group: 'evidence', value: '', kind: 'url', sensitive: true },
-    { key: 'SOLANA_DEVNET_RPC_PRIMARY', group: 'evidence', value: '', kind: 'url', sensitive: true },
-    { key: 'SOLANA_DEVNET_RPC_FALLBACK', group: 'evidence', value: '', kind: 'url', sensitive: true },
+    { key: 'SOLANA_MAINNET_RPC_PRIMARY', group: 'evidence', value: '', kind: 'url', sensitive: false },
+    { key: 'SOLANA_MAINNET_RPC_FALLBACK', group: 'evidence', value: '', kind: 'url', sensitive: false },
+    { key: 'SOLANA_DEVNET_RPC_PRIMARY', group: 'evidence', value: '', kind: 'url', sensitive: false },
+    { key: 'SOLANA_DEVNET_RPC_FALLBACK', group: 'evidence', value: '', kind: 'url', sensitive: false },
   ] as const
   const configs: SettingsConfigItem[] = definitions.map((item) => ({
     key: item.key, value: item.value, kind: item.kind, description: '', defaultValue: '',
     sensitive: 'sensitive' in item ? item.sensitive : false,
-    configured: 'configured' in item ? item.configured : false,
+    configured: false,
     ...overrides[item.key],
   }))
   return {
@@ -57,16 +57,20 @@ describe('shared settings draft', () => {
       '/admin/mm/settings/rpc', '/admin/mm/settings/updates',
     ])
     expect(SETTINGS_SECTIONS.map((section) => getSettingsSectionConfigs(data, section).length)).toEqual([2, 4, 3, 4, 0])
-    expect(getSettingsSectionConfigs(data, 'rpc').every((item) => item.sensitive)).toBe(true)
+    expect(getSettingsSectionConfigs(data, 'rpc').every((item) => !item.sensitive)).toBe(true)
     expect(getSettingsSectionConfigs(data, 'policy').map((item) => item.key)).toEqual([
       'SOLANA_DEFAULT_NETWORK', 'SOLANA_MAINNET_ENABLED', 'SOLANA_DEVNET_ENABLED',
     ])
     expect(getSettingsSectionConfigs(null, 'branding')).toEqual([])
   })
 
-  it('does not mark configured but masked RPC addresses as edits', () => {
-    const state = createSettingsDraftState(configuration())
-    expect(state.values.SOLANA_MAINNET_RPC_PRIMARY).toBe('')
+  it('loads saved RPC addresses without marking them as edits or persisting effective defaults', () => {
+    const state = createSettingsDraftState(configuration({
+      SOLANA_MAINNET_RPC_PRIMARY: { value: 'https://saved.example.test', configured: true },
+      SOLANA_DEVNET_RPC_PRIMARY: { value: '', effectiveValue: 'https://default.example.test' },
+    }))
+    expect(state.values.SOLANA_MAINNET_RPC_PRIMARY).toBe('https://saved.example.test')
+    expect(state.values.SOLANA_DEVNET_RPC_PRIMARY).toBe('')
     expect(getSettingsChangedKeys(state)).toEqual([])
     expect(getSettingsDirtySections(state)).toEqual([])
     expect(getSettingsDirtySections(createSettingsDraftState(null))).toEqual([])
@@ -140,15 +144,16 @@ describe('shared settings draft', () => {
     expect(state.previewUrls.SYSTEM_LOGO_FILE_PATH).toBe('/uploads/draft/logo.png?v=2')
   })
 
-  it('accepts confirmed saved values and clears sensitive input drafts', () => {
+  it('accepts confirmed saved values and retains the full saved RPC address', () => {
     const edited = settingsDraftReducer(createSettingsDraftState(configuration()), {
       type: 'edit', values: { SYSTEM_ICP_RECORD_NUMBER: '  Example filing  ', SOLANA_MAINNET_RPC_PRIMARY: 'https://rpc.example.test' },
     })
     const state = settingsDraftReducer(edited, {
-      type: 'saved', data: configuration({ SYSTEM_ICP_RECORD_NUMBER: { value: 'Example filing' } }),
+      type: 'saved', data: configuration({ SYSTEM_ICP_RECORD_NUMBER: { value: 'Example filing' },
+        SOLANA_MAINNET_RPC_PRIMARY: { value: 'https://rpc.example.test' } }),
     })
     expect(state.values.SYSTEM_ICP_RECORD_NUMBER).toBe('Example filing')
-    expect(state.values.SOLANA_MAINNET_RPC_PRIMARY).toBe('')
+    expect(state.values.SOLANA_MAINNET_RPC_PRIMARY).toBe('https://rpc.example.test')
     expect(getSettingsDirtySections(state)).toEqual([])
   })
 })
@@ -161,15 +166,16 @@ describe('settings save and readback', () => {
     { key: 'SOLANA_MAINNET_RPC_PRIMARY', value: 'https://rpc.example.test' },
   ]
 
-  it('submits edits from multiple pages in one batch and returns fresh masked configuration', async () => {
-    const data = configuration({ SYSTEM_ICP_RECORD_NUMBER: { value: 'Example filing' } })
+  it('submits edits from multiple pages and reads back complete saved RPC configuration', async () => {
+    const data = configuration({ SYSTEM_ICP_RECORD_NUMBER: { value: 'Example filing' },
+      SOLANA_MAINNET_RPC_PRIMARY: { value: 'https://rpc.example.test' } })
     vi.mocked(apiFetch).mockResolvedValueOnce({ updated: 2 }).mockResolvedValueOnce(data)
     expect(await saveSettingsDraft(changes)).toBe(data)
     expect(apiFetch).toHaveBeenNthCalledWith(1, '/api/admin/mm/config', {
       method: 'PUT', body: JSON.stringify({ configs: changes }),
     })
     expect(apiFetch).toHaveBeenNthCalledWith(2, '/api/admin/mm/config', { cache: 'no-store' })
-    expect(data.configs.find((item) => item.key === 'SOLANA_MAINNET_RPC_PRIMARY')?.value).toBe('')
+    expect(data.configs.find((item) => item.key === 'SOLANA_MAINNET_RPC_PRIMARY')?.value).toBe('https://rpc.example.test')
   })
 
   it('rejects failed writes without performing readback or clearing the draft', async () => {

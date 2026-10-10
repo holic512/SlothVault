@@ -1237,7 +1237,7 @@
       "desc": "管理系统品牌、网站备案与交易存证网络档案",
       "tips": {
         "title": "配置说明",
-        "content": "RPC 地址作为敏感配置保存且不会回显；禁用网络仅阻止新存证，不影响历史核验。"
+        "content": "RPC 地址可在管理员表单中查看和修改；节点测试仅使用已保存的配置。禁用网络仅阻止新存证，不影响历史核验。"
       },
       "groups": {
         "branding": "系统品牌",
@@ -1259,10 +1259,7 @@
         },
         "rpc": {
           "label": "RPC 节点",
-          "description": "为 Mainnet 与 Devnet 配置主、备用服务端节点。",
-          "noticeTitle": "敏感服务端配置",
-          "noticeDescription": "已保存的节点地址不会回显；仅在连接故障时才会切换至备用节点。",
-          "test": "检测节点"
+          "description": "为 Mainnet 与 Devnet 配置主、备用服务端节点。"
         },
         "updates": {
           "label": "系统更新",
@@ -1396,8 +1393,37 @@
         "uploadFailed": "Logo 上传失败",
         "logoAndFaviconUploadSuccess": "Logo 与 favicon.ico 已生成并上传，等待保存",
         "faviconUploadSuccess": "ICO 图标已上传，等待保存",
-        "faviconUploadFailed": "ICO 图标上传失败",
-        "networkTestSuccess": "RPC 主备端点检测完成"
+        "faviconUploadFailed": "ICO 图标上传失败"
+      },
+      "rpc": {
+        "fields": {
+          "SOLANA_MAINNET_RPC_PRIMARY": "Mainnet 主节点",
+          "SOLANA_MAINNET_RPC_FALLBACK": "Mainnet 备用节点",
+          "SOLANA_DEVNET_RPC_PRIMARY": "Devnet 主节点",
+          "SOLANA_DEVNET_RPC_FALLBACK": "Devnet 备用节点"
+        },
+        "testAll": "测试全部",
+        "testNode": "测试",
+        "testNodeLabel": "测试 {node}",
+        "saveFirst": "请先保存此节点的修改",
+        "placeholder": "可选，填写备用 RPC 地址",
+        "defaultHint": "留空使用默认地址",
+        "testedAt": "测试时间：{date}",
+        "status": {
+          "idle": "未测试",
+          "pending": "测试中",
+          "success": "正常 · {latency} ms",
+          "timeout": "超时 · 8 秒",
+          "unconfigured": "未配置"
+        },
+        "errors": {
+          "http": "请求失败 · HTTP {status}",
+          "RPC_ERROR": "RPC 服务返回错误",
+          "INVALID_RESPONSE": "RPC 地址或响应无效",
+          "NETWORK_ERROR": "无法连接 RPC 节点",
+          "configurationChanged": "服务端配置已变化，请刷新后重试",
+          "requestTimeout": "测试请求超时，请重试"
+        }
       }
     },
     "backup": {

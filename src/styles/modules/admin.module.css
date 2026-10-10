@@ -1365,8 +1365,15 @@
   color: var(--sv-primary-strong);
 }
 
-.root :global(.settings-rpc-notice) {
-  margin: 0;
+.root :global(.settings-tab-heading-copy) {
+  min-width: 0;
+  flex: 1;
+}
+
+.root :global(.settings-rpc-test-all) {
+  flex: 0 0 auto;
+  margin-top: 4px;
+  margin-left: auto;
 }
 
 .root :global(.settings-update-notice) {
@@ -1476,6 +1483,79 @@
 
 .root :global(.settings-field) > :global(.ant-switch) {
   justify-self: start;
+}
+
+.root :global(.settings-rpc-card) {
+  flex: 0 0 auto;
+}
+
+.root :global(.settings-rpc-field) {
+  padding: 12px 0;
+}
+
+.root :global(.settings-rpc-control) {
+  display: flex;
+  min-width: 0;
+  grid-column: 2;
+  grid-row: 1;
+  gap: 8px;
+  align-items: center;
+}
+
+.root :global(.settings-rpc-control) > :global(.ant-input) {
+  min-width: 0;
+  flex: 1;
+}
+
+.root :global(.settings-rpc-control) > :global(.ant-btn) {
+  flex: 0 0 auto;
+}
+
+.root :global(.settings-rpc-result) {
+  display: flex;
+  min-width: 0;
+  grid-column: 2;
+  grid-row: 2;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+  overflow-wrap: anywhere;
+}
+
+.root :global(.settings-rpc-result) :global(.ant-tag) {
+  max-width: 100%;
+  margin: 0;
+  white-space: normal;
+}
+
+.root :global(.settings-rpc-result) :global(.ant-typography) {
+  font-size: var(--sv-admin-font-secondary);
+}
+
+.root :global(.settings-rpc-status) {
+  --sv-rpc-status-color: var(--sv-text-muted);
+}
+
+.root :global(.settings-rpc-status[data-tone='success']) {
+  --sv-rpc-status-color: var(--sv-success);
+}
+
+.root :global(.settings-rpc-status[data-tone='error']) {
+  --sv-rpc-status-color: var(--sv-danger);
+}
+
+.root :global(.settings-rpc-status[data-tone='warning']) {
+  --sv-rpc-status-color: var(--sv-warning);
+}
+
+.root :global(.settings-rpc-status[data-tone='processing']) {
+  --sv-rpc-status-color: var(--sv-primary-strong);
+}
+
+.root :global(.settings-rpc-result) :global(.settings-rpc-status) {
+  border-color: color-mix(in srgb, var(--sv-rpc-status-color) 30%, var(--sv-admin-border)) !important;
+  background: color-mix(in srgb, var(--sv-rpc-status-color) 8%, var(--sv-bg-solid)) !important;
+  color: var(--sv-rpc-status-color) !important;
 }
 
 .root :global(.settings-logo-control) {
@@ -2698,6 +2778,29 @@
   .root :global(.settings-logo-control) {
     grid-column: 1;
     grid-row: 3;
+  }
+
+  .root :global(.settings-rpc-heading) {
+    flex-wrap: wrap;
+  }
+
+  .root :global(.settings-rpc-heading) :global(.settings-tab-heading-copy) {
+    flex-basis: calc(100% - 42px);
+  }
+
+  .root :global(.settings-rpc-test-all) {
+    margin-top: 0;
+    margin-left: 42px;
+  }
+
+  .root :global(.settings-rpc-control) {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .root :global(.settings-rpc-result) {
+    grid-column: 1;
+    grid-row: 4;
   }
 
   .root :global(.backup-schedule-fields),

@@ -2,8 +2,8 @@
  * @file admin-settings.ts
  * @project SlothVault
  * @module Admin Settings Service
- * @description Owns installed-system branding, optional filing records, fixed Solana evidence network profiles, masked RPC reads, validated writes, and database-backed refresh checks.
- * @logic Join stored rows with a typed registry, validate optional filing links and managed branding references without echoing RPC endpoints, reject invalid evidence defaults, and persist changes atomically.
+ * @description Owns branding, filing records, readable administrator RPC configuration, validated writes, and database-backed refresh checks.
+ * @logic Join stored rows with a typed registry and effective RPC defaults, validate changes, reject invalid evidence defaults, and persist changes atomically.
  * @dependencies Prisma SystemConfig/FileManagement models, server/http/errors, system configuration and branding services
  * @index_tags admin,settings,branding,filing,logo,favicon,solana,evidence,rpc,validation,transaction
  * @author holic512
@@ -13,7 +13,8 @@ import { indexFileWrite } from './file-references'
 
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
-import { CONFIG_KEYS } from '@/server/services/system-config'
+import { CONFIG_KEYS, resolveSolanaRpcUrl } from '@/server/services/system-config'
+import { RPC_NODES } from '@/types/admin-rpc'
 import {
   getSystemBranding,
   isSystemFaviconFilePath,
@@ -89,7 +90,7 @@ export const ADMIN_CONFIG_DEFINITIONS = [
     key: CONFIG_KEYS.MAINNET_RPC_PRIMARY,
     group: 'evidence',
     kind: 'url',
-    sensitive: true,
+    sensitive: false,
     description: 'Mainnet primary RPC endpoint',
     defaultValue: '',
   },
@@ -97,7 +98,7 @@ export const ADMIN_CONFIG_DEFINITIONS = [
     key: CONFIG_KEYS.MAINNET_RPC_FALLBACK,
     group: 'evidence',
     kind: 'url',
-    sensitive: true,
+    sensitive: false,
     description: 'Mainnet fallback RPC endpoint',
     defaultValue: '',
   },
@@ -113,7 +114,7 @@ export const ADMIN_CONFIG_DEFINITIONS = [
     key: CONFIG_KEYS.DEVNET_RPC_PRIMARY,
     group: 'evidence',
     kind: 'url',
-    sensitive: true,
+    sensitive: false,
     description: 'Devnet primary RPC endpoint',
     defaultValue: '',
   },
@@ -121,7 +122,7 @@ export const ADMIN_CONFIG_DEFINITIONS = [
     key: CONFIG_KEYS.DEVNET_RPC_FALLBACK,
     group: 'evidence',
     kind: 'url',
-    sensitive: true,
+    sensitive: false,
     description: 'Devnet fallback RPC endpoint',
     defaultValue: '',
   },
@@ -175,14 +176,16 @@ export async function listAdminSettings() {
   const byKey = new Map(records.map((record) => [record.configKey, record.configValue]))
   const configs = ADMIN_CONFIG_DEFINITIONS.map((definition) => {
     const storedValue = byKey.get(definition.key) || ''
+    const rpcNode = RPC_NODES.find((node) => node.key === definition.key)
     return {
       key: definition.key,
       value: definition.sensitive ? '' : storedValue || definition.defaultValue,
       description: definition.description,
-      defaultValue: definition.defaultValue,
+      defaultValue: rpcNode ? resolveSolanaRpcUrl(rpcNode.network, rpcNode.fallback, '') : definition.defaultValue,
       kind: definition.kind,
       sensitive: definition.sensitive,
       configured: Boolean(storedValue),
+      ...(rpcNode ? { effectiveValue: resolveSolanaRpcUrl(rpcNode.network, rpcNode.fallback, storedValue) } : {}),
       previewUrl: definition.kind === 'image'
         ? branding.logoUrl
         : definition.kind === 'icon'

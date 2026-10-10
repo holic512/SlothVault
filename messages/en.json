@@ -1237,7 +1237,7 @@
       "desc": "Manage system branding, website filings, and transaction-evidence network profiles",
       "tips": {
         "title": "Configuration Tips",
-        "content": "RPC URLs are stored as sensitive values and never echoed. Disabling a network blocks new issuance without hiding historical receipts."
+        "content": "Administrators can view and edit RPC URLs. Node tests use saved settings. Disabling a network blocks new issuance without hiding historical receipts."
       },
       "groups": {
         "branding": "System Branding",
@@ -1259,10 +1259,7 @@
         },
         "rpc": {
           "label": "RPC Nodes",
-          "description": "Configure primary and fallback server-side nodes for Mainnet and Devnet.",
-          "noticeTitle": "Sensitive server-side configuration",
-          "noticeDescription": "Saved node URLs are never shown again; the fallback is used only after a connection failure.",
-          "test": "Test nodes"
+          "description": "Configure primary and fallback server-side nodes for Mainnet and Devnet."
         },
         "updates": {
           "label": "System Updates",
@@ -1396,8 +1393,37 @@
         "uploadFailed": "Logo upload failed",
         "logoAndFaviconUploadSuccess": "Logo and favicon.ico generated and uploaded; save to apply them",
         "faviconUploadSuccess": "ICO icon uploaded; save to apply it",
-        "faviconUploadFailed": "ICO icon upload failed",
-        "networkTestSuccess": "Primary and fallback RPC endpoints tested"
+        "faviconUploadFailed": "ICO icon upload failed"
+      },
+      "rpc": {
+        "fields": {
+          "SOLANA_MAINNET_RPC_PRIMARY": "Mainnet primary",
+          "SOLANA_MAINNET_RPC_FALLBACK": "Mainnet fallback",
+          "SOLANA_DEVNET_RPC_PRIMARY": "Devnet primary",
+          "SOLANA_DEVNET_RPC_FALLBACK": "Devnet fallback"
+        },
+        "testAll": "Test all",
+        "testNode": "Test",
+        "testNodeLabel": "Test {node}",
+        "saveFirst": "Save node changes before testing",
+        "placeholder": "Optional fallback RPC URL",
+        "defaultHint": "An empty value uses the default endpoint",
+        "testedAt": "Tested at {date}",
+        "status": {
+          "idle": "Not tested",
+          "pending": "Testing",
+          "success": "OK · {latency} ms",
+          "timeout": "Timeout · 8 seconds",
+          "unconfigured": "Not configured"
+        },
+        "errors": {
+          "http": "Request failed · HTTP {status}",
+          "RPC_ERROR": "RPC service returned an error",
+          "INVALID_RESPONSE": "Invalid RPC endpoint or response",
+          "NETWORK_ERROR": "Cannot connect to the RPC node",
+          "configurationChanged": "Server settings changed. Refresh and try again.",
+          "requestTimeout": "Test request timed out. Try again."
+        }
       }
     },
     "backup": {

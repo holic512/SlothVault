@@ -4,13 +4,13 @@
  * @file settings-manager.tsx
  * @project SlothVault
  * @module System Settings Administration
- * @description Provides route-based settings navigation with shared drafts, per-section unsaved indicators, protected RPC fields, and read-only system updates.
- * @logic Retain drafts and upload previews in the shared layout, reconcile server reloads without discarding edits, save every changed field with confirmed readback, and render the selected child page.
- * @dependencies Ant Design, React Query, next-intl, Next navigation, admin-settings-draft, api-client, system-update API
- * @index_tags admin,settings,routing,draft,branding,filing,logo,favicon,secrets,configuration,system-update,release
+ * @description Provides shared settings drafts, readable RPC inputs with independent node probes, and read-only system updates.
+ * @logic Reconcile saved settings without discarding drafts, confirm writes by readback, and run cancellable saved-node probes concurrently with isolated outcomes.
+ * @dependencies Ant Design, React Query, next-intl, Next navigation, admin-settings-draft, admin-rpc-test, api-client
+ * @index_tags admin,settings,routing,draft,branding,filing,logo,favicon,rpc,configuration,system-update,release
  * @author holic512
  */
-import { createContext, useContext, useReducer, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useReducer, useState, useSyncExternalStore, type ReactNode } from 'react'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, App, Button, Card, Descriptions, Empty, Image, Input, Segmented, Skeleton, Space, Switch, Tag, Tooltip, Typography, Upload } from 'antd'
@@ -20,6 +20,7 @@ import Link from 'next/link'
 import { useRouter, useSelectedLayoutSegment } from 'next/navigation'
 
 import { AdminPage } from '@/components/admin/admin-page'
+import { RpcSettingsField } from '@/components/admin/rpc-settings-field'
 import { formatAdminDate, formatAdminError } from '@/lib/admin-localization'
 import {
   ADMIN_SETTINGS_ENDPOINT,
@@ -38,6 +39,8 @@ import {
   type SettingsSectionKey,
 } from '@/lib/admin-settings-draft'
 import { apiFetch } from '@/lib/api-client'
+import { RpcTestController } from '@/lib/admin-rpc-test'
+import { isRpcConfigKey } from '@/types/admin-rpc'
 
 type UploadedBrandingFile = { filePath: string; url: string }
 type UploadedSystemLogo = { logo: UploadedBrandingFile; favicon: UploadedBrandingFile | null }
@@ -71,8 +74,10 @@ type SettingsContextValue = {
   error: Error | null
   retry: () => void
   renderConfig: (config: ConfigItem) => ReactNode
-  testNetwork: () => void
-  testingNetwork: boolean
+  testAllRpcNodes: () => void
+  testingRpcNodes: boolean
+  rpcTestingDisabled: boolean
+  rpcDirty: boolean
 }
 const SettingsContext = createContext<SettingsContextValue | null>(null)
 
@@ -89,6 +94,18 @@ export function SettingsManager({ children }: { children: ReactNode }) {
   })
   const [draft, dispatch] = useReducer(settingsDraftReducer, query.data || null, createSettingsDraftState)
   const [uploadingBrandingKey, setUploadingBrandingKey] = useState<string | null>(null)
+  const [rpcTests] = useState(() => new RpcTestController())
+  const rpcTestStates = useSyncExternalStore(rpcTests.subscribe, rpcTests.getSnapshot, rpcTests.getSnapshot)
+  const testingRpcNodes = Object.values(rpcTestStates).some((state) => state.pending)
+
+  useEffect(() => () => rpcTests.clear(), [rpcTests])
+  useEffect(() => {
+    for (const config of getSettingsSectionConfigs(draft.data, 'rpc')) {
+      if (!isRpcConfigKey(config.key)) continue
+      const state = rpcTests.getSnapshot()[config.key]
+      if (state && state.endpoint !== config.effectiveValue) rpcTests.invalidate(config.key)
+    }
+  }, [draft.data, rpcTests])
 
   // Reconcile a new query snapshot without remounting the shared draft or its route children.
   if (query.data && query.data !== draft.data) {
@@ -127,19 +144,26 @@ export function SettingsManager({ children }: { children: ReactNode }) {
       await queryClient.cancelQueries({ queryKey: ADMIN_SETTINGS_QUERY_KEY })
       const cached = queryClient.setQueryData<ConfigData>(ADMIN_SETTINGS_QUERY_KEY, data)
       dispatch({ type: 'received', data: cached || data })
+      rpcTests.clear()
       message.success(t('messages.refreshSuccess'))
     },
     onError: (error) => message.error(formatAdminError(error, errorT)),
   })
-  const busy = saveMutation.isPending || refreshMutation.isPending || uploadingBrandingKey !== null
+  const settingsBusy = saveMutation.isPending || refreshMutation.isPending || uploadingBrandingKey !== null
+  const rpcTestingDisabled = settingsBusy || Boolean(query.error) || !draft.data
+  const busy = settingsBusy || testingRpcNodes
   const editingLocked = saveMutation.isPending
   const filingConfigs = getSettingsSectionConfigs(draft.data, 'filing')
-  const setValue = (key: string, value: string) => dispatch({ type: 'edit', values: { [key]: value } })
-  const networkTestMutation = useMutation({
-    mutationFn: () => apiFetch('/api/admin/evidence/networks/test', { method: 'POST', body: '{}' }),
-    onSuccess: () => message.success(t('messages.networkTestSuccess')),
-    onError: (error) => message.error(formatAdminError(error, errorT)),
-  })
+  const setValue = (key: string, value: string) => {
+    if (isRpcConfigKey(key)) rpcTests.invalidate(key)
+    dispatch({ type: 'edit', values: { [key]: value } })
+  }
+  const testAllRpcNodes = () => {
+    if (rpcTestingDisabled || testingRpcNodes || dirtySections.has('rpc')) return
+    for (const config of getSettingsSectionConfigs(draft.data, 'rpc')) {
+      if (isRpcConfigKey(config.key)) void rpcTests.test(config.key, config.effectiveValue || '')
+    }
+  }
 
   const uploadSystemLogo = async (key: string, file: File, syncFavicon: boolean) => {
     const formData = new FormData()
@@ -203,6 +227,22 @@ export function SettingsManager({ children }: { children: ReactNode }) {
   }
 
   const renderConfig = (config: ConfigItem) => {
+    if (isRpcConfigKey(config.key)) {
+      const key = config.key
+      return <RpcSettingsField
+        key={key}
+        config={{ ...config, key }}
+        value={values[key] || ''}
+        dirty={values[key] !== config.value}
+        locked={editingLocked}
+        testingDisabled={rpcTestingDisabled}
+        state={rpcTestStates[key]}
+        onChange={(value) => setValue(key, value)}
+        onTest={() => {
+          if (!rpcTestingDisabled && values[key] === config.value) void rpcTests.test(key, config.effectiveValue || '')
+        }}
+      />
+    }
     const isFiling = filingConfigs.some((item) => item.key === config.key)
     const sensitive =
       config.sensitive ??
@@ -311,8 +351,10 @@ export function SettingsManager({ children }: { children: ReactNode }) {
       error: query.error,
       retry: () => { void query.refetch() },
       renderConfig,
-      testNetwork: () => networkTestMutation.mutate(),
-      testingNetwork: networkTestMutation.isPending,
+      testAllRpcNodes,
+      testingRpcNodes,
+      rpcTestingDisabled,
+      rpcDirty: dirtySections.has('rpc'),
     }}>
       <AdminPage>
         <div className="settings-tabs">
@@ -328,7 +370,10 @@ export function SettingsManager({ children }: { children: ReactNode }) {
                 <Button
                   icon={<RotateCcw size={15} />}
                   disabled={busy || !changedKeys.length}
-                  onClick={() => dispatch({ type: 'reset' })}
+                  onClick={() => {
+                    rpcTests.clear()
+                    dispatch({ type: 'reset' })
+                  }}
                 >
                   {t('actions.reset')}
                 </Button>
@@ -405,12 +450,21 @@ export function SettingsSection({ section }: { section: SettingsSectionKey }) {
   const configs = getSettingsSectionConfigs(context.data, section)
 
   return <section className="settings-tab-panel">
-    <div className="settings-tab-heading">
+    <div className={`settings-tab-heading${section === 'rpc' ? ' settings-rpc-heading' : ''}`}>
       <span className="settings-tab-icon"><Icon size={16} /></span>
-      <div>
+      <div className="settings-tab-heading-copy">
         <Typography.Title level={4}>{t(`tabs.${section}.label`)}</Typography.Title>
         <Typography.Text type="secondary">{t(`tabs.${section}.description`)}</Typography.Text>
       </div>
+      {section === 'rpc' ? <Tooltip title={context.rpcDirty ? t('rpc.saveFirst') : undefined}>
+        <Button
+          className="settings-rpc-test-all"
+          size="small"
+          loading={context.testingRpcNodes}
+          disabled={context.rpcTestingDisabled || context.testingRpcNodes || context.rpcDirty}
+          onClick={context.testAllRpcNodes}
+        >{t('rpc.testAll')}</Button>
+      </Tooltip> : null}
     </div>
     {section === 'updates' ? <SystemUpdatePanel /> : <>
       {context.error ? <Alert
@@ -421,16 +475,8 @@ export function SettingsSection({ section }: { section: SettingsSectionKey }) {
         action={<Button size="small" onClick={context.retry}>{t('updates.actions.retry')}</Button>}
       /> : null}
       {!context.data && context.loading ? <Skeleton active paragraph={{ rows: 10 }} /> : context.data ? <>
-        {section === 'rpc' ? <Alert
-          className="settings-rpc-notice"
-          showIcon
-          type="info"
-          title={t('tabs.rpc.noticeTitle')}
-          description={t('tabs.rpc.noticeDescription')}
-          action={<Button size="small" loading={context.testingNetwork} onClick={context.testNetwork}>{t('tabs.rpc.test')}</Button>}
-        /> : null}
         {configs.length ? <Card
-          className="settings-card"
+          className={`settings-card${section === 'rpc' ? ' settings-rpc-card' : ''}`}
           title={<span className="settings-card-title"><Icon size={16} />{section === 'branding' ? t('branding.cardTitle') : t('tabs.fieldsCount', { count: configs.length })}</span>}
         >
           <div className="settings-fields">{configs.map(context.renderConfig)}</div>

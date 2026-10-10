@@ -2,8 +2,8 @@
  * @file system-config.ts
  * @project SlothVault
  * @module Runtime System Configuration
- * @description Defines persisted system branding and filing keys and resolves fixed Mainnet and Devnet evidence profiles, protected RPC endpoints, defaults, and persisted health observations.
- * @logic Keep shared setting keys stable, read profile settings from the installed database, fall back to environment or public cluster endpoints, keep disabled networks readable, and expose only masked endpoint summaries to administrators.
+ * @description Defines persisted system settings and resolves fixed Solana network profiles, effective RPC endpoints, defaults, and persisted health observations.
+ * @logic Keep shared setting keys stable, resolve stored RPC addresses before environment and public defaults, and keep disabled network profiles readable.
  * @dependencies Prisma SystemConfig model, @solana/web3.js
  * @index_tags config,branding,filing,logo,favicon,solana,evidence,rpc,failover,network-profile
  * @author holic512
@@ -59,6 +59,11 @@ function environmentRpc(network: SolanaNetwork, fallback: boolean) {
     : process.env.SOLANA_DEVNET_RPC_URL || ''
 }
 
+export function resolveSolanaRpcUrl(network: SolanaNetwork, fallback: boolean, storedValue: string) {
+  return storedValue || environmentRpc(network, fallback) ||
+    (fallback ? '' : clusterApiUrl(network === 'mainnet' ? 'mainnet-beta' : 'devnet'))
+}
+
 export type NetworkHealthSnapshot = {
   testedAt: string
   primary: { ok: boolean; latencyMs: number | null; error: string | null }
@@ -86,11 +91,8 @@ export async function getSolanaNetworkProfile(network: SolanaNetwork) {
   return {
     network,
     enabled: enabledValue(enabled, network === 'devnet'),
-    primaryUrl:
-      primary ||
-      environmentRpc(network, false) ||
-      clusterApiUrl(network === 'mainnet' ? 'mainnet-beta' : 'devnet'),
-    fallbackUrl: fallback || environmentRpc(network, true) || '',
+    primaryUrl: resolveSolanaRpcUrl(network, false, primary),
+    fallbackUrl: resolveSolanaRpcUrl(network, true, fallback),
     health: parseHealth(health),
   }
 }

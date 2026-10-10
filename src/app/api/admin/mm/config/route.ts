@@ -2,10 +2,10 @@
  * @file route.ts
  * @project SlothVault
  * @module Admin System Configuration API
- * @description Exposes masked runtime settings and accepts validated setting changes.
+ * @description Exposes administrator runtime settings including readable RPC addresses and accepts validated changes.
  * @logic Authenticate, parse the request, delegate settings reads or writes, and wrap the stable API response.
  * @dependencies admin session, server/http helpers, admin settings service
- * @index_tags api,admin,settings,secrets,transaction
+ * @index_tags api,admin,settings,rpc,transaction
  * @author holic512
  */
 import { z } from 'zod'
@@ -35,7 +35,7 @@ export const dynamic = 'force-dynamic'
 export const GET = defineRoute(async (request) => {
   await requireAdminSession(request)
   return apiOk(await listAdminSettings())
-})
+}, { cacheControl: 'no-store' })
 
 export const PUT = defineRoute(async (request) => {
   await requireAdminSession(request)

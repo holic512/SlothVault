@@ -2,21 +2,24 @@
  * @file release-evidence-chain.ts
  * @project SlothVault
  * @module Release Evidence Chain Runtime
- * @description Executes Solana evidence RPC operations with bounded primary-to-fallback failover and extracts finalized transaction facts.
- * @logic Retry only connection-level failures on the configured fallback, never mask chain/business failures, and return normalized fee, slot, time, message, and signature evidence.
+ * @description Executes Solana evidence operations, extracts finalized transaction facts, and probes individual RPC endpoints with an HTTP deadline.
+ * @logic Fail over only on connection failures during evidence operations; probe one endpoint without retries, bound the entire response, and normalize errors without response bodies.
  * @dependencies @solana/web3.js, release evidence network configuration
  * @index_tags evidence,solana,rpc,failover,finalization,verification
  * @author holic512
  */
 import 'server-only'
 
-import { Connection, Message, Transaction } from '@solana/web3.js'
+import { Connection, Message, SolanaJSONRPCError, Transaction } from '@solana/web3.js'
 
 import { HttpError } from '@/server/http/errors'
 import {
   getSolanaNetworkProfile,
   type SolanaNetwork,
 } from '@/server/services/system-config'
+import type { RpcProbeResult } from '@/types/admin-rpc'
+
+export const RPC_PROBE_TIMEOUT_MS = 8_000
 
 function rpcConnection(url: string) {
   return new Connection(url, {
@@ -81,20 +84,56 @@ export async function finalizedEvidenceTransaction(
   })
 }
 
-export async function testEvidenceEndpoint(url: string) {
-  if (!url) return { configured: false, ok: false, latencyMs: null, error: null }
-  const started = Date.now()
+export async function testEvidenceEndpoint(url: string, signal?: AbortSignal): Promise<RpcProbeResult & {
+  configured: boolean
+  ok: boolean
+  error: string | null
+}> {
+  if (!url) return { configured: false, ok: false, status: 'unconfigured', latencyMs: null, error: null, errorCode: null, httpStatus: null }
+  const started = performance.now()
+  const controller = new AbortController()
+  let timedOut = false
+  let httpStatus: number | null = null
+  let fetchFailed = false
+  const cancel = () => controller.abort(new Error('RPC probe cancelled'))
+  signal?.addEventListener('abort', cancel, { once: true })
+  if (signal?.aborted) cancel()
+  const timer = setTimeout(() => {
+    timedOut = true
+    controller.abort(new Error('RPC probe timed out'))
+  }, RPC_PROBE_TIMEOUT_MS)
   try {
-    await rpcConnection(url).getLatestBlockhash('confirmed')
-    return { configured: true, ok: true, latencyMs: Date.now() - started, error: null }
+    const connection = new Connection(url, {
+      commitment: 'confirmed',
+      disableRetryOnRateLimit: true,
+      fetch: async (input, init) => {
+        try {
+          const response = await fetch(input, { ...init, signal: controller.signal })
+          if (!response.ok) httpStatus = response.status
+          return response
+        } catch (error) {
+          fetchFailed = true
+          throw error
+        }
+      },
+    })
+    await connection.getLatestBlockhash('confirmed')
+    return { configured: true, ok: true, status: 'success', latencyMs: Math.round(performance.now() - started), error: null, errorCode: null, httpStatus: null }
   } catch (error) {
+    const errorCode = httpStatus !== null ? 'HTTP_ERROR'
+      : error instanceof SolanaJSONRPCError || (error instanceof Error && error.message.includes('SolanaJSONRPCError:')) ? 'RPC_ERROR'
+        : fetchFailed || controller.signal.aborted ? 'NETWORK_ERROR' : 'INVALID_RESPONSE'
     return {
       configured: true,
       ok: false,
-      latencyMs: Date.now() - started,
-      error: error instanceof Error
-        ? error.message.replaceAll(url, '[RPC endpoint]').slice(0, 180)
-        : 'RPC test failed',
+      status: timedOut ? 'timeout' : 'error',
+      latencyMs: Math.round(performance.now() - started),
+      error: timedOut ? 'RPC probe timed out' : httpStatus !== null ? `RPC HTTP ${httpStatus}` : errorCode,
+      errorCode: timedOut ? null : errorCode,
+      httpStatus,
     }
+  } finally {
+    clearTimeout(timer)
+    signal?.removeEventListener('abort', cancel)
   }
 }

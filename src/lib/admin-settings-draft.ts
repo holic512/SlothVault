@@ -17,6 +17,7 @@ export type SettingsConfigItem = {
   defaultValue: string
   sensitive?: boolean
   configured?: boolean
+  effectiveValue?: string
   previewUrl?: string
   isCustom?: boolean
   kind?: 'boolean' | 'network' | 'url' | 'image' | 'icon' | 'text'

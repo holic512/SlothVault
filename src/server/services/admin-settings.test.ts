@@ -30,7 +30,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/server/services/file-references', () => ({ indexFileWrite: (_tx: unknown, _type: unknown, write: Promise<unknown>) => write, syncFileReferences: vi.fn() }))
 
 vi.mock('@/server/prisma', () => ({ prisma: mocks.prisma }))
-vi.mock('@/server/services/system-config', () => ({ CONFIG_KEYS: mocks.configKeys }))
+vi.mock('@/server/services/system-config', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/server/services/system-config')>(),
+  CONFIG_KEYS: mocks.configKeys,
+}))
 vi.mock('@/server/services/system-branding', () => ({
   getSystemBranding: mocks.getSystemBranding,
   isSystemLogoFilePath: (value: string) =>
@@ -171,4 +174,50 @@ describe('admin filing settings', () => {
       expect(mocks.prisma.$transaction).not.toHaveBeenCalled()
       expect(mocks.transaction.systemConfig.upsert).not.toHaveBeenCalled()
     })
+})
+
+describe('administrator RPC configuration', () => {
+  const rpcKeys = [mocks.configKeys.MAINNET_RPC_PRIMARY, mocks.configKeys.MAINNET_RPC_FALLBACK,
+    mocks.configKeys.DEVNET_RPC_PRIMARY, mocks.configKeys.DEVNET_RPC_FALLBACK]
+
+  it('returns every saved RPC address intact as a non-sensitive ordinary URL', async () => {
+    mocks.prisma.systemConfig.findMany.mockResolvedValue(rpcKeys.map((configKey, index) => ({
+      configKey, configValue: `https://rpc-${index}.example.test/path?key=example`,
+    })))
+    const settings = await listAdminSettings()
+    for (const [index, key] of rpcKeys.entries()) {
+      expect(settings.configs.find((item) => item.key === key)).toMatchObject({
+        value: `https://rpc-${index}.example.test/path?key=example`,
+        effectiveValue: `https://rpc-${index}.example.test/path?key=example`,
+        sensitive: false, configured: true, kind: 'url',
+      })
+    }
+  })
+
+  it('keeps environment defaults out of the stored value and exposes the effective address separately', async () => {
+    vi.stubEnv('SOLANA_RPC_URL', 'https://mainnet-default.example.test')
+    vi.stubEnv('SOLANA_MAINNET_RPC_FALLBACK', '')
+    try {
+      const settings = await listAdminSettings()
+      expect(settings.configs.find((item) => item.key === rpcKeys[0])).toMatchObject({
+        value: '', effectiveValue: 'https://mainnet-default.example.test', configured: false,
+      })
+      expect(settings.configs.find((item) => item.key === rpcKeys[1])).toMatchObject({ value: '', effectiveValue: '' })
+    } finally { vi.unstubAllEnvs() }
+  })
+
+  it('persists clearing saved nodes without requiring a secret-clear flag', async () => {
+    mocks.prisma.systemConfig.findMany.mockResolvedValue(rpcKeys.map((configKey) => ({ configKey, configValue: 'https://old.example.test' })))
+    await expect(updateAdminSettings(rpcKeys.map((key) => ({ key, value: '  ' })))).resolves.toMatchObject({ updated: 4 })
+    expect(mocks.transaction.systemConfig.upsert).toHaveBeenCalledTimes(4)
+    for (const [args] of mocks.transaction.systemConfig.upsert.mock.calls) expect(args.update.configValue).toBe('')
+  })
+
+  it('rejects invalid RPC URLs atomically', async () => {
+    await expect(updateAdminSettings([
+      { key: rpcKeys[0], value: 'https://valid.example.test' },
+      { key: rpcKeys[1], value: 'ftp://invalid.example.test' },
+    ])).rejects.toMatchObject({ status: 400 })
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled()
+  })
 })

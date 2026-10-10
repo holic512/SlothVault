@@ -215,7 +215,7 @@ flowchart LR
 | `UPLOAD_STORAGE_PATH` | 受控上传目录；本地默认 `<cwd>/data/uploads`，容器默认 `/app/data/uploads`。 |
 | `BACKUP_STORAGE_PATH` | 完整备份的独立本地存储目录；默认 `${APP_DATA_PATH}/backups`，可挂载独立磁盘。 |
 | `ENCRYPTION_KEY` | 配置加密主密钥；未提供时系统会在配置目录生成持久化密钥。 |
-| `SOLANA_RPC_URL` | Mainnet 主 RPC 的环境回退值；建议在后台敏感设置中维护实际地址。 |
+| `SOLANA_RPC_URL` | Mainnet 主 RPC 的环境回退值；可在后台 RPC 节点设置中查看、修改并测试已保存的地址。 |
 | `SOLANA_MAINNET_RPC_FALLBACK` | Mainnet 备用 RPC。 |
 | `SOLANA_DEVNET_RPC_URL` | Devnet 主 RPC 的环境回退值。 |
 | `SOLANA_DEVNET_RPC_FALLBACK` | Devnet 备用 RPC。 |
