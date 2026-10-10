@@ -127,7 +127,7 @@ export const articleToolDefinitions: McpToolDefinition[] = collectMcpToolDefinit
     'content.article.create',
     {
       title: '创建文章草稿',
-      description: '创建未发布文章。会员允许名单通过网页后台配置，发布前请核对权限。',
+      description: '创建未发布文章。正文引用的图片和附件必须先上传成功，使用实际返回的 filePath；会员允许名单通过网页后台配置，发布前请核对权限。',
       inputSchema: z.strictObject(articleValuesSchema),
       outputSchema: articleOutputSchema,
       annotations: CREATE_ANNOTATIONS,
@@ -145,7 +145,7 @@ export const articleToolDefinitions: McpToolDefinition[] = collectMcpToolDefinit
     'content.article.update',
     {
       title: '更新文章内容',
-      description: '更新文章内容字段；会员允许名单仅通过网页后台修改。该工具不发布、撤回、删除或恢复文章。',
+      description: '更新文章内容字段；正文引用的图片和附件必须先上传成功，使用实际返回的 filePath；会员允许名单仅通过网页后台修改。该工具不发布、撤回、删除或恢复文章。',
       inputSchema: updateArticleSchema,
       outputSchema: articleOutputSchema,
       annotations: UPDATE_ANNOTATIONS,

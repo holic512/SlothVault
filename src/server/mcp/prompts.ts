@@ -47,6 +47,7 @@ export function registerAdminMcpPrompts(server: McpServer) {
 - 结构化提纲：${outline === undefined ? '未提供' : JSON.stringify(outline)}
 
 执行规则：
+涉及正文材料时，先通过 content.file.upload 完成全部图片和下载附件上传，再使用返回的 filePath 撰写并保存正文。项目笔记图片使用 NoteImage，项目笔记下载附件使用 NoteAttachment；独立文章对应 ArticleImage 和 ArticleAttachment。上传失败立即停止正文写入；结果不明先回查，不重复上传，不编造链接，不写占位地址。
 1. 调用 content.project.list，以项目名称为 keyword 分页检查所有匹配结果；比较时使用去除首尾空白后的精确名称。
 2. 如果发现精确同名项目，立即停止并报告冲突，不复用、不修改，也不创建重复项目。
 3. 如果没有精确同名项目，调用 content.project.create 创建项目，再用返回的 projectId 调用 content.project.version.create_draft 创建空版本草稿。
@@ -73,6 +74,7 @@ export function registerAdminMcpPrompts(server: McpServer) {
 整理要求：${requirements === undefined ? '保持清晰的现有结构，修正明显缺失的正文和主版本关系。' : requirements}
 
 执行规则：
+涉及正文材料时，先通过 content.file.upload 完成全部图片和下载附件上传，再使用返回的 filePath 撰写并保存正文。项目笔记图片使用 NoteImage，项目笔记下载附件使用 NoteAttachment；独立文章对应 ArticleImage 和 ArticleAttachment。上传失败立即停止正文写入；结果不明先回查，不重复上传，不编造链接，不写占位地址。
 1. 先调用 content.project.version.get；如果版本不存在、已删除或 publishedAt 非 null，立即停止，绝不修改发布版本。
 2. 使用 content.category.list 和 content.note.list 按 pageSize=50 分页读取该 projectVersionId 的完整未删除结构，直到读取数量覆盖 total。
 3. 对每个相关笔记调用 content.note.content.list_versions；只在确实需要理解或修改正文时调用 content.note.content.get，避免无谓加载大段历史正文。

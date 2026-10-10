@@ -4,10 +4,12 @@
  * @module Document Content Contract
  * @description Defines shared size, statistics, and image-upload constraints for Markdown and safe embedded HTML documents.
  * @logic Keep browser feedback and API persistence limits aligned without coupling client code to server-only services.
- * @dependencies Web File metadata
+ * @dependencies Web File metadata, file-business-types
  * @index_tags document,markdown,html,validation,upload,limits
  * @author holic512
  */
+
+import { SAFE_FILE_EXTENSIONS } from './file-business-types'
 
 export const DOCUMENT_CONTENT_MAX_CHARACTERS = 500_000
 export const DOCUMENT_JSON_MAX_BYTES = 4 * 1024 * 1024
@@ -51,6 +53,10 @@ export function isDocumentContentWithinLimit(value: unknown): value is string {
 export function validateDocumentImages(
   files: readonly DocumentImageCandidate[],
 ): DocumentImageConstraintIssue | null {
+  return validateDocumentUploads(files, false)
+}
+
+export function validateDocumentUploads(files: readonly DocumentImageCandidate[], attachment: boolean): DocumentImageConstraintIssue | null {
   if (files.length > DOCUMENT_IMAGE_MAX_FILES) {
     return { code: 'too-many-files', maximum: DOCUMENT_IMAGE_MAX_FILES }
   }
@@ -60,7 +66,7 @@ export function validateDocumentImages(
     if (file.size === 0) return { code: 'empty-file', fileName: file.name }
 
     const extension = file.name.split('.').pop()?.toLocaleLowerCase() || ''
-    const supportedType = file.type
+    const supportedType = attachment ? SAFE_FILE_EXTENSIONS.has(extension) : file.type
       ? DOCUMENT_IMAGE_MIME_TYPES.has(file.type.toLocaleLowerCase())
       : DOCUMENT_IMAGE_EXTENSIONS.has(extension)
     if (!supportedType) return { code: 'unsupported-type', fileName: file.name }

@@ -5,7 +5,7 @@
  * @project SlothVault
  * @module Independent Article Editor
  * @description Provides a focused administrator workspace for article metadata, optional cover, Markdown body, and publication lifecycle.
- * @logic Hydrate existing drafts, persist edits before lifecycle transitions, upload managed cover/body images, and allow published articles to update in place.
+ * @logic Hydrate existing drafts, persist edits before lifecycle transitions, upload separate cover/body images and downloads before saving, and allow published articles to update in place.
  * @dependencies Ant Design, React Query, Next navigation, MarkdownContentEditor, article and file APIs
  * @index_tags admin,article,editor,markdown,cover,publish
  * @author holic512
@@ -64,6 +64,9 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
   const [allowedMembershipLevelIds, setAllowedMembershipLevelIds] = useState<string[]>([])
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const uploadingRef = useRef(false)
+  const handleUploadingChange = (active: boolean) => { uploadingRef.current = active; setUploading(active) }
 
   const query = useQuery({
     queryKey: ['admin-article', articleId],
@@ -101,7 +104,7 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
     setDirty(true)
   }
 
-  const uploadFiles = async (files: File[], businessType: 'ArticleCover' | 'ArticleAttachment') => {
+  const uploadFiles = async (files: File[], businessType: 'ArticleCover' | 'ArticleImage' | 'ArticleAttachment') => {
     const formData = new FormData()
     files.forEach((file) => formData.append('file', file))
     return apiFetch<UploadedFile[]>(`/api/admin/mm/file?businessType=${businessType}`, {
@@ -111,6 +114,8 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
   }
 
   const uploadCover = async (file: File) => {
+    if (uploadingRef.current) return
+    handleUploadingChange(true)
     setBusy(true)
     try {
       const [uploaded] = await uploadFiles([file], 'ArticleCover')
@@ -120,11 +125,13 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
       message.error(formatAdminError(error, errorT))
     } finally {
       setBusy(false)
+      handleUploadingChange(false)
       if (coverInput.current) coverInput.current.value = ''
     }
   }
 
   const persist = async () => {
+    if (uploadingRef.current) return null
     if (!title.trim()) {
       message.error(t('messages.titleRequired'))
       return null
@@ -159,6 +166,7 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
   }
 
   const runLifecycle = async (action: 'publish' | 'withdraw') => {
+    if (uploadingRef.current) return
     const saved = dirty || !articleId ? await persist() : article
     if (!saved) return
     setBusy(true)
@@ -222,11 +230,11 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
         <Space size={6} wrap>
           {articleId ? <Button danger icon={<Trash2 size={15} />} onClick={remove}>{t('delete')}</Button> : null}
           {published ? (
-            <Button icon={<EyeOff size={15} />} loading={busy} onClick={() => void runLifecycle('withdraw')}>{t('withdraw')}</Button>
+            <Button icon={<EyeOff size={15} />} loading={busy} disabled={uploading} onClick={() => void runLifecycle('withdraw')}>{t('withdraw')}</Button>
           ) : (
-            <Button icon={<Rocket size={15} />} loading={busy} onClick={() => void runLifecycle('publish')}>{t('publish')}</Button>
+            <Button icon={<Rocket size={15} />} loading={busy} disabled={uploading} onClick={() => void runLifecycle('publish')}>{t('publish')}</Button>
           )}
-          <Button type="primary" icon={<Save size={15} />} loading={busy} disabled={!dirty && Boolean(articleId)} onClick={() => void persist()}>{t('save')}</Button>
+          <Button type="primary" icon={<Save size={15} />} loading={busy} disabled={uploading || (!dirty && Boolean(articleId))} onClick={() => void persist()}>{t('save')}</Button>
         </Space>
       </header>
 
@@ -272,7 +280,7 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
               }}
             />
             <Space size={6}>
-              <Button icon={<ImagePlus size={15} />} loading={busy} onClick={() => coverInput.current?.click()}>{cover ? t('replaceCover') : t('uploadCover')}</Button>
+              <Button icon={<ImagePlus size={15} />} loading={busy} disabled={uploading} onClick={() => coverInput.current?.click()}>{cover ? t('replaceCover') : t('uploadCover')}</Button>
               {cover ? <Button icon={<X size={14} />} onClick={() => mark(setCover, null)}>{t('removeCover')}</Button> : null}
             </Space>
           </div>
@@ -290,9 +298,15 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
             value={content}
             onChange={(value) => mark(setContent, value)}
             onUpload={async (files) => {
+              const uploaded = await uploadFiles(files, 'ArticleImage')
+              return uploaded.flatMap((item) => item.url ? [item.url] : [])
+            }}
+            onUploadAttachment={async (files) => {
               const uploaded = await uploadFiles(files, 'ArticleAttachment')
               return uploaded.flatMap((item) => item.url ? [item.url] : [])
             }}
+            onUploadingChange={handleUploadingChange}
+            readOnly={busy}
             fillContainer
             header={<div><strong>{t('body')}</strong><span>{t('bodyHint')}</span></div>}
           />

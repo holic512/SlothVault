@@ -90,7 +90,7 @@ export const noteContentToolDefinitions: McpToolDefinition[] = collectMcpToolDef
     'content.note.content.create_draft',
     {
       title: '创建笔记正文草稿',
-      description: '在未发布版本中创建正文历史项；首个未删除正文会自动成为主版本。',
+      description: '在未发布版本中创建正文历史项；正文引用的图片和附件必须先上传成功，使用实际返回的 filePath；首个未删除正文会自动成为主版本。',
       inputSchema: z.strictObject({
         noteId: decimalIdSchema,
         content: z.string().max(DOCUMENT_CONTENT_MAX_CHARACTERS).default(''),
@@ -114,7 +114,7 @@ export const noteContentToolDefinitions: McpToolDefinition[] = collectMcpToolDef
     'content.note.content.update_draft',
     {
       title: '更新笔记正文草稿',
-      description: '更新正文 Markdown、版本说明或启用状态；不删除且不切换主版本。',
+      description: '更新正文 Markdown、版本说明或启用状态；正文图片和下载附件必须先上传成功，使用实际返回的 filePath；不删除且不切换主版本。',
       inputSchema: updateContentSchema,
       outputSchema: noteContentOutputSchema,
       annotations: UPDATE_ANNOTATIONS,

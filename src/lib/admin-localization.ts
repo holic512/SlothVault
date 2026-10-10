@@ -64,6 +64,10 @@ export function formatAdminBytes(locale: string, value: number | string | bigint
 
 export function formatAdminError(error: unknown, t: AdminErrorTranslator) {
   if (error instanceof ApiClientError) {
+    if (error.data && typeof error.data === 'object' && 'reason' in error.data) {
+      if (error.data.reason === 'MANAGED_FILE_UNAVAILABLE') return t('managedFileUnavailable')
+      if (error.data.reason === 'FILE_TYPE_NOT_ALLOWED') return t('fileTypeNotAllowed')
+    }
     const key = KNOWN_ERROR_KEYS[error.message]
     if (key) return t(key)
     if (error.status === 401 || error.status === 403) return t('unauthorized')

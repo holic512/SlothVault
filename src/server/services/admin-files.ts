@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Admin File Storage
  * @description Owns managed-file queries, safe upload validation, stable DTOs, contained storage access, generated branding artifacts, and compensating deletion workflows.
- * @logic Build provider-portable metadata filters, validate every multipart file before disk writes, atomically persist source and derived branding files, constrain physical paths to the upload root, and stage hard deletes until the database delete succeeds.
+ * @logic Build provider-portable metadata filters, apply shared image/download categories and validate every file before disk writes, atomically persist source and derived branding files, constrain physical paths to the upload root, and stage hard deletes until the database delete succeeds.
  * @dependencies node:fs/promises, node:path, sharp, Prisma FileManagement model, server/http/errors
  * @index_tags admin,files,upload,filesystem,containment,sharp,branding,favicon,ico,transaction,hard-delete
  * @author holic512
@@ -33,6 +33,7 @@ import {
 } from 'node:path'
 
 import sharp from 'sharp'
+import { BUSINESS_TYPE_CONFIG, IMAGE_EXTENSIONS, allowedFileExtensions, type BusinessType } from '@/lib/file-business-types'
 
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
@@ -61,39 +62,8 @@ export const IMAGE_VALIDATION_MAX_QUEUED_REQUESTS = 2
 let activeImageValidations = 0
 const queuedImageValidationStarts: Array<() => void> = []
 
-export const BUSINESS_TYPE_CONFIG = {
-  SystemLogo: { dir: 'system-logo', imagesOnly: true },
-  SystemFavicon: { dir: 'system-favicon', imagesOnly: false },
-  ProjectAvatar: { dir: 'project-avatar', imagesOnly: true },
-  UserAvatar: { dir: 'user-avatar', imagesOnly: true },
-  ArticleCover: { dir: 'article-cover', imagesOnly: true },
-  ArticleAttachment: { dir: 'article-attachment', imagesOnly: true },
-  NoteAttachment: { dir: 'note-attachment', imagesOnly: false },
-  HomeworkFile: { dir: 'homework', imagesOnly: false },
-  ContractAttachment: { dir: 'contract-attachment', imagesOnly: false },
-  CommissionAttachment: { dir: 'commission-attachment', imagesOnly: false },
-  Markdown: { dir: 'markdown', imagesOnly: false },
-  TempFile: { dir: 'temp', imagesOnly: false },
-  Other: { dir: 'other', imagesOnly: false },
-} as const
-
-export type BusinessType = keyof typeof BUSINESS_TYPE_CONFIG
-
-export const VALID_BUSINESS_TYPES = Object.keys(BUSINESS_TYPE_CONFIG) as BusinessType[]
-
-const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp'])
-const FAVICON_EXTENSIONS = new Set(['ico'])
-const SAFE_FILE_EXTENSIONS = new Set([
-  ...IMAGE_EXTENSIONS,
-  'pdf',
-  'txt',
-  'md',
-  'json',
-  'zip',
-  'docx',
-  'xlsx',
-  'pptx',
-])
+export { BUSINESS_TYPE_CONFIG, VALID_BUSINESS_TYPES } from '@/lib/file-business-types'
+export type { BusinessType } from '@/lib/file-business-types'
 
 const CONTENT_TYPES: Record<string, string> = {
   jpg: 'image/jpeg',
@@ -205,7 +175,7 @@ function resolveWithinUploads(...segments: string[]) {
   return assertContained(UPLOAD_ROOT, resolve(UPLOAD_ROOT, ...segments))
 }
 
-function resolveStoredUploadPath(filePath: string) {
+export function resolveStoredUploadPath(filePath: string) {
   if (
     !filePath ||
     filePath.includes('\0') ||
@@ -360,7 +330,6 @@ function createPreparedUpload(
 
 async function prepareUploads(files: File[], businessType: BusinessType) {
   if (businessType === 'CommissionAttachment') throw new HttpError('委托资料请通过所属项目上传', 400, 400)
-  const config = BUSINESS_TYPE_CONFIG[businessType]
   const maxFileSize =
     businessType === 'SystemLogo' ||
     businessType === 'SystemFavicon' ||
@@ -390,13 +359,9 @@ async function prepareUploads(files: File[], businessType: BusinessType) {
     }
 
     const extension = extensionOf(originalName)
-    const allowedExtensions = businessType === 'SystemFavicon'
-      ? FAVICON_EXTENSIONS
-      : config.imagesOnly
-        ? IMAGE_EXTENSIONS
-        : SAFE_FILE_EXTENSIONS
+    const allowedExtensions = allowedFileExtensions(businessType)
     if (!extension || !allowedExtensions.has(extension)) {
-      throw new HttpError(`File type is not allowed: ${originalName}`, 400, 400)
+      throw new HttpError(`File type is not allowed for ${businessType}: ${originalName}. Allowed: ${[...allowedExtensions].join(', ')}. Use ArticleAttachment or NoteAttachment for downloads.`, 400, 400, { reason: 'FILE_TYPE_NOT_ALLOWED', businessType, allowedExtensions: [...allowedExtensions] })
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())

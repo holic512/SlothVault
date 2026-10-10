@@ -2,12 +2,14 @@
  * @file markdown-view.tsx
  * @project SlothVault
  * @module Mixed Document Viewer
- * @description Renders Markdown and embedded HTML through one responsive, sanitized document surface.
- * @logic Apply reading or landing typography, parse GFM and raw HTML, filter inline CSS, create stable heading links, sanitize the final tree, and harden external resources, and route managed links through contextual reading/download checks.
- * @dependencies react-markdown, remark-gfm, rehype-raw, rehype-slug, rehype-autolink-headings, rehype-sanitize
+ * @description Renders Markdown, safe HTML and Mermaid through one responsive document surface.
+ * @logic Apply reading or landing typography, parse GFM and raw HTML, filter inline CSS, create stable heading links, sanitize the final tree, harden external resources, render Mermaid diagrams, and route managed links through contextual reading/download checks.
+ * @dependencies react-markdown, remark-gfm, rehype-raw, rehype-slug, rehype-autolink-headings, rehype-sanitize, MermaidDiagram
  * @index_tags markdown,html,viewer,sanitize,security,typography
  * @author holic512
  */
+import { Children, isValidElement } from 'react'
+import { MermaidDiagram } from './mermaid-diagram'
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown'
 import rehypeAutolinkHeadings from 'rehype-autolink-headings'
 import rehypeRaw from 'rehype-raw'
@@ -121,6 +123,14 @@ export function MarkdownView({
         ]}
         urlTransform={defaultUrlTransform}
         components={{
+          pre: ({ node, children, ...props }) => {
+            void node
+            const child = Children.toArray(children)[0]
+            if (isValidElement<{ className?: string; children?: unknown }>(child) && /(?:^|\s)language-mermaid(?:\s|$)/i.test(child.props.className || '') && typeof child.props.children === 'string') {
+              return <MermaidDiagram source={child.props.children.replace(/\n$/, '')} />
+            }
+            return <pre {...props}>{children}</pre>
+          },
           a: ({ node, href, children, ...props }) => {
             void node
             const external = Boolean(href && /^(https?:)?\/\//.test(href))

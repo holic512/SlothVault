@@ -117,7 +117,20 @@ MCP server identity 为 `slothvault-admin-mcp@5.0.0`。当前注册表共 67 个
 }
 ```
 
-允许的 `businessType` 为 `ProjectAvatar`、`ArticleCover`、`ArticleAttachment`、`NoteAttachment`、`HomeworkFile`、`Markdown` 和 `Other`。`SystemLogo`、`SystemFavicon`、`UserAvatar`、`ContractAttachment` 不允许通过 MCP 上传。服务端会在 Base64 解码前检查编码长度，并继续复用文件名、扩展名、图片格式、Sharp 校验、路径安全和数据库事务；头像类文件限制 2 MB，普通文件限制 10 MB。普通 Tool 结果只返回文件元数据和 Resource URI，不嵌入大文件 Base64，也不返回旧的公共下载 URL。
+允许的 `businessType` 为 `ProjectAvatar`、`ArticleCover`、`ArticleImage`、`ArticleAttachment`、`NoteImage`、`NoteAttachment`、`HomeworkFile`、`Markdown` 和 `Other`。系统、用户头像、合同和委托附件不能通过该工具上传。
+
+| 内容归属 | 内嵌图片 | 下载附件（ZIP、PDF、Office 等） |
+| --- | --- | --- |
+| 独立文章 | `ArticleImage` | `ArticleAttachment` |
+| 项目笔记 | `NoteImage` | `NoteAttachment` |
+
+图片分类仅支持 JPG/JPEG、PNG、GIF、WebP；下载附件沿用通用白名单：这些图片格式及 ZIP、PDF、TXT、MD、JSON、DOCX、XLSX、PPTX。项目头像限制 2 MiB，其他普通文件 10 MiB。图片还会执行真实格式和解码校验。
+
+必须先完成全部材料上传，再根据实际返回的 `filePath` 撰写并保存正文，例如返回 `uploads/note-attachment/<id>.zip` 后使用 `[源码](/uploads/note-attachment/<id>.zip)`。`resourceUri` 供 MCP 读取，不作为网页图片或下载地址。失败时停止正文保存；结果不明先回查，禁止重复上传、猜测文件地址或保存占位链接。
+
+新建或修改正文/封面时，服务端校验托管文件的有效记录和物理文件，缺失时返回 `MANAGED_FILE_UNAVAILABLE` 及 `filePaths`，本次正文和引用关系不写入。外部链接不做网络探测，历史恢复和引用重建不应用这项新写入校验。Tool 只返回元数据与 Resource URI，不嵌入文件 Base64。
+
+数据库 revision 12 将旧文章/笔记图片分类迁移为 `ArticleImage`/`NoteImage`，保留文件 ID、路径及正文。备份 2.12 保留明确分类，导入旧版本备份时执行相同分类转换。旧客户端应重新发现上传 Schema，并采用四类用途。
 
 受保护 Resource URI 为：
 

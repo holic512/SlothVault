@@ -387,6 +387,26 @@ describe('administrator MCP server', () => {
     })])
   })
 
+  it.each(['ArticleImage', 'ArticleAttachment', 'NoteImage', 'NoteAttachment'])('discovers and accepts the explicit %s upload category', async (businessType) => {
+    const file = { id: '44', originalName: businessType.endsWith('Image') ? 'image.png' : 'source.zip', fileName: 'fixture', filePath: 'uploads/fixture/file', fileSize: '4', businessType, status: 1, createTime: timestamp }
+    mocks.uploadAdminFileBuffer.mockResolvedValue(file)
+    const called = await resultOf({ jsonrpc: '2.0', id: 23, method: 'tools/call', params: {
+      name: 'content.file.upload', arguments: { originalName: file.originalName, businessType, contentBase64: Buffer.from('test').toString('base64') },
+    } })
+    expect(called.result.isError).not.toBe(true)
+    expect(called.result.structuredContent).toMatchObject({ businessType, resourceUri: 'slothvault://managed-file/44', filePath: file.filePath })
+    expect(mocks.uploadAdminFileBuffer).toHaveBeenLastCalledWith({ originalName: file.originalName, businessType, buffer: Buffer.from('test') })
+  })
+
+  it('exposes actionable unavailable-file paths through MCP body-write errors', async () => {
+    mocks.updateAdminNoteContent.mockRejectedValueOnce(new HttpError('Upload referenced files before saving content', 409, 409, { reason: 'MANAGED_FILE_UNAVAILABLE', filePaths: ['uploads/note-attachment/missing.zip'] }))
+    const called = await resultOf({ jsonrpc: '2.0', id: 24, method: 'tools/call', params: {
+      name: 'content.note.content.update_draft', arguments: { noteContentId: '41', content: '[source](/uploads/note-attachment/missing.zip)' },
+    } })
+    expect(called.result.isError).toBe(true)
+    expect(JSON.parse(called.result.content[0].text)).toMatchObject({ error: { status: 409, data: { reason: 'MANAGED_FILE_UNAVAILABLE', filePaths: ['uploads/note-attachment/missing.zip'] } } })
+  })
+
   it('rejects invalid Base64 before delegating a file upload', async () => {
     mocks.uploadAdminFileBuffer.mockClear()
     const rejected = await resultOf({

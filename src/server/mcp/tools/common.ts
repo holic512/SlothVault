@@ -132,6 +132,11 @@ function safeHttpErrorData(data: unknown) {
   const record = data as Record<string, unknown>
   const safe: Record<string, unknown> = {}
   if (typeof record.reason === 'string') safe.reason = record.reason
+  if (record.reason === 'MANAGED_FILE_UNAVAILABLE' && Array.isArray(record.filePaths)) safe.filePaths = record.filePaths.filter((path) => typeof path === 'string')
+  if (record.reason === 'FILE_TYPE_NOT_ALLOWED') {
+    if (typeof record.businessType === 'string') safe.businessType = record.businessType
+    if (Array.isArray(record.allowedExtensions)) safe.allowedExtensions = record.allowedExtensions.filter((value) => typeof value === 'string')
+  }
   for (const key of ['projectId', 'projectVersionId'] as const) {
     if (typeof record[key] === 'string') safe[key] = record[key]
   }

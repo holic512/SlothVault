@@ -25,6 +25,7 @@ import {
   Table,
   Tag,
   Upload,
+  Typography,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type { UploadFile } from 'antd/es/upload/interface'
@@ -34,6 +35,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { AdminPage, AdminPageActions } from '@/components/admin/admin-page'
 import { formatAdminBytes, formatAdminDate, formatAdminError } from '@/lib/admin-localization'
 import { apiFetch } from '@/lib/api-client'
+import { ADMIN_UPLOAD_BUSINESS_TYPES, VALID_BUSINESS_TYPES, allowedFileExtensions, type BusinessType } from '@/lib/file-business-types'
 
 type FileDto = {
   id: string
@@ -68,20 +70,13 @@ export function FilesManager() {
   const [includeDeleted, setIncludeDeleted] = useState(false)
   const [selectedIds, setSelectedIds] = useState<React.Key[]>([])
   const [uploadOpen, setUploadOpen] = useState(false)
-  const [uploadBusinessType, setUploadBusinessType] = useState('NoteAttachment')
+  const [uploadBusinessType, setUploadBusinessType] = useState<BusinessType>('NoteAttachment')
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([])
   const [previewFile, setPreviewFile] = useState<FileDto | null>(null)
 
-  const businessTypeOptions = [
-    'SystemLogo',
-    'SystemFavicon',
-    'ProjectAvatar',
-    'UserAvatar',
-    'NoteAttachment',
-    'HomeworkFile',
-    'TempFile',
-    'Other',
-  ].map((value) => ({ label: t(`businessType.${value}`), value }))
+  const businessTypeOptions = VALID_BUSINESS_TYPES.map((value) => ({ label: t(`businessType.${value}`), value }))
+  const uploadOptions = businessTypeOptions.filter((option) => ADMIN_UPLOAD_BUSINESS_TYPES.some((type) => type === option.value))
+  const extensions = [...allowedFileExtensions(uploadBusinessType)]
 
   const listQuery = useQuery({
     queryKey: ['admin-files', page, pageSize, keyword, businessType, includeDeleted],
@@ -311,10 +306,12 @@ export function FilesManager() {
           <Select
             className="full-width"
             value={uploadBusinessType}
-            options={businessTypeOptions}
-            onChange={setUploadBusinessType}
+            options={uploadOptions}
+            onChange={(value) => { setUploadBusinessType(value); setUploadFiles([]) }}
           />
+          <Typography.Text type="secondary">{t('dialog.allowedFormats', { formats: extensions.join(', ') })}</Typography.Text>
           <Upload.Dragger
+            accept={extensions.map((extension) => `.${extension}`).join(',')}
             multiple={uploadBusinessType !== 'SystemLogo' && uploadBusinessType !== 'SystemFavicon'}
             maxCount={uploadBusinessType === 'SystemLogo' || uploadBusinessType === 'SystemFavicon' ? 1 : 10}
             beforeUpload={() => false}

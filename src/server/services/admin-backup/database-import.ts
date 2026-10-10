@@ -3,12 +3,13 @@
  * @project SlothVault
  * @module Admin Database Backup Import
  * @description Imports a validated portable database backup in insert or overwrite mode while preserving immutable release identities.
- * @logic Preflight conflicts, preserve administrator credentials, map old identifiers to new records, preserve release metadata, rebuild each published manifest after ID remapping, reject identity/hash drift, and expose a transaction-scoped import for coordinated file recovery.
+ * @logic Preflight conflicts, preserve administrator credentials, normalize legacy file categories, map old identifiers to new records, preserve release metadata, rebuild each published manifest after ID remapping, reject identity/hash drift, and expose a transaction-scoped import for coordinated file recovery.
  * @dependencies database unit-of-work, server/http/errors, project-version release service, backup schema, backup validation, business-data deletion
  * @index_tags admin,backup,database,import,restore,id-mapping
  * @author holic512
  */
 import 'server-only'
+import { normalizeLegacyFileBusinessType } from '@/lib/file-business-types'
 import type { Prisma } from '@generated/prisma-postgresql/client'
 import { inspectImportAccounts, prepareRestoreAccounts, type DatabaseRestoreOptions } from './accounts'
 import { importCommissionCollections } from '@/server/commissions/backup'
@@ -305,7 +306,7 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
         avatar: item.avatar,
         weight: item.weight,
         status: item.status,
-        requireAuth: ['2.10.0', DATABASE_BACKUP_VERSION].includes(version) ? item.requireAuth : false,
+        requireAuth: ['2.10.0', '2.11.0', DATABASE_BACKUP_VERSION].includes(version) ? item.requireAuth : false,
         readAccessMode: hasMembershipPolicies(version) ? item.readAccessMode : 'PUBLIC',
         downloadAccessMode: hasMembershipPolicies(version) ? item.downloadAccessMode : 'FOLLOW_READ',
         readMemberships: { create: (hasMembershipPolicies(version) ? item.readMembershipLevelIds : []).map((id) => ({ membershipLevelId: requiredMappedId(ids.membershipLevels, id, 'project read membership') })) },
@@ -449,7 +450,7 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
         fileName: item.fileName,
         filePath: item.filePath,
         fileSize: BigInt(item.fileSize),
-        businessType: item.businessType,
+        businessType: payload.version === '2.12.0' ? item.businessType : normalizeLegacyFileBusinessType(item.businessType, item.fileName),
         status: item.status,
         createTime: new Date(item.createTime),
       },

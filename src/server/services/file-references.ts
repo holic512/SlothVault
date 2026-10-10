@@ -2,18 +2,53 @@
  * @file file-references.ts
  * @project SlothVault
  * @module Managed File Reference Index
- * @description Maintains authoritative file-to-content associations for protected uploads and shared attachments.
- * @logic Parse committed content inside its transaction, replace only that source's references, and backfill historical content without modifying signed bytes.
- * @dependencies Prisma file/content models, lib/managed-files
+ * @description Validates files before content writes and maintains authoritative file-to-content associations.
+ * @logic Require live stored files for new content, index committed references in its transaction, and preserve permissive historical backfills.
+ * @dependencies Prisma file/content models, lib/managed-files, admin-files storage paths
  * @index_tags files,references,authorization,backfill,markdown,transaction
  * @author holic512
  */
 import 'server-only'
+import { access, realpath, stat } from 'node:fs/promises'
+import { constants } from 'node:fs'
+import { isAbsolute, relative, sep } from 'node:path'
 import type { Prisma } from '@generated/prisma-postgresql/client'
 import { extractManagedFiles, managedUploadPath, type FileSourceType, type ManagedFileLink } from '@/lib/managed-files'
+import { HttpError } from '@/server/http/errors'
+import { resolveStoredUploadPath, UPLOAD_ROOT } from './admin-files'
 import { CONFIG_KEYS } from './system-config'
 
 type Reader = Prisma.TransactionClient
+
+/** Validate only supplied body/media fields; indexing historical content never calls this. */
+export async function assertManagedContentFiles(reader: Reader, content?: string, media: Array<string | null | undefined> = []) {
+  const paths = [...new Set([
+    ...(content === undefined ? [] : extractManagedFiles(content).map((link) => link.filePath)),
+    ...media.flatMap((url) => { const path = managedUploadPath(url ?? undefined); return path ? [path] : [] }),
+  ])]
+  if (!paths.length) return
+  const files = await reader.fileManagement.findMany({
+    where: { filePath: { in: paths }, status: 1, businessType: { notIn: ['ContractAttachment', 'CommissionAttachment'] } },
+    select: { filePath: true },
+  })
+  const livePaths = new Set(files.map((file) => file.filePath))
+  const unavailable: string[] = []
+  for (const path of paths) {
+    if (!livePaths.has(path)) { unavailable.push(path); continue }
+    try {
+      const [root, stored] = await Promise.all([realpath(UPLOAD_ROOT), realpath(resolveStoredUploadPath(path))])
+      const difference = relative(root, stored)
+      if (isAbsolute(difference) || difference === '..' || difference.startsWith(`..${sep}`) || !(await stat(stored)).isFile()) {
+        unavailable.push(path)
+      } else {
+        await access(stored, constants.R_OK)
+      }
+    } catch { unavailable.push(path) }
+  }
+  if (unavailable.length) throw new HttpError('Upload referenced files before saving content', 409, 409, {
+    reason: 'MANAGED_FILE_UNAVAILABLE', filePaths: unavailable,
+  })
+}
 
 export async function indexFileWrite<T extends { id: number }>(reader: Reader, sourceType: FileSourceType, write: Promise<T>) {
   const record = await write

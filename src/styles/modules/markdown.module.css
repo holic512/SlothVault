@@ -435,3 +435,20 @@
     grid-template-columns: 1fr;
   }
 }
+
+.root :global(.sloth-mermaid) {
+  margin-block: 1.5rem;
+  max-width: 100%;
+}
+
+.root :global(.sloth-mermaid-graphic) {
+  overflow-x: auto;
+  padding: 1rem;
+}
+
+.root :global(.sloth-mermaid-graphic svg) {
+  display: block;
+  height: auto;
+  margin-inline: auto;
+  max-width: 100%;
+}

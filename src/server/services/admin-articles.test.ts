@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/server/database/unit-of-work', () => ({ unitOfWork: { execute: (operation: (tx: typeof mocks.prisma) => unknown) => operation(mocks.prisma) } }))
 vi.mock('@/server/prisma', () => ({ prisma: { ...mocks.prisma, $transaction: mocks.transaction } }))
-vi.mock('@/server/services/file-references', () => ({ indexFileWrite: (_tx: unknown, _type: unknown, write: Promise<unknown>) => write }))
+vi.mock('@/server/services/file-references', () => ({ assertManagedContentFiles: vi.fn(), indexFileWrite: (_tx: unknown, _type: unknown, write: Promise<unknown>) => write }))
 vi.mock('@/server/services/public-article-cache', () => ({
   invalidatePublicArticleCache: mocks.invalidate,
 }))

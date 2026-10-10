@@ -105,7 +105,7 @@
     "textareaLabel": "Document editor supporting Markdown and safe HTML",
     "ready": "Your content is previewed on the right using the public-page renderer",
     "uploadImage": "Upload an image, or paste and drop one here",
-    "uploading": "Uploading and inserting images…",
+    "uploading": "Uploading files before inserting them into the document…",
     "htmlSnippets": "Insert HTML structure",
     "imageFallbackAlt": "Image {index}",
     "stats": "{characters} / {limit} characters · {lines} lines",
@@ -128,7 +128,9 @@
       "columnTitleOne": "First point",
       "columnBodyOne": "Add the first group of content.",
       "columnTitleTwo": "Second point",
-      "columnBodyTwo": "Add the second group of content."
+      "columnBodyTwo": "Add the second group of content.",
+      "mermaidStart": "Start",
+      "mermaidEnd": "Finish"
     },
     "messages": {
       "tooManyFiles": "Upload no more than {maximum} images at once",
@@ -137,13 +139,41 @@
       "fileTooLarge": "Image “{name}” exceeds the {maximum}MB limit",
       "batchTooLarge": "The selected images exceed the {maximum}MB batch limit",
       "uploadWouldExceedLimit": "The document has too little space left to upload more images",
-      "uploadFailed": "Image upload failed; check the connection or file and try again",
+      "uploadFailed": "Upload failed or returned incomplete results. No links were inserted; check existing uploads before retrying.",
       "uploadedButNotInserted": "The image uploaded, but inserting it would exceed the document limit. Shorten the document, then copy its URL from File Management.",
       "partialUpload": "Some images failed to upload; the successful images were inserted",
       "contentLimitReached": "The document character limit has been reached; this input was not added",
       "existingContentTooLarge": "This existing document exceeds the limit; shorten it before saving",
-      "nearContentLimit": "This document is close to the character limit; consider splitting it"
-    }
+      "nearContentLimit": "This document is close to the character limit; consider splitting it",
+      "attachmentInvalid": "Attachment “{name}” does not meet upload requirements: images, ZIP, PDF, TXT, MD, JSON and Office documents; up to {maximum} MiB per file, {count} files and {total} MiB total."
+    },
+    "toolbar": {
+      "bold": "Bold",
+      "italic": "Italic",
+      "strikethrough": "Strikethrough",
+      "heading": "Heading level",
+      "quote": "Quote",
+      "unorderedList": "Bulleted list",
+      "orderedList": "Numbered list",
+      "checkedList": "Task list",
+      "code": "Inline code",
+      "codeBlock": "Code block",
+      "link": "Insert link",
+      "table": "Insert table",
+      "hr": "Horizontal rule",
+      "edit": "Editor only",
+      "live": "Editor and preview",
+      "preview": "Preview only",
+      "fullscreen": "Toggle fullscreen",
+      "heading1": "Heading 1",
+      "heading2": "Heading 2",
+      "heading3": "Heading 3",
+      "heading4": "Heading 4",
+      "heading5": "Heading 5",
+      "heading6": "Heading 6"
+    },
+    "uploadAttachment": "Upload a download attachment",
+    "insertMermaid": "Insert a Mermaid diagram"
   },
   "ThemeToggle": {
     "aria": {
@@ -1168,11 +1198,16 @@
         "ProjectAvatar": "Project Avatar",
         "UserAvatar": "User Avatar",
         "ArticleCover": "Article Cover",
-        "ArticleAttachment": "Article Image",
-        "NoteAttachment": "Note Attachment",
+        "ArticleAttachment": "Article download attachment",
+        "NoteAttachment": "Project note download attachment",
         "HomeworkFile": "Homework File",
         "TempFile": "Temp File",
-        "Other": "Other"
+        "Other": "Other",
+        "ArticleImage": "Article body image",
+        "NoteImage": "Project note body image",
+        "Markdown": "Markdown content file",
+        "ContractAttachment": "Contract attachment",
+        "CommissionAttachment": "Commission file"
       },
       "actions": {
         "search": "Search",
@@ -1207,7 +1242,8 @@
         "uploadHint": "Drop file here or click to upload",
         "uploadTip": "Multiple files supported, max 10MB per file",
         "cancel": "Cancel",
-        "upload": "Upload"
+        "upload": "Upload",
+        "allowedFormats": "Supported formats: {formats}"
       },
       "messages": {
         "loadFailed": "Load failed",
@@ -1731,7 +1767,9 @@
       "invalidWallet": "The wallet address is invalid. Reconnect the correct wallet.",
       "notFound": "The requested resource does not exist or has been removed.",
       "conflict": "The resource state has changed. Refresh and try again.",
-      "serviceUnavailable": "The service is temporarily unavailable. Please try again later."
+      "serviceUnavailable": "The service is temporarily unavailable. Please try again later.",
+      "managedFileUnavailable": "A referenced file has not been uploaded, is inactive, or is missing. Complete the upload before saving.",
+      "fileTypeNotAllowed": "This file format is not supported by the selected category. Use an image category for body images and the matching download attachment category for ZIP, PDF and other files."
     },
     "evidenceManager": {
       "status": {
@@ -2520,6 +2558,12 @@
   "MarkdownView": {
     "unavailableTitle": "Document unavailable",
     "contentTooLarge": "This content exceeds the safe display limit of {limit} characters. Ask an administrator to shorten or split the document.",
-    "downloadUnavailable": "You do not have download access to this project"
+    "downloadUnavailable": "You do not have download access to this project",
+    "mermaid": {
+      "diagramLabel": "Mermaid diagram",
+      "loading": "Rendering diagram…",
+      "failed": "Unable to render this diagram. Check the Mermaid syntax; source is shown below.",
+      "tooLarge": "Diagram exceeds {maximum} characters. Source is shown below."
+    }
   }
 }

@@ -9,6 +9,13 @@ vi.mock('next-intl', () => ({
 }))
 
 describe('MarkdownView mixed document rendering', () => {
+  it('recognizes Mermaid fenced blocks and preserves escaped source until client rendering', () => {
+    const html = renderToStaticMarkup(createElement(MarkdownView, { content: '```mermaid\nflowchart LR\n  A[<script>unsafe</script>] --> B\n```\n\n```js\nconst value = 1\n```' }))
+    expect(html).toContain('data-mermaid-state="loading"')
+    expect(html).toContain('&lt;script&gt;unsafe&lt;/script&gt;')
+    expect(html).not.toContain('<script>')
+    expect(html).toContain('class="language-js"')
+  })
   it('defaults to reading presentation without changing caller classes', () => {
     const html = renderToStaticMarkup(createElement(MarkdownView, {
       content: '# Document',

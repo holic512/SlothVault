@@ -5,7 +5,7 @@
  * @project SlothVault
  * @module Homepage Administration
  * @description Provides one React Markdown editing workflow and unified contextual toolbar for the system homepage and per-project homepages.
- * @logic Load an optional homepage record, create it on first save, debounce later updates, guard browser exits, upload embedded images, and supply save controls to the editor header.
+ * @logic Load an optional homepage record, create it on first save, debounce later updates, guard browser exits, pause saves while uploading embedded images, and supply save controls to the editor header.
  * @dependencies React Query, Ant Design, React MD Editor wrapper, next-intl, api-client
  * @index_tags admin,homepage,project-home,markdown,autosave
  * @author holic512
@@ -114,6 +114,9 @@ function HomepageDraft({
   const [draft, setDraft] = useState(initialResource?.content || '')
   const [savedDraft, setSavedDraft] = useState(initialResource?.content || '')
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const uploadingRef = useRef(false)
+  const handleUploadingChange = (active: boolean) => { uploadingRef.current = active; setUploading(active) }
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const draftRef = useRef(draft)
   const savingRef = useRef(false)
@@ -121,7 +124,7 @@ function HomepageDraft({
   const save = useCallback(
     async (silent = false) => {
       const contentToSave = draftRef.current
-      if (savingRef.current || contentToSave === savedDraft) {
+      if (uploadingRef.current || savingRef.current || contentToSave === savedDraft) {
         if (!silent && contentToSave === savedDraft) message.info(t('messages.noChanges'))
         return
       }
@@ -156,10 +159,10 @@ function HomepageDraft({
   )
 
   useEffect(() => {
-    if (draft === savedDraft) return
+    if (uploading || draft === savedDraft) return
     const timer = window.setTimeout(() => void save(true), 3000)
     return () => window.clearTimeout(timer)
-  }, [draft, save, savedDraft])
+  }, [draft, save, savedDraft, uploading])
 
   useEffect(() => {
     const handleKeydown = (event: KeyboardEvent) => {
@@ -206,6 +209,8 @@ function HomepageDraft({
           setDraft(value)
         }}
         onUpload={uploadImages}
+        onUploadingChange={handleUploadingChange}
+        readOnly={saving}
         fillContainer
         header={(
           <div className="managed-markdown-heading">
@@ -233,7 +238,7 @@ function HomepageDraft({
               type="primary"
               icon={<Save size={14} />}
               loading={saving}
-              disabled={!dirty}
+              disabled={uploading || !dirty}
               onClick={() => void save(false)}
             >
               {t('actions.save')}

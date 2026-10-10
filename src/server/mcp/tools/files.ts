@@ -13,6 +13,7 @@ import 'server-only'
 import { Buffer } from 'node:buffer'
 
 import { z } from 'zod'
+import { MCP_CONTENT_BUSINESS_TYPES } from '@/lib/file-business-types'
 
 import { collectMcpToolDefinitions, type McpToolDefinition } from '@/server/mcp/registry'
 
@@ -37,17 +38,7 @@ import {
   runMcpTool,
 } from './common'
 
-const contentBusinessTypes = [
-  'ProjectAvatar',
-  'ArticleCover',
-  'ArticleAttachment',
-  'NoteAttachment',
-  'HomeworkFile',
-  'Markdown',
-  'Other',
-] as const
-
-const businessTypeSchema = z.enum(contentBusinessTypes)
+const businessTypeSchema = z.enum(MCP_CONTENT_BUSINESS_TYPES)
 
 const fileOutputSchema = z.object({
   id: decimalIdSchema,
@@ -141,7 +132,7 @@ export const fileToolDefinitions: McpToolDefinition[] = collectMcpToolDefinition
     'content.file.upload',
     {
       title: '上传托管文件',
-      description: '上传一个受限内容文件并返回受保护 Resource URI；不允许系统、用户头像或合同附件类型。',
+      description: '上传一个文件。ArticleImage 是独立文章正文图片，NoteImage 是项目笔记正文图片，仅接受 JPG/PNG/GIF/WebP；ArticleAttachment、NoteAttachment 分别是文章与项目笔记下载附件，支持 ZIP/PDF/Office 等。普通文件最大 10 MiB，项目头像 2 MiB。先完成全部图片和附件上传，再使用返回的 filePath 构造正文地址并保存；resourceUri 仅供 MCP 读取。不允许系统、用户头像或合同附件类型。',
       inputSchema: z.strictObject({
         originalName: z.string().trim().min(1).max(255),
         businessType: businessTypeSchema,

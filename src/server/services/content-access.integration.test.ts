@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, readdirSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -10,7 +10,12 @@ import { PrismaClient as SQLiteClient } from '../../../generated/prisma-sqlite/c
 import type { PrismaClient } from '../../../generated/prisma-postgresql/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ client: undefined as PrismaClient | undefined, viewer: null as AccessViewer }))
+const mocks = vi.hoisted(() => ({ client: undefined as PrismaClient | undefined, viewer: null as AccessViewer, uploadRoot: '' }))
+vi.mock('@/server/services/admin-files', async (load) => ({
+  ...await load<typeof import('@/server/services/admin-files')>(),
+  get UPLOAD_ROOT() { return mocks.uploadRoot },
+  resolveStoredUploadPath: (filePath: string) => resolve(mocks.uploadRoot, filePath.slice('uploads/'.length)),
+}))
 vi.mock('@/server/prisma', () => ({ get prisma() { return mocks.client } }))
 vi.mock('@/server/database/client', () => ({ getDatabaseClient: () => mocks.client, configuredDatabaseProvider: () => 'sqlite', databaseSnapshotIsolationLevel: () => 'Serializable' }))
 vi.mock('@/server/services/public-project-cache', () => ({ invalidatePublicProjectCache: vi.fn() }))
@@ -44,6 +49,8 @@ describe('project permissions, file references and portable backup', () => {
   let client: PrismaClient
   beforeEach(() => {
     directory = mkdtempSync(join(tmpdir(), 'sv-capabilities-'))
+    mocks.uploadRoot = join(directory, 'uploads')
+    mkdirSync(mocks.uploadRoot, { recursive: true })
     const file = join(directory, 'test.db')
     const db = new Database(file)
     db.pragma('foreign_keys = ON')
@@ -140,11 +147,11 @@ describe('project permissions, file references and portable backup', () => {
     expect(await resolveProjectAccess(s.projectId, viewer)).toMatchObject({ canRead: true, canDownload: false })
     expect(await client.pointTransaction.count({ where: { userId: viewer.userId } })).toBe(2)
   })
-  it('preserves explicit permissions, grant dates, references and hashes through 2.10 export and overwrite restore', async () => {
+  it('preserves explicit permissions, grant dates, references and hashes through current export and overwrite restore', async () => {
     const s = await seed()
     await client.$transaction(tx => rebuildFileReferences(tx))
     const backup = await exportDatabaseBackup()
-    expect(backup.version).toBe('2.10.0')
+    expect(backup.version).toBe('2.12.0')
     const parsed = parseDatabaseImportPayload({ data: backup.data, version: backup.version, mode: 'overwrite' })
     await importDatabaseBackup(parsed)
     const restored = await exportDatabaseBackup()
@@ -252,8 +259,10 @@ describe('project permissions, file references and portable backup', () => {
     await expect(authorizeManagedFile(s.files[2].filePath, null)).resolves.toBeUndefined()
     await updateAdminProject(s.projectId, { avatar: null })
     await expect(authorizeManagedFile(s.files[2].filePath, null)).rejects.toMatchObject({ status: 403 })
-    const cover = await createAdminArticle({ title: 'Cover', cover: '/uploads/article-cover/550e8400-e29b-41d4-a716-446655440000.webp', content: 'Body', allowedMembershipLevelIds: [s.types[2].id] })
     const file = await client.fileManagement.create({ data: { originalName: 'cover.webp', fileName: 'cover.webp', filePath: 'uploads/article-cover/550e8400-e29b-41d4-a716-446655440000.webp', fileSize: 4n, businessType: 'ArticleCover', status: 1 } })
+    mkdirSync(join(mocks.uploadRoot, 'article-cover'), { recursive: true })
+    writeFileSync(join(mocks.uploadRoot, 'article-cover/550e8400-e29b-41d4-a716-446655440000.webp'), 'test')
+    const cover = await createAdminArticle({ title: 'Cover', cover: '/uploads/article-cover/550e8400-e29b-41d4-a716-446655440000.webp', content: 'Body', allowedMembershipLevelIds: [s.types[2].id] })
     await client.article.update({ where: { id: Number(cover.id) }, data: { status: 1, publishedAt: new Date() } })
     await client.$transaction(tx => rebuildFileReferences(tx))
     await expect(authorizeManagedFile(file.filePath, null)).resolves.toBeUndefined()

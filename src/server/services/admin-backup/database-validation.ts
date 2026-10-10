@@ -484,7 +484,7 @@ export function parseDatabaseImportPayload(input: unknown): DatabaseImportPayloa
       version.publishedAt = null
     }
   }
-  if (parsed.data.version === DATABASE_BACKUP_VERSION) {
+  if (['2.11.0', DATABASE_BACKUP_VERSION].includes(parsed.data.version)) {
     const source = (input as { data: Record<string, unknown> }).data
     for (const key of ACTIVE_BACKUP_COLLECTION_KEYS) {
       if (!Array.isArray(source[key])) invalidBackup(`complete backup is missing ${key}`)

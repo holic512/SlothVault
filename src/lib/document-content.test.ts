@@ -4,6 +4,7 @@ import {
   getDocumentContentStats,
   isDocumentContentWithinLimit,
   validateDocumentImages,
+  validateDocumentUploads,
 } from '@/lib/document-content'
 import { sanitizeDocumentInlineStyle } from '@/lib/markdown-security'
 
@@ -26,6 +27,14 @@ describe('document content constraints', () => {
       { name: 'two.png', size: 7 * 1024 * 1024, type: 'image/png' },
       { name: 'three.png', size: 7 * 1024 * 1024, type: 'image/png' },
     ])).toMatchObject({ code: 'batch-too-large' })
+  })
+
+  it('validates ZIP as a download attachment while keeping image uploads separate', () => {
+    const zip = { name: 'source.ZIP', size: 22, type: 'application/zip' }
+    expect(validateDocumentUploads([zip], true)).toBeNull()
+    expect(validateDocumentImages([zip])).toMatchObject({ code: 'unsupported-type' })
+    expect(validateDocumentUploads([{ ...zip, name: 'program.exe' }], true)).toMatchObject({ code: 'unsupported-type' })
+    expect(validateDocumentUploads([{ ...zip, size: DOCUMENT_IMAGE_MAX_BYTES + 1 }], true)).toMatchObject({ code: 'file-too-large' })
   })
 
   it('keeps bounded presentation styles and removes unsafe CSS capabilities', () => {

@@ -43,6 +43,7 @@ import type { DatabaseConnectionInput } from '@/server/database/types'
 import { unitOfWork } from '@/server/database/unit-of-work'
 import { HttpError } from '@/server/http/errors'
 import { upgradeContentManifests } from './content-manifest-upgrade'
+import { upgradeFileClassifications } from './file-classification-upgrade'
 import { rebuildFileReferences } from '@/server/services/file-references'
 import { ensureInitialHomepage } from '@/server/services/homepage'
 
@@ -81,6 +82,7 @@ async function writeSchemaReadyMarker(connection: DatabaseConnectionInput) {
       if (marker.status === 'SCHEMA_READY') {
         if (marker.schemaRevision < CURRENT_SCHEMA_REVISION) {
           await upgradeContentManifests(client)
+          if (marker.schemaRevision < 12) await upgradeFileClassifications(client)
           if (marker.schemaRevision < 9) await client.$transaction((tx) => rebuildFileReferences(tx), { timeout: 120_000 })
           await client.systemInstallation.update({
             where: { id: INSTALLATION_ROW_ID },

@@ -4,8 +4,8 @@
  * @file markdown-content-editor.tsx
  * @project SlothVault
  * @module Mixed Document Editing Surface
- * @description Provides a fast Markdown workflow with safe HTML layout snippets, exact public-preview rendering, image upload, visible content constraints, optional host toolbar content, and an optional container-fill layout.
- * @logic Keep the editor controlled, insert mixed-content structures, validate images, match the host reading or landing presentation in preview, and allocate remaining editing space for full-height hosts.
+ * @description Provides a fast Markdown workflow with safe HTML layout snippets, exact public-preview rendering, separate image and attachment uploads, Mermaid insertion, translated controls, visible content constraints, optional host toolbar content, and an optional container-fill layout.
+ * @logic Keep the editor controlled, insert mixed-content structures, validate uploads and await success before inserting links, match the host reading or landing presentation in preview, and allocate remaining editing space for full-height hosts.
  * @dependencies @uiw/react-md-editor, next/dynamic, next-intl, app-theme-context, lucide-react, MarkdownView
  * @index_tags markdown,html,editor,preview,upload,validation,accessibility
  * @author holic512
@@ -20,6 +20,8 @@ import {
   CircleHelp,
   Columns3,
   ImageUp,
+  Paperclip,
+  Workflow,
   ListCollapse,
   MessageSquareText,
   ShieldCheck,
@@ -34,8 +36,11 @@ import {
   DOCUMENT_CONTENT_MAX_CHARACTERS,
   type DocumentImageConstraintIssue,
   getDocumentContentStats,
-  validateDocumentImages,
+  validateDocumentUploads,
 } from '@/lib/document-content'
+
+import { localizeEditorCommand } from '@/lib/markdown-editor-commands'
+import { SAFE_FILE_EXTENSIONS } from '@/lib/file-business-types'
 
 const MDEditor = dynamic(() => import('@uiw/react-md-editor'), { ssr: false })
 const MEGABYTE = 1024 * 1024
@@ -53,6 +58,8 @@ export function MarkdownContentEditor({
   value,
   onChange,
   onUpload,
+  onUploadAttachment,
+  onUploadingChange,
   readOnly = false,
   fillContainer = false,
   header,
@@ -62,6 +69,8 @@ export function MarkdownContentEditor({
   value: string
   onChange: (value: string) => void
   onUpload: (files: File[]) => Promise<string[]>
+  onUploadAttachment?: (files: File[]) => Promise<string[]>
+  onUploadingChange?: (uploading: boolean) => void
   readOnly?: boolean
   fillContainer?: boolean
   header?: ReactNode
@@ -73,6 +82,8 @@ export function MarkdownContentEditor({
   const locale = useLocale()
   const resolvedTheme = useResolvedAppTheme()
   const inputRef = useRef<HTMLInputElement>(null)
+  const attachmentInputRef = useRef<HTMLInputElement>(null)
+  const uploadingRef = useRef(false)
   const textApiRef = useRef<TextAreaTextApi | null>(null)
   const [uploading, setUploading] = useState(false)
   const [guideOpen, setGuideOpen] = useState(false)
@@ -83,7 +94,8 @@ export function MarkdownContentEditor({
   const stats = useMemo(() => getDocumentContentStats(value), [value])
   const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale])
 
-  const fileIssueMessage = (issue: DocumentImageConstraintIssue) => {
+  const fileIssueMessage = (issue: DocumentImageConstraintIssue, attachment: boolean) => {
+    if (attachment) return t('messages.attachmentInvalid', { name: 'fileName' in issue ? issue.fileName : '', maximum: 10, count: 10, total: 20 })
     switch (issue.code) {
       case 'too-many-files':
         return t('messages.tooManyFiles', { maximum: issue.maximum })
@@ -103,11 +115,13 @@ export function MarkdownContentEditor({
     }
   }
 
-  const handleFiles = async (files: File[], api = textApiRef.current) => {
-    if (!files.length || !api || uploading) return
-    const issue = validateDocumentImages(files)
+  const handleFiles = async (files: File[], api = textApiRef.current, attachment = false) => {
+    if (!files.length || !api || uploadingRef.current || readOnly) return
+    const upload = attachment ? onUploadAttachment : onUpload
+    if (!upload) return
+    const issue = validateDocumentUploads(files, attachment)
     if (issue) {
-      setNotice({ tone: 'error', text: fileIssueMessage(issue) })
+      setNotice({ tone: 'error', text: fileIssueMessage(issue, attachment) })
       return
     }
     if (value.length + files.length * 4_096 > DOCUMENT_CONTENT_MAX_CHARACTERS) {
@@ -117,35 +131,38 @@ export function MarkdownContentEditor({
 
     textApiRef.current = api
     setNotice(null)
+    uploadingRef.current = true
     setUploading(true)
+    onUploadingChange?.(true)
     try {
-      const urls = await onUpload(files)
-      if (!urls.length) {
+      const urls = await upload(files)
+      if (urls.length !== files.length || urls.some((url) => !url)) {
         setNotice({ tone: 'error', text: t('messages.uploadFailed') })
         return
       }
 
-      const insertion = urls
+      const uploadedLinks = urls
         .map((url, index) => {
           const file = files[index]
-          const alt = escapeMarkdownAlt(file?.name || '', t('imageFallbackAlt', { index: index + 1 }))
+          const alt = attachment ? (file?.name || '').replace(/[\[\]\\]/g, '').replace(/[\r\n]/g, ' ') : escapeMarkdownAlt(file?.name || '', t('imageFallbackAlt', { index: index + 1 }))
           const destination = encodeURI(url).replace(/[()\\]/g, '\\$&')
-          return `![${alt}](${destination})`
+          return `${attachment ? '' : '!'}[${alt}](${destination})`
         })
         .join('\n\n')
+      const insertion = attachment ? `\n\n${uploadedLinks}\n\n` : uploadedLinks
       const selectedLength = api.textArea.selectionEnd - api.textArea.selectionStart
       if (api.textArea.value.length - selectedLength + insertion.length > DOCUMENT_CONTENT_MAX_CHARACTERS) {
         setNotice({ tone: 'error', text: t('messages.uploadedButNotInserted') })
         return
       }
       api.replaceSelection(insertion)
-      if (urls.length < files.length) {
-        setNotice({ tone: 'warning', text: t('messages.partialUpload') })
-      }
     } catch (error) {
       setNotice({ tone: 'error', text: formatAdminError(error, errorT) })
     } finally {
+      uploadingRef.current = false
       setUploading(false)
+      onUploadingChange?.(false)
+      if (attachmentInputRef.current) attachmentInputRef.current.value = ''
       if (inputRef.current) inputRef.current.value = ''
     }
   }
@@ -167,6 +184,32 @@ export function MarkdownContentEditor({
     }),
     [t, uploading],
   )
+
+  const attachmentCommand = useMemo<ICommand>(() => ({
+    name: 'upload-attachment',
+    keyCommand: 'upload-attachment',
+    icon: <Paperclip size={13} />,
+    buttonProps: { 'aria-label': t('uploadAttachment'), title: t('uploadAttachment'), disabled: uploading },
+    execute: (_state, api) => { textApiRef.current = api; attachmentInputRef.current?.click() },
+  }), [t, uploading])
+
+  const mermaidCommand = useMemo<ICommand>(() => ({
+    name: 'mermaid',
+    keyCommand: 'mermaid',
+    icon: <Workflow size={13} />,
+    buttonProps: { 'aria-label': t('insertMermaid'), title: t('insertMermaid'), disabled: uploading },
+    execute: (_state, api) => insertBlock(api, `\`\`\`mermaid\nflowchart LR\n  A[${t('snippets.mermaidStart')}] --> B[${t('snippets.mermaidEnd')}]\n\`\`\``),
+  }), [t, uploading])
+
+  const commandLabels = useMemo(() => ({
+    bold: t('toolbar.bold'), italic: t('toolbar.italic'), strikethrough: t('toolbar.strikethrough'),
+    heading: t('toolbar.heading'), heading1: t('toolbar.heading1'), heading2: t('toolbar.heading2'),
+    heading3: t('toolbar.heading3'), heading4: t('toolbar.heading4'), heading5: t('toolbar.heading5'), heading6: t('toolbar.heading6'),
+    quote: t('toolbar.quote'), 'unordered-list': t('toolbar.unorderedList'), 'ordered-list': t('toolbar.orderedList'),
+    'checked-list': t('toolbar.checkedList'), code: t('toolbar.code'), codeBlock: t('toolbar.codeBlock'),
+    link: t('toolbar.link'), table: t('toolbar.table'), hr: t('toolbar.hr'),
+    edit: t('toolbar.edit'), live: t('toolbar.live'), preview: t('toolbar.preview'), fullscreen: t('toolbar.fullscreen'),
+  }), [t])
 
   const htmlCommand = useMemo<ICommand>(() => {
     const callout: ICommand = {
@@ -211,32 +254,31 @@ export function MarkdownContentEditor({
 
     return commands.group([callout, disclosure, columns], {
       name: 'html-snippets',
+      groupName: 'html-snippets',
       icon: <Braces size={13} />,
-      buttonProps: { 'aria-label': t('htmlSnippets'), title: t('htmlSnippets') },
+      buttonProps: { 'aria-label': t('htmlSnippets'), title: t('htmlSnippets'), disabled: uploading },
     })
-  }, [t])
+  }, [t, uploading])
 
   const editorCommands = useMemo<ICommand[]>(
     () => [
-      commands.bold,
-      commands.italic,
-      commands.strikethrough,
-      commands.divider,
-      commands.title,
-      commands.quote,
-      commands.unorderedListCommand,
-      commands.orderedListCommand,
-      commands.checkedListCommand,
-      commands.divider,
-      commands.code,
-      commands.codeBlock,
-      commands.link,
+      ...[
+        commands.bold, commands.italic, commands.strikethrough, commands.divider,
+        commands.group([commands.heading1, commands.heading2, commands.heading3, commands.heading4, commands.heading5, commands.heading6], {
+          name: 'heading', groupName: 'heading', icon: commands.heading.icon,
+          buttonProps: { title: t('toolbar.heading'), 'aria-label': t('toolbar.heading') },
+        }),
+        commands.quote, commands.unorderedListCommand, commands.orderedListCommand, commands.checkedListCommand,
+        commands.divider, commands.code, commands.codeBlock, commands.link,
+      ].map((command) => localizeEditorCommand(command, commandLabels, uploading)),
       uploadCommand,
-      commands.table,
+      ...(onUploadAttachment ? [attachmentCommand] : []),
+      mermaidCommand,
+      localizeEditorCommand(commands.table, commandLabels, uploading),
       htmlCommand,
-      commands.hr,
+      localizeEditorCommand(commands.hr, commandLabels, uploading),
     ],
-    [htmlCommand, uploadCommand],
+    [attachmentCommand, commandLabels, htmlCommand, mermaidCommand, onUploadAttachment, t, uploadCommand, uploading],
   )
 
   const rememberTextApi = (target: HTMLTextAreaElement) => {
@@ -289,8 +331,19 @@ export function MarkdownContentEditor({
         type="file"
         accept="image/gif,image/jpeg,image/png,image/webp"
         multiple
+        disabled={readOnly || uploading}
         onChange={(event) => void handleFiles(Array.from(event.target.files || []))}
       />
+
+      {onUploadAttachment ? <input
+        ref={attachmentInputRef}
+        className="visually-hidden"
+        type="file"
+        accept={[...SAFE_FILE_EXTENSIONS].map((extension) => `.${extension}`).join(',')}
+        multiple
+        disabled={readOnly || uploading}
+        onChange={(event) => void handleFiles(Array.from(event.target.files || []), textApiRef.current, true)}
+      /> : null}
 
       <div className="document-editor-intro">
         {header || (
@@ -341,7 +394,7 @@ export function MarkdownContentEditor({
         preview="live"
         visibleDragbar={false}
         commands={readOnly ? [] : editorCommands}
-        extraCommands={readOnly ? [commands.codePreview, commands.fullscreen] : [commands.codeEdit, commands.codeLive, commands.codePreview, commands.fullscreen]}
+        extraCommands={(readOnly ? [commands.codePreview, commands.fullscreen] : [commands.codeEdit, commands.codeLive, commands.codePreview, commands.fullscreen]).map((command) => localizeEditorCommand(command, commandLabels))}
         components={{
           preview: (source) => (
             <MarkdownView content={source} className="markdown-editor-preview-content" presentation={presentation} />

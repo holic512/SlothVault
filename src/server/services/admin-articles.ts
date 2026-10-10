@@ -3,13 +3,13 @@
  * @project SlothVault
  * @module Administrator Article Publishing
  * @description Owns administrator-only CRUD and lifecycle operations for independent blog articles.
- * @logic Query metadata-only lists and full details separately; persist membership allowlists and file references atomically, validate publication under a row lock, preserve the first publication timestamp, and invalidate public cache after mutations.
+ * @logic Query metadata-only lists and full details separately; require uploaded material for changed content and persist membership allowlists and references atomically, validate publication under a row lock, preserve the first publication timestamp, and invalidate public cache after mutations.
  * @dependencies Prisma Article model, document content limits, HTTP errors, public article cache
  * @index_tags admin,article,blog,crud,publish,withdraw
  * @author holic512
  */
 import 'server-only'
-import { indexFileWrite } from './file-references'
+import { assertManagedContentFiles, indexFileWrite } from './file-references'
 import { allowedMembershipIdsSchema, validateMembershipIds } from './content-access'
 
 import type { Prisma } from '@generated/prisma-postgresql/client'
@@ -206,18 +206,21 @@ export async function createAdminArticle(input: {
   allowedMembershipLevelIds?: unknown
 }) {
   const membershipIds = await articleMembershipIds(input)
-  const article = await prisma.$transaction((fileTx) => indexFileWrite(fileTx, 'ARTICLE', fileTx.article.create({
-    data: {
-      title: titleValue(input.title)!,
-      summary: summaryValue(input.summary) ?? null,
-      cover: coverValue(input.cover) ?? null,
-      content: contentValue(input.content ?? '')!,
-      status: 0,
-      requiredMembershipLevelId: null,
-      allowedMemberships: { create: (membershipIds ?? []).map((membershipLevelId) => ({ membershipLevelId })) },
-    },
-    include: ARTICLE_ACCESS_INCLUDE,
-  })))
+  const article = await prisma.$transaction(async (fileTx) => {
+    await assertManagedContentFiles(fileTx, contentValue(input.content ?? '')!, [coverValue(input.cover)])
+    return indexFileWrite(fileTx, 'ARTICLE', fileTx.article.create({
+      data: {
+        title: titleValue(input.title)!,
+        summary: summaryValue(input.summary) ?? null,
+        cover: coverValue(input.cover) ?? null,
+        content: contentValue(input.content ?? '')!,
+        status: 0,
+        requiredMembershipLevelId: null,
+        allowedMemberships: { create: (membershipIds ?? []).map((membershipLevelId) => ({ membershipLevelId })) },
+      },
+      include: ARTICLE_ACCESS_INCLUDE,
+    }))
+  })
   await invalidatePublicArticleCache(article.id)
   return adminArticleDto(article)
 }
@@ -258,11 +261,18 @@ export async function updateAdminArticle(id: number, input: {
   if (Object.keys(data).length === 1) throw new HttpError('No fields to update', 400, 400)
 
   try {
-    const article = await prisma.$transaction((fileTx) => indexFileWrite(fileTx, 'ARTICLE', fileTx.article.update({
-      where: { id },
-      data,
-      include: ARTICLE_ACCESS_INCLUDE,
-    })))
+    const article = await prisma.$transaction(async (fileTx) => {
+      if (content !== undefined || cover !== undefined) {
+        const current = await fileTx.article.findUnique({ where: { id }, select: { content: true, cover: true } })
+        if (!current) throw new HttpError('Article not found', 404, 404)
+        await assertManagedContentFiles(fileTx, content !== current.content ? content : undefined, cover !== current.cover ? [cover] : [])
+      }
+      return indexFileWrite(fileTx, 'ARTICLE', fileTx.article.update({
+        where: { id },
+        data,
+        include: ARTICLE_ACCESS_INCLUDE,
+      }))
+    })
     await invalidatePublicArticleCache(id)
     return adminArticleDto(article)
   } catch (error) {

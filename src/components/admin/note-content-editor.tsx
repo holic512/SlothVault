@@ -5,7 +5,7 @@
  * @project SlothVault
  * @module Unified Note Workspace
  * @description Owns project-version lifecycle actions and the linear project-to-Markdown administration flow in one responsive workspace.
- * @logic Resolve deep links and recent releases, clone into new or empty drafts, guard unsaved content, and allow published metadata edits while keeping bodies and document membership frozen.
+ * @logic Resolve deep links and recent releases, clone into new or empty drafts, guard unsaved content, pause saves during image/attachment uploads, and allow published metadata edits while keeping bodies and document membership frozen.
  * @dependencies Ant Design, React Query, React MD Editor wrapper, Next navigation, next-intl, api-client
  * @index_tags admin,notes,workspace,project-versions,categories,content-versions,autosave,responsive
  * @author holic512
@@ -944,6 +944,9 @@ function RevisionEditor({ item, readOnly, onDirtyChange, onSaved }: {
   const [draft, setDraft] = useState(item.content)
   const [savedDraft, setSavedDraft] = useState(item.content)
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const uploadingRef = useRef(false)
+  const handleUploadingChange = (active: boolean) => { uploadingRef.current = active; setUploading(active) }
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const draftRef = useRef(draft)
   const savedDraftRef = useRef(savedDraft)
@@ -952,7 +955,7 @@ function RevisionEditor({ item, readOnly, onDirtyChange, onSaved }: {
   useEffect(() => { savedDraftRef.current = savedDraft }, [savedDraft])
   const save = useCallback(async (silent = false) => {
     const contentToSave = draftRef.current
-    if (savingRef.current || contentToSave === savedDraftRef.current) {
+    if (readOnly || uploadingRef.current || savingRef.current || contentToSave === savedDraftRef.current) {
       if (!silent && contentToSave === savedDraftRef.current) message.info(contentT('messages.noChanges'))
       return
     }
@@ -975,13 +978,13 @@ function RevisionEditor({ item, readOnly, onDirtyChange, onSaved }: {
       savingRef.current = false
       setSaving(false)
     }
-  }, [contentT, errorT, item.id, message, onDirtyChange, onSaved])
+  }, [contentT, errorT, item.id, message, onDirtyChange, onSaved, readOnly])
 
   useEffect(() => {
-    if (readOnly || draft === savedDraft) return
+    if (readOnly || uploading || draft === savedDraft) return
     const timer = window.setTimeout(() => void save(true), 3000)
     return () => window.clearTimeout(timer)
-  }, [draft, readOnly, save, savedDraft])
+  }, [draft, readOnly, save, savedDraft, uploading])
   useEffect(() => {
     const handleKeydown = (event: KeyboardEvent) => {
       if (!readOnly && (event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === 's') {
@@ -1001,11 +1004,11 @@ function RevisionEditor({ item, readOnly, onDirtyChange, onSaved }: {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [])
 
-  const uploadImages = async (files: File[]) => {
+  const uploadFiles = async (files: File[], businessType: 'NoteImage' | 'NoteAttachment') => {
     const formData = new FormData()
     files.forEach((file) => formData.append('file', file))
     try {
-      const uploaded = await apiFetch<UploadedFile[]>('/api/admin/mm/file?businessType=NoteAttachment', { method: 'POST', body: formData })
+      const uploaded = await apiFetch<UploadedFile[]>(`/api/admin/mm/file?businessType=${businessType}`, { method: 'POST', body: formData })
       return uploaded.map((file) => file.url)
     } catch (error) {
       message.error(formatAdminError(error, errorT))
@@ -1035,7 +1038,7 @@ function RevisionEditor({ item, readOnly, onDirtyChange, onSaved }: {
       headerActions={(
         <Space size={6} className="note-writing-actions">
           <Typography.Text type="secondary">{contentT('saveHint')}</Typography.Text>
-          <Button type="primary" icon={<Save size={14} />} loading={saving} disabled={readOnly || draft === savedDraft} onClick={() => void save(false)}>{contentT('save')}</Button>
+          <Button type="primary" icon={<Save size={14} />} loading={saving} disabled={readOnly || uploading || draft === savedDraft} onClick={() => void save(false)}>{contentT('save')}</Button>
         </Space>
       )}
       value={draft}
@@ -1044,8 +1047,10 @@ function RevisionEditor({ item, readOnly, onDirtyChange, onSaved }: {
         setDraft(value)
         onDirtyChange(value !== savedDraftRef.current)
       }}
-      onUpload={uploadImages}
-      readOnly={readOnly}
+      onUpload={(files) => uploadFiles(files, 'NoteImage')}
+      onUploadAttachment={(files) => uploadFiles(files, 'NoteAttachment')}
+      onUploadingChange={handleUploadingChange}
+      readOnly={readOnly || saving}
     />
   </>
 }

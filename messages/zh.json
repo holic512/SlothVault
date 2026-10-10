@@ -105,7 +105,7 @@
     "textareaLabel": "文档内容编辑区，支持 Markdown 与安全 HTML",
     "ready": "编辑内容会在右侧按公开页面效果实时预览",
     "uploadImage": "上传图片，也可直接粘贴或拖入",
-    "uploading": "正在上传并插入图片…",
+    "uploading": "正在上传文件，完成后插入正文…",
     "htmlSnippets": "插入 HTML 结构",
     "imageFallbackAlt": "图片 {index}",
     "stats": "{characters} / {limit} 字符 · {lines} 行",
@@ -128,7 +128,9 @@
       "columnTitleOne": "要点一",
       "columnBodyOne": "填写第一组内容。",
       "columnTitleTwo": "要点二",
-      "columnBodyTwo": "填写第二组内容。"
+      "columnBodyTwo": "填写第二组内容。",
+      "mermaidStart": "开始",
+      "mermaidEnd": "完成"
     },
     "messages": {
       "tooManyFiles": "单次最多上传 {maximum} 张图片",
@@ -137,13 +139,41 @@
       "fileTooLarge": "图片“{name}”超过 {maximum}MB 限制",
       "batchTooLarge": "本次图片总大小超过 {maximum}MB 限制",
       "uploadWouldExceedLimit": "剩余文档空间不足，无法继续上传图片",
-      "uploadFailed": "图片上传失败，请检查网络或文件后重试",
+      "uploadFailed": "文件上传失败或返回结果不完整，未插入正文；请核对已上传文件后重试。",
       "uploadedButNotInserted": "图片已上传，但插入后会超过文档限制；请先精简内容，再从文件管理中复制地址",
       "partialUpload": "部分图片未能上传，已插入成功的图片",
       "contentLimitReached": "已达到文档字符上限，本次输入未写入",
       "existingContentTooLarge": "现有文档超过限制，请先精简到安全范围后再保存",
-      "nearContentLimit": "文档接近字符上限，建议拆分为多篇内容"
-    }
+      "nearContentLimit": "文档接近字符上限，建议拆分为多篇内容",
+      "attachmentInvalid": "附件“{name}”不符合上传要求：支持图片、ZIP、PDF、TXT、MD、JSON 和 Office 文档；单文件 {maximum} MiB，最多 {count} 个，总计 {total} MiB。"
+    },
+    "toolbar": {
+      "bold": "粗体",
+      "italic": "斜体",
+      "strikethrough": "删除线",
+      "heading": "标题级别",
+      "quote": "引用",
+      "unorderedList": "无序列表",
+      "orderedList": "有序列表",
+      "checkedList": "任务列表",
+      "code": "行内代码",
+      "codeBlock": "代码块",
+      "link": "插入链接",
+      "table": "插入表格",
+      "hr": "分隔线",
+      "edit": "仅编辑",
+      "live": "编辑与预览",
+      "preview": "仅预览",
+      "fullscreen": "切换全屏",
+      "heading1": "1 级标题",
+      "heading2": "2 级标题",
+      "heading3": "3 级标题",
+      "heading4": "4 级标题",
+      "heading5": "5 级标题",
+      "heading6": "6 级标题"
+    },
+    "uploadAttachment": "上传下载附件",
+    "insertMermaid": "插入 Mermaid 图表"
   },
   "ThemeToggle": {
     "aria": {
@@ -1168,11 +1198,16 @@
         "ProjectAvatar": "项目头像",
         "UserAvatar": "用户头像",
         "ArticleCover": "文章封面",
-        "ArticleAttachment": "文章图片",
-        "NoteAttachment": "笔记附件",
+        "ArticleAttachment": "文章下载附件",
+        "NoteAttachment": "项目笔记下载附件",
         "HomeworkFile": "作业文件",
         "TempFile": "临时文件",
-        "Other": "其他"
+        "Other": "其他",
+        "ArticleImage": "文章正文图片",
+        "NoteImage": "项目笔记正文图片",
+        "Markdown": "Markdown 内容文件",
+        "ContractAttachment": "合同附件",
+        "CommissionAttachment": "委托资料"
       },
       "actions": {
         "search": "查询",
@@ -1207,7 +1242,8 @@
         "uploadHint": "将文件拖到此处，或点击上传",
         "uploadTip": "支持多文件上传，单文件最大 10MB",
         "cancel": "取消",
-        "upload": "上传"
+        "upload": "上传",
+        "allowedFormats": "支持格式：{formats}"
       },
       "messages": {
         "loadFailed": "加载失败",
@@ -1731,7 +1767,9 @@
       "invalidWallet": "钱包地址无效，请重新连接正确的钱包。",
       "notFound": "请求的资源不存在或已被移除。",
       "conflict": "当前资源状态已变化，请刷新后重试。",
-      "serviceUnavailable": "服务暂时不可用，请稍后重试。"
+      "serviceUnavailable": "服务暂时不可用，请稍后重试。",
+      "managedFileUnavailable": "正文引用的文件尚未上传成功、已失效或内容缺失，请先完成上传再保存。",
+      "fileTypeNotAllowed": "所选分类不支持该文件格式。正文图片使用图片分类，ZIP、PDF 等使用对应的下载附件分类。"
     },
     "evidenceManager": {
       "status": {
@@ -2520,6 +2558,12 @@
   "MarkdownView": {
     "unavailableTitle": "文档暂时无法展示",
     "contentTooLarge": "内容超过 {limit} 字符的安全展示限制，请联系管理员精简或拆分文档。",
-    "downloadUnavailable": "当前没有本项目的下载权限"
+    "downloadUnavailable": "当前没有本项目的下载权限",
+    "mermaid": {
+      "diagramLabel": "Mermaid 图表",
+      "loading": "正在绘制图表…",
+      "failed": "图表无法绘制，请检查 Mermaid 语法。原始代码如下：",
+      "tooLarge": "图表超过 {maximum} 字符限制。原始代码如下："
+    }
   }
 }
