@@ -23,7 +23,23 @@ sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy --action check
 sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy --action update
 ```
 
-部署程序不会自行下载或覆盖自身。`--version` 显示 Deployment Package 版本；应用版本可在部署状态中单独查看。仅更新脚本包运行 `slothtool update slothvault --module deployment`，统一检查和更新运行 `slothtool update slothvault`。
+部署程序不会自行下载或覆盖自身。`--version` 显示 Deployment Package 版本；应用版本可在部署状态中单独查看。仅更新部署脚本包运行 `slothtool slothvault deploy package update`（兼容入口 `slothtool update slothvault --module deployment`）；`slothtool update slothvault` 只更新管理界面。Skill、Deployment、界面插件和应用分别检查与更新。
+
+## 1.1.0 应用更新与进度
+
+“更新应用”先读取实际运行版本和正式 Release，预览当前版本、固定目标镜像、部署目录及重启影响，再确认一次。桥模式按 y 继续、n/Esc 取消；普通 CLI 保留原有 y/n 输入和退出码。后端不在确认后切换到新出现的 Release。
+
+先用同目录的私有临时 Compose 拉取目标应用镜像，成功后激活正式配置并重建 slothvault 服务。重建前失败恢复原配置；重建后失败输出实际快照，不自动回退可能已迁移的数据。其他服务及持久化数据保留。
+
+桥模式持续处理 stdout/stderr，只输出允许的进度字段和分类错误。Compose 支持时使用 JSON 进度，否则 plain 或阶段回退。镜像层的计量与百分比仅表示该层下载／解压，不表示整体更新进度。无可靠总量不提供百分比；长命令每 5 秒心跳表示存活，不代表下载进展。
+
+重建后直接检查实际容器、运行镜像、嵌入的发布标识及健康，不重新联网查询 GitHub。必须正在运行且达到目标；有健康检查时最多等待 120 秒、每 2 秒检查；无健康检查明确标注。未通过版本或健康核验以失败结束。最终 snapshot 在取消、失败和完成时都发送；快照读取失败单独记录。管理界面缺少运行证据时显示“版本未核验”，不能把配置中的目标当成实际版本。
+
+### English update contract
+
+Deployment 1.1.0 reviews one immutable official Release and asks once before execution. It pulls through private staged Compose configuration, activates after pull, recreates the application, and verifies the running container image, embedded Release identity and health locally. It never needs another GitHub query to declare success. Health polling runs every two seconds for up to 120 seconds; absent checks are explicitly reported. Failure before recreation restores configuration; later failure reports actual state without automatic rollback.
+
+Bridge major 1 gains optional typed prompts, measured layer progress, separate five-second heartbeats, runtime-image snapshots and explicit outcomes. JSON progress falls back to plain output or phase events. Only reliable per-layer totals produce percentages; raw commands, environment variables and stderr are not forwarded. Final snapshots are sent after cancellation and failure as well as success. The UI package, Deployment, Skill and application versions are independent; `slothtool update slothvault` updates only the UI.
 
 ## Nginx 与 HTTPS
 

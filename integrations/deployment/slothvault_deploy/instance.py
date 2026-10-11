@@ -19,7 +19,7 @@ from typing import Any
 
 from .compose import COMPOSE_FILE_NAME, MANAGED_COMPOSE_MARKERS
 from .release import application_identity, parse_release_tag
-from .system import normalize_path
+from .system import normalize_path, command_activity
 
 
 def _match(source: str, pattern: str) -> str | None:
@@ -28,7 +28,8 @@ def _match(source: str, pattern: str) -> str | None:
 
 
 def _run(command: tuple[str, ...]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, text=True, capture_output=True, check=False, timeout=12)
+    with command_activity("inspect"):
+        return subprocess.run(command, text=True, capture_output=True, check=False, timeout=12)
 
 
 def inspect_instance(root_value: str) -> dict[str, Any]:
@@ -36,7 +37,7 @@ def inspect_instance(root_value: str) -> dict[str, Any]:
     compose_path = root / COMPOSE_FILE_NAME
     result: dict[str, Any] = {
         "root": str(root), "composePath": str(compose_path), "state": "absent",
-        "provider": None, "image": None, "appVersion": None, "appCommit": None,
+        "provider": None, "image": None, "runtimeImage": None, "appVersionSource": None, "appVersion": None, "appCommit": None,
         "port": None, "loopback": None,
         "dataDir": None, "databaseDir": None, "containers": [],
         "nginx": {"state": "unknown", "serverName": None, "https": False, "certificate": "unknown"},
@@ -99,11 +100,14 @@ def inspect_instance(root_value: str) -> dict[str, Any]:
                             "image": str(config.get("Image") or ""),
                         })
                         if service == "slothvault":
+                            result["runtimeImage"] = str(config.get("Image") or "")
                             result["appVersion"], result["appCommit"], _ = application_identity(item)
+                            result["appVersionSource"] = "release-identity" if result["appVersion"] else None
                             if result["appVersion"] is None and ":" in str(config.get("Image") or ""):
                                 image_tag = str(config["Image"]).rsplit(":", 1)[-1]
                                 parsed = parse_release_tag(image_tag)
                                 result["appVersion"] = parsed.tag if parsed else None
+                                result["appVersionSource"] = "image-tag" if parsed else None
                     result["containers"].sort(key=lambda item: item["service"])
     except (OSError, ValueError, json.JSONDecodeError, subprocess.TimeoutExpired):
         result["errors"].append({"scope": "docker", "code": "INSPECT_UNAVAILABLE"})

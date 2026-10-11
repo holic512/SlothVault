@@ -198,7 +198,7 @@ class ReleaseUpdateTests(unittest.TestCase):
         finally:
             package.cleanup()
 
-    def test_update_requires_confirmation_and_rechecks_target_release(self):
+    def test_update_confirms_once_and_verifies_locally_after_staged_pull(self):
         package, root = self.managed_root()
         try:
             target_release = release.PublishedRelease(
@@ -230,23 +230,28 @@ class ReleaseUpdateTests(unittest.TestCase):
                 latest_published_release=target_release,
                 newer_application_releases=(intermediate_release, target_release),
             )
-            verified = release.DeploymentUpdateCheck(
-                **{**initial.__dict__, "application_tag": target_release.tag, "status": "UP_TO_DATE", "next_application_release": None, "application_update_available": False}
-            )
-            with patch.object(release, "check_deployment_update", side_effect=[initial, verified]), patch.object(
+            original = (root / "compose.yml").read_text()
+            calls = []
+            def execute(command, **kwargs):
+                calls.append(command)
+                if "pull" in command:
+                    self.assertEqual((root / "compose.yml").read_text(), original)
+                    staged = Path(command[command.index("-f") + 1])
+                    self.assertIn('image: "holic512/slothvault:v2.0.0-build.77"', staged.read_text())
+            with patch.object(release, "check_deployment_update", return_value=initial) as check, patch.object(
                 release, "prompt_yes_no", return_value=True
-            ), patch.object(compose, "run_command") as validate_compose, patch.object(release, "run_command") as run_command:
-                release.update_managed_application(root)
-
-            self.assertEqual(
-                [call[0][0] for call in run_command.call_args_list],
-                [
-                    ("docker", "compose", "-f", str(root / "compose.yml"), "pull"),
-                    ("docker", "compose", "-f", str(root / "compose.yml"), "up", "-d"),
-                    ("docker", "compose", "-f", str(root / "compose.yml"), "ps"),
-                ],
-            )
-            validate_compose.assert_called_once_with(("docker", "compose", "-f", str(root / "compose.yml"), "config"))
+            ) as confirm, patch.object(compose, "run_command"), patch.object(release, "run_command", side_effect=execute), patch.object(
+                release, "verify_application", return_value={"currentVersion": target_release.tag, "verified": True}
+            ) as verify:
+                result = release.update_managed_application(root)
+            check.assert_called_once_with(root)
+            confirm.assert_called_once()
+            verify.assert_called_once_with(root / "compose.yml", target_release.tag, "holic512/slothvault:v2.0.0-build.77")
+            self.assertEqual(result["outcome"], "updated")
+            self.assertEqual(len(calls), 2)
+            self.assertEqual(calls[0][-2:], ("pull", "slothvault"))
+            self.assertEqual(calls[1][-3:], ("up", "-d", "slothvault"))
+            self.assertEqual(list(root.glob(".slothvault-update-*")), [])
             self.assertIn('image: "holic512/slothvault:v2.0.0-build.77"', (root / "compose.yml").read_text(encoding="utf-8"))
         finally:
             package.cleanup()
@@ -291,7 +296,8 @@ class ReleaseUpdateTests(unittest.TestCase):
             with patch.object(release, "check_deployment_update", return_value=unknown), patch.object(
                 release, "run_command"
             ) as run_command:
-                release.update_managed_application(root)
+                with self.assertRaises(InstallerError):
+                    release.update_managed_application(root)
 
             run_command.assert_not_called()
             self.assertIn('image: "holic512/slothvault:latest"', (root / "compose.yml").read_text(encoding="utf-8"))
@@ -699,6 +705,138 @@ class CertbotTests(unittest.TestCase):
         self.assertIn("renew --quiet", certbot.managed_systemd_service_source("/usr/bin/certbot"))
         self.assertIn("/dev/urandom", certbot.managed_cron_wrapper_source("/usr/bin/certbot"))
         self.assertIn("slothvault-certbot-renew", certbot.managed_cron_source())
+
+
+class ObservableUpdateTests(unittest.TestCase):
+    def application(self, tag="v2.5.20", image="holic512/slothvault:v2.5.20", health=None, running=True):
+        return {"Config": {"Image": image, "Env": ["SLOTHVAULT_RELEASE_TAG=" + tag]},
+                "State": {"Running": running, "Health": {"Status": health}}}
+
+    def test_verification_requires_running_identity_image_and_health(self):
+        with patch.object(release, "inspect_managed_application", return_value=self.application()):
+            self.assertEqual(release.verify_application(Path("/tmp/compose.yml"), "v2.5.20", "holic512/slothvault:v2.5.20")["health"], "not-configured")
+        for app in [self.application(tag="v2.3.1"), self.application(health="unhealthy"),
+                    self.application(running=False), self.application(image="holic512/slothvault:latest"), self.application(tag="")]:
+            with patch.object(release, "inspect_managed_application", return_value=app), self.assertRaises(InstallerError):
+                release.verify_application(Path("/tmp/compose.yml"), "v2.5.20", "holic512/slothvault:v2.5.20", timeout=0)
+        with patch.object(release, "inspect_managed_application", side_effect=[self.application(health="starting"), self.application(health="healthy")]), patch.object(release.time, "sleep") as sleep:
+            result = release.verify_application(Path("/tmp/compose.yml"), "v2.5.20", "holic512/slothvault:v2.5.20")
+            self.assertTrue(result["verified"])
+            sleep.assert_called_once_with(2)
+        with patch.object(release, "inspect_managed_application", side_effect=InstallerError("unavailable")), self.assertRaises(InstallerError):
+            release.verify_application(Path("/tmp/compose.yml"), "v2.5.20", "holic512/slothvault:v2.5.20", timeout=0)
+
+    def test_health_deadline_is_bounded_and_heartbeat_is_not_business_progress(self):
+        from slothvault_deploy import system
+        events = []
+        system.set_event_callback(lambda kind, data: events.append((kind, data)))
+        try:
+            with patch.object(release, "inspect_managed_application", return_value=self.application(health="starting")), patch.object(release.time, "monotonic", side_effect=[0, 0, 0, 120, 120]), patch.object(release.time, "sleep") as sleep, self.assertRaises(InstallerError):
+                release.verify_application(Path("/tmp/compose.yml"), "v2.5.20", "holic512/slothvault:v2.5.20")
+            sleep.assert_called_once_with(2)
+            self.assertTrue(events[0][1]["heartbeat"])
+        finally:
+            system.set_event_callback(None)
+
+    def test_command_parser_only_emits_safe_measured_fields(self):
+        from slothvault_deploy.progress import parse_progress
+        data = parse_progress(json.dumps({"id": "abc123", "text": "Downloading", "current": 10, "total": 20, "details": "password=hidden", "percent": 99}))
+        self.assertEqual((data["current"], data["total"], data["subject"]), (10, 20, "abc123"))
+        self.assertNotIn("percent", data)
+        self.assertNotIn("hidden", json.dumps(data))
+        self.assertEqual(parse_progress("abc123 Extracting 1MB/2MB")["total"], 2000000)
+        self.assertNotIn("total", parse_progress('{"text":"Downloading","current":10}'))
+        self.assertNotIn("total", parse_progress('{"text":"Downloading","id":"password-secret","current":10,"total":20}'))
+        self.assertNotIn("current", parse_progress('{"text":"Downloading","current":NaN,"total":Infinity}'))
+        self.assertIsNone(parse_progress("password=hidden"))
+        self.assertEqual(parse_progress("abc123 Already exists")["status"], "completed")
+
+    def test_pipe_draining_streams_progress_and_never_forwards_raw_errors(self):
+        from slothvault_deploy.progress import run_observed_command
+        events = []
+        source = "import sys; print('abc123 Downloading 1MB/2MB', flush=True); sys.stderr.write('password=hidden\\n' * 500); sys.stderr.write('no space left on device password=hidden\\n'); sys.exit(7)"
+        with self.assertRaises(subprocess.CalledProcessError) as caught:
+            run_observed_command([sys.executable, "-c", source], events.append)
+        self.assertEqual(caught.exception.returncode, 7)
+        self.assertIn("磁盘空间不足", caught.exception.stderr)
+        self.assertNotIn("hidden", json.dumps(events))
+        self.assertEqual(events[0]["current"], 1000000)
+
+    def test_quiet_process_reports_heartbeats(self):
+        from slothvault_deploy.progress import run_observed_command
+        from slothvault_deploy import system
+        events, captured = [], []
+        system.set_event_callback(lambda kind, data: captured.append(data))
+        try:
+            with system.command_activity("inspect"):
+                run_observed_command([sys.executable, "-c", "import time; time.sleep(5.2)"], events.append)
+        finally:
+            system.set_event_callback(None)
+        self.assertTrue(any(item.get("heartbeat") for item in captured))
+        self.assertTrue(any(item.get("heartbeat") for item in events))
+        self.assertTrue(all("current" not in item for item in events))
+
+    def test_compose_capability_json_plain_and_old_fallback(self):
+        from slothvault_deploy import progress
+        for output, expected in [("--progress auto tty plain json quiet", "json"), ("--progress auto plain", "plain"), ("old help", None)]:
+            progress.compose_progress_mode.cache_clear()
+            with patch.object(progress.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, output, "")):
+                self.assertEqual(progress.compose_progress_mode("docker"), expected)
+        progress.compose_progress_mode.cache_clear()
+
+    def test_staged_pull_failure_preserves_config_and_post_recreation_does_not_rollback(self):
+        helper = ReleaseUpdateTests()
+        package, root = helper.managed_root()
+        target = release.PublishedRelease("v2.5.20", "update", "sha", None, "https://example.org", "notes")
+        check = release.DeploymentUpdateCheck(repository="holic512/SlothVault", application_tag="v2.3.1", application_commit_sha="old", application_image="holic512/slothvault:latest", next_application_release=target, history_complete=True, status="APPLICATION_UPDATE_AVAILABLE", error=None, application_update_available=True)
+        try:
+            original = (root / "compose.yml").read_text()
+            for fail_at in ("pull", "up"):
+                (root / "compose.yml").write_text(original)
+                def execute(command, **kwargs):
+                    if fail_at in command:
+                        raise InstallerError("controlled failure")
+                with patch.object(release, "check_deployment_update", return_value=check), patch.object(release, "prompt_yes_no", return_value=True), patch.object(compose, "run_command"), patch.object(release, "run_command", side_effect=execute), self.assertRaises(InstallerError):
+                    release.update_managed_application(root)
+                if fail_at == "pull":
+                    self.assertEqual((root / "compose.yml").read_text(), original)
+                else:
+                    self.assertIn("holic512/slothvault:v2.5.20", (root / "compose.yml").read_text())
+                self.assertEqual(list(root.glob(".slothvault-update-*")), [])
+            with patch.object(release, "check_deployment_update", return_value=check), patch.object(release, "prompt_yes_no", return_value=False) as confirm, patch.object(release, "run_command") as execute:
+                self.assertEqual(release.update_managed_application(root)["outcome"], "cancelled")
+                confirm.assert_called_once()
+                execute.assert_not_called()
+        finally:
+            package.cleanup()
+
+    def test_bridge_failure_and_cancel_always_end_with_snapshot_and_done(self):
+        from slothvault_deploy import bridge
+        for failure, code, outcome in [(InstallerError("token=hidden"), 1, "failed"), (KeyboardInterrupt(), 130, "cancelled"), (RuntimeError("password=hidden"), 1, "failed")]:
+            output = StringIO()
+            with patch.object(sys, "__stdout__", output), patch.object(bridge, "check_docker"), patch.object(bridge, "update_managed_application", side_effect=failure), patch.object(bridge, "inspect_instance", return_value={"appVersion": "v2.3.1"}):
+                self.assertEqual(bridge.main(["--bridge", "--action", "update", "--root", "/tmp/vault"]), code)
+            events = [json.loads(line) for line in output.getvalue().splitlines()]
+            self.assertEqual(events[-2]["type"], "snapshot")
+            self.assertEqual((events[-1]["type"], events[-1]["code"], events[-1]["outcome"]), ("done", code, outcome))
+            self.assertNotIn("hidden", output.getvalue())
+
+    def test_bridge_snapshot_failure_does_not_claim_verified_runtime(self):
+        from slothvault_deploy import bridge
+        output = StringIO()
+        with patch.object(sys, "__stdout__", output), patch.object(bridge, "check_docker"), patch.object(bridge, "update_managed_application", return_value={"outcome": "updated", "verified": True}), patch.object(bridge, "inspect_instance", side_effect=OSError()):
+            self.assertEqual(bridge.main(["--bridge", "--action", "update", "--root", "/tmp/vault"]), 0)
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual(events[-2]["data"]["state"], "unreadable")
+
+    def test_typed_prompt_keeps_answer_cancel_and_secret_contract(self):
+        from slothvault_deploy import bridge
+        output = StringIO()
+        with patch.object(sys, "__stdout__", output), patch.object(sys, "__stdin__", StringIO('{"type":"answer","value":"y"}\n')):
+            self.assertEqual(bridge._ask("confirm", kind="confirm", default=False), "y")
+        self.assertEqual(json.loads(output.getvalue())["kind"], "confirm")
+        with patch.object(sys, "__stdout__", StringIO()), patch.object(sys, "__stdin__", StringIO('{"type":"cancel"}\n')), self.assertRaises(KeyboardInterrupt):
+            bridge._ask("confirm")
 
 
 if __name__ == "__main__":

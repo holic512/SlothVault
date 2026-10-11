@@ -24,6 +24,7 @@ from typing import Optional, Sequence
 
 from .system import (
     InstallerError,
+    command_activity,
     create_private_directory,
     ensure_fresh_directory,
     path_is_within,
@@ -413,22 +414,25 @@ def compose_command(compose_path: Path, *arguments: str) -> tuple[str, ...]:
     return ("docker", "compose", "-f", str(compose_path), *arguments)
 
 
-def inspect_managed_application(compose_path: Path) -> dict[str, object]:
+def inspect_managed_application(compose_path: Path, *, timeout: float = 12) -> dict[str, object]:
     """Return the running managed slothvault container inspect record for Docker Nginx checks."""
 
     require_managed_compose(compose_path)
     try:
-        result = subprocess.run(
-            compose_command(compose_path, "ps", "-q", "slothvault"),
-            text=True,
-            capture_output=True,
-            check=False,
-        )
+        with command_activity("verify"):
+            result = subprocess.run(
+                compose_command(compose_path, "ps", "-q", "slothvault"),
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=timeout,
+            )
+    except subprocess.TimeoutExpired as error:
+        raise InstallerError("读取实际应用容器超时，请检查 Docker 服务。") from error
     except FileNotFoundError as error:
         raise InstallerError("未找到 Docker 命令；无法检查 SlothVault 应用容器。") from error
     if result.returncode != 0:
-        detail = "{0}\n{1}".format(result.stdout, result.stderr).strip()
-        raise InstallerError("无法读取 SlothVault 应用容器状态：{0}".format(detail[-1000:] or "没有输出"))
+        raise InstallerError("无法读取 SlothVault 应用容器状态，请检查 Docker 服务。")
     container_ids = [line.strip() for line in result.stdout.splitlines() if line.strip()]
     if len(container_ids) != 1:
         raise InstallerError(
@@ -437,17 +441,20 @@ def inspect_managed_application(compose_path: Path) -> dict[str, object]:
             )
         )
     try:
-        inspected = subprocess.run(
-            ("docker", "inspect", "--type", "container", container_ids[0]),
-            text=True,
-            capture_output=True,
-            check=False,
-        )
+        with command_activity("verify"):
+            inspected = subprocess.run(
+                ("docker", "inspect", "--type", "container", container_ids[0]),
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=timeout,
+            )
+    except subprocess.TimeoutExpired as error:
+        raise InstallerError("检查实际应用容器超时，请检查 Docker 服务。") from error
     except FileNotFoundError as error:
         raise InstallerError("未找到 Docker 命令；无法检查 SlothVault 应用容器。") from error
     if inspected.returncode != 0:
-        detail = "{0}\n{1}".format(inspected.stdout, inspected.stderr).strip()
-        raise InstallerError("无法检查 SlothVault 应用容器网络：{0}".format(detail[-1000:] or "没有输出"))
+        raise InstallerError("无法检查 SlothVault 应用容器网络，请检查 Docker 服务。")
     try:
         payload = json.loads(inspected.stdout)
     except json.JSONDecodeError as error:

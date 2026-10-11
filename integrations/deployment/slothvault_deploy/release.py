@@ -3,7 +3,7 @@
 @project SlothVault
 @module Deployment release update checks
 @description Compares the managed SlothVault container with the latest published official GitHub Release.
-@logic Parse immutable application release tags, fetch published records through the public API, collect all newer releases when history is known, pin the managed Compose image to the latest target, and leave plugin updates to SlothTool.
+@logic Fix one confirmed Release target, pull with private staged configuration, activate before recreation, and verify the running container locally without another network query.
 @dependencies Python standard library, Docker Compose v2, GitHub Releases REST API
 @index_tags deployment,update,release,github,version,docker,commit-log
 @author holic512
@@ -12,9 +12,12 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import socket
-from dataclasses import dataclass
+import tempfile
+import time
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable, Optional
 from urllib.error import HTTPError, URLError
@@ -28,7 +31,7 @@ from .compose import (
     pin_managed_application_image,
     require_managed_compose,
 )
-from .system import InstallerError, print_info, prompt_yes_no, run_command
+from .system import InstallerError, print_info, prompt_yes_no, run_command, publish_event, report_progress, write_text_atomically, bridge_active
 
 
 RELEASE_TAG_PATTERN = re.compile(r"^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-build\.(0|[1-9]\d*))?$")
@@ -375,7 +378,7 @@ def release_image_reference(image: str, release_tag: str) -> str:
 def print_update_check(check: DeploymentUpdateCheck) -> None:
     """Print the read-only update result and all newer official Release logs."""
 
-    print_info("SlothVault 部署脚本包版本：{0}（使用 slothtool update slothvault --module deployment 更新）".format(__version__))
+    print_info("SlothVault 部署脚本包版本：{0}（使用 slothtool slothvault deploy package update 更新）".format(__version__))
     print_info("当前应用版本：{0}（提交 {1}）".format(_display_tag(check.application_tag), _display_commit(check.application_commit_sha)))
     if check.application_image:
         print_info("当前应用镜像：{0}".format(check.application_image))
@@ -402,36 +405,89 @@ def print_update_check(check: DeploymentUpdateCheck) -> None:
         print_info("当前应用版本不在已获取的正式 Release 历史中，无法安全确定更新目标。")
 
 
-def update_managed_application(root: Path) -> None:
-    """Advance a confirmed managed application to the latest published Release."""
+def verify_application(compose_path: Path, target_tag: str, target_image: str, timeout: float = 120) -> dict[str, object]:
+    """Verify the running container locally, independently of Release network availability."""
+    deadline = time.monotonic() + timeout
+    while True:
+        remaining = max(0, deadline - time.monotonic())
+        try:
+            container = inspect_managed_application(compose_path, timeout=max(0.01, min(12, remaining / 2)))
+        except InstallerError:
+            container = None
+        if container:
+            actual_tag, _, actual_image = application_identity(container)
+            state = container.get("State", {})
+            health = state.get("Health", {}).get("Status")
+            if health == "unhealthy":
+                raise InstallerError("目标应用健康检查失败，请检查应用日志。")
+            if state.get("Running") is True and actual_tag == target_tag and actual_image == target_image and health in (None, "healthy"):
+                return {"currentVersion": actual_tag, "runtimeImage": actual_image, "verified": True,
+                        "health": health or "not-configured"}
+            if actual_tag and actual_tag != target_tag:
+                raise InstallerError("运行中的应用版本仍为 {0}，未达到目标 {1}。".format(actual_tag, target_tag))
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise InstallerError("应用版本或健康状态未在 120 秒内通过核验；请查看实际容器状态。")
+        publish_event("progress", {"phase": "verify", "heartbeat": True, "status": "running"})
+        time.sleep(min(2, remaining))
 
+
+def update_managed_application(root: Path) -> dict[str, object]:
+    """Review one immutable target, pull before activation, and verify the actual running application."""
+    report_progress("release", stageIndex=1, stageCount=5, status="running")
     initial = check_deployment_update(root)
-    print_update_check(initial)
+    publish_event("update", asdict(initial))
+    # The bridge presents notes separately; the ordinary CLI retains its complete output.
+    if not bridge_active():
+        print_update_check(initial)
     compose_path = root / COMPOSE_FILE_NAME
     target_release = initial.next_application_release
+    outcome = {"currentVersion": initial.application_tag, "beforeVersion": initial.application_tag, "verified": False}
+    if initial.error:
+        raise InstallerError("无法检查应用更新：{0}。当前运行版本未改变。".format(initial.error))
     if target_release is not None:
         if not initial.application_image:
             raise InstallerError("无法读取当前应用镜像，无法安全执行更新。")
         target_image = release_image_reference(initial.application_image, target_release.tag)
+        outcome["targetVersion"] = target_release.tag
+        publish_event("preview", {"currentVersion": initial.application_tag, "targetVersion": target_release.tag,
+                                  "image": target_image, "root": str(root), "impact": "restart-application",
+                                  "releaseCount": len(initial.newer_application_releases)})
+        report_progress("release", stageIndex=1, stageCount=5, status="completed")
         if not prompt_yes_no("确认拉取 {0} 并重启受管应用".format(target_release.tag), default=False):
             print_info("已取消更新，未拉取镜像或重启容器。")
-            return
-        pin_managed_application_image(compose_path, target_image)
-    elif initial.status == "UP_TO_DATE":
-        print_info("当前应用已是最新正式版本，不拉取镜像或重启容器。")
-        return
+            return {**outcome, "outcome": "cancelled"}
+    elif initial.status in ("UP_TO_DATE", "LOCAL_NEWER"):
+        print_info("当前应用版本高于最新正式版本，不拉取镜像或重启容器。" if initial.status == "LOCAL_NEWER" else "当前应用已是最新正式版本，不拉取镜像或重启容器。")
+        return {**outcome, "outcome": "unchanged", "verified": True}
     else:
         print_info("当前版本无法安全确定最新更新目标；不会拉取 latest 镜像或重启容器。")
-        return
+        raise InstallerError("当前应用版本无法安全确定更新目标，请先检查实际运行版本和正式 Release。")
 
-    for command in (("pull",), ("up", "-d"), ("ps",)):
-        run_command(compose_command(compose_path, *command))
-
-    verified = check_deployment_update(root)
-    if verified.error or verified.application_tag != target_release.tag:
-        raise InstallerError(
-            "镜像更新命令已执行，但运行中的应用未确认达到目标版本 {0}；请检查容器日志和镜像拉取结果。".format(
-                target_release.tag
-            )
-        )
+    original = compose_path.read_text(encoding="utf-8")
+    mode = compose_path.stat().st_mode & 0o777
+    descriptor, name = tempfile.mkstemp(prefix=".slothvault-update-", suffix=".yml", dir=root)
+    staged = Path(name)
+    recreating = False
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            stream.write(original)
+        pin_managed_application_image(staged, target_image)
+        run_command(("docker", "compose", "--project-directory", str(root), "-f", str(staged), "pull", "slothvault"),
+                    phase="pull", stage_index=2, stage_count=5)
+        report_progress("activate", stageIndex=3, stageCount=5, status="running")
+        pin_managed_application_image(compose_path, target_image)
+        report_progress("activate", stageIndex=3, stageCount=5, status="completed")
+        recreating = True
+        run_command(compose_command(compose_path, "up", "-d", "slothvault"), phase="recreate", stage_index=4, stage_count=5)
+        report_progress("verify", stageIndex=5, stageCount=5, status="running")
+        verified = verify_application(compose_path, target_release.tag, target_image)
+        report_progress("verify", stageIndex=5, stageCount=5, status="completed")
+    except BaseException:
+        if not recreating and compose_path.read_text(encoding="utf-8") != original:
+            write_text_atomically(compose_path, original, mode)
+        raise
+    finally:
+        staged.unlink(missing_ok=True)
     print_info("已更新并确认运行中的应用达到 {0}；持久化数据已保留。".format(target_release.tag))
+    return {**outcome, **verified, "outcome": "updated"}

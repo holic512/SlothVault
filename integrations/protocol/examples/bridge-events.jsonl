@@ -1,4 +1,13 @@
-{"type":"progress","phase":"inspect"}
-{"type":"snapshot","data":{"state":"managed","appVersion":"2.4.10"}}
+{"type":"progress","phase":"release","stageIndex":1,"stageCount":5,"status":"running"}
+{"type":"preview","data":{"currentVersion":"v2.3.1","targetVersion":"v2.5.20","image":"holic512/slothvault:v2.5.20","root":"/data/slothvault","impact":"restart-application","releaseCount":3}}
+{"type":"progress","phase":"release","stageIndex":1,"stageCount":5,"status":"completed"}
+{"type":"prompt","label":"Confirm v2.5.20 [y/N]","secret":false,"kind":"confirm","default":false}
+{"type":"progress","phase":"pull","stageIndex":2,"stageCount":5,"subject":"a1b2c3d4e5f6","current":1048576,"total":2097152,"unit":"bytes","speed":524288,"status":"running","message":"downloading"}
+{"type":"progress","phase":"pull","heartbeat":true,"status":"running"}
+{"type":"progress","phase":"pull","subject":"a1b2c3d4e5f6","current":1048576,"unit":"bytes","status":"running","message":"extracting"}
+{"type":"progress","phase":"recreate","stageIndex":4,"stageCount":5,"status":"completed"}
+{"type":"prompt","label":"Legacy ordinary input","secret":false}
 {"type":"prompt","label":"Database password","secret":true}
-{"type":"done","code":0}
+{"type":"progress","phase":"verify","stageIndex":5,"stageCount":5,"status":"completed"}
+{"type":"snapshot","data":{"state":"managed","appVersion":"v2.5.20","appVersionSource":"release-identity","image":"holic512/slothvault:v2.5.20","runtimeImage":"holic512/slothvault:v2.5.20","containers":[{"service":"slothvault","state":"running","health":"healthy"}],"errors":[]}}
+{"type":"done","code":0,"outcome":"updated","beforeVersion":"v2.3.1","targetVersion":"v2.5.20","currentVersion":"v2.5.20","verified":true,"health":"healthy"}

@@ -29,7 +29,15 @@ Tool schema、annotations 和 Service 定义业务边界。Resource 二进制内
 
 `python3 install.py --bridge --action <action> --root <path>` 输出一行一个 JSON 事件：progress、log、prompt、snapshot、update、preview、error、done，见 [示例](./protocol/examples/bridge-events.jsonl)。prompt.secret:true 要求隐藏输入；stdin 回应为 `{"type":"answer","value":"..."}` 或 `{"type":"cancel"}`。done.code 与进程状态一致。
 
-`--snapshot-json` 的 appVersion 是已部署应用版本，module.json.version 是脚本包版本。桥、归档和部署能力不变。同一主版本可新增可选字段；改变必需字段或事件语义时提升主版本并协调消费方。MCP 标准协商独立于部署桥。
+Deployment 1.1.0 在主版本 1 内增加可选字段：
+
+- `prompt.kind: "confirm"` 和 `default` 支持 y/n 即时确认；无 kind 的旧提示继续输入后 Enter。普通和 secret 输入不变。
+- `preview.data` 包含 `currentVersion`、`targetVersion`、`image`、`root`、`impact` 与 `releaseCount`。确认后目标固定。
+- `progress` 可含 `stageIndex/stageCount`、`subject`、`current/total/unit`、`speed`、`status` 与安全 `message`。`heartbeat: true` 表示进程存活，不是业务进度。百分比只能由可靠的镜像层总量推导。
+- `done` 可含 `outcome: updated/unchanged/cancelled/failed`、`beforeVersion`、`targetVersion`、`currentVersion`、`verified` 和 `health`。其他动作可省略 outcome；真实退出码优先于事件。版本未核验不能报告应用更新成功。
+- `snapshot.data.runtimeImage` 为实际应用容器使用的镜像；原 `image` 为配置镜像。`appVersionSource` 区分嵌入发布标识与镜像 tag 回退；仅镜像 tag 回退不能证明更新目标已生效。取消和失败也提供最终 snapshot，读失败记录在 errors。
+
+`--snapshot-json` 的 appVersion 是实际容器版本，module.json.version 是脚本包版本。应用更新核验实际运行、目标镜像、发布标识及健康；不存在健康检查时明确记录，有检查最多等待 120 秒。核验不重新查询 GitHub。同一主版本可新增可选字段；改变必需字段或事件语义时提升主版本并协调消费方。MCP 标准协商独立于部署桥。
 
 ## MCP 5.0 文章列表迁移
 

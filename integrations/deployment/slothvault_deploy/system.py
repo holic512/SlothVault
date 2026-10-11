@@ -3,7 +3,7 @@
 @project SlothVault
 @module Deployment system utilities
 @description Provides safe host command execution, prompts, path validation and atomic file writes for the SlothTool-bundled deployment package.
-@logic Validate user-controlled values before they reach host commands or configuration files, then perform recoverable atomic writes and display Chinese diagnostics.
+@logic Validate user-controlled values before they reach host commands or configuration files, perform recoverable atomic writes, and observe bridge commands with safe progress and separate confirmation prompts.
 @dependencies Python standard library
 @index_tags deployment,installer,system,security,filesystem,subprocess
 @author holic512
@@ -18,6 +18,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Callable, Optional, Sequence
 
@@ -25,6 +27,7 @@ from typing import Callable, Optional, Sequence
 VALID_IMAGE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/@:-]*$")
 _progress_callback: Optional[Callable[[str], None]] = None
 _event_callback: Optional[Callable[[str, dict[str, object]], None]] = None
+_confirmation_callback: Optional[Callable[[str, bool], str]] = None
 
 
 def set_progress_callback(callback: Optional[Callable[[str], None]]) -> None:
@@ -41,6 +44,53 @@ def set_event_callback(callback: Optional[Callable[[str, dict[str, object]], Non
 def publish_event(kind: str, data: dict[str, object]) -> None:
     if _event_callback is not None:
         _event_callback(kind, data)
+
+
+def set_confirmation_callback(callback: Optional[Callable[[str, bool], str]]) -> None:
+    global _confirmation_callback
+    _confirmation_callback = callback
+
+
+def bridge_active() -> bool:
+    return _event_callback is not None
+
+
+def safe_message(value: str) -> str:
+    value = re.sub(r"svmcp_[A-Za-z0-9_-]{24}\.[A-Za-z0-9_-]{43}", "[redacted]", value)
+    value = re.sub(r"(?i)(bearer\s+)\S+", r"\1[redacted]", value)
+    value = re.sub(r"(?i)((?:password|token|secret|api[_-]?key|encryption_key)\s*[:=]\s*)[^\s,;]+", r"\1[redacted]", value)
+    value = re.sub(r"(https?://)[^/\s:@]+:[^/\s@]+@", r"\1[redacted]@", value)
+    return re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", value)[:600]
+
+
+def report_progress(phase: str, **data: object) -> None:
+    if _event_callback is not None:
+        publish_event("progress", {"phase": phase, **data})
+    elif _progress_callback is not None:
+        _progress_callback(phase)
+
+
+
+@contextmanager
+def command_activity(phase: str):
+    """Keep captured, read-only commands observable without publishing their output."""
+    callback = _event_callback
+    stopping = threading.Event()
+    def heartbeat() -> None:
+        while not stopping.wait(5):
+            try:
+                callback("progress", {"phase": phase, "heartbeat": True, "status": "running"})
+            except Exception:
+                pass
+    worker = threading.Thread(target=heartbeat, daemon=True) if callback else None
+    if worker:
+        worker.start()
+    try:
+        yield
+    finally:
+        stopping.set()
+        if worker:
+            worker.join()
 
 
 def _command_phase(command: Sequence[str]) -> str:
@@ -136,7 +186,8 @@ def prompt_yes_no(message: str, default: bool = False) -> bool:
     suffix = "[Y/n]" if default else "[y/N]"
     while True:
         try:
-            value = input("{0} {1}：".format(message, suffix)).strip().lower()
+            label = "{0} {1}：".format(message, suffix)
+            value = (_confirmation_callback(label, default) if _confirmation_callback else input(label)).strip().lower()
         except EOFError as error:
             raise InstallerError("尚未确认，输入已结束") from error
         if not value:
@@ -204,21 +255,26 @@ def read_text_file(path: Path, label: str) -> str:
         raise InstallerError("无法读取{0}：{1}".format(label, path)) from error
 
 
-def run_command(command: Sequence[str], quiet: bool = False) -> None:
-    if _progress_callback is not None:
-        _progress_callback(_command_phase(command))
+def run_command(command: Sequence[str], quiet: bool = False, *, phase: str | None = None, stage_index: int | None = None, stage_count: int | None = None) -> None:
+    phase = phase or _command_phase(command)
+    stage = {"stageIndex": stage_index, "stageCount": stage_count} if stage_count else {}
+    if bridge_active() or _progress_callback is not None:
+        report_progress(phase, status="running", **stage)
     elif not quiet:
         print_info("执行命令：{0}".format(" ".join(command)))
     try:
-        subprocess.run(
-            list(command),
-            check=True,
-            stdout=subprocess.DEVNULL if quiet or _progress_callback is not None else None,
-            stderr=subprocess.DEVNULL if quiet or _progress_callback is not None else None,
-        )
+        if bridge_active() or _progress_callback is not None:
+            from .progress import run_observed_command
+            run_observed_command(command, lambda data: report_progress(phase, **stage, **data))
+            report_progress(phase, status="completed", **stage)
+        else:
+            subprocess.run(list(command), check=True, stdout=subprocess.DEVNULL if quiet else None, stderr=subprocess.DEVNULL if quiet else None)
     except FileNotFoundError as error:
         raise InstallerError("未找到命令：{0}".format(command[0])) from error
     except subprocess.CalledProcessError as error:
+        if bridge_active() or _progress_callback is not None:
+            report_progress(phase, status="failed", **stage)
+            raise InstallerError("{0}失败（退出码 {1}）。{2}".format(phase, error.returncode, error.stderr or "请检查 Docker 服务和部署状态。")) from error
         raise InstallerError(
             "命令执行失败（退出码 {0}）：{1}".format(error.returncode, " ".join(command))
         ) from error
