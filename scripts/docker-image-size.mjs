@@ -2,8 +2,8 @@
  * @file scripts/docker-image-size.mjs
  * @project SlothVault
  * @module Container Release Metrics
- * @description Reads a pushed OCI image manifest or index and reports compressed layer sizes for the supported deployment platform.
- * @logic Inspect the linux/amd64 manifest through Buildx, total its compressed layer bytes, and optionally publish stable GitHub Actions outputs.
+ * @description Reads OCI manifests and reports architecture-specific compressed image sizes.
+ * @logic Require both deployment platforms for new images, inspect image configs for single manifests, and allow historical partial baselines explicitly.
  * @dependencies Docker Buildx, node:child_process, node:fs/promises
  * @index_tags docker,buildx,oci,manifest,image-size,github-actions
  * @author holic512
@@ -12,7 +12,7 @@ import { spawnSync } from 'node:child_process'
 import { appendFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 
-const supportedPlatforms = ['linux/amd64']
+export const supportedPlatforms = ['linux/amd64', 'linux/arm64']
 
 function digestFromReference(imageReference) {
   const digestStart = imageReference.lastIndexOf('@sha256:')
@@ -26,11 +26,20 @@ export function compressedLayerBytes(manifest) {
   )
 }
 
-export async function inspectPlatformSizes(imageReference, inspectRaw) {
+export async function inspectPlatformSizes(imageReference, inspectRaw, {
+  platforms = supportedPlatforms,
+  allowPartial = false,
+  inspectConfig,
+} = {}) {
   const index = JSON.parse(await inspectRaw(imageReference))
   if (Array.isArray(index.layers)) {
+    if (!inspectConfig) throw new Error('Single-platform manifests require image config inspection')
+    const config = await inspectConfig(imageReference)
+    const platform = `${config.os}/${config.architecture}`
+    if (!platforms.includes(platform)) throw new Error(`Unexpected image platform ${platform}`)
+    if (!allowPartial && platforms.length !== 1) throw new Error('Image is missing required deployment platforms')
     return {
-      'linux/amd64': {
+      [platform]: {
         bytes: compressedLayerBytes(index),
         digest: digestFromReference(imageReference),
         layers: index.layers.length,
@@ -40,19 +49,21 @@ export async function inspectPlatformSizes(imageReference, inspectRaw) {
   const repositoryReference = imageReference.includes('@sha256:')
     ? imageReference.slice(0, imageReference.indexOf('@sha256:'))
     : imageReference
-  const descriptors = new Map(
+  const entries =
     (index.manifests ?? [])
-      .filter((manifest) => manifest.platform?.os && manifest.platform?.architecture)
+      .filter((manifest) => manifest.platform?.os === 'linux' && platforms.includes(`linux/${manifest.platform.architecture}`))
       .map((manifest) => [
         `${manifest.platform.os}/${manifest.platform.architecture}`,
         manifest,
-      ]),
-  )
+      ])
+  const descriptors = new Map(entries)
+  if (entries.length !== descriptors.size) throw new Error('Image index has duplicate platform descriptors')
   const result = {}
 
-  for (const platform of supportedPlatforms) {
+  for (const platform of platforms) {
     const descriptor = descriptors.get(platform)
     if (!descriptor) {
+      if (allowPartial) continue
       throw new Error(`Image index is missing ${platform}`)
     }
     const manifest = JSON.parse(
@@ -64,7 +75,7 @@ export async function inspectPlatformSizes(imageReference, inspectRaw) {
       layers: manifest.layers?.length ?? 0,
     }
   }
-
+  if (!Object.keys(result).length) throw new Error('Image has no supported deployment platforms')
   return result
 }
 
@@ -72,10 +83,10 @@ export function formatMebibytes(bytes) {
   return (bytes / 1024 / 1024).toFixed(1)
 }
 
-async function dockerInspectRaw(reference) {
+export function dockerInspect(reference, format = '--raw') {
   const result = spawnSync(
     'docker',
-    ['buildx', 'imagetools', 'inspect', reference, '--raw'],
+    ['buildx', 'imagetools', 'inspect', reference, ...(format === '--raw' ? ['--raw'] : ['--format', format])],
     { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024, timeout: 30_000 },
   )
   if (result.status !== 0) {
@@ -88,11 +99,14 @@ async function dockerInspectRaw(reference) {
   return result.stdout
 }
 
-async function inspectWithRetry(reference, attempts = 5) {
+export async function inspectWithRetry(reference, attempts = 5, options = {}) {
   let lastError
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
-      return await inspectPlatformSizes(reference, dockerInspectRaw)
+      return await inspectPlatformSizes(reference, dockerInspect, {
+        inspectConfig: ref => JSON.parse(dockerInspect(ref, '{{json .Image}}')),
+        ...options,
+      })
     } catch (error) {
       lastError = error
       if (attempt < attempts) {
@@ -125,12 +139,15 @@ async function main() {
   }
 
   try {
-    const sizes = await inspectWithRetry(imageReference, allowMissing ? 1 : 5)
+    const sizes = await inspectWithRetry(imageReference, allowMissing ? 1 : 5, {
+      allowPartial: process.argv.includes('--allow-partial'),
+    })
     if (outputPath) await writeGitHubOutputs(outputPath, sizes)
     process.stdout.write(`${JSON.stringify(sizes, null, 2)}\n`)
   } catch (error) {
     if (!allowMissing) throw error
     process.stderr.write(`Image size unavailable: ${error.message}\n`)
+    process.stdout.write('{}\n')
   }
 }
 

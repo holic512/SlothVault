@@ -1,258 +1,230 @@
 # @file .github/workflows/docker-build.yml
 # @project SlothVault
-# @module Container and source release delivery
-# @description Validates pull-request images and publishes the default-branch linux/amd64 Docker image with its size metric, a commit-derived release version, and a source GitHub Release.
-# @logic Derive the release version from the package major-version anchor and first-parent commit count, build only linux/amd64, embed the version and source commit in the image, then refresh the idempotent source Release with first-parent commit logs.
-# @dependencies GitHub Actions, Docker Buildx, Docker Hub, Node.js, GitHub CLI
-# @index_tags github-actions,docker,standalone,image-size,release,version,source-archive,commit-log
+# @module Native container and application release delivery
+# @description Validates native amd64/arm64 images and publishes immutable application releases.
+# @logic Pin and validate source, smoke-test both architectures, merge verified digests, complete the Release, then safely promote latest.
+# @dependencies GitHub Actions, Docker Buildx, Docker Hub, release-delivery, docker-smoke
+# @index_tags github-actions,docker,arm64,release,manifest,recovery
 # @author holic512
 
 name: Build Docker Image and Publish Release
 
 on:
   pull_request:
-    branches:
-      - master
-      - main
+    branches: [master, main]
     paths-ignore:
       - 'integrations/**'
       - '.github/workflows/release-vault-module.yml'
       - '.github/workflows/release-skill.yml'
       - '.github/workflows/release-deployment.yml'
   push:
-    branches:
-      - master
-      - main
+    branches: [master, main]
     paths-ignore:
       - 'integrations/**'
       - '.github/workflows/release-vault-module.yml'
       - '.github/workflows/release-skill.yml'
       - '.github/workflows/release-deployment.yml'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Full commit SHA or application version Tag to retry (empty: current commit)'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
 
 concurrency:
-  group: docker-release-${{ github.ref }}
-  cancel-in-progress: true
+  group: application-release-${{ github.event_name == 'pull_request' && github.ref || github.event.repository.default_branch }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  REGISTRY: docker.io
-  IMAGE_NAME: ${{ vars.DOCKER_IMAGE_NAME || 'holic512/slothvault' }}
-  DOCKER_BUILD_RECORD_UPLOAD: "false"
+  IMAGE_REPOSITORY: docker.io/${{ vars.DOCKER_IMAGE_NAME || 'holic512/slothvault' }}
+  DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+  DOCKER_BUILD_RECORD_UPLOAD: 'false'
   BUILDKIT_PROGRESS: plain
 
 jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    # Stop a stuck Buildx/cache request with useful plain-text logs instead of waiting
-    # for the GitHub-hosted runner's 6-hour hard limit.
-    timeout-minutes: 45
-    permissions:
-      contents: read
-
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      sha: ${{ steps.identity.outputs.sha }}
+      version: ${{ steps.identity.outputs.version }}
+      tag: ${{ steps.identity.outputs.tag }}
+      publish: ${{ steps.identity.outputs.publish }}
+      reuse: ${{ steps.image.outputs.reuse }}
+      amd64_digest: ${{ steps.image.outputs.amd64_digest }}
+      arm64_digest: ${{ steps.image.outputs.arm64_digest }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7.0.1
+      - name: Checkout delivery tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Checkout candidate source and history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.ref || github.sha }}
+          path: source
           fetch-depth: 0
-
-      - name: Verify generated MCP registry documentation
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.18.1'
+      - name: Validate immutable release identity and committed versions
+        id: identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_REF: ${{ inputs.ref || '' }}
+          PUBLISH_REQUEST: ${{ github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch }}
+        run: node scripts/release-delivery.mjs prepare --root source
+      - name: Checkout resolved immutable source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.identity.outputs.sha }}
+          path: source
+          fetch-depth: 0
+      - name: Verify generated MCP documentation
+        working-directory: source
         run: node scripts/generate-mcp-docs.mjs --check
+      - name: Set up Buildx for existing version inspection
+        if: steps.identity.outputs.publish == 'true'
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - name: Check for a reusable complete version image
+        if: steps.identity.outputs.publish == 'true'
+        id: image
+        run: node scripts/release-delivery.mjs image-state --root source
+      - name: Store immutable identity
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: application-identity
+          path: dist/application/identity.json
+          if-no-files-found: error
+          retention-days: 7
 
-      - name: Prepare immutable release identity
-        id: release-identity
-        shell: bash
-        run: |
-          set -euo pipefail
-          node scripts/release-version.mjs --github-output "$GITHUB_OUTPUT"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to Docker Hub
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v4
+  build:
+    needs: validate
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - name: Checkout delivery tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Checkout immutable source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.validate.outputs.sha }}
+          path: source
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.18.1'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: application-identity
+          path: dist/application
+      - name: Set up native Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - name: Log in for digest publication
+        if: needs.validate.outputs.publish == 'true' && needs.validate.outputs.reuse != 'true'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Extract metadata (tags, labels)
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Capture previous image sizes
-        id: previous-size
-        if: github.event_name != 'pull_request'
-        env:
-          IMAGE_REFERENCE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-        run: >-
-          node scripts/docker-image-size.mjs "$IMAGE_REFERENCE"
-          --github-output "$GITHUB_OUTPUT"
-          --allow-missing
-
-      - name: Build Docker image
+      - name: Build native image
+        if: needs.validate.outputs.reuse != 'true'
         id: build
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
-          context: .
-          push: ${{ github.event_name != 'pull_request' }}
-          platforms: linux/amd64
-          tags: |
-            ${{ steps.meta.outputs.tags }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.release-identity.outputs.tag }}
-          labels: ${{ steps.meta.outputs.labels }}
+          context: source
+          platforms: linux/${{ matrix.arch }}
+          outputs: ${{ needs.validate.outputs.publish == 'true' && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', env.IMAGE_REPOSITORY) || 'type=docker' }}
+          tags: ${{ needs.validate.outputs.publish != 'true' && format('slothvault-check:{0}-{1}', needs.validate.outputs.tag, matrix.arch) || '' }}
           build-args: |
-            SLOTHVAULT_APP_VERSION=${{ steps.release-identity.outputs.version }}
-            SLOTHVAULT_RELEASE_TAG=${{ steps.release-identity.outputs.tag }}
-            SLOTHVAULT_RELEASE_COMMIT_SHA=${{ github.sha }}
-            SLOTHVAULT_RELEASE_REPOSITORY=holic512/SlothVault
-          # Start with a fresh scope after the previous shared cache stalled.
-          # Bound cache API work; an export problem must not block publishing.
-          cache-from: type=gha,scope=slothvault-build-v2,timeout=5m
-          cache-to: type=gha,scope=slothvault-build-v2,mode=min,timeout=5m,ignore-error=true
+            SLOTHVAULT_APP_VERSION=${{ needs.validate.outputs.version }}
+            SLOTHVAULT_RELEASE_TAG=${{ needs.validate.outputs.tag }}
+            SLOTHVAULT_RELEASE_COMMIT_SHA=${{ needs.validate.outputs.sha }}
+            SLOTHVAULT_RELEASE_REPOSITORY=${{ github.repository }}
+          cache-from: type=gha,scope=slothvault-${{ matrix.arch }}-v3,timeout=5m
+          cache-to: type=gha,scope=slothvault-${{ matrix.arch }}-v3,mode=min,timeout=5m,ignore-error=true
           provenance: false
-
-      - name: Inspect published image sizes
-        id: image-size
-        if: github.event_name != 'pull_request'
+      - name: Verify native runtime and pinned source
         env:
-          IMAGE_REFERENCE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
-        run: >-
-          node scripts/docker-image-size.mjs "$IMAGE_REFERENCE"
-          --github-output "$GITHUB_OUTPUT"
-
-      - name: Generate deployment summary
-        env:
-          AMD64_BYTES: ${{ steps.image-size.outputs.amd64_bytes }}
-          AMD64_MIB: ${{ steps.image-size.outputs.amd64_mib }}
-          AMD64_PREVIOUS_BYTES: ${{ steps.previous-size.outputs.amd64_bytes }}
-          RELEASE_IMAGE_TAG: ${{ steps.release-identity.outputs.tag }}
+          PUBLISH_REQUEST: ${{ needs.validate.outputs.publish }}
+          PLATFORM: linux/${{ matrix.arch }}
+          ARCH: ${{ matrix.arch }}
+          VERSION: ${{ needs.validate.outputs.version }}
+          TAG: ${{ needs.validate.outputs.tag }}
+          COMMIT_SHA: ${{ needs.validate.outputs.sha }}
+          PLATFORM_DIGEST: ${{ steps.build.outputs.digest || (matrix.arch == 'amd64' && needs.validate.outputs.amd64_digest || needs.validate.outputs.arm64_digest) }}
         run: |
-          size_delta() {
-            current="$1"
-            previous="$2"
-            if [ -z "$previous" ]; then
-              echo "n/a"
-              return
-            fi
-            awk -v current="$current" -v previous="$previous" \
-              'BEGIN { printf "%+.1f MiB (%+.1f%%)", (current - previous) / 1048576, (current - previous) * 100 / previous }'
-          }
-
-          echo "## Docker Image Build" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Mode" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "- Build validation only; image was not pushed." >> $GITHUB_STEP_SUMMARY
+          set -euo pipefail
+          if [ "$PUBLISH_REQUEST" = true ]; then
+            image="$IMAGE_REPOSITORY@$PLATFORM_DIGEST"
+            docker pull --platform "$PLATFORM" "$image"
           else
-            echo "- Built and pushed to Docker Hub." >> $GITHUB_STEP_SUMMARY
-            echo "- Digest: \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Compressed Image Size" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "| Platform | Size | Change |" >> $GITHUB_STEP_SUMMARY
-            echo "| --- | ---: | ---: |" >> $GITHUB_STEP_SUMMARY
-            echo "| linux/amd64 | ${AMD64_MIB} MiB (${AMD64_BYTES} bytes) | $(size_delta "$AMD64_BYTES" "$AMD64_PREVIOUS_BYTES") |" >> $GITHUB_STEP_SUMMARY
+            image="slothvault-check:$TAG-$ARCH"
           fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Image Tags" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
-          echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${RELEASE_IMAGE_TAG}" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Architecture" >> $GITHUB_STEP_SUMMARY
-          echo "- linux/amd64" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Docker Compose Install" >> $GITHUB_STEP_SUMMARY
-          echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "npm install -g @holic512/slothtool" >> $GITHUB_STEP_SUMMARY
-          echo "slothtool install slothvault" >> $GITHUB_STEP_SUMMARY
-          echo "sudo env HOME=\"$HOME\" \"$(command -v slothtool)\" slothvault deploy" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          node scripts/docker-smoke.mjs "$image" "$PLATFORM" "$VERSION" "$TAG" "$COMMIT_SHA"
+          if [ "$PUBLISH_REQUEST" = true ]; then
+            node scripts/release-delivery.mjs record-platform --root source --platform "$PLATFORM" --digest "$PLATFORM_DIGEST"
+          fi
+      - name: Store verified native digest
+        if: needs.validate.outputs.publish == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: application-digest-${{ matrix.arch }}
+          path: dist/application/platform-${{ matrix.arch }}.json
+          if-no-files-found: error
+          retention-days: 7
 
-  publish-release:
-    name: Publish source release
-    needs: build-and-push
-    if: >-
-      github.event_name == 'push' &&
-      github.ref_name == github.event.repository.default_branch
-    runs-on: ubuntu-latest
+  publish:
+    name: Publish complete application and promote latest
+    needs: [validate, build]
+    if: needs.validate.outputs.publish == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     permissions:
       contents: write
-
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Checkout repository history
-        uses: actions/checkout@v7.0.1
+      - name: Checkout delivery tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Checkout immutable source history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ needs.validate.outputs.sha }}
+          path: source
           fetch-depth: 0
-
-      - name: Prepare immutable release identity
-        id: release-identity
-        shell: bash
-        run: |
-          set -euo pipefail
-          node scripts/release-version.mjs --github-output "$GITHUB_OUTPUT"
-
-      - name: Generate release commit log
-        id: release
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          version="${{ steps.release-identity.outputs.version }}"
-          tag="${{ steps.release-identity.outputs.tag }}"
-          title="SlothVault ${version}"
-          previous_tag=""
-
-          while IFS= read -r candidate; do
-            if [ "$candidate" != "$tag" ]; then
-              previous_tag="$candidate"
-              break
-            fi
-          done < <(git tag --merged "$GITHUB_SHA" --sort=-creatordate)
-
-          {
-            echo "## 提交日志"
-            echo
-            if [ -n "$previous_tag" ]; then
-              git log "${previous_tag}..${GITHUB_SHA}" --first-parent --pretty=format:'- `%h` %s'
-            else
-              git log "$GITHUB_SHA" --first-parent -n 50 --pretty=format:'- `%h` %s'
-            fi
-            echo
-          } > release-notes.md
-
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "title=$title" >> "$GITHUB_OUTPUT"
-
-      - name: Create source GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ steps.release.outputs.tag }}
-          RELEASE_TITLE: ${{ steps.release.outputs.title }}
-        run: |
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release edit "$RELEASE_TAG" \
-              --title "$RELEASE_TITLE" \
-              --notes-file release-notes.md
-          else
-            gh release create "$RELEASE_TAG" \
-              --target "$GITHUB_SHA" \
-              --title "$RELEASE_TITLE" \
-              --notes-file release-notes.md
-          fi
-
-      - name: Generate release summary
-        env:
-          RELEASE_TAG: ${{ steps.release.outputs.tag }}
-        run: |
-          echo "## Source Release" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Tag: \`$RELEASE_TAG\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Notes: first-parent commit log only." >> "$GITHUB_STEP_SUMMARY"
-          echo "- Assets: GitHub-generated source ZIP and tar.gz. Host deployment is delivered by the SlothTool SlothVault plugin." >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.18.1'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: application-identity
+          path: dist/application
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: application-digest-*
+          merge-multiple: true
+          path: dist/digests
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Capture historical size baseline
+        run: node scripts/docker-image-size.mjs "$IMAGE_REPOSITORY:latest" --allow-partial --allow-missing > dist/application/previous-sizes.json
+      - name: Merge verified platforms or verify existing version image
+        run: node scripts/release-delivery.mjs merge-images --root source --digests ../dist/digests
+      - name: Complete immutable application Release
+        run: node scripts/release-delivery.mjs publish --root source
+      - name: Promote newest successful application
+        run: node scripts/release-delivery.mjs promote --root source
+      - name: Record deployment and size summary
+        if: always()
+        run: node scripts/release-delivery.mjs summary --root source

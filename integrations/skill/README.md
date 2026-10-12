@@ -18,6 +18,8 @@ slothtool slothvault skill update
 
 发布前运行 `python3 -m unittest discover -s integrations/scripts/tests`、协议校验和 `node scripts/release-version.mjs --check-skill`。CI 拒绝内容变化却未递增版本、版本回退或入口元数据不一致；正式 Release 使用 `skill-v1.2.3` 并绑定最终提交，不覆盖已有 Tag，也不回写 Git 历史。
 
+Release 正文来自上一份已发布 Skill 版本以来的完整相关提交消息，保留提交正文与编号项；打包与校验信息位于 Actions Summary。Skill Release 不成为仓库 Latest。失败后在默认分支的发布入口填写原 commit SHA 或 Skill Tag，可补齐一致的草稿；已正式发布的附件与正文仅核验。详见 [发布流程](../../docs/releasing.md)。
+
 可选文章检查使用 Python 3.10+ 标准库：`python3 <skill目录>/scripts/check_article.py article.md --format json`。Python 不是原生 MCP 连接或普通 Skill 操作的要求；没有运行环境时使用教材清单并说明未执行自动检查。脚本不会联网、运行示例代码或修改文章。
 
 文章流程以 MCP 5.0 的轻量列表为准：`content.article.list` 定位文章，`content.article.get` 读取正文。旧服务端若仍在列表中返回正文，也不要依赖该字段。安装更新命令、受管链接和桥主版本保持不变。

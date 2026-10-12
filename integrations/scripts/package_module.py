@@ -3,8 +3,8 @@
 @file package_module.py
 @project SlothVault
 @module Integration module release builder
-@description Builds reproducible independent archives, manifests, and factual release notes.
-@logic Require matching Skill metadata, read versioned notes, hash every shipped file, produce a deterministic tarball, and summarize passed checks.
+@description Builds reproducible independent archives, manifests, and Actions build summaries.
+@logic Require versioned changes, hash shipped files, produce a deterministic tarball, and keep build evidence separate from commit-derived Release notes.
 @dependencies Python standard library, integrations module.json and CHANGELOG.md
 @index_tags integrations,release,manifest,archive,sha256
 @author holic512
@@ -57,10 +57,10 @@ def verify_package(archive_path: Path, manifest: dict[str, object]) -> None:
         raise ValueError("archive files do not match their manifest")
 
 
-def package_module(module: str, outdir: Path, commit: str, checks: list[str]) -> tuple[Path, Path, Path]:
+def package_module(module: str, outdir: Path, commit: str, checks: list[str], *, root: Path | None = None) -> tuple[Path, Path, Path]:
     if module not in MODULES:
         raise ValueError(f"unknown module: {module}")
-    source = ROOT / module
+    source = (root or ROOT) / module
     metadata = json.loads((source / "module.json").read_text(encoding="utf-8"))
     if metadata.get("schema") != 1 or metadata.get("module") != module or not re.fullmatch(r"\d+\.\d+\.\d+", metadata.get("version", "")):
         raise ValueError(f"invalid {module} module.json")
@@ -128,7 +128,7 @@ def package_module(module: str, outdir: Path, commit: str, checks: list[str]) ->
         f"{python_line}"
         f"\n## Checks\n\n{checks_text}\n"
     )
-    notes_path = outdir / f"slothvault-{module}-release-notes.md"
+    notes_path = outdir / f"slothvault-{module}-build-summary.md"
     notes_path.write_text(notes, encoding="utf-8")
     return archive_path, manifest_path, notes_path
 
@@ -139,5 +139,6 @@ if __name__ == "__main__":
     parser.add_argument("--outdir", type=Path, required=True)
     parser.add_argument("--commit", required=True)
     parser.add_argument("--check", action="append", default=[])
+    parser.add_argument("--source-root", type=Path, default=ROOT)
     args = parser.parse_args()
-    print("\n".join(str(path) for path in package_module(args.module, args.outdir, args.commit, args.check)))
+    print("\n".join(str(path) for path in package_module(args.module, args.outdir, args.commit, args.check, root=args.source_root)))

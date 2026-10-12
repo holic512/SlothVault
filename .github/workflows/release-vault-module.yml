@@ -1,10 +1,10 @@
-# @file release-vault-module.yml
+# @file .github/workflows/release-vault-module.yml
 # @project SlothVault
 # @module Independent integration release
-# @description Validates and publishes one Vault-owned module as its own GitHub Release.
-# @logic Run module checks, enforce version-tag identity, package with hashes, and publish factual notes.
-# @dependencies GitHub Actions, Python, integrations/scripts/package_module.py
-# @index_tags release,skill,deployment
+# @description Validates and packages a pinned integration before completing its own immutable Release.
+# @logic Validate source identity and versions, package verified assets, recover matching drafts, and keep integration releases out of Latest.
+# @dependencies GitHub Actions, Python, release-delivery, package_module
+# @index_tags release,skill,deployment,archive,recovery
 # @author holic512
 
 name: Release one Vault integration module
@@ -15,77 +15,124 @@ on:
       module:
         required: true
         type: string
+      ref:
+        type: string
+        default: ''
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: integration-${{ inputs.module }}-${{ github.event_name == 'pull_request' && github.ref || github.event.repository.default_branch }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
 
 jobs:
-  package:
-    runs-on: ubuntu-latest
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      sha: ${{ steps.identity.outputs.sha }}
+      publish: ${{ steps.identity.outputs.publish }}
     steps:
-      - uses: actions/checkout@v7.0.1
+      - name: Checkout delivery tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Checkout candidate history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.ref || github.sha }}
+          path: source
           fetch-depth: 0
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          python-version: '3.10'
-      - name: Validate shared integration contract
-        run: python integrations/scripts/validate_protocol.py
-      - name: Validate module allowlist
-        env:
-          MODULE: ${{ inputs.module }}
-        run: |
-          case "$MODULE" in
-            skill|deployment) ;;
-            *) echo 'Unsupported integration module' >&2; exit 1 ;;
-          esac
-      - name: Validate committed Skill version
-        if: inputs.module == 'skill'
-        run: node scripts/release-version.mjs --check-skill
-      - name: Validate Skill and independent packaging
-        run: PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s integrations/scripts/tests
-      - name: Validate deployment
-        if: inputs.module == 'deployment'
-        run: PYTHONDONTWRITEBYTECODE=1 python integrations/deployment/tests/deploy_installer_test.py
-      - name: Resolve immutable tag
-        id: version
-        env:
-          MODULE: ${{ inputs.module }}
-        run: |
-          set -euo pipefail
-          version="$(python -c 'import json,os; print(json.load(open("integrations/"+os.environ["MODULE"]+"/module.json"))["version"])')"
-          tag="${MODULE}-v${version}"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
-          if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
-            if git diff --quiet "${tag}" HEAD -- "integrations/${MODULE}" ":(exclude)integrations/${MODULE}/CHANGELOG.md" ":(exclude)integrations/${MODULE}/README.md" ":(exclude)integrations/${MODULE}/tests/**"; then
-              echo "publish=false" >> "$GITHUB_OUTPUT"
-            else
-              echo "Packaged ${MODULE} content changed without advancing its version" >&2
-              exit 1
-            fi
-          else
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Build archive, manifest, and release notes
-        env:
-          MODULE: ${{ inputs.module }}
-        run: |
-          set -euo pipefail
-          case "$MODULE" in
-            skill) module_check='Skill metadata and content validation' ;;
-            deployment) module_check='Python Deployment tests' ;;
-            *) echo "Unknown module: $MODULE" >&2; exit 1 ;;
-          esac
-          python integrations/scripts/package_module.py "$MODULE" --outdir "dist/$MODULE" --commit "$GITHUB_SHA" --check "Integration contract validation" --check "Independent packaging regression tests" --check "$module_check" --check "Archive and manifest SHA-256 self-check"
-          cat "dist/$MODULE/slothvault-$MODULE-release-notes.md" >> "$GITHUB_STEP_SUMMARY"
-      - name: Publish independent Release
-        if: github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch && steps.version.outputs.publish == 'true'
+          node-version: '24.18.1'
+      - name: Validate immutable module identity and version
+        id: identity
         env:
           GH_TOKEN: ${{ github.token }}
           MODULE: ${{ inputs.module }}
-          TAG: ${{ steps.version.outputs.tag }}
-          VERSION: ${{ steps.version.outputs.version }}
+          SOURCE_REF: ${{ inputs.ref }}
+          PUBLISH_REQUEST: ${{ github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch }}
+        run: node scripts/release-delivery.mjs prepare --root source --module "$MODULE" --outdir "../dist/$MODULE"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ inputs.module }}-identity
+          path: dist/${{ inputs.module }}/identity.json
+          if-no-files-found: error
+          retention-days: 7
+
+  package:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout delivery tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Checkout immutable module source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.validate.outputs.sha }}
+          path: source
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.10'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ inputs.module }}-identity
+          path: dist/${{ inputs.module }}
+      - name: Validate integration contract and packaging regression tests
         run: |
           set -euo pipefail
-          gh release create "$TAG" "dist/$MODULE/slothvault-$MODULE-$VERSION.tgz" "dist/$MODULE/slothvault-$MODULE-manifest.json" --repo "${{ github.repository }}" --target "$GITHUB_SHA" --title "SlothVault $MODULE $VERSION" --notes-file "dist/$MODULE/slothvault-$MODULE-release-notes.md"
+          PYTHONDONTWRITEBYTECODE=1 python source/integrations/scripts/validate_protocol.py
+          PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s integrations/scripts/tests
+      - name: Validate deployment source
+        if: inputs.module == 'deployment'
+        run: PYTHONDONTWRITEBYTECODE=1 python source/integrations/deployment/tests/deploy_installer_test.py
+      - name: Package archive and verified manifest
+        env:
+          MODULE: ${{ inputs.module }}
+          COMMIT_SHA: ${{ needs.validate.outputs.sha }}
+        run: |
+          set -euo pipefail
+          python integrations/scripts/package_module.py "$MODULE" --source-root source/integrations --outdir "dist/$MODULE" --commit "$COMMIT_SHA" --check 'Integration contract validation' --check 'Independent packaging regression tests' --check 'Archive and manifest SHA-256 self-check'
+          cat "dist/$MODULE/slothvault-$MODULE-build-summary.md" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ inputs.module }}-package
+          path: |
+            dist/${{ inputs.module }}/identity.json
+            dist/${{ inputs.module }}/*.tgz
+            dist/${{ inputs.module }}/*-manifest.json
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: [validate, package]
+    if: needs.validate.outputs.publish == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout delivery tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Checkout immutable source history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.validate.outputs.sha }}
+          path: source
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.18.1'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ inputs.module }}-package
+          path: dist/${{ inputs.module }}
+      - name: Complete or verify independent Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODULE: ${{ inputs.module }}
+        run: node scripts/release-delivery.mjs publish --root source --module "$MODULE" --outdir "../dist/$MODULE"

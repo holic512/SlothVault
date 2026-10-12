@@ -9,6 +9,8 @@ import {
   findMajorVersionBaseline,
   isApplicationChange,
   parseSemanticVersion,
+  prepareModuleVersion,
+  preparePackageVersion,
   prepareSkillVersion,
   releaseTagForVersion,
   releaseVersionForCommitCount,
@@ -50,34 +52,78 @@ describe('release version resolution', () => {
   })
 })
 
-describe('independent Skill version preparation', () => {
+describe('independent module version preparation', () => {
   const directories = []
   afterEach(() => { for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true }) })
 
-  function fixture(version = '1.2.0') {
+  function fixture(version = '1.2.0', module = 'skill') {
     const directory = mkdtempSync(join(tmpdir(), 'slothvault-skill-version-'))
     directories.push(directory)
     const root = pathToFileURL(`${directory}/`)
     const git = args => execFileSync('git', args, { cwd: directory, stdio: 'pipe' }).toString().trim()
     const write = (path, content) => {
-      const target = join(directory, 'integrations/skill', path)
+      const target = join(directory, `integrations/${module}`, path)
       mkdirSync(join(target, '..'), { recursive: true })
       writeFileSync(target, content)
     }
-    const read = path => readFileSync(join(directory, 'integrations/skill', path), 'utf8')
-    write('module.json', JSON.stringify({ schema: 1, module: 'skill', version, bridgeApiMajor: 1 }) + '\n')
-    write('slothvault-mcp/SKILL.md', `---\nname: slothvault-mcp\nmetadata:\n  version: "${version}"\n---\n\nUse uploaded files.\n`)
-    write('slothvault-mcp/references/workflow.md', 'Upload before saving.\n')
+    const read = path => readFileSync(join(directory, `integrations/${module}`, path), 'utf8')
+    write('module.json', JSON.stringify({ schema: 1, module, version, bridgeApiMajor: 1 }) + '\n')
+    if (module === 'skill') {
+      write('slothvault-mcp/SKILL.md', `---\nname: slothvault-mcp\nmetadata:\n  version: "${version}"\n---\n\nUse uploaded files.\n`)
+      write('slothvault-mcp/references/workflow.md', 'Upload before saving.\n')
+    } else write('install.py', 'print("initial deployment")\n')
     write('CHANGELOG.md', `# Skill changes\n\n## ${version}\n\n- Initial release.\n`)
-    write('README.md', `当前版本 **${version}**，发布标签 skill-v${version}。\n`)
+    write('README.md', `当前版本 **${version}**，发布标签 ${module}-v${version}。\n`)
     git(['init', '-q'])
     git(['config', 'user.name', 'Version Test'])
     git(['config', 'user.email', 'version-test@example.invalid'])
     git(['add', '.'])
     git(['commit', '-qm', 'Initial release'])
-    git(['tag', `skill-v${version}`])
+    git(['tag', `${module}-v${version}`])
     return { root, git, write, read }
   }
+
+  it('prepares Deployment versions once, ignores documentation and validates unpublished subsequent commits', async () => {
+    const f = fixture('1.1.0', 'deployment')
+    f.write('README.md', 'Changed documentation only\n')
+    expect((await prepareModuleVersion('deployment', { root: f.root })).version).toBe('1.1.0')
+    f.write('install.py', 'print("changed deployment")\n')
+    await expect(prepareModuleVersion('deployment', { root: f.root, check: true })).rejects.toThrow('without advancing')
+    expect((await prepareModuleVersion('deployment', { root: f.root })).version).toBe('1.1.1')
+    expect((await prepareModuleVersion('deployment', { root: f.root })).version).toBe('1.1.1')
+    f.git(['add', '.'])
+    f.git(['commit', '-qm', 'Prepared deployment update'])
+    f.write('install.py', 'print("next deployment")\n')
+    expect((await prepareModuleVersion('deployment', { root: f.root })).version).toBe('1.1.2')
+    expect(f.read('CHANGELOG.md')).toContain('## 1.1.2')
+    await expect(prepareModuleVersion('deployment', { root: f.root, check: true })).resolves.toMatchObject({ version: '1.1.2' })
+  })
+
+  it('rejects Deployment rollback and excluded tests do not cause a release', async () => {
+    const f = fixture('1.1.0', 'deployment')
+    f.write('tests/extra.py', '# excluded\n')
+    expect((await prepareModuleVersion('deployment', { root: f.root })).version).toBe('1.1.0')
+    f.git(['tag', 'deployment-v1.2.0'])
+    await expect(prepareModuleVersion('deployment', { root: f.root })).rejects.toThrow('older than deployment-v1.2.0')
+  })
+
+  it('synchronizes both application lockfile versions without changing dependency locks', async () => {
+    const f = fixture()
+    const packageJsonPath = new URL('package.json', f.root)
+    const lockPath = new URL('package-lock.json', f.root)
+    writeFileSync(packageJsonPath, JSON.stringify({ version: '2.0.0' }))
+    writeFileSync(lockPath, JSON.stringify({ version: '2.0.0', packages: { '': { version: '2.0.0' }, 'node_modules/example': { version: '3.4.5', integrity: 'unchanged' } } }))
+    f.git(['add', '.'])
+    f.git(['commit', '-qm', 'Major application baseline'])
+    writeFileSync(new URL('app.js', f.root), 'new application content\n')
+    f.git(['add', '.'])
+    expect((await preparePackageVersion({ packageJsonPath, root: f.root })).version).toBe('2.0.1')
+    const lock = JSON.parse(readFileSync(lockPath, 'utf8'))
+    expect(lock.version).toBe('2.0.1')
+    expect(lock.packages[''].version).toBe('2.0.1')
+    expect(lock.packages['node_modules/example']).toEqual({ version: '3.4.5', integrity: 'unchanged' })
+    expect((await preparePackageVersion({ packageJsonPath, root: f.root })).version).toBe('2.0.1')
+  })
 
   it('advances changed instructions and synchronizes package metadata once', async () => {
     const f = fixture()

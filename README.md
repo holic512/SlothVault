@@ -67,6 +67,8 @@ APP_DATA_PATH=./data UPLOAD_STORAGE_PATH=./data/uploads npm run dev
 
 ### Docker Compose
 
+应用镜像使用同一个版本 Tag 提供 `linux/amd64` 和 `linux/arm64`，Docker 会按主机架构选择。应用、Skill、Deployment 各自独立发布；发布版本、完整提交说明与失败重跑规则见 [发布流程](./docs/releasing.md)。
+
 正式 Linux 部署由 SlothTool 的 `sv` 界面调用本仓库独立发布的 Deployment Package。纯标准库 Python 部署程序也可从源码直接执行；交互选择 SQLite、MySQL 或 PostgreSQL 后，会在部署根目录生成私有的 `/data/slothvault/compose.yml`，创建所选模式的持久化目录，拉取发布镜像并启动服务。首次 schema 初始化由应用自动完成；随后访问应用的 `/install` 页面创建首位管理员。
 
 前置条件：Linux 已安装 Docker Engine、Docker Compose v2 与 Python 3.10+。SlothTool 插件不会尝试根据发行版自动安装 Docker。默认 `/data` 目录和 Nginx/证书配置需要管理员权限，建议从首次安装开始使用 `sudo`，后续 Docker 命令也使用同一权限级别。

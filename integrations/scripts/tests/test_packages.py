@@ -49,6 +49,19 @@ class IndependentPackagesTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "SHA-256"):
                 builder.verify_package(archive, json.loads(manifest_path.read_text()))
 
+    def test_pinned_source_root_is_packaged_and_summary_is_not_release_body(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "source/integrations"
+            shutil.copytree(builder.ROOT / "deployment", root / "deployment")
+            (root / "deployment/install.py").write_text('print("pinned source")\n')
+            archive, manifest_path, summary = builder.package_module(
+                "deployment", Path(tmp) / "out", "fixed-source-sha", ["Archive verification"], root=root)
+            builder.verify_package(archive, json.loads(manifest_path.read_text()))
+            with tarfile.open(archive) as package:
+                self.assertEqual(package.extractfile("package/install.py").read(), b'print("pinned source")\n')
+            self.assertEqual(summary.name, "slothvault-deployment-build-summary.md")
+            self.assertIn("fixed-source-sha", summary.read_text())
+
     def test_missing_entry_and_symlink_are_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "integrations"

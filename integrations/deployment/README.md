@@ -6,6 +6,12 @@
 
 前置条件：Python 3.10+、Docker Engine、Docker Compose v2。脚本不会自动安装 Docker。
 
+应用镜像同时支持 `linux/amd64` 和 `linux/arm64`，默认由 Docker 选择主机对应架构。Deployment 脚本包的版本独立于应用镜像，现有桥主版本保持 1。
+
+修改打包内容后先暂存新增文件，再执行 `npm run version:prepare`，自动准备 Deployment 补丁版本和 CHANGELOG；README、CHANGELOG、tests 与缓存更新不单独触发递增。发布前运行 `node scripts/release-version.mjs --check-deployment`。CI 拒绝版本回退及内容变化却未递增版本。
+
+Deployment Release 正文使用上一份已发布部署包以来的完整相关提交消息，构建与校验信息放入 Actions Summary；不成为仓库 Latest。原提交或 Tag 的失败恢复方式见 [发布流程](../../docs/releasing.md)。
+
 ```bash
 npm install -g @holic512/slothtool
 slothtool install slothvault

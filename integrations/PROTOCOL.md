@@ -11,6 +11,8 @@
 
 打包器和共享 workflow 仅接受 skill/deployment。消费方读取对应正式 Release，校验清单、桥主版本、归档和逐文件 SHA-256、无额外/危险条目后运行。Skill 连接与普通操作不需要 Python；可选文章静态检查脚本使用 Python 3.10+ 标准库；Deployment 为 Python 3.10+ 标准库脚本。清单 schema 保持 1。
 
+发布正文采用所属发布单元的完整 Git 提交消息，构建信息独立放在 Actions Summary。模块正式 Release 不标记为 Latest；已发布产物只读核验，草稿仅在原目标提交及已有附件哈希一致时恢复。应用的双架构镜像与发布恢复规则见 [发布流程](../docs/releasing.md)。
+
 ## 标准 MCP HTTP
 
 `POST /mcp` 使用 Streamable HTTP 和 `Authorization: Bearer <SlothVault MCP Key>`。Session 不作为 MCP 凭据。每次请求重验 Key 和管理员账户；缺失、无效、过期、停用 Key 或非管理员返回 401，未安装/维护返回 503，现有维护锁保留。
