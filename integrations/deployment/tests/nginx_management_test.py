@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from slothvault_deploy.nginx_config import Configuration, loaded_sources, parse, patch_server, transfer_status
+from slothvault_deploy.nginx_config import Configuration, ConfigurationParseError, loaded_sources, parse, patch_server, transfer_status
 from slothvault_deploy.nginx_discovery import Instance, application_endpoints, compile_paths, context_arguments, discover, docker_instances
 from slothvault_deploy.nginx_management import apply_updates, write_site
 from slothvault_deploy.nginx import DockerMount, DockerNginxManager, SystemNginxManager, NginxProxyConfig, render_https_proxy_config
@@ -42,6 +42,39 @@ def configuration(site=SITE, http='client_max_body_size 2m;'):
 
 
 class PolicyTests(unittest.TestCase):
+    def test_websocket_map_empty_keys_and_empty_header_values_keep_their_source_spans(self):
+        for empty in ("''", '""'):
+            with self.subTest(empty=empty):
+                source = 'http { map $http_upgrade $connection_upgrade { default upgrade; ' + empty + ' close; } server { location / { proxy_set_header Connection ' + empty + '; } } }'
+                http = parse(source)[0]
+                mapping = http.children[0]
+                self.assertEqual(mapping.children[1].words, ('', 'close'))
+                self.assertEqual(source[mapping.children[1].start:mapping.children[1].end], empty + ' close;')
+                header = http.children[1].children[0].children[0]
+                self.assertEqual(header.words, ('proxy_set_header', 'Connection', ''))
+                self.assertEqual(source[header.start:header.end], 'proxy_set_header Connection ' + empty + ';')
+
+    def test_quoted_delimiters_are_values_in_arguments_and_map_keys(self):
+        for quote in ('"', "'"):
+            for delimiter in ('{', '}', ';'):
+                with self.subTest(quote=quote, delimiter=delimiter):
+                    value = quote + delimiter + quote
+                    source = 'http { map $x $y { ' + value + ' literal; } server { set $value ' + value + '; } }'
+                    http = parse(source)[0]
+                    self.assertEqual(http.children[0].children[0].words, (delimiter, 'literal'))
+                    self.assertEqual(http.children[1].children[0].words, ('set', '$value', delimiter))
+
+    def test_parse_errors_identify_source_and_line_without_configuration_values(self):
+        source = 'events {}\nhttp { set $key "private-value; }'
+        with self.assertRaises(ConfigurationParseError) as caught:
+            Configuration({'/custom/nginx.conf': source}, '/custom/nginx.conf')
+        self.assertEqual(caught.exception.path, '/custom/nginx.conf')
+        self.assertEqual(caught.exception.line, 2)
+        self.assertNotIn('private-value', str(caught.exception))
+        for invalid in ('http { set $x value }', 'http {', '}', 'http { set $x ${missing; }'):
+            with self.subTest(source=invalid), self.assertRaises(ConfigurationParseError):
+                parse(invalid)
+
     def test_parser_retains_quotes_comments_variables_and_source_offsets(self):
         source = '# ignore { }\nhttp { log_format x "a;#{}"; set $x ${name}; }'
         node = parse(source)[0]
@@ -52,7 +85,7 @@ class PolicyTests(unittest.TestCase):
             parse('http { server {')
 
     def test_loaded_include_and_multisite_patch_preserve_https_auth_headers_and_other_site(self):
-        config = configuration()
+        config = configuration(http="client_max_body_size 2m; map $http_upgrade $connection_upgrade { default upgrade; '' close; }")
         origin, node, inherited = config.servers()[0]
         self.assertEqual(inherited['client_max_body_size'], '2m')
         source, changes = patch_server(config, origin, node, inherited)
@@ -103,6 +136,24 @@ class PolicyTests(unittest.TestCase):
 
 
 class DiscoveryTests(unittest.TestCase):
+    def test_native_syntax_success_and_parser_failure_are_reported_separately(self):
+        main = '/unmapped/nginx.conf'
+        instance = Instance(SystemNginxManager('nginx', Path(main), None), True, main)
+        dump = '# configuration file ' + main + ':\nevents {}\nhttp { broken }\n'
+        def run(command, **options):
+            return subprocess.CompletedProcess(command, 0, dump if command[-1] == '-T' else '', '')
+        with patch('slothvault_deploy.nginx_discovery.output', side_effect=run):
+            instance.load()
+        summary = instance.summary()
+        self.assertEqual(summary['syntax'], 'passed')
+        self.assertEqual(summary['error'], 'CONFIG_PARSE_FAILED')
+        self.assertEqual(summary['parseError'], {'path': main, 'line': 2})
+        self.assertIsNone(instance.config)
+        with patch('slothvault_deploy.nginx_discovery.output', side_effect=InstallerError('syntax failure')):
+            instance.load()
+        self.assertEqual(instance.summary()['syntax'], 'failed')
+        self.assertIsNone(instance.parse_error)
+
     def test_custom_main_prefix_and_application_endpoints(self):
         arguments = context_arguments(['nginx', '-p', '/srv/nginx', '-c', 'conf/main.conf', '-g', 'daemon off;'])
         self.assertEqual(compile_paths('nginx version: nginx/1.28\nconfigure arguments: --prefix=/usr/share/nginx --conf-path=/etc/nginx/nginx.conf', arguments), ('/srv/nginx/conf/main.conf', '/srv/nginx'))

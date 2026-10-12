@@ -3,7 +3,7 @@
 @project SlothVault
 @module Nginx configuration inspection and transfer policies
 @description Parses loaded Nginx sources and patches transfer directives without regenerating sites.
-@logic Preserve source spans, resolve includes and inherited limits, and isolate policy overrides inside an existing proxy location.
+@logic Distinguish quoted values from syntax tokens, retain source locations, resolve inherited settings, and patch only the selected proxy location.
 @dependencies Python standard library, system.InstallerError
 @index_tags nginx,parser,include,upload,download,configuration
 @author holic512
@@ -28,9 +28,21 @@ class Directive:
     children: list["Directive"] = field(default_factory=list)
 
 
-def parse(source: str) -> list[Directive]:
+class ConfigurationParseError(InstallerError):
+    def __init__(self, message: str, source: str, offset: int, origin: str | None) -> None:
+        self.path = origin
+        self.line = source.count('\n', 0, offset) + 1
+        super().__init__(f'{message}（{origin or "配置文本"}:{self.line}）')
+
+
+def parse(source: str, *, origin: str | None = None) -> list[Directive]:
     """Tokenize comments, quoting, escapes and ${variables}, retaining edit offsets."""
-    tokens: list[tuple[str, int, int]] = []
+    # The final flag distinguishes real delimiters from quoted/escaped values.
+    tokens: list[tuple[str, int, int, bool]] = []
+
+    def invalid(message: str, offset: int) -> ConfigurationParseError:
+        return ConfigurationParseError(message, source, offset, origin)
+
     index = 0
     while index < len(source):
         if source[index].isspace():
@@ -42,7 +54,7 @@ def parse(source: str) -> list[Directive]:
             continue
         start = index
         if source[index] in '{};':
-            tokens.append((source[index], start, start + 1))
+            tokens.append((source[index], start, start + 1, True))
             index += 1
             continue
         word, quote = '', None
@@ -63,7 +75,7 @@ def parse(source: str) -> list[Directive]:
             elif source.startswith('${', index):
                 end = source.find('}', index + 2)
                 if end < 0:
-                    raise InstallerError('Nginx 变量未闭合')
+                    raise invalid('Nginx 变量未闭合', index)
                 word += source[index:end + 1]
                 index = end + 1
             elif char.isspace() or char in '{};#':
@@ -72,24 +84,24 @@ def parse(source: str) -> list[Directive]:
                 word += char
                 index += 1
         if quote or index == start:
-            raise InstallerError('Nginx 配置引号或指令无效')
-        tokens.append((word, start, index))
+            raise invalid('Nginx 配置引号或指令无效', start)
+        tokens.append((word, start, index, False))
     cursor = 0
 
     def block(nested: bool = False) -> list[Directive]:
         nonlocal cursor
         result = []
         while cursor < len(tokens):
-            if tokens[cursor][0] == '}':
+            if tokens[cursor][3] and tokens[cursor][0] == '}':
                 if not nested:
-                    raise InstallerError('Nginx 配置包含多余的右括号')
+                    raise invalid('Nginx 配置包含多余的右括号', tokens[cursor][1])
                 return result
             start, words = tokens[cursor][1], []
-            while cursor < len(tokens) and tokens[cursor][0] not in '{};':
+            while cursor < len(tokens) and not tokens[cursor][3]:
                 words.append(tokens[cursor][0])
                 cursor += 1
             if not words or cursor == len(tokens) or tokens[cursor][0] == '}':
-                raise InstallerError('Nginx 配置指令不完整')
+                raise invalid('Nginx 配置指令不完整', start)
             token = tokens[cursor]
             cursor += 1
             if token[0] == ';':
@@ -97,11 +109,11 @@ def parse(source: str) -> list[Directive]:
             else:
                 children = block(True)
                 if cursor == len(tokens):
-                    raise InstallerError('Nginx 配置块未闭合')
+                    raise invalid('Nginx 配置块未闭合', start)
                 result.append(Directive(tuple(words), start, tokens[cursor][2], token[1], children))
                 cursor += 1
         if nested:
-            raise InstallerError('Nginx 配置块未闭合')
+            raise invalid('Nginx 配置块未闭合', len(source))
         return result
 
     return block()
@@ -120,7 +132,7 @@ class Configuration:
         self.sources, self.main = sources, main
         # Nginx resolves include paths against conf_prefix, the main config directory.
         self.prefix = str(PurePosixPath(main).parent)
-        self.nodes = {path: parse(source) for path, source in sources.items()}
+        self.nodes = {path: parse(source, origin=path) for path, source in sources.items()}
 
     def expanded(self, nodes: list[Directive], origin: str, seen: tuple[str, ...] = ()) -> list[tuple[str, Directive]]:
         result = []

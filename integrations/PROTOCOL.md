@@ -50,3 +50,5 @@ Deployment 1.1.2 将参数解析纳入桥事件边界：未知命令、未知参
 ## Deployment 1.1.1 Nginx inspection
 
 Bridge major 1 remains unchanged. Actions add `nginx-discover`, `nginx-status` and `nginx-update`; selectors add `--nginx-config`, `--nginx-site` and `--nginx-server-name`. `preview.data.nginxStatus` and `snapshot.data.nginx` optionally contain instances (mode, container, running, mainConfig, version, syntax, mounts, error), sites (siteConfig, hostConfig, serverNames, upstreams, loaded, writable, HTTPS and transfer routes). `preview.data.changes` contains only policy, directive and new value, not raw configuration. Existing consumers may ignore these fields. Status reports unavailable or unknown when the context cannot be verified.
+
+Deployment 1.1.3 adds optional `instances[].parseError` with `path` and `line` when the script parser rejects a loaded source. `error: CONFIG_PARSE_FAILED` distinguishes this from native command/configuration failures; `syntax: passed` records a successful native `nginx -t` even when parsing fails. Error metadata does not contain configuration values. Bridge major 1 is unchanged.

@@ -3,7 +3,7 @@
 @project SlothVault
 @module Nginx instance and site discovery
 @description Finds running host and Docker Nginx configurations and maps sites to persistent files.
-@logic Inspect execution context, load source-labelled configuration, map bind mounts, and match application endpoints without image-name admission rules.
+@logic Inspect execution context, distinguish native syntax checks from parser failures, map loaded bind mounts, and match application endpoints.
 @dependencies Python standard library, Nginx CLI, Docker CLI, nginx_config
 @index_tags nginx,discovery,docker,system,sites,status
 @author holic512
@@ -21,7 +21,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from .nginx import DockerMount, DockerNginxManager, SystemNginxManager
-from .nginx_config import Configuration, Directive, loaded_sources, transfer_status
+from .nginx_config import Configuration, ConfigurationParseError, Directive, loaded_sources, transfer_status
 from .system import InstallerError, path_is_within
 
 
@@ -67,6 +67,8 @@ class Instance:
     config: Configuration | None = None
     error: str | None = None
     mounts: list[dict[str, str]] = field(default_factory=list)
+    syntax_checked: bool = False
+    parse_error: dict[str, object] | None = None
 
     @property
     def identity(self) -> str:
@@ -99,11 +101,14 @@ class Instance:
         return path, single_file
 
     def load(self) -> None:
+        self.config, self.error, self.parse_error = None, None, None
+        self.syntax_checked = False
         if not self.running:
             self.error = 'NOT_RUNNING'
             return
         try:
             output(self.manager.command('-t'))
+            self.syntax_checked = True
             dump = output(self.manager.command('-T')).stdout
             sources = loaded_sources(dump)
             if self.main not in sources:
@@ -117,14 +122,17 @@ class Instance:
                         raise InstallerError('配置在读取期间发生变化，请重新检测')
                     sources[origin] = actual
             self.config = Configuration(sources, self.main, self.prefix)
+        except ConfigurationParseError as error:
+            self.error = 'CONFIG_PARSE_FAILED'
+            self.parse_error = {'path': error.path, 'line': error.line}
         except (InstallerError, OSError, ValueError):
             self.error = 'CONFIG_CHECK_FAILED'
 
     def summary(self) -> dict[str, Any]:
         return {'id': self.identity, 'mode': self.manager.mode, 'container': getattr(self.manager, 'container_name', None),
                 'running': self.running, 'mainConfig': self.main, 'version': self.version,
-                'syntax': 'passed' if self.config else 'unknown' if not self.running else 'failed',
-                'mounts': self.mounts, 'error': self.error}
+                'syntax': 'passed' if self.syntax_checked or self.config else 'unknown' if not self.running else 'failed',
+                'mounts': self.mounts, 'error': self.error, 'parseError': self.parse_error}
 
 
 @dataclass

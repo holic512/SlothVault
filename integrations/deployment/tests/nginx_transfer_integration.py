@@ -92,7 +92,7 @@ def main():
                 upstream_host = '127.0.0.1'
             else:
                 listen, upstream_host = '80', 'host.docker.internal'
-            source = 'server { listen ' + listen + '; server_name vault.test; location / { proxy_set_header X-Sloth-Test inherited; proxy_pass http://' + upstream_host + ':' + str(upstream.server_port) + '; } }\n'
+            source = "map $http_upgrade $connection_upgrade { default upgrade; '' close; }\n" + 'server { listen ' + listen + '; server_name vault.test; location / { proxy_set_header Connection ""; proxy_set_header X-Sloth-Test inherited; proxy_pass http://' + upstream_host + ':' + str(upstream.server_port) + '; } }\n'
             other = 'server { listen ' + listen + '; server_name other.test; location / { return 200 "other-site"; } }\n'
             (root / 'vault.conf').write_text(source + other)
             if native:
@@ -153,7 +153,7 @@ def main():
             assert status == 200 and body == b'' and headers['Accept-Ranges'] == 'bytes'
             assert request('GET', download)[2] == b'x' * (8 * MIB)
             assert (root / 'vault.conf').read_text().endswith(other)
-            print(json.dumps({'nginx': instance.version, 'passed': ['8 MiB backup chunk', '25 MiB multipart', '100 MiB commission file', 'finite boundaries', 'Range/If-Range/HEAD', 'download bytes', 'other site preserved']}))
+            print(json.dumps({'nginx': instance.version, 'passed': ['empty WebSocket map key', 'empty proxy header value', '8 MiB backup chunk', '25 MiB multipart', '100 MiB commission file', 'finite boundaries', 'Range/If-Range/HEAD', 'download bytes', 'other site preserved']}))
     finally:
         if native and 'native_pid' in locals():
             try:

@@ -1,5 +1,11 @@
 # Deployment changes
 
+## 1.1.3
+
+- Parse empty WebSocket map keys, empty directive arguments and individually quoted structural characters without losing source spans.
+- Distinguish script parser failures from native Nginx syntax checks and report the failing configuration path and line without configuration values.
+- Add parser and discovery regressions, and exercise the empty map key and empty proxy header in real isolated Nginx upload/download verification.
+
 ## 1.1.2
 
 - Keep bridge final-event codes aligned with real process exits for unknown actions, unknown options, missing argument values, help and version queries.

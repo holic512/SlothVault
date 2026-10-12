@@ -33,6 +33,8 @@ sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy --action updat
 
 部署包 1.1.2 修复桥接参数错误的退出码：未知命令、未知参数及参数缺值会明确报告参数错误，`done.code` 与进程状态一致。SlothTool 界面插件 3.2.2 会在执行前读取已安装脚本的 `--help`，核对目标命令与参数；旧包缺少功能时先提示更新部署脚本包。
 
+部署包 1.1.3 支持 WebSocket `map` 的空字符串键、空参数及引号内的独立分号／括号。原生 Nginx 语法检查通过但脚本解析失败时，实例报告 `CONFIG_PARSE_FAILED` 和配置路径、行号，避免把兼容问题显示成 Nginx 语法失败。更新多站点实例时用 `--nginx-site` 和 `--nginx-server-name` 指定目标；同一个 server 块中的既有域名别名共用传输规则。
+
 ## 1.1.0 应用更新与进度
 
 “更新应用”先读取实际运行版本和正式 Release，预览当前版本、固定目标镜像、部署目录及重启影响，再确认一次。桥模式按 y 继续、n/Esc 取消；普通 CLI 保留原有 y/n 输入和退出码。后端不在确认后切换到新出现的 Release。
