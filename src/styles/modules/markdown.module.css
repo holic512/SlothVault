@@ -144,14 +144,18 @@
 }
 
 .root[data-presentation] a {
-  color: var(--sv-primary-strong);
+  color: var(--sv-link);
   text-decoration: underline;
-  text-decoration-color: rgb(var(--sv-primary-rgb), 0.36);
+  text-decoration-color: currentcolor;
   text-underline-offset: 4px;
 }
 
 .root[data-presentation] a:hover {
-  text-decoration-color: currentcolor;
+  color: var(--sv-link-hover);
+}
+
+.root[data-presentation] a:active {
+  color: var(--sv-link-active);
 }
 
 .root[data-presentation] hr {

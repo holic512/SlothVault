@@ -47,7 +47,17 @@
 }
 
 .glass {
+  --sv-liquid-glass-tint: color-mix(in srgb, var(--sv-bg-solid) 96%, transparent);
+
   pointer-events: auto;
+}
+
+:global(.dark) .glass {
+  --sv-liquid-glass-tint: color-mix(in srgb, var(--sv-bg-solid) 96%, transparent);
+}
+
+.glass[data-glass-enabled="true"] {
+  --sv-liquid-glass-fallback: var(--sv-liquid-glass-tint);
 }
 
 .glass[data-glass-enabled="false"] {
@@ -124,7 +134,7 @@
 }
 
 .actions :global(.ant-btn) {
-  border-color: var(--sv-border);
+  border-color: var(--sv-control-border);
   background: color-mix(in srgb, var(--sv-bg-solid) 78%, transparent);
   box-shadow: none;
 }

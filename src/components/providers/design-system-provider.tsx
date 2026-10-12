@@ -6,14 +6,14 @@
  * @module Design System
  * @description Unifies Ant Design, React Query, locale, and the selected visual style.
  * @logic Derive style-aware component tokens from the hydration-safe theme contract, synchronize language, and expose one query client.
- * @dependencies antd, @tanstack/react-query, app-theme-context, app-style-context, next-intl
+ * @dependencies antd, @tanstack/react-query, app-theme-context, app-style-context, antd-theme, next-intl
  * @index_tags provider,antd,react-query,theme,style,locale
  * @author holic512
  */
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { App as AntdApp, ConfigProvider, theme as antdTheme } from 'antd'
+import { App as AntdApp, ConfigProvider } from 'antd'
 import enUS from 'antd/locale/en_US'
 import zhCN from 'antd/locale/zh_CN'
 import dayjs from 'dayjs'
@@ -22,7 +22,7 @@ import { useLocale } from 'next-intl'
 
 import { useResolvedAppTheme } from '@/components/providers/app-theme-context'
 import { useAppStyle } from '@/components/providers/app-style-context'
-import { appThemePalette, standardThemeTokens } from '@/theme/app-theme'
+import { getAntdTheme } from '@/theme/antd-theme'
 
 export function DesignSystemProvider({ children }: { children: ReactNode }) {
   const locale = useLocale()
@@ -42,7 +42,7 @@ export function DesignSystemProvider({ children }: { children: ReactNode }) {
   )
 
   const dark = resolvedTheme === 'dark'
-  const palette = appThemePalette[style][resolvedTheme]
+  const componentTheme = useMemo(() => getAntdTheme(style, resolvedTheme), [style, resolvedTheme])
 
   useEffect(() => {
     dayjs.locale(locale === 'zh' ? 'zh-cn' : 'en')
@@ -54,14 +54,10 @@ export function DesignSystemProvider({ children }: { children: ReactNode }) {
       <ConfigProvider
         locale={locale === 'zh' ? zhCN : enUS}
         theme={{
+          ...componentTheme,
           cssVar: { key: `slothvault-${style}-${dark ? 'dark' : 'light'}` },
-          algorithm: dark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
           token: {
-            colorPrimary: palette.primary,
-            colorInfo: palette.info,
-            colorSuccess: palette.success,
-            colorWarning: palette.warning,
-            colorError: palette.error,
+            ...componentTheme.token,
             borderRadius: 8,
             borderRadiusLG: style === 'saas' ? 14 : 12,
             fontSize: 15,
@@ -77,26 +73,7 @@ export function DesignSystemProvider({ children }: { children: ReactNode }) {
             lineHeightHeading4: 1.35,
             lineHeightHeading5: 1.35,
             fontFamily: style === 'saas' ? '"Public Sans", sans-serif' : '"Source Sans Pro", "Public Sans", sans-serif',
-            colorBgBase: palette.background,
-            colorBgContainer: palette.container,
-            colorBorder: palette.border,
             controlHeight: style === 'saas' ? 34 : 38,
-            ...(style === 'saas' ? standardThemeTokens[resolvedTheme] : {}),
-          },
-          components: {
-            Button: { fontWeight: style === 'saas' ? 600 : 650 },
-            Card: { headerFontSize: 15 },
-            Layout: {
-              bodyBg: 'transparent',
-              headerBg: 'transparent',
-              siderBg: palette.sider,
-            },
-            Menu: {
-              darkItemBg: 'transparent',
-              darkSubMenuItemBg: 'transparent',
-              itemBorderRadius: 10,
-            },
-            Table: { headerBg: palette.tableHeader },
           },
         }}
       >

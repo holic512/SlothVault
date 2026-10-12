@@ -324,7 +324,7 @@
 }
 
 .root :global(.admin-wallet-tool .wallet-adapter-button:focus-visible) {
-  outline: 2px solid color-mix(in srgb, var(--sv-primary) 40%, transparent);
+  outline: 2px solid var(--sv-focus-ring);
   outline-offset: 2px;
 }
 
@@ -1771,8 +1771,8 @@
   --sv-dashboard-content: color-mix(in srgb, var(--sv-primary) 46%, rgb(214 129 50));
   --sv-dashboard-notes: color-mix(in srgb, var(--sv-primary) 34%, rgb(182 94 189));
   --sv-dashboard-health: color-mix(in srgb, var(--sv-primary) 64%, rgb(46 167 123));
-  --sv-dashboard-danger: rgb(212 94 88);
-  --sv-dashboard-warning: rgb(197 136 47);
+  --sv-dashboard-danger: var(--sv-danger);
+  --sv-dashboard-warning: var(--sv-warning);
 
   gap: 14px;
 }

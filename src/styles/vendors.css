@@ -45,7 +45,7 @@
   font-weight: 700;
   line-height: 36px;
   transition: var(--sv-motion-fast) var(--sv-ease-standard);
-  border-color: var(--sv-border-strong);
+  border-color: var(--sv-control-border);
   border-radius: var(--sv-radius-sm);
   background: var(--sv-bg-solid);
   color: var(--sv-text);
@@ -106,13 +106,13 @@
 }
 
 .wallet-adapter-modal-button-close:not([disabled]):hover svg {
-  fill: var(--sv-bg-solid) !important;
+  fill: var(--sv-primary-contrast) !important;
 }
 
 .wallet-adapter-modal-button-close:focus-visible,
 .wallet-adapter-modal-list .wallet-adapter-button:focus-visible,
 .wallet-adapter-modal-list-more:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--sv-primary) 44%, transparent) !important;
+  outline: 2px solid var(--sv-focus-ring) !important;
   outline-offset: 2px;
 }
 
@@ -140,7 +140,7 @@
 .wallet-adapter-modal-list .wallet-adapter-button:not([disabled]):hover {
   border-color: var(--sv-primary) !important;
   background: var(--sv-primary) !important;
-  color: var(--sv-bg-solid) !important;
+  color: var(--sv-primary-contrast) !important;
 }
 
 .wallet-adapter-modal-list .wallet-adapter-button span {
@@ -151,7 +151,7 @@
 }
 
 .wallet-adapter-modal-list .wallet-adapter-button:not([disabled]):hover span {
-  color: color-mix(in srgb, var(--sv-bg-solid) 72%, transparent) !important;
+  color: var(--sv-primary-contrast) !important;
 }
 
 .wallet-adapter-modal-list .wallet-adapter-button-end-icon,
@@ -226,12 +226,12 @@
 .admin-wallet-picker-close:not([disabled]):hover {
   border-color: var(--sv-text);
   background: var(--sv-primary);
-  color: var(--sv-bg-solid);
+  color: var(--sv-primary-contrast);
 }
 
 .admin-wallet-picker-close:focus-visible,
 .admin-wallet-picker-list button:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--sv-primary) 44%, transparent);
+  outline: 2px solid var(--sv-focus-ring);
   outline-offset: 2px;
 }
 
@@ -300,7 +300,7 @@
 .admin-wallet-picker-list button:hover {
   border-color: var(--sv-primary);
   background: var(--sv-primary);
-  color: var(--sv-bg-solid);
+  color: var(--sv-primary-contrast);
 }
 
 .admin-wallet-picker-list img {
@@ -318,7 +318,7 @@
 }
 
 .admin-wallet-picker-list button:hover small {
-  color: color-mix(in srgb, var(--sv-bg-solid) 72%, transparent);
+  color: var(--sv-primary-contrast);
 }
 
 .admin-wallet-picker-empty {
@@ -355,7 +355,7 @@
 }
 
 .admin-wallet-picker-actions button:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--sv-primary) 44%, transparent);
+  outline: 2px solid var(--sv-focus-ring);
   outline-offset: -2px;
 }
 
@@ -377,7 +377,7 @@
 .admin-menu .ant-menu-item.ant-menu-item-selected,
 .admin-mobile-menu .ant-menu-item.ant-menu-item-selected {
   background: var(--sv-primary) !important;
-  color: var(--sv-bg-solid) !important;
+  color: var(--sv-primary-contrast) !important;
 }
 
 .admin-menu .ant-menu-item.ant-menu-item-selected .ant-menu-item-icon,

@@ -77,7 +77,8 @@ select {
 }
 
 :focus-visible {
-  outline: 3px solid rgb(var(--sv-primary-rgb), 0.28);
+  /* Component styles inject pale focus outlines after the global stylesheet. */
+  outline: 3px solid var(--sv-focus-ring) !important;
   outline-offset: 3px;
 }
 

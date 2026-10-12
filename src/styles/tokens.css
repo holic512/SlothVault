@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Global Design Tokens
  * @description Defines the style and color-mode semantic token contract for color, spacing, typography, layout, elevation, radii, motion, and navigation.
- * @logic Map the document style and color-mode attributes to stable CSS custom properties consumed by application and vendor styles.
+ * @logic Map style and color-mode attributes to reading, action, and control colors that match the component palette while keeping decorative borders separate.
  * @dependencies SlothVault design tokens
  * @index_tags css,tokens,theme,light,dark
  * @author holic512
@@ -18,17 +18,26 @@
   --sv-tree-hover-bg: color-mix(in srgb, var(--sv-text) 6%, var(--sv-bg-solid));
   --sv-tree-selected-bg: color-mix(in srgb, var(--sv-primary) 14%, var(--sv-bg-solid));
   --sv-text: #151515;
-  --sv-text-muted: #66645f;
+  --sv-text-muted: #57554f;
+  --sv-text-subtle: #68655e;
+  --sv-text-placeholder: var(--sv-text-subtle);
   --sv-border: rgb(20, 20, 20, 14%);
   --sv-border-strong: rgb(20, 20, 20, 28%);
+  --sv-control-border: #89867f;
   --sv-primary: #151515;
   --sv-primary-rgb: 21, 21, 21;
   --sv-primary-strong: #000;
-  --sv-primary-contrast: var(--sv-bg-solid);
+  --sv-primary-hover: #2e2e2e;
+  --sv-primary-active: #000;
+  --sv-primary-contrast: #fbfaf7;
+  --sv-link: #151515;
+  --sv-link-hover: #000;
+  --sv-link-active: #2e2e2e;
+  --sv-focus-ring: var(--sv-link);
   --sv-accent: #55534f;
   --sv-danger: #8f3030;
-  --sv-success: #17843b;
-  --sv-warning: #9a6700;
+  --sv-success: #166534;
+  --sv-warning: #8a5700;
   --sv-project-version: #1d4ed8;
   --sv-project-category: #6d28d9;
   --sv-project-updated: #b45309;
@@ -135,16 +144,24 @@
 .dark {
   --sv-logo-filter: invert(1) grayscale(1);
   --sv-bg: #0d0d0d;
-  --sv-bg-elevated: rgb(20, 20, 20, 94%);
-  --sv-bg-solid: #151515;
-  --sv-bg-soft: #202020;
+  --sv-bg-elevated: rgb(25, 25, 25, 96%);
+  --sv-bg-solid: #191919;
+  --sv-bg-soft: #252525;
   --sv-text: #f1f0ec;
-  --sv-text-muted: #aaa8a1;
+  --sv-text-muted: #b9b7b0;
+  --sv-text-subtle: #a5a299;
   --sv-border: rgb(255, 255, 255, 13%);
   --sv-border-strong: rgb(255, 255, 255, 26%);
+  --sv-control-border: #76736c;
   --sv-primary: #f1f0ec;
   --sv-primary-rgb: 241, 240, 236;
   --sv-primary-strong: #fff;
+  --sv-primary-hover: #fff;
+  --sv-primary-active: #d9d8d3;
+  --sv-primary-contrast: #151515;
+  --sv-link: #f1f0ec;
+  --sv-link-hover: #fff;
+  --sv-link-active: #d9d8d3;
   --sv-accent: #b8b6af;
   --sv-danger: #d98b8b;
   --sv-success: #4ade80;
@@ -163,25 +180,32 @@
 }
 
 /* Keep the persisted saas key compatible; its displayed name is Standard.
- * Light semantic colors follow Element Plus theme-chalk common/var.scss; dark surfaces use a neutral charcoal adaptation.
+ * Preserve its blue identity with explicit reading contrast and neutral charcoal dark surfaces.
  */
 :root[data-style='saas'] {
-  --sv-bg: #fff;
+  --sv-bg: #f4f6f8;
   --sv-bg-elevated: rgb(255 255 255 / 96%);
   --sv-bg-solid: #fff;
-  --sv-bg-soft: #f5f7fa;
+  --sv-bg-soft: #eef1f5;
   --sv-text: #303133;
-  --sv-text-muted: #606266;
+  --sv-text-muted: #55585f;
+  --sv-text-subtle: #656971;
   --sv-border: #dcdfe6;
   --sv-border-strong: #cdd0d6;
-  --sv-primary: #409eff;
-  --sv-primary-rgb: 64, 158, 255;
-  --sv-primary-strong: #337ecc;
+  --sv-control-border: #858b96;
+  --sv-primary: #1765b5;
+  --sv-primary-rgb: 23, 101, 181;
+  --sv-primary-strong: #104b88;
+  --sv-primary-hover: #13579e;
+  --sv-primary-active: #104b88;
   --sv-primary-contrast: #fff;
-  --sv-accent: #909399;
-  --sv-danger: #f56c6c;
-  --sv-success: #67c23a;
-  --sv-warning: #e6a23c;
+  --sv-link: #1765b5;
+  --sv-link-hover: #13579e;
+  --sv-link-active: #104b88;
+  --sv-accent: #656971;
+  --sv-danger: #b42318;
+  --sv-success: #166534;
+  --sv-warning: #8a5700;
   --sv-code-bg: #141414;
   --sv-code-text: #e5eaf3;
   --sv-shadow: 0 16px 48px rgb(0 0 0 / 10%);
@@ -207,18 +231,26 @@
   --sv-bg: #141414;
   --sv-bg-elevated: rgb(29 30 31 / 96%);
   --sv-bg-solid: #1d1e1f;
-  --sv-bg-soft: #262727;
+  --sv-bg-soft: #292b2e;
   --sv-text: #e5eaf3;
-  --sv-text-muted: #cfd3dc;
+  --sv-text-muted: #c2c8d2;
+  --sv-text-subtle: #a5adba;
   --sv-border: #4c4d4f;
   --sv-border-strong: #636466;
+  --sv-control-border: #7b8391;
   --sv-primary: #409eff;
   --sv-primary-rgb: 64, 158, 255;
   --sv-primary-strong: #66b1ff;
-  --sv-accent: #a3a6ad;
-  --sv-danger: #f56c6c;
-  --sv-success: #67c23a;
-  --sv-warning: #e6a23c;
+  --sv-primary-hover: #66b1ff;
+  --sv-primary-active: #398fdf;
+  --sv-primary-contrast: #102034;
+  --sv-link: #70b5ff;
+  --sv-link-hover: #9bccff;
+  --sv-link-active: #66b1ff;
+  --sv-accent: #a5adba;
+  --sv-danger: #ff9b95;
+  --sv-success: #72d98b;
+  --sv-warning: #f3c367;
   --sv-code-bg: #0a0a0a;
   --sv-code-text: #e5eaf3;
   --sv-shadow: 0 16px 48px rgb(0 0 0 / 36%);

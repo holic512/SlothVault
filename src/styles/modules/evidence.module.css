@@ -126,8 +126,10 @@
   display: inline-flex;
   gap: 6px;
   align-items: center;
-  color: rgb(23 79 71);
+  color: var(--sv-project-avatar);
   font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .root :global(.evidence-live-check) {
