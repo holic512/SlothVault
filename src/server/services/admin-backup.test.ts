@@ -1,18 +1,14 @@
 import { canonicalReleaseManifest, releaseManifestHash } from './release-manifest'
 import { describe, expect, it } from 'vitest'
 
-import {
-  type BackupData,
-  parseDatabaseImportPayload,
-} from '@/server/services/admin-backup'
+import type { BackupData } from './admin-backup/database-schema'
+import { parseDatabaseImportPayload as parse } from './admin-backup/database-validation'
+import { DATABASE_BACKUP_VERSION } from './admin-backup/constants'
+const parseDatabaseImportPayload = (input: { data: unknown; version?: string; mode?: string }) => parse({ ...input, version: DATABASE_BACKUP_VERSION, mode: 'overwrite' })
 
 const timestamp = '2026-07-19T00:00:00.000Z'
 
-function backupWithReservation(options: {
-  remainingCapacity?: string
-  capacityReserved?: boolean
-  cnftStatus?: -1 | 0 | 1
-} = {}): BackupData {
+function emptyBackup(): BackupData {
   return {
     commissionInvitations: [], commissionAgreements: [], commissionSubmissions: [], commissionProofAttempts: [],
     commissionTemplates: [], commissionTemplateVersions: [], commissionSettings: [], commissions: [], commissionMilestones: [], commissionPlans: [], commissionFiles: [], commissionChanges: [], commissionDeliveries: [], commissionDeliveryItems: [], commissionPayments: [], commissionIssues: [], commissionAcceptances: [], commissionEvents: [],
@@ -56,96 +52,12 @@ function backupWithReservation(options: {
     contractCredentialAttempts: [],
     releaseCredentials: [],
     releaseCredentialAttempts: [],
-    merkleTrees: [
-      {
-        id: '10',
-        name: 'tree',
-        treeAddress: 'tree-address',
-        treeAuthority: 'tree-authority',
-        encryptedKey: 'test-only',
-        creatorAddress: 'creator-address',
-        maxDepth: 4,
-        maxBufferSize: 8,
-        canopyDepth: 2,
-        network: 'devnet',
-        totalMinted: 2,
-        maxCapacity: '10',
-        ...(options.remainingCapacity === undefined
-          ? {}
-          : { remainingCapacity: options.remainingCapacity }),
-        creationCost: '1',
-        txSignature: null,
-        priority: 1,
-        status: 1,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-        isDeleted: false,
-      },
-    ],
-    compressedNfts: [
-      {
-        id: '20',
-        merkleTreeId: '10',
-        projectId: '1',
-        assetId: 'pending-test',
-        leafIndex: -1,
-        name: 'pending',
-        symbol: null,
-        description: null,
-        metadataUri: null,
-        imageCid: null,
-        metadataCid: null,
-        originalImageId: null,
-        ownerAddress: 'owner-address',
-        mintTxSignature: null,
-        prepareExpiresAt: null,
-        lastValidBlockHeight: null,
-        ...(options.capacityReserved === undefined
-          ? {}
-          : { capacityReserved: options.capacityReserved }),
-        status: options.cnftStatus ?? 0,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      },
-    ],
   }
 }
 
-describe('database backup legacy cNFT compatibility', () => {
-  it('accepts legacy Tree/cNFT collections for explicit ignore handling', () => {
-    const parsed = parseDatabaseImportPayload({
-      data: backupWithReservation(),
-      mode: 'insert',
-    })
-    expect(parsed.data.merkleTrees[0].remainingCapacity).toBeUndefined()
-    expect(parsed.data.compressedNfts[0].capacityReserved).toBeUndefined()
-  })
-
-  it('does not apply removed Tree capacity rules to legacy data', () => {
-    const parsed = parseDatabaseImportPayload({
-      data: backupWithReservation({ remainingCapacity: '9', capacityReserved: false }),
-    })
-    expect(parsed.data.merkleTrees).toHaveLength(1)
-    expect(parsed.data.compressedNfts).toHaveLength(1)
-  })
-
-  it('continues accepting legacy rows even when their historical allocation is inconsistent', () => {
-    const data = backupWithReservation({ remainingCapacity: '0' })
-    data.merkleTrees[0].maxCapacity = '1'
-    data.merkleTrees[0].totalMinted = 1
-    data.compressedNfts.push({
-      ...data.compressedNfts[0],
-      id: '21',
-      assetId: 'pending-test-2',
-    })
-
-    expect(() => parseDatabaseImportPayload({ data, version: '2.1.0' })).not.toThrow()
-  })
-})
-
-describe('database backup system branding compatibility', () => {
+describe('database backup system branding validation', () => {
   it('retains a system-logo path independently of file record IDs', () => {
-    const data = backupWithReservation()
+    const data = emptyBackup()
     const filePath = 'uploads/system-logo/6e2c5774-3a95-4c34-8ac2-17dc8d7df5cf.png'
     data.fileManagements.push({
       id: '91',
@@ -171,16 +83,9 @@ describe('database backup system branding compatibility', () => {
   })
 })
 
-describe('database backup independent article compatibility', () => {
-  it('defaults pre-2.6 backups to an empty article collection', () => {
-    const data = backupWithReservation()
-    const { articles, ...legacyData } = data
-    expect(articles).toEqual([])
-    expect(parseDatabaseImportPayload({ data: legacyData, version: '2.5.0' }).data.articles).toEqual([])
-  })
-
+describe('database backup independent article validation', () => {
   it('accepts visible and withdrawn 2.6 articles while rejecting an incomplete publication state', () => {
-    const data = backupWithReservation()
+    const data = emptyBackup()
     data.articles.push({
       id: '40',
       title: 'Independent article',
@@ -202,7 +107,7 @@ describe('database backup independent article compatibility', () => {
   })
 
   it('rejects article covers outside the managed article-cover directory', () => {
-    const data = backupWithReservation()
+    const data = emptyBackup()
     data.articles.push({
       id: '41',
       title: 'Unsafe cover',
@@ -222,20 +127,9 @@ describe('database backup independent article compatibility', () => {
   })
 })
 
-describe('database backup membership compatibility', () => {
-  it('defaults pre-2.7 backups to no membership data and public article access', () => {
-    const data = backupWithReservation()
-    const { membershipLevels, membershipGrants, ...legacyData } = data
-    expect(membershipLevels).toEqual([])
-    expect(membershipGrants).toEqual([])
-
-    const parsed = parseDatabaseImportPayload({ data: legacyData, version: '2.6.0' }).data
-    expect(parsed.membershipLevels).toEqual([])
-    expect(parsed.membershipGrants).toEqual([])
-  })
-
+describe('database backup membership validation', () => {
   it('accepts levels, grants, and member-only article references as one relation-closed snapshot', () => {
-    const data = backupWithReservation()
+    const data = emptyBackup()
     data.users.push({
       id: '7', username: 'admin', password: 'hash', passwordConfigured: true,
       email: null, displayName: null, avatar: null, bio: null, role: 'ADMIN',
@@ -266,9 +160,9 @@ describe('database backup membership compatibility', () => {
   })
 })
 
-describe('database backup release compatibility', () => {
+describe('database backup release validation', () => {
   it('round-trips note-content evidence identity and validates its parent version', () => {
-    const data = backupWithReservation()
+    const data = emptyBackup()
     const evidenceId = '61785fd5-b940-48ae-9300-06c05dd49686'
     data.users.push({
       id: '7', username: 'admin', password: 'hash', passwordConfigured: true,
@@ -278,7 +172,7 @@ describe('database backup release compatibility', () => {
     })
     data.projectVersions.push({
       id: '2', projectId: '1', version: 'published', description: null, weight: 1, status: 1,
-      releaseId, ...snapshot('published'), manifestVersion: 3, publishedAt: timestamp,
+      releaseId: 'b98bce11-168d-4d74-bfc0-975e083c3fe3', ...snapshot('published'), manifestVersion: 3, publishedAt: timestamp,
       createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
     })
     data.categories.push({
@@ -293,14 +187,6 @@ describe('database backup release compatibility', () => {
       id: '5', noteInfoId: '4', evidenceId, content: '# Start', versionNote: 'v1',
       isPrimary: true, status: 1, createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
     })
-    data.releaseCredentials.push({
-      id: '30', projectVersionId: '2', noteContentId: '5', issuerUserId: '7',
-      subjectType: 'NOTE_CONTENT', subjectId: evidenceId, subjectHash: 'b'.repeat(64),
-      subjectManifestVersion: 2, network: 'devnet', signerAddress: '11111111111111111111111111111111',
-      memo: '{}', transactionSignature: null, status: 0, slot: null, blockTime: null,
-      feeLamports: null, finalizedAt: null, lastVerifiedAt: null, createdAt: timestamp, updatedAt: timestamp,
-    })
-
     const parsed = parseDatabaseImportPayload({ data, version: '2.5.0' })
     expect(parsed.data.noteContents[0].evidenceId).toBe(evidenceId)
     expect(parsed.data.releaseCredentials).toEqual([])
@@ -309,100 +195,11 @@ describe('database backup release compatibility', () => {
     expect(() => parseDatabaseImportPayload({ data: parsed.data, version: '2.5.0' })).toThrow(/projectVersionId/)
   })
 
-  it('accepts a 2.2 credential and its attempt', () => {
-    const data = backupWithReservation()
-    data.users.push({
-      id: '7', username: 'admin', password: 'hash', passwordConfigured: true,
-      email: null, displayName: null, avatar: null, bio: null, role: 'ADMIN',
-      status: 1, pointsBalance: 0, walletAddress: null, lastLoginAt: null,
-      createdAt: timestamp, updatedAt: timestamp,
-    })
-    data.projectVersions.push({
-      id: '2', projectId: '1', version: 'v2.2', description: null, weight: 1, status: 1,
-      releaseId, ...snapshot('v2.2'), manifestVersion: 3, publishedAt: timestamp,
-      createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
-    })
-    data.releaseCredentials.push({
-      id: '30', projectVersionId: '2', noteContentId: null, issuerUserId: '7',
-      subjectType: 'PROJECT_VERSION', subjectId: null, subjectHash: null,
-      subjectManifestVersion: null, network: 'devnet',
-      signerAddress: '11111111111111111111111111111111', memo: '{}',
-      transactionSignature: null, status: 0, slot: null, blockTime: null,
-      feeLamports: null, finalizedAt: null, lastVerifiedAt: null,
-      createdAt: timestamp, updatedAt: timestamp,
-    })
-    data.releaseCredentialAttempts.push({
-      id: '31', credentialId: '30', issuerUserId: '7',
-      signerAddress: '11111111111111111111111111111111', memo: '{}',
-      messageHash: 'b'.repeat(64), recentBlockhash: '11111111111111111111111111111111',
-      lastValidBlockHeight: '100', transactionSignature: null, status: 0,
-      failureCode: null, failureMessage: null, expiresAt: timestamp,
-      submittedAt: null, finalizedAt: null, createdAt: timestamp, updatedAt: timestamp,
-    })
-    expect(parseDatabaseImportPayload({ data, version: '2.2.0' }).data.releaseCredentialAttempts).toHaveLength(0)
-  })
-
-  it('forces legacy 2.0 project versions to drafts', () => {
-    const data = backupWithReservation()
-    data.projectVersions.push({
-      id: '2',
-      projectId: '1',
-      version: 'legacy',
-      description: null,
-      weight: 1,
-      status: 1,
-      releaseId: null,
-      releaseHash: null,
-      releaseManifestJson: null,
-      manifestVersion: null,
-      publishedAt: null,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      isDeleted: false,
-    })
-
-    const parsed = parseDatabaseImportPayload({ data, version: '2.0.0' })
-    expect(parsed.data.projectVersions[0]).toMatchObject({
-      status: 0,
-      releaseId: null,
-      releaseHash: null,
-      releaseManifestJson: null,
-      manifestVersion: null,
-      publishedAt: null,
-    })
-  })
-
-  it('rejects partial 2.1 release metadata', () => {
-    const data = backupWithReservation()
-    data.projectVersions.push({
-      id: '2',
-      projectId: '1',
-      version: 'release',
-      description: null,
-      weight: 1,
-      status: 1,
-      releaseId: releaseId,
-      releaseHash: null,
-      releaseManifestJson: null,
-      manifestVersion: null,
-      publishedAt: null,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      isDeleted: false,
-    })
-
-    expect(() => parseDatabaseImportPayload({ data, version: '2.1.0' })).toThrow(
-      'partial release metadata',
-    )
-  })
 })
-
-const releaseId = '550e8400-e29b-41d4-a716-446655440000'
-
 
 describe('content manifest v3 backup contract', () => {
   it('allows repeated body hashes and keeps release IDs unique', () => {
-    const data = backupWithReservation()
+    const data = emptyBackup()
     data.projectVersions = [1, 2].map(id => ({
       id: String(id), projectId: '1', version: `v${id}`, description: null, weight: 0,
       status: 1, releaseId: `550e8400-e29b-41d4-a716-44665544000${id}`,
@@ -419,3 +216,18 @@ function snapshot(version: string) {
   const releaseManifestJson = canonicalReleaseManifest({ schema: 3, projectName: 'project', version, contentHash: 'a'.repeat(64) })
   return { releaseManifestJson, releaseHash: releaseManifestHash(releaseManifestJson) }
 }
+
+describe('current database format', () => {
+  it('rejects old versions, insert operations, and omitted collections', () => {
+    const data = emptyBackup()
+    expect(() => parse({ data, mode: 'overwrite', version: '2.12.0' })).toThrow()
+    expect(() => parse({ data, mode: 'insert', version: DATABASE_BACKUP_VERSION })).toThrow()
+    Reflect.deleteProperty(data, 'commissionEvents')
+    expect(() => parse({ data, mode: 'overwrite', version: DATABASE_BACKUP_VERSION })).toThrow(/missing a collection/)
+  })
+  it('requires explicit access policies rather than widening missing permissions', () => {
+    const data = emptyBackup()
+    Reflect.deleteProperty(data.projects[0], 'readAccessMode')
+    expect(() => parseDatabaseImportPayload({ data })).toThrow(/access policy/)
+  })
+})

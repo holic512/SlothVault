@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { backupMap, recordIndex, recordWhere } from '@/server/services/admin-backup/record-store'
 import { z } from 'zod'
 import type { Prisma } from '@generated/prisma-postgresql/client'
 import { moneyInput } from './input'
@@ -27,7 +28,7 @@ export const commissionBackupShape = {
     name: z.string().max(10000),
     status: z.string().max(10000),
     createdAt: z.iso.datetime({ offset: true }),
-  }).strict()).max(100000).default([]),
+  }).strict()).default([]),
   commissionTemplateVersions: z.array(z.object({
     id: idSchema,
     templateId: idSchema,
@@ -39,12 +40,12 @@ export const commissionBackupShape = {
     defaultsJson: z.string().max(500000),
     createdAt: z.iso.datetime({ offset: true }),
     publishedAt: z.iso.datetime({ offset: true }).nullable(),
-  }).strict()).max(100000).default([]),
+  }).strict()).default([]),
   commissionSettings: z.array(z.object({
     id: idSchema,
     providerJson: z.string().max(500000),
     calendarJson: z.string().max(500000),
-  }).strict()).max(100000).default([]),
+  }).strict()).default([]),
   commissions: z.array(z.object({
     id: idSchema,
     commissionId: z.string().max(10000),
@@ -76,7 +77,7 @@ export const commissionBackupShape = {
     settlementJson: z.string().max(500000),
     createdAt: z.iso.datetime({ offset: true }),
     updatedAt: z.iso.datetime({ offset: true }),
-  }).strict()).max(100000).default([]),
+  }).strict()).default([]),
   commissionMilestones: z.array(z.object({
     id: idSchema,
     commissionId: idSchema,
@@ -84,7 +85,7 @@ export const commissionBackupShape = {
     description: z.string().max(10000),
     dueAt: z.iso.datetime({ offset: true }).nullable(),
     completedAt: z.iso.datetime({ offset: true }).nullable(),
-  }).strict()).max(100000).default([]),
+  }).strict()).default([]),
   commissionPlans: z.array(z.object({
     id: idSchema,
     commissionId: idSchema,
@@ -95,7 +96,7 @@ export const commissionBackupShape = {
     dueAt: z.iso.datetime({ offset: true }).nullable(),
     basis: z.string().max(10000),
     remindedAt: z.iso.datetime({ offset: true }).nullable(),
-  }).strict()).max(100000).default([]),
+  }).strict()).default([]),
   commissionFiles: z.array(z.object({
     id: idSchema,
     commissionId: idSchema,
@@ -104,7 +105,7 @@ export const commissionBackupShape = {
     sha256: z.string().max(10000),
     uploaderUserId: idSchema,
     shared: z.boolean(),
-  }).strict()).max(100000).default([]),
+  }).strict()).default([]),
   commissionChanges: z.array(z.object({
     id: idSchema,
     commissionId: idSchema,
@@ -119,7 +120,7 @@ export const commissionBackupShape = {
     createdById: idSchema,
     createdAt: z.iso.datetime({ offset: true }),
     confirmedAt: z.iso.datetime({ offset: true }).nullable(),
-  }).strict()).max(100000).default([]),
+  }).strict()).default([]),
   commissionDeliveries: z.array(z.object({
     id: idSchema,
     commissionId: idSchema,
@@ -133,7 +134,7 @@ export const commissionBackupShape = {
     publishedAt: z.iso.datetime({ offset: true }).nullable(),
     receivedAt: z.iso.datetime({ offset: true }).nullable(),
     receiptNote: z.string().max(10000),
-  }).strict()).max(100000).default([]),
+  }).strict()).default([]),
   commissionDeliveryItems: z.array(z.object({
     id: idSchema,
     deliveryId: idSchema,
@@ -141,7 +142,7 @@ export const commissionBackupShape = {
     label: z.string().max(10000),
     url: z.string().max(10000).nullable(),
     versionNote: z.string().max(10000),
-  }).strict()).max(100000).default([]),
+  }).strict()).default([]),
   commissionIssues: z.array(z.object({
     id: idSchema,
     commissionId: idSchema,
@@ -159,7 +160,7 @@ export const commissionBackupShape = {
     createdById: idSchema,
     createdAt: z.iso.datetime({ offset: true }),
     resolvedAt: z.iso.datetime({ offset: true }).nullable(),
-  }).strict()).max(100000).default([]),
+  }).strict()).default([]),
   commissionAcceptances: z.array(z.object({
     id: idSchema,
     commissionId: idSchema,
@@ -173,7 +174,7 @@ export const commissionBackupShape = {
     remindedAt: z.iso.datetime({ offset: true }).nullable(),
     supplementalDueAt: z.iso.datetime({ offset: true }).nullable(),
     deemedBasis: z.string().max(10000).nullable(),
-  }).strict()).max(100000).default([]),
+  }).strict()).default([]),
   commissionPayments: z.array(z.object({
     id: idSchema,
     commissionId: idSchema,
@@ -187,7 +188,7 @@ export const commissionBackupShape = {
     confirmedById: idSchema.nullable(),
     createdAt: z.iso.datetime({ offset: true }),
     confirmedAt: z.iso.datetime({ offset: true }).nullable(),
-  }).strict()).max(100000).default([]),
+  }).strict()).default([]),
   commissionEvents: z.array(z.object({
     id: idSchema,
     commissionId: idSchema,
@@ -197,7 +198,7 @@ export const commissionBackupShape = {
     note: z.string().max(10000),
     dataJson: z.string().max(500000),
     createdAt: z.iso.datetime({ offset: true }),
-  }).strict()).max(100000).default([]),
+  }).strict()).default([]),
 } as const
 export const commissionCollectionSpecs = [
   {
@@ -402,7 +403,7 @@ export async function importCommissionCollections(tx: Prisma.TransactionClient, 
   for (const spec of commissionCollectionSpecs) {
     const isParent = ['commissionTemplates','commissionTemplateVersions','commissionSettings','commissions'].includes(spec.key)
     if (isParent !== parents) continue
-    const index = maps[spec.key] ||= new Map<string, number>()
+    const index = maps[spec.key] ||= backupMap<number>(data[spec.key] as object)
     for (const source of (data[spec.key] || []) as Row[]) {
       const { id, ...row } = source
       for (const [field, collection] of Object.entries(spec.refs)) if (row[field] !== null && row[field] !== undefined) { const mapped = maps[collection]?.get(String(row[field])); if (!mapped) throw new Error(`Missing validated commission reference: ${collection}`); row[field] = mapped }
@@ -438,7 +439,7 @@ export async function deleteCommissionCollections(tx: Prisma.TransactionClient, 
 }
 export function validateCommissionBackup(data: Record<string, unknown>) {
   validateWorkflowBackup(data)
-  const indexes = Object.fromEntries(Object.entries(data).filter(([,v]) => Array.isArray(v)).map(([key,rows]) => [key, new Map((rows as Row[]).map((r) => [r.id, r]))]))
+  const indexes = Object.fromEntries(Object.entries(data).filter(([,v]) => Array.isArray(v)).map(([key,rows]) => [key, recordIndex(rows as Row[])]))
   for (const spec of commissionCollectionSpecs) {
     const rows = (data[spec.key] || []) as Row[]
     if (indexes[spec.key]?.size !== rows.length) throw new Error(`Duplicate commission backup IDs: ${spec.key}`)
@@ -480,14 +481,14 @@ export function validateCommissionBackup(data: Record<string, unknown>) {
   const stateFields = { commissionTemplates: { status: ['ACTIVE', 'RETIRED'] }, commissionTemplateVersions: { status: ['DRAFT', 'PUBLISHED'] }, commissionPayments: { status: ['PENDING', 'CONFIRMED', 'REJECTED'], kind: ['RECEIPT', 'REFUND'] }, commissionChanges: { status: ['PROPOSED', 'QUOTED', 'PENDING_SIGNATURE', 'CONFIRMED', 'REJECTED'] }, commissionFiles: { purpose: ['REQUIREMENT', 'PAYMENT', 'TEST', 'DELIVERY', 'CONTRACT'] }, commissionDeliveries: { status: ['DRAFT', 'PUBLISHED', 'RECEIVED', 'INCOMPLETE'], kind: ['DEMO', 'FINAL'] }, commissionIssues: { status: ['OPEN', 'RESOLVED', 'CLOSED', 'DISPUTED'], kind: ['BUG', 'ADJUSTMENT', 'NEW_WORK'], severity: ['SEVERE', 'GENERAL', 'MINOR'] }, commissionAcceptances: { status: ['DRAFT', 'SUBMITTED', 'CONFIRMED', 'DEEMED', 'REJECTED', 'CANCELLED'], result: ['PASS', 'CONDITIONAL', 'FAIL'] } }
   for (const [collection, fields] of Object.entries(stateFields)) for (const row of (data[collection] || []) as Row[]) for (const [key, allowed] of Object.entries(fields)) if (!allowed.includes(String(row[key]))) throw new Error(`Invalid commission state: ${collection}.${key}`)
   for (const plan of (data.commissionPlans || []) as Row[]) {
-    const entries = ((data.commissionPayments || []) as Row[]).filter((p) => p.planId === plan.id && p.status === 'CONFIRMED')
+    const entries = recordWhere((data.commissionPayments || []) as Row[], 'planId', String(plan.id)).filter(p => p.status === 'CONFIRMED')
     const net = entries.reduce((sum, p) => sum + (p.kind === 'REFUND' ? -1n : 1n) * BigInt(String(p.amountFen)), 0n)
     if (net < 0n) throw new Error('Commission refunds exceed confirmed receipts')
   }
   for (const delivery of (data.commissionDeliveries || []) as Row[]) {
     if ((delivery.status === 'DRAFT') !== (delivery.publishedAt === null)) throw new Error('Delivery publication metadata is invalid')
-    const items = ((data.commissionDeliveryItems || []) as Row[]).filter((i) => i.deliveryId === delivery.id).sort((a, b) => Number(a.id) - Number(b.id)).map((i) => ({ fileId: i.fileId ? Number(i.fileId) : null, label: String(i.label), url: i.url ? String(i.url) : null, versionNote: String(i.versionNote) }))
-    const files = ((data.commissionFiles || []) as Row[]).filter((f) => f.commissionId === delivery.commissionId).map((f) => { const metadata = indexes.fileManagements.get(String(f.fileId))!; return { id: Number(f.id), sha256: String(f.sha256), file: { originalName: String(metadata.originalName), fileSize: BigInt(String(metadata.fileSize)) } } })
+    const items = recordWhere((data.commissionDeliveryItems || []) as Row[], 'deliveryId', String(delivery.id)).sort((a, b) => Number(a.id) - Number(b.id)).map((i) => ({ fileId: i.fileId ? Number(i.fileId) : null, label: String(i.label), url: i.url ? String(i.url) : null, versionNote: String(i.versionNote) }))
+    const files = recordWhere((data.commissionFiles || []) as Row[], 'commissionId', String(delivery.commissionId)).map((f) => { const metadata = indexes.fileManagements.get(String(f.fileId))!; return { id: Number(f.id), sha256: String(f.sha256), file: { originalName: String(metadata.originalName), fileSize: BigInt(String(metadata.fileSize)) } } })
     assertDeliveryManifest({ publishedAt: delivery.publishedAt ? new Date(String(delivery.publishedAt)) : null, manifestJson: String(delivery.manifestJson), items }, files)
   }
 }

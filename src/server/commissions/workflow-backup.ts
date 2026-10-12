@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { backupSet, recordStore, recordWhere } from '@/server/services/admin-backup/record-store'
 import { z } from 'zod'
 import { canonicalJson, verifySubmissionChain } from './submissions'
 import { Transaction } from '@solana/web3.js'
@@ -18,7 +19,7 @@ const id = z.string().regex(/^[1-9]\d*$/).refine((value) => BigInt(value) <= 214
 const date = z.iso.datetime({ offset: true })
 const hash = z.string().regex(/^[a-f0-9]{64}$/)
 const json = z.string().max(1000000)
-const rows = <T extends z.ZodType>(schema: T) => z.array(schema).max(100000).default([])
+const rows = <T extends z.ZodType>(schema: T) => z.array(schema).default([])
 export const workflowBackupShape = {
   commissionInvitations: rows(z.object({ id, commissionId: id, tokenHash: hash, expiresAt: date, revokedAt: date.nullable(), claimedAt: date.nullable(), claimedById: id.nullable(), createdAt: date }).strict()),
   commissionAgreements: rows(z.object({ id, publicId: z.string().uuid(), commissionId: id, kind: z.enum(['AGREEMENT', 'SUPPLEMENT']), status: z.enum(['DRAFT', 'PENDING', 'CONFIRMED', 'DECLINED', 'SUPERSEDED']), title: z.string().max(255), body: z.string().max(200000), templateJson: json, valuesJson: json, fileKeysJson: json, totalFen: z.string().regex(/^\d{1,14}$/).nullable(), maintenanceDays: z.number().int().min(1).max(3650), confirmationMode: z.enum(['ONLINE', 'OFFLINE']), publishedEventId: z.string().uuid().nullable(), confirmedAt: date.nullable(), createdAt: date }).strict()),
@@ -32,13 +33,13 @@ export const workflowCollectionSpecs = [
   { key: 'commissionProofAttempts', delegate: 'commissionProofAttempt', refs: { submissionId: 'commissionSubmissions', issuerUserId: 'users' }, dates: ['expiresAt', 'blockTime', 'createdAt', 'finalizedAt'], money: ['lastValidBlockHeight', 'slot', 'feeLamports'] },
 ] as const
 export function validateWorkflowBackup(data: Record<string, unknown>) {
-  const parsed = z.object(workflowBackupShape).parse(data)
+  const parsed = recordStore(data.commissionSubmissions as object) ? data as z.infer<z.ZodObject<typeof workflowBackupShape>> : z.object(workflowBackupShape).parse(data)
   const commissions = (data.commissions || []) as Array<{ id: string; commissionId: string }>
   const files = (data.commissionFiles || []) as Array<{ id: string; commissionId: string; fileId: string; sha256: string; purpose: string; shared: boolean }>
   const metadata = (data.fileManagements || []) as Array<{ id: string; fileName: string; originalName: string; fileSize: string }>
   for (const proof of parsed.commissionProofAttempts) {
-    const event = parsed.commissionSubmissions.find((item) => item.id === proof.submissionId)
-    const commission = commissions.find((item) => item.id === event?.commissionId)
+    const event = recordWhere(parsed.commissionSubmissions, 'id', proof.submissionId)[0]
+    const commission = event ? recordWhere(commissions, 'id', event.commissionId)[0] : undefined
     if (!event || !commission) throw new Error('Evidence snapshot is missing')
     const expected = canonicalJson({ protocol: 'slothvault.commission', version: 1, commissionId: commission.commissionId, eventId: event.publicId, snapshotHash: event.snapshotHash, previousHash: event.previousHash, network: proof.network })
     const transaction = Transaction.from(Buffer.from(proof.transactionBase64, 'base64'))
@@ -51,20 +52,20 @@ export function validateWorkflowBackup(data: Record<string, unknown>) {
     if (proof.status === 'FINALIZED' && (!proof.finalizedAt || proof.slot === null)) throw new Error('Finalized evidence has no receipt')
   }
   for (const commission of commissions) {
-    const events = parsed.commissionSubmissions.filter((event) => event.commissionId === commission.id).sort((a, b) => a.sequence - b.sequence)
+    const events = recordWhere(parsed.commissionSubmissions, 'commissionId', commission.id).sort((a, b) => a.sequence - b.sequence)
     verifySubmissionChain(events.map((event) => ({ ...event, createdAt: new Date(event.createdAt) })), commission.commissionId)
-    const priorIds = new Set<string>()
+    const priorIds = backupSet(events)
     for (const event of events) {
       const snapshot = JSON.parse(event.snapshotJson) as SubmissionSnapshot
       if (snapshot.reference && !priorIds.has(snapshot.reference)) throw new Error('Snapshot reference crosses commission or points forward')
       priorIds.add(snapshot.eventId)
       for (const attachment of snapshot.attachments) {
-        const stored = metadata.find((file) => file.fileName === attachment.key)
-        const owned = stored && files.find((file) => file.fileId === stored.id && file.commissionId === commission.id)
+        const stored = recordWhere(metadata, 'fileName', attachment.key)[0]
+        const owned = stored && recordWhere(files, 'fileId', stored.id).find(file => file.commissionId === commission.id)
         if (!owned?.shared || owned.sha256 !== attachment.sha256 || stored?.fileSize !== attachment.size || stored?.originalName !== attachment.name || owned.purpose !== attachment.purpose) throw new Error('Frozen submission attachment differs from stored file')
       }
     }
-    for (const agreement of parsed.commissionAgreements.filter((item) => item.commissionId === commission.id)) {
+    for (const agreement of recordWhere(parsed.commissionAgreements, 'commissionId', commission.id)) {
       const template = JSON.parse(agreement.templateJson) as SimpleTemplateVersion
       if (renderSimpleTemplate(template.body, template.fields, JSON.parse(agreement.valuesJson), agreement.status !== 'DRAFT') !== agreement.body) throw new Error('Agreement template does not match body')
       if (agreement.publishedEventId) {

@@ -1,342 +1,105 @@
 /**
  * @file database-export.ts
  * @project SlothVault
- * @module Admin Database Backup Export
- * @description Exports a relation-closed portable 2.13 complete snapshot of membership entitlements, articles, project content, accounts, contracts, configuration, and transaction evidence.
- * @logic Read one repeatable transaction snapshot, retain member access and independent articles, include trash and disabled file records, decode note tags, preserve compact v3 publication snapshots and serialize evidence BigInts and frozen contract identity, then validate the portable result.
- * @dependencies database unit-of-work, Prisma, HTTP JSON serialization, backup schema and validation
- * @index_tags admin,backup,database,export,snapshot,relations
+ * @module Portable Database Snapshot
+ * @description Writes current business collections as paged, validated NDJSON snapshots.
+ * @logic Read one repeatable snapshot in primary-key pages, convert provider scalars, and persist rows and integrity metadata without loading the whole database.
+ * @dependencies Prisma unit-of-work, backup record schemas, private disk record store, Node streams
+ * @index_tags backup,database,ndjson,pagination,snapshot
  * @author holic512
  */
 import 'server-only'
+import { createHash } from 'node:crypto'
+import { mkdir, mkdtemp, open, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { resolve } from 'node:path'
+import { z } from 'zod'
+import { commissionCollectionSpecs } from '@/server/commissions/backup'
 import { readNoteTags } from '@/lib/note-tags'
-import { exportCommissionCollections } from '@/server/commissions/backup'
-
 import { databaseSnapshotIsolationLevel } from '@/server/database/client'
 import { unitOfWork } from '@/server/database/unit-of-work'
-import { HttpError } from '@/server/http/errors'
 import { toJsonSafe } from '@/server/http/response'
-
-import {
-  DATABASE_BACKUP_VERSION,
-  DATABASE_IMPORT_CONTENT_LENGTH_MAX_BYTES,
-  RESTORE_COMMIT_CONFIG_KEY,
-  DATABASE_TRANSACTION_MAX_WAIT_MS,
-  DATABASE_TRANSACTION_TIMEOUT_MS,
-  DEPRECATED_CONFIG_KEYS,
-} from './constants'
-import { backupDataSchema } from './database-schema'
+import { HttpError } from '@/server/http/errors'
+import type { BackupEntryDigest, BackupProgress } from '@/types/backup'
+import { ACTIVE_BACKUP_COLLECTION_KEYS, DATABASE_BACKUP_VERSION, DATABASE_TRANSACTION_MAX_WAIT_MS, DATABASE_TRANSACTION_TIMEOUT_MS, DEPRECATED_CONFIG_KEYS, RESTORE_COMMIT_CONFIG_KEY } from './constants'
+import { backupDataSchema, type BackupData, type DatabaseImportPayload } from './database-schema'
+import { verifyBackupPublications } from './publication-validation'
 import { validateBackupRelations } from './database-validation'
+import { RecordStore } from './record-store'
 
+export const collectionDelegates: Record<string, string> = {
+  ...Object.fromEntries(commissionCollectionSpecs.map(spec => [spec.key, spec.delegate])),
+  users: 'user', pointTransactions: 'pointTransaction', giftCardBatches: 'giftCardBatch', giftCards: 'giftCard', membershipLevels: 'membershipLevel', membershipGrants: 'membershipGrant', articles: 'article', projects: 'project', projectVersions: 'projectVersion', categories: 'category', projectMenus: 'projectMenu', projectHomes: 'projectHome', noteInfos: 'noteInfo', noteContents: 'noteContent', fileManagements: 'fileManagement', fileReferences: 'fileReference', systemConfigs: 'systemConfig', systemHomepages: 'systemHomepage', contracts: 'contract', contractAdminAudits: 'contractAdminAudit', contractCredentials: 'contractCredential', contractCredentialAttempts: 'contractCredentialAttempt', releaseCredentials: 'releaseCredential', releaseCredentialAttempts: 'releaseCredentialAttempt',
+}
+export function backupRowSchema(key: string): z.ZodType {
+  let schema: z.ZodType = backupDataSchema.shape[key as keyof typeof backupDataSchema.shape]
+  while (schema && !(schema instanceof z.ZodArray) && 'unwrap' in schema) schema = (schema as z.ZodDefault<z.ZodType>).unwrap()
+  if (!(schema instanceof z.ZodArray)) throw new HttpError('Unknown backup collection', 400, 400)
+  return schema.element as z.ZodType
+}
+export function parseBackupRow(key: string, value: unknown): { id: string } {
+  if (!value || typeof value !== 'object') throw new HttpError('Invalid backup record', 400, 400)
+  const row = value as Record<string, unknown>
+  const required = key === 'projects' ? ['readAccessMode','downloadAccessMode','readMembershipLevelIds','downloadMembershipLevelIds'] : key === 'articles' ? ['allowedMembershipLevelIds'] : []
+  if (required.some(field => !Object.hasOwn(row, field) || row[field] === undefined)) throw new HttpError('Incomplete backup access policy', 400, 400)
+  return backupRowSchema(key).parse(value) as { id: string }
+}
+function portableRow(key: string, input: Record<string, unknown>) {
+  const row = { ...input }
+  for (const [field, value] of Object.entries(row)) {
+    if (typeof value === 'number' && (field === 'id' || field.endsWith('Id'))) row[field] = String(value)
+  }
+  delete row.documentRevision; delete row.contentRevision
+  if (key === 'noteInfos') { row.tags = readNoteTags(row.tagsJson as string | null); delete row.tagsJson }
+  const links = (field: string) => (row[field] as { membershipLevelId: number }[] ?? []).map(link => String(link.membershipLevelId))
+  if (key === 'articles') { row.allowedMembershipLevelIds = links('allowedMemberships'); delete row.allowedMemberships }
+  if (key === 'projects') { row.readMembershipLevelIds = links('readMemberships'); row.downloadMembershipLevelIds = links('downloadMemberships'); delete row.readMemberships; delete row.downloadMemberships }
+  return parseBackupRow(key, toJsonSafe(row))
+}
+export function storedPayload(store: RecordStore): DatabaseImportPayload {
+  const data = Object.fromEntries(Object.keys(backupDataSchema.shape).map(key => [key, store.rows(key)])) as BackupData
+  return { version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data }
+}
+export async function exportDatabaseSnapshot(directory: string, store: RecordStore, progress?: (value: Partial<BackupProgress>) => Promise<void>) {
+  const exportedAt = new Date().toISOString(), counts: Record<string, number> = {}, database: Record<string, BackupEntryDigest> = {}
+  await mkdir(resolve(directory, 'database'), { recursive: true, mode: 0o700 })
+  let processedRecords = 0
+  await unitOfWork.execute(async tx => {
+    type Delegate = { findMany(input: object): Promise<Record<string, unknown>[]> }
+    for (const key of ACTIVE_BACKUP_COLLECTION_KEYS) {
+      const handle = await open(resolve(directory, 'database', `${key}.ndjson`), 'wx', 0o600)
+      const hash = createHash('sha256'); let bytes = 0, count = 0, after = 0
+      try {
+        while (true) {
+          const where: Record<string, unknown> = { id: { gt: after } }
+          if (key === 'systemConfigs') where.configKey = { notIn: [RESTORE_COMMIT_CONFIG_KEY, ...DEPRECATED_CONFIG_KEYS] }
+          if (key === 'releaseCredentials') { where.subjectType = 'PROJECT_VERSION'; where.subjectManifestVersion = 3 }
+          if (key === 'releaseCredentialAttempts') where.credential = { subjectType: 'PROJECT_VERSION', subjectManifestVersion: 3 }
+          const include = key === 'articles' ? { allowedMemberships: true } : key === 'projects' ? { readMemberships: true, downloadMemberships: true } : undefined
+          const rows = await (tx as unknown as Record<string, Delegate>)[collectionDelegates[key]].findMany({ where, orderBy: { id: 'asc' }, take: 100, ...(include ? { include } : {}) })
+          if (!rows.length) break
+          for (const row of rows) {
+            after = Number(row.id)
+            const value = portableRow(key, row), line = Buffer.from(JSON.stringify(value) + '\n')
+            store.put(key, value); await handle.writeFile(line); hash.update(line); bytes += line.length; count++; processedRecords++
+          }
+          await progress?.({ processedRecords })
+        }
+        await handle.sync()
+      } finally { await handle.close() }
+      counts[key] = count; database[key] = { size: bytes, sha256: hash.digest('hex') }
+    }
+  }, { isolationLevel: databaseSnapshotIsolationLevel(), maxWait: DATABASE_TRANSACTION_MAX_WAIT_MS, timeout: DATABASE_TRANSACTION_TIMEOUT_MS, mode: 'read' })
+  const payload = storedPayload(store)
+  validateBackupRelations(payload.data); verifyBackupPublications(payload.data)
+  return { exportedAt, counts, database }
+}
+/** Small-data service adapter for internal diagnostics; production backups use exportDatabaseSnapshot. */
 export async function exportDatabaseBackup() {
-  const exportedAt = new Date().toISOString()
-  const snapshot = await unitOfWork.execute(async (tx) => {
-    const [
-      users,
-      pointTransactions,
-      giftCardBatches,
-      giftCards,
-      membershipLevels,
-      membershipGrants,
-      articles,
-    ] = await Promise.all([
-      tx.user.findMany(),
-      tx.pointTransaction.findMany(),
-      tx.giftCardBatch.findMany(),
-      tx.giftCard.findMany(),
-      tx.membershipLevel.findMany(),
-      tx.membershipGrant.findMany(),
-      tx.article.findMany({ include: { allowedMemberships: true } }),
-    ])
-    const projects = await tx.project.findMany({ include: { readMemberships: true, downloadMemberships: true } })
-    const projectIds = projects.map((item) => item.id)
-
-    const [projectVersions, candidateMenus, projectHomes] =
-      await Promise.all([
-        tx.projectVersion.findMany({
-          where: { projectId: { in: projectIds } },
-        }),
-        tx.projectMenu.findMany({
-          where: { projectId: { in: projectIds } },
-        }),
-        tx.projectHome.findMany({
-          where: { projectId: { in: projectIds } },
-        }),
-      ])
-
-    const projectMenus = candidateMenus
-    const projectVersionIds = projectVersions.map((item) => item.id)
-    const categories = await tx.category.findMany({
-      where: {
-        projectVersionId: { in: projectVersionIds },
-      },
-    })
-    const categoryIds = categories.map((item) => item.id)
-    const noteInfos = await tx.noteInfo.findMany({
-      where: { categoryId: { in: categoryIds } },
-    })
-    const noteInfoIds = noteInfos.map((item) => item.id)
-    const noteContents = await tx.noteContent.findMany({
-      where: { noteInfoId: { in: noteInfoIds } },
-    })
-
-    const [fileManagements, systemConfigs, systemHomepages, releaseCredentials, contracts] = await Promise.all([
-      tx.fileManagement.findMany(),
-      tx.systemConfig.findMany({ where: { configKey: { not: RESTORE_COMMIT_CONFIG_KEY } } }),
-      tx.systemHomepage.findMany(),
-      tx.releaseCredential.findMany({ where: { projectVersionId: { in: projectVersionIds }, subjectType: 'PROJECT_VERSION', subjectManifestVersion: 3 } }),
-      tx.contract.findMany(),
-    ])
-    const credentialIds = releaseCredentials.map((item) => item.id)
-    const contractIds = contracts.map((item) => item.id)
-    const [releaseCredentialAttempts, contractCredentials, contractAdminAudits] = await Promise.all([
-      tx.releaseCredentialAttempt.findMany({ where: { credentialId: { in: credentialIds } } }),
-      tx.contractCredential.findMany({ where: { contractId: { in: contractIds } } }),
-      tx.contractAdminAudit.findMany({ where: { contractId: { in: contractIds } } }),
-    ])
-    const contractCredentialIds = contractCredentials.map((item) => item.id)
-    const contractCredentialAttempts = await tx.contractCredentialAttempt.findMany({
-      where: { credentialId: { in: contractCredentialIds } },
-    })
-
-    const sourceIds = {
-      NOTE_CONTENT: new Set(noteContents.map((item) => item.id)),
-      PROJECT_HOME: new Set(projectHomes.map((item) => item.id)),
-      PROJECT_MENU: new Set(projectMenus.map((item) => item.id)),
-      ARTICLE: new Set(articles.map((item) => item.id)),
-      SYSTEM_HOMEPAGE: new Set(systemHomepages.map((item) => item.id)),
-      PROJECT_AVATAR: new Set(projects.map((item) => item.id)),
-      USER_AVATAR: new Set(users.map((item) => item.id)),
-      SYSTEM_CONFIG: new Set(systemConfigs.map((item) => item.id)),
-    }
-    const fileIds = new Set(fileManagements.map((item) => item.id))
-    const fileReferences = (await tx.fileReference.findMany()).filter((item) => fileIds.has(item.fileId) && sourceIds[item.sourceType as keyof typeof sourceIds]?.has(item.sourceId))
-    return {
-      commissionCollections: await exportCommissionCollections(tx),
-      fileReferences,
-      users,
-      pointTransactions,
-      giftCardBatches,
-      giftCards,
-      membershipLevels,
-      membershipGrants,
-      articles,
-      projects,
-      projectVersions,
-      categories,
-      projectMenus,
-      projectHomes,
-      noteInfos,
-      noteContents,
-      fileManagements,
-      systemConfigs: systemConfigs.filter((item) => !DEPRECATED_CONFIG_KEYS.has(item.configKey)),
-      systemHomepages,
-      contracts,
-      contractAdminAudits,
-      contractCredentials,
-      contractCredentialAttempts,
-      releaseCredentials,
-      releaseCredentialAttempts,
-    }
-  }, {
-    isolationLevel: databaseSnapshotIsolationLevel(),
-    maxWait: DATABASE_TRANSACTION_MAX_WAIT_MS,
-    timeout: DATABASE_TRANSACTION_TIMEOUT_MS,
-    mode: 'read',
-  })
-
-  const portableSnapshot = {
-    ...snapshot.commissionCollections,
-    users: snapshot.users.map(({ id, ...item }) => ({
-      ...item,
-      id: id.toString(),
-    })),
-    pointTransactions: snapshot.pointTransactions.map(({ id, userId, ...item }) => ({
-      ...item,
-      id: id.toString(),
-      userId: userId.toString(),
-    })),
-    giftCardBatches: snapshot.giftCardBatches.map(({ id, createdById, ...item }) => ({
-      ...item,
-      id: id.toString(),
-      createdById: createdById.toString(),
-    })),
-    giftCards: snapshot.giftCards.map(({ id, batchId, redeemedById, ...item }) => ({
-      ...item,
-      id: id.toString(),
-      batchId: batchId.toString(),
-      redeemedById: redeemedById?.toString() ?? null,
-    })),
-    membershipLevels: snapshot.membershipLevels.map(({ id, ...item }) => ({
-      ...item,
-      id: id.toString(),
-    })),
-    membershipGrants: snapshot.membershipGrants.map(({
-      id,
-      userId,
-      membershipLevelId,
-      grantedByUserId,
-      revokedByUserId,
-      ...item
-    }) => ({
-      ...item,
-      id: id.toString(),
-      userId: userId.toString(),
-      membershipLevelId: membershipLevelId.toString(),
-      grantedByUserId: grantedByUserId?.toString() ?? null,
-      revokedByUserId: revokedByUserId?.toString() ?? null,
-    })),
-    articles: snapshot.articles.map(({ id, requiredMembershipLevelId, allowedMemberships, ...item }) => ({
-      ...item,
-      id: id.toString(),
-      requiredMembershipLevelId: requiredMembershipLevelId?.toString() ?? null,
-      allowedMembershipLevelIds: (allowedMemberships ?? []).map((link) => String(link.membershipLevelId)),
-    })),
-    fileReferences: snapshot.fileReferences.map((item) => ({ ...item, id: String(item.id), fileId: String(item.fileId), sourceId: String(item.sourceId), projectId: item.projectId ? String(item.projectId) : null })),
-    projects: snapshot.projects.map(({ id, readMemberships, downloadMemberships, ...item }) => ({
-      ...item,
-      readMembershipLevelIds: (readMemberships ?? []).map((link) => String(link.membershipLevelId)),
-      downloadMembershipLevelIds: (downloadMemberships ?? []).map((link) => String(link.membershipLevelId)),
-      id: id.toString(),
-    })),
-    projectVersions: snapshot.projectVersions.map(({
-      id,
-      projectId,
-      documentRevision,
-      ...item
-    }) => {
-      void documentRevision
-      return {
-        ...item,
-        id: id.toString(),
-        projectId: projectId.toString(),
-      }
-    }),
-    categories: snapshot.categories.map(({ id, projectVersionId, ...item }) => ({
-      ...item,
-      id: id.toString(),
-      projectVersionId: projectVersionId.toString(),
-    })),
-    projectMenus: snapshot.projectMenus.map(({ id, projectId, parentId, ...item }) => ({
-      ...item,
-      id: id.toString(),
-      projectId: projectId.toString(),
-      parentId: parentId?.toString() ?? null,
-    })),
-    projectHomes: snapshot.projectHomes.map(({ id, projectId, ...item }) => ({
-      ...item,
-      id: id.toString(),
-      projectId: projectId.toString(),
-    })),
-    noteInfos: snapshot.noteInfos.map(({
-      id,
-      categoryId,
-      authorId,
-      contentRevision,
-      tagsJson,
-      ...item
-    }) => {
-      void contentRevision
-      return {
-        ...item,
-        tags: readNoteTags(tagsJson),
-        id: id.toString(),
-        categoryId: categoryId.toString(),
-        authorId: authorId?.toString() ?? null,
-      }
-    }),
-    noteContents: snapshot.noteContents.map(({ id, noteInfoId, ...item }) => ({
-      ...item,
-      id: id.toString(),
-      noteInfoId: noteInfoId.toString(),
-    })),
-    fileManagements: snapshot.fileManagements.map(({ id, ...item }) => ({
-      ...item,
-      id: id.toString(),
-    })),
-    systemConfigs: snapshot.systemConfigs.map(({ id, ...item }) => ({
-      ...item,
-      id: id.toString(),
-    })),
-    systemHomepages: snapshot.systemHomepages.map(({ id, ...item }) => ({
-      ...item,
-      id: id.toString(),
-    })),
-    contracts: snapshot.contracts.map(({
-      id,
-      issuerUserId,
-      subjectUserId,
-      attachmentFileId,
-      commissionId, templateVersionId, sourceRecordId,
-      ...item
-    }) => ({
-      ...item,
-      id: id.toString(),
-      issuerUserId: issuerUserId.toString(),
-      subjectUserId: subjectUserId.toString(),
-      attachmentFileId: attachmentFileId?.toString() ?? null,
-      commissionId: commissionId?.toString() ?? null, templateVersionId: templateVersionId?.toString() ?? null, sourceRecordId: sourceRecordId?.toString() ?? null,
-    })),
-    contractAdminAudits: snapshot.contractAdminAudits.map(({
-      id,
-      contractId,
-      actorUserId,
-      ...item
-    }) => ({
-      ...item,
-      id: id.toString(),
-      contractId: contractId.toString(),
-      actorUserId: actorUserId.toString(),
-    })),
-    contractCredentials: snapshot.contractCredentials.map(({ id, contractId, issuerUserId, ...item }) => ({
-      ...item,
-      id: id.toString(),
-      contractId: contractId.toString(),
-      issuerUserId: issuerUserId.toString(),
-    })),
-    contractCredentialAttempts: snapshot.contractCredentialAttempts.map(({
-      id,
-      credentialId,
-      issuerUserId,
-      ...item
-    }) => ({
-      ...item,
-      id: id.toString(),
-      credentialId: credentialId.toString(),
-      issuerUserId: issuerUserId.toString(),
-    })),
-    releaseCredentials: snapshot.releaseCredentials.map(({ id, projectVersionId, noteContentId, issuerUserId, ...item }) => ({
-      ...item,
-      id: id.toString(),
-      projectVersionId: projectVersionId.toString(),
-      noteContentId: noteContentId?.toString() ?? null,
-      issuerUserId: issuerUserId.toString(),
-    })),
-    releaseCredentialAttempts: snapshot.releaseCredentialAttempts.map(({
-      id,
-      credentialId,
-      issuerUserId,
-      ...item
-    }) => ({
-      ...item,
-      id: id.toString(),
-      credentialId: credentialId.toString(),
-      issuerUserId: issuerUserId.toString(),
-    })),
-  }
-  const data = backupDataSchema.parse(toJsonSafe(portableSnapshot))
-  validateBackupRelations(data)
-  const {
-    merkleTrees: _legacyMerkleTrees,
-    compressedNfts: _legacyCompressedNfts,
-    ...activeData
-  } = data
-  void _legacyMerkleTrees
-  void _legacyCompressedNfts
-
-  const backup = { version: DATABASE_BACKUP_VERSION, exportedAt, data: activeData }
-  if (Buffer.byteLength(JSON.stringify(backup), 'utf8') > DATABASE_IMPORT_CONTENT_LENGTH_MAX_BYTES) {
-    throw new HttpError('Database backup exceeds the 50MB limit', 413, 413)
-  }
-  return backup
+  const directory = await mkdtemp(resolve(tmpdir(), 'sv-database-snapshot-')), store = new RecordStore(resolve(directory, 'index.sqlite'))
+  try {
+    const result = await exportDatabaseSnapshot(directory, store)
+    const data = Object.fromEntries(ACTIVE_BACKUP_COLLECTION_KEYS.map(key => [key, Array.from(store.iterate(key))])) as BackupData
+    return { version: DATABASE_BACKUP_VERSION, exportedAt: result.exportedAt, data }
+  } finally { store.close(); await rm(directory, { recursive: true, force: true }) }
 }

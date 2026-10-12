@@ -180,21 +180,11 @@ describe('project permissions, file references and portable backup', () => {
     await importDatabaseBackup(parsed)
     expect((await exportDatabaseBackup()).data.noteInfos[0].tags).toEqual([])
   })
-  it('converts old backup article thresholds once and keeps old projects publicly readable', async () => {
-    const s = await seed()
-    await createAdminArticle({ title: 'Legacy', content: 'Body', requiredMembershipLevelId: s.types[1].id })
+  it('rejects older backup policy formats before modifying protected data', async () => {
+    await seed()
     const backup = await exportDatabaseBackup()
-    const article = backup.data.articles[0]
-    article.requiredMembershipLevelId = String(s.types[1].id)
-    const parsed = parseDatabaseImportPayload({ data: backup.data, version: '2.7.0', mode: 'overwrite' })
-    await importDatabaseBackup(parsed)
-    const restored = await client.article.findFirstOrThrow({ include: { allowedMemberships: { include: { membershipLevel: true } } } })
-    expect(restored.allowedMemberships.map(link => link.membershipLevel.name).sort()).toEqual(['B', 'C', 'D'])
-    const project = await client.project.findFirstOrThrow()
-    expect(await resolveProjectAccess(project.id)).toMatchObject({ canRead: true, canDownload: true })
-    await client.membershipLevel.create({ data: { name: 'New', rank: 999, pricePoints: 1 } })
-    expect(await client.articleMembership.count({ where: { articleId: restored.id } })).toBe(3)
-    await expect(updateAdminArticle(restored.id, { allowedMembershipLevelIds: [], requiredMembershipLevelId: null })).rejects.toMatchObject({ status: 400 })
+    expect(() => parseDatabaseImportPayload({ data: backup.data, version: '2.7.0', mode: 'overwrite' })).toThrow()
+    expect((await exportDatabaseBackup()).data.projects).toEqual(backup.data.projects)
   })
   it('ignores cached article rules and high display ranks when loading protected bodies', async () => {
     const s = await seed()
@@ -260,9 +250,9 @@ describe('project permissions, file references and portable backup', () => {
     const backup = await exportDatabaseBackup()
     const forged = structuredClone(backup.data)
     forged.fileReferences[0].sourceId = '999999'
-    expect(() => parseDatabaseImportPayload({ data: forged, version: '2.8.0' })).toThrow(/fileReference/)
+    expect(() => parseDatabaseImportPayload({ data: forged, version: backup.version, mode: 'overwrite' })).toThrow(/fileReference/)
     const incomplete = { ...backup.data, projects: backup.data.projects.map(project => ({ ...project, readAccessMode: undefined })) }
-    expect(() => parseDatabaseImportPayload({ data: incomplete, version: '2.8.0' })).toThrow(/missing readAccessMode/)
+    expect(() => parseDatabaseImportPayload({ data: incomplete, version: backup.version, mode: 'overwrite' })).toThrow(/access policy/)
     await expect(updateAdminProject(s.projectId, { readAccess: { mode: 'MEMBERSHIPS', membershipLevelIds: [] } })).rejects.toMatchObject({ status: 400 })
     await expect(updateAdminProject(s.projectId, { readAccess: { mode: 'MEMBERSHIPS', membershipLevelIds: [999999] } })).rejects.toMatchObject({ status: 400 })
     expect((await resolveProjectAccess(s.projectId, s.users[0])).canRead).toBe(true)

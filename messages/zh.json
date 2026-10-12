@@ -1487,7 +1487,8 @@
           "manual": "手动备份",
           "scheduled": "自动备份",
           "protect": "恢复前保护",
-          "restore": "完整恢复"
+          "restore": "完整恢复",
+          "preview": "恢复预检"
         },
         "statuses": {
           "queued": "排队中",
@@ -1524,7 +1525,6 @@
         },
         "codes": {
           "BACKUP_BUSY": "已有备份或恢复任务正在执行",
-          "BACKUP_TOO_LARGE": "备份超过容量或条目限制",
           "BACKUP_INVALID": "备份内容不完整、已损坏或无法通过校验",
           "BACKUP_ATTACHMENT_MISMATCH": "托管附件缺失、大小不符或冻结哈希不符",
           "BACKUP_UNIQUE_CONFLICT": "备份账号或配置存在唯一性冲突",
@@ -1540,31 +1540,27 @@
           "CACHE_REFRESH_FAILED": "恢复已提交，但缓存刷新失败",
           "COMMIT_ACK_UNCERTAIN": "数据库提交回执异常，已通过持久化标记确认提交成功",
           "RECOVERED_AFTER_RESTART": "已根据恢复日志在启动时完成协调",
-          "LEGACY_BACKUP_SCOPE": "旧格式可能缺少回收站、停用文件或较新业务集合，缺失集合将按旧格式规则处理",
-          "LEGACY_RECORDS_IGNORED": "旧格式的历史合同或已移除 Tree/cNFT 数据不会恢复"
+          "BACKUP_UNSUPPORTED_FORMAT": "不支持的备份格式，请使用当前版本创建的完整备份",
+          "BACKUP_UPLOAD_EXPIRED": "上传会话已过期或不可用，请重新上传",
+          "BACKUP_UPLOAD_OFFSET": "上传位置已变化，将从服务端确认位置继续",
+          "BACKUP_UPLOAD_CHECKSUM": "分片长度或校验不符，上传已暂停",
+          "BACKUP_UPLOAD_INCOMPLETE": "尚未上传全部备份内容",
+          "BACKUP_UPLOAD_FILE_MISMATCH": "所选文件与之前上传的文件不一致，请选择原文件或取消当前上传"
         },
-        "uploadHint": "恢复本地备份：上传完整 ZIP 备份（最大 320 MiB），预检后确认恢复。",
+        "uploadHint": "仅支持新版完整备份。采用 8 MiB 分片上传，无备份总量限制；刷新后重新选择同一文件可继续，24 小时无活动后过期。",
         "filters": {
           "allKinds": "全部类型",
           "allStatuses": "全部状态",
           "empty": "没有符合筛选条件的记录"
-        }
-      },
-      "warning": {
-        "title": "重要提示",
-        "content": "数据库备份包含用户账户、密码哈希、个人资料、积分、卡密、文章和版权记录；登录会话不会导入。恢复操作可能覆盖现有数据，请谨慎操作。"
-      },
-      "database": {
-        "title": "数据库备份",
-        "desc": "导出/导入所有业务数据（项目、分类、笔记、配置等）",
-        "export": "导出数据库",
-        "import": "导入数据库"
-      },
-      "files": {
-        "title": "文件系统备份",
-        "desc": "导出/导入 uploads 目录下的所有上传文件",
-        "export": "导出文件",
-        "import": "导入文件"
+        },
+        "reselect": "选择原文件继续",
+        "uploading": "正在上传；可暂停并稍后继续",
+        "paused": "上传已暂停。刷新后请重新选择原文件继续。",
+        "pause": "暂停",
+        "resume": "继续",
+        "cancelUpload": "取消上传",
+        "unsupported": "旧格式不可恢复",
+        "progress": "已处理 {files} 个文件 · {records} 条记录 · {bytes}"
       },
       "reset": {
         "title": "系统初始化",
@@ -1579,26 +1575,10 @@
         "confirmButton": "确认初始化",
         "cancelButton": "取消"
       },
-      "mode": {
-        "insert": "插入模式",
-        "overwrite": "覆盖模式"
-      },
       "actions": {
-        "exportDb": "导出数据库",
-        "importDb": "导入数据库",
-        "exportFiles": "导出文件",
-        "importFiles": "导入文件",
         "reset": "初始化系统"
       },
       "messages": {
-        "dbExportSuccess": "数据库导出成功",
-        "dbExportFailed": "数据库导出失败",
-        "dbImportSuccess": "数据库导入成功",
-        "dbImportFailed": "数据库导入失败",
-        "filesExportSuccess": "文件导出成功",
-        "filesExportFailed": "文件导出失败",
-        "filesImportSuccess": "文件导入成功",
-        "filesImportFailed": "文件导入失败",
         "resetSuccess": "系统初始化成功",
         "resetFailed": "系统初始化失败"
       },
@@ -1606,21 +1586,7 @@
         "snapshots": "完整备份",
         "schedule": "自动备份",
         "jobs": "任务记录",
-        "transfer": "导入与导出",
         "danger": "危险操作"
-      },
-      "transfer": {
-        "title": "导入与导出",
-        "description": "单独处理数据库或上传文件。需要同时保存两者时，请使用「完整备份」。",
-        "scope": "数据类型",
-        "database": "数据库（JSON）",
-        "files": "上传文件（ZIP）",
-        "action": "操作类型",
-        "export": "导出到本地",
-        "import": "从本地导入",
-        "mode": "导入方式",
-        "databaseHint": "请选择数据库 JSON 备份，最大 50 MiB。选择文件后开始导入，覆盖模式需再次确认。",
-        "filesHint": "请选择上传文件 ZIP 备份，最大 250 MiB。选择文件后开始导入，覆盖模式需再次确认。"
       }
     },
     "breadcrumb": {

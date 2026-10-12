@@ -2,21 +2,22 @@
  * @file database-import.ts
  * @project SlothVault
  * @module Admin Database Backup Import
- * @description Imports a validated portable database backup in insert or overwrite mode while preserving immutable release identities.
- * @logic Preflight conflicts, preserve administrator credentials, normalize legacy file categories, restore note tags, map old identifiers to new records, preserve release metadata, rebuild each published manifest after ID remapping, reject identity/hash drift, and expose a transaction-scoped import for coordinated file recovery.
+ * @description Imports a validated portable database backup through a full overwrite restore while preserving immutable release identities.
+ * @logic Preflight conflicts, preserve administrator credentials, restore note tags, map old identifiers to new records, preserve release metadata, rebuild each published manifest after ID remapping, reject identity/hash drift, and expose a transaction-scoped import for coordinated file recovery.
  * @dependencies database unit-of-work, server/http/errors, project-version release service, backup schema, backup validation, business-data deletion
  * @index_tags admin,backup,database,import,restore,id-mapping
  * @author holic512
  */
 import 'server-only'
+import { unitOfWork } from '@/server/database/unit-of-work'
+import { DATABASE_BACKUP_VERSION, DATABASE_TRANSACTION_MAX_WAIT_MS, DATABASE_TRANSACTION_TIMEOUT_MS } from './constants'
+import { verifyRestoredPublications } from './publication-validation'
+import { backupMap, recordStore } from './record-store'
 import { parseReleaseManifest } from '@/server/services/release-manifest'
-import { normalizeLegacyFileBusinessType } from '@/lib/file-business-types'
 import type { Prisma } from '@generated/prisma-postgresql/client'
 import { inspectImportAccounts, prepareRestoreAccounts, type DatabaseRestoreOptions } from './accounts'
 import { importCommissionCollections } from '@/server/commissions/backup'
-import { syncFileReferences } from '@/server/services/file-references'
 
-import { unitOfWork } from '@/server/database/unit-of-work'
 import { HttpError } from '@/server/http/errors'
 import { invalidatePublicArticleCache } from '@/server/services/public-article-cache'
 import { invalidatePublicProjectCache } from '@/server/services/public-project-cache'
@@ -26,21 +27,20 @@ import {
 } from '@/server/services/project-version-release'
 
 import {
-  DATABASE_TRANSACTION_MAX_WAIT_MS,
-  DATABASE_TRANSACTION_TIMEOUT_MS,
-  DATABASE_BACKUP_VERSION,
   DEPRECATED_CONFIG_KEYS,
-  hasCommissionContracts,
-  hasMembershipPolicies,
 } from './constants'
 import { deleteBusinessData } from './database-delete'
 import type {
   BackupData,
   DatabaseImportPayload,
 } from './database-schema'
-import { hasDatabaseErrorCode } from './database-validation'
 
 function orderedMenus(data: BackupData) {
+  const store = recordStore(data.projectMenus)
+  if (store) {
+    store.db.exec(`WITH RECURSIVE tree(id, depth) AS (SELECT id, 0 FROM records WHERE collection='projectMenus' AND json_extract(json,'$.parentId') IS NULL UNION ALL SELECT r.id, t.depth+1 FROM records r JOIN tree t ON json_extract(r.json,'$.parentId')=t.id WHERE r.collection='projectMenus') INSERT INTO records(collection,id,json) SELECT '$orderedMenus',r.id,r.json FROM tree t JOIN records r ON r.collection='projectMenus' AND r.id=t.id ORDER BY t.depth, CAST(t.id AS INTEGER)`)
+    return store.rows<BackupData['projectMenus'][number]>('$orderedMenus')
+  }
   const children = new Map<string, BackupData['projectMenus']>()
   const result: BackupData['projectMenus'] = []
   for (const item of data.projectMenus) {
@@ -60,36 +60,6 @@ function orderedMenus(data: BackupData) {
   return result
 }
 
-function selectedPrimaryContentIds(data: BackupData) {
-  const byNote = new Map<string, BackupData['noteContents']>()
-  for (const item of data.noteContents) {
-    if (item.isDeleted) continue
-    const contents = byNote.get(item.noteInfoId) || []
-    contents.push(item)
-    byNote.set(item.noteInfoId, contents)
-  }
-
-  const selected = new Map<string, string>()
-  for (const [noteInfoId, contents] of byNote) {
-    contents.sort((left, right) => {
-      const updatedDifference =
-        new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()
-      if (updatedDifference !== 0) return updatedDifference
-      const createdDifference =
-        new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
-      if (createdDifference !== 0) return createdDifference
-      const leftId = BigInt(left.id)
-      const rightId = BigInt(right.id)
-      return leftId === rightId ? 0 : leftId < rightId ? 1 : -1
-    })
-    selected.set(
-      noteInfoId,
-      contents.find((item) => item.isPrimary)?.id || contents[0].id,
-    )
-  }
-  return selected
-}
-
 function requiredMappedId(map: Map<string, number>, id: string, label: string) {
   const mapped = map.get(id)
   if (!mapped) throw new Error(`Validated ${label} mapping is missing`)
@@ -97,44 +67,34 @@ function requiredMappedId(map: Map<string, number>, id: string, label: string) {
 }
 
 export async function importDatabaseRecords(tx: Prisma.TransactionClient, payload: DatabaseImportPayload, options: DatabaseRestoreOptions = {}) {
-  const { mode, version } = payload
-  const legacyContractCount = hasCommissionContracts(version) ? 0 : (payload.ignoredLegacyContracts || payload.data.contracts.length)
-  const data = hasCommissionContracts(version) ? payload.data : { ...payload.data, contracts: [], contractAdminAudits: [], contractCredentials: [], contractCredentialAttempts: [] }
-  const primaryContentIds = version === '2.0.0' ? selectedPrimaryContentIds(data) : new Map()
-  const ignoredLegacy = {
-    contracts: legacyContractCount,
-    merkleTrees: data.merkleTrees.length,
-    compressedNfts: data.compressedNfts.length,
-    deprecatedConfigs: data.systemConfigs.filter((item) => DEPRECATED_CONFIG_KEYS.has(item.configKey)).length,
-  }
-
+  const { mode, data } = payload
   const policy = await inspectImportAccounts(tx, payload, options)
-  if (mode === 'overwrite') await deleteBusinessData(tx)
+  await deleteBusinessData(tx)
   await prepareRestoreAccounts(tx, payload, policy, options)
 
   const ids = {
-    users: new Map<string, number>(),
-    pointTransactions: new Map<string, number>(),
-    giftCardBatches: new Map<string, number>(),
-    giftCards: new Map<string, number>(),
-    membershipLevels: new Map<string, number>(),
-    membershipGrants: new Map<string, number>(),
-    articles: new Map<string, number>(),
-    projects: new Map<string, number>(),
-    projectVersions: new Map<string, number>(),
-    categories: new Map<string, number>(),
-    projectMenus: new Map<string, number>(),
-    projectHomes: new Map<string, number>(),
-    noteInfos: new Map<string, number>(),
-    noteContents: new Map<string, number>(),
-    fileManagements: new Map<string, number>(),
-    systemConfigs: new Map<string, number>(),
-    systemHomepages: new Map<string, number>(),
-    contracts: new Map<string, number>(),
-    contractCredentials: new Map<string, number>(),
-    contractCredentialAttempts: new Map<string, number>(),
-    releaseCredentials: new Map<string, number>(),
-    releaseCredentialAttempts: new Map<string, number>(),
+    users: backupMap<number>(data.users),
+    pointTransactions: backupMap<number>(data.pointTransactions),
+    giftCardBatches: backupMap<number>(data.giftCardBatches),
+    giftCards: backupMap<number>(data.giftCards),
+    membershipLevels: backupMap<number>(data.membershipLevels),
+    membershipGrants: backupMap<number>(data.membershipGrants),
+    articles: backupMap<number>(data.articles),
+    projects: backupMap<number>(data.projects),
+    projectVersions: backupMap<number>(data.projectVersions),
+    categories: backupMap<number>(data.categories),
+    projectMenus: backupMap<number>(data.projectMenus),
+    projectHomes: backupMap<number>(data.projectHomes),
+    noteInfos: backupMap<number>(data.noteInfos),
+    noteContents: backupMap<number>(data.noteContents),
+    fileManagements: backupMap<number>(data.fileManagements),
+    systemConfigs: backupMap<number>(data.systemConfigs),
+    systemHomepages: backupMap<number>(data.systemHomepages),
+    contracts: backupMap<number>(data.contracts),
+    contractCredentials: backupMap<number>(data.contractCredentials),
+    contractCredentialAttempts: backupMap<number>(data.contractCredentialAttempts),
+    releaseCredentials: backupMap<number>(data.releaseCredentials),
+    releaseCredentialAttempts: backupMap<number>(data.releaseCredentialAttempts),
   }
   const importingAdmin = policy.admin
 
@@ -273,8 +233,7 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
   }
 
   for (const item of data.articles) {
-    const requiredRank = data.membershipLevels.find((level) => level.id === item.requiredMembershipLevelId)?.rank
-    const allowedIds = hasMembershipPolicies(version) ? item.allowedMembershipLevelIds : requiredRank === undefined ? [] : data.membershipLevels.filter((level) => level.rank >= requiredRank).map((level) => level.id)
+    const allowedIds = item.allowedMembershipLevelIds
     const record = await tx.article.create({
       data: {
         title: item.title,
@@ -307,11 +266,11 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
         avatar: item.avatar,
         weight: item.weight,
         status: item.status,
-        requireAuth: ['2.10.0', '2.11.0', '2.12.0', DATABASE_BACKUP_VERSION].includes(version) ? item.requireAuth : false,
-        readAccessMode: hasMembershipPolicies(version) ? item.readAccessMode : 'PUBLIC',
-        downloadAccessMode: hasMembershipPolicies(version) ? item.downloadAccessMode : 'FOLLOW_READ',
-        readMemberships: { create: (hasMembershipPolicies(version) ? item.readMembershipLevelIds : []).map((id) => ({ membershipLevelId: requiredMappedId(ids.membershipLevels, id, 'project read membership') })) },
-        downloadMemberships: { create: (hasMembershipPolicies(version) ? item.downloadMembershipLevelIds : []).map((id) => ({ membershipLevelId: requiredMappedId(ids.membershipLevels, id, 'project download membership') })) },
+        requireAuth: item.requireAuth,
+        readAccessMode: item.readAccessMode,
+        downloadAccessMode: item.downloadAccessMode,
+        readMemberships: { create: item.readMembershipLevelIds.map((id) => ({ membershipLevelId: requiredMappedId(ids.membershipLevels, id, 'project read membership') })) },
+        downloadMemberships: { create: item.downloadMembershipLevelIds.map((id) => ({ membershipLevelId: requiredMappedId(ids.membershipLevels, id, 'project download membership') })) },
         createdAt: new Date(item.createdAt),
         updatedAt: new Date(item.updatedAt),
         isDeleted: item.isDeleted,
@@ -426,7 +385,7 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
         evidenceId: item.evidenceId,
         content: item.content,
         versionNote: item.versionNote,
-        isPrimary: version === '2.0.0' ? false : item.isPrimary,
+        isPrimary: item.isPrimary,
         status: item.status,
         createdAt: new Date(item.createdAt),
         updatedAt: new Date(item.updatedAt),
@@ -437,15 +396,6 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
     ids.noteContents.set(item.id, created.id)
   }
 
-  for (const oldContentId of primaryContentIds.values()) {
-    await tx.noteContent.update({
-      where: {
-        id: requiredMappedId(ids.noteContents, oldContentId, 'noteContentId'),
-      },
-      data: { isPrimary: true },
-    })
-  }
-
   for (const item of data.fileManagements) {
     const created = await tx.fileManagement.create({
       data: {
@@ -453,7 +403,7 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
         fileName: item.fileName,
         filePath: item.filePath,
         fileSize: BigInt(item.fileSize),
-        businessType: ['2.12.0', DATABASE_BACKUP_VERSION].includes(payload.version) ? item.businessType : normalizeLegacyFileBusinessType(item.businessType, item.fileName),
+        businessType: item.businessType,
         status: item.status,
         createTime: new Date(item.createTime),
       },
@@ -657,25 +607,28 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
     ids.releaseCredentialAttempts.set(item.id, record.id)
   }
 
-  for (const item of data.projectVersions) {
-    if (!item.publishedAt || !item.releaseId || !item.releaseHash) continue
-    const mappedVersionId = requiredMappedId(
-      ids.projectVersions,
-      item.id,
-      'projectVersionId',
-    )
-    const source = await loadReleaseTree(tx, mappedVersionId)
-    if (!source) throw new Error('Imported project version mapping is missing')
-    const snapshot = parseReleaseManifest(item.releaseManifestJson)
-    const built = buildReleaseManifest(source, snapshot.projectName)
-    if (built.issues.length > 0 || built.hash !== item.releaseHash || Buffer.from(built.bytes!).toString('utf8') !== item.releaseManifestJson) {
-      throw new HttpError('Backup release integrity verification failed', 409, 409, {
-        reason: 'BACKUP_RELEASE_INTEGRITY_FAILED',
-        projectVersionId: item.id,
-        storedHash: item.releaseHash,
-        computedHash: built.hash,
-        issues: built.issues,
-      })
+  if (recordStore(data.projectVersions)) await verifyRestoredPublications(tx, data)
+  else {
+    for (const item of data.projectVersions) {
+      if (!item.publishedAt || !item.releaseId || !item.releaseHash) continue
+      const mappedVersionId = requiredMappedId(
+        ids.projectVersions,
+        item.id,
+        'projectVersionId',
+      )
+      const source = await loadReleaseTree(tx, mappedVersionId)
+      if (!source) throw new Error('Imported project version mapping is missing')
+      const snapshot = parseReleaseManifest(item.releaseManifestJson)
+      const built = buildReleaseManifest(source, snapshot.projectName)
+      if (built.issues.length > 0 || built.hash !== item.releaseHash || Buffer.from(built.bytes!).toString('utf8') !== item.releaseManifestJson) {
+        throw new HttpError('Backup release integrity verification failed', 409, 409, {
+          reason: 'BACKUP_RELEASE_INTEGRITY_FAILED',
+          projectVersionId: item.id,
+          storedHash: item.releaseHash,
+          computedHash: built.hash,
+          issues: built.issues,
+        })
+      }
     }
   }
 
@@ -685,7 +638,7 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
     ARTICLE: ids.articles, SYSTEM_HOMEPAGE: ids.systemHomepages, PROJECT_AVATAR: ids.projects,
     USER_AVATAR: ids.users, SYSTEM_CONFIG: ids.systemConfigs,
   }
-  if (version === DATABASE_BACKUP_VERSION) {
+  {
     for (const item of data.fileReferences) {
       await tx.fileReference.create({ data: {
         fileId: requiredMappedId(ids.fileManagements, item.fileId, 'fileReference file'),
@@ -696,11 +649,6 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
       } })
       fileReferenceCount += 1
     }
-  } else for (const [sourceType, sourceIds] of [
-    ['NOTE_CONTENT', ids.noteContents], ['PROJECT_HOME', ids.projectHomes], ['PROJECT_MENU', ids.projectMenus], ['ARTICLE', ids.articles], ['SYSTEM_HOMEPAGE', ids.systemHomepages],
-    ['PROJECT_AVATAR', ids.projects], ['USER_AVATAR', ids.users], ['SYSTEM_CONFIG', ids.systemConfigs],
-  ] as const) {
-    for (const sourceId of sourceIds.values()) fileReferenceCount += await syncFileReferences(tx, sourceType, sourceId)
   }
   return {
     message: 'Database import completed successfully',
@@ -732,7 +680,6 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
       releaseCredentials: ids.releaseCredentials.size,
       releaseCredentialAttempts: ids.releaseCredentialAttempts.size,
     },
-    ignoredLegacy,
   }
 }
 
@@ -745,18 +692,9 @@ export async function invalidateBackupCaches() {
   }
 }
 
+/** Transaction adapter for isolated business integration tests; live restores also coordinate the file journal. */
 export async function importDatabaseBackup(payload: DatabaseImportPayload, options: DatabaseRestoreOptions = {}) {
-  let result: Awaited<ReturnType<typeof importDatabaseRecords>>
-  try {
-    result = await unitOfWork.execute((tx) => importDatabaseRecords(tx, payload, options), {
-      maxWait: DATABASE_TRANSACTION_MAX_WAIT_MS,
-      timeout: DATABASE_TRANSACTION_TIMEOUT_MS,
-    })
-  } catch (error) {
-    if (hasDatabaseErrorCode(error, 'P2002')) {
-      throw new HttpError('Backup data conflicts with existing records', 409, 409, { reason: 'BACKUP_UNIQUE_CONFLICT' })
-    }
-    throw error
-  }
+  if (payload.version !== DATABASE_BACKUP_VERSION || payload.mode !== 'overwrite') throw new HttpError('Unsupported backup format', 400, 400, { reason: 'BACKUP_UNSUPPORTED_FORMAT' })
+  const result = await unitOfWork.execute(tx => importDatabaseRecords(tx, payload, options), { maxWait: DATABASE_TRANSACTION_MAX_WAIT_MS, timeout: DATABASE_TRANSACTION_TIMEOUT_MS })
   return { ...result, warnings: await invalidateBackupCaches() }
 }

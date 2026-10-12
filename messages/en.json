@@ -1487,7 +1487,8 @@
           "manual": "Manual backup",
           "scheduled": "Scheduled backup",
           "protect": "Pre-restore protection",
-          "restore": "Complete restore"
+          "restore": "Complete restore",
+          "preview": "Restore preflight"
         },
         "statuses": {
           "queued": "Queued",
@@ -1524,7 +1525,6 @@
         },
         "codes": {
           "BACKUP_BUSY": "A backup or restore is already running",
-          "BACKUP_TOO_LARGE": "Backup exceeds a size or entry limit",
           "BACKUP_INVALID": "Backup is incomplete, damaged or failed validation",
           "BACKUP_ATTACHMENT_MISMATCH": "A managed attachment is missing or its size or frozen hash differs",
           "BACKUP_UNIQUE_CONFLICT": "Account or configuration uniqueness conflict",
@@ -1540,31 +1540,27 @@
           "CACHE_REFRESH_FAILED": "Restore committed, but cache refresh failed",
           "COMMIT_ACK_UNCERTAIN": "Commit acknowledgement failed; the durable receipt confirmed a successful commit",
           "RECOVERED_AFTER_RESTART": "Reconciled from the recovery journal during startup",
-          "LEGACY_BACKUP_SCOPE": "Older formats may omit trash, disabled files or newer collections. Missing collections follow legacy import rules.",
-          "LEGACY_RECORDS_IGNORED": "Legacy contracts or removed Tree/cNFT records will be ignored"
+          "BACKUP_UNSUPPORTED_FORMAT": "Unsupported backup format. Use a complete backup created by the current version.",
+          "BACKUP_UPLOAD_EXPIRED": "Upload session expired or unavailable. Start a new upload.",
+          "BACKUP_UPLOAD_OFFSET": "Upload offset changed. Resume from the server-confirmed offset.",
+          "BACKUP_UPLOAD_CHECKSUM": "Chunk length or checksum differs. Upload paused.",
+          "BACKUP_UPLOAD_INCOMPLETE": "Backup upload is incomplete.",
+          "BACKUP_UPLOAD_FILE_MISMATCH": "Selected file differs from the original. Reselect the original file or cancel this upload."
         },
-        "uploadHint": "Restore a local backup: upload a complete ZIP backup (up to 320 MiB), review the preview, then confirm.",
+        "uploadHint": "Current complete backups only. Uploads use 8 MiB chunks with no total-size limit. Reselect the same file after a reload to resume. Sessions expire after 24 hours without activity.",
         "filters": {
           "allKinds": "All types",
           "allStatuses": "All statuses",
           "empty": "No records match this filter"
-        }
-      },
-      "warning": {
-        "title": "Important Notice",
-        "content": "Database backups include user accounts, password hashes, profiles, points, gift cards, articles and copyright records. Login sessions are not imported. Restore operations may overwrite existing data, so proceed with caution."
-      },
-      "database": {
-        "title": "Database Backup",
-        "desc": "Export/import all business data (projects, categories, notes, configs, etc.)",
-        "export": "Export Database",
-        "import": "Import Database"
-      },
-      "files": {
-        "title": "File System Backup",
-        "desc": "Export/import all uploaded files in the uploads directory",
-        "export": "Export Files",
-        "import": "Import Files"
+        },
+        "reselect": "Reselect original file",
+        "uploading": "Uploading; you can pause and resume later",
+        "paused": "Upload paused. Reselect the original file after a reload.",
+        "pause": "Pause",
+        "resume": "Resume",
+        "cancelUpload": "Cancel upload",
+        "unsupported": "Unsupported format",
+        "progress": "Processed {files} files · {records} records · {bytes}"
       },
       "reset": {
         "title": "System Reset",
@@ -1579,26 +1575,10 @@
         "confirmButton": "Confirm Reset",
         "cancelButton": "Cancel"
       },
-      "mode": {
-        "insert": "Insert Mode",
-        "overwrite": "Overwrite Mode"
-      },
       "actions": {
-        "exportDb": "Export Database",
-        "importDb": "Import Database",
-        "exportFiles": "Export Files",
-        "importFiles": "Import Files",
         "reset": "Reset System"
       },
       "messages": {
-        "dbExportSuccess": "Database exported successfully",
-        "dbExportFailed": "Database export failed",
-        "dbImportSuccess": "Database imported successfully",
-        "dbImportFailed": "Database import failed",
-        "filesExportSuccess": "Files exported successfully",
-        "filesExportFailed": "Files export failed",
-        "filesImportSuccess": "Files imported successfully",
-        "filesImportFailed": "Files import failed",
         "resetSuccess": "System reset successfully",
         "resetFailed": "System reset failed"
       },
@@ -1606,21 +1586,7 @@
         "snapshots": "Complete backups",
         "schedule": "Schedule",
         "jobs": "Task history",
-        "transfer": "Import & export",
         "danger": "Danger zone"
-      },
-      "transfer": {
-        "title": "Import & export",
-        "description": "Manage the database or uploaded files separately. Use Complete backups to save both together.",
-        "scope": "Data type",
-        "database": "Database (JSON)",
-        "files": "Uploaded files (ZIP)",
-        "action": "Operation",
-        "export": "Export to your device",
-        "import": "Import from your device",
-        "mode": "Import mode",
-        "databaseHint": "Choose a database JSON backup, up to 50 MiB. Import starts after file selection; overwrite requires confirmation.",
-        "filesHint": "Choose an uploaded-files ZIP backup, up to 250 MiB. Import starts after file selection; overwrite requires confirmation."
       }
     },
     "breadcrumb": {

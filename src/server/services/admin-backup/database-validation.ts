@@ -2,13 +2,14 @@
  * @file database-validation.ts
  * @project SlothVault
  * @module Admin Database Backup Validation
- * @description Validates cross-record backup relations, immutable release metadata, and database import payloads before mutation.
- * @logic Reject broken active relations, duplicate evidence identities, and oversized requests while ignoring deprecated Tree/cNFT data from legacy backups.
+ * @description Validates cross-record backup relations, immutable release metadata, and current portable records before mutation.
+ * @logic Reject broken active relations, duplicate evidence identities, and invalid business fields before restoration.
  * @dependencies server/http/errors, backup constants, database backup schema
  * @index_tags admin,backup,database,validation,relations,request-limits
  * @author holic512
  */
 import 'server-only'
+import { backupMap, backupSet, recordStore, recordWhere, recordIndex } from './record-store'
 import { canonicalProjectVersionEvidenceMemo } from '@/server/services/project-version-evidence-protocol'
 import { canonicalReleaseManifest, parseReleaseManifest, releaseManifestHash } from '@/server/services/release-manifest'
 import { validateCommissionBackup } from '@/server/commissions/backup'
@@ -22,12 +23,7 @@ import { CONFIG_KEYS } from '@/server/services/system-config'
 
 import {
   ACTIVE_BACKUP_COLLECTION_KEYS,
-  DATABASE_BACKUP_VERSION,
   RESTORE_COMMIT_CONFIG_KEY,
-  hasCommissionContracts,
-  hasMembershipPolicies,
-  BACKUP_COLLECTION_KEYS,
-  DATABASE_RECORD_LIMIT,
 } from './constants'
 import {
   databaseImportPayloadSchema,
@@ -49,7 +45,8 @@ export function hasDatabaseErrorCode(error: unknown, code: string) {
 }
 
 function mapById<T extends { id: string }>(label: string, items: T[]) {
-  const result = new Map<string, T>()
+  if (recordStore(items)) return recordIndex(items)
+  const result = backupMap<T>(items)
   for (const item of items) {
     if (result.has(item.id)) invalidBackup(`duplicate ${label} id ${item.id}`)
     result.set(item.id, item)
@@ -62,7 +59,7 @@ function assertUniqueField<T>(
   items: T[],
   valueOf: (item: T) => string,
 ) {
-  const values = new Set<string>()
+  const values = backupSet(items)
   for (const item of items) {
     const value = valueOf(item)
     if (values.has(value)) invalidBackup(`duplicate ${label} ${value}`)
@@ -80,13 +77,6 @@ function assertReference<T>(
 
 export function validateBackupRelations(data: BackupData) {
   try { validateCommissionBackup(data) } catch (error) { invalidBackup(error instanceof Error ? error.message : 'Invalid commission backup') }
-  const totalRecords = BACKUP_COLLECTION_KEYS.reduce(
-    (total, key) => total + data[key].length,
-    0,
-  )
-  if (totalRecords > DATABASE_RECORD_LIMIT) {
-    invalidBackup(`record count exceeds ${DATABASE_RECORD_LIMIT}`)
-  }
 
   const users = mapById('user', data.users)
   const pointTransactions = mapById('pointTransaction', data.pointTransactions)
@@ -308,7 +298,7 @@ export function validateBackupRelations(data: BackupData) {
       if (item.bodyHash !== contractBodyHash(item.body)) invalidBackup('Contract frozen body hash mismatch')
       if (item.status === 2 && item.installationId && item.issuedAt && item.signedAt && contractRootHash({ installationId: item.installationId, contractId: item.contractId, title: item.title, bodyHash: item.bodyHash, attachmentHash: item.attachmentHash, partyCommitment: item.partyCommitment, issuedAt: new Date(item.issuedAt), signedAt: new Date(item.signedAt), snapshotHash: item.snapshotHash }) !== item.contractHash) invalidBackup('Contract signed root hash mismatch')
       const snapshot = JSON.parse(item.snapshotJson!), template = data.commissionTemplateVersions.find((v) => v.id === item.templateVersionId)!
-      assertDocumentAttachments(snapshot.attachments || [], data.commissionFiles.filter((f) => f.commissionId === item.commissionId).map((f) => ({ ...f, file: { ...fileManagements.get(f.fileId)!, fileSize: BigInt(fileManagements.get(f.fileId)!.fileSize) } })))
+      assertDocumentAttachments(snapshot.attachments || [], recordWhere(data.commissionFiles, 'commissionId', item.commissionId!).map((f) => ({ ...f, file: { ...fileManagements.get(f.fileId)!, fileSize: BigInt(fileManagements.get(f.fileId)!.fileSize) } })))
       if (snapshot.version !== template.version || JSON.stringify(snapshot.documents) !== template.documentsJson || JSON.stringify(snapshot.fields) !== template.fieldsJson) invalidBackup('Contract template snapshot does not match its published version')
       if (item.documentType !== 'AGREEMENT') {
         const source = item.documentType === 'CHANGE' ? data.commissionChanges.find((c) => c.id === item.sourceRecordId) : data.commissionAcceptances.find((c) => c.id === item.sourceRecordId)
@@ -350,7 +340,7 @@ export function validateBackupRelations(data: BackupData) {
     assertReference(users, item.issuerUserId, 'contractCredentialAttempt issuerUserId')
   }
 
-  const homeProjects = new Set<string>()
+  const homeProjects = backupSet(data.projectHomes)
   for (const home of projectHomes.values()) {
     if (homeProjects.has(home.projectId)) {
       invalidBackup(`multiple projectHomes for projectId ${home.projectId}`)
@@ -358,27 +348,34 @@ export function validateBackupRelations(data: BackupData) {
     homeProjects.add(home.projectId)
   }
 
-  const menuChildren = new Map<string, string[]>()
-  const menuQueue: string[] = []
-  for (const menu of projectMenus.values()) {
-    if (!menu.parentId) {
-      menuQueue.push(menu.id)
-      continue
+  const menuStore = recordStore(data.projectMenus)
+  if (menuStore) {
+    menuStore.db.exec("CREATE INDEX IF NOT EXISTS relation_parentId ON records(collection,json_extract(json,'$.parentId'))")
+    const result = menuStore.db.prepare(`WITH RECURSIVE tree(id) AS (SELECT id FROM records WHERE collection='projectMenus' AND json_extract(json,'$.parentId') IS NULL UNION ALL SELECT r.id FROM records r JOIN tree t ON json_extract(r.json,'$.parentId')=t.id WHERE r.collection='projectMenus') SELECT count(*) AS n FROM tree`).get() as { n: number }
+    if (result.n !== projectMenus.size) invalidBackup('projectMenu parent cycle detected')
+  } else {
+    const menuChildren = new Map<string, string[]>()
+    const menuQueue: string[] = []
+    for (const menu of projectMenus.values()) {
+      if (!menu.parentId) {
+        menuQueue.push(menu.id)
+        continue
+      }
+      const children = menuChildren.get(menu.parentId) || []
+      children.push(menu.id)
+      menuChildren.set(menu.parentId, children)
     }
-    const children = menuChildren.get(menu.parentId) || []
-    children.push(menu.id)
-    menuChildren.set(menu.parentId, children)
-  }
-  let visitedMenus = 0
-  for (let index = 0; index < menuQueue.length; index += 1) {
-    const id = menuQueue[index]
-    visitedMenus += 1
-    for (const childId of menuChildren.get(id) || []) {
-      menuQueue.push(childId)
+    let visitedMenus = 0
+    for (let index = 0; index < menuQueue.length; index += 1) {
+      const id = menuQueue[index]
+      visitedMenus += 1
+      for (const childId of menuChildren.get(id) || []) {
+        menuQueue.push(childId)
+      }
     }
-  }
-  if (visitedMenus !== projectMenus.size) {
-    invalidBackup('projectMenu parent cycle detected')
+    if (visitedMenus !== projectMenus.size) {
+      invalidBackup('projectMenu parent cycle detected')
+    }
   }
 
   assertUniqueField('configKey', data.systemConfigs, (item) => item.configKey)
@@ -446,62 +443,15 @@ export function validateBackupRelations(data: BackupData) {
 }
 
 export function parseDatabaseImportPayload(input: unknown): DatabaseImportPayload {
-  let sourceInput = input
-  if (input && typeof input === 'object' && 'data' in input && input.data && typeof input.data === 'object' && !('version' in input && typeof input.version === 'string' && hasCommissionContracts(input.version))) {
-    const data = input.data as Record<string, unknown>
-    sourceInput = { ...input, ignoredLegacyContracts: Array.isArray(data.contracts) ? data.contracts.length : 0, data: { ...data, contracts: [], contractAdminAudits: [], contractCredentials: [], contractCredentialAttempts: [] } }
+  const source = input as { data?: Record<string, unknown> }
+  if (!source?.data || ACTIVE_BACKUP_COLLECTION_KEYS.some(key => !Array.isArray(source.data![key]))) invalidBackup('complete backup is missing a collection')
+  const parsed = databaseImportPayloadSchema.safeParse(input)
+  if (!parsed.success) invalidBackup(parsed.error.issues[0]?.message ?? 'invalid structure')
+  for (const project of source.data.projects as Record<string, unknown>[]) {
+    if (['readAccessMode', 'downloadAccessMode', 'readMembershipLevelIds', 'downloadMembershipLevelIds'].some(key => !Object.hasOwn(project, key) || project[key] === undefined)) invalidBackup('project access policy is missing')
   }
-  const parsed = databaseImportPayloadSchema.safeParse(sourceInput)
-  if (!parsed.success) {
-    const issue = parsed.error.issues[0]
-    const path = issue?.path.length ? `${issue.path.join('.')}: ` : ''
-    invalidBackup(`${path}${issue?.message || 'invalid structure'}`)
-  }
-
-  // Defaults are for older formats; an incomplete current backup must not silently open protected content.
-  if (hasMembershipPolicies(parsed.data.version)) {
-    const source = input as { data: { projects: Record<string, unknown>[]; articles?: Record<string, unknown>[] } }
-    for (const project of source.data.projects ?? []) {
-      for (const key of ['readAccessMode', 'downloadAccessMode', 'readMembershipLevelIds', 'downloadMembershipLevelIds']) {
-        if (project[key] === undefined) invalidBackup(`2.8.0 project policy is missing ${key}`)
-      }
-    }
-    for (const article of source.data.articles ?? []) {
-      if (article.allowedMembershipLevelIds === undefined) invalidBackup('2.8.0 article is missing allowedMembershipLevelIds')
-    }
-  }
-
-  const retiredCredentialIds = new Set(parsed.data.data.releaseCredentials.filter(item => item.subjectType !== 'PROJECT_VERSION' || item.subjectManifestVersion !== 3).map(item => item.id))
-  parsed.data.data.releaseCredentials = parsed.data.data.releaseCredentials.filter(item => !retiredCredentialIds.has(item.id))
-  parsed.data.data.releaseCredentialAttempts = parsed.data.data.releaseCredentialAttempts.filter(item => !retiredCredentialIds.has(item.credentialId))
-
-  if (parsed.data.version === '2.0.0') {
-    for (const version of parsed.data.data.projectVersions) {
-      version.status = 0
-      version.releaseId = null
-      version.releaseHash = null
-      version.manifestVersion = null
-      version.publishedAt = null
-    }
-  }
-  if (['2.11.0', '2.12.0', DATABASE_BACKUP_VERSION].includes(parsed.data.version)) {
-    const source = (input as { data: Record<string, unknown> }).data
-    for (const key of ACTIVE_BACKUP_COLLECTION_KEYS) {
-      if (!Array.isArray(source[key])) invalidBackup(`complete backup is missing ${key}`)
-    }
-  }
-  if (parsed.data.data.systemConfigs.some((item) => item.configKey === RESTORE_COMMIT_CONFIG_KEY)) {
-    invalidBackup('restore control metadata cannot be imported')
-  }
+  for (const article of source.data.articles as Record<string, unknown>[]) if (!Object.hasOwn(article, 'allowedMembershipLevelIds')) invalidBackup('article access policy is missing')
+  if (parsed.data.data.systemConfigs.some(item => item.configKey === RESTORE_COMMIT_CONFIG_KEY)) invalidBackup('restore control metadata cannot be imported')
   validateBackupRelations(parsed.data.data)
   return parsed.data
-}
-
-export function assertRequestContentLength(request: Request, maxBytes: number) {
-  const rawLength = request.headers.get('content-length')
-  if (rawLength === null) return
-  const contentLength = Number(rawLength)
-  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
-    throw new HttpError('Request body is too large', 413, 413)
-  }
 }

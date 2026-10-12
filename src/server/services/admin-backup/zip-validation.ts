@@ -3,13 +3,16 @@
  * @project SlothVault
  * @module Admin Files Backup ZIP Validation
  * @description Preflights and validates imported ZIP archives before any upload-root mutation.
- * @logic Reject unsafe paths, ZIP64 and multi-disk archives, special entries, duplicate paths, unsupported compression, oversized data, and corrupt checksums.
+ * @logic Validate ZIP32/ZIP64 central-directory bounds, contained regular entries, supported compression, declared lengths and checksums without aggregate capacity limits.
  * @dependencies Unzipper, Node path APIs, server/http/errors, backup ZIP limits
  * @index_tags admin,backup,files,zip,validation,security
  * @author holic512
  */
 import 'server-only'
 import { open, stat } from 'node:fs/promises'
+import { createReadStream } from 'node:fs'
+import { Readable } from 'node:stream'
+import { crc32 } from 'node:zlib'
 
 import {
   isAbsolute,
@@ -21,11 +24,7 @@ import unzipper, { type File as ZipEntry } from 'unzipper'
 import { HttpError } from '@/server/http/errors'
 
 import {
-  ZIP_ENTRY_LIMIT,
-  ZIP_ENTRY_MAX_BYTES,
-  ZIP_FILE_MAX_BYTES,
   ZIP_PATH_MAX_BYTES,
-  ZIP_TOTAL_UNCOMPRESSED_MAX_BYTES,
 } from './constants'
 import { nodeErrorHasCode } from './files-common'
 
@@ -81,9 +80,6 @@ function preflightZipCentralDirectory(buffer: Buffer, baseOffset = 0) {
     centralOffset === 0xffffffff
   ) {
     throw new HttpError('ZIP64 archives are not supported', 400, 400)
-  }
-  if (numberOfRecords > ZIP_ENTRY_LIMIT) {
-    throw new HttpError(`ZIP entry count exceeds ${ZIP_ENTRY_LIMIT}`, 400, 400)
   }
   if (centralOffset + centralSize > endOffset + baseOffset) {
     throw new HttpError('Invalid ZIP central directory bounds', 400, 400)
@@ -174,7 +170,7 @@ export async function validateZipArchive(buffer: Buffer) {
   return validateZipDirectory(directory, preflight)
 }
 
-export async function validateZipFile(path: string, maxBytes = ZIP_FILE_MAX_BYTES) {
+export async function validateZipFile(path: string, maxBytes = Infinity) {
   const size = (await stat(path)).size
   if (size > maxBytes) throw new HttpError('ZIP file exceeds the size limit', 413, 413)
   if (size < 22) throw new HttpError('Invalid ZIP archive', 400, 400)
@@ -190,10 +186,36 @@ export async function validateZipFile(path: string, maxBytes = ZIP_FILE_MAX_BYTE
     const read = await handle.read(tail, 0, tail.length, baseOffset)
     if (read.bytesRead !== tail.length) throw new HttpError('Invalid ZIP archive', 400, 400)
   } finally { await handle.close() }
-  const preflight = preflightZipCentralDirectory(tail, baseOffset)
+  const preflight = await preflightZipFile(path, tail, baseOffset)
   let directory: Awaited<ReturnType<typeof unzipper.Open.file>>
-  try { directory = await unzipper.Open.file(path) } catch { throw new HttpError('Invalid ZIP archive', 400, 400) }
+  // Unzipper 0.12.5 computes the ZIP64 locator from its current tail chunk's match offset.
+  // Supplying the already bounded tail in one chunk avoids offsets drifting at the 64 KiB read boundary.
+  const source = { size: async () => size, stream: (start: number, length?: number) => start === baseOffset && length === undefined
+    ? Readable.from([tail])
+    : createReadStream(path, { start, ...(length ? { end: start + length - 1 } : {}) }) }
+  try { directory = await (unzipper.Open.custom as (input: typeof source, options: {tailSize: number}) => ReturnType<typeof unzipper.Open.custom>)(source, { tailSize: tail.length }) }
+  catch { throw new HttpError('Invalid ZIP archive', 400, 400) }
   return validateZipDirectory(directory, preflight)
+}
+
+async function preflightZipFile(path: string, tail: Buffer, baseOffset: number) {
+  let end = -1
+  for (let i = tail.length - 22; i >= 0; i--) if (tail.readUInt32LE(i) === 0x06054b50 && i + 22 + tail.readUInt16LE(i + 20) === tail.length) { end = i; break }
+  if (end < 0) throw new HttpError('Invalid ZIP archive', 400, 400)
+  const count = tail.readUInt16LE(end + 10), size = tail.readUInt32LE(end + 12), offset = tail.readUInt32LE(end + 16)
+  if (count !== 0xffff && size !== 0xffffffff && offset !== 0xffffffff) return preflightZipCentralDirectory(tail, baseOffset)
+  const handle = await open(path, 'r')
+  const safe = (buffer: Buffer, position: number) => { const n = buffer.readBigUInt64LE(position); if (n > BigInt(Number.MAX_SAFE_INTEGER)) throw new HttpError('ZIP value exceeds runtime precision', 400, 400); return Number(n) }
+  const read = async (position: number, bytes: number) => { if (position < 0 || position + bytes > baseOffset + tail.length) throw new HttpError('Invalid ZIP64 bounds', 400, 400); const b = Buffer.alloc(bytes); if ((await handle.read(b, 0, bytes, position)).bytesRead !== bytes) throw new HttpError('Invalid ZIP64 record', 400, 400); return b }
+  try {
+    if (tail.readUInt16LE(end + 4) !== 0 || tail.readUInt16LE(end + 6) !== 0 || tail.readUInt16LE(end + 8) !== count) throw new HttpError('Multi-disk ZIP is unsupported', 400, 400)
+    const locator = await read(baseOffset + end - 20, 20)
+    if (locator.readUInt32LE(0) !== 0x07064b50 || locator.readUInt32LE(4) !== 0 || locator.readUInt32LE(16) !== 1) throw new HttpError('Invalid ZIP64 locator', 400, 400)
+    const position = safe(locator, 8), record = await read(position, 56)
+    const recordSize = safe(record, 4), numberOfRecords = safe(record, 32), centralSize = safe(record, 40), centralOffset = safe(record, 48)
+    if (record.readUInt32LE(0) !== 0x06064b50 || recordSize < 44 || position + 12 + recordSize !== baseOffset + end - 20 || record.readUInt32LE(16) !== 0 || record.readUInt32LE(20) !== 0 || safe(record, 24) !== numberOfRecords || centralOffset + centralSize !== position) throw new HttpError('Invalid ZIP64 central directory', 400, 400)
+    return { numberOfRecords, centralSize, centralOffset }
+  } finally { await handle.close() }
 }
 
 function validateZipDirectory(directory: Awaited<ReturnType<typeof unzipper.Open.buffer>>, preflight: ReturnType<typeof preflightZipCentralDirectory>) {
@@ -208,13 +230,9 @@ function validateZipDirectory(directory: Awaited<ReturnType<typeof unzipper.Open
   ) {
     throw new HttpError('Multi-disk or inconsistent ZIP archives are not supported', 400, 400)
   }
-  if (directory.files.length > ZIP_ENTRY_LIMIT) {
-    throw new HttpError(`ZIP entry count exceeds ${ZIP_ENTRY_LIMIT}`, 400, 400)
-  }
 
   const entries: ValidatedZipEntry[] = []
   const normalizedPaths = new Map<string, 'directory' | 'file'>()
-  let declaredTotal = 0
 
   for (const entry of directory.files) {
     const kind = zipEntryKind(entry)
@@ -230,21 +248,12 @@ function validateZipDirectory(directory: Awaited<ReturnType<typeof unzipper.Open
       !Number.isSafeInteger(entry.uncompressedSize) ||
       entry.uncompressedSize < 0 ||
       !Number.isSafeInteger(entry.compressedSize) ||
-      entry.compressedSize < 0 ||
-      entry.compressedSize > ZIP_FILE_MAX_BYTES
+      entry.compressedSize < 0
     ) {
       throw new HttpError('ZIP contains an invalid entry size', 400, 400)
     }
     if (kind === 'directory' && entry.uncompressedSize !== 0) {
       throw new HttpError('ZIP directory entry has content', 400, 400)
-    }
-    if (entry.uncompressedSize > ZIP_ENTRY_MAX_BYTES) {
-      throw new HttpError('ZIP entry exceeds the size limit', 400, 400)
-    }
-
-    declaredTotal += entry.uncompressedSize
-    if (declaredTotal > ZIP_TOTAL_UNCOMPRESSED_MAX_BYTES) {
-      throw new HttpError('ZIP exceeds the total uncompressed size limit', 400, 400)
     }
 
     normalizedPaths.set(normalizedKey, kind)
@@ -271,20 +280,9 @@ function validateZipDirectory(directory: Awaited<ReturnType<typeof unzipper.Open
   return entries
 }
 
-const CRC32_TABLE = Array.from({ length: 256 }, (_value, index) => {
-  let current = index
-  for (let bit = 0; bit < 8; bit += 1) {
-    current = (current & 1) !== 0 ? 0xedb88320 ^ (current >>> 1) : current >>> 1
-  }
-  return current >>> 0
-})
-
 export function updateCrc32(current: number, chunk: Buffer) {
-  let crc = current
-  for (const byte of chunk) {
-    crc = CRC32_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8)
-  }
-  return crc >>> 0
+  // Callers carry the unfinalized CRC; Node's native implementation carries the finalized CRC.
+  return (crc32(chunk, (current ^ 0xffffffff) >>> 0) ^ 0xffffffff) >>> 0
 }
 
 export function isFileSystemFailure(error: unknown) {

@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { reconcileBackupUploads } from './uploads'
 import { readdir, rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { z } from 'zod'
@@ -100,7 +101,7 @@ async function cleanupExpiredInputs() {
   const pinned = await pinnedImports()
   for (const upload of await readRecords<{ id: string; expiresAt: string }>('imports')) {
     if (!pinned.has(upload.id) && !sourceIsPinned(upload.id) && new Date(upload.expiresAt).getTime() <= now) {
-      await rm(importPath(upload.id), { force: true }); await rm(recordPath('imports', upload.id), { force: true })
+      await rm(importPath(upload.id) + '.partial', { force: true }); await rm(importPath(upload.id), { force: true }); await rm(recordPath('imports', upload.id), { force: true })
     }
   }
 }
@@ -108,7 +109,7 @@ async function cleanupInterruptedWork() {
   for (const name of await readdir(resolve(backupStoragePath(), 'work'))) {
     if (z.string().uuid().safeParse(name).success) await rm(workPath(name), { recursive: true, force: true })
   }
-  for (const directory of [backupStoragePath(), resolve(backupStoragePath(), 'imports')]) {
+  for (const directory of [backupStoragePath()]) {
     for (const name of await readdir(/* turbopackIgnore: true */ directory)) if (name.endsWith('.zip.partial') && z.string().uuid().safeParse(name.slice(0, -12)).success) await rm(resolve(directory, name), { force: true })
   }
   let names: string[] = []
@@ -133,6 +134,7 @@ export async function initializeBackupRuntime() {
       }
       await atomicJson(recordPath('jobs', job.id), { ...job, ...(completed && job.kind !== 'restore' ? { snapshotId: job.id } : {}), status: completed ? 'succeeded' : 'interrupted', phase: completed ? 'complete' : job.phase, error: completed ? null : 'BACKUP_INTERRUPTED', warnings: [...job.warnings, 'RECOVERED_AFTER_RESTART'], finishedAt: new Date().toISOString(), durationMs: Math.max(0, Date.now() - new Date(job.startedAt ?? job.createdAt).getTime()) })
     }
+    await reconcileBackupUploads()
     await cleanupInterruptedWork()
     await cleanupExpiredInputs()
   })()

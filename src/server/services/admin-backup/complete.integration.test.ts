@@ -58,15 +58,13 @@ import { issueSession, readSessionToken } from '@/server/auth/session'
 import { acquireMaintenanceLock } from '@/server/services/maintenance-lock'
 import { exportDatabaseBackup } from './database-export'
 import * as importer from './database-import'
-import { parseDatabaseImportPayload } from './database-validation'
-import { createCompleteSnapshot, readCompleteBundle, sha256File } from './archive'
-import { assertBackupIdle, backupHistory, deleteBackupSnapshot, getBackupJob, previewCompleteRestore, queueCompleteBackup, queueCompleteRestore, runCompleteBackup, runCompleteRestore, uploadCompleteBackup } from './complete'
+import { createCompleteSnapshot, readCompleteBundle, sha256File, walkBackupFiles } from './archive'
+import { assertBackupIdle, backupHistory, deleteBackupSnapshot, getBackupJob, previewCompleteRestore, queueCompleteBackup, queueCompleteRestore, runCompleteBackup, runCompleteRestore } from './complete'
 import { artifactPath, atomicJson, backupStatePath, backupStoragePath, DEFAULT_BACKUP_SETTINGS, ensureBackupStorage, pinSnapshot, readSettings, recordPath, releaseBackupJob, sourceIsPinned, storageStatus } from './store'
 import { prepareRestoreJournal, readRestoreJournal, reconcileRestoreJournal, recoverPendingRestore, restoreJournalPath, switchRestoreFiles } from './recovery'
 import { backupRecoveryError, setBackupRecoveryError } from './recovery-state'
 import { initializeBackupRuntime, nextBackupRun, saveBackupSettings, scheduledSlot, tickBackupScheduler } from './scheduler'
-import { COMPLETE_BACKUP_MAX_BYTES, RESTORE_COMMIT_CONFIG_KEY, ZIP_ENTRY_MAX_BYTES, ZIP_FILE_MAX_BYTES } from './constants'
-import { collectFilesExportEntries } from './files-export'
+import { ACTIVE_BACKUP_COLLECTION_KEYS, RESTORE_COMMIT_CONFIG_KEY } from './constants'
 import { extractZipToStaging } from './files-import'
 import { updateCrc32, validateZipArchive, validateZipFile } from './zip-validation'
 import { rebuildFileReferences } from '@/server/services/file-references'
@@ -80,13 +78,14 @@ import { uploadCommissionFile } from '@/server/commissions/files'
 import { GET as settingsGet, PUT as settingsPut } from '@/app/api/admin/mm/backup/settings/route'
 import { GET as historyGet, POST as snapshotPost } from '@/app/api/admin/mm/backup/snapshots/route'
 import { GET as jobGet } from '@/app/api/admin/mm/backup/jobs/[id]/route'
-import { GET as downloadGet } from '@/app/api/admin/mm/backup/snapshots/[id]/download/route'
+import { GET as downloadGet, HEAD as downloadHead } from '@/app/api/admin/mm/backup/snapshots/[id]/download/route'
 import { DELETE as snapshotDelete } from '@/app/api/admin/mm/backup/snapshots/[id]/route'
+import { GET as uploadGet, PATCH as uploadPatch, DELETE as uploadDelete } from '@/app/api/admin/mm/backup/imports/[id]/route'
+import { POST as uploadCompletePost } from '@/app/api/admin/mm/backup/imports/[id]/complete/route'
 import { POST as uploadPost } from '@/app/api/admin/mm/backup/imports/route'
 import { POST as previewPost } from '@/app/api/admin/mm/backup/restores/preview/route'
 import { POST as restorePost } from '@/app/api/admin/mm/backup/restores/route'
-import { POST as legacyImportPost } from '@/app/api/admin/mm/backup/database-import/route'
-import { POST as legacyFilesPost } from '@/app/api/admin/mm/backup/files-import/route'
+import { createBackupUpload, appendBackupUpload, completeBackupUpload } from './uploads'
 import { POST as resetPost } from '@/app/api/admin/mm/backup/system-reset/route'
 
 const digest = (buffer: Buffer) => createHash('sha256').update(buffer).digest('hex')
@@ -114,18 +113,30 @@ async function editedBundle(snapshot: BackupSnapshot, edit: (database: Exported,
   const archive = await unzipper.Open.file(artifactPath(snapshot.id))
   const entries = new Map<string, Buffer>()
   for (const entry of archive.files) entries.set(entry.path, await entry.buffer())
-  const database = JSON.parse(entries.get('database.json')!.toString()) as Exported
   const manifest = JSON.parse(entries.get('manifest.json')!.toString()) as BackupManifest
+  const database = { version: manifest.databaseVersion, exportedAt: manifest.createdAt, data: Object.fromEntries(ACTIVE_BACKUP_COLLECTION_KEYS.map(key => [key, entries.get(`database/${key}.ndjson`)!.toString().split('\n').filter(Boolean).map(line => JSON.parse(line))])) } as Exported
   edit(database, manifest, entries)
-  const data = Buffer.from(JSON.stringify(database))
   manifest.databaseVersion = database.version
   manifest.counts = Object.fromEntries(Object.entries(database.data).map(([key, rows]) => [key, rows.length]))
-  manifest.databaseSha256 = digest(data); manifest.filesSha256 = digest(entries.get('files.zip')!)
-  entries.set('database.json', data); entries.set('manifest.json', Buffer.from(JSON.stringify(manifest)))
+  for (const key of ACTIVE_BACKUP_COLLECTION_KEYS) {
+    const rows = (database.data as Record<string, unknown[]>)[key]
+    const name = `database/${key}.ndjson`
+    if (!rows) { entries.delete(name); delete manifest.database[key]; continue }
+    const data = Buffer.from(rows.map(row => JSON.stringify(row) + '\n').join(''))
+    entries.set(name, data); manifest.database[key] = { size: data.length, sha256: digest(data) }
+  }
+  const files = entries.get('files.ndjson')!
+  manifest.filesIndex = { size: files.length, sha256: digest(files) }
+  entries.set('manifest.json', Buffer.from(JSON.stringify(manifest)))
   return storedZip([...entries].map(([name, content]) => ({ name, content })))
 }
 async function uploaded(bytes: Buffer, adminId: number) {
-  return uploadCompleteBackup(new Request('http://localhost/import', { method: 'POST', headers: { 'Content-Type': 'application/zip' }, body: new Uint8Array(bytes) }), adminId)
+  let session = await createBackupUpload({ size: bytes.length, fileName: 'backup.zip', lastModified: 0, fingerprint: digest(bytes) }, adminId)
+  while (session.offset < bytes.length) {
+    const chunk = bytes.subarray(session.offset, session.offset + session.chunkSize)
+    session = await appendBackupUpload(session.importId, adminId, new Request('http://localhost/import', { method: 'PATCH', headers: { 'Content-Type': 'application/octet-stream', 'Upload-Offset': String(session.offset), 'X-Chunk-SHA256': digest(chunk) }, body: new Uint8Array(chunk) }))
+  }
+  return completeBackupUpload(session.importId, adminId)
 }
 function request(path: string, options: { token?: string; method?: string; body?: unknown } = {}) {
   return new NextRequest(`http://localhost/api/admin/mm/backup/${path}`, { method: options.method ?? 'GET', headers: { ...(options.token ? { Cookie: `sv_session=${options.token}` } : {}), 'Content-Type': 'application/json' }, ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }) })
@@ -297,16 +308,6 @@ describe(`complete backups with isolated ${fixture.provider} and uploads`, () =>
     expect(await client.user.count()).toBe(3); expect(await readSessionToken(session.token)).not.toBeNull()
     expect(await readSessionToken(s.session.token)).toBeNull()
   })
-  it('rejects insert-mode user and configuration collisions before any business data changes', async () => {
-    await seed()
-    await client.systemConfig.create({ data: { configKey: 'test', configValue: 'old' } })
-    const backup = await exportDatabaseBackup(), before = await client.project.count()
-    await expect(importer.importDatabaseBackup(parseDatabaseImportPayload({ data: backup.data, version: backup.version, mode: 'insert' }))).rejects.toMatchObject({ status: 409 })
-    const configOnly = { ...backup, data: { ...backup.data, users: [], pointTransactions: [], membershipGrants: [], systemConfigs: backup.data.systemConfigs, projects: [], projectVersions: [], categories: [], noteInfos: [], noteContents: [], projectMenus: [], articles: [], fileReferences: [] } }
-    await expect(importer.importDatabaseBackup(parseDatabaseImportPayload({ data: configOnly.data, version: configOnly.version, mode: 'insert' }))).rejects.toMatchObject({ status: 409 })
-    expect(await client.project.count()).toBe(before)
-    expect((await client.systemConfig.findUniqueOrThrow({ where: { configKey: 'test' } })).configValue).toBe('old')
-  })
   it('rejects credentials that conflict with the protected administrator during preview', async () => {
     const s = await seed(), complete = await snapshot()
     const bytes = await editedBundle(complete, (database) => { database.data.users.find((user) => user.username === 'member')!.email = 'current@example.invalid' })
@@ -330,21 +331,33 @@ describe(`complete backups with isolated ${fixture.provider} and uploads`, () =>
     expect(await client.user.count()).toBe(2)
     expect(await fs.readFile(resolve(uploads(), 'other/proof.txt'), 'utf8')).toBe('data')
   })
-  it('requires all current-format collections and keeps old-format compatibility warnings', async () => {
+  it('requires every current collection and rejects older data versions', async () => {
     const s = await seed(), complete = await snapshot()
     const missing = await editedBundle(complete, (database) => { Reflect.deleteProperty(database.data, 'commissionEvents') })
     await expect(previewCompleteRestore(await uploaded(missing, s.admin.id), s.admin.id)).rejects.toMatchObject({ status: 400 })
     const old = await editedBundle(complete, (database) => { Reflect.set(database, 'version', '2.9.0'); Reflect.deleteProperty(database.data, 'commissionEvents') })
-    const preview = await previewCompleteRestore(await uploaded(old, s.admin.id), s.admin.id)
-    expect(preview.warnings).toContain('LEGACY_BACKUP_SCOPE')
+    await expect(previewCompleteRestore(await uploaded(old, s.admin.id), s.admin.id)).rejects.toMatchObject({ status: 400, data: { reason: 'BACKUP_UNSUPPORTED_FORMAT' } })
     expect(await client.article.count()).toBe(1)
+  })
+  it('reports standalone JSON, attachment ZIP and old complete ZIP as unsupported formats', async () => {
+    const s = await seed()
+    const sources = [
+      Buffer.from(JSON.stringify({ version: '2.12.0', data: { users: [] } })),
+      storedZip([{ name: 'other/proof.txt', content: Buffer.from('data') }]),
+      storedZip([{ name: 'manifest.json', content: Buffer.from(JSON.stringify({ formatVersion: 1, databaseVersion: '2.12.0' })) }]),
+    ]
+    for (const bytes of sources) {
+      await expect(previewCompleteRestore(await uploaded(bytes, s.admin.id), s.admin.id)).rejects.toMatchObject({ status: 400, data: { reason: 'BACKUP_UNSUPPORTED_FORMAT' } })
+    }
+    expect(await client.article.count()).toBe(1)
+    expect(await fs.readFile(resolve(uploads(), 'other/proof.txt'), 'utf8')).toBe('data')
   })
   it('rejects outer checksum tampering and frozen attachment hash mismatches without publishing a backup', async () => {
     const s = await seed(), complete = await snapshot()
     const damaged = await fs.readFile(artifactPath(complete.id))
     damaged[30 + damaged.readUInt16LE(26) + damaged.readUInt16LE(28)] ^= 1
     await expect(previewCompleteRestore(await uploaded(damaged, s.admin.id), s.admin.id)).rejects.toMatchObject({ status: 400 })
-    const corrupt = await editedBundle(complete, (_database, manifest) => { manifest.files[0].sha256 = '0'.repeat(64) })
+    const corrupt = await editedBundle(complete, (_database, _manifest, entries) => { const rows = entries.get('files.ndjson')!.toString().split('\n').filter(Boolean).map(line => JSON.parse(line)); rows.find(row => row.kind === 'file').sha256 = '0'.repeat(64); entries.set('files.ndjson', Buffer.from(rows.map(row => JSON.stringify(row) + '\n').join(''))) })
     await expect(previewCompleteRestore(await uploaded(corrupt, s.admin.id), s.admin.id)).rejects.toMatchObject({ status: 400 })
     const actor = { userId: s.admin.id, isAdmin: true }
     const order = await createCommission({ userId: s.user.id, isAdmin: false }, { commandId: randomUUID(), title: 'Frozen', purpose: 'Backup', requirements: 'Verify bytes' })
@@ -360,17 +373,17 @@ describe(`complete backups with isolated ${fixture.provider} and uploads`, () =>
     await expect(validateZipArchive(storedZip([{ name, content: Buffer.from('bad') }]))).rejects.toMatchObject({ status: 400 })
     expect(await fs.readFile(resolve(uploads(), 'other/proof.txt'), 'utf8')).toBe('data')
   })
-  it('rejects broken ZIP checksums, duplicate entries, entry count, extracted-size limits, and oversized complete uploads', async () => {
-    const s = await seed()
+  it('rejects broken ZIP checksums and duplicate entries while accepting large entry inventories', async () => {
+    await seed()
     const corrupt = storedZip([{ name: 'other/data.txt', content: Buffer.from('data') }]); corrupt[30 + Buffer.byteLength('other/data.txt')] ^= 1
     const archive = resolve(fixture.root, 'bad.zip'); await fs.writeFile(archive, corrupt)
     const staging = resolve(fixture.root, 'crc-check'); await fs.mkdir(staging)
     await expect(extractZipToStaging(await validateZipArchive(corrupt), staging)).rejects.toMatchObject({ status: 400 })
     await expect(readCompleteBundle(archive, resolve(fixture.root, 'bad'))).rejects.toMatchObject({ status: 400 })
     await expect(validateZipArchive(storedZip([{ name: 'same', content: Buffer.alloc(0) }, { name: 'SAME', content: Buffer.alloc(0) }]))).rejects.toMatchObject({ status: 400 })
-    await expect(validateZipArchive(storedZip(Array.from({ length: 10001 }, (_, index) => ({ name: String(index), content: Buffer.alloc(0) }))))).rejects.toMatchObject({ status: 400 })
-    await expect(validateZipArchive(storedZip(Array.from({ length: 5 }, (_, index) => ({ name: String(index), content: Buffer.alloc(0), declaredSize: ZIP_ENTRY_MAX_BYTES }))))).rejects.toMatchObject({ status: 400 })
-    await expect(uploadCompleteBackup(new Request('http://localhost/import', { method: 'POST', headers: { 'Content-Type': 'application/zip', 'Content-Length': String(COMPLETE_BACKUP_MAX_BYTES + 1) }, body: 'x' }), s.admin.id)).rejects.toMatchObject({ status: 413 })
+    expect(await validateZipArchive(storedZip(Array.from({ length: 10001 }, (_, index) => ({ name: String(index), content: Buffer.alloc(0) }))))).toHaveLength(10001)
+    const oversizedEntry = await validateZipArchive(storedZip([{ name: 'huge', content: Buffer.alloc(0), declaredSize: 257 * 1024 * 1024 }]))
+    await expect(extractZipToStaging(oversizedEntry, staging)).rejects.toMatchObject({ status: 400 })
   })
   it('refuses missing managed files and paths that cannot be restored, and leaves previous backups intact', async () => {
     const s = await seed(), old = await snapshot()
@@ -379,15 +392,15 @@ describe(`complete backups with isolated ${fixture.provider} and uploads`, () =>
     expect(job).toMatchObject({ status: 'failed', error: 'BACKUP_ATTACHMENT_MISMATCH' })
     expect(await fs.stat(artifactPath(old.id))).toBeDefined()
     await fs.writeFile(resolve(uploads(), 'C:bad.txt'), 'x')
-    await expect(collectFilesExportEntries()).rejects.toMatchObject({ status: 409 })
+    await expect((async () => { for await (const entry of walkBackupFiles()) void entry })()).rejects.toMatchObject({ status: 409 })
   })
-  it('rejects oversized sparse archives before parsing or extracting them', async () => {
+  it('rejects invalid sparse archives by their structure, without a total size cap', async () => {
     const path = resolve(fixture.root, 'oversized.zip')
     await fs.writeFile(path, '')
-    await fs.truncate(path, ZIP_FILE_MAX_BYTES + 1)
-    await expect(validateZipFile(path)).rejects.toMatchObject({ status: 413 })
-    await fs.truncate(path, COMPLETE_BACKUP_MAX_BYTES + 1)
-    await expect(readCompleteBundle(path, resolve(fixture.root, 'oversized'))).rejects.toMatchObject({ status: 413 })
+    await fs.truncate(path, 251 * 1024 * 1024)
+    await expect(validateZipFile(path)).rejects.toMatchObject({ status: 400 })
+    await fs.truncate(path, 321 * 1024 * 1024)
+    await expect(readCompleteBundle(path, resolve(fixture.root, 'oversized'))).rejects.toMatchObject({ status: 400 })
   })
   it('rolls back files and database when the database transaction fails after importing records', async () => {
     const s = await seed(), complete = await snapshot(), preview = await previewCompleteRestore({ snapshotId: complete.id }, s.admin.id)
@@ -582,11 +595,11 @@ describe('administrator backup API boundaries', () => {
     const calls = [
       settingsGet(request('settings'), ctx), settingsPut(request('settings', { method: 'PUT', body: {} }), ctx),
       historyGet(request('snapshots'), ctx), snapshotPost(request('snapshots', { method: 'POST', body: {} }), ctx),
-      downloadGet(request('download'), idCtx), snapshotDelete(request('snapshot', { method: 'DELETE', body: {} }), idCtx),
+      downloadGet(request('download'), idCtx), downloadHead(request('download', { method: 'HEAD' }), idCtx), uploadGet(request('imports'), idCtx), uploadPatch(request('imports', { method: 'PATCH' }), idCtx), uploadDelete(request('imports', { method: 'DELETE' }), idCtx), uploadCompletePost(request('imports/complete', { method: 'POST' }), idCtx), snapshotDelete(request('snapshot', { method: 'DELETE', body: {} }), idCtx),
       uploadPost(request('imports', { method: 'POST', body: {} }), ctx), previewPost(request('preview', { method: 'POST', body: {} }), ctx),
       restorePost(request('restore', { method: 'POST', body: {} }), ctx), jobGet(request('job'), idCtx),
     ]
-    expect((await Promise.all(calls)).map((response) => response.status)).toEqual(Array(10).fill(401))
+    expect((await Promise.all(calls)).map((response) => response.status)).toEqual(Array(15).fill(401))
     expect((await historyGet(request('snapshots', { token: s.otherSession.token }), ctx)).status).toBe(401)
   })
   it('returns queued jobs before after() starts work, polls status while the state lock is held, and downloads native ZIP data', async () => {
@@ -606,14 +619,68 @@ describe('administrator backup API boundaries', () => {
     expect(digest(Buffer.from(await download.arrayBuffer()))).toBe(await sha256File(artifactPath(job.id)))
     expect((await downloadGet(request('download', { token: s.session.token }), context('../config'))).status).toBe(400)
   })
-  it('requires typed restore confirmation and rejects legacy destructive actions while a complete task is reserved', async () => {
+  it('requires typed restore confirmation and blocks reset while a complete task is reserved', async () => {
     const s = await seed(), ctx = { params: Promise.resolve({}) }
     const response = await restorePost(request('restores', { method: 'POST', token: s.session.token, body: { previewId: randomUUID(), confirm: 'yes' } }), ctx)
     expect(response.status).toBe(400); expect(fixture.after).toHaveLength(0)
     const job = await queueCompleteBackup(s.admin.id)
-    const responses = await Promise.all([legacyImportPost(request('database-import', { method: 'POST', token: s.session.token, body: {} }), ctx), legacyFilesPost(request('files-import', { method: 'POST', token: s.session.token, body: {} }), ctx), resetPost(request('system-reset', { method: 'POST', token: s.session.token, body: { confirm: 'RESET_ALL_DATA' } }), ctx)])
-    expect(responses.map((item) => item.status)).toEqual([409, 409, 409])
+    const responseWhileBusy = await resetPost(request('system-reset', { method: 'POST', token: s.session.token, body: { confirm: 'RESET_ALL_DATA' } }), ctx)
+    expect(responseWhileBusy.status).toBe(409)
     releaseBackupJob(job.id)
     expect(await client.article.count()).toBe(1)
+  })
+})
+
+describe('resumable backup HTTP protocol', () => {
+  it('serves correct ranges, ETags, HEAD metadata and releases references after cancellation', async () => {
+    const s = await seed(), complete = await snapshot(), ctx = context(complete.id)
+    const file = await fs.readFile(artifactPath(complete.id)), etag = `"${complete.sha256}"`
+    const download = (headers: Record<string,string>) => downloadGet(new NextRequest('http://localhost/download', { headers: { Cookie: `sv_session=${s.session.token}`, ...headers } }), ctx)
+    const head = await downloadHead(request('download', { method: 'HEAD', token: s.session.token }), ctx)
+    expect(head.status).toBe(200); expect(head.headers.get('etag')).toBe(etag)
+    expect(head.headers.get('accept-ranges')).toBe('bytes'); expect(head.headers.get('content-length')).toBe(String(file.length))
+    expect(await head.text()).toBe(''); expect(sourceIsPinned(complete.id)).toBe(false)
+    const range = await download({ Range: 'bytes=10-99', 'If-Range': etag })
+    expect(range.status).toBe(206); expect(range.headers.get('content-range')).toBe(`bytes 10-99/${file.length}`)
+    expect(Buffer.from(await range.arrayBuffer())).toEqual(file.subarray(10,100))
+    const suffix = await download({ Range: 'bytes=-32' })
+    expect(suffix.status).toBe(206); expect(Buffer.from(await suffix.arrayBuffer())).toEqual(file.subarray(-32))
+    const end = await download({ Range: `bytes=${file.length-7}-` })
+    expect(Buffer.from(await end.arrayBuffer())).toEqual(file.subarray(-7))
+    const unavailable = await download({ Range: `bytes=${file.length}-` })
+    expect(unavailable.status).toBe(416); expect(unavailable.headers.get('content-range')).toBe(`bytes */${file.length}`)
+    const changed = await download({ Range: 'bytes=0-5', 'If-Range': '"different"' })
+    expect(changed.status).toBe(200); expect(Buffer.from(await changed.arrayBuffer())).toEqual(file)
+    const multiple = await download({ Range: 'bytes=0-1,5-6' })
+    expect(multiple.status).toBe(200); await multiple.body!.cancel()
+    const canceled = await download({})
+    expect(sourceIsPinned(complete.id)).toBe(true); await canceled.body!.cancel()
+    await expect.poll(() => sourceIsPinned(complete.id)).toBe(false)
+  })
+  it('creates an upload by JSON, accepts binary slices, and queues preflight without blocking the request', async () => {
+    const s = await seed(), complete = await snapshot(), bytes = await fs.readFile(artifactPath(complete.id)), ctx = { params: Promise.resolve({}) }
+    const created = await uploadPost(request('imports', { token: s.session.token, method: 'POST', body: { size: bytes.length, fileName: 'backup.zip', lastModified: 0, fingerprint: digest(bytes) } }), ctx)
+    expect(created.status).toBe(201)
+    const session = (await created.json()).data
+    const binary = new NextRequest('http://localhost/chunk', { method: 'PATCH', headers: { Cookie: `sv_session=${s.session.token}`, 'Content-Type': 'application/octet-stream', 'Upload-Offset': '0', 'X-Chunk-SHA256': digest(bytes) }, body: new Uint8Array(bytes) })
+    const appended = await uploadPatch(binary, context(session.importId)); expect(appended.status).toBe(200)
+    expect((await appended.json()).data.offset).toBe(bytes.length)
+    expect((await uploadCompletePost(request('complete', { method: 'POST', token: s.session.token }), context(session.importId))).status).toBe(200)
+    const accepted = await previewPost(request('preview', { method: 'POST', token: s.session.token, body: { importId: session.importId } }), ctx)
+    expect(accepted.status).toBe(202)
+    const job = (await accepted.json()).data; expect(job.kind).toBe('preview'); expect(job.status).toBe('queued')
+    expect(fixture.after).toHaveLength(1); await fixture.after[0]()
+    const finished = await getBackupJob(job.id)
+    expect(finished.status).toBe('succeeded'); expect(finished.preview?.manifest.formatVersion).toBe(2)
+    expect(finished.progress?.processedRecords).toBeGreaterThan(0)
+  })
+  it('keeps old snapshot artifacts and omits file inventories from history', async () => {
+    await seed(); const complete = await snapshot()
+    await atomicJson(recordPath('snapshots',complete.id), { ...complete, manifest: { formatVersion: 1, counts: { users: 2 }, files: [{ path: 'old', size: 4, sha256: 'a'.repeat(64) }] } })
+    const history = await backupHistory()
+    expect(history.snapshots[0].restorable).toBe(false)
+    expect(history.snapshots[0].manifest.fileCount).toBe(1)
+    expect(history.snapshots[0].manifest).not.toHaveProperty('files')
+    expect((await fs.stat(artifactPath(complete.id))).size).toBe(complete.size)
   })
 })

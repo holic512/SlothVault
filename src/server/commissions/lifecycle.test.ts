@@ -24,7 +24,9 @@ import { assertDocumentSnapshot, createCommissionDocument } from './documents'
 import { listContractTemplates } from './templates'
 import { uploadCommissionFile, downloadCommissionFile } from './files'
 import { upgradeCommissionLifecycle } from './upgrade'
-import { exportDatabaseBackup, importDatabaseBackup, parseDatabaseImportPayload } from '@/server/services/admin-backup'
+import { exportDatabaseBackup } from '@/server/services/admin-backup/database-export'
+import { importDatabaseBackup } from '@/server/services/admin-backup/database-import'
+import { parseDatabaseImportPayload } from '@/server/services/admin-backup/database-validation'
 import { completeAgreementValues, seedSignedLegacyContract } from './test-fixtures'
 import type { CommissionDetail } from '@/types/commissions'
 const admin: CommissionActor = { userId: 1, isAdmin: true, sessionId: '00000000-0000-4000-8000-000000000001' }, customer: CommissionActor = { userId: 2, isAdmin: false }, other: CommissionActor = { userId: 3, isAdmin: false }
@@ -89,14 +91,13 @@ describe('private commission lifecycle with real SQLite transactions', () => {
     await command({ action: 'delivery.create', version: 'v1', kind: 'FINAL', note: '', testInstructions: '运行应用', items: [{ fileId: Number(d.files[0].id), label: '源码', versionNote: 'v1' }] })
     await command({ action: 'delivery.publish', id: Number(d.deliveries[0].id) })
     await saveCommissionSettings({ provider: { Name: '开发方' }, calendar: { holidays: ['2026-10-09'], workdays: [] } }); expect((await getCommissionSettings()).provider.Name).toBe('开发方')
-    const backup = await exportDatabaseBackup(); expect(backup.version).toBe('2.12.0')
+    const backup = await exportDatabaseBackup(); expect(backup.version).toBe('2.13.0')
     const payload = parseDatabaseImportPayload({ version: backup.version, data: backup.data, mode: 'overwrite' })
     await importDatabaseBackup(payload)
     const restored = await fixture.client.commission.findUniqueOrThrow({ where: { commissionId: d.commissionId } }); expect(restored.id).not.toBe(Number(d.id))
     const detail = await getCommission(restored.id, admin); expect(detail.documents[0].bodyHash).toBe(d.documents[0].bodyHash)
     expect(await (await downloadCommissionFile(restored.id, Number(detail.files[0].id), customer)).text()).toBe('archive bytes')
-    const legacy = parseDatabaseImportPayload({ version: '2.8.0', data: { ...backup.data, commissionTemplates: [], commissionTemplateVersions: [], commissionSettings: [], commissions: [], commissionMilestones: [], commissionPlans: [], commissionFiles: [], commissionChanges: [], commissionDeliveries: [], commissionDeliveryItems: [], commissionPayments: [], commissionIssues: [], commissionAcceptances: [], commissionEvents: [], contracts: [{ malformed: true }], contractCredentials: [{ malformed: true }] } })
-    expect(legacy.ignoredLegacyContracts).toBe(1); expect(legacy.data.contracts).toEqual([])
+    expect(() => parseDatabaseImportPayload({ version: '2.8.0', mode: 'overwrite', data: backup.data })).toThrow()
   })
   it('rejects byte drift and published manifest edits, while allowing draft correction', async () => {
     const f = await upload('version.txt', 'DELIVERY', 'original')
@@ -123,11 +124,11 @@ describe('private commission lifecycle with real SQLite transactions', () => {
     const second = await createCommission(other, { commandId: randomUUID(), title: '另一个客户', purpose: '独立用途', requirements: '独立需求' })
     const backup = await exportDatabaseBackup(), data = structuredClone(backup.data)
     data.commissionIssues.push({ id: '1000', commissionId: second.id, deliveryId: null, createdById: '3', title: '跨项目引用', kind: 'BUG', severity: 'GENERAL', status: 'OPEN', steps: 'step', expected: 'expected', actual: 'actual', resolution: '', fileIdsJson: JSON.stringify([Number(owned.id)]), dueAt: null, createdAt: new Date().toISOString(), resolvedAt: null })
-    expect(() => parseDatabaseImportPayload({ version: '2.9.0', data })).toThrow('boundaries')
+    expect(() => parseDatabaseImportPayload({ version: '2.13.0', mode: 'overwrite', data })).toThrow('boundaries')
     const stored = await fixture.client.contract.findUniqueOrThrow({ where: { id: Number(d.documents[0].id) } }), modified = structuredClone(backup.data)
     modified.contracts[0].snapshotJson += ' '
-    expect(() => parseDatabaseImportPayload({ version: '2.9.0', data: modified })).toThrow('快照校验失败')
-    const parsed = parseDatabaseImportPayload({ version: '2.9.0', data: backup.data, mode: 'overwrite' })
+    expect(() => parseDatabaseImportPayload({ version: '2.13.0', mode: 'overwrite', data: modified })).toThrow('快照校验失败')
+    const parsed = parseDatabaseImportPayload({ version: '2.13.0', data: backup.data, mode: 'overwrite' })
     await importDatabaseBackup(parsed)
     const restored = await fixture.client.contract.findUniqueOrThrow({ where: { contractId: stored.contractId } })
     expect(restored.contractHash).toBe(stored.contractHash); expect(restored.snapshotHash).toBe(stored.snapshotHash)

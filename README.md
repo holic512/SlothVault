@@ -214,6 +214,7 @@ flowchart LR
 | --- | --- |
 | `APP_DATA_PATH` | 应用配置和本地数据库目录；本地默认 `<cwd>/data`，容器默认 `/app/data`。 |
 | `UPLOAD_STORAGE_PATH` | 受控上传目录；本地默认 `<cwd>/data/uploads`，容器默认 `/app/data/uploads`。 |
+| `BACKUP_DATABASE_TRANSACTION_TIMEOUT_MS` | 数据库备份/恢复事务超时，默认 3,600,000 毫秒（1 小时）；不包含压缩、传输和预检时间。 |
 | `BACKUP_STORAGE_PATH` | 完整备份的独立本地存储目录；默认 `${APP_DATA_PATH}/backups`，可挂载独立磁盘。 |
 | `ENCRYPTION_KEY` | 配置加密主密钥；未提供时系统会在配置目录生成持久化密钥。 |
 | `SOLANA_RPC_URL` | Mainnet 主 RPC 的环境回退值；可在后台 RPC 节点设置中查看、修改并测试已保存的地址。 |
@@ -230,7 +231,7 @@ flowchart LR
 
 [Skill](./integrations/skill/) 与 [Deployment](./integrations/deployment/) 继续以 `skill-v*`、`deployment-v*` 独立发布，归档和清单含版本、桥主版本及 SHA-256。Skill 1.2.0 使用宿主已发现工具；SlothTool skill install/update 可直接同步受管链接。Deployment 1.0.0 保持独立部署脚本、JSON 行桥和应用更新能力。原生接入无需专用 Python 包或 SlothTool；SlothTool 不参与 MCP 连接、发现或 Tool 调用。历史迁移与数据保留见 [集成架构的迁移说明](./integrations/ARCHITECTURE.md#退役和本地遗留数据)。应用版本和独立包版本分别准备。
 
-上传文件不进入 `public/`。后台提供包含数据库与附件的完整 ZIP、恢复预检、恢复前保护备份和任务历史，保留回收站、停用文件、会员权限及委托/合同/发布存证。自动备份默认关闭；手动开启后默认每天 `Asia/Shanghai` 时间 03:00 执行，保留 7 份成功自动备份。数据库 JSON 与上传 ZIP 仍可独立操作。备份包含账户、密码哈希、个人资料、积分和卡密哈希，应按敏感数据管理；部署、覆盖范围、账号保留规则及中断恢复见 [本地完整备份与恢复](./docs/BACKUP_AND_RESTORE.md)。
+上传文件不进入 `public/`。后台提供包含数据库与附件的完整 ZIP、恢复预检、恢复前保护备份和任务历史，保留回收站、停用文件、会员权限及委托/合同/发布存证。自动备份默认关闭；手动开启后默认每天 `Asia/Shanghai` 时间 03:00 执行，保留 7 份成功自动备份。统一使用当前格式的 ZIP64 完整备份，数据库按 100 条分页写出 NDJSON；取消备份总量与附件大小上限，上传支持 8 MiB 分片续传，下载支持 HTTP Range。旧格式不再恢复，原有备份文件保留。备份包含账户、密码哈希、个人资料、积分和卡密哈希，应按敏感数据管理；部署、覆盖范围、账号保留规则及中断恢复见 [本地完整备份与恢复](./docs/BACKUP_AND_RESTORE.md)。
 
 ## 项目结构
 

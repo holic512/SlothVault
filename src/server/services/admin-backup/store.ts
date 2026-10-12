@@ -92,10 +92,10 @@ export async function atomicJson(path: string, value: unknown) {
     try { await directory.sync() } finally { await directory.close() }
   } finally { await rm(temporary, { force: true }) }
 }
-export async function readJson<T>(path: string): Promise<T | null> {
+export async function readJson<T>(path: string, maxBytes = BACKUP_MANIFEST_MAX_BYTES): Promise<T | null> {
   try {
     const info = await lstat(path)
-    if (!info.isFile() || info.size > BACKUP_MANIFEST_MAX_BYTES) throw new HttpError('Invalid backup control record', 503, 503)
+    if (!info.isFile() || info.size > maxBytes) throw new HttpError('Invalid backup control record', 503, 503)
     return JSON.parse(await readFile(path, 'utf8')) as T
   } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null; throw error }
 }
@@ -171,7 +171,7 @@ export async function getBackupSnapshot(id: string) {
     if (error.code === 'ENOENT' || error.code === 'ENOTDIR') throw new HttpError('Backup artifact is unavailable', 409, 409)
     throw error
   })
-  if (!info.isFile() || info.size !== snapshot.size) throw new HttpError('Backup artifact is unavailable', 409, 409)
+  if (!info.isFile() || info.isSymbolicLink() || info.size !== snapshot.size) throw new HttpError('Backup artifact is unavailable', 409, 409)
   return snapshot
 }
 export async function storageStatus() {
@@ -186,7 +186,7 @@ export function backupErrorCode(error: unknown) {
   if (error instanceof HttpError) {
     const reason = (error.data as { reason?: string } | null)?.reason
     if (reason && /^[A-Z_]{1,80}$/.test(reason)) return reason
-    if (error.status === 413) return 'BACKUP_TOO_LARGE'
+    if (error.status === 413) return 'BACKUP_INVALID'
     if (error.status === 400 || error.status === 409) return 'BACKUP_INVALID'
   }
   return 'BACKUP_FAILED'

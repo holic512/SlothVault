@@ -16,9 +16,10 @@ import { getDatabaseClient } from '@/server/database/client'
 import { UPLOAD_ROOT } from '@/server/services/admin-files'
 import { HttpError } from '@/server/http/errors'
 import type { BackupJob } from '@/types/backup'
-import { RESTORE_COMMIT_CONFIG_KEY, ZIP_ENTRY_LIMIT } from './constants'
-import { collectStorageTree, ensureUploadRoot, lstatOrNull, resolveWithin, visibleRootNames } from './files-common'
+import { RESTORE_COMMIT_CONFIG_KEY } from './constants'
+import { ensureUploadRoot, lstatOrNull, resolveWithin, visibleRootNames } from './files-common'
 import { atomicJson, backupStatePath, readJson, recordPath } from './store'
+import { walkBackupFiles } from './archive'
 import { setBackupRecoveryError } from './recovery-state'
 
 const name = z.string().min(1).max(1024).refine((value) => !value.startsWith('.') && !/[\/\\\0]/.test(value))
@@ -26,14 +27,14 @@ const journalSchema = z.object({
   jobId: z.string().uuid(),
   stage: z.string().regex(/^\.complete-restore-[a-f0-9-]{36}$/),
   rollback: z.string().regex(/^\.complete-rollback-[a-f0-9-]{36}$/),
-  oldNames: z.array(name).max(ZIP_ENTRY_LIMIT), newNames: z.array(name).max(ZIP_ENTRY_LIMIT),
+  oldNames: z.array(name), newNames: z.array(name),
   resolution: z.enum(['pending', 'committed', 'rolledBack']),
 }).strict().refine((journal) => journal.stage === `.complete-restore-${journal.jobId}` && journal.rollback === `.complete-rollback-${journal.jobId}` &&
   new Set(journal.oldNames).size === journal.oldNames.length && new Set(journal.newNames).size === journal.newNames.length)
 export type RestoreJournal = z.infer<typeof journalSchema>
 export function restoreJournalPath() { return resolve(backupStatePath(), 'restore.json') }
 export async function readRestoreJournal() {
-  const value = await readJson(restoreJournalPath())
+  const value = await readJson(restoreJournalPath(), Infinity)
   return value === null ? null : journalSchema.parse(value)
 }
 export async function syncDirectory(path: string) {
@@ -55,12 +56,10 @@ export async function prepareRestoreJournal(jobId: string, stagedUploads: string
   journalSchema.parse(journal)
   const stage = resolveWithin(UPLOAD_ROOT, journal.stage), rollback = resolveWithin(UPLOAD_ROOT, journal.rollback)
   if (await lstatOrNull(stage) || await lstatOrNull(rollback)) throw new HttpError('Restore staging conflicts with existing files', 409, 409)
-  const entries = await collectStorageTree(stagedUploads)
-  for (const entry of entries.filter((entry) => entry.kind === 'file')) {
+  for await (const entry of walkBackupFiles(stagedUploads, stagedUploads, true)) {
     const handle = await open(entry.absolutePath, 'r')
     try { await handle.sync() } finally { await handle.close() }
   }
-  for (const entry of entries.filter((entry) => entry.kind === 'directory').toReversed()) await syncDirectory(entry.absolutePath)
   await syncDirectory(stagedUploads)
   // Caller extracts beneath UPLOAD_ROOT so this rename cannot cross a filesystem.
   try {

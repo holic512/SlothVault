@@ -3,16 +3,17 @@
  * @project SlothVault
  * @module Backup Account Policy
  * @description Preflights account uniqueness and preserves the restoring administrator's credentials.
- * @logic Reject insert collisions, identify the administrator through database equality, and reset other authentication state inside the restore transaction.
+ * @logic Verify source credentials, identify the administrator through database equality, and reset other authentication state inside the restore transaction.
  * @dependencies Prisma transaction client, database provider, portable backup schema, HTTP errors
  * @index_tags backup,restore,accounts,credentials,preflight
  * @author holic512
  */
 import 'server-only'
+import { randomUUID } from 'node:crypto'
+import { backupSet } from './record-store'
 import type { Prisma } from '@generated/prisma-postgresql/client'
 import { configuredDatabaseProvider } from '@/server/database/client'
 import { HttpError } from '@/server/http/errors'
-import { DEPRECATED_CONFIG_KEYS } from './constants'
 import type { DatabaseImportPayload } from './database-schema'
 
 export type DatabaseRestoreOptions = {
@@ -40,16 +41,18 @@ async function inspectSourceCredentials(tx: Prisma.TransactionClient, payload: D
     if (!column || !/^[a-zA-Z0-9_]+$/.test(column.charset) || !/^[a-zA-Z0-9_]+$/.test(column.collation)) {
       throw new HttpError('Account collation cannot be verified', 409, 409, { reason: 'BACKUP_INVALID' })
     }
-    // Only server metadata supplies identifiers; every backup value remains a bound parameter.
-    // The database applies case, accent and trailing-space equality exactly as its unique index does.
-    const duplicates = await tx.$queryRawUnsafe<Array<{ duplicateKey: number }>>(`
-      SELECT 1 AS duplicateKey
-      FROM JSON_TABLE(?, '$[*]' COLUMNS (
-        value VARCHAR(255) CHARACTER SET ${column.charset} COLLATE ${column.collation} PATH '$' ERROR ON ERROR
-      )) AS backup_credentials
-      GROUP BY value HAVING COUNT(*) > 1 LIMIT 1
-    `, JSON.stringify(values))
-    if (duplicates.length) conflict()
+    const table = `sv_backup_credentials_${randomUUID().replaceAll('-', '')}`
+    // Identifiers come only from server metadata; all credential values are bound parameters.
+    await tx.$executeRawUnsafe(`CREATE TEMPORARY TABLE ${table} (value VARCHAR(255) CHARACTER SET ${column.charset} COLLATE ${column.collation})`)
+    try {
+      let batch: string[] = []
+      const write = async () => { if (batch.length) await tx.$executeRawUnsafe(`INSERT INTO ${table}(value) VALUES ${batch.map(() => '(?)').join(',')}`, ...batch); batch = [] }
+      for (const value of values) { batch.push(value); if (batch.length === 100) await write() }
+      await write()
+      const duplicates = await tx.$queryRawUnsafe<Array<{ duplicateKey: number }>>(`SELECT 1 AS duplicateKey FROM ${table} GROUP BY value HAVING COUNT(*) > 1 LIMIT 1`)
+      if (duplicates.length) conflict()
+    } finally { await tx.$executeRawUnsafe(`DROP TEMPORARY TABLE ${table}`) }
+
   }
 }
 
@@ -59,23 +62,17 @@ export async function inspectImportAccounts(tx: Prisma.TransactionClient, payloa
     : await tx.user.findUnique({ where: { id: options.actorUserId } })
   if (!admin || admin.role !== 'ADMIN' || admin.status !== 1) throw new HttpError('Active administrator not found', 409, 409)
   await inspectSourceCredentials(tx, payload)
-  const keys = payload.data.systemConfigs.filter((item) => !DEPRECATED_CONFIG_KEYS.has(item.configKey)).map((item) => item.configKey)
-  if (payload.mode === 'insert' && keys.length && await tx.systemConfig.findFirst({ where: { configKey: { in: keys } } })) conflict()
-
+  const retainedUserIds = backupSet(payload.data.users)
   let preservedSourceId: string | undefined
   for (const user of payload.data.users) {
     const existing = await tx.user.findUnique({ where: { username: user.username } })
-    if (payload.mode === 'insert') {
-      if (existing || await tx.user.findFirst({ where: { OR: [
-        ...(user.email !== null ? [{ email: user.email }] : []),
-        ...(user.walletAddress !== null ? [{ walletAddress: user.walletAddress }] : []),
-      ] } })) conflict()
-    } else if (existing?.id === admin.id) {
+    if (existing) retainedUserIds.add(String(existing.id))
+    if (existing?.id === admin.id) {
       if (preservedSourceId !== undefined) conflict()
       preservedSourceId = user.id
     }
   }
-  if (payload.mode === 'overwrite') {
+  {
     for (const user of payload.data.users) {
       if (user.id === preservedSourceId) continue
       // Let the provider apply its own collation when comparing unique credentials.
@@ -85,16 +82,21 @@ export async function inspectImportAccounts(tx: Prisma.TransactionClient, payloa
       ] } })) conflict()
     }
   }
-  return { admin, preservedSourceId }
+  return { admin, preservedSourceId, retainedUserIds }
 }
 
 export async function prepareRestoreAccounts(tx: Prisma.TransactionClient, payload: DatabaseImportPayload, policy: Awaited<ReturnType<typeof inspectImportAccounts>>, options: DatabaseRestoreOptions) {
-  if (payload.mode !== 'overwrite') return
   const { admin } = policy
-  if (options.replaceUsers) {
-    await tx.user.deleteMany({ where: { id: { not: admin.id }, username: { notIn: payload.data.users.map((user) => user.username) } } })
+  let after = 0
+  while (true) {
+    const users = await tx.user.findMany({ where: { id: { gt: after, not: admin.id } }, orderBy: { id: 'asc' }, take: 100, select: { id: true } })
+    if (!users.length) break
+    after = users[users.length - 1].id
+    const retained = users.filter(user => policy.retainedUserIds.has(String(user.id))).map(user => user.id)
+    const removed = users.filter(user => !policy.retainedUserIds.has(String(user.id))).map(user => user.id)
+    if (options.replaceUsers && removed.length) await tx.user.deleteMany({ where: { id: { in: removed } } })
+    if (retained.length) await tx.user.updateMany({ where: { id: { in: retained } }, data: { email: null, walletAddress: null } })
   }
-  await tx.user.updateMany({ where: { id: { not: admin.id }, username: { in: payload.data.users.map((user) => user.username) } }, data: { email: null, walletAddress: null } })
   await tx.session.updateMany({
     where: options.preserveSessionId ? { id: { not: options.preserveSessionId }, revokedAt: null } : { userId: { not: admin.id }, revokedAt: null },
     data: { revokedAt: new Date() },

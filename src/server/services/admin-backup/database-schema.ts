@@ -2,8 +2,8 @@
  * @file database-schema.ts
  * @project SlothVault
  * @module Admin Database Backup Schema
- * @description Defines the portable 2.13 database-backup shape with membership entitlements, independent articles, contracts, project-version evidence, and legacy cNFT input compatibility.
- * @logic Validate active collections strictly, retain v3 publication snapshots, note tags, member access and standalone blog content, accept deprecated Tree/cNFT arrays only for ignore accounting, and retain prior import envelopes.
+ * @description Defines the portable 2.13 database-backup shape with membership entitlements, independent articles, contracts, project-version evidence, and current business records.
+ * @logic Validate active collections strictly, retain v3 publication snapshots, note tags, member access and standalone blog content, require the current data version and full overwrite restoration.
  * @dependencies Zod, Node path rules, backup constants
  * @index_tags admin,backup,database,schema,zod,portable
  * @author holic512
@@ -18,7 +18,6 @@ import { commissionBackupShape } from '@/server/commissions/backup'
 
 import {
   DATABASE_BIGINT_MAX,
-  DATABASE_RECORD_LIMIT,
   INT_MAX,
   INT_MIN,
   SMALL_INT_MAX,
@@ -340,55 +339,6 @@ const systemHomepageSchema = z.object({
   isDeleted: z.boolean(),
 }).strict()
 
-const merkleTreeSchema = z.object({
-  id: idStringSchema,
-  name: limitedString(128),
-  treeAddress: nonEmptyString(64),
-  treeAuthority: limitedString(64),
-  encryptedKey: z.string(),
-  creatorAddress: limitedString(64),
-  maxDepth: smallIntSchema,
-  maxBufferSize: smallIntSchema,
-  canopyDepth: smallIntSchema,
-  network: z.enum(['mainnet', 'devnet']),
-  totalMinted: intSchema,
-  maxCapacity: bigintStringSchema,
-  remainingCapacity: bigintStringSchema.optional(),
-  capacityRevision: intSchema.nonnegative().optional(),
-  creationCost: bigintStringSchema,
-  txSignature: nullableString(128),
-  priority: intSchema,
-  status: z.union([z.literal(-1), z.literal(0), z.literal(1), z.literal(2)]),
-  createdAt: dateStringSchema,
-  updatedAt: dateStringSchema,
-  isDeleted: z.boolean(),
-}).strict()
-
-const compressedNftSchema = z.object({
-  id: idStringSchema,
-  merkleTreeId: idStringSchema,
-  projectId: idStringSchema,
-  noteInfoId: nullableIdStringSchema.optional(),
-  copyrightOwnerId: nullableIdStringSchema.optional(),
-  assetId: nonEmptyString(64),
-  leafIndex: intSchema,
-  name: limitedString(128),
-  symbol: nullableString(32),
-  description: z.string().nullable(),
-  metadataUri: nullableString(500),
-  imageCid: nullableString(128),
-  metadataCid: nullableString(128),
-  originalImageId: nullableIdStringSchema,
-  ownerAddress: limitedString(64),
-  mintTxSignature: nullableString(128),
-  prepareExpiresAt: dateStringSchema.nullable().optional(),
-  lastValidBlockHeight: bigintStringSchema.nullable().optional(),
-  capacityReserved: z.boolean().optional(),
-  status: z.union([z.literal(-1), z.literal(0), z.literal(1)]),
-  createdAt: dateStringSchema,
-  updatedAt: dateStringSchema,
-}).strict()
-
 const releaseCredentialSchema = z.object({
   id: idStringSchema,
   projectVersionId: idStringSchema,
@@ -524,39 +474,36 @@ const fileReferenceSchema = z.object({
 
 export const backupDataSchema = z.object({
   ...commissionBackupShape,
-  users: z.array(userSchema).max(DATABASE_RECORD_LIMIT).default([]),
-  pointTransactions: z.array(pointTransactionSchema).max(DATABASE_RECORD_LIMIT).default([]),
-  giftCardBatches: z.array(giftCardBatchSchema).max(DATABASE_RECORD_LIMIT).default([]),
-  giftCards: z.array(giftCardSchema).max(DATABASE_RECORD_LIMIT).default([]),
-  membershipLevels: z.array(membershipLevelSchema).max(DATABASE_RECORD_LIMIT).optional().default([]),
-  membershipGrants: z.array(membershipGrantSchema).max(DATABASE_RECORD_LIMIT).optional().default([]),
-  articles: z.array(articleSchema).max(DATABASE_RECORD_LIMIT).optional().default([]),
-  projects: z.array(projectSchema).max(DATABASE_RECORD_LIMIT),
-  projectVersions: z.array(projectVersionSchema).max(DATABASE_RECORD_LIMIT),
-  categories: z.array(categorySchema).max(DATABASE_RECORD_LIMIT),
-  projectMenus: z.array(projectMenuSchema).max(DATABASE_RECORD_LIMIT),
-  projectHomes: z.array(projectHomeSchema).max(DATABASE_RECORD_LIMIT),
-  noteInfos: z.array(noteInfoSchema).max(DATABASE_RECORD_LIMIT),
-  noteContents: z.array(noteContentSchema).max(DATABASE_RECORD_LIMIT),
-  fileReferences: z.array(fileReferenceSchema).max(DATABASE_RECORD_LIMIT).optional().default([]),
-  fileManagements: z.array(fileManagementSchema).max(DATABASE_RECORD_LIMIT),
-  systemConfigs: z.array(systemConfigSchema).max(DATABASE_RECORD_LIMIT),
-  systemHomepages: z.array(systemHomepageSchema).max(DATABASE_RECORD_LIMIT),
-  contracts: z.array(contractSchema).max(DATABASE_RECORD_LIMIT).default([]),
-  contractAdminAudits: z.array(contractAdminAuditSchema).max(DATABASE_RECORD_LIMIT).default([]),
-  contractCredentials: z.array(contractCredentialSchema).max(DATABASE_RECORD_LIMIT).default([]),
-  contractCredentialAttempts: z.array(contractCredentialAttemptSchema).max(DATABASE_RECORD_LIMIT).default([]),
-  releaseCredentials: z.array(releaseCredentialSchema).max(DATABASE_RECORD_LIMIT).default([]),
-  releaseCredentialAttempts: z.array(releaseCredentialAttemptSchema).max(DATABASE_RECORD_LIMIT).default([]),
-  merkleTrees: z.array(merkleTreeSchema).max(DATABASE_RECORD_LIMIT).optional().default([]),
-  compressedNfts: z.array(compressedNftSchema).max(DATABASE_RECORD_LIMIT).optional().default([]),
+  users: z.array(userSchema).default([]),
+  pointTransactions: z.array(pointTransactionSchema).default([]),
+  giftCardBatches: z.array(giftCardBatchSchema).default([]),
+  giftCards: z.array(giftCardSchema).default([]),
+  membershipLevels: z.array(membershipLevelSchema).optional().default([]),
+  membershipGrants: z.array(membershipGrantSchema).optional().default([]),
+  articles: z.array(articleSchema).optional().default([]),
+  projects: z.array(projectSchema),
+  projectVersions: z.array(projectVersionSchema),
+  categories: z.array(categorySchema),
+  projectMenus: z.array(projectMenuSchema),
+  projectHomes: z.array(projectHomeSchema),
+  noteInfos: z.array(noteInfoSchema),
+  noteContents: z.array(noteContentSchema),
+  fileReferences: z.array(fileReferenceSchema).optional().default([]),
+  fileManagements: z.array(fileManagementSchema),
+  systemConfigs: z.array(systemConfigSchema),
+  systemHomepages: z.array(systemHomepageSchema),
+  contracts: z.array(contractSchema).default([]),
+  contractAdminAudits: z.array(contractAdminAuditSchema).default([]),
+  contractCredentials: z.array(contractCredentialSchema).default([]),
+  contractCredentialAttempts: z.array(contractCredentialAttemptSchema).default([]),
+  releaseCredentials: z.array(releaseCredentialSchema).default([]),
+  releaseCredentialAttempts: z.array(releaseCredentialAttemptSchema).default([]),
 }).strict()
 
 export const databaseImportPayloadSchema = z.object({
   data: backupDataSchema,
-  mode: z.enum(['insert', 'overwrite']).optional().default('insert'),
-  version: z.enum(['2.0.0', '2.1.0', '2.2.0', '2.3.0', '2.4.0', '2.5.0', '2.6.0', '2.7.0', '2.8.0', '2.9.0', '2.10.0', '2.11.0', '2.12.0', '2.13.0']).optional().default('2.0.0'),
-  ignoredLegacyContracts: z.number().int().nonnegative().optional().default(0),
+  mode: z.literal('overwrite'),
+  version: z.literal('2.13.0'),
 }).strict()
 
 export type BackupData = z.infer<typeof backupDataSchema>

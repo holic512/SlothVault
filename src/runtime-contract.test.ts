@@ -204,7 +204,7 @@ describe('Next runtime contract', () => {
   it('coordinates streamed backups with state-changing Route Handlers', () => {
     const handler = readFileSync(join(root, 'src', 'server', 'http', 'handler.ts'), 'utf8')
     const filesExport = readFileSync(
-      join(root, 'src', 'app', 'api', 'admin', 'mm', 'backup', 'files-export', 'route.ts'),
+      join(root, 'src', 'server', 'services', 'admin-backup', 'archive.ts'),
       'utf8',
     )
     const databaseBackup = readFileSync(
@@ -221,8 +221,8 @@ describe('Next runtime contract', () => {
 
     expect(handler).toContain("method === 'GET' || method === 'HEAD'")
     expect(handler).toContain('acquireMaintenanceLock(mode)')
-    expect(filesExport).toContain('holdLockUntilBodyClosed: true')
+    expect(filesExport).toContain("withMaintenanceLock('shared',copySnapshot)")
     expect(databaseBackup).toContain('databaseSnapshotIsolationLevel()')
-    expect(databaseBackup).toContain('relationClosedMenus')
+    expect(databaseBackup).toContain("orderBy: { id: 'asc' }, take: 100")
   })
 })
