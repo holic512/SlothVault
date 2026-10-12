@@ -22,7 +22,7 @@
 
 ## 独立包
 
-两模块各自使用 module.json 和 CHANGELOG。归档固定 `package/` 根目录；清单包含归档和逐文件 SHA-256、protocolMajor、bridgeApiMajor。Skill **1.2.0**、Deployment **1.1.0**，两者桥主版本保持 **1**。README/CHANGELOG 不进入运行归档，文档更新不重发已有版本。
+两模块各自使用 module.json 和 CHANGELOG。归档固定 `package/` 根目录；清单包含归档和逐文件 SHA-256、protocolMajor、bridgeApiMajor。Skill **1.2.3**、Deployment **1.1.1**，两者桥主版本保持 **1**。README/CHANGELOG 不进入运行归档，文档更新不重发已有版本。
 
 SlothTool 目前只管理 Skill 与 Deployment。根 install/update 管理界面；`slothtool slothvault skill install|update` 下载独立 Skill并同步受管链接，不需要独立 MCP 客户端环境。Deployment 保持独立脚本和主版本 1 的 JSON 行桥；应用更新检查实际版本、固定目标后只确认一次，拉取后激活并重建，再本地核验运行镜像、发布标识和健康。包、宿主、服务端和已部署应用版本分别管理。
 

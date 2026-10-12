@@ -2,8 +2,8 @@
 @file integrations/deployment/slothvault_deploy/deployment_service.py
 @project SlothVault
 @module Deployment service
-@description Provides reusable deployment operations bundled by SlothTool for Docker Compose installation, application Release checks, safely selected system or official Docker Nginx reverse proxying, and Let’s Encrypt certificate operations.
-@logic Resolve one explicit Nginx management mode per action, compare immutable deployed builds before updating, preserve existing managed state, verify Docker upstream networking before rendering it, and sequence Compose, Nginx and Certbot changes so high-risk writes have a recoverable path.
+@description Provides reusable deployment operations bundled by SlothTool for Docker Compose installation, application Release checks, discovered host or Docker Nginx sites, and Let’s Encrypt certificate operations.
+@logic Resolve actual Nginx contexts and selected sites, compare immutable deployed builds before updating, preserve existing managed state, verify Docker upstream networking before rendering it, and sequence Compose, Nginx and Certbot changes so high-risk writes have a recoverable path.
 @dependencies Python standard library, Docker Engine, Docker Compose v2, GitHub Releases REST API, optional host Nginx and Certbot
 @index_tags deployment,installer,cli,menu,compose,release,update,github,nginx,docker,https,certbot
 @author holic512
@@ -77,7 +77,7 @@ from .system import (
 )
 
 
-ACTIONS = ("install", "update", "check-update", "start", "stop", "status", "nginx", "https", "renew")
+ACTIONS = ("install", "update", "check-update", "start", "stop", "status", "nginx", "https", "renew", "nginx-discover", "nginx-status", "nginx-update")
 NGINX_MODES = ("auto", "system", "docker")
 
 
@@ -94,6 +94,9 @@ def prompt_action(default: Optional[str] = None) -> str:
         "7": "https",
         "8": "renew",
         "9": "check-update",
+        "10": "nginx-discover",
+        "11": "nginx-status",
+        "12": "nginx-update",
     }
     print("\n请选择操作：")
     print("  1) 安装新实例并生成 compose.yml")
@@ -105,6 +108,9 @@ def prompt_action(default: Optional[str] = None) -> str:
     print("  7) 申请或更新 Let's Encrypt HTTPS 证书")
     print("  8) 查看证书状态或立即尝试续约")
     print("  9) 检查最新系统更新与全部版本日志")
+    print("  10) 发现本机和 Docker Nginx 站点")
+    print("  11) 查看 Nginx 运行、站点和传输状态")
+    print("  12) 仅更新 SlothVault 站点传输配置")
     while True:
         try:
             selected = input("操作 [1]: ").strip() or "1"
@@ -113,7 +119,7 @@ def prompt_action(default: Optional[str] = None) -> str:
         action = choices.get(selected)
         if action:
             return action
-        print_error("请输入 1 到 9 的数字")
+        print_error("请输入 1 到 12 的数字")
 
 
 def prompt_http_server_name() -> str:
@@ -162,23 +168,23 @@ def resolved_nginx_mode(arguments: argparse.Namespace) -> str:
 
 
 def resolve_nginx_manager(arguments: argparse.Namespace) -> Optional[NginxManager]:
-    """Resolve exactly one safe Nginx manager; auto never scans Docker containers."""
+    """Resolve the actual loaded site for existing installations."""
 
+    root = Path(arguments.root or DEFAULT_ROOT)
+    if (root / COMPOSE_FILE_NAME).is_file():
+        from .nginx_management import manager_for_action
+        return manager_for_action(arguments, root)
+
+    from .nginx_discovery import discover
+    from .nginx_management import select_instance
     mode = resolved_nginx_mode(arguments)
-    if mode == "docker":
-        container_name = arguments.nginx_container or prompt_docker_nginx_container()
-        manager = DockerNginxManager.discover(container_name)
-        print_info("已选择官方 Docker Nginx 容器：{0}".format(manager.container_name))
-        return manager
-    executable = find_nginx()
-    if executable is None:
-        if mode == "auto":
-            print_info("未检测到宿主机 Nginx（或 nginx 不在 PATH 中）；自动模式不会扫描或接管 Docker 容器。")
-            return None
-        raise InstallerError("未检测到宿主机 Nginx（或 nginx 不在 PATH 中）；脚本不会自动安装 Nginx。")
-    manager = SystemNginxManager.discover()
-    print_info("已选择系统级 Nginx：{0}".format(manager.executable))
-    return manager
+    instances, _ = discover(mode, arguments.nginx_container, getattr(arguments, 'nginx_config', None), set())
+    if not any(instance.config and instance.running for instance in instances) and mode == 'auto':
+        print_info('未检测到可用 Nginx，将继续直接部署应用。')
+        return None
+    instance = select_instance(instances)
+    instance.manager.discovery_instance = instance
+    return instance.manager
 
 
 def proxy_config_for_manager(
@@ -212,6 +218,12 @@ def configure_interactive_http_proxy(
     require_root("配置 Nginx")
     server_name = prompt_http_server_name()
     http_port = validate_port(prompt_value("Nginx 对外 HTTP 监听端口", "80"))
+    instance = getattr(manager, 'discovery_instance', None)
+    if instance is not None:
+        from .nginx_management import new_site_path
+        _, manager.config_path = new_site_path(instance, server_name, Path(arguments.root or DEFAULT_ROOT))
+        if isinstance(manager, SystemNginxManager):
+            manager.enabled_path = None
     return proxy_config_for_manager(manager, upstream_port, (server_name,), http_port)
 
 
@@ -356,6 +368,13 @@ def configure_https(arguments: argparse.Namespace, root: Path) -> None:
         manager.ensure_shared_slothvault_network(inspect_managed_application(compose_path))
         acme_config_webroot, certificate_root = manager.https_container_paths(acme_host_webroot)
     proxy = proxy_config_for_manager(manager, port, domains, 80, certificate_root)
+    selected = getattr(manager, 'selected_site', None)
+    if selected is not None:
+        related = [site for site in selected.instance.config.servers() if site[0] == selected.origin]
+        unrelated = any(set(selected.instance.config.values(node.children, path).get('server_name', '').split()) != set(domains)
+                        for path, node, _ in related)
+        if unrelated or not any(marker in selected.instance.config.sources[selected.origin] for marker in ('# Managed by SlothVault deploy installer', '# Managed by SlothVault install.py')):
+            raise InstallerError('证书申请不会重写手工或多站点配置；请保留现有配置使用证书续约，或为该站点提供独立受管文件')
     nginx_snapshot = snapshot_nginx_site(proxy)
     certbot = ensure_certbot()
     changed_loopback = False
@@ -397,7 +416,13 @@ def certificate_status_or_renew(arguments: argparse.Namespace, root: Path) -> No
         raise InstallerError("无法读取 SlothVault HTTPS 证书状态：未检测到可用的系统级 Nginx。")
     proxy = proxy_config_for_manager(manager, port, ("slothvault.invalid",), 80)
     verify_docker_upstream(proxy, compose_path)
-    primary_domain = certificate_name_from_site(proxy)
+    selected = getattr(manager, 'selected_site', None)
+    if selected is not None:
+        certificate = selected.summary().get('certificate') or ''
+        match = re.search(r'/live/([^/]+)/fullchain\.pem$', certificate)
+        primary_domain = match[1] if match else None
+    else:
+        primary_domain = certificate_name_from_site(proxy)
     if primary_domain is None:
         raise InstallerError("当前受管理的 Nginx 站点未启用 Let's Encrypt HTTPS；请先选择“申请或更新 HTTPS 证书”。")
     print_info(describe_certificate(primary_domain))

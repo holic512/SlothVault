@@ -44,3 +44,7 @@ Deployment 1.1.0 在主版本 1 内增加可选字段：
 ## MCP 5.0 文章列表迁移
 
 `content.article.list` 的列表项移除 `content`，其余元数据与分页不变；读取正文使用 `content.article.get`。后台文章管理列表采用相同分离，详情和写入返回保留正文。升级后宿主应重新发现工具 Schema；这项业务契约变化不改变 MCP 日期协议、Key 鉴权或 Resource 契约。
+
+## Deployment 1.1.1 Nginx inspection
+
+Bridge major 1 remains unchanged. Actions add `nginx-discover`, `nginx-status` and `nginx-update`; selectors add `--nginx-config`, `--nginx-site` and `--nginx-server-name`. `preview.data.nginxStatus` and `snapshot.data.nginx` optionally contain instances (mode, container, running, mainConfig, version, syntax, mounts, error), sites (siteConfig, hostConfig, serverNames, upstreams, loaded, writable, HTTPS and transfer routes). `preview.data.changes` contains only policy, directive and new value, not raw configuration. Existing consumers may ignore these fields. Status reports unavailable or unknown when the context cannot be verified.

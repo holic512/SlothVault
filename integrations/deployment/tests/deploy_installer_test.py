@@ -411,19 +411,12 @@ class DockerNginxManagerTests(unittest.TestCase):
             with self.assertRaisesRegex(InstallerError, "不存在"):
                 nginx.DockerNginxManager.discover("nginx")
 
-    def test_stopped_and_non_official_containers_are_rejected(self) -> None:
+    def test_stopped_container_is_rejected_without_using_image_name_as_admission(self) -> None:
         stopped = self.docker_inspect(running=False)
         with patch.object(nginx.shutil, "which", return_value="/usr/bin/docker"), patch.object(
             nginx, "_docker_container_inspect", return_value=stopped
         ):
             with self.assertRaisesRegex(InstallerError, "未运行"):
-                nginx.DockerNginxManager.discover("nginx")
-
-        non_official = self.docker_inspect(image="baota/nginx:latest")
-        with patch.object(nginx.shutil, "which", return_value="/usr/bin/docker"), patch.object(
-            nginx, "_docker_container_inspect", return_value=non_official
-        ):
-            with self.assertRaisesRegex(InstallerError, "仅支持官方"):
                 nginx.DockerNginxManager.discover("nginx")
 
     def test_docker_mode_requires_a_confirmed_configuration_bind_mount(self) -> None:

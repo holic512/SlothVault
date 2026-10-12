@@ -43,9 +43,9 @@ function fixture() {
   let latest
   let uploadsBeforeFailure = Infinity
   const tag = (name, sha = git(['rev-parse', 'HEAD'])) => { git(['tag', name, sha]); git(['push', '-q', 'origin', name]) }
-  const addRelease = (name, { draft = false, prerelease = false, assets = [], body = '' } = {}) => {
-    if (!git(['tag', '--list', name])) tag(name)
-    const value = { tag_name: name, draft, prerelease, assets, body }
+  const addRelease = (name, { draft = false, prerelease = false, assets = [], body = '', target = git(['rev-parse', 'HEAD']) } = {}) => {
+    if (!draft && !git(['tag', '--list', name])) tag(name)
+    const value = { id: releases.size + 1, tag_name: name, draft, prerelease, assets, body, target_commitish: target }
     releases.set(name, value)
     return value
   }
@@ -53,10 +53,26 @@ function fixture() {
     if (binary === 'git') return execFileSync(binary, args, { ...options, stdio: 'pipe' })
     if (binary === 'gh') {
       if (args[0] === 'api') {
+        const flag = key => args[args.indexOf(key) + 1]
+        if (args.includes('--method')) {
+          mutations.push(args)
+          if (args[1].endsWith('/git/refs')) {tag(flag('-f').slice('ref=refs/tags/'.length), args.at(-1).slice(4)); return '{}'}
+          const upload = args[1].match(/releases\/(\d+)\/assets\?name=(.+)$/)
+          const release = [...releases.values()].find(item => item.id === Number(upload?.[1] ?? args[1].split('/').at(-1)))
+          if (upload) {
+            if (uploadsBeforeFailure-- === 0) throw new Error('simulated upload interruption')
+            const bytes = readFileSync(flag('--input'))
+            release.assets.push({name: decodeURIComponent(upload[2]), size: bytes.length, digest: digest(bytes)})
+          } else release.draft = false
+          return JSON.stringify(release)
+        }
         if (args.includes('--paginate')) return JSON.stringify([[...releases.values()]])
         const endpoint = args[1].replace('repos/example/vault/', '')
         let result
-        if (endpoint.startsWith('releases/tags/')) result = releases.get(decodeURIComponent(endpoint.slice('releases/tags/'.length)))
+        if (endpoint.startsWith('releases/tags/')) {
+          result = releases.get(decodeURIComponent(endpoint.slice('releases/tags/'.length)))
+          if (result?.draft) result = undefined
+        }
         else if (endpoint === 'releases/latest') result = releases.get(latest)
         if (result) return JSON.stringify(result)
         throw Object.assign(new Error('Not found'), { status: 1, stderr: 'gh: Not Found (HTTP 404)' })
@@ -65,8 +81,7 @@ function fixture() {
       const name = args[2]
       const flag = key => args[args.indexOf(key) + 1]
       if (args[1] === 'create') {
-        tag(name, flag('--target'))
-        addRelease(name, { draft: true, body: readFileSync(flag('--notes-file'), 'utf8') })
+        addRelease(name, { draft: true, target: flag('--target'), body: readFileSync(flag('--notes-file'), 'utf8') })
       } else if (args[1] === 'upload') {
         if (uploadsBeforeFailure-- === 0) throw new Error('simulated upload interruption')
         const bytes = readFileSync(args[3])
@@ -217,6 +232,7 @@ describe('pinned targets and release recovery', () => {
     expect(() => f.delivery.publish(id, f.outdir)).toThrow('upload interruption')
     expect(f.releases.get(id.tag).draft).toBe(true)
     expect(f.releases.get(id.tag).assets).toHaveLength(1)
+    expect(f.delivery.tagCommit(id.tag)).toBeNull()
     f.interruptAfterUploads(Infinity)
     expect(f.delivery.publish(id, f.outdir)).toBe('published')
     expect(f.releases.get(id.tag).assets).toHaveLength(2)
@@ -263,6 +279,21 @@ describe('pinned targets and release recovery', () => {
     expect(() => f.delivery.publish(id, f.outdir)).toThrow('Draft notes conflict')
     expect(f.mutations).toEqual([])
     expect(f.releases.get(id.tag).draft).toBe(true)
+  })
+
+  it('finds a tag-invisible draft without a Git tag and validates its full target before writes', () => {
+    const f = fixture(), id = f.identity('application')
+    writeFileSync(join(f.outdir, 'slothvault-image-manifest.json'), '{}')
+    const draft = f.addRelease(id.tag, {draft: true, body: f.delivery.notes(id)})
+    expect(f.delivery.release(id.tag)).toEqual(draft)
+    expect(f.delivery.tagCommit(id.tag)).toBeNull()
+    draft.target_commitish = 'master'
+    expect(() => f.delivery.publish(id, f.outdir)).toThrow('target conflicts')
+    expect(f.mutations).toEqual([])
+    draft.target_commitish = id.sha
+    expect(f.delivery.publish(id, f.outdir)).toBe('published')
+    expect(f.delivery.tagCommit(id.tag)).toBe(id.sha)
+    expect(f.mutations.filter(args => args[1]?.endsWith('/git/refs'))).toHaveLength(1)
   })
 })
 
@@ -332,6 +363,7 @@ describe('native image merge and latest promotion', () => {
     f.addRelease(f.id.tag, { draft: true })
     await expect(f.delivery.promote(f.id, f.outdir)).rejects.toThrow('unpublished')
     f.releases.get(f.id.tag).draft = false
+    f.tag(f.id.tag)
     f.registry.get(f.records[1].digest).config.config.Env = []
     await expect(f.delivery.promote(f.id, f.outdir)).rejects.toThrow('SLOTHVAULT_APP_VERSION')
   })

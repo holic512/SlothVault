@@ -1,5 +1,13 @@
 # Deployment changes
 
+## 1.1.1
+
+- Discover host and Docker Nginx from actual execution context and loaded configuration, without an image-name allowlist.
+- Locate the SlothVault server among multiple sites and map active Docker configuration to directory or single-file bind mounts.
+- Add site-scoped status and transfer updates, persistent target selection, preview verification, private backups and explicit rollback results.
+- Remove proxy body limits for backup uploads, stream downloads and align finite multipart/commission limits without reducing higher existing limits.
+- Extend bridge major 1 with optional Nginx instance, site and transfer fields and add real isolated Nginx transfer verification in CI.
+
 ## 1.1.0
 
 - Check the running application, preview one fixed Release target and confirm once before pulling and recreating it.

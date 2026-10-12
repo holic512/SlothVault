@@ -102,7 +102,14 @@ export class ReleaseDelivery {
     return pages.flat()
   }
 
-  release(tag) { return this.api(`releases/tags/${encodeURIComponent(tag)}`, { missing: true }) }
+  release(tag) {
+    const published = this.api(`releases/tags/${encodeURIComponent(tag)}`, { missing: true })
+    if (published) return published
+    // GitHub may not expose a draft through the tag endpoint, nor create its tag yet.
+    const drafts = this.releases().filter(item => item.draft && item.tag_name === tag)
+    if (drafts.length > 1) throw new Error(`Multiple drafts conflict with ${tag}`)
+    return drafts[0] ?? null
+  }
 
   assertDefaultAncestor(sha) {
     if (!shaPattern.test(sha)) throw new Error('Release target must be a full commit SHA')
@@ -132,7 +139,7 @@ export class ReleaseDelivery {
     const tag = `${module === 'application' ? '' : `${module}-`}v${metadata.version}`
     const existing = publish ? this.release(tag) : null
     const tagged = this.tagCommit(tag)
-    if (existing && !tagged) throw new Error(`Release ${tag} is missing its Git tag`)
+    if (existing && !tagged && (!existing.draft || existing.target_commitish !== head)) throw new Error(`Release ${tag} is missing a matching immutable target`)
     if (tagged && tagged !== head) {
       const paths = this.git(['diff', '--name-only', '-z', tagged, head], true).split('\0').filter(Boolean)
       if (relevantChanges(module, paths)) throw new Error(`Content conflicts with existing ${tag}; advance the version`)
@@ -169,7 +176,22 @@ export class ReleaseDelivery {
   }
 
   verifyReleaseTarget(release, identity) {
-    if (!release || release.tag_name !== identity.tag || this.tagCommit(identity.tag) !== identity.sha || release.prerelease) throw new Error(`Release target conflicts with ${identity.tag}`)
+    const tagged = this.tagCommit(identity.tag)
+    if (!release || release.tag_name !== identity.tag || release.prerelease
+      || (tagged ? tagged !== identity.sha : !release.draft || release.target_commitish !== identity.sha)
+      || (release.draft && shaPattern.test(release.target_commitish ?? '') && release.target_commitish !== identity.sha)) {
+      throw new Error(`Release target conflicts with ${identity.tag}`)
+    }
+  }
+
+  ensureReleaseTag(identity) {
+    const tagged = this.tagCommit(identity.tag)
+    if (tagged && tagged !== identity.sha) throw new Error(`Cannot move existing ${identity.tag}`)
+    if (!tagged) {
+      this.run('gh', ['api', `repos/${this.repository}/git/refs`, '--method', 'POST', '-f', `ref=refs/tags/${identity.tag}`, '-f', `sha=${identity.sha}`])
+      this.git(['fetch', '--tags', 'origin'])
+    }
+    if (this.tagCommit(identity.tag) !== identity.sha) throw new Error(`Tag verification failed for ${identity.tag}`)
   }
 
   checkAssets(release, assets, { allowMissing = false } = {}) {
@@ -221,12 +243,14 @@ export class ReleaseDelivery {
     this.verifyReleaseTarget(release, identity)
     if (release.body?.trimEnd() !== notes.trimEnd()) throw new Error('Draft notes conflict with the pinned commit history')
     for (const asset of this.checkAssets(release, assets, { allowMissing: true })) {
-      this.run('gh', ['release', 'upload', identity.tag, asset, '--repo', this.repository])
+      this.run('gh', ['api', `https://uploads.github.com/repos/${this.repository}/releases/${release.id}/assets?name=${encodeURIComponent(basename(asset))}`,
+        '--method', 'POST', '-H', 'Content-Type: application/octet-stream', '--input', asset])
     }
     release = this.release(identity.tag)
     this.verifyReleaseTarget(release, identity)
     this.checkAssets(release, assets)
-    this.run('gh', ['release', 'edit', identity.tag, '--repo', this.repository, '--draft=false', '--latest=false'])
+    this.ensureReleaseTag(identity)
+    this.run('gh', ['api', `repos/${this.repository}/releases/${release.id}`, '--method', 'PATCH', '-F', 'draft=false', '-f', 'make_latest=false'])
     release = this.release(identity.tag)
     this.verifyReleaseTarget(release, identity)
     if (release.draft) throw new Error('Release is still a draft after publishing')

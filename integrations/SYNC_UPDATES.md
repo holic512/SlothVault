@@ -1,6 +1,6 @@
 # Vault → SlothTool 同步更新说明
 
-先读 [ARCHITECTURE.md](./ARCHITECTURE.md)、[PROTOCOL.md](./PROTOCOL.md) 和机器契约。SlothTool 管理独立 Skill/Deployment；本轮 Deployment 1.1.0 的可选桥字段由 SlothTool 管理界面 3.1.0 消费。
+先读 [ARCHITECTURE.md](./ARCHITECTURE.md)、[PROTOCOL.md](./PROTOCOL.md) 和机器契约。SlothTool 管理独立 Skill/Deployment；Deployment 1.1.1 的可选 Nginx 桥字段由 SlothTool 管理界面 3.2.0 消费，原应用更新桥字段保持兼容。
 
 | Vault 变更 | Vault 版本与文件 | 消费方影响 |
 | --- | --- | --- |
@@ -14,7 +14,7 @@
 | 模块 | 版本 | 桥主版本 | 状态 |
 | --- | --- | --- | --- |
 | Skill | 1.2.0 | 1 | 拟发布 skill-v1.2.0，本轮仅代码和本地验证 |
-| Deployment | 1.1.0 | 1 | 固定目标、单次确认、流式进度与本地核验；待独立发布 |
+| Deployment | 1.1.1 | 1 | Nginx 双模式发现、站点更新和状态；应用更新保持兼容；待独立发布 |
 | SlothTool 管理界面 | 3.1.0 | 接收桥 1 | 固定任务状态、包管理子页与运行版本刷新；待发布 |
 
 根 `slothtool install slothvault` / update 管理界面。`slothtool slothvault skill status --check --json`、skill install、skill update 直接获取独立 Skill，不需要独立 MCP 客户端。产品仅支持 Codex / Claude Code 原生 MCP；配置由网站一次性生成，连接与工具发现由对应宿主确认，SlothTool 不参与该过程，部署也不依赖该连接。

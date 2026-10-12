@@ -2,7 +2,7 @@
 @file integrations/deployment/slothvault_deploy/nginx.py
 @project SlothVault
 @module Deployment Nginx management
-@description Safely manages one SlothVault Nginx site through either a standard host Nginx installation or an explicitly selected official Docker Nginx container.
+@description Safely manages one SlothVault Nginx site through either a standard host Nginx installation or a discovered Docker Nginx container.
 @logic Derive every writable site path from a supported system directory or inspected bind mount, render a validated upstream, verify and reload in the selected execution context, and restore the prior managed file on failure.
 @dependencies Python standard library, optional host Nginx, optional Docker Engine
 @index_tags deployment,installer,nginx,reverse-proxy,docker,https,acme,rollback
@@ -199,6 +199,10 @@ class SystemNginxManager(NginxManager):
         self.executable = executable
         self.config_path = config_path
         self.enabled_path = enabled_path
+        self.arguments: tuple[str, ...] = ()
+
+    def command(self, *arguments: str) -> tuple[str, ...]:
+        return (self.executable, *self.arguments, *arguments)
 
     @classmethod
     def discover(cls) -> "SystemNginxManager":
@@ -239,12 +243,15 @@ class SystemNginxManager(NginxManager):
         return True
 
     def validate_site(self, proxy: NginxProxyConfig) -> None:
-        nginx_command_output((self.executable, "-t"))
-        rendered_configuration = nginx_command_output((self.executable, "-T"))
+        nginx_command_output(self.command("-t"))
+        rendered_configuration = nginx_command_output(self.command("-T"))
         if MANAGED_NGINX_MARKER not in rendered_configuration:
             raise InstallerError("Nginx 主配置未包含新站点文件：{0}".format(proxy.config_path))
 
     def reload(self, proxy: NginxProxyConfig, allow_start: bool = True) -> None:
+        if self.arguments:
+            run_command(self.command('-s', 'reload'))
+            return
         systemctl = shutil.which("systemctl")
         if systemctl:
             if command_succeeds((systemctl, "is-active", "--quiet", "nginx")):
@@ -254,15 +261,18 @@ class SystemNginxManager(NginxManager):
                 run_command((systemctl, "start", "nginx"))
                 return
             raise InstallerError("Nginx 已写入并通过配置检查，但尚未启动；未切换应用端口")
-        run_command((self.executable, "-s", "reload"))
+        run_command(self.command("-s", "reload"))
 
     def restore_validation_and_reload(self, proxy: NginxProxyConfig) -> None:
-        nginx_command_output((self.executable, "-t"))
+        nginx_command_output(self.command("-t"))
+        if self.arguments:
+            run_command(self.command('-s', 'reload'))
+            return
         systemctl = shutil.which("systemctl")
         if systemctl and command_succeeds((systemctl, "is-active", "--quiet", "nginx")):
             run_command((systemctl, "reload", "nginx"))
         elif not systemctl:
-            run_command((self.executable, "-s", "reload"))
+            run_command(self.command("-s", "reload"))
 
 
 def _docker_command_output(command: Sequence[str], context: str) -> str:
@@ -354,7 +364,7 @@ def _safe_config_path(mount: DockerMount, nested_conf_directory: bool) -> Path:
 
 
 class DockerNginxManager(NginxManager):
-    """Manage an explicitly named official Nginx container through inspected host bind mounts."""
+    """Manage a named Nginx container through inspected host bind mounts."""
 
     mode = "docker"
 
@@ -371,6 +381,7 @@ class DockerNginxManager(NginxManager):
         self.inspect = inspect
         self.config_path = config_path
         self.config_mount = config_mount
+        self.arguments: tuple[str, ...] = ()
 
     @classmethod
     def discover(cls, container_name: str) -> "DockerNginxManager":
@@ -382,14 +393,6 @@ class DockerNginxManager(NginxManager):
         state = inspect.get("State")
         if not isinstance(state, dict) or state.get("Running") is not True:
             raise InstallerError("Docker Nginx 容器未运行：{0}。请先启动该容器后重试。".format(name))
-        config = inspect.get("Config")
-        image = config.get("Image") if isinstance(config, dict) else None
-        if not _official_nginx_image(image):
-            raise InstallerError(
-                "拒绝管理 Docker 镜像 {0}：仅支持官方 Docker Hub Nginx 镜像（nginx、library/nginx 或 docker.io/library/nginx）。".format(
-                    image or "<未知>"
-                )
-            )
         mounts = _bind_mounts(inspect)
         direct_mount = next((mount for mount in mounts if mount.destination == Path("/etc/nginx/conf.d")), None)
         root_mount = next((mount for mount in mounts if mount.destination == Path("/etc/nginx")), None)
@@ -428,7 +431,7 @@ class DockerNginxManager(NginxManager):
         )
 
     def command(self, *arguments: str) -> tuple[str, ...]:
-        return (self.docker, "exec", self.container_name, "nginx", *arguments)
+        return (self.docker, "exec", self.container_name, "nginx", *self.arguments, *arguments)
 
     def validate_syntax(self) -> None:
         _docker_command_output(self.command("-t"), "Docker Nginx 命令或配置检查")
@@ -528,7 +531,19 @@ def render_http_proxy_config(proxy: NginxProxyConfig) -> str:
     ]
     lines.extend(proxy_location_lines(proxy))
     lines.append("}")
-    return "\n".join(lines) + "\n"
+    return with_transfer_policies("\n".join(lines) + "\n")
+
+
+def with_transfer_policies(source: str) -> str:
+    from .nginx_config import Configuration, patch_server
+    path = '/slothvault.conf'
+    config = Configuration({path: 'http {\n' + source + '\n}'}, path)
+    # Patch proxy servers from right to left so earlier source spans remain stable.
+    for origin, server, inherited in reversed(config.servers()):
+        if config.proxy_targets(server, origin):
+            patched, _ = patch_server(config, origin, server, inherited)
+            config = Configuration({path: patched}, path)
+    return config.sources[path][len('http {\n'):-len('\n}')]
 
 
 def acme_location_lines(acme_webroot: Path) -> list[str]:
@@ -555,7 +570,7 @@ def render_acme_http_config(proxy: NginxProxyConfig, acme_webroot: Path) -> str:
     lines.append("")
     lines.extend(proxy_location_lines(proxy))
     lines.append("}")
-    return "\n".join(lines) + "\n"
+    return with_transfer_policies("\n".join(lines) + "\n")
 
 
 def render_https_proxy_config(proxy: NginxProxyConfig, acme_webroot: Path) -> str:
@@ -590,7 +605,7 @@ def render_https_proxy_config(proxy: NginxProxyConfig, acme_webroot: Path) -> st
     )
     lines.extend(proxy_location_lines(proxy))
     lines.append("}")
-    return "\n".join(lines) + "\n"
+    return with_transfer_policies("\n".join(lines) + "\n")
 
 
 def snapshot_nginx_site(proxy: NginxProxyConfig) -> NginxSiteSnapshot:
@@ -655,7 +670,7 @@ def apply_nginx_site(proxy: NginxProxyConfig, source: str) -> NginxSiteSnapshot:
         enable_nginx_site(proxy)
         validate_nginx_site(proxy)
         reload_nginx(proxy)
-    except (InstallerError, OSError):
+    except (InstallerError, OSError, KeyboardInterrupt):
         restore_nginx_site(proxy, snapshot)
         raise
     return snapshot

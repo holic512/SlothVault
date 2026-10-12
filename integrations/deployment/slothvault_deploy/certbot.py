@@ -177,19 +177,23 @@ def renewal_hook_source(nginx_manager: object) -> str:
     if isinstance(nginx_manager, DockerNginxManager):
         container_name = nginx_manager.container_name
         docker = nginx_manager.docker
+        command = shlex.join(nginx_manager.command('-s', 'reload'))
         return """#!/bin/sh
 {marker}
 set -eu
 
-exec {docker} exec {container} nginx -s reload
+exec {command}
 """.format(
             marker=CERTBOT_HOOK_MARKER,
             docker=shlex.quote(docker),
             container=shlex.quote(container_name),
+            command=command,
         )
     nginx_executable = (
         nginx_manager.executable if isinstance(nginx_manager, NginxManager) else str(nginx_manager)
     )
+    if isinstance(nginx_manager, NginxManager) and getattr(nginx_manager, 'arguments', ()):
+        return '#!/bin/sh\n' + CERTBOT_HOOK_MARKER + '\nset -eu\nexec ' + shlex.join(nginx_manager.command('-s', 'reload')) + '\n'
     return """#!/bin/sh
 {marker}
 set -eu

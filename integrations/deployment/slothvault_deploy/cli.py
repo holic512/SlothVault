@@ -23,6 +23,7 @@ from .deployment_service import (
 )
 from .system import InstallerError, check_docker, normalize_path, print_error, prompt_value
 from . import __version__
+from .nginx_management import show_nginx, update_nginx, configure_nginx
 
 
 def parse_arguments(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
@@ -42,12 +43,15 @@ def parse_arguments(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         "--nginx-mode",
         choices=NGINX_MODES,
         default="auto",
-        help="Nginx 管理模式：auto 仅检测系统级 Nginx，system 强制系统级模式，docker 使用指定官方 Docker Nginx 容器。",
+        help="Nginx 管理模式：auto 发现本机和 Docker，system 仅本机，docker 仅 Docker。",
     )
     parser.add_argument(
         "--nginx-container",
-        help="Docker Nginx 模式的官方 Nginx 容器名；提供后自动选择 docker 模式，不会扫描其他容器。",
+        help="可选 Docker Nginx 容器名；省略时发现候选容器。",
     )
+    parser.add_argument("--nginx-config", help="选定实例的主配置绝对路径（Docker 模式为容器内路径）。")
+    parser.add_argument("--nginx-site", help="选定站点的生效配置路径或宿主机挂载路径。")
+    parser.add_argument("--nginx-server-name", help="用于选定 server 块的站点域名。")
     parser.add_argument("--version", action="version", version="SlothVault Deployment Package {0}".format(__version__))
     return parser.parse_args(argv)
 
@@ -61,11 +65,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if root_value is None and action == "install":
             root_value = prompt_value("部署根目录", str(DEFAULT_ROOT))
         root = normalize_path(root_value or str(DEFAULT_ROOT), "部署根目录")
-        check_docker()
+        if arguments.nginx_config and not Path(arguments.nginx_config).is_absolute():
+            raise InstallerError("Nginx 主配置必须使用绝对路径")
+        if action not in ("nginx-discover", "nginx-status", "nginx-update", "nginx"):
+            check_docker()
         if action == "install":
             install(arguments, root)
         elif action == "nginx":
-            configure_existing_nginx(arguments, root)
+            configure_nginx(arguments, root)
+        elif action in ("nginx-discover", "nginx-status"):
+            show_nginx(arguments, root)
+        elif action == "nginx-update":
+            update_nginx(arguments, root)
         elif action == "https":
             configure_https(arguments, root)
         elif action == "renew":

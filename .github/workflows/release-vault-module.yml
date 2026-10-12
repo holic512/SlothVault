@@ -89,7 +89,10 @@ jobs:
           PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s integrations/scripts/tests
       - name: Validate deployment source
         if: inputs.module == 'deployment'
-        run: PYTHONDONTWRITEBYTECODE=1 python source/integrations/deployment/tests/deploy_installer_test.py
+        run: PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s source/integrations/deployment/tests -p '*test.py'
+      - name: Verify real isolated Nginx transfers
+        if: inputs.module == 'deployment'
+        run: PYTHONDONTWRITEBYTECODE=1 python source/integrations/deployment/tests/nginx_transfer_integration.py
       - name: Package archive and verified manifest
         env:
           MODULE: ${{ inputs.module }}

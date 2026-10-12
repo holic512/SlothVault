@@ -67,3 +67,9 @@ git diff --check
 ```
 
 workflow 改动同时使用 actionlint 检查。首次正式发布需从 Actions 确认两个原生运行检查通过，并检查版本镜像清单、Release 附件、提交正文和 Latest 指针。发布仍使用现有 `DOCKER_USERNAME`、`DOCKER_PASSWORD`，可选仓库变量 `DOCKER_IMAGE_NAME`；GitHub 发布使用 job 级 `contents: write` 的 GITHUB_TOKEN。
+
+## 草稿没有 Git 标签时恢复
+
+GitHub 草稿可能不会创建 Git 标签，按标签的 Release API 也可能返回 404。交付脚本通过有权限的列表定位同标签草稿，并按 Release ID 上传附件和发布。没有标签的草稿只接受与固定目标一致的完整 `target_commitish` SHA；正式 Release 仍必须有一致的 Git 标签。正文与附件哈希核验后才创建缺失标签，已有标签不能移动。测试夹具覆盖标签不可见、无标签草稿及上传中断恢复。
+
+历史恢复必须运行修复后的交付工具，同时通过 `--root` 指向原 SHA 的干净源码目录；不能重跑旧工作流就假定能使用新交付逻辑。2.6.2 的目标为 `695ea6ff91e501f70e94f06e7291dfb2c6d2be24`，恢复前验证两平台镜像及发布标识，完成 Release 后才推进 latest。

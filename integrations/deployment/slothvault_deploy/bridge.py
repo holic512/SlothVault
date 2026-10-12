@@ -141,6 +141,9 @@ def main(argv: list[str] | None = None) -> int:
         if parsed is not None and parsed.action != "status":
             try:
                 snapshot = inspect_instance(known.root)
+                if parsed.action.startswith('nginx'):
+                    from .nginx_management import nginx_snapshot
+                    snapshot['nginx'] = nginx_snapshot(normalize_path(known.root, '部署根目录'), parsed)
                 context["currentVersion"] = snapshot.get("appVersion")
                 _emit("snapshot", data=snapshot)
             except Exception:

@@ -49,11 +49,23 @@ Bridge major 1 gains optional typed prompts, measured layer progress, separate f
 
 ## Nginx 与 HTTPS
 
-支持两种 Nginx：标准系统级 Nginx，以及显式指定的官方 Docker Hub `nginx` 容器。明确不支持宝塔 Nginx、`/www/server/nginx`、`/www/server/panel/vhost/nginx`、宝塔/面板镜像或其他第三方面板 Nginx。脚本不会接管非 SlothVault 生成的 `slothvault.conf`，不会删除、重建或自动发现 Docker 容器。
+支持本机安装和 Docker 容器两种 Nginx。默认 `--nginx-mode auto` 从服务、master 进程、实际启动参数和 Docker 容器中发现候选，以 `nginx -V/-t/-T` 确认配置来源。Docker 不以镜像名称做准入判断，只更新能够映射到宿主机 bind mount 的生效文件；不会修改 named volume、容器临时文件、启动或重建容器。状态检查会显示停止容器和无法管理的原因。
 
-默认 `--nginx-mode auto` 只检测宿主机 `PATH` 中的系统级 Nginx；找不到时不会扫描 Docker。系统级模式仅管理 `/etc/nginx/sites-available` + `sites-enabled` 或 `/etc/nginx/conf.d` 中的受管文件，执行宿主机 `nginx -t`、`nginx -T` 后以 systemd 或 `nginx -s reload` 重载。实际可执行路径或 Nginx 配置来源包含宝塔目录时会被拒绝。
+`--nginx-config` 指定实际主配置（Docker 模式使用容器内路径），`--nginx-site` 和 `--nginx-server-name` 限定配置文件与 server 块。从应用端口、容器别名／地址和 upstream 组识别 SlothVault，多个候选时要求选择。支持一个配置文件包含多个站点，以及站点文件名并非 slothvault.conf 的部署。
 
-Docker 模式必须提供容器名，并且镜像必须是 `nginx`、`library/nginx` 或 `docker.io/library/nginx`（可带 tag/digest）。脚本通过 `docker inspect` 检查容器存在、运行、镜像、网络与 mount，只接受宿主机 bind mount 到 `/etc/nginx/conf.d`（写入 `<Source>/slothvault.conf`）或 `/etc/nginx`（写入 `<Source>/conf.d/slothvault.conf`）。没有该 mount 时会停止，不会修改容器内部临时文件、named volume 或任意用户参数指定的目录。
+```bash
+python3 install.py --action nginx-discover --root /data/slothvault
+python3 install.py --action nginx-status --root /data/slothvault
+sudo python3 install.py --action nginx-update --root /data/slothvault \
+  --nginx-mode docker --nginx-container proxy \
+  --nginx-site /etc/nginx/conf.d/vault.conf --nginx-server-name vault.example.com
+```
+
+`nginx-update` 展示具体指令后确认一次，保留站点监听、HTTPS、证书、鉴权、代理地址和其他自定义设置。备份上传无限请求体并关闭请求缓冲，备份下载关闭响应缓冲／临时落盘，相关空闲超时至少 3600 秒；普通 multipart 接口至少 25 MiB，委托上传至少 100 MiB，已有更高／无限上限不降低。应用的业务和完整性校验继续生效。
+
+更新只在选定代理 location 内增加可继承原设置的传输策略。遇到无法安全隔离的共享 location、rewrite、复杂正则、URI 替换或自定义 Range 处理，停止并给出原因。操作在 `.nginx-backups/` 保存带权限信息的原文件，预览后配置或 include 变化时停止；校验／加载／重载失败恢复原文件并报告回滚结果。目录挂载使用原子替换，单文件 bind mount 保留 inode。已符合要求时不重载。
+
+`nginx` 基础配置优先更新已识别的站点；没有匹配站点时在实际 include 的目录新建按域名和部署根目录区分的独立配置。新站点操作保留 Compose 和其他站点。成功后 `.nginx-target.json` 保存不含凭据的目标；后续重新发现并核对，不盲用旧路径。SlothTool 3.2.0 在部署页的 Nginx 子菜单展示发现／选择、状态、基础配置、更新、HTTPS 和证书功能。
 
 Docker Nginx 与受管 SlothVault 必须共享同一非 host Docker 网络，且应用容器在该网络有 `slothvault` 别名。满足后上游固定为 `slothvault:3000`，不会错误使用容器内的 `127.0.0.1`。配置命令如下：
 
@@ -77,7 +89,7 @@ services:
       - /etc/letsencrypt:/etc/letsencrypt:ro
 ```
 
-Docker 模式写入后只执行 `docker exec <容器> nginx -t`、`nginx -T`、`nginx -s reload`，不会调用宿主机 `nginx` 或 `systemctl`。验证、最终加载检查或重载失败时，脚本恢复之前的受管文件（或移除本轮新建文件）并再次在容器内校验和重载。
+Docker 模式在相同的 -c/-p 上下文中执行 `docker exec <容器> nginx -t`、`nginx -T`、`nginx -s reload`，不会调用宿主机 `nginx` 或 `systemctl`。验证、最终加载检查或重载失败时，脚本恢复之前的站点文件（或移除本轮新建文件）并再次在容器内校验和重载。
 
 “申请或更新 Let's Encrypt HTTPS 证书”仅支持普通 DNS 域名，可输入多个域名作为同一证书的 SAN；第一个域名为主域名。该操作需要：
 
@@ -102,3 +114,7 @@ sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy \
 运行证书菜单后会执行一次 `certbot renew --dry-run --run-deploy-hooks`。实际签发仍取决于真实 DNS、网络和 Let’s Encrypt 校验结果。
 
 Docker 排查命令：`docker inspect slothvault-nginx`、`docker exec slothvault-nginx nginx -t`、`docker exec slothvault-nginx nginx -T`、`docker network inspect <SlothVault 网络>`。脚本不会自动连接 Docker 网络；请先使 Nginx 容器与对应的 `slothvault-<provider>_default` 网络共享。
+
+### English Nginx contract
+
+Deployment 1.1.1 discovers host processes/services and Docker Nginx, loads the actual configuration with its original `-c/-p` context, maps bind mounts and identifies the application proxy site. Site-scoped transfer updates preserve HTTPS, authentication and unrelated servers, review once, back up and roll back failed writes. Existing finite limits are only raised when below 25 MiB for multipart or 100 MiB for commission uploads; backup transfers have no proxy body limit. In-place writes preserve single-file bind-mount inodes. Complex routing fails explicitly instead of guessing. The Deployment CI runs a real isolated Nginx transfer fixture.

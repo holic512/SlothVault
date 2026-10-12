@@ -3,8 +3,8 @@
 @project SlothVault
 @module Deployment instance inspection
 @description Builds a safe, structured snapshot of one managed deployment for CLI and TUI consumers.
-@logic Read only managed Compose metadata, inspect its Docker containers, and report partial failures without exposing environment variables or credentials.
-@dependencies Python standard library, compose metadata and Docker CLI
+@logic Read only managed Compose metadata, inspect its Docker containers and actual Nginx sites, and report partial failures without exposing environment variables or credentials.
+@dependencies Python standard library, compose metadata, Docker CLI, Nginx discovery
 @index_tags deployment,instance,status,docker,read-only
 @author holic512
 """
@@ -112,27 +112,6 @@ def inspect_instance(root_value: str) -> dict[str, Any]:
     except (OSError, ValueError, json.JSONDecodeError, subprocess.TimeoutExpired):
         result["errors"].append({"scope": "docker", "code": "INSPECT_UNAVAILABLE"})
 
-    # Only the exact installer-managed system site is considered. Docker Nginx
-    # cannot be inferred without an explicitly selected container.
-    for path in (Path("/etc/nginx/sites-available/slothvault.conf"), Path("/etc/nginx/conf.d/slothvault.conf")):
-        try:
-            if not path.is_file():
-                continue
-            site = path.read_text(encoding="utf-8")
-            if "# Managed by SlothVault " not in site:
-                continue
-            result["nginx"] = {
-                "state": "configured", "serverName": _match(site, r"^\s*server_name\s+([^;\s]+)"),
-                "https": "ssl_certificate " in site,
-                "certificate": "unknown",
-            }
-            if result["nginx"]["https"] and result["nginx"]["serverName"]:
-                certificate = Path("/etc/letsencrypt/live") / result["nginx"]["serverName"] / "fullchain.pem"
-                try:
-                    result["nginx"]["certificate"] = "present" if certificate.is_file() else "missing"
-                except OSError:
-                    result["errors"].append({"scope": "certificate", "code": "READ_FAILED"})
-            break
-        except OSError:
-            result["errors"].append({"scope": "nginx", "code": "READ_FAILED"})
+    from .nginx_management import nginx_snapshot
+    result["nginx"] = nginx_snapshot(root)
     return result
