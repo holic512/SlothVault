@@ -41,6 +41,8 @@ Deployment 1.1.0 在主版本 1 内增加可选字段：
 
 `--snapshot-json` 的 appVersion 是实际容器版本，module.json.version 是脚本包版本。应用更新核验实际运行、目标镜像、发布标识及健康；不存在健康检查时明确记录，有检查最多等待 120 秒。核验不重新查询 GitHub。同一主版本可新增可选字段；改变必需字段或事件语义时提升主版本并协调消费方。MCP 标准协商独立于部署桥。
 
+Deployment 1.1.2 将参数解析纳入桥事件边界：未知命令、未知参数及参数缺值产生 `DEPLOYMENT_ARGUMENT_ERROR`，最终 `done.code` 与实际退出码一致；`--bridge --help` 和 `--bridge --version` 以 0 结束。消费方在启动部署操作前可用普通 `--help` 核对安装包声明的动作与参数，避免独立更新的界面调用旧包不支持的功能。
+
 ## MCP 5.0 文章列表迁移
 
 `content.article.list` 的列表项移除 `content`，其余元数据与分页不变；读取正文使用 `content.article.get`。后台文章管理列表采用相同分离，详情和写入返回保留正文。升级后宿主应重新发现工具 Schema；这项业务契约变化不改变 MCP 日期协议、Key 鉴权或 Resource 契约。

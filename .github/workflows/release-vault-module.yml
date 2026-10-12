@@ -48,6 +48,11 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24.18.1'
+          cache: npm
+      - name: Validate release delivery regressions
+        run: |
+          npm ci --ignore-scripts
+          npm test -- scripts/release-delivery.test.mjs scripts/release-version.test.mjs
       - name: Validate immutable module identity and version
         id: identity
         env:

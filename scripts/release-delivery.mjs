@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Independent release delivery
  * @description Delivers commit-derived releases without replacing published tags, assets or images.
- * @logic Pin a default-branch ancestor, validate versions, recover matching drafts, verify native image digests, then promote only the newest successful application.
+ * @logic Pin source identity, create drafts through their returned Release ID, verify immutable assets and native images, then promote only the newest successful application.
  * @dependencies Git, GitHub CLI, Docker Buildx, release-version, docker-image-size
  * @index_tags release,github-actions,arm64,manifest,commit-log,recovery
  * @author holic512
@@ -63,15 +63,18 @@ function execute(binary, args, options = {}) {
   return execFileSync(binary, args, { encoding: 'utf8', timeout: 60_000, maxBuffer: 128 * 1024 * 1024, ...options })
 }
 
+const waitForRelease = milliseconds => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds)
+
 /** Network and process boundaries are injectable so recovery can be tested without publishing. */
 export class ReleaseDelivery {
   constructor({ root = process.cwd(), repository = process.env.GITHUB_REPOSITORY, defaultBranch = process.env.DEFAULT_BRANCH,
-    image = process.env.IMAGE_REPOSITORY, run = execute } = {}) {
+    image = process.env.IMAGE_REPOSITORY, run = execute, wait = waitForRelease } = {}) {
     if (!/^[\w.-]+\/[\w.-]+$/.test(repository ?? '')) throw new Error('A valid GitHub repository is required')
     this.root = resolve(root)
     this.repository = repository
     this.defaultBranch = defaultBranch
     this.image = image
+    this.wait = wait
     this.run = (binary, args, options) => run(binary, args, { cwd: this.root, encoding: 'utf8', ...options })
   }
 
@@ -109,6 +112,16 @@ export class ReleaseDelivery {
     const drafts = this.releases().filter(item => item.draft && item.tag_name === tag)
     if (drafts.length > 1) throw new Error(`Multiple drafts conflict with ${tag}`)
     return drafts[0] ?? null
+  }
+
+  releaseById(id) {
+    if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Release response is missing a valid ID')
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const release = this.api(`releases/${id}`, { missing: true })
+      if (release) return release
+      if (attempt < 2) this.wait(250 * (attempt + 1))
+    }
+    throw new Error(`Release ${id} is not visible by ID after bounded retries; retry delivery without replacing the draft`)
   }
 
   assertDefaultAncestor(sha) {
@@ -176,8 +189,9 @@ export class ReleaseDelivery {
   }
 
   verifyReleaseTarget(release, identity) {
+    if (!release) throw new Error(`Release ${identity.tag} is not visible; retry delivery without replacing the draft`)
     const tagged = this.tagCommit(identity.tag)
-    if (!release || release.tag_name !== identity.tag || release.prerelease
+    if (release.tag_name !== identity.tag || release.prerelease
       || (tagged ? tagged !== identity.sha : !release.draft || release.target_commitish !== identity.sha)
       || (release.draft && shaPattern.test(release.target_commitish ?? '') && release.target_commitish !== identity.sha)) {
       throw new Error(`Release target conflicts with ${identity.tag}`)
@@ -235,23 +249,24 @@ export class ReleaseDelivery {
     if (!release) {
       const tagged = this.tagCommit(identity.tag)
       if (tagged && tagged !== identity.sha) throw new Error('Cannot move an existing tag')
-      this.run('gh', ['release', 'create', identity.tag, '--repo', this.repository, '--draft', '--latest=false', '--target', identity.sha,
-        '--title', `SlothVault ${identity.module === 'application' ? '' : `${identity.module} `}${identity.version}`, '--notes-file', notesPath])
-      this.git(['fetch', '--tags', 'origin'])
-      release = this.release(identity.tag)
+      const requestPath = join(outdir, 'release-request.json')
+      writeJson(requestPath, { tag_name: identity.tag, target_commitish: identity.sha,
+        name: `SlothVault ${identity.module === 'application' ? '' : `${identity.module} `}${identity.version}`,
+        body: notes, draft: true, prerelease: false, make_latest: 'false' })
+      release = JSON.parse(this.run('gh', ['api', `repos/${this.repository}/releases`, '--method', 'POST', '--input', requestPath]))
     }
+    if (!Number.isSafeInteger(release?.id) || release.id <= 0) throw new Error('Release response is missing a valid ID')
     this.verifyReleaseTarget(release, identity)
     if (release.body?.trimEnd() !== notes.trimEnd()) throw new Error('Draft notes conflict with the pinned commit history')
     for (const asset of this.checkAssets(release, assets, { allowMissing: true })) {
       this.run('gh', ['api', `https://uploads.github.com/repos/${this.repository}/releases/${release.id}/assets?name=${encodeURIComponent(basename(asset))}`,
         '--method', 'POST', '-H', 'Content-Type: application/octet-stream', '--input', asset])
     }
-    release = this.release(identity.tag)
+    release = this.releaseById(release.id)
     this.verifyReleaseTarget(release, identity)
     this.checkAssets(release, assets)
     this.ensureReleaseTag(identity)
-    this.run('gh', ['api', `repos/${this.repository}/releases/${release.id}`, '--method', 'PATCH', '-F', 'draft=false', '-f', 'make_latest=false'])
-    release = this.release(identity.tag)
+    release = JSON.parse(this.run('gh', ['api', `repos/${this.repository}/releases/${release.id}`, '--method', 'PATCH', '-F', 'draft=false', '-f', 'make_latest=false']))
     this.verifyReleaseTarget(release, identity)
     if (release.draft) throw new Error('Release is still a draft after publishing')
     return 'published'

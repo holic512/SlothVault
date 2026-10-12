@@ -3,7 +3,7 @@
 @project SlothVault
 @module Deployment frontend bridge
 @description Translates deployment service prompts and results into newline-delimited JSON for the Ink TUI.
-@logic Review and confirm one application target, forward measured command events, and finish with an actual snapshot and explicit outcome.
+@logic Parse bridge requests inside the event boundary, forward measured events, and finish with a snapshot and the actual process exit status.
 @dependencies Python standard library, deployment service, instance inspection
 @index_tags deployment,tui,protocol,prompt,status
 @author holic512
@@ -81,11 +81,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--snapshot-json", action="store_true")
     parser.add_argument("--bridge", action="store_true")
     parser.add_argument("--root", default="/data/slothvault")
-    known, rest = parser.parse_known_args(argv)
-    if known.snapshot_json:
-        print(json.dumps(inspect_instance(known.root), ensure_ascii=False))
-        return 0
-    if not known.bridge:
+    if "--bridge" not in argv:
+        known, _ = parser.parse_known_args(argv)
+        if known.snapshot_json:
+            print(json.dumps(inspect_instance(known.root), ensure_ascii=False))
+            return 0
         return cli.main(argv)
 
     original_input = builtins.input
@@ -109,7 +109,9 @@ def main(argv: list[str] | None = None) -> int:
     set_confirmation_callback(lambda label, default: _ask(label, kind="confirm", default=default))
     code, outcome = 1, {"outcome": "failed"}
     parsed = None
+    known = argparse.Namespace(root="/data/slothvault")
     try:
+        known, rest = parser.parse_known_args(argv)
         action_args = ["--root", known.root, *rest]
         parsed = cli.parse_arguments(action_args)
         if parsed.action == "status":
@@ -127,6 +129,13 @@ def main(argv: list[str] | None = None) -> int:
             code = cli.main(action_args)
         if parsed.action != "update":
             outcome = {"outcome": "failed"} if code else {}
+    except SystemExit as error:
+        # argparse uses SystemExit for errors, help and version; it is not an Exception.
+        code = error.code if isinstance(error.code, int) else (0 if error.code is None else 1)
+        outcome = {"outcome": "failed"} if code else {}
+        if code:
+            writer.flush()
+            _emit("error", message="部署命令或参数无效，请检查已安装脚本包支持的命令与参数。", code="DEPLOYMENT_ARGUMENT_ERROR")
     except (InstallerError, OSError, EOFError) as error:
         writer.flush()
         _emit("error", message=safe_message(str(error)), code="DEPLOYMENT_FAILED")
@@ -141,7 +150,7 @@ def main(argv: list[str] | None = None) -> int:
         if parsed is not None and parsed.action != "status":
             try:
                 snapshot = inspect_instance(known.root)
-                if parsed.action.startswith('nginx'):
+                if parsed.action and parsed.action.startswith('nginx'):
                     from .nginx_management import nginx_snapshot
                     snapshot['nginx'] = nginx_snapshot(normalize_path(known.root, '部署根目录'), parsed)
                 context["currentVersion"] = snapshot.get("appVersion")

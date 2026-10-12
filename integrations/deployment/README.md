@@ -31,6 +31,8 @@ sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy --action updat
 
 部署程序不会自行下载或覆盖自身。`--version` 显示 Deployment Package 版本；应用版本可在部署状态中单独查看。仅更新部署脚本包运行 `slothtool slothvault deploy package update`（兼容入口 `slothtool update slothvault --module deployment`）；`slothtool update slothvault` 只更新管理界面。Skill、Deployment、界面插件和应用分别检查与更新。
 
+部署包 1.1.2 修复桥接参数错误的退出码：未知命令、未知参数及参数缺值会明确报告参数错误，`done.code` 与进程状态一致。SlothTool 界面插件 3.2.2 会在执行前读取已安装脚本的 `--help`，核对目标命令与参数；旧包缺少功能时先提示更新部署脚本包。
+
 ## 1.1.0 应用更新与进度
 
 “更新应用”先读取实际运行版本和正式 Release，预览当前版本、固定目标镜像、部署目录及重启影响，再确认一次。桥模式按 y 继续、n/Esc 取消；普通 CLI 保留原有 y/n 输入和退出码。后端不在确认后切换到新出现的 Release。

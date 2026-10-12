@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 import json
+import os
 import subprocess
 from contextlib import redirect_stdout
 from io import StringIO
@@ -821,6 +822,31 @@ class ObservableUpdateTests(unittest.TestCase):
             self.assertEqual(bridge.main(["--bridge", "--action", "update", "--root", "/tmp/vault"]), 0)
         events = [json.loads(line) for line in output.getvalue().splitlines()]
         self.assertEqual(events[-2]["data"]["state"], "unreadable")
+
+    def test_bridge_argument_and_information_exits_match_the_real_process(self):
+        entry = Path(__file__).resolve().parents[1] / "install.py"
+        cases = [
+            (["--action", "future-action"], 2),
+            (["--action", "nginx-status", "--future-option", "value"], 2),
+            (["--action", "nginx-status", "--nginx-site"], 2),
+            (["--root"], 2),
+            (["--help"], 0),
+            (["--version"], 0),
+        ]
+        for arguments, expected in cases:
+            with self.subTest(arguments=arguments):
+                result = subprocess.run([sys.executable, str(entry), "--bridge", *arguments],
+                                        capture_output=True, text=True,
+                                        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
+                events = [json.loads(line) for line in result.stdout.splitlines()]
+                done = [event for event in events if event["type"] == "done"]
+                self.assertEqual(len(done), 1)
+                self.assertEqual((result.returncode, done[0]["code"]), (expected, expected))
+                self.assertEqual(events[-1], done[0])
+                self.assertEqual(result.stderr, "")
+                if expected:
+                    self.assertEqual(done[0]["outcome"], "failed")
+                    self.assertTrue(any(event.get("code") == "DEPLOYMENT_ARGUMENT_ERROR" for event in events))
 
     def test_typed_prompt_keeps_answer_cancel_and_secret_contract(self):
         from slothvault_deploy import bridge

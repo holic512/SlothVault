@@ -1,5 +1,11 @@
 # Deployment changes
 
+## 1.1.2
+
+- Keep bridge final-event codes aligned with real process exits for unknown actions, unknown options, missing argument values, help and version queries.
+- Report argument failures explicitly and include bootstrap argument parsing within the JSON event boundary.
+- Add subprocess regressions for command and parameter compatibility, including future actions and options, while retaining bridge major 1.
+
 ## 1.1.1
 
 - Discover host and Docker Nginx from actual execution context and loaded configuration, without an image-name allowlist.

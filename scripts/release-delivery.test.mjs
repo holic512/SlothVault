@@ -42,6 +42,8 @@ function fixture() {
   const aliases = new Map()
   let latest
   let uploadsBeforeFailure = Infinity
+  let hideDrafts = false, invisibleIdReads = 0, idReadFailure
+  const waits = [], idReads = []
   const tag = (name, sha = git(['rev-parse', 'HEAD'])) => { git(['tag', name, sha]); git(['push', '-q', 'origin', name]) }
   const addRelease = (name, { draft = false, prerelease = false, assets = [], body = '', target = git(['rev-parse', 'HEAD']) } = {}) => {
     if (!draft && !git(['tag', '--list', name])) tag(name)
@@ -57,6 +59,11 @@ function fixture() {
         if (args.includes('--method')) {
           mutations.push(args)
           if (args[1].endsWith('/git/refs')) {tag(flag('-f').slice('ref=refs/tags/'.length), args.at(-1).slice(4)); return '{}'}
+          if (args[1] === 'repos/example/vault/releases' && flag('--method') === 'POST') {
+            const request = JSON.parse(readFileSync(flag('--input'), 'utf8'))
+            return JSON.stringify(addRelease(request.tag_name, {draft: request.draft, prerelease: request.prerelease,
+              target: request.target_commitish, body: request.body}))
+          }
           const upload = args[1].match(/releases\/(\d+)\/assets\?name=(.+)$/)
           const release = [...releases.values()].find(item => item.id === Number(upload?.[1] ?? args[1].split('/').at(-1)))
           if (upload) {
@@ -66,12 +73,17 @@ function fixture() {
           } else release.draft = false
           return JSON.stringify(release)
         }
-        if (args.includes('--paginate')) return JSON.stringify([[...releases.values()]])
+        if (args.includes('--paginate')) return JSON.stringify([[...releases.values()].filter(item => !hideDrafts || !item.draft)])
         const endpoint = args[1].replace('repos/example/vault/', '')
         let result
         if (endpoint.startsWith('releases/tags/')) {
           result = releases.get(decodeURIComponent(endpoint.slice('releases/tags/'.length)))
           if (result?.draft) result = undefined
+        }
+        else if (/^releases\/\d+$/.test(endpoint)) {
+          idReads.push(endpoint)
+          if (idReadFailure) throw idReadFailure
+          if (invisibleIdReads-- <= 0) result = [...releases.values()].find(item => item.id === Number(endpoint.split('/').at(-1)))
         }
         else if (endpoint === 'releases/latest') result = releases.get(latest)
         if (result) return JSON.stringify(result)
@@ -119,7 +131,8 @@ function fixture() {
     }
     throw new Error(`Unexpected process ${binary}`)
   }
-  const delivery = new ReleaseDelivery({ root, repository: 'example/vault', defaultBranch: 'master', image: 'docker.io/example/vault', run })
+  const delivery = new ReleaseDelivery({ root, repository: 'example/vault', defaultBranch: 'master', image: 'docker.io/example/vault', run,
+    wait: milliseconds => waits.push(milliseconds) })
   const identity = module => ({ module, sha: git(['rev-parse', 'HEAD']), version: '1.0.1', tag: module === 'application' ? 'v1.0.1' : `${module}-v1.0.1`, publish: true })
   const outdir = join(directory, 'out')
   mkdirSync(outdir)
@@ -139,7 +152,8 @@ function fixture() {
     return imageDigest
   }
   return { root, git, write, commit, base, tag, releases, addRelease, mutations, delivery, identity, outdir, assets, native, aliases, registry,
-    interruptAfterUploads: count => { uploadsBeforeFailure = count }, setLatest: name => { latest = name } }
+    interruptAfterUploads: count => { uploadsBeforeFailure = count }, setLatest: name => { latest = name }, waits, idReads,
+    hideDrafts: () => {hideDrafts = true}, hideIdReads: count => {invisibleIdReads = count}, failIdReads: error => {idReadFailure = error} }
 }
 
 describe('commit-derived independent release notes', () => {
@@ -239,9 +253,64 @@ describe('pinned targets and release recovery', () => {
     const before = f.mutations.length
     expect(f.delivery.publish(id, f.outdir)).toBe('verified-existing')
     expect(f.mutations).toHaveLength(before)
-    expect(f.mutations.filter(args => args[1] === 'create')).toHaveLength(1)
+    expect(f.mutations.filter(args => args[1] === 'repos/example/vault/releases' && args.includes('POST'))).toHaveLength(1)
     expect(f.mutations.filter(args => args[1] === 'edit').every(args => args.includes('--latest=false'))).toBe(true)
     expect(f.releases.get(id.tag).body).not.toContain('Build result')
+  })
+
+  it.each(['application', 'skill', 'deployment'])('publishes %s through its returned ID while draft tag and list reads are stale', module => {
+    const f = fixture(), id = f.identity(module)
+    f.assets(id)
+    if (module === 'application') writeFileSync(join(f.outdir, 'slothvault-image-manifest.json'), '{}')
+    f.hideDrafts()
+    f.hideIdReads(2)
+    expect(f.delivery.publish(id, f.outdir)).toBe('published')
+    expect(f.releases.get(id.tag).draft).toBe(false)
+    expect(f.waits).toEqual([250, 500])
+    expect(f.idReads).toHaveLength(3)
+    const creates = f.mutations.filter(args => args[1] === 'repos/example/vault/releases' && args.includes('POST'))
+    expect(creates).toHaveLength(1)
+    const request = JSON.parse(readFileSync(creates[0][creates[0].indexOf('--input') + 1], 'utf8'))
+    expect(request).toMatchObject({tag_name: id.tag, target_commitish: id.sha, draft: true, prerelease: false, make_latest: 'false'})
+    expect(request.body).toContain('1. Keep the initial details.\n2. Preserve newlines.')
+  })
+
+  it('bounds missing ID retries, keeps the draft, and distinguishes visibility from target conflicts', () => {
+    const f = fixture(), id = f.identity('deployment')
+    f.assets(id)
+    f.hideIdReads(Infinity)
+    expect(() => f.delivery.publish(id, f.outdir)).toThrow('not visible by ID after bounded retries')
+    expect(f.waits).toEqual([250, 500])
+    expect(f.releases.get(id.tag).draft).toBe(true)
+    expect(f.delivery.tagCommit(id.tag)).toBeNull()
+    expect(() => f.delivery.verifyReleaseTarget(null, id)).toThrow('not visible')
+  })
+
+  it('does not retry permission failures from the Release ID endpoint', () => {
+    const f = fixture(), id = f.identity('deployment')
+    f.assets(id)
+    f.failIdReads(Object.assign(new Error('Unauthorized'), {stderr: 'gh: Unauthorized (HTTP 403)'}))
+    expect(() => f.delivery.publish(id, f.outdir)).toThrow('Unauthorized')
+    expect(f.waits).toEqual([])
+    expect(f.idReads).toHaveLength(1)
+    expect(f.releases.get(id.tag).draft).toBe(true)
+  })
+
+  it('rejects conflicting creation responses before uploading assets or creating a tag', () => {
+    const f = fixture(), id = f.identity('deployment')
+    f.assets(id)
+    const run = f.delivery.run
+    f.delivery.run = (binary, args, options) => {
+      const output = run(binary, args, options)
+      if (binary === 'gh' && args[1] === 'repos/example/vault/releases' && args.includes('POST')) {
+        return JSON.stringify({...JSON.parse(output), target_commitish: 'a'.repeat(40)})
+      }
+      return output
+    }
+    expect(() => f.delivery.publish(id, f.outdir)).toThrow('target conflicts')
+    expect(f.releases.get(id.tag).assets).toEqual([])
+    expect(f.delivery.tagCommit(id.tag)).toBeNull()
+    expect(f.mutations).toHaveLength(1)
   })
 
   it('never overwrites published notes, tags or mismatched assets', () => {
