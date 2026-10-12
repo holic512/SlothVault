@@ -19,12 +19,12 @@ import { ApiClientError, apiFetch } from '@/lib/api-client'
 import { importBackupUpload, rememberedBackupUpload, rememberBackupUpload, uploadBackupFile } from '@/lib/backup-upload'
 import { formatAdminError } from '@/lib/admin-localization'
 import type { BackupHistoryResponse, BackupJob, BackupSettings, BackupSettingsResponse, BackupSnapshotSummary, BackupSource, BackupUpload, RestorePreview } from '@/types/backup'
+import { backupKindTagColors, backupStatusTagColors as statusColors } from '@/theme/tag-colors'
 
 const prefix = '/api/admin/mm/backup'
 const historyKey = ['admin', 'complete-backups']
 const settingsKey = ['admin', 'backup-settings']
 const emptyHistory: BackupHistoryResponse = { snapshots: [], jobs: [], activeJob: null }
-const statusColors = { queued: 'default', running: 'processing', succeeded: 'success', failed: 'error', interrupted: 'warning' } as const
 function bytes(size: number | string) { return `${(Number(size) / 1024 / 1024).toFixed(1)} MiB` }
 
 export function CompleteBackupManager({ externalBusy, onBusyChange, dangerPanel }: {
@@ -257,7 +257,7 @@ export function CompleteBackupManager({ externalBusy, onBusyChange, dangerPanel 
           locale={{ emptyText: t(snapshotKind === 'all' ? 'history.empty' : 'filters.empty') }}
           columns={[
             { title: t('history.time'), render: (_, item) => <Space orientation="vertical" size={2}><span>{date(item.createdAt)}</span>{item.importedAt && <Typography.Text type="secondary">{t('history.importedAt', { time: date(item.importedAt) })}</Typography.Text>}{item.fileName && <Typography.Text type="secondary">{item.fileName}</Typography.Text>}</Space> },
-            { title: t('history.kind'), dataIndex: 'kind', render: (kind: BackupSnapshotSummary['kind']) => <Tag>{t(`kinds.${kind}`)}</Tag> },
+            { title: t('history.kind'), dataIndex: 'kind', render: (kind: BackupSnapshotSummary['kind']) => <Tag color={backupKindTagColors[kind]}>{t(`kinds.${kind}`)}</Tag> },
             { title: t('history.compatibility'), render: (_, item) => <Space orientation="vertical" size={2}>
               <Tag color={item.restorable ? 'success' : 'warning'}>{t(`compatibility.${item.compatibility.status}`)}</Tag>
               <Typography.Text type="secondary">{t('compatibility.versions', { source: item.compatibility.sourceVersion || '—', target: item.compatibility.targetVersion })}</Typography.Text>

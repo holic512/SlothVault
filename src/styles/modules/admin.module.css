@@ -1532,32 +1532,6 @@
   font-size: var(--sv-admin-font-secondary);
 }
 
-.root :global(.settings-rpc-status) {
-  --sv-rpc-status-color: var(--sv-text-muted);
-}
-
-.root :global(.settings-rpc-status[data-tone='success']) {
-  --sv-rpc-status-color: var(--sv-success);
-}
-
-.root :global(.settings-rpc-status[data-tone='error']) {
-  --sv-rpc-status-color: var(--sv-danger);
-}
-
-.root :global(.settings-rpc-status[data-tone='warning']) {
-  --sv-rpc-status-color: var(--sv-warning);
-}
-
-.root :global(.settings-rpc-status[data-tone='processing']) {
-  --sv-rpc-status-color: var(--sv-primary-strong);
-}
-
-.root :global(.settings-rpc-result) :global(.settings-rpc-status) {
-  border-color: color-mix(in srgb, var(--sv-rpc-status-color) 30%, var(--sv-admin-border)) !important;
-  background: color-mix(in srgb, var(--sv-rpc-status-color) 8%, var(--sv-bg-solid)) !important;
-  color: var(--sv-rpc-status-color) !important;
-}
-
 .root :global(.settings-logo-control) {
   display: grid;
   grid-column: 2;
@@ -2396,10 +2370,6 @@
   margin: 0;
   font-size: var(--sv-admin-font-secondary);
 }
-
-.root :global(.dashboard-activity-status.is-active) { color: var(--sv-dashboard-health); }
-.root :global(.dashboard-activity-status.is-expired) { color: var(--sv-dashboard-warning); }
-.root :global(.dashboard-activity-status.is-revoked) { color: var(--sv-dashboard-danger); }
 
 .root :global(.dashboard-activity-arrow) { color: var(--sv-text-muted); }
 

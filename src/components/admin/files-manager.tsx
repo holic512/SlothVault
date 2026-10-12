@@ -36,6 +36,7 @@ import { AdminPage, AdminPageActions } from '@/components/admin/admin-page'
 import { formatAdminBytes, formatAdminDate, formatAdminError } from '@/lib/admin-localization'
 import { apiFetch } from '@/lib/api-client'
 import { ADMIN_UPLOAD_BUSINESS_TYPES, VALID_BUSINESS_TYPES, allowedFileExtensions, type BusinessType } from '@/lib/file-business-types'
+import { fileTagColors } from '@/theme/tag-colors'
 
 type FileDto = {
   id: string
@@ -173,7 +174,7 @@ export function FilesManager() {
       dataIndex: 'businessType',
       width: 145,
       render: (value) => (
-        <Tag color={value === 'ProjectAvatar' ? 'purple' : value === 'NoteAttachment' ? 'blue' : undefined}>
+        <Tag color={Object.hasOwn(fileTagColors, value) ? fileTagColors[value as BusinessType] : 'default'}>
           {businessTypeOptions.find((option) => option.value === value)?.label || value}
         </Tag>
       ),
@@ -186,7 +187,7 @@ export function FilesManager() {
         value === 1 ? (
           <Tag color="success">{t('statusTag.normal')}</Tag>
         ) : (
-          <Tag>{t('statusTag.deleted')}</Tag>
+          <Tag color="error">{t('statusTag.deleted')}</Tag>
         ),
     },
     {

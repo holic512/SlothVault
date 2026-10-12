@@ -678,12 +678,6 @@ h3.ant-typography {
   font-weight: 600;
 }
 
-.ant-tag {
-  border-color: var(--sv-border) !important;
-  background: var(--sv-bg-soft) !important;
-  color: var(--sv-text) !important;
-}
-
 @media (max-width: 900px) {
   .sloth-wallet-button.wallet-adapter-button {
     max-width: 130px;

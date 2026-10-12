@@ -170,7 +170,7 @@ export function McpKeysManager({ administratorId }: { administratorId: string })
   }
 
   const statusLabel = (apiKey: McpApiKeyRow) => {
-    if (isExpired(apiKey)) return <Tag color="default">{t('status.expired')}</Tag>
+    if (isExpired(apiKey)) return <Tag color="warning">{t('status.expired')}</Tag>
     return apiKey.status === MCP_API_KEY_STATUS.ACTIVE
       ? <Tag color="success">{t('status.active')}</Tag>
       : <Tag color="warning">{t('status.disabled')}</Tag>

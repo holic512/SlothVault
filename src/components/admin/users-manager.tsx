@@ -314,7 +314,7 @@ export function UsersManager() {
               title: t('table.role'),
               dataIndex: 'role',
               width: 96,
-              render: (value) => <Tag color={value === 'ADMIN' ? 'blue' : undefined}>{value === 'ADMIN' ? t('role.admin') : t('role.user')}</Tag>,
+              render: (value) => <Tag color={value === 'ADMIN' ? 'purple' : 'blue'}>{value === 'ADMIN' ? t('role.admin') : t('role.user')}</Tag>,
             },
             { title: t('table.wallet'), dataIndex: 'walletAddress', width: 100, render: (value) => value ? t('wallet.bound') : t('wallet.unbound') },
             { title: t('table.points'), dataIndex: 'pointsBalance', width: 100, align: 'right' },
@@ -323,8 +323,8 @@ export function UsersManager() {
               dataIndex: 'activeMemberships',
               width: 170,
               render: (value: UserRow['activeMemberships']) => value?.length
-                ? <Space orientation="vertical" size={2}>{value.map((item) => <span key={item.id}><Tag color="gold">{item.name}</Tag><small>{item.expiresAt ? t('membership.until', { date: formatAdminDate(locale, item.expiresAt, false) }) : t('membership.permanent')}</small></span>)}</Space>
-                : <Tag>{t('membership.regular')}</Tag>,
+                ? <Space orientation="vertical" size={2}>{value.map((item) => <span key={item.id}><Tag color="purple">{item.name}</Tag><small>{item.expiresAt ? t('membership.until', { date: formatAdminDate(locale, item.expiresAt, false) }) : t('membership.permanent')}</small></span>)}</Space>
+                : <Tag color="blue">{t('membership.regular')}</Tag>,
             },
             {
               title: t('table.status'),
@@ -435,7 +435,7 @@ export function UsersManager() {
         <Space orientation="vertical" size={12} className="full-width">
           <div>
             <strong>{t('membership.current')}</strong>
-            {membershipQuery.data?.activeMemberships.length ? membershipQuery.data.activeMemberships.map((item) => <span key={item.id}><Tag color="gold">{item.name}</Tag><Button size="small" type="link" danger onClick={() => modal.confirm({ title: t('membership.revokeType', { name: item.name }), content: t('membership.revokeTypeConfirm'), okButtonProps: { danger: true }, onOk: () => revokeMembershipMutation.mutateAsync(item.id) })}>{t('membership.revoke')}</Button></span>) : t('membership.regular')}
+            {membershipQuery.data?.activeMemberships.length ? membershipQuery.data.activeMemberships.map((item) => <span key={item.id}><Tag color="purple">{item.name}</Tag><Button size="small" type="link" danger onClick={() => modal.confirm({ title: t('membership.revokeType', { name: item.name }), content: t('membership.revokeTypeConfirm'), okButtonProps: { danger: true }, onOk: () => revokeMembershipMutation.mutateAsync(item.id) })}>{t('membership.revoke')}</Button></span>) : t('membership.regular')}
           </div>
           <Typography.Text type="secondary">{t('membership.independentHint')}</Typography.Text>
           <Form form={membershipForm} layout="vertical" onFinish={(values) => membershipMutation.mutate(values)}>
@@ -453,7 +453,11 @@ export function UsersManager() {
           </Form>
           <div className="admin-membership-history">
             <strong>{t('membership.history')}</strong>
-            {membershipQuery.data?.grants.map((grant) => <div key={grant.id}><Tag color={grant.active ? 'success' : undefined}>{grant.membershipLevel.name}</Tag>{grant.revokedAt ? t('membership.revoked') : grant.expiresAt ? t('membership.until', { date: formatAdminDate(locale, grant.expiresAt) }) : t('membership.permanent')}</div>)}
+            {membershipQuery.data?.grants.map((grant) => <div key={grant.id}>
+              <Tag color="purple">{grant.membershipLevel.name}</Tag>
+              <Tag color={grant.revokedAt ? 'error' : grant.active ? 'success' : 'warning'}>{t(grant.revokedAt ? 'membership.revoked' : grant.active ? 'membership.active' : 'membership.expired')}</Tag>
+              {grant.revokedAt ? null : grant.expiresAt ? t('membership.until', { date: formatAdminDate(locale, grant.expiresAt) }) : t('membership.permanent')}
+            </div>)}
           </div>
         </Space>
       </Modal>

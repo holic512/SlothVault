@@ -347,7 +347,7 @@ export function DashboardView() {
                 <Link className="dashboard-activity-item" href={item.href} key={item.id}>
                   <span className={`dashboard-activity-icon is-${item.type}`}><Icon size={17} /></span>
                   <span className="dashboard-activity-copy"><strong>{item.title}</strong><small>{item.detail || t(`recent.types.${item.type}`)}</small></span>
-                  {item.status ? <Tag className={`dashboard-activity-status is-${item.status}`}>{t(`recent.status.${item.status}`)}</Tag> : null}
+                  {item.status ? <Tag className="dashboard-activity-status" color={item.status === 'active' ? 'success' : item.status === 'expired' ? 'warning' : 'error'}>{t(`recent.status.${item.status}`)}</Tag> : null}
                   <time dateTime={item.timestamp}>{formatAdminDate(locale, item.timestamp)}</time>
                   <span className="dashboard-activity-arrow" aria-hidden="true">→</span>
                 </Link>

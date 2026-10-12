@@ -2030,6 +2030,8 @@
         "expiresAt": "Expiry time",
         "selectFutureExpiry": "Choose a future expiry time",
         "history": "Grant history",
+        "active": "Active",
+        "expired": "Expired",
         "revoked": "Revoked",
         "until": "Until {date}",
         "disabled": "Not for sale",

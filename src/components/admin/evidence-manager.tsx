@@ -130,7 +130,7 @@ type Prepared = {
 
 const STATUS = {
   [-1]: { labelKey: 'status.failed', color: 'error', icon: <CircleAlert size={14} /> },
-  [0]: { labelKey: 'status.awaitingSignature', color: 'default', icon: <FileSignature size={14} /> },
+  [0]: { labelKey: 'status.awaitingSignature', color: 'warning', icon: <FileSignature size={14} /> },
   [1]: { labelKey: 'status.confirming', color: 'processing', icon: <Clock3 size={14} /> },
   [2]: { labelKey: 'status.finalized', color: 'success', icon: <BadgeCheck size={14} /> },
 } as const
@@ -364,7 +364,7 @@ export function EvidenceManager() {
     {
       title: t('table.subject'),
       render: (_, row) => <div>
-        <Space size={5}><strong>{row.projectName}</strong><Tag variant="filled">{t('subject.projectVersion')}</Tag></Space>
+        <Space size={5}><strong>{row.projectName}</strong><Tag color="blue">{t('subject.projectVersion')}</Tag></Space>
         <br />
         <Typography.Text type="secondary">
           {row.version}

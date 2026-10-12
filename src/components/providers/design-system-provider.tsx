@@ -53,6 +53,7 @@ export function DesignSystemProvider({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ConfigProvider
         locale={locale === 'zh' ? zhCN : enUS}
+        tag={{ variant: 'outlined' }}
         theme={{
           ...componentTheme,
           cssVar: { key: `slothvault-${style}-${dark ? 'dark' : 'light'}` },

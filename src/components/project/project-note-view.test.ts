@@ -2,6 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import { evaluateProjectAccess } from '@/lib/content-access'
+import { getContentTagColor } from '@/theme/tag-colors'
 
 vi.mock('next-intl/server', () => ({
   getLocale: async () => 'en',
@@ -35,6 +36,7 @@ describe('project note tags', () => {
     expect(html).toContain('API')
     expect(html).toContain('教程')
     expect(html).toContain('&lt;script&gt;')
+    for (const tag of ['API', '教程', '<script>']) expect(html).toContain(`ant-tag-${getContentTagColor(tag)}`)
     expect(html.includes('Protected body')).toBe(canRead)
   })
   it('omits the tag container for notes without tags', async () => {

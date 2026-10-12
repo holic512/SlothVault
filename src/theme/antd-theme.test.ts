@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { getAntdTheme } from '@/theme/antd-theme'
 import { appStyles, type AppStyle } from '@/theme/app-style'
 import { appThemePalette, appThemes, type AppTheme } from '@/theme/app-theme'
+import { contentTagColors, tagPalettes } from '@/theme/tag-colors'
 
 type Color = [number, number, number, number]
 
@@ -102,6 +103,22 @@ describe.each(appStyles.flatMap((style) => appThemes.map((mode) => ({ style, mod
       for (const name of ['Info', 'Success', 'Warning', 'Error'] as const) {
         expectContrast(token[`color${name}Text`], [token[`color${name}Bg`], token[`color${name}BgHover`], ...surfaces], 4.5)
       }
+    })
+
+    it('gives tags distinct semantic colors and readable category backgrounds independently of the page accent', () => {
+      const tag = config.components!.Tag!
+      const colors = ['Info', 'Success', 'Warning', 'Error'] as const
+      expect(new Set(colors.map((name) => tag[`color${name}`])).size).toBe(4)
+      for (const name of colors) {
+        expectContrast(tag[`color${name}`]!, [tag[`color${name}Bg`]!], 4.5)
+        expect(tag[`color${name}Border`]).not.toBe(tag[`color${name}Bg`])
+      }
+      for (const name of contentTagColors) {
+        expect(tag[`${name}7`]).toBe(tagPalettes[mode][name])
+        expectContrast(tag[`${name}7`]!, [tag[`${name}1`]!], 4.5)
+      }
+      expectContrast(tag.defaultColor!, [tag.defaultBg!], 4.5)
+      expect(parseColor(resolve('--sv-tag-membership'))).toEqual(parseColor(tag.purple7!))
     })
 
     it('distinguishes controls and focus indicators without strengthening decorative borders', () => {

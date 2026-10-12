@@ -63,6 +63,8 @@ import { MarkdownContentEditor } from '@/components/admin/markdown-content-edito
 import { formatAdminDate, formatAdminError } from '@/lib/admin-localization'
 import { noteTagsSchema } from '@/lib/note-tags'
 import { apiFetch, ApiClientError } from '@/lib/api-client'
+import { renderContentTag } from '@/components/tags/content-tag-render'
+import { getContentTagColor } from '@/theme/tag-colors'
 
 type Project = { id: string; projectName: string }
 type ProjectVersion = {
@@ -767,7 +769,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
   }
   const versionTag = (version: ProjectVersion) => (
     <span className="note-version-tags" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }} title={version.publishedAt ? contentT('releasedReadOnly') : undefined}>
-      <Tag style={{ marginInlineEnd: 0 }} color={version.publishedAt ? 'success' : 'default'}>{vt(version.publishedAt ? 'status.published' : 'status.draft')}</Tag>
+      <Tag style={{ marginInlineEnd: 0 }} color={version.publishedAt ? 'success' : 'warning'}>{vt(version.publishedAt ? 'status.published' : 'status.draft')}</Tag>
       {version.publishedAt && version.status !== 1 ? <Tag style={{ marginInlineEnd: 0 }} color="warning">{vt('status.hidden')}</Tag> : null}
     </span>
   )
@@ -891,7 +893,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
 
         <main className="note-writing-panel">
           {selectedNote?.tags?.length ? <div className="note-tags" aria-label={t('tags')}>
-            {selectedNote.tags.map((tag) => <Tag key={tag}>{tag}</Tag>)}
+            {selectedNote.tags.map((tag) => <Tag key={tag} color={getContentTagColor(tag)}>{tag}</Tag>)}
           </div> : null}
           {selectedNote && contents.length ? (
             <div className="note-compact-revision-control">
@@ -936,7 +938,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
       <Modal open={Boolean(entityDialog)} title={entityDialog ? t(`entityDialog.${entityDialog.kind}.${entityDialog.mode}`) : ''} okText={t('save')} cancelText={t('cancel')} confirmLoading={busy} okButtonProps={{ disabled: !entityDialog?.name.trim() }} onCancel={() => setEntityDialog(null)} onOk={() => void saveEntity()}>
         {entityDialog ? <div className="note-dialog-fields">
           <label><span>{entityDialog.kind === 'category' ? t('categoryName') : t('noteTitle')}</span><Input disabled={readOnly} value={entityDialog.name} maxLength={entityDialog.kind === 'category' ? 64 : 255} onChange={(event) => setEntityDialog({ ...entityDialog, name: event.target.value })} /></label>
-          {entityDialog.kind === 'note' ? <label><span>{t('tags')}</span><Select mode="tags" value={entityDialog.tags ?? []} disabled={readOnly} placeholder={t('tagsPlaceholder')} aria-label={t('tags')} onChange={(tags: string[]) => setEntityDialog({ ...entityDialog, tags })} /><small>{readOnly ? t('tagsReadOnly') : t('tagsHint')}</small></label> : null}
+          {entityDialog.kind === 'note' ? <label><span>{t('tags')}</span><Select mode="tags" tagRender={(props) => renderContentTag(props, readOnly)} value={entityDialog.tags ?? []} disabled={readOnly} placeholder={t('tagsPlaceholder')} aria-label={t('tags')} onChange={(tags: string[]) => setEntityDialog({ ...entityDialog, tags })} /><small>{readOnly ? t('tagsReadOnly') : t('tagsHint')}</small></label> : null}
           <label><span>{t('weight')}</span><InputNumber value={entityDialog.weight} onChange={(value) => setEntityDialog({ ...entityDialog, weight: value || 0 })} /></label>
           <label className="note-dialog-switch"><span>{t('enabled')}</span><Switch disabled={readOnly} checked={entityDialog.status === 1} onChange={(checked) => setEntityDialog({ ...entityDialog, status: checked ? 1 : 0 })} /></label>
         </div> : null}
@@ -1043,7 +1045,7 @@ function RevisionEditor({ item, readOnly, onDirtyChange, onSaved }: {
       header={(
         <div className="note-writing-header">
           <div className="note-writing-version">
-            <Tag color={item.isPrimary ? 'gold' : 'default'}>{item.isPrimary ? contentT('setPrimary') : item.versionNote || contentT('unnamedVersion')}</Tag>
+            <Tag color={item.isPrimary ? 'purple' : 'blue'}>{item.isPrimary ? contentT('setPrimary') : item.versionNote || contentT('unnamedVersion')}</Tag>
             {lastSavedAt ? <Typography.Text type="secondary">{contentT('saved')} {formatAdminDate(locale, lastSavedAt)}</Typography.Text> : null}
           </div>
           <span className="note-writing-divider" aria-hidden="true" />

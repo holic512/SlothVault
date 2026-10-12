@@ -6,6 +6,7 @@ import { App } from 'antd'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { getProjectVersionActions, loadProjectVersions, NoteContentEditor } from './note-content-editor'
+import { getContentTagColor } from '@/theme/tag-colors'
 
 const scenario = vi.hoisted(() => ({
   previewClick: null as (() => void) | null,
@@ -98,6 +99,7 @@ describe('note workspace revision controls', () => {
     expect(html).toContain('class="note-tags"')
     expect(html).toContain('API')
     expect(html).toContain('教程')
+    for (const tag of ['API', '教程']) expect(html).toContain(`ant-tag-${getContentTagColor(tag)}`)
   })
 
   it('shows the hidden badge alongside the published badge', () => {

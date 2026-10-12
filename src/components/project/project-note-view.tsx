@@ -16,6 +16,7 @@ import { getLocale, getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 
 import type { ProjectAccess } from '@/lib/content-access'
+import { getContentTagColor } from '@/theme/tag-colors'
 import { ProjectAccessNotice } from './project-access-notice'
 import { ProjectDocumentContent } from '@/components/project/project-document-content'
 
@@ -90,7 +91,7 @@ export async function ProjectNoteView({
           </div>
           <TypographyTitle>{noteTitle}</TypographyTitle>
           {tags.length ? <div className="docs-note-tags" aria-label={t('tags')}>
-            {tags.map((tag) => <Tag key={tag}>{tag}</Tag>)}
+            {tags.map((tag) => <Tag key={tag} color={getContentTagColor(tag)}>{tag}</Tag>)}
           </div> : null}
           {note?.versionNote ? <TypographyParagraph type="secondary">{note.versionNote}</TypographyParagraph> : null}
           <ProjectAccessNotice access={access} capability={note ? 'download' : 'read'} />

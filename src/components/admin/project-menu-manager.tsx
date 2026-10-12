@@ -133,7 +133,7 @@ export function ProjectMenuManager({
       dataIndex: 'kind',
       width: 115,
       render: (kind) => (
-        <Tag color={kind === 'builtin' ? 'blue' : undefined}>
+        <Tag color={kind === 'builtin' ? 'blue' : 'purple'}>
           {kind === 'builtin' ? t('source.builtin') : t('source.custom')}
         </Tag>
       ),
@@ -149,7 +149,7 @@ export function ProjectMenuManager({
       dataIndex: 'isExternal',
       width: 95,
       render: (value) => (
-        <Tag color={value ? 'blue' : undefined}>
+        <Tag color={value ? 'cyan' : 'geekblue'}>
           {value ? t('type.external') : t('type.internal')}
         </Tag>
       ),
@@ -159,7 +159,7 @@ export function ProjectMenuManager({
       width: 100,
       render: (_value, row) =>
         row.isDeleted ? (
-          <Tag>{t('status.deleted')}</Tag>
+          <Tag color="error">{t('status.deleted')}</Tag>
         ) : row.status === 1 ? (
           <Tag color="success">{t('status.enabled')}</Tag>
         ) : (

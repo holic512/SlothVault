@@ -224,7 +224,7 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
       <header className="article-editor-toolbar">
         <Space size={6}>
           <Button icon={<ArrowLeft size={15} />} onClick={() => router.push('/admin/mm/articles')}>{t('back')}</Button>
-          <Tag color={published ? 'green' : 'gold'}>{published ? t('published') : t('draft')}</Tag>
+          <Tag color={published ? 'success' : 'warning'}>{published ? t('published') : t('draft')}</Tag>
           {dirty ? <Typography.Text type="warning">{t('unsaved')}</Typography.Text> : null}
         </Space>
         <Space size={6} wrap>

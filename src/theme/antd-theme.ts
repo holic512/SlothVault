@@ -3,8 +3,8 @@
  * @project SlothVault
  * @module Component Theme Adapter
  * @description Maps application palettes to readable Ant Design text, controls, and semantic states.
- * @logic Keep the stock layout algorithm, pin semantic colors after its dark transformation, and pair filled controls with explicit foregrounds.
- * @dependencies antd, app-theme, app-style
+ * @logic Keep the stock layout algorithm, pin semantic colors after its dark transformation, and give tags their own readable status and category palette.
+ * @dependencies antd, app-theme, app-style, tag-colors
  * @index_tags theme,antd,contrast,accessibility,design-tokens
  * @author holic512
  */
@@ -13,6 +13,7 @@ import { theme as antdTheme, type ThemeConfig } from 'antd'
 
 import type { AppStyle } from '@/theme/app-style'
 import { appThemePalette, type AppTheme } from '@/theme/app-theme'
+import { contentTagColors, tagPalettes } from '@/theme/tag-colors'
 
 function blend(foreground: string, background: string, weight: number) {
   const channels = [1, 3, 5].map((offset) => {
@@ -27,6 +28,30 @@ export function getAntdTheme(style: AppStyle, mode: AppTheme): ThemeConfig {
   const palette = appThemePalette[style][mode]
   const dark = mode === 'dark'
   const baseAlgorithm = dark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm
+  const tagPalette = tagPalettes[mode]
+  const tagBackgroundWeight = dark ? 0.12 : 0.08
+  const tagSemanticColors = {
+    Info: tagPalette.processing,
+    Success: tagPalette.success,
+    Warning: tagPalette.warning,
+    Error: tagPalette.error,
+  }
+  const tagStatusTokens = Object.fromEntries(
+    Object.entries(tagSemanticColors).flatMap(([name, color]) => {
+      return [
+        [`color${name}`, color],
+        [`color${name}Text`, color],
+        [`color${name}Bg`, blend(color, palette.container, tagBackgroundWeight)],
+        [`color${name}Border`, blend(color, palette.container, 0.3)],
+      ]
+    }),
+  )
+  const tagCategoryTokens = Object.fromEntries(contentTagColors.flatMap((name) => [
+    [`${name}1`, blend(tagPalette[name], palette.container, tagBackgroundWeight)],
+    [`${name}3`, blend(tagPalette[name], palette.container, 0.3)],
+    [`${name}6`, tagPalette[name]],
+    [`${name}7`, tagPalette[name]],
+  ]))
   const semanticColors = {
     colorPrimary: palette.primary,
     colorInfo: palette.info,
@@ -95,6 +120,13 @@ export function getAntdTheme(style: AppStyle, mode: AppTheme): ThemeConfig {
       controlOutline: palette.link,
     },
     components: {
+      Tag: {
+        defaultColor: palette.muted,
+        defaultBg: blend(palette.muted, palette.container, tagBackgroundWeight),
+        colorBorder: blend(palette.muted, palette.container, 0.3),
+        ...tagStatusTokens,
+        ...tagCategoryTokens,
+      },
       Button: {
         fontWeight: style === 'saas' ? 600 : 650,
         primaryColor: palette.primaryContrast,

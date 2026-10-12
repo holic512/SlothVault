@@ -40,6 +40,7 @@
   --sv-warning: #8a5700;
   --sv-project-version: #1d4ed8;
   --sv-project-category: #6d28d9;
+  --sv-tag-membership: var(--sv-project-category);
   --sv-project-updated: #b45309;
   --sv-project-avatar: #0f766e;
   --sv-code-bg: #0c0e12;

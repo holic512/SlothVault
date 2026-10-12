@@ -109,11 +109,11 @@ export function MembershipLevelsManager() {
           pagination={false}
           scroll={{ x: 760 }}
           columns={[
-            { title: t('table.level'), dataIndex: 'name', render: (_value, level) => <Space><Tag color="gold"><Crown size={13} /></Tag><Typography.Text strong>{level.name}</Typography.Text></Space> },
+            { title: t('table.level'), dataIndex: 'name', render: (_value, level) => <Space><Tag color="purple"><Crown size={13} /></Tag><Typography.Text strong>{level.name}</Typography.Text></Space> },
             { title: t('table.rank'), dataIndex: 'rank', width: 100 },
             { title: t('table.pricePoints'), dataIndex: 'pricePoints', width: 130, align: 'right', render: (value) => <Space size={3}><Coins size={14} />{formatAdminNumber(locale, value)}</Space> },
             { title: t('table.validity'), dataIndex: 'validityDays', width: 130, render: (value) => value ? t('validityDays', { count: formatAdminNumber(locale, value) }) : t('permanent') },
-            { title: t('table.status'), dataIndex: 'status', width: 110, render: (value) => value === 1 ? <Tag color="success">{t('status.available')}</Tag> : <Tag>{t('status.disabled')}</Tag> },
+            { title: t('table.status'), dataIndex: 'status', width: 110, render: (value) => value === 1 ? <Tag color="success">{t('status.available')}</Tag> : <Tag color="warning">{t('status.disabled')}</Tag> },
             { title: t('table.updatedAt'), dataIndex: 'updatedAt', width: 170, render: (value) => formatAdminDate(locale, value) },
             { title: t('table.operations'), fixed: 'right', width: 100, render: (_value, level) => <Button type="link" icon={<Pencil size={14} />} onClick={() => openEdit(level)}>{t('actions.edit')}</Button> },
           ]}

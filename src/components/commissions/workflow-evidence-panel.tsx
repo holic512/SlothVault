@@ -18,6 +18,7 @@ import { EvidenceSubmissionCache, evidenceRequest } from '@/lib/evidence-client'
 import { evidenceReason, EvidenceSigningError, type EvidenceNetwork, isExpiredEvidenceAttempt } from '@/lib/evidence-diagnostics'
 import { useSolanaWallet } from '@/components/wallet/use-solana-wallet'
 import type { WorkflowEvent } from '@/lib/commission-workflow'
+import { evidenceProofTagColors } from '@/theme/tag-colors'
 
 type Prepared = { attemptId: string; transactionBase64: string; signerAddress: string; network: EvidenceNetwork; expiresAt: number; feeLamports: number; balanceLamports: number; memo: string; walletName: string | null }
 type Result = { id: string; status: string; signature: string | null }
@@ -105,7 +106,7 @@ export function WorkflowEvidencePanel({ events, onUpdated }: { events: WorkflowE
       const proof = event.proofs.find((item) => item.network === network)
       const expired = proof?.expiresAt && isExpiredEvidenceAttempt({ status: proof.status, expiresAt: proof.expiresAt }, now)
       const failure = proof?.error && /^[A-Z][A-Z0-9_]+$/.test(proof.error) ? errorMessage(new ApiClientError('Evidence failed', 400, 400, { reason: proof.error })) : proof?.error
-      return <List.Item actions={proof?.status === 'FINALIZED' ? [<a key="verify" href={`/commission-evidence/${proof.signature}`} target="_blank" rel="noreferrer">核验凭证</a>] : [<Button key="prepare" loading={prepare.isPending} disabled={!network || !wallet.canSignForNetwork(network) || Boolean(prepared) || submissionUncertain || proof?.status === 'SUBMITTED' || !networks.data?.networks.some((item) => item.network === network && item.enabled)} onClick={() => prepare.mutate(event.id)}>准备存证</Button>, ...(proof ? [<Button key="refresh" loading={reconcile.isPending} onClick={() => reconcile.mutate(proof.id)}>核对状态</Button>] : [])]}><List.Item.Meta title={event.snapshot.note.slice(0, 90) || '系统记录'} description={<><Tag>{expired ? t('status.expired') : proof ? labels[proof.status] : '已冻结，待上链'}</Tag>{failure}</>} /></List.Item>
+      return <List.Item actions={proof?.status === 'FINALIZED' ? [<a key="verify" href={`/commission-evidence/${proof.signature}`} target="_blank" rel="noreferrer">核验凭证</a>] : [<Button key="prepare" loading={prepare.isPending} disabled={!network || !wallet.canSignForNetwork(network) || Boolean(prepared) || submissionUncertain || proof?.status === 'SUBMITTED' || !networks.data?.networks.some((item) => item.network === network && item.enabled)} onClick={() => prepare.mutate(event.id)}>准备存证</Button>, ...(proof ? [<Button key="refresh" loading={reconcile.isPending} onClick={() => reconcile.mutate(proof.id)}>核对状态</Button>] : [])]}><List.Item.Meta title={event.snapshot.note.slice(0, 90) || '系统记录'} description={<><Tag color={expired || !proof ? 'warning' : evidenceProofTagColors[proof.status] ?? 'default'}>{expired ? t('status.expired') : proof ? labels[proof.status] : '已冻结，待上链'}</Tag>{failure}</>} /></List.Item>
     }} />
     <Modal title="确认存证交易" open={Boolean(prepared)} okText={t(submissionUncertain ? 'actions.retrySubmission' : 'actions.sign')} cancelText="返回" confirmLoading={submit.isPending} okButtonProps={{ disabled: !prepared || wallet.address !== prepared.signerAddress || !wallet.canSignForNetwork(prepared.network) }} onOk={() => prepared && submit.mutate(prepared)} onCancel={() => {
       if (submit.isPending || !prepared) return

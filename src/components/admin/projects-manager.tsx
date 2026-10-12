@@ -37,6 +37,7 @@ import { formatAdminDate, formatAdminError } from '@/lib/admin-localization'
 import { apiFetch } from '@/lib/api-client'
 import { AdminPage, AdminPageActions } from '@/components/admin/admin-page'
 import type { AccessRule, ReadAccessMode, DownloadAccessMode } from '@/lib/content-access'
+import { accessTagColors } from '@/theme/tag-colors'
 import { ProjectAccessFields } from './project-access-fields'
 import { ProjectMenuManager } from '@/components/admin/project-menu-manager'
 
@@ -178,7 +179,7 @@ export function ProjectsManager() {
   const columns: ColumnsType<ProjectDto> = [
       ...(['readAccess', 'downloadAccess'] as const).map((key) => ({
         title: t(`permissions.${key === 'readAccess' ? 'read' : 'download'}`), dataIndex: key, width: 180,
-        render: (rule: AccessRule) => <Tag>{rule.mode === 'MEMBERSHIPS' ? rule.membershipLevels.map((item) => item.name).join(' / ') : t(`permissions.modes.${rule.mode}`)}</Tag>,
+        render: (rule: AccessRule) => <Tag color={accessTagColors[rule.mode]}>{rule.mode === 'MEMBERSHIPS' ? rule.membershipLevels.map((item) => item.name).join(' / ') : t(`permissions.modes.${rule.mode}`)}</Tag>,
       })),
       {
         title: t('table.avatar'),
@@ -195,7 +196,7 @@ export function ProjectsManager() {
         width: 100,
         render: (_value, row) =>
           row.isDeleted ? (
-            <Tag>{t('statusTag.deleted')}</Tag>
+            <Tag color="error">{t('statusTag.deleted')}</Tag>
           ) : row.status === 1 ? (
             <Tag color="success">{t('statusTag.enabled')}</Tag>
           ) : (

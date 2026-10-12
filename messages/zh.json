@@ -2030,6 +2030,8 @@
         "expiresAt": "到期时间",
         "selectFutureExpiry": "请选择未来到期时间",
         "history": "授权记录",
+        "active": "有效",
+        "expired": "已过期",
         "revoked": "已取消",
         "until": "至 {date}",
         "disabled": "已停售",

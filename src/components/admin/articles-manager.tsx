@@ -119,18 +119,18 @@ export function ArticlesManager() {
       dataIndex: 'status',
       width: 120,
       render: (_value, row) => row.isDeleted
-        ? <Tag>{t('status.deleted')}</Tag>
+        ? <Tag color="error">{t('status.deleted')}</Tag>
         : row.status === 1
-          ? <Tag color="green">{t('status.published')}</Tag>
-          : <Tag color="gold">{t('status.draft')}</Tag>,
+          ? <Tag color="success">{t('status.published')}</Tag>
+          : <Tag color="warning">{t('status.draft')}</Tag>,
     },
     {
       title: t('table.access'),
       dataIndex: 'allowedMembershipLevels',
       width: 150,
       render: (value: ArticleListItem['allowedMembershipLevels']) => value?.length
-        ? <Space wrap>{value.map((item) => <Tag key={item.id} color="gold">{item.name}</Tag>)}</Space>
-        : <Tag color="green">{t('table.public')}</Tag>,
+        ? <Space wrap>{value.map((item) => <Tag key={item.id} color="purple">{item.name}</Tag>)}</Space>
+        : <Tag color="cyan">{t('table.public')}</Tag>,
     },
     {
       title: t('table.publishedAt'),
