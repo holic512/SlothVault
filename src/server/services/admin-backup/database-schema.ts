@@ -18,6 +18,7 @@ import { commissionBackupShape } from '@/server/commissions/backup'
 
 import {
   DATABASE_BIGINT_MAX,
+  DATABASE_BACKUP_VERSION,
   INT_MAX,
   INT_MIN,
   SMALL_INT_MAX,
@@ -503,7 +504,7 @@ export const backupDataSchema = z.object({
 export const databaseImportPayloadSchema = z.object({
   data: backupDataSchema,
   mode: z.literal('overwrite'),
-  version: z.literal('2.13.0'),
+  version: z.literal(DATABASE_BACKUP_VERSION),
 }).strict()
 
 export type BackupData = z.infer<typeof backupDataSchema>

@@ -160,7 +160,8 @@ export async function pinnedSnapshots() {
   const pinned = new Set(state.pins.keys())
   if (state.active?.source?.snapshotId) pinned.add(state.active.source.snapshotId)
   for (const preview of await readRecords<RestorePreview>('previews')) {
-    if (preview.source.snapshotId && new Date(preview.expiresAt).getTime() > Date.now()) pinned.add(preview.source.snapshotId)
+    // An imported upload retains its server-generated ID when promoted to a snapshot.
+    if (new Date(preview.expiresAt).getTime() > Date.now()) pinned.add(preview.source.snapshotId ?? preview.source.importId)
   }
   return pinned
 }

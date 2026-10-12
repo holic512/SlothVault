@@ -2,8 +2,8 @@
  * @file uploads.ts
  * @project SlothVault
  * @module Resumable Backup Uploads
- * @description Persists administrator-owned sequential backup uploads with bounded requests.
- * @logic Validate each chunk before appending, acknowledge only durable offsets, reconcile unacknowledged tails, and protect sources used by restore jobs.
+ * @description Persists resumable uploads and coordinates their durable publication as imported snapshots.
+ * @logic Acknowledge durable chunks, serialize upload transitions, journal verified publication, and reconcile restarts without expiring published snapshots.
  * @dependencies Node filesystem and streams, private backup control store, administrator session
  * @index_tags backup,upload,chunks,resume,offset,integrity
  * @author holic512
@@ -17,12 +17,12 @@ import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { z } from 'zod'
 import { HttpError } from '@/server/http/errors'
-import type { BackupUpload } from '@/types/backup'
+import type { BackupSnapshot, BackupUpload } from '@/types/backup'
 import { BACKUP_UPLOAD_CHUNK_BYTES, BACKUP_UPLOAD_TTL_MS } from './constants'
-import { atomicJson, ensureBackupStorage, importPath, pinnedImports, readJson, readRecords, recordPath, requireBackupId, sourceIsPinned } from './store'
-import { requireFreeSpace } from './archive'
+import { artifactPath, atomicJson, ensureBackupStorage, importPath, pinnedImports, readJson, readRecords, recordPath, requireBackupId, sourceIsPinned } from './store'
+import { requireFreeSpace, sha256File } from './archive'
 
-export type BackupUploadRecord = BackupUpload & { id: string; actorUserId: number; sha256?: string }
+export type BackupUploadRecord = BackupUpload & { id: string; actorUserId: number; sha256?: string; publication?: BackupSnapshot }
 export const uploadInputSchema = z.object({ size:z.number().int().min(22).max(Number.MAX_SAFE_INTEGER),fileName:z.string().min(1).max(255),lastModified:z.number().int().nonnegative(),fingerprint:z.string().regex(/^[a-f0-9]{64}$/) }).strict()
 const locks = new Map<string, Promise<void>>()
 async function exclusive<T>(id:string,operation:()=>Promise<T>) {
@@ -31,7 +31,7 @@ async function exclusive<T>(id:string,operation:()=>Promise<T>) {
   try { return await operation() } finally { release(); if (locks.get(id)===tail) locks.delete(id) }
 }
 const expires = () => new Date(Date.now()+BACKUP_UPLOAD_TTL_MS).toISOString()
-function dto(record:BackupUploadRecord): BackupUpload { const {id:_id,actorUserId:_actor,sha256:_hash,...result}=record; void _id;void _actor;void _hash;return result }
+function dto(record:BackupUploadRecord): BackupUpload { const {id:_id,actorUserId:_actor,sha256:_hash,publication:_publication,...result}=record; void _id;void _actor;void _hash;void _publication;return result }
 async function syncParent(path:string) { const handle=await open(dirname(path),'r');try{await handle.sync()}finally{await handle.close()} }
 async function getRecord(id:string,actorUserId:number) {
   requireBackupId(id)
@@ -39,7 +39,12 @@ async function getRecord(id:string,actorUserId:number) {
   if (!record || record.id!==id || record.actorUserId!==actorUserId || (new Date(record.expiresAt).getTime()<=Date.now() && !sourceIsPinned(id) && !(await pinnedImports()).has(id))) throw new HttpError('Backup upload is unavailable or expired',404,404,{reason:'BACKUP_UPLOAD_EXPIRED'})
   return record
 }
+/** Read durable ownership and task metadata without waiting for a long-running import's upload lock. */
+export async function readBackupUploadRecord(id: string, actorUserId: number) {
+  return getRecord(id, actorUserId)
+}
 async function reconcile(record:BackupUploadRecord) {
+  if (record.snapshotId || record.publication) return // Publication recovery owns files that have left upload staging.
   const path=importPath(record.id),partial=path+'.partial'
   if (record.state==='uploaded') {
     const info=await lstat(path); if (!info.isFile() || info.isSymbolicLink() || info.size!==record.size) throw new HttpError('Backup upload is inconsistent',409,409)
@@ -53,6 +58,75 @@ async function reconcile(record:BackupUploadRecord) {
   }
   if (!info.isFile() || info.isSymbolicLink() || info.size<record.offset) throw new HttpError('Backup upload is inconsistent',409,409)
   if (info.size>record.offset) { const handle=await open(partial,'r+');try{await handle.truncate(record.offset);await handle.sync()}finally{await handle.close()} }
+}
+export async function withBackupUpload<T>(id: string, actorUserId: number, operation: (record: BackupUploadRecord) => Promise<T>) {
+  return exclusive(id, async () => {
+    const record = await getRecord(id, actorUserId)
+    await reconcile(record)
+    return operation(record)
+  })
+}
+
+/** Caller holds the upload lock; the journal is durable before any file is moved. */
+export async function publishBackupUpload(record: BackupUploadRecord): Promise<BackupSnapshot> {
+  const snapshot = record.publication
+  if (!snapshot || snapshot.id !== record.id || snapshot.kind !== 'imported') throw new HttpError('Invalid backup publication', 409, 409, { reason: 'BACKUP_INVALID' })
+  const source = importPath(record.id), destination = artifactPath(snapshot.id)
+  const existing = await readJson<BackupSnapshot>(recordPath('snapshots', snapshot.id))
+  if (existing && (existing.id !== snapshot.id || existing.kind !== 'imported' || existing.sha256 !== snapshot.sha256)) throw new HttpError('Backup publication conflicts with an existing snapshot', 409, 409)
+  const info = await lstat(destination).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT') return null
+    throw error
+  })
+  const candidate = info ? destination : source
+  const candidateInfo = info ?? await lstat(source)
+  if (!candidateInfo.isFile() || candidateInfo.isSymbolicLink() || candidateInfo.size !== snapshot.size || await sha256File(candidate) !== snapshot.sha256) throw new HttpError('Backup publication integrity verification failed', 409, 409, { reason: 'BACKUP_INVALID' })
+  if (!info) await rename(source, destination)
+  // Sync both directories even when recovering a rename whose acknowledgement was lost.
+  await syncParent(source)
+  await syncParent(destination)
+  if (!existing) {
+    try { await atomicJson(recordPath('snapshots', snapshot.id), snapshot) }
+    catch (error) {
+      // A directory-sync acknowledgement can fail after the index has already been committed.
+      const committed = await readJson<BackupSnapshot>(recordPath('snapshots', snapshot.id)).catch(() => null)
+      if (!committed || committed.sha256 !== snapshot.sha256) { throw error }
+      (snapshot.warnings ??= []).push('JOB_STATE_WRITE_FAILED')
+    }
+  }
+  record.snapshotId = snapshot.id
+  delete record.publication
+  try { await atomicJson(recordPath('imports', record.id), record) }
+  catch { ((existing ?? snapshot).warnings ??= []).push('JOB_STATE_WRITE_FAILED') }
+  return existing ?? snapshot
+}
+
+export async function markImportedSnapshotDeleted(id: string) {
+  await exclusive(id, async () => {
+    const record = await readJson<BackupUploadRecord>(recordPath('imports', id))
+    if (!record) return
+    // Clear a possible stale publication intent before deletion so restart cannot resurrect the node.
+    record.snapshotId = id
+    delete record.publication
+    await atomicJson(recordPath('imports', id), record)
+  })
+}
+
+async function removeUpload(record: BackupUploadRecord) {
+  if (record.publication && !await readJson(recordPath('snapshots', record.id))) await rm(artifactPath(record.id), { force: true })
+  await rm(importPath(record.id) + '.partial', { force: true })
+  await rm(importPath(record.id), { force: true })
+  await rm(recordPath('imports', record.id), { force: true })
+}
+
+export async function cleanupExpiredBackupUploads() {
+  const pinned = await pinnedImports()
+  for (const entry of await readRecords<BackupUploadRecord>('imports')) {
+    await exclusive(entry.id, async () => {
+      const record = await readJson<BackupUploadRecord>(recordPath('imports', entry.id))
+      if (record && !pinned.has(record.id) && !sourceIsPinned(record.id) && new Date(record.expiresAt).getTime() <= Date.now()) await removeUpload(record)
+    })
+  }
 }
 export async function createBackupUpload(input:unknown,actorUserId:number):Promise<BackupUpload> {
   const body=uploadInputSchema.parse(input);await ensureBackupStorage();await requireFreeSpace(dirname(importPath(randomUUID())),BACKUP_UPLOAD_CHUNK_BYTES)
@@ -99,13 +173,16 @@ export async function completeBackupUpload(id:string,actorUserId:number) {
   })
 }
 export async function cancelBackupUpload(id:string,actorUserId:number) {
+  await getRecord(id, actorUserId)
+  if (sourceIsPinned(id) || (await pinnedImports()).has(id)) throw new HttpError('Backup upload is currently in use', 409, 409)
   return exclusive(id,async()=>{
-    await getRecord(id,actorUserId)
+    const record = await getRecord(id,actorUserId)
     if(sourceIsPinned(id)||(await pinnedImports()).has(id))throw new HttpError('Backup upload is currently in use',409,409)
-    await rm(importPath(id)+'.partial',{force:true});await rm(importPath(id),{force:true});await rm(recordPath('imports',id),{force:true})
+    await removeUpload(record)
   })
 }
 export async function reconcileBackupUploads() {
+  const recoveredImports = new Map<string, string>()
   const pinned=await pinnedImports()
   const directory = dirname(importPath(randomUUID()))
   for (const name of await readdir(directory)) {
@@ -116,8 +193,18 @@ export async function reconcileBackupUploads() {
   for(const record of await readRecords<BackupUploadRecord>('imports')){
     if(!record.state)continue
     await exclusive(record.id,async()=>{
+      if (record.publication) {
+        try {
+          const snapshot = await publishBackupUpload(record)
+          if (record.importJobId) recoveredImports.set(record.importJobId, snapshot.id)
+        }
+        catch (error) {
+          if (error instanceof HttpError || (error as NodeJS.ErrnoException).code === 'ENOENT') return // Preserve inconsistent publication materials for retry or cancellation.
+          throw error
+        }
+      }
       if(!pinned.has(record.id)&&!sourceIsPinned(record.id)&&new Date(record.expiresAt).getTime()<=Date.now()){
-        await rm(importPath(record.id)+'.partial',{force:true});await rm(importPath(record.id),{force:true});await rm(recordPath('imports',record.id),{force:true})
+        await removeUpload(record)
       }else {
         try { await reconcile(record) } catch (error) {
           if (error instanceof HttpError && error.status === 409) return // Keep inconsistent materials available for explicit cancellation.
@@ -128,4 +215,5 @@ export async function reconcileBackupUploads() {
       }
     })
   }
+  return recoveredImports
 }

@@ -3,8 +3,8 @@
  * @project SlothVault
  * @module Complete Backup Archives
  * @description Creates and validates current single-layer ZIP64 business snapshots.
- * @logic Coordinate paged database and attachment snapshots, stream integrity checks into a disk index, and publish only a verified immutable archive.
- * @dependencies Node streams/filesystem, Archiver, Unzipper, portable record store, maintenance lock
+ * @logic Resolve registered data adapters, verify original archive bytes into a temporary record index, and publish only validated immutable snapshots.
+ * @dependencies Node streams/filesystem, Archiver, Unzipper, backup compatibility, portable record store, maintenance lock
  * @index_tags backup,zip64,ndjson,snapshot,sha256,integrity
  * @author holic512
  */
@@ -22,9 +22,10 @@ import packageJson from '../../../../package.json'
 import { HttpError } from '@/server/http/errors'
 import { withMaintenanceLock } from '@/server/services/maintenance-lock'
 import { UPLOAD_ROOT } from '@/server/services/admin-files'
-import type { BackupEntryDigest, BackupKind, BackupManifest, BackupPhase, BackupProgress, BackupSnapshot } from '@/types/backup'
+import type { BackupEntryDigest, BackupGenerationKind, BackupManifest, BackupPhase, BackupProgress, BackupSnapshot } from '@/types/backup'
 import { ACTIVE_BACKUP_COLLECTION_KEYS, BACKUP_MANIFEST_MAX_BYTES, DATABASE_BACKUP_VERSION, ZIP_PATH_MAX_BYTES } from './constants'
-import { exportDatabaseSnapshot, parseBackupRow, storedPayload } from './database-export'
+import { exportDatabaseSnapshot } from './database-export'
+import { requireBackupCompatibility } from './compatibility'
 import { verifyBackupPublications } from './publication-validation'
 import { validateBackupRelations } from './database-validation'
 import { assertContained, nodeErrorHasCode, toArchivePath, type StorageTreeEntry } from './files-common'
@@ -35,7 +36,7 @@ import { artifactPath, atomicJson, ensureBackupStorage, recordPath, workPath } f
 const digest = z.object({ size: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER), sha256: z.string().regex(/^[a-f0-9]{64}$/) }).strict()
 const integer = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
 const manifestSchema = z.object({
-  formatVersion: z.literal(2), id: z.string().uuid(), createdAt: z.string().datetime(), appVersion: z.string().min(1).max(80), databaseVersion: z.literal(DATABASE_BACKUP_VERSION),
+  formatVersion: z.literal(2), id: z.string().uuid(), createdAt: z.string().datetime(), appVersion: z.string().min(1).max(80), databaseVersion: z.string().min(1).max(80),
   counts: z.record(z.string(), integer), database: z.record(z.string(), digest), filesIndex: digest, fileCount: integer, entryCount: integer, totalFileBytes: integer,
 }).strict()
 const fileSchema = z.object({ path: z.string().min(1).max(ZIP_PATH_MAX_BYTES), kind: z.enum(['file','directory']), size: integer, sha256: z.string().regex(/^[a-f0-9]{64}$/).nullable() }).strict()
@@ -120,11 +121,11 @@ export async function readCompleteBundle(path: string, directory: string, extrac
   for await (const chunk of checkedEntry(header)) pieces.push(chunk)
   let raw: unknown
   try { raw = JSON.parse(Buffer.concat(pieces).toString('utf8')) } catch { invalid() }
-  if ((raw as {formatVersion?:unknown})?.formatVersion !== 2 || (raw as {databaseVersion?:unknown})?.databaseVersion !== DATABASE_BACKUP_VERSION) unsupportedBackup()
+  const adapter = requireBackupCompatibility((raw ?? {}) as { formatVersion?: unknown; databaseVersion?: unknown })
   const parsed = manifestSchema.safeParse(raw)
   if (!parsed.success) invalid()
   const manifest = parsed.data
-  const keys = new Set(ACTIVE_BACKUP_COLLECTION_KEYS)
+  const keys = new Set(adapter.collectionKeys)
   if (Object.keys(manifest.counts).length !== keys.size || Object.keys(manifest.database).length !== keys.size || [...keys].some(key => !Object.hasOwn(manifest.counts,key) || !Object.hasOwn(manifest.database,key)) || entries.length !== keys.size + 2 + manifest.entryCount) invalid()
   await mkdir(directory,{recursive:true,mode:0o700})
   await requireFreeSpace(directory, extract ? manifest.totalFileBytes : 0)
@@ -136,7 +137,7 @@ export async function readCompleteBundle(path: string, directory: string, extrac
       if (!item || item.kind !== 'file') invalid()
       const hash = createHash('sha256'); let count = 0
       for await (const value of ndjson(checkedEntry(item,hash))) {
-        try { store.put(key,parseBackupRow(key,value)) } catch { invalid() }
+        try { store.put(key,adapter.parseRow(key,value)) } catch { invalid() }
         count++; processedRecords++
         if (count % 100 === 0) await progress?.({processedRecords})
       }
@@ -169,7 +170,7 @@ export async function readCompleteBundle(path: string, directory: string, extrac
       processedFiles++; await progress?.({processedBytes,processedFiles,processedRecords,totalFiles:manifest.fileCount})
     }
     if (extract) await mkdir(uploads,{recursive:true,mode:0o700})
-    const payload = storedPayload(store)
+    const payload = adapter.toCurrentPayload(store)
     validateBackupRelations(payload.data); verifyBackupPublications(payload.data); checkManagedFiles(store)
     return {manifest,payload,uploads,store}
   } catch(error) { store.close(); throw error }
@@ -196,7 +197,7 @@ async function writeSnapshotZip(directory: string, uploads: string, partial: str
   return hash.digest('hex')
 }
 
-export async function createCompleteSnapshot(kind: BackupKind, id: string, phase: (value: BackupPhase) => Promise<void>, lockHeld = false, progress?: (value: Partial<BackupProgress>) => Promise<void>): Promise<BackupSnapshot> {
+export async function createCompleteSnapshot(kind: BackupGenerationKind, id: string, phase: (value: BackupPhase) => Promise<void>, lockHeld = false, progress?: (value: Partial<BackupProgress>) => Promise<void>): Promise<BackupSnapshot> {
   await ensureBackupStorage()
   const directory = workPath(id), uploads = resolve(directory,'uploads'), partial = `${artifactPath(id)}.partial`
   await mkdir(uploads,{recursive:true,mode:0o700})

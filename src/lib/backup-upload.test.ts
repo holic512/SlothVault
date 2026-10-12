@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiClientError, apiFetch } from './api-client'
-import { backupChunkHash, backupFileFingerprint, rememberBackupUpload, rememberedBackupUpload, uploadBackupFile } from './backup-upload'
+import { backupChunkHash, backupFileFingerprint, importBackupUpload, rememberBackupUpload, rememberedBackupUpload, uploadBackupFile } from './backup-upload'
 import type { BackupUpload } from '@/types/backup'
 vi.mock('./api-client', async load => ({ ...await load<typeof import('./api-client')>(), apiFetch: vi.fn() }))
 const request = vi.mocked(apiFetch)
@@ -28,6 +28,22 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
 describe('browser backup upload client', () => {
+  it('submits a persistent import and remembers the task without starting restore preflight', async () => {
+    session.state = 'uploaded'; session.offset = session.size
+    rememberBackupUpload(session)
+    const job = { id: 'task-id', kind: 'import', status: 'queued' }
+    request.mockResolvedValueOnce(job)
+    expect(await importBackupUpload(session.importId)).toEqual(job)
+    expect(request).toHaveBeenCalledExactlyOnceWith('/api/admin/mm/backup/snapshots/import', expect.objectContaining({ method: 'POST', body: JSON.stringify({ importId: session.importId }) }))
+    expect(rememberedBackupUpload()).toMatchObject({ state: 'uploaded', importJobId: job.id, offset: session.size })
+  })
+  it('preserves the uploaded source when the import response is lost so the request can be retried', async () => {
+    session.state = 'uploaded'; session.offset = session.size
+    rememberBackupUpload(session)
+    request.mockRejectedValueOnce(new TypeError('response lost'))
+    await expect(importBackupUpload(session.importId)).rejects.toThrow('response lost')
+    expect(rememberedBackupUpload()).toEqual(session)
+  })
   it('uploads bounded slices and persists completed progress', async () => {
     const updates: number[] = []
     const source = await uploadBackupFile(file(), null, new AbortController().signal, upload => updates.push(upload.offset))

@@ -2,14 +2,14 @@
  * @file backup-upload.ts
  * @project SlothVault
  * @module Backup Upload Client
- * @description Uploads bounded backup slices and remembers resumable sessions across page reloads.
- * @logic Match reselected files, reconcile acknowledged offsets after failures, retry three times, and preserve progress when paused.
+ * @description Uploads bounded backup slices and submits their durable import without entering restore preflight.
+ * @logic Resume acknowledged bytes, remember import tasks across reloads, and keep upload sources available until validation succeeds.
  * @dependencies browser File, Web Crypto, localStorage, backup upload API
  * @index_tags backup,upload,resume,checksum,client
  * @author holic512
  */
 import { ApiClientError, apiFetch } from '@/lib/api-client'
-import type { BackupUpload } from '@/types/backup'
+import type { BackupJob, BackupUpload } from '@/types/backup'
 
 const prefix = '/api/admin/mm/backup/imports'
 const storageKey = 'slothvault.backup-upload.v2'
@@ -21,6 +21,12 @@ export function rememberedBackupUpload(): BackupUpload | null {
 }
 export function rememberBackupUpload(value: BackupUpload | null) {
   try { if (value) localStorage.setItem(storageKey, JSON.stringify(value)); else localStorage.removeItem(storageKey) } catch { /* Uploads still work when storage is unavailable. */ }
+}
+export async function importBackupUpload(importId: string, signal?: AbortSignal) {
+  const job = await apiFetch<BackupJob>('/api/admin/mm/backup/snapshots/import', { method: 'POST', signal, body: JSON.stringify({ importId }) })
+  const saved = rememberedBackupUpload()
+  if (saved?.importId === importId) rememberBackupUpload({ ...saved, importJobId: job.id })
+  return job
 }
 export async function backupChunkHash(blob: Blob) {
   return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer())), (byte) => byte.toString(16).padStart(2, '0')).join('')

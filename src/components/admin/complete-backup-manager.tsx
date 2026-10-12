@@ -4,8 +4,8 @@
  * @file complete-backup-manager.tsx
  * @project SlothVault
  * @module Complete Backup Administration
- * @description Organizes backup, schedule, job history, and reset panels in a tabbed workspace.
- * @logic Keep task polling and operation locks above tabs, show focused panels, and require preflight and typed confirmation before restore.
+ * @description Organizes persistent generated and imported backups, schedules, job history, and reset panels.
+ * @logic Track resumable imports separately from restore previews, show version compatibility, and require fresh preflight and confirmation before restore.
  * @dependencies Ant Design, TanStack Query, next-intl, backup API contracts
  * @index_tags admin,backup,restore,scheduler,history,preflight
  * @author holic512
@@ -16,7 +16,7 @@ import { Alert, App, Button, Card, Descriptions, Form, Input, InputNumber, Modal
 import { Archive, CalendarClock, Download, Pause, Play, RefreshCw, X, Trash2, UploadCloud } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { ApiClientError, apiFetch } from '@/lib/api-client'
-import { rememberedBackupUpload, rememberBackupUpload, uploadBackupFile } from '@/lib/backup-upload'
+import { importBackupUpload, rememberedBackupUpload, rememberBackupUpload, uploadBackupFile } from '@/lib/backup-upload'
 import { formatAdminError } from '@/lib/admin-localization'
 import type { BackupHistoryResponse, BackupJob, BackupSettings, BackupSettingsResponse, BackupSnapshotSummary, BackupSource, BackupUpload, RestorePreview } from '@/types/backup'
 
@@ -44,16 +44,30 @@ export function CompleteBackupManager({ externalBusy, onBusyChange, dangerPanel 
   const [uploadSession, setUploadSession] = useState<BackupUpload | null>(null)
   const [uploading, setUploading] = useState(false)
   const [previewJobId, setPreviewJobId] = useState<string | null>(null)
+  const [importJobId, setImportJobId] = useState<string | null>(null)
   const uploadController = useRef<AbortController | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   useEffect(() => {
-    queueMicrotask(() => setUploadSession(rememberedBackupUpload()))
-    return () => uploadController.current?.abort()
+    let mounted = true
+    const saved = rememberedBackupUpload()
+    queueMicrotask(() => { if (mounted) { setUploadSession(saved); setImportJobId(saved?.importJobId ?? null) } })
+    if (saved && !saved.importJobId) void apiFetch<BackupUpload>(`${prefix}/imports/${saved.importId}`).then((session) => {
+      if (mounted) { rememberBackupUpload(session); setUploadSession(session); setImportJobId(session.importJobId ?? null) }
+    }).catch((error: unknown) => {
+      if (mounted && error instanceof ApiClientError && error.status === 404) { rememberBackupUpload(null); setUploadSession(null) }
+    })
+    return () => { mounted = false; uploadController.current?.abort() }
   }, [])
   const previewQuery = useQuery({
     queryKey: ['admin', 'backup-preview', previewJobId],
     queryFn: () => apiFetch<BackupJob>(`${prefix}/jobs/${previewJobId}`),
     enabled: Boolean(previewJobId), retry: false,
+    refetchInterval: (query) => ['queued', 'running'].includes(query.state.data?.status ?? 'queued') ? 2000 : false,
+  })
+  const importQuery = useQuery({
+    queryKey: ['admin', 'backup-import', importJobId],
+    queryFn: () => apiFetch<BackupJob>(`${prefix}/jobs/${importJobId}`),
+    enabled: Boolean(importJobId), retry: false,
     refetchInterval: (query) => ['queued', 'running'].includes(query.state.data?.status ?? 'queued') ? 2000 : false,
   })
   const [snapshotKind, setSnapshotKind] = useState('all')
@@ -72,9 +86,9 @@ export function CompleteBackupManager({ externalBusy, onBusyChange, dangerPanel 
   })
   const history = historyQuery.data ?? emptyHistory
   const active = history.activeJob
-  const busy = Boolean(active || pending || uploading || uploadSession || previewJobId)
+  const busy = Boolean(active || pending || uploading || uploadSession || previewJobId || importJobId)
   const disabled = externalBusy || busy || !historyQuery.data || historyQuery.isError
-  const uploadDisabled = externalBusy || Boolean(active || pending || uploading || previewJobId) || historyQuery.isError
+  const uploadDisabled = externalBusy || Boolean(active || pending || uploading || previewJobId || importJobId) || historyQuery.isError
   const date = (value: string) => new Date(value).toLocaleString(locale)
   const codeText = (value: string) => t.has(`codes.${value}`) ? t(`codes.${value}`) : t('codes.BACKUP_FAILED')
   const showError = (error: unknown) => {
@@ -83,6 +97,22 @@ export function CompleteBackupManager({ externalBusy, onBusyChange, dangerPanel 
   }
   const refresh = async () => { await Promise.all([client.invalidateQueries({ queryKey: historyKey }), client.invalidateQueries({ queryKey: settingsKey })]) }
   useEffect(() => { onBusyChange(busy) }, [busy, onBusyChange])
+  useEffect(() => {
+    const job = importQuery.data
+    if (!job || ['queued', 'running'].includes(job.status)) return
+    queueMicrotask(() => {
+      setImportJobId(null)
+      if (job.status === 'succeeded') {
+        rememberBackupUpload(null); setUploadSession(null); setSelectedFile(null)
+        message.success(t('importSucceeded'))
+      } else {
+        const saved = rememberedBackupUpload()
+        if (saved) { const session = { ...saved, importJobId: undefined }; rememberBackupUpload(session); setUploadSession(session) }
+        message.error(t.has(`codes.${job.error}`) ? t(`codes.${job.error}`) : t('codes.BACKUP_FAILED'))
+      }
+      void client.invalidateQueries({ queryKey: historyKey })
+    })
+  }, [importQuery.data, client, message, t])
 
   const queueBackup = async (retryJobId?: string) => {
     setPending('backup')
@@ -117,14 +147,29 @@ export function CompleteBackupManager({ externalBusy, onBusyChange, dangerPanel 
     try { await openPreview({ snapshotId }) } catch (error) { showError(error) }
     finally { setPending(null) }
   }
+  const startImport = async (importId: string, signal?: AbortSignal) => {
+    const job = await importBackupUpload(importId, signal)
+    setUploadSession(rememberedBackupUpload())
+    setImportJobId(job.id)
+    client.setQueryData<BackupHistoryResponse>(historyKey, (previous = emptyHistory) => ({ ...previous, activeJob: ['queued', 'running'].includes(job.status) ? job : previous.activeJob, jobs: [job, ...previous.jobs.filter(item => item.id !== job.id)] }))
+    await refresh()
+  }
+  const retryImport = async () => {
+    if (!uploadSession) return
+    setPending('import')
+    try { await startImport(uploadSession.importId) } catch (error) {
+      showError(error)
+      if (error instanceof ApiClientError && error.status === 404) { rememberBackupUpload(null); setUploadSession(null); setSelectedFile(null) }
+    }
+    finally { setPending(null) }
+  }
   const upload = async (file: File) => {
     setSelectedFile(file)
     const controller = new AbortController(); uploadController.current = controller
     setUploading(true)
     try {
       const source = await uploadBackupFile(file, uploadSession, controller.signal, setUploadSession)
-      await openPreview(source)
-      rememberBackupUpload(null); setUploadSession(null)
+      await startImport(source.importId, controller.signal)
     } catch (error) {
       if (!controller.signal.aborted) {
         if (error instanceof Error && error.message === 'BACKUP_UPLOAD_FILE_MISMATCH') message.error(t('codes.BACKUP_UPLOAD_FILE_MISMATCH'))
@@ -187,12 +232,15 @@ export function CompleteBackupManager({ externalBusy, onBusyChange, dangerPanel 
         {uploadSession && <Space orientation="vertical" className="full-width">
           <Typography.Text>{uploadSession.fileName} · {bytes(uploadSession.offset)} / {bytes(uploadSession.size)}</Typography.Text>
           <Progress percent={Number((100 * uploadSession.offset / uploadSession.size).toFixed(1))} status={uploading ? 'active' : 'normal'} />
-          <Typography.Text type="secondary">{t(uploading ? 'uploading' : 'paused')}</Typography.Text>
+          <Typography.Text type="secondary">{t(importJobId ? 'importValidating' : uploading ? 'uploading' : uploadSession.state === 'uploaded' ? 'awaitingImport' : 'paused')}</Typography.Text>
           <Space>
             {uploading ? <Button icon={<Pause size={14} />} onClick={() => uploadController.current?.abort()}>{t('pause')}</Button>
-              : <Button icon={<Play size={14} />} disabled={!selectedFile || uploadDisabled} onClick={() => { if (selectedFile) void upload(selectedFile) }}>{t('resume')}</Button>}
-            <Button danger icon={<X size={14} />} disabled={Boolean(pending || previewJobId)} onClick={() => void cancelUpload()}>{t('cancelUpload')}</Button>
+              : uploadSession.state === 'uploaded' ? <Button icon={<Play size={14} />} disabled={uploadDisabled} loading={pending === 'import'} onClick={() => void retryImport()}>{t('retryImport')}</Button>
+                : <Button icon={<Play size={14} />} disabled={!selectedFile || uploadDisabled} onClick={() => { if (selectedFile) void upload(selectedFile) }}>{t('resume')}</Button>}
+            {importQuery.isError && <Button icon={<RefreshCw size={14} />} onClick={() => void importQuery.refetch()}>{t('refresh')}</Button>}
+            <Button danger icon={<X size={14} />} disabled={Boolean(pending || previewJobId || importJobId)} onClick={() => void cancelUpload()}>{t('cancelUpload')}</Button>
           </Space>
+          {importQuery.isError && <Alert type="error" showIcon title={t('statusUnavailable')} description={t('statusUnavailableHint')} />}
         </Space>}
       </Card>
       <Card title={t('history.title')} className="backup-card-next">
@@ -200,7 +248,7 @@ export function CompleteBackupManager({ externalBusy, onBusyChange, dangerPanel 
           <Form.Item label={t('history.kind')} htmlFor="backup-kind-filter">
             <Select id="backup-kind-filter" value={snapshotKind} onChange={setSnapshotKind} options={[
               { value: 'all', label: t('filters.allKinds') },
-              ...['manual', 'scheduled', 'protect'].map((value) => ({ value, label: t(`kinds.${value}`) })),
+              ...['manual', 'scheduled', 'protect', 'imported'].map((value) => ({ value, label: t(`kinds.${value}`) })),
             ]} />
           </Form.Item>
         </Form>
@@ -208,8 +256,13 @@ export function CompleteBackupManager({ externalBusy, onBusyChange, dangerPanel 
           size="small" rowKey="id" dataSource={history.snapshots.filter((snapshot) => snapshotKind === 'all' || snapshot.kind === snapshotKind)} pagination={{ pageSize: 7, showSizeChanger: false }} scroll={{ x: 780 }}
           locale={{ emptyText: t(snapshotKind === 'all' ? 'history.empty' : 'filters.empty') }}
           columns={[
-            { title: t('history.time'), dataIndex: 'createdAt', render: date },
+            { title: t('history.time'), render: (_, item) => <Space orientation="vertical" size={2}><span>{date(item.createdAt)}</span>{item.importedAt && <Typography.Text type="secondary">{t('history.importedAt', { time: date(item.importedAt) })}</Typography.Text>}{item.fileName && <Typography.Text type="secondary">{item.fileName}</Typography.Text>}</Space> },
             { title: t('history.kind'), dataIndex: 'kind', render: (kind: BackupSnapshotSummary['kind']) => <Tag>{t(`kinds.${kind}`)}</Tag> },
+            { title: t('history.compatibility'), render: (_, item) => <Space orientation="vertical" size={2}>
+              <Tag color={item.restorable ? 'success' : 'warning'}>{t(`compatibility.${item.compatibility.status}`)}</Tag>
+              <Typography.Text type="secondary">{t('compatibility.versions', { source: item.compatibility.sourceVersion || '—', target: item.compatibility.targetVersion })}</Typography.Text>
+              {item.compatibility.reason && <Typography.Text type="warning">{t(item.compatibility.reason === 'format' ? 'compatibility.formatUnsupported' : 'compatibility.versionUnsupported')}</Typography.Text>}
+            </Space> },
             { title: t('history.scope'), render: (_, item) => t('history.counts', { records: Object.values(item.manifest.counts).reduce((a, b) => a + b, 0), files: item.manifest.fileCount }) },
             { title: t('history.size'), dataIndex: 'size', render: bytes },
             { title: t('history.actions'), render: (_, item) => <Space size={4}>

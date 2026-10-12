@@ -1433,7 +1433,11 @@
         "title": "完整备份",
         "description": "一次保存业务数据和上传附件，包含回收站、停用文件、权限和存证。",
         "create": "创建完整备份",
-        "upload": "上传备份并预检",
+        "upload": "导入备份",
+        "importSucceeded": "备份已导入，可在备份历史中手动恢复",
+        "importValidating": "正在校验并保存备份；关闭页面不会取消服务端任务",
+        "awaitingImport": "文件已上传，可以继续校验并导入，无需重新上传",
+        "retryImport": "校验并导入",
         "refresh": "刷新状态",
         "queued": "备份任务已提交，可在页面顶部或「任务记录」中查看进度",
         "restoreQueued": "恢复任务已提交，请等待服务端完成",
@@ -1471,7 +1475,17 @@
           "counts": "{records} 条记录 · {files} 个文件",
           "size": "大小",
           "actions": "操作",
-          "retentionHint": "只在新自动备份校验成功后清理超出保留份数的旧自动备份。手动、恢复前保护和使用中的备份均保留。"
+          "retentionHint": "只在新自动备份校验成功后清理超出保留份数的旧自动备份。手动、导入、恢复前保护和使用中的备份均保留。",
+          "importedAt": "导入时间：{time}",
+          "compatibility": "数据版本兼容性"
+        },
+        "compatibility": {
+          "current": "可恢复",
+          "convertible": "转换后可恢复",
+          "unsupported": "不可恢复",
+          "versions": "备份 {source} / 当前 {target}",
+          "formatUnsupported": "备份包格式不受支持，仍可下载或删除",
+          "versionUnsupported": "此数据版本没有兼容转换规则，仍可下载或删除"
         },
         "jobs": {
           "title": "任务记录",
@@ -1487,6 +1501,8 @@
           "manual": "手动备份",
           "scheduled": "自动备份",
           "protect": "恢复前保护",
+          "imported": "导入备份",
+          "import": "备份导入",
           "restore": "完整恢复",
           "preview": "恢复预检"
         },
@@ -1540,14 +1556,14 @@
           "CACHE_REFRESH_FAILED": "恢复已提交，但缓存刷新失败",
           "COMMIT_ACK_UNCERTAIN": "数据库提交回执异常，已通过持久化标记确认提交成功",
           "RECOVERED_AFTER_RESTART": "已根据恢复日志在启动时完成协调",
-          "BACKUP_UNSUPPORTED_FORMAT": "不支持的备份格式，请使用当前版本创建的完整备份",
+          "BACKUP_UNSUPPORTED_FORMAT": "备份包格式或数据版本不受支持，无法导入或恢复",
           "BACKUP_UPLOAD_EXPIRED": "上传会话已过期或不可用，请重新上传",
           "BACKUP_UPLOAD_OFFSET": "上传位置已变化，将从服务端确认位置继续",
           "BACKUP_UPLOAD_CHECKSUM": "分片长度或校验不符，上传已暂停",
           "BACKUP_UPLOAD_INCOMPLETE": "尚未上传全部备份内容",
           "BACKUP_UPLOAD_FILE_MISMATCH": "所选文件与之前上传的文件不一致，请选择原文件或取消当前上传"
         },
-        "uploadHint": "仅支持新版完整备份。采用 8 MiB 分片上传，无备份总量限制；刷新后重新选择同一文件可继续，24 小时无活动后过期。",
+        "uploadHint": "上传后立即校验，通过后保存为长期备份节点，稍后可手动恢复。采用 8 MiB 分片上传；刷新后选择原文件可继续。未导入的上传会话 24 小时无活动后过期，已导入备份仅手动删除。",
         "filters": {
           "allKinds": "全部类型",
           "allStatuses": "全部状态",

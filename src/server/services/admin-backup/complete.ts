@@ -2,8 +2,8 @@
  * @file complete.ts
  * @project SlothVault
  * @module Complete Backup Operations
- * @description Coordinates durable backup jobs, administrator-bound previews, protected restores, and retention.
- * @logic Reserve one operation, validate immutable sources, create a protection snapshot, coordinate files with one database transaction, and retain committed results despite cleanup failures.
+ * @description Coordinates generated and imported snapshots, administrator-bound previews, protected restores, and retention.
+ * @logic Serialize operations, validate and publish imported archives without restoring, recheck compatible restore sources, and retain committed results despite cleanup failures.
  * @dependencies private backup store, archive validation, restore journal, database unit-of-work, maintenance lock
  * @index_tags backup,restore,jobs,preflight,retention,transaction
  * @author holic512
@@ -19,11 +19,12 @@ import { UPLOAD_ROOT } from '@/server/services/admin-files'
 import { withMaintenanceLock } from '@/server/services/maintenance-lock'
 import type { BackupHistoryResponse, BackupJob, BackupPhase, BackupSnapshot, BackupSource, RestorePreview, BackupProgress } from '@/types/backup'
 import { inspectImportAccounts } from './accounts'
-import { createCompleteSnapshot, readCompleteBundle, sha256File, unsupportedBackup } from './archive'
-import { DATABASE_BACKUP_VERSION, DATABASE_TRANSACTION_MAX_WAIT_MS, DATABASE_TRANSACTION_TIMEOUT_MS, RESTORE_COMMIT_CONFIG_KEY } from './constants'
+import { createCompleteSnapshot, readCompleteBundle, sha256File } from './archive'
+import { backupCompatibility, requireBackupCompatibility } from './compatibility'
+import { BACKUP_UPLOAD_TTL_MS, DATABASE_TRANSACTION_MAX_WAIT_MS, DATABASE_TRANSACTION_TIMEOUT_MS, RESTORE_COMMIT_CONFIG_KEY } from './constants'
 import { importDatabaseRecords, invalidateBackupCaches } from './database-import'
 import { ensureUploadRoot } from './files-common'
-import type { BackupUploadRecord } from './uploads'
+import { markImportedSnapshotDeleted, publishBackupUpload, readBackupUploadRecord, withBackupUpload, type BackupUploadRecord } from './uploads'
 import { prepareRestoreJournal, readRestoreJournal, reconcileRestoreJournal, switchRestoreFiles, type RestoreJournal } from './recovery'
 import { setBackupRecoveryError } from './recovery-state'
 import { activeBackupJob, artifactPath, atomicJson, backupErrorCode, currentBackupJob, ensureBackupStorage, getBackupSnapshot, pinBackupSource, pinnedSnapshots, readJson, readRecords, readSettings, recordPath, releaseBackupJob, reserveBackupJob, reserveSnapshotDeletion, sourcePath, sourceSchema, updateBackupJob, workPath } from './store'
@@ -31,20 +32,27 @@ import { activeBackupJob, artifactPath, atomicJson, backupErrorCode, currentBack
 type PreviewRecord = RestorePreview & { actorUserId: number; sha256: string }
 async function validateSource(source: BackupSource, actorUserId: number, verifyHash = true) {
   sourceSchema.parse(source)
-  const path = sourcePath(source)
+  let path = sourcePath(source)
   let expected: string, hashVerified = false
   if (source.importId !== undefined) {
     const uploaded = await readJson<BackupUploadRecord>(recordPath('imports', source.importId))
     const active = activeBackupJob()
     const inUse = uploaded && ((active?.source?.importId === source.importId && new Date(active.createdAt).getTime() < new Date(uploaded.expiresAt).getTime()) || (await readRecords<PreviewRecord>('previews')).some(preview => preview.source.importId === source.importId && new Date(preview.expiresAt).getTime() > Date.now()))
     if (!uploaded || uploaded.state !== 'uploaded' || uploaded.actorUserId !== actorUserId || (new Date(uploaded.expiresAt).getTime() <= Date.now() && !inUse)) throw new HttpError('Backup upload has expired or is unavailable', 404, 404)
-    const info = await lstat(path)
-    if (!info.isFile() || info.isSymbolicLink() || info.size !== uploaded.size) throw new HttpError('Complete backup integrity verification failed', 409, 409)
-    if (!uploaded.sha256) { if (!verifyHash) throw new HttpError('Backup source has not been validated',409,409); uploaded.sha256 = await sha256File(path); hashVerified = true; await atomicJson(recordPath('imports', source.importId), uploaded) }
-    expected = uploaded.sha256
+    if (uploaded.snapshotId) {
+      const snapshot = await getBackupSnapshot(uploaded.snapshotId)
+      requireBackupCompatibility(snapshot.manifest)
+      path = artifactPath(snapshot.id)
+      expected = snapshot.sha256
+    } else {
+      const info = await lstat(path)
+      if (!info.isFile() || info.isSymbolicLink() || info.size !== uploaded.size) throw new HttpError('Complete backup integrity verification failed', 409, 409)
+      if (!uploaded.sha256) { if (!verifyHash) throw new HttpError('Backup source has not been validated',409,409); uploaded.sha256 = await sha256File(path); hashVerified = true; await atomicJson(recordPath('imports', source.importId), uploaded) }
+      expected = uploaded.sha256
+    }
   } else {
     const snapshot = await getBackupSnapshot(source.snapshotId)
-    if (snapshot.manifest.formatVersion !== 2 || snapshot.manifest.databaseVersion !== DATABASE_BACKUP_VERSION) unsupportedBackup()
+    requireBackupCompatibility(snapshot.manifest)
     expected = snapshot.sha256
   }
   if (verifyHash && !hashVerified && await sha256File(path) !== expected) throw new HttpError('Complete backup integrity verification failed', 409, 409)
@@ -106,6 +114,59 @@ async function finishJob(job: BackupJob, error?: unknown) {
   } finally { releaseBackupJob(job.id) }
 }
 export async function failQueuedBackup(job: BackupJob, error: unknown) { await finishJob(job, error) }
+
+export async function queueCompleteImport(importId: string, actorUserId: number) {
+  const existing = await readBackupUploadRecord(importId, actorUserId)
+  if (existing.importJobId) {
+    const previous = await getBackupJob(existing.importJobId)
+    if (['queued', 'running', 'succeeded'].includes(previous.status)) return { job: previous, queued: false }
+  }
+  return withBackupUpload(importId, actorUserId, async (upload) => {
+    if (upload.importJobId) {
+      const previous = await getBackupJob(upload.importJobId)
+      if (['queued', 'running', 'succeeded'].includes(previous.status)) return { job: previous, queued: false }
+    }
+    if (upload.state !== 'uploaded' || upload.offset !== upload.size) throw new HttpError('Backup upload is incomplete', 409, 409, { reason: 'BACKUP_UPLOAD_INCOMPLETE' })
+    await assertBackupIdle()
+    const job = await reserveBackupJob('import', actorUserId)
+    try {
+      await updateBackupJob(job, { source: { importId }, snapshotId: upload.id })
+      upload.importJobId = job.id
+      upload.expiresAt = new Date(Date.now() + BACKUP_UPLOAD_TTL_MS).toISOString()
+      await atomicJson(recordPath('imports', upload.id), upload)
+      return { job, queued: true }
+    } catch (error) { await finishJob(job, error); throw error }
+  })
+}
+
+export async function runCompleteImport(job: BackupJob) {
+  let failure: unknown
+  let bundle: Awaited<ReturnType<typeof readCompleteBundle>> | undefined
+  const directory = workPath(job.id)
+  const release = pinBackupSource(job.source!)
+  try {
+    await updateBackupJob(job, { status: 'running', phase: 'validating', startedAt: new Date().toISOString() })
+    const snapshot = await withBackupUpload(job.source!.importId!, job.actorUserId!, async (upload) => {
+      if (upload.snapshotId) return getBackupSnapshot(upload.snapshotId)
+      if (!upload.publication) {
+        const artifact = await validateSource(job.source!, job.actorUserId!)
+        bundle = await readCompleteBundle(artifact.path, directory, false, progressFor(job))
+        upload.sha256 = artifact.sha256
+        upload.publication = { id: upload.id, kind: 'imported', createdAt: bundle.manifest.createdAt, importedAt: new Date().toISOString(), fileName: upload.fileName, size: upload.size, sha256: artifact.sha256, manifest: bundle.manifest }
+        await atomicJson(recordPath('imports', upload.id), upload)
+      }
+      return publishBackupUpload(upload)
+    })
+    job.warnings.push(...snapshot.warnings ?? [])
+    try { await updateBackupJob(job, { snapshotId: snapshot.id }) } catch { job.warnings.push('JOB_STATE_WRITE_FAILED') }
+  } catch (error) { failure = error }
+  finally {
+    bundle?.store.close()
+    release()
+    try { await rm(directory, { recursive: true, force: true }) } catch { job.warnings.push('WORK_CLEANUP_FAILED') }
+  }
+  await finishJob(job, failure)
+}
 
 function progressFor(job: BackupJob) {
   let lastWrite = 0
@@ -199,23 +260,25 @@ export async function deleteBackupSnapshot(id: string, automatic = false) {
     if ((await pinnedSnapshots()).has(id) || activeBackupJob()?.snapshotId === id) throw new HttpError('Backup is currently in use', 409, 409)
     const snapshot = await readJson<BackupSnapshot>(recordPath('snapshots', id))
     if (!snapshot || snapshot.id !== id) throw new HttpError('Backup not found', 404, 404)
+    if (snapshot.kind === 'imported') await markImportedSnapshotDeleted(id)
     await rm(artifactPath(id), { force: true })
     await rm(recordPath('snapshots', id))
   } finally { release() }
 }
 export async function applyBackupRetention() {
   const settings = await readSettings(), pinned = await pinnedSnapshots()
-  const snapshots = (await readRecords<BackupSnapshot>('snapshots')).filter((snapshot) => snapshot.kind === 'scheduled' && snapshot.manifest.formatVersion === 2).sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+  const snapshots = (await readRecords<BackupSnapshot>('snapshots')).filter((snapshot) => snapshot.kind === 'scheduled' && backupCompatibility(snapshot.manifest).status !== 'unsupported').sort((left, right) => right.createdAt.localeCompare(left.createdAt))
   for (const snapshot of snapshots.slice(settings.retentionCount)) if (!pinned.has(snapshot.id)) await deleteBackupSnapshot(snapshot.id, true)
 }
 export async function backupHistory(): Promise<BackupHistoryResponse> {
-  const snapshots = (await readRecords<BackupSnapshot>('snapshots')).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(snapshot => {
-    const restorable = snapshot.manifest.formatVersion === 2 && snapshot.manifest.databaseVersion === DATABASE_BACKUP_VERSION
+  const snapshots = (await readRecords<BackupSnapshot>('snapshots')).sort((a, b) => (b.importedAt ?? b.createdAt).localeCompare(a.importedAt ?? a.createdAt)).map(snapshot => {
+    const compatibility = backupCompatibility(snapshot.manifest)
+    const restorable = compatibility.status !== 'unsupported'
     if (!restorable) {
       const legacy = snapshot.manifest as unknown as { files?: unknown[]; counts?: Record<string,number>; fileCount?: number; formatVersion?: number; databaseVersion?: string }
-      return { ...snapshot, manifest: { formatVersion: legacy.formatVersion ?? 0, databaseVersion: legacy.databaseVersion ?? '', fileCount: legacy.fileCount ?? legacy.files?.length ?? 0, counts: legacy.counts ?? {} }, restorable }
+      return { ...snapshot, manifest: { formatVersion: legacy.formatVersion ?? 0, databaseVersion: legacy.databaseVersion ?? '', fileCount: legacy.fileCount ?? legacy.files?.length ?? 0, counts: legacy.counts ?? {} }, restorable, compatibility }
     }
-    return { ...snapshot, restorable }
+    return { ...snapshot, restorable, compatibility }
   })
   const jobs = (await readRecords<BackupJob>('jobs')).map((job) => currentBackupJob(job.id) ?? job).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 100)
   return { snapshots, jobs, activeJob: activeBackupJob() }

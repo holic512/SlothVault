@@ -3,13 +3,13 @@
  * @project SlothVault
  * @module Local Backup Scheduler
  * @description Runs opt-in daily backups in a persistent single-instance Node.js server.
- * @logic Persist local-calendar trigger slots, register one timer, recover interrupted operations before traffic, and coalesce missed schedules into one backup.
+ * @logic Recover import publications and interrupted tasks before traffic, persist daily trigger slots, and expire only temporary upload materials.
  * @dependencies Intl time zones, private backup store, complete backup jobs, runtime installation health
  * @index_tags backup,scheduler,timezone,startup,retention,recovery
  * @author holic512
  */
 import 'server-only'
-import { reconcileBackupUploads } from './uploads'
+import { cleanupExpiredBackupUploads, reconcileBackupUploads } from './uploads'
 import { readdir, rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { z } from 'zod'
@@ -22,7 +22,7 @@ import type { BackupJob, BackupSettings, BackupSettingsResponse, RestorePreview 
 import { queueCompleteBackup, runCompleteBackup, failQueuedBackup } from './complete'
 import { readRestoreJournal, recoverPendingRestore } from './recovery'
 import { RESTORE_COMMIT_CONFIG_KEY } from './constants'
-import { activeBackupJob, atomicJson, backupStatePath, backupStoragePath, ensureBackupStorage, getBackupSnapshot, importPath, pinnedImports, readJson, readRecords, readSettings, recordPath, settingsSchema, sourceIsPinned, storageStatus, workPath } from './store'
+import { activeBackupJob, atomicJson, backupStatePath, backupStoragePath, ensureBackupStorage, getBackupSnapshot, readJson, readRecords, readSettings, recordPath, settingsSchema, storageStatus, workPath } from './store'
 
 type ScheduleState = { signature: string; lastSlot: string; lastJobId?: string }
 type SchedulerRuntime = { initialized?: Promise<void>; timer?: ReturnType<typeof setInterval>; ticking: boolean; saving: boolean }
@@ -98,12 +98,7 @@ export async function tickBackupScheduler(now = new Date()) {
 async function cleanupExpiredInputs() {
   const now = Date.now()
   for (const preview of await readRecords<RestorePreview>('previews')) if (preview.id !== activeBackupJob()?.previewId && new Date(preview.expiresAt).getTime() <= now) await rm(recordPath('previews', preview.id), { force: true })
-  const pinned = await pinnedImports()
-  for (const upload of await readRecords<{ id: string; expiresAt: string }>('imports')) {
-    if (!pinned.has(upload.id) && !sourceIsPinned(upload.id) && new Date(upload.expiresAt).getTime() <= now) {
-      await rm(importPath(upload.id) + '.partial', { force: true }); await rm(importPath(upload.id), { force: true }); await rm(recordPath('imports', upload.id), { force: true })
-    }
-  }
+  await cleanupExpiredBackupUploads()
 }
 async function cleanupInterruptedWork() {
   for (const name of await readdir(resolve(backupStoragePath(), 'work'))) {
@@ -124,17 +119,19 @@ export async function initializeBackupRuntime() {
     // Resolve the journal before removing any evidence, including when the database is unavailable.
     await recoverPendingRestore()
     await ensureBackupStorage()
+    const recoveredImports = await reconcileBackupUploads()
     for (const job of await readRecords<BackupJob>('jobs')) {
-      if (job.status !== 'queued' && job.status !== 'running') continue
+      if (job.status !== 'queued' && job.status !== 'running' && !(job.kind === 'import' && job.status !== 'succeeded' && recoveredImports.has(job.id))) continue
       let completed = false
       if (job.kind === 'restore') {
         try { completed = (await getDatabaseClient().systemConfig.findUnique({ where: { configKey: RESTORE_COMMIT_CONFIG_KEY } }))?.configValue === job.id } catch { /* An absent journal means files were never switched or were fully reconciled. */ }
+      } else if (job.kind === 'import') {
+        try { completed = (await getBackupSnapshot(job.snapshotId!)).kind === 'imported' } catch { /* Keep an unfinished upload available for explicit retry or cancellation. */ }
       } else {
         try { completed = (await getBackupSnapshot(job.id)).kind === job.kind } catch { /* An unpublished artifact is not a completed backup. */ }
       }
-      await atomicJson(recordPath('jobs', job.id), { ...job, ...(completed && job.kind !== 'restore' ? { snapshotId: job.id } : {}), status: completed ? 'succeeded' : 'interrupted', phase: completed ? 'complete' : job.phase, error: completed ? null : 'BACKUP_INTERRUPTED', warnings: [...job.warnings, 'RECOVERED_AFTER_RESTART'], finishedAt: new Date().toISOString(), durationMs: Math.max(0, Date.now() - new Date(job.startedAt ?? job.createdAt).getTime()) })
+      await atomicJson(recordPath('jobs', job.id), { ...job, ...(completed && !['restore', 'import'].includes(job.kind) ? { snapshotId: job.id } : {}), status: completed ? 'succeeded' : 'interrupted', phase: completed ? 'complete' : job.phase, error: completed ? null : 'BACKUP_INTERRUPTED', warnings: [...job.warnings, 'RECOVERED_AFTER_RESTART'], finishedAt: new Date().toISOString(), durationMs: Math.max(0, Date.now() - new Date(job.startedAt ?? job.createdAt).getTime()) })
     }
-    await reconcileBackupUploads()
     await cleanupInterruptedWork()
     await cleanupExpiredInputs()
   })()

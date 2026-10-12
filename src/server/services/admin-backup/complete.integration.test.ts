@@ -4,7 +4,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, readFileSync, readdirSync } from 'node:fs'
 import * as fs from 'node:fs/promises'
-import { resolve } from 'node:path'
+import { basename, resolve } from 'node:path'
 import Database from 'better-sqlite3'
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3'
 import { PrismaMariaDb } from '@prisma/adapter-mariadb'
@@ -23,6 +23,7 @@ const fixture = vi.hoisted(() => ({
   client: null as unknown as AppPrismaClient,
   provider: process.env.SLOTHVAULT_BACKUP_TEST_PROVIDER ?? 'sqlite',
   failure: null as 'switch' | 'cleanup' | 'space' | null,
+  publicationFailure: null as 'index' | 'receipt' | null,
   health: 'INSTALLED',
   after: [] as Array<() => Promise<void>>,
   articleCache: vi.fn(),
@@ -40,6 +41,14 @@ vi.mock('node:fs/promises', async (load) => {
   return {
     ...actual,
     rename: async (source: string, destination: string) => {
+      if (fixture.publicationFailure === 'index' && destination.includes('/backup-state/snapshots/')) {
+        fixture.publicationFailure = null
+        throw Object.assign(new Error('injected import index failure'), { code: 'EIO' })
+      }
+      if (fixture.publicationFailure === 'receipt' && destination.includes('/backup-state/imports/') && await actual.lstat(resolve(fixture.root, 'config/backup-state/snapshots', basename(destination))).catch(() => null)) {
+        fixture.publicationFailure = null
+        throw Object.assign(new Error('injected import receipt failure'), { code: 'EIO' })
+      }
       if (fixture.failure === 'switch' && source.includes('/.complete-restore-') && !destination.includes('/.complete-')) {
         fixture.failure = null
         throw Object.assign(new Error('injected file switch failure'), { code: 'EIO' })
@@ -58,13 +67,14 @@ import { issueSession, readSessionToken } from '@/server/auth/session'
 import { acquireMaintenanceLock } from '@/server/services/maintenance-lock'
 import { exportDatabaseBackup } from './database-export'
 import * as importer from './database-import'
+import * as archiveOperations from './archive'
 import { createCompleteSnapshot, readCompleteBundle, sha256File, walkBackupFiles } from './archive'
-import { assertBackupIdle, backupHistory, deleteBackupSnapshot, getBackupJob, previewCompleteRestore, queueCompleteBackup, queueCompleteRestore, runCompleteBackup, runCompleteRestore } from './complete'
-import { artifactPath, atomicJson, backupStatePath, backupStoragePath, DEFAULT_BACKUP_SETTINGS, ensureBackupStorage, pinSnapshot, readSettings, recordPath, releaseBackupJob, sourceIsPinned, storageStatus } from './store'
+import { applyBackupRetention, assertBackupIdle, backupHistory, deleteBackupSnapshot, getBackupJob, previewCompleteRestore, queueCompleteBackup, queueCompleteImport, queueCompleteRestore, runCompleteBackup, runCompleteImport, runCompleteRestore } from './complete'
+import { artifactPath, atomicJson, backupStatePath, backupStoragePath, DEFAULT_BACKUP_SETTINGS, ensureBackupStorage, getBackupSnapshot, importPath, pinSnapshot, readJson, readSettings, recordPath, releaseBackupJob, sourceIsPinned, storageStatus, updateBackupJob } from './store'
 import { prepareRestoreJournal, readRestoreJournal, reconcileRestoreJournal, recoverPendingRestore, restoreJournalPath, switchRestoreFiles } from './recovery'
 import { backupRecoveryError, setBackupRecoveryError } from './recovery-state'
 import { initializeBackupRuntime, nextBackupRun, saveBackupSettings, scheduledSlot, tickBackupScheduler } from './scheduler'
-import { ACTIVE_BACKUP_COLLECTION_KEYS, RESTORE_COMMIT_CONFIG_KEY } from './constants'
+import { ACTIVE_BACKUP_COLLECTION_KEYS, DATABASE_BACKUP_VERSION, RESTORE_COMMIT_CONFIG_KEY } from './constants'
 import { extractZipToStaging } from './files-import'
 import { updateCrc32, validateZipArchive, validateZipFile } from './zip-validation'
 import { rebuildFileReferences } from '@/server/services/file-references'
@@ -77,6 +87,7 @@ import { completeAgreementValues, seedSignedLegacyContract } from '@/server/comm
 import { uploadCommissionFile } from '@/server/commissions/files'
 import { GET as settingsGet, PUT as settingsPut } from '@/app/api/admin/mm/backup/settings/route'
 import { GET as historyGet, POST as snapshotPost } from '@/app/api/admin/mm/backup/snapshots/route'
+import { POST as importPost } from '@/app/api/admin/mm/backup/snapshots/import/route'
 import { GET as jobGet } from '@/app/api/admin/mm/backup/jobs/[id]/route'
 import { GET as downloadGet, HEAD as downloadHead } from '@/app/api/admin/mm/backup/snapshots/[id]/download/route'
 import { DELETE as snapshotDelete } from '@/app/api/admin/mm/backup/snapshots/[id]/route'
@@ -85,7 +96,7 @@ import { POST as uploadCompletePost } from '@/app/api/admin/mm/backup/imports/[i
 import { POST as uploadPost } from '@/app/api/admin/mm/backup/imports/route'
 import { POST as previewPost } from '@/app/api/admin/mm/backup/restores/preview/route'
 import { POST as restorePost } from '@/app/api/admin/mm/backup/restores/route'
-import { createBackupUpload, appendBackupUpload, completeBackupUpload } from './uploads'
+import { cancelBackupUpload, createBackupUpload, appendBackupUpload, completeBackupUpload, getBackupUpload, reconcileBackupUploads, type BackupUploadRecord } from './uploads'
 import { POST as resetPost } from '@/app/api/admin/mm/backup/system-reset/route'
 
 const digest = (buffer: Buffer) => createHash('sha256').update(buffer).digest('hex')
@@ -164,7 +175,7 @@ beforeEach(async () => {
   clientReady = false
   process.env.APP_DATA_PATH = fixture.root
   delete process.env.BACKUP_STORAGE_PATH
-  fixture.failure = null; fixture.health = 'INSTALLED'; fixture.after = []
+  fixture.failure = null; fixture.publicationFailure = null; fixture.health = 'INSTALLED'; fixture.after = []
   setBackupRecoveryError(null); vi.clearAllMocks()
   mkdirSync(uploads(), { recursive: true })
   if (fixture.provider === 'sqlite') {
@@ -195,6 +206,7 @@ beforeEach(async () => {
 })
 afterEach(async () => {
   fixture.failure = null
+  fixture.publicationFailure = null
   const runtime = (globalThis as unknown as { slothVaultBackupScheduler?: { timer?: ReturnType<typeof setInterval>; initialized?: Promise<void>; ticking: boolean } }).slothVaultBackupScheduler
   if (runtime) { if (runtime.timer) clearInterval(runtime.timer); runtime.timer = undefined; runtime.initialized = undefined; runtime.ticking = false }
   const history = await backupHistory()
@@ -589,6 +601,229 @@ describe('durable recovery, scheduling and retention', () => {
   })
 })
 
+describe('persistent imported backup nodes', () => {
+  it('returns duplicate task requests and rejects cancellation while validation is still running', async () => {
+    const s = await seed(), original = await snapshot(), source = await uploaded(await fs.readFile(artifactPath(original.id)), s.admin.id)
+    const { job } = await queueCompleteImport(source.importId, s.admin.id)
+    let releaseValidation!: () => void
+    const gate = new Promise<void>(resolveGate => { releaseValidation = resolveGate })
+    const reader = archiveOperations.readCompleteBundle
+    vi.spyOn(archiveOperations, 'readCompleteBundle').mockImplementation(async (...args) => { await gate; return reader(...args) })
+    const running = runCompleteImport(job)
+    try {
+      await expect.poll(() => job.status).toBe('running')
+      expect((await queueCompleteImport(source.importId, s.admin.id)).job.id).toBe(job.id)
+      await expect(cancelBackupUpload(source.importId, s.admin.id)).rejects.toMatchObject({ status: 409 })
+    } finally { releaseValidation(); await running }
+    expect(job.status).toBe('succeeded')
+  })
+
+  it('queues one background import per owned upload and supports downloading the imported node', async () => {
+    const s = await seed(), original = await snapshot(), bytes = await fs.readFile(artifactPath(original.id))
+    const source = await uploaded(bytes, s.admin.id), ctx = { params: Promise.resolve({}) }
+    const admin = await client.user.create({ data: { username: 'another-admin', password: 'test-only', role: 'ADMIN' } })
+    const session = await issueSession({ userId: admin.id })
+    const submit = (token: string) => importPost(request('snapshots/import', { method: 'POST', token, body: source }), ctx)
+    expect((await submit(s.otherSession.token)).status).toBe(401)
+    expect((await submit(session.token)).status).toBe(404)
+    expect((await importPost(request('snapshots/import', { method: 'POST', token: s.session.token, body: { importId: '../unsafe' } }), ctx)).status).toBe(400)
+    const first = await submit(s.session.token), repeated = await submit(s.session.token)
+    expect(first.status).toBe(202); expect(repeated.status).toBe(202)
+    const job = (await first.json()).data
+    expect((await repeated.json()).data.id).toBe(job.id)
+    expect(fixture.after).toHaveLength(1)
+    expect((await backupHistory()).snapshots).toHaveLength(1)
+    await expect(cancelBackupUpload(source.importId, s.admin.id)).rejects.toMatchObject({ status: 409 })
+    await fixture.after[0]()
+    expect((await getBackupJob(job.id)).status).toBe('succeeded')
+    expect((await (await submit(s.session.token)).json()).data.id).toBe(job.id)
+    expect(fixture.after).toHaveLength(1)
+    const download = await downloadGet(request('download', { token: s.session.token }), context(source.importId))
+    expect(download.status).toBe(200)
+    await expect(deleteBackupSnapshot(source.importId)).rejects.toMatchObject({ status: 409 })
+    expect(Buffer.from(await download.arrayBuffer())).toEqual(bytes)
+    await deleteBackupSnapshot(source.importId)
+    expect((await backupHistory()).snapshots).toHaveLength(1)
+  })
+
+  it('keeps original bytes after restart and upload expiry, then restores only when requested', async () => {
+    const s = await seed(), original = await snapshot(), bytes = await fs.readFile(artifactPath(original.id))
+    const source = await uploaded(bytes, s.admin.id)
+    await client.user.update({ where: { id: s.user.id }, data: { pointsBalance: 9 } })
+    await fs.writeFile(resolve(uploads(), 'other/proof.txt'), 'live')
+    const requests = await Promise.all([queueCompleteImport(source.importId, s.admin.id), queueCompleteImport(source.importId, s.admin.id)])
+    expect(requests.map(item => item.queued)).toEqual([true, false])
+    expect(requests[0].job.id).toBe(requests[1].job.id)
+    await runCompleteImport(requests[0].job)
+    const imported = await getBackupSnapshot(source.importId)
+    expect(imported).toMatchObject({ kind: 'imported', fileName: 'backup.zip', createdAt: original.createdAt, manifest: original.manifest })
+    expect(imported.id).not.toBe(original.id)
+    expect(imported.importedAt).toBeDefined()
+    expect(await fs.readFile(artifactPath(imported.id))).toEqual(bytes)
+    expect((await queueCompleteImport(source.importId, s.admin.id)).queued).toBe(false)
+    expect((await getBackupJob(requests[0].job.id)).status).toBe('succeeded')
+    expect((await client.user.findUniqueOrThrow({ where: { id: s.user.id } })).pointsBalance).toBe(9)
+    expect(await fs.readFile(resolve(uploads(), 'other/proof.txt'), 'utf8')).toBe('live')
+    expect((await backupHistory()).snapshots).toHaveLength(2)
+    vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(Date.now() + 25 * 3600_000)
+    await initializeBackupRuntime()
+    expect(await readJson(recordPath('imports', source.importId))).toBeNull()
+    expect((await backupHistory()).snapshots[0]).toMatchObject({ id: imported.id, restorable: true, compatibility: { status: 'current' } })
+    expect(await fs.readFile(artifactPath(imported.id))).toEqual(bytes)
+    const preview = await previewCompleteRestore({ snapshotId: imported.id }, s.admin.id)
+    await expect(deleteBackupSnapshot(imported.id)).rejects.toMatchObject({ status: 409 })
+    const job = await queueCompleteRestore(preview.id, s.admin.id)
+    await runCompleteRestore(job, preview.id, s.session.sessionId)
+    expect((await getBackupJob(job.id)).status).toBe('succeeded')
+    expect(job.protectionId).toBeDefined()
+    expect((await client.user.findUniqueOrThrow({ where: { username: 'member' } })).pointsBalance).toBe(100)
+    expect(await fs.readFile(resolve(uploads(), 'other/proof.txt'), 'utf8')).toBe('data')
+  })
+
+  it('defers destination credential conflicts to restore preflight', async () => {
+    const s = await seed(), original = await snapshot()
+    const bytes = await editedBundle(original, data => { data.data.users.find(user => user.username === 'member')!.email = 'current@example.invalid' })
+    await client.user.update({ where: { id: s.admin.id }, data: { email: 'current@example.invalid' } })
+    const source = await uploaded(bytes, s.admin.id), { job } = await queueCompleteImport(source.importId, s.admin.id)
+    await runCompleteImport(job)
+    expect(job.status).toBe('succeeded')
+    await expect(previewCompleteRestore({ snapshotId: source.importId }, s.admin.id)).rejects.toMatchObject({ status: 409 })
+    expect(await client.article.count()).toBe(1)
+  })
+
+  it.each(['checksum', 'attachment', 'relation', 'path', 'missing-field', 'old-version', 'future-version'])('rejects %s without publishing or modifying existing nodes', async kind => {
+    const s = await seed(), original = await snapshot()
+    const bytes = await editedBundle(original, (data, _manifest, entries) => {
+      if (kind === 'attachment') {
+        const rows = entries.get('files.ndjson')!.toString().split('\n').filter(Boolean).map(line => JSON.parse(line))
+        rows.find(row => row.kind === 'file').sha256 = '0'.repeat(64)
+        entries.set('files.ndjson', Buffer.from(rows.map(row => JSON.stringify(row) + '\n').join('')))
+      }
+      if (kind === 'relation') data.data.membershipGrants[0].userId = '99999'
+      if (kind === 'path') entries.set('../escape.txt', Buffer.from('unsafe'))
+      if (kind === 'missing-field') Reflect.deleteProperty(data.data.projects[0], 'readAccessMode')
+      if (kind === 'old-version' || kind === 'future-version') Reflect.set(data, 'version', kind === 'old-version' ? '2.12.0' : '2.14.0')
+    })
+    if (kind === 'checksum') bytes[30 + bytes.readUInt16LE(26) + bytes.readUInt16LE(28)] ^= 1
+    const source = await uploaded(bytes, s.admin.id), { job } = await queueCompleteImport(source.importId, s.admin.id)
+    await runCompleteImport(job)
+    expect(job.status).toBe('failed')
+    expect((await backupHistory()).snapshots.map(item => item.id)).toEqual([original.id])
+    expect(await client.article.count()).toBe(1)
+    expect(await fs.readFile(resolve(uploads(), 'other/proof.txt'), 'utf8')).toBe('data')
+    await cancelBackupUpload(source.importId, s.admin.id)
+  })
+
+  it.each(['before-move', 'after-move', 'after-index'])('reconciles a durable publication interrupted at %s', async stage => {
+    const s = await seed(), original = await snapshot(), bytes = await fs.readFile(artifactPath(original.id))
+    const source = await uploaded(bytes, s.admin.id), { job } = await queueCompleteImport(source.importId, s.admin.id)
+    const record = (await readJson<BackupUploadRecord>(recordPath('imports', source.importId)))!
+    const publication: BackupSnapshot = { ...original, id: source.importId, kind: 'imported', importedAt: new Date().toISOString(), fileName: record.fileName }
+    await atomicJson(recordPath('imports', source.importId), { ...record, publication })
+    await updateBackupJob(job, { status: 'running', phase: 'validating' })
+    if (stage !== 'before-move') await fs.rename(importPath(source.importId), artifactPath(source.importId))
+    if (stage === 'after-index') await atomicJson(recordPath('snapshots', source.importId), publication)
+    releaseBackupJob(job.id)
+    ;(globalThis as unknown as { slothVaultBackupOperations: { finished: Map<string, unknown> } }).slothVaultBackupOperations.finished.clear()
+    await initializeBackupRuntime()
+    expect((await getBackupJob(job.id)).status).toBe('succeeded')
+    expect((await backupHistory()).snapshots).toHaveLength(2)
+    expect((await getBackupUpload(source.importId, s.admin.id)).snapshotId).toBe(source.importId)
+    expect(await fs.readFile(artifactPath(source.importId))).toEqual(bytes)
+    await reconcileBackupUploads()
+    expect((await backupHistory()).snapshots).toHaveLength(2)
+  })
+
+  it('keeps unvalidated uploads available for retry after interruption', async () => {
+    const s = await seed(), original = await snapshot(), source = await uploaded(await fs.readFile(artifactPath(original.id)), s.admin.id)
+    const first = await queueCompleteImport(source.importId, s.admin.id)
+    releaseBackupJob(first.job.id)
+    ;(globalThis as unknown as { slothVaultBackupOperations: { finished: Map<string, unknown> } }).slothVaultBackupOperations.finished.clear()
+    await initializeBackupRuntime()
+    expect((await getBackupJob(first.job.id)).status).toBe('interrupted')
+    expect((await getBackupUpload(source.importId, s.admin.id)).state).toBe('uploaded')
+    const retry = await queueCompleteImport(source.importId, s.admin.id)
+    expect(retry.queued).toBe(true)
+    await runCompleteImport(retry.job)
+    expect(retry.job.status).toBe('succeeded')
+  })
+
+  it('keeps a damaged interrupted publication unavailable and allows explicit cleanup', async () => {
+    const s = await seed(), original = await snapshot(), bytes = await fs.readFile(artifactPath(original.id))
+    const source = await uploaded(bytes, s.admin.id), { job } = await queueCompleteImport(source.importId, s.admin.id)
+    const record = (await readJson<BackupUploadRecord>(recordPath('imports', source.importId)))!
+    await atomicJson(recordPath('imports', source.importId), { ...record, publication: { ...original, id: source.importId, kind: 'imported', importedAt: new Date().toISOString() } })
+    await fs.rename(importPath(source.importId), artifactPath(source.importId))
+    bytes[bytes.length - 1] ^= 1; await fs.writeFile(artifactPath(source.importId), bytes)
+    releaseBackupJob(job.id)
+    ;(globalThis as unknown as { slothVaultBackupOperations: { finished: Map<string, unknown> } }).slothVaultBackupOperations.finished.clear()
+    await initializeBackupRuntime()
+    expect((await getBackupJob(job.id)).status).toBe('interrupted')
+    expect((await backupHistory()).snapshots.map(item => item.id)).toEqual([original.id])
+    await cancelBackupUpload(source.importId, s.admin.id)
+    await expect(fs.stat(artifactPath(source.importId))).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('recovers failed index publication and reports committed imports despite receipt failures', async () => {
+    const s = await seed(), original = await snapshot(), bytes = await fs.readFile(artifactPath(original.id))
+    const source = await uploaded(bytes, s.admin.id), first = await queueCompleteImport(source.importId, s.admin.id)
+    fixture.publicationFailure = 'index'
+    await runCompleteImport(first.job)
+    expect(first.job.status).toBe('failed')
+    expect(await readJson(recordPath('snapshots', source.importId))).toBeNull()
+    ;(globalThis as unknown as { slothVaultBackupOperations: { finished: Map<string, unknown> } }).slothVaultBackupOperations.finished.clear()
+    await initializeBackupRuntime()
+    expect((await getBackupJob(first.job.id)).status).toBe('succeeded')
+    const another = await uploaded(bytes, s.admin.id), second = await queueCompleteImport(another.importId, s.admin.id)
+    fixture.publicationFailure = 'receipt'
+    await runCompleteImport(second.job)
+    expect(second.job.status).toBe('succeeded')
+    expect(second.job.warnings).toContain('JOB_STATE_WRITE_FAILED')
+    await deleteBackupSnapshot(another.importId)
+    await reconcileBackupUploads()
+    expect(await readJson(recordPath('snapshots', another.importId))).toBeNull()
+    expect((await backupHistory()).snapshots).toHaveLength(2)
+  })
+
+  it('rechecks imported bytes before restore and excludes imported nodes from retention', async () => {
+    const s = await seed(), original = await snapshot(), source = await uploaded(await fs.readFile(artifactPath(original.id)), s.admin.id)
+    const { job } = await queueCompleteImport(source.importId, s.admin.id)
+    await runCompleteImport(job)
+    await atomicJson(resolve(backupStatePath(), 'settings.json'), { ...DEFAULT_BACKUP_SETTINGS, retentionCount: 1 })
+    await createCompleteSnapshot('scheduled', randomUUID(), async () => undefined)
+    await createCompleteSnapshot('scheduled', randomUUID(), async () => undefined)
+    await applyBackupRetention()
+    expect((await backupHistory()).snapshots.filter(item => item.kind === 'scheduled')).toHaveLength(1)
+    const preview = await previewCompleteRestore({ snapshotId: source.importId }, s.admin.id)
+    const restore = await queueCompleteRestore(preview.id, s.admin.id)
+    const bytes = await fs.readFile(artifactPath(source.importId)); bytes[bytes.length - 1] ^= 1
+    await fs.writeFile(artifactPath(source.importId), bytes)
+    await runCompleteRestore(restore, preview.id, s.session.sessionId)
+    expect(restore.status).toBe('failed')
+    expect(restore.protectionId).toBeUndefined()
+    expect(await client.article.count()).toBe(1)
+    expect((await backupHistory()).snapshots).toHaveLength(3)
+  })
+
+  it('admits older application releases with the same data format and describes incompatible historical nodes', async () => {
+    const s = await seed(), original = await snapshot()
+    const bytes = await editedBundle(original, (_data, manifest) => { manifest.appVersion = '1.0.0' })
+    const source = await uploaded(bytes, s.admin.id), { job } = await queueCompleteImport(source.importId, s.admin.id)
+    await runCompleteImport(job)
+    expect(job.status).toBe('succeeded')
+    const imported = await getBackupSnapshot(source.importId)
+    await previewCompleteRestore({ snapshotId: imported.id }, s.admin.id)
+    await atomicJson(recordPath('snapshots', original.id), { ...original, manifest: { ...original.manifest, databaseVersion: '2.14.0' } })
+    const historical = (await backupHistory()).snapshots.find(item => item.id === original.id)!
+    expect(historical).toMatchObject({ restorable: false, compatibility: { status: 'unsupported', sourceVersion: '2.14.0', targetVersion: DATABASE_BACKUP_VERSION, reason: 'data-version' } })
+    await expect(previewCompleteRestore({ snapshotId: original.id }, s.admin.id)).rejects.toMatchObject({ status: 400, data: { reason: 'BACKUP_UNSUPPORTED_FORMAT' } })
+    const download = await downloadGet(request('download', { token: s.session.token }), context(original.id))
+    expect(download.status).toBe(200); await download.body!.cancel()
+    await expect.poll(() => sourceIsPinned(original.id)).toBe(false)
+    await deleteBackupSnapshot(original.id)
+  })
+})
+
 describe('administrator backup API boundaries', () => {
   it('requires an administrator session on every new endpoint and rejects non-administrators', async () => {
     const s = await seed(), id = randomUUID(), ctx = { params: Promise.resolve({}) }, idCtx = context(id)
@@ -597,9 +832,10 @@ describe('administrator backup API boundaries', () => {
       historyGet(request('snapshots'), ctx), snapshotPost(request('snapshots', { method: 'POST', body: {} }), ctx),
       downloadGet(request('download'), idCtx), downloadHead(request('download', { method: 'HEAD' }), idCtx), uploadGet(request('imports'), idCtx), uploadPatch(request('imports', { method: 'PATCH' }), idCtx), uploadDelete(request('imports', { method: 'DELETE' }), idCtx), uploadCompletePost(request('imports/complete', { method: 'POST' }), idCtx), snapshotDelete(request('snapshot', { method: 'DELETE', body: {} }), idCtx),
       uploadPost(request('imports', { method: 'POST', body: {} }), ctx), previewPost(request('preview', { method: 'POST', body: {} }), ctx),
+      importPost(request('snapshots/import', { method: 'POST', body: {} }), ctx),
       restorePost(request('restore', { method: 'POST', body: {} }), ctx), jobGet(request('job'), idCtx),
     ]
-    expect((await Promise.all(calls)).map((response) => response.status)).toEqual(Array(15).fill(401))
+    expect((await Promise.all(calls)).map((response) => response.status)).toEqual(Array(16).fill(401))
     expect((await historyGet(request('snapshots', { token: s.otherSession.token }), ctx)).status).toBe(401)
   })
   it('returns queued jobs before after() starts work, polls status while the state lock is held, and downloads native ZIP data', async () => {
