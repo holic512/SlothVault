@@ -2,8 +2,8 @@
  * @file database-schema.ts
  * @project SlothVault
  * @module Admin Database Backup Schema
- * @description Defines the portable 2.13 database-backup shape with membership entitlements, independent articles, contracts, project-version evidence, and current business records.
- * @logic Validate active collections strictly, retain v3 publication snapshots, note tags, member access and standalone blog content, require the current data version and full overwrite restoration.
+ * @description Defines the portable 2.15 database-backup shape with membership entitlements, independent articles, contracts, project-version evidence, and current business records.
+ * @logic Validate active collections strictly, retain v3 publication snapshots, note tags, member access and standalone blog content, include multi-wallet bindings and username quotas, and require the current data version and full overwrite restoration.
  * @dependencies Zod, Node path rules, backup constants
  * @index_tags admin,backup,database,schema,zod,portable
  * @author holic512
@@ -124,6 +124,9 @@ const userSchema = z.object({
   status: smallIntSchema.optional().default(1),
   pointsBalance: intSchema.optional().default(0),
   walletAddress: nullableString(64).optional().default(null),
+  usernameChangeMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).nullable().default(null),
+  usernameChangeCount: z.number().int().min(0).max(3).default(0),
+  credentialsRevision: z.number().int().min(0).max(2_147_483_647).default(0),
   lastLoginAt: dateStringSchema.nullable().optional().default(null),
   createdAt: dateStringSchema,
   updatedAt: dateStringSchema,
@@ -498,6 +501,7 @@ const userDeletionRecordSchema = z.object({
 export const backupDataSchema = z.object({
   ...commissionBackupShape,
   users: z.array(userSchema).default([]),
+  userWallets: z.array(z.object({ id: idStringSchema, userId: idStringSchema, address: nonEmptyString(64), createdAt: dateStringSchema }).strict()).default([]),
   userDeletionRecords: z.array(userDeletionRecordSchema).default([]),
   pointTransactions: z.array(pointTransactionSchema).default([]),
   giftCardBatches: z.array(giftCardBatchSchema).default([]),

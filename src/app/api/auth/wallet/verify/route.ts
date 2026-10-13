@@ -3,8 +3,8 @@
  * @project SlothVault
  * @module Wallet Login Verification API
  * @description Verifies a one-time wallet signature and establishes the ordinary SlothVault user session.
- * @logic Consume the process-local challenge, verify Ed25519 ownership, bind/provision the account, and set the shared HTTP-only cookie.
- * @dependencies zod, wallet-auth service, session cookie, in-memory rate limit
+ * @logic Consume a login-only challenge, resolve authoritative wallet bindings or provision an unbound wallet account, verify Ed25519 ownership, and set the shared HTTP-only cookie.
+ * @dependencies zod, wallet-auth service, session cookie, short-lived state rate limit
  * @index_tags api,wallet,login,verification,session
  * @author holic512
  */

@@ -140,7 +140,7 @@ export function UsersManager() {
   })
   const totalRecords = (values: Record<string, number> = {}) => Object.values(values).reduce((sum, value) => sum + value, 0)
   const cleanupLabels: Record<string, string> = {
-    sessions: t('deletion.records.sessions'), mcpApiKeys: t('deletion.records.keys'), pointTransactions: t('deletion.records.points'),
+    sessions: t('deletion.records.sessions'), wallets: t('deletion.records.wallets'), mcpApiKeys: t('deletion.records.keys'), pointTransactions: t('deletion.records.points'),
     membershipGrants: t('deletion.records.memberships'), giftCardRedemptions: t('deletion.records.redemptions'), avatarReferences: t('deletion.records.avatar'),
   }
   const renderCleanupDetails = (counts: Record<string, number>) => <Space orientation="vertical" size={2}>

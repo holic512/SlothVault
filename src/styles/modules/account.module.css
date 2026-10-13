@@ -597,3 +597,39 @@
 .root :global(.account-query-error) span {
   flex: 1;
 }
+
+.root :global(.account-wallet-list) {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.root :global(.account-wallet-binding) {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-radius-sm);
+}
+
+.root :global(.account-wallet-address) {
+  overflow-wrap: anywhere;
+}
+
+.root :global(.account-connected-wallet) {
+  margin-top: 12px;
+}
+
+.reauth-controls {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.wallet-address {
+  overflow-wrap: anywhere;
+}
+
+.root :global(.account-username-quota) {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 20px;
+}

@@ -183,9 +183,9 @@
   padding: 0 24px 28px !important;
 }
 
-.admin-wallet-picker {
+.solana-wallet-picker {
   position: fixed;
-  z-index: calc(var(--sv-z-navigation) + 200);
+  z-index: calc(var(--sv-z-modal, 1000) + 200);
   inset: 0;
   display: grid;
   place-items: center;
@@ -193,17 +193,18 @@
   background: color-mix(in srgb, var(--sv-text) 56%, transparent);
 }
 
-.admin-wallet-picker-surface {
+.solana-wallet-picker-surface {
   position: relative;
   width: min(100%, 392px);
-  overflow: hidden;
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
   border: 1px solid var(--sv-border-strong);
   border-radius: var(--sv-radius);
   background: var(--sv-bg-solid);
   box-shadow: var(--sv-shadow);
 }
 
-.admin-wallet-picker-close {
+.solana-wallet-picker-close {
   position: absolute;
   top: 12px;
   right: 12px;
@@ -223,23 +224,23 @@
   transition: background var(--sv-motion-fast) var(--sv-ease-standard), border-color var(--sv-motion-fast) var(--sv-ease-standard), color var(--sv-motion-fast) var(--sv-ease-standard);
 }
 
-.admin-wallet-picker-close:not([disabled]):hover {
+.solana-wallet-picker-close:not([disabled]):hover {
   border-color: var(--sv-text);
   background: var(--sv-primary);
   color: var(--sv-primary-contrast);
 }
 
-.admin-wallet-picker-close:focus-visible,
-.admin-wallet-picker-list button:focus-visible {
+.solana-wallet-picker-close:focus-visible,
+.solana-wallet-picker-list button:focus-visible {
   outline: 2px solid var(--sv-focus-ring);
   outline-offset: 2px;
 }
 
-.admin-wallet-picker-heading {
+.solana-wallet-picker-heading {
   padding: 30px 58px 18px 24px;
 }
 
-.admin-wallet-picker-heading > span {
+.solana-wallet-picker-heading > span {
   display: block;
   margin-bottom: 8px;
   color: var(--sv-text-muted);
@@ -251,7 +252,7 @@
   text-transform: none;
 }
 
-.admin-wallet-picker-heading h2 {
+.solana-wallet-picker-heading h2 {
   margin: 0;
   color: var(--sv-text);
   font-family: var(--sv-font-body);
@@ -261,8 +262,8 @@
   line-height: var(--sv-admin-line-label);
 }
 
-.admin-wallet-picker-heading p,
-.admin-wallet-picker-empty {
+.solana-wallet-picker-heading p,
+.solana-wallet-picker-empty {
   margin: 8px 0 0;
   color: var(--sv-text-muted);
   font-family: var(--sv-font-body);
@@ -270,7 +271,7 @@
   line-height: 1.5;
 }
 
-.admin-wallet-picker-list {
+.solana-wallet-picker-list {
   display: grid;
   gap: 6px;
   margin: 0;
@@ -278,7 +279,7 @@
   list-style: none;
 }
 
-.admin-wallet-picker-list button {
+.solana-wallet-picker-list button {
   display: flex;
   width: 100%;
   min-height: 52px;
@@ -297,19 +298,19 @@
   transition: background var(--sv-motion-fast) var(--sv-ease-standard), border-color var(--sv-motion-fast) var(--sv-ease-standard);
 }
 
-.admin-wallet-picker-list button:hover {
+.solana-wallet-picker-list button:hover {
   border-color: var(--sv-primary);
   background: var(--sv-primary);
   color: var(--sv-primary-contrast);
 }
 
-.admin-wallet-picker-list img {
+.solana-wallet-picker-list img {
   width: 24px;
   height: 24px;
   flex: 0 0 auto;
 }
 
-.admin-wallet-picker-list small {
+.solana-wallet-picker-list small {
   margin-left: auto;
   color: var(--sv-text-muted);
   font-family: var(--sv-font-body);
@@ -317,22 +318,22 @@
   font-weight: var(--sv-admin-weight-regular);
 }
 
-.admin-wallet-picker-list button:hover small {
+.solana-wallet-picker-list button:hover small {
   color: var(--sv-primary-contrast);
 }
 
-.admin-wallet-picker-empty {
+.solana-wallet-picker-empty {
   margin: 0;
   padding: 18px 24px 28px;
 }
 
-.admin-wallet-picker-actions {
+.solana-wallet-picker-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   border-top: 1px solid var(--sv-border);
 }
 
-.admin-wallet-picker-actions button {
+.solana-wallet-picker-actions button {
   min-height: 42px;
   padding: 0 12px;
   border: 0;
@@ -345,16 +346,16 @@
   transition: background var(--sv-motion-fast) var(--sv-ease-standard), color var(--sv-motion-fast) var(--sv-ease-standard);
 }
 
-.admin-wallet-picker-actions button + button {
+.solana-wallet-picker-actions button + button {
   border-left: 1px solid var(--sv-border);
 }
 
-.admin-wallet-picker-actions button:hover {
+.solana-wallet-picker-actions button:hover {
   background: var(--sv-bg-soft);
   color: var(--sv-text);
 }
 
-.admin-wallet-picker-actions button:focus-visible {
+.solana-wallet-picker-actions button:focus-visible {
   outline: 2px solid var(--sv-focus-ring);
   outline-offset: -2px;
 }
@@ -724,4 +725,8 @@ h3.ant-typography {
     color: var(--sv-primary-strong);
     content: "◎";
   }
+}
+
+.solana-wallet-picker-heading code {
+  overflow-wrap: anywhere;
 }

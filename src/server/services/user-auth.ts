@@ -2,9 +2,9 @@
  * @file user-auth.ts
  * @project SlothVault
  * @module User Authentication Service
- * @description Implements conventional registration, password login, profile and managed-avatar updates, password changes, and public user DTO mapping.
+ * @description Implements conventional registration, password login, profile and managed-avatar updates, reauthenticated password-change delegation, and public user DTO mapping.
  * @logic Normalize human identifiers, hash passwords with Argon2id, enforce active identities, update login metadata, persist managed avatar references separately, and revoke existing sessions after credential changes.
- * @dependencies Prisma User model, auth/password, auth/session, auth/roles, database/unit-of-work
+ * @dependencies Prisma User model, auth/password, auth/session, account-security service, database/unit-of-work
  * @index_tags user,registration,login,profile,avatar,password,web2
  * @author holic512
  */
@@ -107,6 +107,7 @@ export async function loginUser(input: {
   })
   if (
     !user ||
+    !user.passwordConfigured ||
     user.status !== USER_STATUS.ACTIVE ||
     !(await verifyPassword(user.password, input.password))
   ) {
@@ -166,27 +167,11 @@ export async function updateUserAvatar(userId: number, avatar: string | null) {
   }
 }
 
-export async function changeUserPassword(userId: number, input: {
+export async function changeUserPassword(context: { userId: number; sessionId: string }, input: {
   currentPassword?: string
   newPassword: string
+  reauth?: import('@/types/account-security').ReauthenticationProof
 }) {
-  const user = await prisma.user.findUnique({ where: { id: userId } })
-  if (
-    !user ||
-    (user.passwordConfigured &&
-      (!input.currentPassword || !(await verifyPassword(user.password, input.currentPassword))))
-  ) {
-    throw new HttpError('Current password is incorrect', 400, 400)
-  }
-  const password = await hashPassword(input.newPassword)
-  await unitOfWork.execute(async (tx) => {
-    await tx.user.update({
-      where: { id: userId },
-      data: { password, passwordConfigured: true, updatedAt: new Date() },
-    })
-    await tx.session.updateMany({
-      where: { userId, revokedAt: null },
-      data: { revokedAt: new Date() },
-    })
-  })
+  const { updateAccountCredentials } = await import('@/server/services/account-security')
+  return updateAccountCredentials(context, { newPassword: input.newPassword, reauth: input.reauth ?? { method: 'password', password: input.currentPassword ?? '' } })
 }

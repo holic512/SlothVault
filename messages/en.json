@@ -2077,7 +2077,8 @@
           "points": "Point transactions",
           "memberships": "Membership grants",
           "redemptions": "Redeemer references (cards remain redeemed)",
-          "avatar": "Avatar references"
+          "avatar": "Avatar references",
+          "wallets": "Wallet bindings"
         }
       },
       "history": {
@@ -2495,5 +2496,93 @@
       "finalized": "On chain",
       "failed": "Failed"
     }
+  },
+  "WalletConnection": {
+    "hint": "Used only for on-chain evidence signing; it does not affect administrator authentication.",
+    "actions": {
+      "select": "Select wallet",
+      "connect": "Connect wallet",
+      "connecting": "Connecting",
+      "copyAddress": "Copy address",
+      "copied": "Copied",
+      "change": "Change wallet",
+      "disconnect": "Disconnect",
+      "switch": "Switch / disconnect wallet"
+    },
+    "dialog": {
+      "title": "Choose a Solana wallet",
+      "description": "Confirm the connection request in your wallet extension after choosing.",
+      "detected": "Detected",
+      "empty": "No available wallet extension was detected",
+      "close": "Close wallet picker"
+    },
+    "expectedAddress": "Switch your wallet to this address: {address}",
+    "errors": {
+      "WALLET_CANCELLED": "Wallet operation cancelled. You can try again.",
+      "WALLET_BUSY": "Another wallet operation is in progress.",
+      "WALLET_CONNECTION_FAILED": "Wallet connection failed. Select and connect again.",
+      "WALLET_DISCONNECTED": "The wallet is disconnected. Connect again.",
+      "WALLET_CHANGED": "The wallet account changed. Switch to the expected address and retry.",
+      "WALLET_MESSAGE_UNSUPPORTED": "This wallet account does not support Solana message signing.",
+      "WALLET_OPERATION_FAILED": "The operation failed. Check your connection and try again.",
+      "WALLET_CHALLENGE_EXPIRED": "The signature request is invalid or expired. Start again.",
+      "WALLET_CHALLENGE_UNAVAILABLE": "Unable to create a signature request. Try again later.",
+      "WALLET_SIGNATURE_INVALID": "Invalid wallet signature. Sign again.",
+      "WALLET_ADDRESS_INVALID": "This is not a valid Solana wallet address.",
+      "WALLET_PURPOSE_MISMATCH": "The signature purpose or target does not match. Start again.",
+      "WALLET_NOT_BOUND": "Use a wallet already bound to this account to verify your identity.",
+      "WALLET_ALREADY_BOUND": "The address is already bound. You cannot claim another account’s wallet. To switch to an address already on this account, remove the old wallet instead.",
+      "LAST_LOGIN_METHOD": "Set up your username and password before removing the last wallet.",
+      "LAST_WALLET_PASSWORD_REQUIRED": "Verify your current password to remove the last wallet.",
+      "PASSWORD_INCORRECT": "Incorrect current password. Retry or reset it using a bound wallet.",
+      "USERNAME_TAKEN": "This username is already taken.",
+      "USERNAME_CHANGE_LIMIT_REACHED": "All three username changes for this month have been used. You can still update your password separately.",
+      "REAUTH_REQUIRED": "Verify your identity again before continuing.",
+      "ACCOUNT_DISABLED": "This account is disabled.",
+      "SESSION_CHANGED": "Your session changed. Sign in again.",
+      "CREDENTIALS_CHANGED": "Account credentials changed. Refresh and verify your identity again.",
+      "RATE_LIMITED": "Too many verification attempts. Try again later."
+    },
+    "phases": {
+      "idle": "Ready",
+      "connecting": "Connecting wallet…",
+      "signing": "Waiting for wallet signature…",
+      "verifying": "Verifying…",
+      "reauth": "Waiting for identity confirmation…"
+    }
+  },
+  "AccountSecurity": {
+    "credentialsTitle": "Username and password",
+    "username": "Sign-in username",
+    "usernameRule": "Use 3–32 letters, numbers or underscores.",
+    "quota": "{remaining} username changes left this month (limit: {limit})",
+    "quotaReset": "Next reset: {date} (Beijing time)",
+    "newPassword": "New password (leave empty to keep it)",
+    "setPassword": "Set a sign-in password",
+    "confirmPassword": "Confirm new password",
+    "passwordMin": "Use at least 8 characters.",
+    "passwordMismatch": "Passwords do not match.",
+    "save": "Save account credentials",
+    "walletTitle": "Wallet sign-in methods",
+    "walletHint": "Every bound address signs into the same account. Connecting a wallet is separate from binding it.",
+    "walletAccountHint": "You created this account using a wallet. Set a personal username and password; the first rename counts toward the monthly limit of three.",
+    "noWallets": "No wallets are bound.",
+    "addWallet": "Add sign-in wallet",
+    "replace": "Replace this wallet",
+    "unbind": "Unbind",
+    "connected": "Connected: {wallet} · {address}",
+    "walletUpdated": "Wallet bindings updated.",
+    "credentialsUpdated": "Account credentials updated.",
+    "passwordUpdated": "Password updated. All sessions were signed out. Sign in with your new credentials.",
+    "lastWalletSetup": "Set a sign-in password first, then sign in again before removing the last wallet.",
+    "reauthTitle": "Confirm sensitive operation",
+    "reauthHint": "Verify using your current password or any bound wallet. This proof authorizes only the selected operation.",
+    "lastWalletPassword": "You are removing the last wallet. Enter your current password to confirm the remaining sign-in method works.",
+    "currentPassword": "Current password",
+    "verifyPassword": "Confirm using password",
+    "verifyWallet": "Confirm using a bound wallet signature",
+    "loadFailed": "Unable to load account security information.",
+    "retry": "Retry",
+    "loading": "Loading…"
   }
 }

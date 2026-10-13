@@ -12,6 +12,7 @@ import 'server-only'
 import { z } from 'zod'
 import { USER_ATTRIBUTION_FIELDS, type UserIdentity } from '@/lib/user-attribution'
 import { backupDataSchema, type BackupData } from './database-schema'
+import { legacyWalletData, convertWalletStore } from './legacy-v2-14'
 import { ACTIVE_BACKUP_COLLECTION_KEYS } from './constants'
 import type { RecordStore } from './record-store'
 
@@ -27,7 +28,7 @@ const formerlyRequired: Record<string, string[]> = {
   releaseCredentials: ['issuerUserId'], releaseCredentialAttempts: ['issuerUserId'], commissionPayments: ['createdById'], commissionChanges: ['createdById'], commissionIssues: ['createdById'],
   commissionFiles: ['uploaderUserId'], commissionEvents: ['actorUserId'], commissionProofAttempts: ['issuerUserId'],
 }
-export const legacyCollectionKeys = ACTIVE_BACKUP_COLLECTION_KEYS.filter(key => key !== 'userDeletionRecords')
+export const legacyCollectionKeys = ACTIVE_BACKUP_COLLECTION_KEYS.filter(key => key !== 'userDeletionRecords' && key !== 'userWallets')
 export const legacyRowSchemas = new Map<string, z.ZodType>()
 const sourceCollections: Record<string, z.ZodType> = {}
 for (const key of legacyCollectionKeys) {
@@ -36,6 +37,7 @@ for (const key of legacyCollectionKeys) {
   while (!(array instanceof z.ZodArray) && 'unwrap' in array) array = (array as z.ZodDefault<z.ZodType>).unwrap()
   if (!(array instanceof z.ZodArray) || !(array.element instanceof z.ZodObject)) throw new Error('Invalid registered backup collection')
   let row = array.element
+  if (key === 'users') row = row.omit({ usernameChangeMonth: true, usernameChangeCount: true, credentialsRevision: true })
   if (attributionCollections[key]) row = row.omit({ attributionJson: true })
   for (const field of formerlyRequired[key] ?? []) {
     const nullable = row.shape[field]
@@ -67,6 +69,7 @@ function convertRow(key: string, row: Row, findUser: (id: string) => Row | undef
   return { ...row, attributionJson: JSON.stringify(snapshots) }
 }
 export function convertLegacyStore(store: RecordStore) {
+  convertWalletStore(store)
   for (const key of legacyCollectionKeys) {
     if (!attributionCollections[key]) continue
     for (const row of store.iterate<Row>(key)) {
@@ -78,5 +81,5 @@ export function convertLegacyStore(store: RecordStore) {
 export function convertLegacyPayload(input: unknown): BackupData {
   const source = legacyPayloadSchema.parse(input)
   const users = new Map((source.data.users as Row[]).map(row => [row.id, row]))
-  return backupDataSchema.parse(Object.fromEntries(Object.entries(source.data).map(([key, rows]) => [key, (rows as Row[]).map(row => convertRow(key, row, id => users.get(id)))])))
+  return backupDataSchema.parse(legacyWalletData(Object.fromEntries(Object.entries(source.data).map(([key, rows]) => [key, (rows as Row[]).map(row => convertRow(key, row, id => users.get(id)))]))))
 }

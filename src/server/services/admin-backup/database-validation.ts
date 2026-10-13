@@ -9,6 +9,9 @@
  * @author holic512
  */
 import 'server-only'
+import { convertWalletPayload } from './legacy-v2-14'
+import { DATABASE_BACKUP_VERSION } from './constants'
+import { PublicKey } from '@solana/web3.js'
 import { attributionCollections, convertLegacyPayload } from './legacy-v2-13'
 import { readAttribution, USER_ATTRIBUTION_FIELDS } from '@/lib/user-attribution'
 import { backupMap, backupSet, recordStore, recordWhere, recordIndex } from './record-store'
@@ -91,6 +94,16 @@ export function validateBackupRelations(data: BackupData) {
     }
   }
   const users = mapById('user', data.users)
+  mapById('userWallet', data.userWallets)
+  assertUniqueField('wallet binding address', data.userWallets, item => item.address)
+  const firstWallets = backupMap<typeof data.userWallets[number]>(data.userWallets)
+  for (const wallet of data.userWallets) {
+    assertReference(users, wallet.userId, 'wallet binding userId')
+    try { if (new PublicKey(wallet.address).toBase58() !== wallet.address) invalidBackup('non-canonical wallet address') } catch { invalidBackup('invalid wallet address') }
+    const first = firstWallets.get(wallet.userId)
+    if (!first || new Date(wallet.createdAt).getTime() < new Date(first.createdAt).getTime() || (new Date(wallet.createdAt).getTime() === new Date(first.createdAt).getTime() && BigInt(wallet.id) < BigInt(first.id))) firstWallets.set(wallet.userId, wallet)
+  }
+  for (const user of data.users) if (user.walletAddress !== (firstWallets.get(user.id)?.address ?? null)) invalidBackup('wallet projection mismatch')
   const pointTransactions = mapById('pointTransaction', data.pointTransactions)
   const giftCardBatches = mapById('giftCardBatch', data.giftCardBatches)
   const giftCards = mapById('giftCard', data.giftCards)
@@ -455,7 +468,8 @@ export function validateBackupRelations(data: BackupData) {
 }
 
 export function parseDatabaseImportPayload(input: unknown): DatabaseImportPayload {
-  if (input && typeof input === 'object' && 'version' in input && input.version === '2.13.0') input = { version: '2.14.0', mode: 'overwrite', data: convertLegacyPayload(input) }
+  if (input && typeof input === 'object' && 'version' in input && input.version === '2.13.0') input = { version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data: convertLegacyPayload(input) }
+  if (input && typeof input === 'object' && 'version' in input && input.version === '2.14.0') input = { version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data: convertWalletPayload(input) }
   const source = input as { data?: Record<string, unknown> }
   if (!source?.data || ACTIVE_BACKUP_COLLECTION_KEYS.some(key => !Array.isArray(source.data![key]))) invalidBackup('complete backup is missing a collection')
   const parsed = databaseImportPayloadSchema.safeParse(input)

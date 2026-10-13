@@ -13,6 +13,7 @@ function emptyBackup(): BackupData {
     commissionInvitations: [], commissionAgreements: [], commissionSubmissions: [], commissionProofAttempts: [],
     commissionTemplates: [], commissionTemplateVersions: [], commissionSettings: [], commissions: [], commissionMilestones: [], commissionPlans: [], commissionFiles: [], commissionChanges: [], commissionDeliveries: [], commissionDeliveryItems: [], commissionPayments: [], commissionIssues: [], commissionAcceptances: [], commissionEvents: [],
     users: [],
+    userWallets: [],
     userDeletionRecords: [],
     pointTransactions: [],
     giftCardBatches: [],
@@ -132,7 +133,7 @@ describe('database backup membership validation', () => {
   it('accepts levels, grants, and member-only article references as one relation-closed snapshot', () => {
     const data = emptyBackup()
     data.users.push({
-      id: '7', username: 'admin', password: 'hash', passwordConfigured: true,
+      id: '7', username: 'admin', password: 'hash', passwordConfigured: true, usernameChangeMonth: null, usernameChangeCount: 0, credentialsRevision: 0,
       email: null, displayName: null, avatar: null, bio: null, role: 'ADMIN',
       status: 1, pointsBalance: 20, walletAddress: null, lastLoginAt: null,
       createdAt: timestamp, updatedAt: timestamp,
@@ -166,7 +167,7 @@ describe('database backup release validation', () => {
     const data = emptyBackup()
     const evidenceId = '61785fd5-b940-48ae-9300-06c05dd49686'
     data.users.push({
-      id: '7', username: 'admin', password: 'hash', passwordConfigured: true,
+      id: '7', username: 'admin', password: 'hash', passwordConfigured: true, usernameChangeMonth: null, usernameChangeCount: 0, credentialsRevision: 0,
       email: null, displayName: null, avatar: null, bio: null, role: 'ADMIN',
       status: 1, pointsBalance: 0, walletAddress: null, lastLoginAt: null,
       createdAt: timestamp, updatedAt: timestamp,

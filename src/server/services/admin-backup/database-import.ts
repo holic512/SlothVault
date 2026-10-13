@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Admin Database Backup Import
  * @description Imports a validated portable database backup through a full overwrite restore while preserving immutable release identities.
- * @logic Preflight conflicts, preserve administrator credentials, restore note tags, map old identifiers to new records, preserve release metadata, rebuild each published manifest after ID remapping, reject identity/hash drift, and expose a transaction-scoped import for coordinated file recovery.
+ * @logic Preflight conflicts, preserve all administrator wallet credentials and quotas, restore wallet bindings in deterministic order and note tags, map old identifiers to new records, preserve release metadata, rebuild each published manifest after ID remapping, reject identity/hash drift, and expose a transaction-scoped import for coordinated file recovery.
  * @dependencies database unit-of-work, server/http/errors, project-version release service, backup schema, backup validation, business-data deletion
  * @index_tags admin,backup,database,import,restore,id-mapping
  * @author holic512
@@ -113,6 +113,9 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
         status: item.status,
         pointsBalance: item.pointsBalance,
         walletAddress: item.walletAddress,
+        usernameChangeMonth: item.usernameChangeMonth,
+        usernameChangeCount: item.usernameChangeCount,
+        credentialsRevision: item.credentialsRevision,
         lastLoginAt: item.lastLoginAt ? new Date(item.lastLoginAt) : null,
         createdAt: new Date(item.createdAt),
         updatedAt: new Date(item.updatedAt),
@@ -121,6 +124,9 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
           passwordConfigured: policy.admin.passwordConfigured,
           email: policy.admin.email,
           walletAddress: policy.admin.walletAddress,
+          usernameChangeMonth: policy.admin.usernameChangeMonth,
+          usernameChangeCount: policy.admin.usernameChangeCount,
+          credentialsRevision: policy.admin.credentialsRevision,
           role: 'ADMIN', status: 1,
         } : {}),
       },
@@ -136,12 +142,22 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
         status: item.status,
         pointsBalance: item.pointsBalance,
         walletAddress: item.walletAddress,
+        usernameChangeMonth: item.usernameChangeMonth,
+        usernameChangeCount: item.usernameChangeCount,
+        credentialsRevision: item.credentialsRevision,
         lastLoginAt: item.lastLoginAt ? new Date(item.lastLoginAt) : null,
         createdAt: new Date(item.createdAt),
         updatedAt: new Date(item.updatedAt),
       },
     })
     ids.users.set(item.id, user.id)
+  }
+
+  // Insert in source ID order to preserve the deterministic oldest-address projection on timestamp ties.
+  const walletRows = recordStore(data.userWallets)?.sorted(() => data.userWallets, (a, b) => Number(BigInt(a.id) - BigInt(b.id))) ?? [...data.userWallets].sort((a, b) => Number(BigInt(a.id) - BigInt(b.id)))
+  for (const wallet of walletRows) {
+    const userId = requiredMappedId(ids.users, wallet.userId, 'wallet user')
+    if (userId !== policy.admin.id) await tx.userWallet.create({ data: { userId, address: wallet.address, createdAt: new Date(wallet.createdAt) } })
   }
 
   for (const item of data.userDeletionRecords) {

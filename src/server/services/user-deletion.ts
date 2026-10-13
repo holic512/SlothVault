@@ -32,6 +32,7 @@ export async function inspectUserDeletion(tx: Tx, userId: number, actorUserId: n
   for (const [reason, count] of [['CUSTOMER_CONTRACTS', contracts], ['CUSTOMER_COMMISSIONS', commissions], ['CLAIMED_INVITATIONS', invitations]] as const) if (count) blockers.push({ reason, count })
   const cleanup = Object.fromEntries(await Promise.all([
     ['sessions', tx.session.count({ where: { userId } })],
+    ['wallets', tx.userWallet.count({ where: { userId } })],
     ['mcpApiKeys', tx.mcpApiKey.count({ where: { userId } })],
     ['pointTransactions', tx.pointTransaction.count({ where: { userId } })],
     ['membershipGrants', tx.membershipGrant.count({ where: { userId } })],

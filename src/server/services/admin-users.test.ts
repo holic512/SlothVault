@@ -18,6 +18,8 @@ vi.mock('@/server/prisma', () => ({ get prisma() { return fixture.client } }))
 vi.mock('@/server/services/admin-files', async load => ({ ...await load<typeof import('@/server/services/admin-files')>(), get UPLOAD_ROOT() { return fixture.root + '/uploads' } }))
 vi.mock('@/server/database/runtime-health', () => ({ readRuntimeInstallationPublicStatus: async () => ({ status: 'INSTALLED' }), isDatabaseConnectivityError: () => false }))
 import { withUserAttribution } from '@/server/database/user-attribution'
+import { hashPassword } from '@/server/auth/password'
+import { mutateAccountWallet } from './account-security'
 import { createManagedUser, deleteManagedUser, disableManagedUser, listDeletedUsers, previewManagedUserDeletion, resetManagedUserPassword, updateManagedUser } from './admin-users'
 import { contractBodyHash, contractRootHash } from './contract-evidence-protocol'
 import { getUserContract } from './contracts'
@@ -40,7 +42,7 @@ beforeEach(async () => {
   expect(db.pragma('foreign_key_check')).toEqual([])
   db.close()
   fixture.client = withUserAttribution(new PrismaClient({ adapter: new PrismaBetterSqlite3({ url: `file:${path}` }, { timestampFormat: 'iso8601' }) })) as unknown as AppPrismaClient
-  await fixture.client.systemInstallation.create({ data: { id: 1, installationId: randomUUID(), provider: 'sqlite', status: 'INSTALLED', schemaRevision: 15 } })
+  await fixture.client.systemInstallation.create({ data: { id: 1, installationId: randomUUID(), provider: 'sqlite', status: 'INSTALLED', schemaRevision: 16 } })
   for (const [id, username, role] of [[1, 'owner', 'ADMIN'], [2, 'temporary', 'ADMIN'], [3, 'customer', 'USER']] as const) await fixture.client.user.create({ data: { id, username, role, password: 'test-only', displayName: username } })
 })
 afterEach(async () => { await fixture.client.$disconnect(); rmSync(fixture.root, { recursive: true, force: true }) })
@@ -50,13 +52,17 @@ async function sessionAndKey(userId: number) {
   await fixture.client.mcpApiKey.create({ data: { userId, publicId: randomUUID(), name: 'test', secretHash: 'test-only' } })
   return session
 }
-async function walletSignature(userId?: number) {
+async function walletSignature(userId: number) {
   const wallet = Keypair.generate(), address = wallet.publicKey.toBase58()
-  const challenge = await createWalletLoginChallenge({ address, userId })
-  return { wallet, input: { challengeId: challenge.challengeId, address, signature: bs58.encode(nacl.sign.detached(new TextEncoder().encode(challenge.message), wallet.secretKey)), ip: null, userAgent: null } }
+  await fixture.client.user.update({ where: { id: userId }, data: { password: await hashPassword('fixture-password') } })
+  const session = await issueSession({ userId }), context = { userId, sessionId: session.sessionId }
+  const target = { action: 'bind' as const, address }
+  const challenge = await createWalletLoginChallenge({ purpose: 'bind', address, target, context })
+  const input = { target, ownership: { challengeId: challenge.challengeId, address, signature: bs58.encode(nacl.sign.detached(new TextEncoder().encode(challenge.message), wallet.secretKey)) }, reauth: { method: 'password' as const, password: 'fixture-password' } }
+  return { wallet, input, context }
 }
 async function signInWithWallet(wallet: Keypair) {
-  const address = wallet.publicKey.toBase58(), challenge = await createWalletLoginChallenge({ address })
+  const address = wallet.publicKey.toBase58(), challenge = await createWalletLoginChallenge({ purpose: 'login', address })
   return verifyWalletLogin({ challengeId: challenge.challengeId, address, signature: bs58.encode(nacl.sign.detached(new TextEncoder().encode(challenge.message), wallet.secretKey)), ip: null, userAgent: null })
 }
 
@@ -73,7 +79,7 @@ describe('account roles, real deletion and independent history', () => {
   })
   it('keeps disabled accounts and wallet bindings and does not restore MCP keys when enabled', async () => {
     const address = Keypair.generate().publicKey.toBase58()
-    await fixture.client.user.update({ where: { id: 2 }, data: { walletAddress: address } })
+    await fixture.client.user.update({ where: { id: 2 }, data: { walletAddress: address, wallets: { create: { address } } } })
     const session = await sessionAndKey(2)
     await disableManagedUser({ actorUserId: 1, userId: 2 })
     expect(await readSessionToken(session.token)).toBeNull()
@@ -130,22 +136,22 @@ describe('account roles, real deletion and independent history', () => {
   })
   it('releases a wallet for fresh login and binding and rejects stale binding challenges', async () => {
     const wallet = Keypair.generate(), address = wallet.publicKey.toBase58()
-    await fixture.client.user.update({ where: { id: 3 }, data: { walletAddress: address, pointsBalance: 100 } })
+    await fixture.client.user.update({ where: { id: 3 }, data: { walletAddress: address, pointsBalance: 100, wallets: { create: { address } } } })
     const stale = await walletSignature(3)
     await deleteManagedUser({ actorUserId: 1, userId: 3 })
-    await expect(verifyWalletLogin(stale.input)).rejects.toMatchObject({ status: 401 })
+    await expect(mutateAccountWallet(stale.context, stale.input)).rejects.toMatchObject({ status: 401 })
     const fresh = await signInWithWallet(wallet)
     expect(fresh.user).toMatchObject({ role: 'USER', pointsBalance: 0, walletAddress: address })
     expect(fresh.user.id).not.toBe('3')
     await deleteManagedUser({ actorUserId: 1, userId: Number(fresh.user.id) })
-    const challenge = await createWalletLoginChallenge({ address, userId: 2 })
-    const bound = await verifyWalletLogin({ challengeId: challenge.challengeId, address, signature: bs58.encode(nacl.sign.detached(new TextEncoder().encode(challenge.message), wallet.secretKey)), ip: null, userAgent: null })
-    expect(bound.user).toMatchObject({ id: '2', walletAddress: address })
+    const signing = await walletSignature(2)
+    const bound = await mutateAccountWallet(signing.context, signing.input)
+    expect(bound.user).toMatchObject({ id: '2', walletAddress: signing.wallet.publicKey.toBase58() })
   })
   it('rejects binding to a disabled account after challenge issuance', async () => {
     const signed = await walletSignature(3)
     await disableManagedUser({ actorUserId: 1, userId: 3 })
-    await expect(verifyWalletLogin(signed.input)).rejects.toMatchObject({ status: 403 })
+    await expect(mutateAccountWallet(signed.context, signed.input)).rejects.toMatchObject({ status: 401 })
     expect((await fixture.client.user.findUniqueOrThrow({ where: { id: 3 } })).walletAddress).toBeNull()
   })
   it('blocks customer records even after promotion and never partially clears an account', async () => {
@@ -219,9 +225,15 @@ describe('account roles, real deletion and independent history', () => {
     const backup = await exportDatabaseBackup()
     const legacy = JSON.parse(JSON.stringify(backup.data)) as Record<string, Array<Record<string, unknown>>>
     delete legacy.userDeletionRecords
+    delete legacy.userWallets
+    for (const user of legacy.users) {
+      delete user.usernameChangeMonth
+      delete user.usernameChangeCount
+      delete user.credentialsRevision
+    }
     for (const rows of Object.values(legacy)) for (const row of rows) delete row.attributionJson
     const converted = parseDatabaseImportPayload({ version: '2.13.0', mode: 'overwrite', data: legacy })
-    expect(converted.version).toBe('2.14.0')
+    expect(converted.version).toBe('2.15.0')
     expect(converted.data.userDeletionRecords).toEqual([])
     expect(JSON.parse(converted.data.giftCardBatches[0].attributionJson).createdById).toMatchObject({ userId: '2', username: 'temporary', role: 'ADMIN' })
     await importDatabaseBackup(converted)

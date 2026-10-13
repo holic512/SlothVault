@@ -76,7 +76,7 @@ export async function updateManagedUser(input: { actorUserId: number; userId: nu
       await protectAdministrator(tx, existing, input.actorUserId, disabled || (roleChanged && input.values.role === USER_ROLE.USER))
       const { username, email, displayName, status, role } = input.values
       const user = await tx.user.update({ where: { id: input.userId }, data: {
-        ...(username !== undefined ? { username: normalizeUsername(username) } : {}),
+        ...(username !== undefined ? { username: normalizeUsername(username), credentialsRevision: { increment: 1 } } : {}),
         ...(email !== undefined ? { email: normalizeEmail(email) } : {}),
         ...(displayName !== undefined ? { displayName: displayName?.trim() || null } : {}),
         ...(status !== undefined ? { status } : {}), ...(role !== undefined ? { role } : {}), updatedAt: new Date(),
@@ -138,7 +138,7 @@ export async function resetManagedUserPassword(input: { actorUserId: number; use
   return unitOfWork.execute(async tx => {
     await authorizeAccountMutation(tx, input.actorUserId)
     if (!await tx.user.findUnique({ where: { id: input.userId } })) throw new HttpError('User not found', 404, 404)
-    const user = await tx.user.update({ where: { id: input.userId }, data: { password, passwordConfigured: true, updatedAt: new Date() } })
+    const user = await tx.user.update({ where: { id: input.userId }, data: { password, passwordConfigured: true, credentialsRevision: { increment: 1 }, updatedAt: new Date() } })
     await revokeAccess(tx, input.userId)
     return managedUserDto(user)
   })

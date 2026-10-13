@@ -24,6 +24,7 @@ const expectedTables = {
   CommissionEvent: 'commission_event',
   Session: 'auth_session',
   User: 'auth_user',
+  UserWallet: 'auth_user_wallet',
   UserDeletionRecord: 'auth_user_deletion_record',
   McpApiKey: 'mcp_api_key',
   PointTransaction: 'points_transaction',

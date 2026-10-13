@@ -5,12 +5,14 @@
  * @project SlothVault
  * @module User Login Form
  * @description Implements conventional username/email login with wallet address login as a secondary option.
- * @logic Submit password credentials to the shared session API, keep the wallet flow visually subordinate, and return authenticated users to their validated invitation or account center.
+ * @logic Submit password credentials to the shared session API, synchronize the session cache, prevent overlapping password and wallet flows, and return authenticated users to their validated invitation or account center.
  * @dependencies Ant Design, Next navigation, auth API, wallet-login-button
  * @index_tags login,user,password,wallet,form
  * @author holic512
  */
 import { useEffect, useState } from 'react'
+
+import { useQueryClient } from '@tanstack/react-query'
 
 import { LockOutlined, UserOutlined } from '@ant-design/icons'
 import { Alert, App, Button, Card, Checkbox, Divider, Form, Input, Typography } from 'antd'
@@ -31,9 +33,11 @@ type LoginValues = {
 export function UserLoginForm({ returnTo = '/account' }: { returnTo?: string }) {
   const t = useTranslations('UserAuth.login')
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { message } = App.useApp()
   const [errorText, setErrorText] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [walletSubmitting, setWalletSubmitting] = useState(false)
 
   useEffect(() => {
     apiFetch<SessionUser | null>('/api/auth/session')
@@ -51,10 +55,11 @@ export function UserLoginForm({ returnTo = '/account' }: { returnTo?: string }) 
     setSubmitting(true)
     setErrorText('')
     try {
-      await apiFetch<SessionUser>('/api/auth/login', {
+      const user = await apiFetch<SessionUser>('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify(values),
       })
+      queryClient.setQueryData(['session-user'], user)
       message.success(t('success'))
       router.replace(returnTo)
       router.refresh()
@@ -78,6 +83,7 @@ export function UserLoginForm({ returnTo = '/account' }: { returnTo?: string }) 
       {errorText ? <Alert className="auth-alert" type="error" showIcon title={errorText} /> : null}
 
       <Form<LoginValues>
+        disabled={walletSubmitting}
         layout="vertical"
         requiredMark={false}
         initialValues={{ remember: false }}
@@ -92,13 +98,13 @@ export function UserLoginForm({ returnTo = '/account' }: { returnTo?: string }) 
         <Form.Item name="remember" valuePropName="checked">
           <Checkbox>{t('remember')}</Checkbox>
         </Form.Item>
-        <Button block type="primary" htmlType="submit" loading={submitting}>
+        <Button block type="primary" htmlType="submit" loading={submitting} disabled={walletSubmitting}>
           {t('submit')}
         </Button>
       </Form>
 
       <Divider plain>{t('or')}</Divider>
-      <WalletLoginButton redirectTo={returnTo} />
+      <WalletLoginButton redirectTo={returnTo} disabled={submitting} onBusyChange={setWalletSubmitting} />
       <Typography.Paragraph className="auth-footnote" type="secondary">
         {t('noAccount')}<Link href={returnTo === '/account' ? '/register' : `/register?next=${encodeURIComponent(returnTo)}`}>{t('register')}</Link>
       </Typography.Paragraph>

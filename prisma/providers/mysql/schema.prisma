@@ -1,10 +1,10 @@
 // @file prisma/providers/mysql/schema.prisma
 // @project SlothVault
 // @module MySQL persistence model
-// @description Defines the flat, domain-prefixed MySQL 8 schema for independent articles, project publishing, user identity, revocable MCP API keys, contracts, commissioned development lifecycles, points, gift cards, transaction evidence, independent operator attribution, and account deletion history.
-// @logic Preserve the provider-neutral article, project, identity, and MCP key models while applying MySQL-native types and binding optional Solana evidence only to immutable project releases and frozen contracts.
+// @description Defines the flat, domain-prefixed MySQL 8 schema for independent articles, project publishing, multi-wallet user identity and monthly username quotas, revocable MCP API keys, contracts, commissioned development lifecycles, points, gift cards, transaction evidence, independent operator attribution, and account deletion history.
+// @logic Keep authoritative per-address wallet relations and credential revisions aligned with the legacy projection; preserve the provider-neutral article, project, identity, and MCP key models while applying MySQL-native types and binding optional Solana evidence only to immutable project releases and frozen contracts.
 // @dependencies Prisma ORM 7.3.0, @prisma/adapter-mariadb 7.3.0
-// @index_tags prisma, mysql, schema, persistence, articles, projects, mcp, api-key, installation, contracts
+// @index_tags prisma, mysql, schema, persistence, articles, projects, mcp, api-key, installation, contracts, wallet, credentials, username-quota
 // @author holic512
 
 generator client {
@@ -32,6 +32,17 @@ model Session {
   @@map("auth_session")
 }
 
+model UserWallet {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  address   String   @unique(map: "uq_auth_user_wallet_address_binding") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId, createdAt, id], map: "idx_auth_user_wallet_user_created")
+  @@map("auth_user_wallet")
+}
+
 model User {
   claimedCommissionInvitations CommissionInvitation[] @relation("CommissionInvitationClaimant")
   commissionProofAttempts CommissionProofAttempt[] @relation("CommissionProofIssuer")
@@ -46,6 +57,10 @@ model User {
   username               String              @unique(map: "uq_auth_user_username") @db.VarChar(255)
   password               String              @db.VarChar(255)
   passwordConfigured     Boolean             @default(true) @map("password_configured")
+  usernameChangeMonth    String?             @map("username_change_month") @db.VarChar(7)
+  usernameChangeCount    Int                 @default(0) @map("username_change_count")
+  credentialsRevision    Int                 @default(0) @map("credentials_revision")
+  wallets                UserWallet[]
   email                  String?             @unique(map: "uq_auth_user_email") @db.VarChar(255)
   displayName            String?             @map("display_name") @db.VarChar(80)
   avatar                 String?             @db.VarChar(500)

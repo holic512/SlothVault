@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Backup Account Policy
  * @description Preflights account uniqueness and preserves the restoring administrator's credentials.
- * @logic Verify source credentials, identify the administrator through database equality, and reset other authentication state inside the restore transaction.
+ * @logic Verify source credentials, identify the administrator through database equality, and preserve the administrator's full wallet collection and quota, and reset other authentication state inside the restore transaction.
  * @dependencies Prisma transaction client, database provider, portable backup schema, HTTP errors
  * @index_tags backup,restore,accounts,credentials,preflight
  * @author holic512
@@ -82,7 +82,10 @@ export async function inspectImportAccounts(tx: Prisma.TransactionClient, payloa
       ] } })) conflict()
     }
   }
-  return { admin, preservedSourceId, retainedUserIds }
+  const adminWallets = await tx.userWallet.findMany({ where: { userId: admin.id } })
+  const addresses = new Set(adminWallets.map(wallet => wallet.address))
+  for (const wallet of payload.data.userWallets) if (wallet.userId !== preservedSourceId && addresses.has(wallet.address)) conflict()
+  return { admin, adminWallets, preservedSourceId, retainedUserIds }
 }
 
 export async function prepareRestoreAccounts(tx: Prisma.TransactionClient, payload: DatabaseImportPayload, policy: Awaited<ReturnType<typeof inspectImportAccounts>>, options: DatabaseRestoreOptions) {
@@ -95,7 +98,10 @@ export async function prepareRestoreAccounts(tx: Prisma.TransactionClient, paylo
     const retained = users.filter(user => policy.retainedUserIds.has(String(user.id))).map(user => user.id)
     const removed = users.filter(user => !policy.retainedUserIds.has(String(user.id))).map(user => user.id)
     if (options.replaceUsers && removed.length) await tx.user.deleteMany({ where: { id: { in: removed } } })
-    if (retained.length) await tx.user.updateMany({ where: { id: { in: retained } }, data: { email: null, walletAddress: null } })
+    if (retained.length) {
+      await tx.userWallet.deleteMany({ where: { userId: { in: retained } } })
+      await tx.user.updateMany({ where: { id: { in: retained } }, data: { email: null, walletAddress: null } })
+    }
   }
   await tx.session.updateMany({
     where: options.preserveSessionId ? { id: { not: options.preserveSessionId }, revokedAt: null } : { userId: { not: admin.id }, revokedAt: null },

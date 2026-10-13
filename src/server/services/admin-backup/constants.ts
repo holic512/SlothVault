@@ -14,7 +14,7 @@ import { commissionCollectionKeys } from '@/server/commissions/backup'
 import { BUSINESS_TYPE_CONFIG } from '@/server/services/admin-files'
 
 export const ZIP_PATH_MAX_BYTES = 1024
-export const DATABASE_BACKUP_VERSION = '2.14.0' as const
+export const DATABASE_BACKUP_VERSION = '2.15.0' as const
 export const BACKUP_MANIFEST_MAX_BYTES = 16 * 1024 * 1024
 export const RESTORE_COMMIT_CONFIG_KEY = '__backup_restore_commit__'
 
@@ -35,6 +35,7 @@ export const STANDARD_RESET_DIRECTORIES = [
 export const BACKUP_COLLECTION_KEYS = [
   ...commissionCollectionKeys,
   'users',
+  'userWallets',
   'userDeletionRecords',
   'pointTransactions',
   'giftCardBatches',
