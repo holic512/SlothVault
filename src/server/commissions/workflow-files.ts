@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Private Commission Files
  * @description Streams bounded private uploads, verified downloads, delivery bundles and project archives.
- * @logic Authorize the commission before reading bytes, keep file identities immutable, and publish only frozen delivery manifests through protected routes.
+ * @logic Authorize the commission before reading bytes, allow administrators to manage all site drafts, keep file identities immutable, and publish only frozen delivery manifests through protected routes.
  * @dependencies node streams/filesystem, archiver, managed file root, commission service
  * @index_tags commissions,uploads,delivery,files,sha256,archive,privacy
  * @author holic512
@@ -91,7 +91,7 @@ export async function verifiedCommissionFile(id: number, fileId: number, actor: 
   const commission = await authorizeWorkflow(prisma, id, actor)
   if (commission.workflowVersion === 2) await getWorkflow(id, actor)
   const owned = await prisma.commissionFile.findFirst({ where: { id: fileId, commissionId: id }, include: { file: true, items: { include: { delivery: true } } } })
-  if (!owned || owned.file.status !== 1 || (owned.uploaderUserId !== actor.userId && !owned.shared && !owned.items.some((i) => i.delivery.publishedAt))) throw new HttpError('文件不存在或尚未向您发布', 404, 404)
+  if (!owned || owned.file.status !== 1 || (!actor.isAdmin && owned.uploaderUserId !== actor.userId && !owned.shared && !owned.items.some((i) => i.delivery.publishedAt))) throw new HttpError('文件不存在或尚未向您发布', 404, 404)
   const path = await verifyCommissionBytes(owned)
   return { path, owned }
 }

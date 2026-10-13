@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { backfillUserAttribution } from '@/server/services/user-deletion'
 import { upgradeCommissionLifecycle } from '@/server/commissions/upgrade'
 import { upgradeFileClassifications } from './file-classification-upgrade'
 import { rebuildFileReferences } from '@/server/services/file-references'
@@ -175,6 +176,7 @@ export async function upgradeConfiguredDatabaseSchema(connection: DatabaseConnec
       throw new DatabaseMigrationError('Installed database schema is newer than this application')
     }
     if (marker.schemaRevision < CURRENT_SCHEMA_REVISION) {
+      if (marker.schemaRevision < 15) await client.$transaction((tx) => backfillUserAttribution(tx), { timeout: 120_000 })
       if (marker.schemaRevision < 12) await upgradeFileClassifications(client)
       if (marker.schemaRevision < 9) {
         await client.$transaction((tx) => rebuildFileReferences(tx), { timeout: 120_000 })

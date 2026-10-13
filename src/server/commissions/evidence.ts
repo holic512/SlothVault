@@ -3,12 +3,13 @@
  * @project SlothVault
  * @module Commission Evidence Transactions
  * @description Anchors immutable event hashes using administrator-signed Solana Memo transactions.
- * @logic Record unsigned validation failures and expiry, persist signed bytes before broadcast, retry identical payloads during reconciliation, and log safe phase metadata without rewriting frozen snapshots.
+ * @logic Authorize every active administrator independently of the original operator, record unsigned validation failures and expiry, persist signed bytes before broadcast, retry identical payloads during reconciliation, and log safe phase metadata without rewriting frozen snapshots.
  * @dependencies existing Solana Memo transaction and RPC runtime, Prisma
  * @index_tags commissions,evidence,solana,privacy,retry
  * @author holic512
  */
 import 'server-only'
+import { assertActiveAdministrator } from '@/server/auth/administrator'
 import { PublicKey } from '@solana/web3.js'
 import { evidenceLog, evidenceReason, TERMINAL_EVIDENCE_REASONS } from '@/lib/evidence-diagnostics'
 import { prisma } from '@/server/prisma'
@@ -31,6 +32,7 @@ async function verifiedEvent(publicId: string) {
   return event
 }
 export async function prepareWorkflowEvidence(input: { eventId: string; network: SolanaNetwork; signerAddress: string; issuerUserId: number }) {
+  await assertActiveAdministrator(prisma, input.issuerUserId)
   evidenceLog('commission.prepare.start', { network: input.network })
   await requireEnabledSolanaNetwork(input.network)
   let signer: PublicKey
@@ -59,10 +61,12 @@ export async function prepareWorkflowEvidence(input: { eventId: string; network:
   return { attemptId: String(attempt.id), transactionBase64: prepared.transactionBase64, signerAddress: attempt.signerAddress, network: input.network, feeLamports: prepared.feeLamports, balanceLamports: prepared.balanceLamports, expiresAt: expiresAt.getTime(), memo }
 }
 export async function cancelWorkflowEvidence(id: number, issuerUserId: number) {
-  const changed = await prisma.commissionProofAttempt.updateMany({ where: { id, issuerUserId, status: 'PREPARED' }, data: { status: 'CANCELLED', error: '管理员未完成钱包签名' } })
+  await assertActiveAdministrator(prisma, issuerUserId)
+  const changed = await prisma.commissionProofAttempt.updateMany({ where: { id, status: 'PREPARED' }, data: { status: 'CANCELLED', error: '管理员未完成钱包签名' } })
   return { cancelled: Boolean(changed.count) }
 }
 export async function submitWorkflowEvidence(id: number, issuerUserId: number, signedTransactionBase64: string) {
+  await assertActiveAdministrator(prisma, issuerUserId)
   const started = performance.now()
   evidenceLog('commission.submit.start', { attemptId: id })
   try {
@@ -75,7 +79,7 @@ export async function submitWorkflowEvidence(id: number, issuerUserId: number, s
   }
 }
 async function submitWorkflowEvidenceInternal(id: number, issuerUserId: number, signedTransactionBase64: string) {
-  const attempt = await prisma.commissionProofAttempt.findFirst({ where: { id, issuerUserId }, include: { submission: true } })
+  const attempt = await prisma.commissionProofAttempt.findFirst({ where: { id }, include: { submission: true } })
   if (!attempt) throw new HttpError('存证请求不存在', 404, 404)
   if (['SUBMITTED', 'FINALIZED'].includes(attempt.status)) return reconcileWorkflowEvidence(id)
   if (attempt.status !== 'PREPARED') throw new HttpError('钱包签名请求已失效，请重新准备', 409, 409, { reason: 'EVIDENCE_ATTEMPT_FAILED' })

@@ -1,7 +1,7 @@
 // @file prisma/providers/postgresql/schema.prisma
 // @project SlothVault
 // @module PostgreSQL persistence model
-// @description Defines the flat, domain-prefixed PostgreSQL schema for independent articles, project publishing, user identity, revocable MCP API keys, contracts, commissioned development lifecycles, points, gift cards, and transaction evidence.
+// @description Defines the flat, domain-prefixed PostgreSQL schema for independent articles, project publishing, user identity, revocable MCP API keys, contracts, commissioned development lifecycles, points, gift cards, transaction evidence, independent operator attribution, and account deletion history.
 // @logic Preserve the provider-neutral article, project, identity, and MCP key models while applying PostgreSQL-native types and binding optional Solana evidence only to immutable project releases and frozen contracts.
 // @dependencies Prisma ORM 7.3.0, @prisma/adapter-pg 7.3.0
 // @index_tags prisma, postgresql, schema, persistence, articles, projects, mcp, api-key, installation, contracts
@@ -33,6 +33,15 @@ model Session {
 }
 
 model User {
+  claimedCommissionInvitations CommissionInvitation[] @relation("CommissionInvitationClaimant")
+  commissionProofAttempts CommissionProofAttempt[] @relation("CommissionProofIssuer")
+  commissionSubmissions CommissionSubmission[] @relation("CommissionSubmissionActor")
+  uploadedCommissionFiles CommissionFile[] @relation("CommissionFileUploader")
+  createdCommissionIssues CommissionIssue[] @relation("CommissionIssueCreator")
+  createdCommissionChanges CommissionChange[] @relation("CommissionChangeCreator")
+  confirmedCommissionPayments CommissionPayment[] @relation("CommissionPaymentConfirmer")
+  createdCommissionPayments CommissionPayment[] @relation("CommissionPaymentCreator")
+  authoredNotes NoteInfo[] @relation("NoteAuthor")
   id                     Int                 @id @default(autoincrement())
   username               String              @unique(map: "uq_auth_user_username") @db.VarChar(255)
   password               String              @db.VarChar(255)
@@ -89,6 +98,7 @@ model McpApiKey {
 }
 
 model PointTransaction {
+  attributionJson String @default("{}") @map("attribution_json")
   id           Int      @id @default(autoincrement())
   userId       Int      @map("user_id")
   amount       Int
@@ -105,16 +115,17 @@ model PointTransaction {
 }
 
 model GiftCardBatch {
+  attributionJson String @default("{}") @map("attribution_json")
   id          Int        @id @default(autoincrement())
   name        String     @db.VarChar(128)
   points      Int
   quantity    Int
   expiresAt   DateTime?  @map("expires_at") @db.Timestamptz(3)
   status      Int        @default(1) @db.SmallInt
-  createdById Int        @map("created_by_id")
+  createdById Int?        @map("created_by_id")
   createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime   @default(now()) @map("updated_at") @db.Timestamptz(3)
-  createdBy   User       @relation("GiftCardBatchCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  createdBy   User?       @relation("GiftCardBatchCreator", fields: [createdById], references: [id], onDelete: SetNull, onUpdate: NoAction)
   cards       GiftCard[]
 
   @@index([createdById], map: "idx_gift_card_batch_creator")
@@ -180,6 +191,7 @@ model MembershipLevel {
 }
 
 model MembershipGrant {
+  attributionJson String @default("{}") @map("attribution_json")
   id                Int             @id @default(autoincrement())
   userId            Int             @map("user_id")
   membershipLevelId Int             @map("membership_level_id")
@@ -303,6 +315,9 @@ model Category {
 }
 
 model NoteInfo {
+  author User? @relation("NoteAuthor", fields: [authorId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  attributionJson String @default("{}") @map("attribution_json")
   id              Int        @id @default(autoincrement())
   categoryId      Int        @map("category_id")
   authorId        Int?       @map("author_id")
@@ -359,6 +374,7 @@ model FileManagement {
 }
 
 model Contract {
+  attributionJson String @default("{}") @map("attribution_json")
   commissionId Int? @map("commission_id")
   templateVersionId Int? @map("template_version_id")
   documentType String @default("AGREEMENT") @map("document_type") @db.VarChar(255)
@@ -373,7 +389,7 @@ model Contract {
   id               Int       @id @default(autoincrement())
   contractId       String    @unique(map: "uq_contract_contract_id") @map("contract_id") @db.Uuid
   installationId   String?   @map("installation_id") @db.Uuid
-  issuerUserId     Int       @map("issuer_user_id")
+  issuerUserId     Int?       @map("issuer_user_id")
   subjectUserId    Int       @map("subject_user_id")
   title            String    @db.VarChar(255)
   body             String    @db.Text
@@ -393,7 +409,7 @@ model Contract {
   cancelledAt      DateTime? @map("cancelled_at") @db.Timestamptz(3)
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
-  issuerUser       User      @relation("ContractIssuer", fields: [issuerUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  issuerUser       User?      @relation("ContractIssuer", fields: [issuerUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   subjectUser      User      @relation("ContractSubject", fields: [subjectUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   attachmentFile   FileManagement? @relation("ContractAttachment", fields: [attachmentFileId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   credentials      ContractCredential[]
@@ -406,13 +422,14 @@ model Contract {
 }
 
 model ContractAdminAudit {
+  attributionJson String @default("{}") @map("attribution_json")
   id          Int      @id @default(autoincrement())
   contractId  Int      @map("contract_id")
-  actorUserId Int      @map("actor_user_id")
+  actorUserId Int?      @map("actor_user_id")
   action      String   @db.VarChar(64)
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   contract    Contract @relation(fields: [contractId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  actorUser   User     @relation("ContractAdminAuditActor", fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  actorUser   User?     @relation("ContractAdminAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
   @@index([contractId, createdAt], map: "idx_contract_admin_audit_contract_created")
   @@index([actorUserId, createdAt], map: "idx_contract_admin_audit_actor_created")
@@ -420,9 +437,10 @@ model ContractAdminAudit {
 }
 
 model ContractCredential {
+  attributionJson String @default("{}") @map("attribution_json")
   id                   Int      @id @default(autoincrement())
   contractId           Int      @map("contract_id")
-  issuerUserId         Int      @map("issuer_user_id")
+  issuerUserId         Int?      @map("issuer_user_id")
   network              String   @db.VarChar(20)
   signerAddress        String   @map("signer_address") @db.VarChar(64)
   memo                 String   @db.Text
@@ -436,7 +454,7 @@ model ContractCredential {
   createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt            DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
   contract             Contract @relation(fields: [contractId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  issuerUser           User     @relation("ContractCredentialIssuer", fields: [issuerUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  issuerUser           User?     @relation("ContractCredentialIssuer", fields: [issuerUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   attempts             ContractCredentialAttempt[]
 
   @@unique([contractId, network], map: "uq_contract_credential_contract_network")
@@ -446,9 +464,10 @@ model ContractCredential {
 }
 
 model ContractCredentialAttempt {
+  attributionJson String @default("{}") @map("attribution_json")
   id                   Int      @id @default(autoincrement())
   credentialId         Int      @map("credential_id")
-  issuerUserId         Int      @map("issuer_user_id")
+  issuerUserId         Int?      @map("issuer_user_id")
   signerAddress        String   @map("signer_address") @db.VarChar(64)
   memo                 String   @db.Text
   messageHash          String   @map("message_hash") @db.Char(64)
@@ -464,7 +483,7 @@ model ContractCredentialAttempt {
   createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt            DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
   credential           ContractCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  issuerUser           User     @relation("ContractCredentialAttemptIssuer", fields: [issuerUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  issuerUser           User?     @relation("ContractCredentialAttemptIssuer", fields: [issuerUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
   @@index([credentialId, status], map: "idx_contract_credential_attempt_status")
   @@index([transactionSignature], map: "idx_contract_credential_attempt_signature")
@@ -507,10 +526,11 @@ model SystemInstallation {
 }
 
 model ReleaseCredential {
+  attributionJson String @default("{}") @map("attribution_json")
   id                   Int      @id @default(autoincrement())
   projectVersionId     Int      @map("project_version_id")
   noteContentId        Int?     @map("note_content_id")
-  issuerUserId         Int      @map("issuer_user_id")
+  issuerUserId         Int?      @map("issuer_user_id")
   subjectType          String   @default("PROJECT_VERSION") @map("subject_type") @db.VarChar(32)
   subjectId            String   @map("subject_id") @db.Uuid
   subjectHash          String   @map("subject_hash") @db.Char(64)
@@ -529,7 +549,7 @@ model ReleaseCredential {
   updatedAt             DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
   projectVersion        ProjectVersion @relation(fields: [projectVersionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   noteContent           NoteContent? @relation(fields: [noteContentId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  issuerUser            User @relation("ReleaseCredentialIssuer", fields: [issuerUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  issuerUser            User? @relation("ReleaseCredentialIssuer", fields: [issuerUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   attempts              ReleaseCredentialAttempt[]
 
   @@unique([subjectType, subjectId, network], map: "uq_release_credential_subject_network")
@@ -540,9 +560,10 @@ model ReleaseCredential {
 }
 
 model ReleaseCredentialAttempt {
+  attributionJson String @default("{}") @map("attribution_json")
   id                   Int      @id @default(autoincrement())
   credentialId         Int      @map("credential_id")
-  issuerUserId         Int      @map("issuer_user_id")
+  issuerUserId         Int?      @map("issuer_user_id")
   signerAddress        String   @map("signer_address") @db.VarChar(64)
   memo                 String   @db.Text
   messageHash          String   @map("message_hash") @db.Char(64)
@@ -558,7 +579,7 @@ model ReleaseCredentialAttempt {
   createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt            DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
   credential           ReleaseCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  issuerUser            User @relation("ReleaseCredentialAttemptIssuer", fields: [issuerUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  issuerUser            User? @relation("ReleaseCredentialAttemptIssuer", fields: [issuerUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
   @@index([credentialId, status], map: "idx_release_credential_attempt_status")
   @@index([transactionSignature], map: "idx_release_credential_attempt_signature")
@@ -728,6 +749,11 @@ model CommissionPaymentPlan {
 }
 
 model CommissionPayment {
+  confirmedBy User? @relation("CommissionPaymentConfirmer", fields: [confirmedById], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  createdBy User? @relation("CommissionPaymentCreator", fields: [createdById], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  attributionJson String @default("{}") @map("attribution_json")
   id Int @id @default(autoincrement())
   commissionId Int @map("commission_id")
   planId Int @map("plan_id")
@@ -736,7 +762,7 @@ model CommissionPayment {
   status String @default("PENDING") @db.VarChar(255)
   note String @db.Text
   evidenceFileId Int? @map("evidence_file_id")
-  createdById Int @map("created_by_id")
+  createdById Int? @map("created_by_id")
   confirmedById Int? @map("confirmed_by_id")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   confirmedAt DateTime? @map("confirmed_at") @db.Timestamptz(3)
@@ -748,6 +774,9 @@ model CommissionPayment {
 }
 
 model CommissionChange {
+  createdBy User? @relation("CommissionChangeCreator", fields: [createdById], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  attributionJson String @default("{}") @map("attribution_json")
   id Int @id @default(autoincrement())
   commissionId Int @map("commission_id")
   title String @db.VarChar(255)
@@ -758,7 +787,7 @@ model CommissionChange {
   feeFen BigInt @default(0) @map("fee_fen")
   extensionDays Int @default(0) @map("extension_days")
   status String @default("PROPOSED") @db.VarChar(255)
-  createdById Int @map("created_by_id")
+  createdById Int? @map("created_by_id")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   confirmedAt DateTime? @map("confirmed_at") @db.Timestamptz(3)
   commission Commission @relation(fields: [commissionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
@@ -767,6 +796,9 @@ model CommissionChange {
 }
 
 model CommissionIssue {
+  createdBy User? @relation("CommissionIssueCreator", fields: [createdById], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  attributionJson String @default("{}") @map("attribution_json")
   id Int @id @default(autoincrement())
   commissionId Int @map("commission_id")
   deliveryId Int? @map("delivery_id")
@@ -780,7 +812,7 @@ model CommissionIssue {
   resolution String @default("") @db.Text
   fileIdsJson String @default("[]") @map("file_ids_json") @db.Text
   dueAt DateTime? @map("due_at") @db.Timestamptz(3)
-  createdById Int @map("created_by_id")
+  createdById Int? @map("created_by_id")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   resolvedAt DateTime? @map("resolved_at") @db.Timestamptz(3)
   commission Commission @relation(fields: [commissionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
@@ -790,12 +822,15 @@ model CommissionIssue {
 }
 
 model CommissionFile {
+  uploader User? @relation("CommissionFileUploader", fields: [uploaderUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  attributionJson String @default("{}") @map("attribution_json")
   id Int @id @default(autoincrement())
   commissionId Int @map("commission_id")
   fileId Int @unique(map: "uq_commission_managed_file") @map("file_id")
   purpose String @db.Text
   sha256 String @db.VarChar(255)
-  uploaderUserId Int @map("uploader_user_id")
+  uploaderUserId Int? @map("uploader_user_id")
   shared Boolean @default(false)
   commission Commission @relation(fields: [commissionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   file FileManagement @relation(fields: [fileId], references: [id], onDelete: Restrict, onUpdate: NoAction)
@@ -859,22 +894,25 @@ model CommissionAcceptance {
 }
 
 model CommissionEvent {
+  attributionJson String @default("{}") @map("attribution_json")
   id Int @id @default(autoincrement())
   commissionId Int @map("commission_id")
-  actorUserId Int @map("actor_user_id")
+  actorUserId Int? @map("actor_user_id")
   commandId String @map("command_id") @db.VarChar(255)
   type String @db.VarChar(255)
   note String @db.Text
   dataJson String @default("{}") @map("data_json") @db.Text
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   commission Commission @relation(fields: [commissionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  actor User @relation(fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  actor User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   @@unique([commissionId, commandId], map: "uq_commission_event_command")
   @@map("commission_event")
   @@index([commissionId, createdAt], map: "idx_commission_event_owner_created")
 }
 
 model CommissionInvitation {
+  claimedBy User? @relation("CommissionInvitationClaimant", fields: [claimedById], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
   id Int @id @default(autoincrement())
   commissionId Int @map("commission_id")
   tokenHash String @unique(map: "uq_commission_invitation_token") @map("token_hash") @db.VarChar(255)
@@ -911,6 +949,9 @@ model CommissionAgreement {
 }
 
 model CommissionSubmission {
+  actor User? @relation("CommissionSubmissionActor", fields: [actorUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  attributionJson String @default("{}") @map("attribution_json")
   id Int @id @default(autoincrement())
   publicId String @unique(map: "uq_commission_submission_public") @map("public_id") @db.VarChar(255)
   commissionId Int @map("commission_id")
@@ -932,10 +973,13 @@ model CommissionSubmission {
 }
 
 model CommissionProofAttempt {
+  issuer User? @relation("CommissionProofIssuer", fields: [issuerUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  attributionJson String @default("{}") @map("attribution_json")
   id Int @id @default(autoincrement())
   submissionId Int @map("submission_id")
   network String @db.VarChar(255)
-  issuerUserId Int @map("issuer_user_id")
+  issuerUserId Int? @map("issuer_user_id")
   signerAddress String @map("signer_address") @db.VarChar(255)
   status String @default("PREPARED") @db.VarChar(255)
   memo String @db.Text
@@ -954,4 +998,18 @@ model CommissionProofAttempt {
   @@index([submissionId, network], map: "idx_commission_proof_submission_network")
   @@index([status], map: "idx_commission_proof_status")
   @@map("commission_proof_attempt")
+}
+
+model UserDeletionRecord {
+  id Int @id @default(autoincrement())
+  publicId String @unique(map: "uq_auth_user_deletion_public_id") @map("public_id")
+  username String
+  userSnapshotJson String @map("user_snapshot_json")
+  actorSnapshotJson String @map("actor_snapshot_json")
+  summaryJson String @map("summary_json")
+  userCreatedAt DateTime @map("user_created_at")
+  deletedAt DateTime @default(now()) @map("deleted_at")
+
+  @@index([deletedAt], map: "idx_auth_user_deletion_deleted_at")
+  @@map("auth_user_deletion_record")
 }

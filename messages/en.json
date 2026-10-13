@@ -1738,7 +1738,11 @@
       "conflict": "The resource state has changed. Refresh and try again.",
       "serviceUnavailable": "The service is temporarily unavailable. Please try again later.",
       "managedFileUnavailable": "A referenced file has not been uploaded, is inactive, or is missing. Complete the upload before saving.",
-      "fileTypeNotAllowed": "This file format is not supported by the selected category. Use an image category for body images and the matching download attachment category for ZIP, PDF and other files."
+      "fileTypeNotAllowed": "This file format is not supported by the selected category. Use an image category for body images and the matching download attachment category for ZIP, PDF and other files.",
+      "currentAdmin": "You cannot remove your own administrator access.",
+      "lastAdmin": "At least one active administrator must remain.",
+      "userDeleteBlocked": "The account has protected contracts, commissions or claimed invitations.",
+      "userDeleteStale": "Account relationships changed. Refresh the deletion preview and retry."
     },
     "evidenceManager": {
       "status": {
@@ -1942,7 +1946,9 @@
     },
     "users": {
       "filters": {
-        "keyword": "Search username, email, or display name"
+        "keyword": "Search username, email, or display name",
+        "role": "All roles",
+        "status": "All statuses"
       },
       "actions": {
         "refresh": "Refresh",
@@ -1982,7 +1988,9 @@
         "password": "Reset Password",
         "points": "Adjust Points",
         "membership": "Membership",
-        "delete": "Delete"
+        "delete": "Delete",
+        "disable": "Disable",
+        "enable": "Enable"
       },
       "dialog": {
         "createTitle": "New User",
@@ -1996,7 +2004,10 @@
         "confirmPassword": "Confirm Password",
         "save": "Save",
         "resetPassword": "Reset Password",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "role": "Account role",
+        "roleHint": "Administrators can manage the entire site. Role changes revoke existing sessions.",
+        "currentAdminHint": "The current administrator role and active status are protected."
       },
       "messages": {
         "created": "User created",
@@ -2004,12 +2015,14 @@
         "passwordReset": "Password reset and active sessions revoked",
         "deleteConfirmTitle": "Delete User",
         "deleteConfirm": "Delete user \"{name}\"?",
-        "deleteNotice": "Deleting disables the account and revokes every session; historical data is retained.",
-        "deleted": "User disabled",
+        "deleteNotice": "This permanently removes the account, points, memberships and credentials. Site records and historical attribution are retained.",
+        "deleted": "Account deleted and wallet binding released",
         "adjustedPoints": "Points adjusted and recorded in the ledger",
         "membershipSet": "Membership benefits set",
         "membershipRevoked": "Membership benefits revoked",
-        "signedOut": "Your administrator password was reset. Please sign in again."
+        "signedOut": "Your administrator password was reset. Please sign in again.",
+        "disableNotice": "Disabling prevents sign-in and retains the account, wallet binding and history. You can enable it again.",
+        "accessUpdated": "Account access updated"
       },
       "validation": {
         "username": "Use 3–32 letters, numbers, or underscores",
@@ -2041,6 +2054,39 @@
         "revokeType": "Revoke {name}",
         "revokeTypeConfirm": "Only active grants for this type will be revoked. Other memberships remain active.",
         "revokeAllConfirm": "This revokes every membership type held by this user. Please confirm."
+      },
+      "views": {
+        "live": "Accounts",
+        "deleted": "Deleted accounts"
+      },
+      "deletion": {
+        "loading": "Checking deletion eligibility…",
+        "cleanup": "Account records to clean up: {count}",
+        "retained": "Site record references to retain: {count}",
+        "wallet": "After deletion, the wallet can create or bind another account without inheriting old benefits.",
+        "blockers": {
+          "CURRENT_ADMIN": "You cannot delete the current administrator.",
+          "LAST_ADMIN": "You cannot delete the last active administrator.",
+          "CUSTOMER_CONTRACTS": "This account is a party to {count} contracts and cannot be deleted.",
+          "CUSTOMER_COMMISSIONS": "This account is the customer on {count} commissions and cannot be deleted.",
+          "CLAIMED_INVITATIONS": "This account has {count} claimed invitations and cannot be deleted."
+        },
+        "records": {
+          "sessions": "Sessions",
+          "keys": "Access keys",
+          "points": "Point transactions",
+          "memberships": "Membership grants",
+          "redemptions": "Redeemer references (cards remain redeemed)",
+          "avatar": "Avatar references"
+        }
+      },
+      "history": {
+        "deletedAt": "Deleted at",
+        "actor": "Deleted by",
+        "summary": "Cleanup summary",
+        "details": "View record",
+        "notice": "This is a historical record, not a restorable account. Credentials and wallet binding have been removed.",
+        "keyword": "Search deleted usernames"
       }
     },
     "mcpKeys": {

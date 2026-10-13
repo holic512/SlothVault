@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { backfillUserAttribution } from '@/server/services/user-deletion'
 import { unitOfWork } from '@/server/database/unit-of-work'
 import { DATABASE_BACKUP_VERSION, DATABASE_TRANSACTION_MAX_WAIT_MS, DATABASE_TRANSACTION_TIMEOUT_MS } from './constants'
 import { verifyRestoredPublications } from './publication-validation'
@@ -96,7 +97,6 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
     releaseCredentials: backupMap<number>(data.releaseCredentials),
     releaseCredentialAttempts: backupMap<number>(data.releaseCredentialAttempts),
   }
-  const importingAdmin = policy.admin
 
   for (const item of data.users) {
     const user = await tx.user.upsert({
@@ -144,6 +144,12 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
     ids.users.set(item.id, user.id)
   }
 
+  for (const item of data.userDeletionRecords) {
+    const { id: _sourceId, ...record } = item
+    void _sourceId
+    await tx.userDeletionRecord.upsert({ where: { publicId: item.publicId }, update: {}, create: { ...record, userCreatedAt: new Date(item.userCreatedAt), deletedAt: new Date(item.deletedAt) } })
+  }
+
   for (const item of data.membershipLevels) {
     const level = await tx.membershipLevel.create({
       data: {
@@ -162,6 +168,7 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
   for (const item of data.pointTransactions) {
     const record = await tx.pointTransaction.create({
       data: {
+        attributionJson: item.attributionJson,
         userId: requiredMappedId(ids.users, item.userId, 'pointTransaction userId'),
         amount: item.amount,
         balanceAfter: item.balanceAfter,
@@ -177,12 +184,13 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
   for (const item of data.giftCardBatches) {
     const record = await tx.giftCardBatch.create({
       data: {
+        attributionJson: item.attributionJson,
         name: item.name,
         points: item.points,
         quantity: item.quantity,
         expiresAt: item.expiresAt ? new Date(item.expiresAt) : null,
         status: item.status,
-        createdById: requiredMappedId(ids.users, item.createdById, 'giftCardBatch createdById'),
+        createdById: item.createdById ? requiredMappedId(ids.users, item.createdById, 'giftCardBatch createdById') : null,
         createdAt: new Date(item.createdAt),
         updatedAt: new Date(item.updatedAt),
       },
@@ -210,6 +218,7 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
   for (const item of data.membershipGrants) {
     const record = await tx.membershipGrant.create({
       data: {
+        attributionJson: item.attributionJson,
         userId: requiredMappedId(ids.users, item.userId, 'membershipGrant userId'),
         membershipLevelId: requiredMappedId(
           ids.membershipLevels,
@@ -361,9 +370,10 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
   for (const item of data.noteInfos) {
     const created = await tx.noteInfo.create({
       data: {
+        attributionJson: item.attributionJson,
         categoryId: requiredMappedId(ids.categories, item.categoryId, 'categoryId'),
         authorId: item.authorId
-          ? ids.users.get(item.authorId) ?? importingAdmin.id
+          ? ids.users.get(item.authorId) ?? null
           : null,
         noteTitle: item.noteTitle,
         tagsJson: JSON.stringify(item.tags),
@@ -449,13 +459,14 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
   for (const item of data.contracts) {
     const record = await tx.contract.create({
       data: {
+        attributionJson: item.attributionJson,
         commissionId: item.commissionId ? requiredMappedId(commissionMaps.commissions, item.commissionId, 'contract commission') : null,
         templateVersionId: item.templateVersionId ? requiredMappedId(commissionMaps.commissionTemplateVersions, item.templateVersionId, 'contract template') : null,
         documentType: item.documentType, sourceRecordId: null, snapshotJson: item.snapshotJson, snapshotHash: item.snapshotHash,
         providerSessionId: item.providerSessionId, providerIp: item.providerIp, providerUserAgent: item.providerUserAgent,
         contractId: item.contractId,
         installationId: item.installationId,
-        issuerUserId: requiredMappedId(ids.users, item.issuerUserId, 'contract issuerUserId'),
+        issuerUserId: item.issuerUserId ? requiredMappedId(ids.users, item.issuerUserId, 'contract issuerUserId') : null,
         subjectUserId: requiredMappedId(ids.users, item.subjectUserId, 'contract subjectUserId'),
         title: item.title,
         body: item.body,
@@ -486,8 +497,9 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
   for (const item of data.contractAdminAudits) {
     await tx.contractAdminAudit.create({
       data: {
+        attributionJson: item.attributionJson,
         contractId: requiredMappedId(ids.contracts, item.contractId, 'contractAdminAudit contractId'),
-        actorUserId: requiredMappedId(ids.users, item.actorUserId, 'contractAdminAudit actorUserId'),
+        actorUserId: item.actorUserId ? requiredMappedId(ids.users, item.actorUserId, 'contractAdminAudit actorUserId') : null,
         action: item.action,
         createdAt: new Date(item.createdAt),
       },
@@ -498,8 +510,9 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
   for (const item of data.contractCredentials) {
     const record = await tx.contractCredential.create({
       data: {
+        attributionJson: item.attributionJson,
         contractId: requiredMappedId(ids.contracts, item.contractId, 'contractCredential contractId'),
-        issuerUserId: requiredMappedId(ids.users, item.issuerUserId, 'contractCredential issuerUserId'),
+        issuerUserId: item.issuerUserId ? requiredMappedId(ids.users, item.issuerUserId, 'contractCredential issuerUserId') : null,
         network: item.network,
         signerAddress: item.signerAddress,
         memo: item.memo,
@@ -520,8 +533,9 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
   for (const item of data.contractCredentialAttempts) {
     const record = await tx.contractCredentialAttempt.create({
       data: {
+        attributionJson: item.attributionJson,
         credentialId: requiredMappedId(ids.contractCredentials, item.credentialId, 'contractCredentialAttempt credentialId'),
-        issuerUserId: requiredMappedId(ids.users, item.issuerUserId, 'contractCredentialAttempt issuerUserId'),
+        issuerUserId: item.issuerUserId ? requiredMappedId(ids.users, item.issuerUserId, 'contractCredentialAttempt issuerUserId') : null,
         signerAddress: item.signerAddress,
         memo: item.memo,
         messageHash: item.messageHash,
@@ -557,11 +571,12 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
     }
     const record = await tx.releaseCredential.create({
       data: {
+        attributionJson: item.attributionJson,
         projectVersionId: requiredMappedId(ids.projectVersions, item.projectVersionId, 'releaseCredential projectVersionId'),
         noteContentId: item.noteContentId
           ? requiredMappedId(ids.noteContents, item.noteContentId, 'releaseCredential noteContentId')
           : null,
-        issuerUserId: requiredMappedId(ids.users, item.issuerUserId, 'releaseCredential issuerUserId'),
+        issuerUserId: item.issuerUserId ? requiredMappedId(ids.users, item.issuerUserId, 'releaseCredential issuerUserId') : null,
         subjectType: item.subjectType,
         subjectId,
         subjectHash,
@@ -586,8 +601,9 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
   for (const item of data.releaseCredentialAttempts) {
     const record = await tx.releaseCredentialAttempt.create({
       data: {
+        attributionJson: item.attributionJson,
         credentialId: requiredMappedId(ids.releaseCredentials, item.credentialId, 'releaseCredentialAttempt credentialId'),
-        issuerUserId: requiredMappedId(ids.users, item.issuerUserId, 'releaseCredentialAttempt issuerUserId'),
+        issuerUserId: item.issuerUserId ? requiredMappedId(ids.users, item.issuerUserId, 'releaseCredentialAttempt issuerUserId') : null,
         signerAddress: item.signerAddress,
         memo: item.memo,
         messageHash: item.messageHash,
@@ -607,6 +623,7 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
     ids.releaseCredentialAttempts.set(item.id, record.id)
   }
 
+  await backfillUserAttribution(tx, false)
   if (recordStore(data.projectVersions)) await verifyRestoredPublications(tx, data)
   else {
     for (const item of data.projectVersions) {
@@ -657,6 +674,7 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
       ...commissionParentCounts, ...commissionChildCounts,
       fileReferences: fileReferenceCount,
       users: ids.users.size,
+      userDeletionRecords: data.userDeletionRecords.length,
       pointTransactions: ids.pointTransactions.size,
       giftCardBatches: ids.giftCardBatches.size,
       giftCards: ids.giftCards.size,

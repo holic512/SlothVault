@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { attributionJsonSchema, userIdentitySchema } from '@/lib/user-attribution'
 
 import { isAbsolute } from 'node:path'
 
@@ -129,6 +130,7 @@ const userSchema = z.object({
 }).strict()
 
 const pointTransactionSchema = z.object({
+  attributionJson: attributionJsonSchema,
   id: idStringSchema,
   userId: idStringSchema,
   amount: intSchema,
@@ -140,13 +142,14 @@ const pointTransactionSchema = z.object({
 }).strict()
 
 const giftCardBatchSchema = z.object({
+  attributionJson: attributionJsonSchema,
   id: idStringSchema,
   name: nonEmptyString(128),
   points: intSchema.positive(),
   quantity: intSchema.positive(),
   expiresAt: dateStringSchema.nullable(),
   status: smallIntSchema,
-  createdById: idStringSchema,
+  createdById: nullableIdStringSchema,
   createdAt: dateStringSchema,
   updatedAt: dateStringSchema,
 }).strict()
@@ -174,6 +177,7 @@ const membershipLevelSchema = z.object({
 }).strict()
 
 const membershipGrantSchema = z.object({
+  attributionJson: attributionJsonSchema,
   id: idStringSchema,
   userId: idStringSchema,
   membershipLevelId: idStringSchema,
@@ -284,6 +288,7 @@ const projectHomeSchema = z.object({
 }).strict()
 
 const noteInfoSchema = z.object({
+  attributionJson: attributionJsonSchema,
   id: idStringSchema,
   categoryId: idStringSchema,
   authorId: nullableIdStringSchema.optional(),
@@ -341,10 +346,11 @@ const systemHomepageSchema = z.object({
 }).strict()
 
 const releaseCredentialSchema = z.object({
+  attributionJson: attributionJsonSchema,
   id: idStringSchema,
   projectVersionId: idStringSchema,
   noteContentId: nullableIdStringSchema.optional().default(null),
-  issuerUserId: idStringSchema,
+  issuerUserId: nullableIdStringSchema,
   subjectType: z.enum(['PROJECT_VERSION', 'NOTE_CONTENT']).optional().default('PROJECT_VERSION'),
   subjectId: z.string().uuid().nullable().optional().default(null),
   subjectHash: z.string().regex(/^[a-f0-9]{64}$/).nullable().optional().default(null),
@@ -364,9 +370,10 @@ const releaseCredentialSchema = z.object({
 }).strict()
 
 const releaseCredentialAttemptSchema = z.object({
+  attributionJson: attributionJsonSchema,
   id: idStringSchema,
   credentialId: idStringSchema,
-  issuerUserId: idStringSchema,
+  issuerUserId: nullableIdStringSchema,
   signerAddress: nonEmptyString(64),
   memo: z.string(),
   messageHash: z.string().regex(/^[a-f0-9]{64}$/),
@@ -384,6 +391,7 @@ const releaseCredentialAttemptSchema = z.object({
 }).strict()
 
 const contractSchema = z.object({
+  attributionJson: attributionJsonSchema,
   commissionId: nullableIdStringSchema.optional().default(null),
   templateVersionId: nullableIdStringSchema.optional().default(null),
   documentType: z.enum(['AGREEMENT', 'CHANGE', 'ACCEPTANCE']).optional().default('AGREEMENT'),
@@ -396,7 +404,7 @@ const contractSchema = z.object({
   id: idStringSchema,
   contractId: z.string().uuid(),
   installationId: z.string().uuid().nullable(),
-  issuerUserId: idStringSchema,
+  issuerUserId: nullableIdStringSchema,
   subjectUserId: idStringSchema,
   title: nonEmptyString(255),
   body: z.string().min(1).max(100_000),
@@ -419,9 +427,10 @@ const contractSchema = z.object({
 }).strict()
 
 const contractCredentialSchema = z.object({
+  attributionJson: attributionJsonSchema,
   id: idStringSchema,
   contractId: idStringSchema,
-  issuerUserId: idStringSchema,
+  issuerUserId: nullableIdStringSchema,
   network: z.enum(['mainnet', 'devnet']),
   signerAddress: nonEmptyString(64),
   memo: z.string(),
@@ -437,9 +446,10 @@ const contractCredentialSchema = z.object({
 }).strict()
 
 const contractCredentialAttemptSchema = z.object({
+  attributionJson: attributionJsonSchema,
   id: idStringSchema,
   credentialId: idStringSchema,
-  issuerUserId: idStringSchema,
+  issuerUserId: nullableIdStringSchema,
   signerAddress: nonEmptyString(64),
   memo: z.string(),
   messageHash: z.string().regex(/^[a-f0-9]{64}$/),
@@ -457,9 +467,10 @@ const contractCredentialAttemptSchema = z.object({
 }).strict()
 
 const contractAdminAuditSchema = z.object({
+  attributionJson: attributionJsonSchema,
   id: idStringSchema,
   contractId: idStringSchema,
-  actorUserId: idStringSchema,
+  actorUserId: nullableIdStringSchema,
   action: nonEmptyString(64),
   createdAt: dateStringSchema,
 }).strict()
@@ -473,9 +484,21 @@ const fileReferenceSchema = z.object({
   usage: z.enum(['READ_MEDIA', 'DOWNLOAD']),
 }).strict()
 
+const identityJsonSchema = z.string().max(2048).refine(value => {
+  try { return userIdentitySchema.safeParse(JSON.parse(value)).success } catch { return false }
+}, 'Invalid historical identity')
+const deletionSummarySchema = z.object({ cleanup: z.record(z.string(), z.number().int().nonnegative()), retained: z.record(z.string(), z.number().int().nonnegative()) }).strict()
+const userDeletionRecordSchema = z.object({
+  id: idStringSchema, publicId: z.string().uuid(), username: nonEmptyString(255),
+  userSnapshotJson: identityJsonSchema, actorSnapshotJson: identityJsonSchema,
+  summaryJson: z.string().max(20000).refine(value => { try { return deletionSummarySchema.safeParse(JSON.parse(value)).success } catch { return false } }),
+  userCreatedAt: dateStringSchema, deletedAt: dateStringSchema,
+}).strict()
+
 export const backupDataSchema = z.object({
   ...commissionBackupShape,
   users: z.array(userSchema).default([]),
+  userDeletionRecords: z.array(userDeletionRecordSchema).default([]),
   pointTransactions: z.array(pointTransactionSchema).default([]),
   giftCardBatches: z.array(giftCardBatchSchema).default([]),
   giftCards: z.array(giftCardSchema).default([]),

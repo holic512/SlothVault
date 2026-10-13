@@ -3,12 +3,13 @@
  * @project SlothVault
  * @module Database Runtime
  * @description Creates the provider-specific Prisma 7 client selected by the encrypted first-install configuration.
- * @logic Load configuration only on first database access, instantiate the matching generated query compiler and driver adapter, configure SQLite before exposing its connection, enforce its single-instance contract, and reuse one client during hot reloads.
+ * @logic Load configuration only on first database access, instantiate the matching generated query compiler and driver adapter, configure SQLite before exposing its connection, enforce its single-instance contract, capture credential-free business attribution, and reuse one client during hot reloads.
  * @dependencies node:fs, generated Prisma clients, Prisma driver adapters, database/config-store, sqlite-instance-lock
  * @index_tags prisma,database,factory,postgresql,mysql,sqlite
  * @author holic512
  */
 import 'server-only'
+import { withUserAttribution } from './user-attribution'
 
 import { chmodSync } from 'node:fs'
 
@@ -91,7 +92,7 @@ export class DatabaseClientFactory {
         idleTimeoutMillis: 30_000,
         max: 10,
       })
-      return new PostgreSqlPrismaClient({ adapter, log: [...prismaLog] })
+      return withUserAttribution(new PostgreSqlPrismaClient({ adapter, log: [...prismaLog] }))
     }
 
     if (connection.provider === 'mysql') {
@@ -111,14 +112,14 @@ export class DatabaseClientFactory {
         },
         { database: connection.config.database },
       )
-      return new MySqlPrismaClient({ adapter, log: [...prismaLog] }) as unknown as AppPrismaClient
+      return withUserAttribution(new MySqlPrismaClient({ adapter, log: [...prismaLog] })) as unknown as AppPrismaClient
     }
 
     if (options.active) acquireSqliteInstanceLock()
-    return new SqlitePrismaClient({
+    return withUserAttribution(new SqlitePrismaClient({
       adapter: sqliteAdapter(),
       log: [...prismaLog],
-    }) as unknown as AppPrismaClient
+    })) as unknown as AppPrismaClient
   }
 
   active() {

@@ -12,6 +12,7 @@ import 'server-only'
 
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 
+import type { Prisma } from '@generated/prisma-postgresql/client'
 import type { NextRequest, NextResponse } from 'next/server'
 
 import { isAdminRole, USER_STATUS } from '@/server/auth/roles'
@@ -30,11 +31,11 @@ export async function issueSession(options: {
   ttlMs?: number
   ip?: string | null
   userAgent?: string | null
-}) {
+}, client: Pick<Prisma.TransactionClient, 'session'> = prisma) {
   const ttlMs = options.ttlMs ?? DEFAULT_SESSION_TTL_MS
   const token = randomBytes(32).toString('hex')
   const expiresAt = new Date(Date.now() + ttlMs)
-  const session = await prisma.session.create({
+  const session = await client.session.create({
     data: {
       id: randomUUID(),
       userId: options.userId,

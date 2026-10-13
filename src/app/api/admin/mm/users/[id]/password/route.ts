@@ -26,7 +26,7 @@ export const POST = defineRoute<{ id: string }>(async (request, context) => {
   const { id: idRaw } = await context.params
   const userId = parseDecimalId(idRaw)
   const { password } = await readJson(request, resetPasswordSchema)
-  await resetManagedUserPassword({ userId, password })
+  await resetManagedUserPassword({ userId, password, actorUserId: session.userId })
 
   const signedOut = session.userId === userId
   const response = apiOk({ signedOut })

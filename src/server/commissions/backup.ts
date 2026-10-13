@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { attributionJsonSchema, readAttribution } from '@/lib/user-attribution'
 import { backupMap, recordIndex, recordWhere } from '@/server/services/admin-backup/record-store'
 import { z } from 'zod'
 import type { Prisma } from '@generated/prisma-postgresql/client'
@@ -98,15 +99,17 @@ export const commissionBackupShape = {
     remindedAt: z.iso.datetime({ offset: true }).nullable(),
   }).strict()).default([]),
   commissionFiles: z.array(z.object({
+    attributionJson: attributionJsonSchema,
     id: idSchema,
     commissionId: idSchema,
     fileId: idSchema,
     purpose: z.string().max(10000),
     sha256: z.string().max(10000),
-    uploaderUserId: idSchema,
+    uploaderUserId: idSchema.nullable(),
     shared: z.boolean(),
   }).strict()).default([]),
   commissionChanges: z.array(z.object({
+    attributionJson: attributionJsonSchema,
     id: idSchema,
     commissionId: idSchema,
     title: z.string().max(10000),
@@ -117,7 +120,7 @@ export const commissionBackupShape = {
     feeFen: moneyInput,
     extensionDays: z.number().int().min(0).max(1000000),
     status: z.string().max(10000),
-    createdById: idSchema,
+    createdById: idSchema.nullable(),
     createdAt: z.iso.datetime({ offset: true }),
     confirmedAt: z.iso.datetime({ offset: true }).nullable(),
   }).strict()).default([]),
@@ -144,6 +147,7 @@ export const commissionBackupShape = {
     versionNote: z.string().max(10000),
   }).strict()).default([]),
   commissionIssues: z.array(z.object({
+    attributionJson: attributionJsonSchema,
     id: idSchema,
     commissionId: idSchema,
     deliveryId: idSchema.nullable(),
@@ -157,7 +161,7 @@ export const commissionBackupShape = {
     resolution: z.string().max(10000),
     fileIdsJson: z.string().max(500000),
     dueAt: z.iso.datetime({ offset: true }).nullable(),
-    createdById: idSchema,
+    createdById: idSchema.nullable(),
     createdAt: z.iso.datetime({ offset: true }),
     resolvedAt: z.iso.datetime({ offset: true }).nullable(),
   }).strict()).default([]),
@@ -176,6 +180,7 @@ export const commissionBackupShape = {
     deemedBasis: z.string().max(10000).nullable(),
   }).strict()).default([]),
   commissionPayments: z.array(z.object({
+    attributionJson: attributionJsonSchema,
     id: idSchema,
     commissionId: idSchema,
     planId: idSchema,
@@ -184,15 +189,16 @@ export const commissionBackupShape = {
     status: z.enum(['PENDING','CONFIRMED','REJECTED']),
     note: z.string().max(10000),
     evidenceFileId: idSchema.nullable(),
-    createdById: idSchema,
+    createdById: idSchema.nullable(),
     confirmedById: idSchema.nullable(),
     createdAt: z.iso.datetime({ offset: true }),
     confirmedAt: z.iso.datetime({ offset: true }).nullable(),
   }).strict()).default([]),
   commissionEvents: z.array(z.object({
+    attributionJson: attributionJsonSchema,
     id: idSchema,
     commissionId: idSchema,
-    actorUserId: idSchema,
+    actorUserId: idSchema.nullable(),
     commandId: z.string().max(10000),
     type: z.string().max(10000),
     note: z.string().max(10000),
@@ -475,7 +481,7 @@ export function validateCommissionBackup(data: Record<string, unknown>) {
         const files = JSON.parse(String(row.fileIdsJson))
         if (!Array.isArray(files) || files.length > 20 || files.some((id) => indexes.commissionFiles?.get(String(id))?.commissionId !== row.commissionId)) throw new Error('Issue files cross commission boundaries')
       }
-      if (spec.key === 'commissionPayments' && row.status === 'CONFIRMED' && (!row.confirmedById || !row.confirmedAt)) throw new Error('Confirmed payments need an administrator audit')
+      if (spec.key === 'commissionPayments' && row.status === 'CONFIRMED' && ((!row.confirmedById && !readAttribution(row.attributionJson as string).confirmedById) || !row.confirmedAt)) throw new Error('Confirmed payments need an administrator audit')
     }
   }
   const stateFields = { commissionTemplates: { status: ['ACTIVE', 'RETIRED'] }, commissionTemplateVersions: { status: ['DRAFT', 'PUBLISHED'] }, commissionPayments: { status: ['PENDING', 'CONFIRMED', 'REJECTED'], kind: ['RECEIPT', 'REFUND'] }, commissionChanges: { status: ['PROPOSED', 'QUOTED', 'PENDING_SIGNATURE', 'CONFIRMED', 'REJECTED'] }, commissionFiles: { purpose: ['REQUIREMENT', 'PAYMENT', 'TEST', 'DELIVERY', 'CONTRACT'] }, commissionDeliveries: { status: ['DRAFT', 'PUBLISHED', 'RECEIVED', 'INCOMPLETE'], kind: ['DEMO', 'FINAL'] }, commissionIssues: { status: ['OPEN', 'RESOLVED', 'CLOSED', 'DISPUTED'], kind: ['BUG', 'ADJUSTMENT', 'NEW_WORK'], severity: ['SEVERE', 'GENERAL', 'MINOR'] }, commissionAcceptances: { status: ['DRAFT', 'SUBMITTED', 'CONFIRMED', 'DEEMED', 'REJECTED', 'CANCELLED'], result: ['PASS', 'CONDITIONAL', 'FAIL'] } }

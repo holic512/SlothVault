@@ -9,6 +9,8 @@
  * @author holic512
  */
 import 'server-only'
+import { attributionCollections, convertLegacyPayload } from './legacy-v2-13'
+import { readAttribution, USER_ATTRIBUTION_FIELDS } from '@/lib/user-attribution'
 import { backupMap, backupSet, recordStore, recordWhere, recordIndex } from './record-store'
 import { canonicalProjectVersionEvidenceMemo } from '@/server/services/project-version-evidence-protocol'
 import { canonicalReleaseManifest, parseReleaseManifest, releaseManifestHash } from '@/server/services/release-manifest'
@@ -78,6 +80,16 @@ function assertReference<T>(
 export function validateBackupRelations(data: BackupData) {
   try { validateCommissionBackup(data) } catch (error) { invalidBackup(error instanceof Error ? error.message : 'Invalid commission backup') }
 
+  for (const [key, model] of Object.entries(attributionCollections)) {
+    for (const row of data[key as keyof BackupData] as Array<Record<string, unknown>>) {
+      const snapshots = readAttribution(row.attributionJson as string)
+      const mandatory = !['pointTransaction', 'membershipGrant', 'noteInfo', 'commissionSubmission'].includes(model)
+      for (const field of USER_ATTRIBUTION_FIELDS[model]) {
+        if (field === 'confirmedById') continue
+        if (mandatory && row[field] === null && !snapshots[field]) invalidBackup(`Missing historical attribution: ${key}.${field}`)
+      }
+    }
+  }
   const users = mapById('user', data.users)
   const pointTransactions = mapById('pointTransaction', data.pointTransactions)
   const giftCardBatches = mapById('giftCardBatch', data.giftCardBatches)
@@ -109,7 +121,7 @@ export function validateBackupRelations(data: BackupData) {
     assertReference(users, item.userId, 'pointTransaction userId')
   }
   for (const item of giftCardBatches.values()) {
-    assertReference(users, item.createdById, 'giftCardBatch createdById')
+    if (item.createdById) assertReference(users, item.createdById, 'giftCardBatch createdById')
   }
   for (const item of giftCards.values()) {
     assertReference(giftCardBatches, item.batchId, 'giftCard batchId')
@@ -259,7 +271,7 @@ export function validateBackupRelations(data: BackupData) {
     if (!version) {
       invalidBackup(`unknown releaseCredential projectVersionId ${item.projectVersionId}`)
     }
-    assertReference(users, item.issuerUserId, 'releaseCredential issuerUserId')
+    if (item.issuerUserId) assertReference(users, item.issuerUserId, 'releaseCredential issuerUserId')
 
     if (item.noteContentId !== null) {
       invalidBackup(`project-version releaseCredential ${item.id} cannot reference note content`)
@@ -283,7 +295,7 @@ export function validateBackupRelations(data: BackupData) {
   }
   for (const item of data.releaseCredentialAttempts) {
     assertReference(releaseCredentials, item.credentialId, 'releaseCredentialAttempt credentialId')
-    assertReference(users, item.issuerUserId, 'releaseCredentialAttempt issuerUserId')
+    if (item.issuerUserId) assertReference(users, item.issuerUserId, 'releaseCredentialAttempt issuerUserId')
     const credential = releaseCredentials.get(item.credentialId)!
     try {
       const memo = JSON.parse(item.memo)
@@ -305,7 +317,7 @@ export function validateBackupRelations(data: BackupData) {
         if (!source || source.commissionId !== item.commissionId) invalidBackup('Contract source record crosses commission boundaries')
       }
     }
-    assertReference(users, item.issuerUserId, 'contract issuerUserId')
+    if (item.issuerUserId) assertReference(users, item.issuerUserId, 'contract issuerUserId')
     assertReference(users, item.subjectUserId, 'contract subjectUserId')
     if (item.attachmentFileId) assertReference(fileManagements, item.attachmentFileId, 'contract attachmentFileId')
     if (Boolean(item.attachmentFileId) !== Boolean(item.attachmentHash)) {
@@ -329,15 +341,15 @@ export function validateBackupRelations(data: BackupData) {
   }
   for (const item of data.contractCredentials) {
     assertReference(contracts, item.contractId, 'contractCredential contractId')
-    assertReference(users, item.issuerUserId, 'contractCredential issuerUserId')
+    if (item.issuerUserId) assertReference(users, item.issuerUserId, 'contractCredential issuerUserId')
   }
   for (const item of data.contractAdminAudits) {
     assertReference(contracts, item.contractId, 'contractAdminAudit contractId')
-    assertReference(users, item.actorUserId, 'contractAdminAudit actorUserId')
+    if (item.actorUserId) assertReference(users, item.actorUserId, 'contractAdminAudit actorUserId')
   }
   for (const item of data.contractCredentialAttempts) {
     assertReference(contractCredentials, item.credentialId, 'contractCredentialAttempt credentialId')
-    assertReference(users, item.issuerUserId, 'contractCredentialAttempt issuerUserId')
+    if (item.issuerUserId) assertReference(users, item.issuerUserId, 'contractCredentialAttempt issuerUserId')
   }
 
   const homeProjects = backupSet(data.projectHomes)
@@ -443,6 +455,7 @@ export function validateBackupRelations(data: BackupData) {
 }
 
 export function parseDatabaseImportPayload(input: unknown): DatabaseImportPayload {
+  if (input && typeof input === 'object' && 'version' in input && input.version === '2.13.0') input = { version: '2.14.0', mode: 'overwrite', data: convertLegacyPayload(input) }
   const source = input as { data?: Record<string, unknown> }
   if (!source?.data || ACTIVE_BACKUP_COLLECTION_KEYS.some(key => !Array.isArray(source.data![key]))) invalidBackup('complete backup is missing a collection')
   const parsed = databaseImportPayloadSchema.safeParse(input)

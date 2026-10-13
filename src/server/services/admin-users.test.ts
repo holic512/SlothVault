@@ -1,144 +1,244 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { randomUUID } from 'node:crypto'
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import Database from 'better-sqlite3'
+import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3'
+import { PrismaClient } from '@generated/prisma-sqlite/client'
+import type { AppPrismaClient } from '@/server/database/client'
+import { Keypair } from '@solana/web3.js'
+import nacl from 'tweetnacl'
+import bs58 from 'bs58'
+import { NextRequest } from 'next/server'
 
-const mocks = vi.hoisted(() => ({
-  hashPassword: vi.fn(),
-  execute: vi.fn(),
-  prisma: {
-    user: { create: vi.fn() },
-  },
-  transaction: {
-    user: { findUnique: vi.fn(), update: vi.fn() },
-    session: { updateMany: vi.fn() },
-  },
-}))
+const fixture = vi.hoisted(() => ({ client: null as unknown as AppPrismaClient, root: '' }))
+vi.mock('@/server/database/client', () => ({ getDatabaseClient: () => fixture.client, configuredDatabaseProvider: () => 'sqlite', databaseSnapshotIsolationLevel: () => 'Serializable' }))
+vi.mock('@/server/prisma', () => ({ get prisma() { return fixture.client } }))
+vi.mock('@/server/services/admin-files', async load => ({ ...await load<typeof import('@/server/services/admin-files')>(), get UPLOAD_ROOT() { return fixture.root + '/uploads' } }))
+vi.mock('@/server/database/runtime-health', () => ({ readRuntimeInstallationPublicStatus: async () => ({ status: 'INSTALLED' }), isDatabaseConnectivityError: () => false }))
+import { withUserAttribution } from '@/server/database/user-attribution'
+import { createManagedUser, deleteManagedUser, disableManagedUser, listDeletedUsers, previewManagedUserDeletion, resetManagedUserPassword, updateManagedUser } from './admin-users'
+import { contractBodyHash, contractRootHash } from './contract-evidence-protocol'
+import { getUserContract } from './contracts'
+import { issueSession, readSessionToken } from '@/server/auth/session'
+import { createWalletLoginChallenge, verifyWalletLogin } from './wallet-auth'
+import { createWorkflow, executeWorkflowCommand, getWorkflow } from '@/server/commissions/workflow'
+import { uploadCommissionFile, downloadCommissionFile } from '@/server/commissions/workflow-files'
+import { exportDatabaseBackup } from './admin-backup/database-export'
+import { importDatabaseBackup } from './admin-backup/database-import'
+import { parseDatabaseImportPayload } from './admin-backup/database-validation'
+import { GET as deletionPreviewRoute } from '@/app/api/admin/mm/users/[id]/deletion-preview/route'
+import { DELETE as deleteRoute } from '@/app/api/admin/mm/users/[id]/route'
+import { GET as historyRoute } from '@/app/api/admin/mm/users/deleted/route'
 
-vi.mock('@/server/auth/password', () => ({ hashPassword: mocks.hashPassword }))
-vi.mock('@/server/database/unit-of-work', () => ({
-  unitOfWork: { execute: mocks.execute },
-}))
-vi.mock('@/server/prisma', () => ({ prisma: mocks.prisma }))
-
-import {
-  createManagedUser,
-  disableManagedUser,
-  resetManagedUserPassword,
-  updateManagedUser,
-} from '@/server/services/admin-users'
-
-const createdAt = new Date('2026-08-17T00:00:00.000Z')
-
-function userRecord(overrides: Record<string, unknown> = {}) {
-  return {
-    id: 8,
-    username: 'writer',
-    email: 'writer@example.com',
-    password: 'argon2-hash',
-    passwordConfigured: true,
-    displayName: 'Writer',
-    avatar: null,
-    bio: null,
-    role: 'USER',
-    status: 1,
-    pointsBalance: 0,
-    walletAddress: null,
-    createdAt,
-    updatedAt: createdAt,
-    ...overrides,
-  }
+beforeEach(async () => {
+  fixture.root = mkdtempSync(join(tmpdir(), 'sv-account-management-'))
+  const path = join(fixture.root, 'test.db'), db = new Database(path)
+  db.pragma('foreign_keys=ON')
+  for (const name of readdirSync('prisma/providers/sqlite/migrations').filter(name => /^\d/.test(name)).sort()) db.exec(readFileSync(`prisma/providers/sqlite/migrations/${name}/migration.sql`, 'utf8'))
+  expect(db.pragma('foreign_key_check')).toEqual([])
+  db.close()
+  fixture.client = withUserAttribution(new PrismaClient({ adapter: new PrismaBetterSqlite3({ url: `file:${path}` }, { timestampFormat: 'iso8601' }) })) as unknown as AppPrismaClient
+  await fixture.client.systemInstallation.create({ data: { id: 1, installationId: randomUUID(), provider: 'sqlite', status: 'INSTALLED', schemaRevision: 15 } })
+  for (const [id, username, role] of [[1, 'owner', 'ADMIN'], [2, 'temporary', 'ADMIN'], [3, 'customer', 'USER']] as const) await fixture.client.user.create({ data: { id, username, role, password: 'test-only', displayName: username } })
+})
+afterEach(async () => { await fixture.client.$disconnect(); rmSync(fixture.root, { recursive: true, force: true }) })
+const actor = { userId: 1, isAdmin: true }, otherAdmin = { userId: 2, isAdmin: true }
+async function sessionAndKey(userId: number) {
+  const session = await issueSession({ userId })
+  await fixture.client.mcpApiKey.create({ data: { userId, publicId: randomUUID(), name: 'test', secretHash: 'test-only' } })
+  return session
+}
+async function walletSignature(userId?: number) {
+  const wallet = Keypair.generate(), address = wallet.publicKey.toBase58()
+  const challenge = await createWalletLoginChallenge({ address, userId })
+  return { wallet, input: { challengeId: challenge.challengeId, address, signature: bs58.encode(nacl.sign.detached(new TextEncoder().encode(challenge.message), wallet.secretKey)), ip: null, userAgent: null } }
+}
+async function signInWithWallet(wallet: Keypair) {
+  const address = wallet.publicKey.toBase58(), challenge = await createWalletLoginChallenge({ address })
+  return verifyWalletLogin({ challengeId: challenge.challengeId, address, signature: bs58.encode(nacl.sign.detached(new TextEncoder().encode(challenge.message), wallet.secretKey)), ip: null, userAgent: null })
 }
 
-describe('administrator user management', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mocks.execute.mockImplementation((operation) => operation(mocks.transaction))
+describe('account roles, real deletion and independent history', () => {
+  it('creates administrators, defaults to users, and revokes access on promotion and demotion', async () => {
+    expect(await createManagedUser({ username: 'new_admin', password: 'safe-password', role: 'ADMIN' }, 1)).toMatchObject({ role: 'ADMIN', status: 1 })
+    expect(await createManagedUser({ username: 'new_user', password: 'safe-password' }, 1)).toMatchObject({ role: 'USER' })
+    const session = await sessionAndKey(3)
+    await updateManagedUser({ actorUserId: 1, userId: 3, values: { role: 'ADMIN' } })
+    expect(await readSessionToken(session.token)).toBeNull()
+    expect((await fixture.client.mcpApiKey.findFirstOrThrow({ where: { userId: 3 } })).status).toBe(0)
+    await updateManagedUser({ actorUserId: 1, userId: 3, values: { role: 'USER' } })
+    expect((await fixture.client.user.findUniqueOrThrow({ where: { id: 3 } })).role).toBe('USER')
   })
-
-  it('creates a regular active account without administrator role input', async () => {
-    mocks.hashPassword.mockResolvedValue('new-argon2-hash')
-    mocks.prisma.user.create.mockResolvedValue(userRecord())
-
-    await expect(createManagedUser({
-      username: ' Writer ',
-      email: ' WRITER@example.com ',
-      displayName: ' Writer ',
-      password: 'safe-password',
-    })).resolves.toMatchObject({ username: 'writer', role: 'USER', status: 1 })
-
-    expect(mocks.prisma.user.create).toHaveBeenCalledWith({
-      data: {
-        username: 'writer',
-        email: 'writer@example.com',
-        displayName: 'Writer',
-        password: 'new-argon2-hash',
-        passwordConfigured: true,
-        role: 'USER',
-        status: 1,
-      },
-    })
+  it('keeps disabled accounts and wallet bindings and does not restore MCP keys when enabled', async () => {
+    const address = Keypair.generate().publicKey.toBase58()
+    await fixture.client.user.update({ where: { id: 2 }, data: { walletAddress: address } })
+    const session = await sessionAndKey(2)
+    await disableManagedUser({ actorUserId: 1, userId: 2 })
+    expect(await readSessionToken(session.token)).toBeNull()
+    await updateManagedUser({ actorUserId: 1, userId: 2, values: { status: 1 } })
+    expect((await fixture.client.user.findUniqueOrThrow({ where: { id: 2 } })).walletAddress).toBe(address)
+    expect((await fixture.client.mcpApiKey.findFirstOrThrow()).status).toBe(0)
   })
-
-  it('updates supported profile and access fields', async () => {
-    mocks.transaction.user.findUnique.mockResolvedValue(userRecord())
-    mocks.transaction.user.update.mockResolvedValue(userRecord({
-      email: 'revised@example.com',
-      displayName: 'Revised Writer',
-    }))
-
-    await expect(updateManagedUser({
-      actorUserId: 1,
-      userId: 8,
-      values: { email: ' ReViSeD@example.com ', displayName: ' Revised Writer ' },
-    })).resolves.toMatchObject({
-      email: 'revised@example.com',
-      displayName: 'Revised Writer',
-    })
+  it('protects the current administrator and serializes competing administrator removals', async () => {
+    for (const values of [{ role: 'USER' as const }, { status: 0 }]) await expect(updateManagedUser({ actorUserId: 1, userId: 1, values })).rejects.toMatchObject({ data: { reason: 'CURRENT_ADMIN' } })
+    await expect(deleteManagedUser({ actorUserId: 1, userId: 1 })).rejects.toMatchObject({ data: { reason: 'USER_DELETE_BLOCKED' } })
+    const results = await Promise.allSettled([deleteManagedUser({ actorUserId: 1, userId: 2 }), deleteManagedUser({ actorUserId: 2, userId: 1 })])
+    expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1)
+    expect(await fixture.client.user.count({ where: { role: 'ADMIN', status: 1 } })).toBe(1)
+    const last = await previewManagedUserDeletion({ actorUserId: 1, userId: 1 })
+    expect(last.blockers.map(item => item.reason)).toContain('LAST_ADMIN')
   })
-
-  it('disables a regular account and revokes all of its sessions instead of hard-deleting it', async () => {
-    mocks.transaction.user.findUnique.mockResolvedValue(userRecord())
-    mocks.transaction.user.update.mockResolvedValue(userRecord({ status: 0 }))
-
-    await expect(disableManagedUser({ actorUserId: 1, userId: 8 })).resolves.toEqual({
-      id: '8',
-      status: 0,
-    })
-    expect(mocks.transaction.user.update).toHaveBeenCalledWith({
-      where: { id: 8 },
-      data: { status: 0, updatedAt: expect.any(Date) },
-    })
-    expect(mocks.transaction.session.updateMany).toHaveBeenCalledWith({
-      where: { userId: 8, revokedAt: null },
-      data: { revokedAt: expect.any(Date) },
-    })
+  it('deletes points, memberships and credentials but never makes redeemed gift cards reusable', async () => {
+    const level = await fixture.client.membershipLevel.create({ data: { name: 'Member', rank: 1, pricePoints: 10 } })
+    await fixture.client.membershipGrant.create({ data: { userId: 3, membershipLevelId: level.id, source: 'ADMIN_GRANT', grantedByUserId: 2 } })
+    const batch = await fixture.client.giftCardBatch.create({ data: { name: 'Gift', points: 10, quantity: 1, createdById: 2 } })
+    await fixture.client.giftCard.create({ data: { batchId: batch.id, codeHash: 'a'.repeat(64), codeHint: 'card', status: 2, redeemedById: 3, redeemedAt: new Date() } })
+    await fixture.client.pointTransaction.create({ data: { userId: 3, type: 'ADMIN_ADJUSTMENT', referenceId: '2', amount: 10, balanceAfter: 10 } })
+    const session = await sessionAndKey(3)
+    const preview = await previewManagedUserDeletion({ actorUserId: 1, userId: 3 })
+    expect(preview).toMatchObject({ allowed: true, cleanup: { pointTransactions: 1, membershipGrants: 1, giftCardRedemptions: 1 } })
+    await deleteManagedUser({ actorUserId: 1, userId: 3 })
+    expect(await fixture.client.user.findUnique({ where: { id: 3 } })).toBeNull()
+    expect(await fixture.client.pointTransaction.count()).toBe(0)
+    expect(await fixture.client.membershipGrant.count()).toBe(0)
+    expect(await fixture.client.session.count({ where: { userId: 3 } })).toBe(0)
+    expect(await readSessionToken(session.token)).toBeNull()
+    expect(await fixture.client.giftCard.findFirstOrThrow()).toMatchObject({ status: 2, redeemedById: null })
+    expect(JSON.stringify(await listDeletedUsers({ page: 1, pageSize: 20 }))).not.toMatch(/password|secretHash|tokenHash|walletAddress/)
   })
-
-  it('protects administrator accounts from disable requests', async () => {
-    mocks.transaction.user.findUnique.mockResolvedValue(userRecord({ id: 9, role: 'ADMIN' }))
-
-    await expect(disableManagedUser({ actorUserId: 1, userId: 9 })).rejects.toThrow(
-      'Cannot disable an administrator account',
-    )
-    expect(mocks.transaction.user.update).not.toHaveBeenCalled()
+  it('merges later revocation attribution without changing the original grant operator', async () => {
+    const level = await fixture.client.membershipLevel.create({ data: { name: 'Member', rank: 1, pricePoints: 10 } })
+    const grant = await fixture.client.membershipGrant.create({ data: { userId: 3, membershipLevelId: level.id, source: 'ADMIN_GRANT', grantedByUserId: 2 } })
+    await updateManagedUser({ actorUserId: 1, userId: 2, values: { username: 'renamed' } })
+    await fixture.client.membershipGrant.updateMany({ where: { id: grant.id }, data: { revokedAt: new Date(), revokedByUserId: 1 } })
+    await deleteManagedUser({ actorUserId: 1, userId: 2 })
+    const stored = await fixture.client.membershipGrant.findUniqueOrThrow({ where: { id: grant.id } })
+    expect(stored.grantedByUserId).toBeNull()
+    expect(JSON.parse(stored.attributionJson)).toMatchObject({ grantedByUserId: { username: 'temporary' }, revokedByUserId: { username: 'owner' } })
   })
-
-  it('resets a password and revokes every existing session', async () => {
-    mocks.hashPassword.mockResolvedValue('reset-argon2-hash')
-    mocks.transaction.user.findUnique.mockResolvedValue(userRecord())
-    mocks.transaction.user.update.mockResolvedValue(userRecord({ passwordConfigured: true }))
-
-    await expect(resetManagedUserPassword({ userId: 8, password: 'new-safe-password' })).resolves
-      .toMatchObject({ id: '8', passwordConfigured: true })
-    expect(mocks.transaction.user.update).toHaveBeenCalledWith({
-      where: { id: 8 },
-      data: {
-        password: 'reset-argon2-hash',
-        passwordConfigured: true,
-        updatedAt: expect.any(Date),
-      },
-    })
-    expect(mocks.transaction.session.updateMany).toHaveBeenCalledWith({
-      where: { userId: 8, revokedAt: null },
-      data: { revokedAt: expect.any(Date) },
-    })
+  it('rolls back cleanup, detached references and audit records when final deletion fails', async () => {
+    const batch = await fixture.client.giftCardBatch.create({ data: { name: 'Rollback', points: 1, quantity: 1, createdById: 2 } })
+    const session = await sessionAndKey(2)
+    await fixture.client.$executeRawUnsafe("CREATE TRIGGER reject_account_deletion BEFORE DELETE ON auth_user WHEN OLD.id = 2 BEGIN SELECT RAISE(ABORT, 'injected deletion failure'); END")
+    await expect(deleteManagedUser({ actorUserId: 1, userId: 2 })).rejects.toThrow()
+    expect((await fixture.client.giftCardBatch.findUniqueOrThrow({ where: { id: batch.id } })).createdById).toBe(2)
+    expect(await fixture.client.userDeletionRecord.count()).toBe(0)
+    expect(await readSessionToken(session.token)).not.toBeNull()
+    expect((await fixture.client.mcpApiKey.findFirstOrThrow()).status).toBe(1)
+  })
+  it('releases a wallet for fresh login and binding and rejects stale binding challenges', async () => {
+    const wallet = Keypair.generate(), address = wallet.publicKey.toBase58()
+    await fixture.client.user.update({ where: { id: 3 }, data: { walletAddress: address, pointsBalance: 100 } })
+    const stale = await walletSignature(3)
+    await deleteManagedUser({ actorUserId: 1, userId: 3 })
+    await expect(verifyWalletLogin(stale.input)).rejects.toMatchObject({ status: 401 })
+    const fresh = await signInWithWallet(wallet)
+    expect(fresh.user).toMatchObject({ role: 'USER', pointsBalance: 0, walletAddress: address })
+    expect(fresh.user.id).not.toBe('3')
+    await deleteManagedUser({ actorUserId: 1, userId: Number(fresh.user.id) })
+    const challenge = await createWalletLoginChallenge({ address, userId: 2 })
+    const bound = await verifyWalletLogin({ challengeId: challenge.challengeId, address, signature: bs58.encode(nacl.sign.detached(new TextEncoder().encode(challenge.message), wallet.secretKey)), ip: null, userAgent: null })
+    expect(bound.user).toMatchObject({ id: '2', walletAddress: address })
+  })
+  it('rejects binding to a disabled account after challenge issuance', async () => {
+    const signed = await walletSignature(3)
+    await disableManagedUser({ actorUserId: 1, userId: 3 })
+    await expect(verifyWalletLogin(signed.input)).rejects.toMatchObject({ status: 403 })
+    expect((await fixture.client.user.findUniqueOrThrow({ where: { id: 3 } })).walletAddress).toBeNull()
+  })
+  it('blocks customer records even after promotion and never partially clears an account', async () => {
+    await fixture.client.contract.create({ data: { contractId: randomUUID(), issuerUserId: 2, subjectUserId: 3, title: 'Draft', body: 'Retained', bodyHash: 'a'.repeat(64), partyCommitment: 'b'.repeat(64) } })
+    await updateManagedUser({ actorUserId: 1, userId: 3, values: { role: 'ADMIN' } })
+    const preview = await previewManagedUserDeletion({ actorUserId: 1, userId: 3 })
+    expect(preview.blockers).toContainEqual({ reason: 'CUSTOMER_CONTRACTS', count: 1 })
+    await expect(deleteManagedUser({ actorUserId: 1, userId: 3 })).rejects.toMatchObject({ status: 409 })
+    expect(await fixture.client.user.count({ where: { id: 3 } })).toBe(1)
+    expect(await fixture.client.userDeletionRecord.count()).toBe(0)
+    expect(await fixture.client.contract.count()).toBe(1)
+  })
+  it('retains site-owned contracts and unpublished attachments after deleting their operator', async () => {
+    const installationId = (await fixture.client.systemInstallation.findUniqueOrThrow({ where: { id: 1 } })).installationId
+    const contractId = randomUUID(), body = 'Frozen\n', bodyHash = contractBodyHash(body), issuedAt = new Date(), signedAt = new Date()
+    const hashInput = { installationId, contractId, title: 'Contract', bodyHash, attachmentHash: null, partyCommitment: 'b'.repeat(64), issuedAt, signedAt }
+    const contractHash = contractRootHash(hashInput)
+    const contract = await fixture.client.contract.create({ data: { ...hashInput, issuerUserId: 2, subjectUserId: 3, body, contractHash, status: 2, adminAudits: { create: { actorUserId: 2, action: 'ISSUED' } } } })
+    let workflow = await createWorkflow(otherAdmin, { commandId: randomUUID(), title: 'Site work', requirements: '', draft: true })
+    workflow = await uploadCommissionFile(Number(workflow.id), otherAdmin, new Request('http://localhost/upload', { method: 'POST', body: 'private draft' }), { name: 'source.txt', purpose: 'DELIVERY', shared: false, commandId: randomUUID() })
+    const key = workflow.files[0].key
+    expect((await getWorkflow(Number(workflow.id), actor)).files.map(file => file.key)).toContain(key)
+    await deleteManagedUser({ actorUserId: 1, userId: 2 })
+    const after = await fixture.client.contract.findUniqueOrThrow({ where: { id: contract.id } })
+    expect(after).toMatchObject({ issuerUserId: null, body: contract.body, bodyHash: contract.bodyHash, partyCommitment: contract.partyCommitment })
+    expect(JSON.parse(after.attributionJson).issuerUserId.username).toBe('temporary')
+    expect(contractRootHash({ ...hashInput, bodyHash: after.bodyHash, partyCommitment: after.partyCommitment })).toBe(after.contractHash)
+    expect(await getUserContract(3, contract.id)).toMatchObject({ providerAccount: 'temporary', issuer: { id: null, username: 'temporary' } })
+    expect(await fixture.client.contractAdminAudit.findFirstOrThrow()).toMatchObject({ actorUserId: null })
+    const file = await fixture.client.commissionFile.findFirstOrThrow()
+    expect(file.uploaderUserId).toBeNull()
+    expect(await (await downloadCommissionFile(Number(workflow.id), file.id, actor)).text()).toBe('private draft')
+    workflow = await executeWorkflowCommand(Number(workflow.id), actor, { action: 'submission.create', kind: 'COMMENT', commandId: randomUUID(), revision: workflow.revision, note: 'Continued', fileKeys: [key] })
+    expect(workflow.events.at(-1)?.snapshot.actor.name).toBe('owner')
+  })
+  it('preserves deleted operators through renames, demotion and later deletion of the deleting administrator', async () => {
+    const batch = await fixture.client.giftCardBatch.create({ data: { name: 'Site', points: 1, quantity: 1, createdById: 2 } })
+    await updateManagedUser({ actorUserId: 1, userId: 2, values: { username: 'renamed', role: 'USER' } })
+    await deleteManagedUser({ actorUserId: 1, userId: 2 })
+    const historical = await fixture.client.giftCardBatch.findUniqueOrThrow({ where: { id: batch.id } })
+    expect(JSON.parse(historical.attributionJson).createdById.username).toBe('temporary')
+    await updateManagedUser({ actorUserId: 1, userId: 3, values: { role: 'ADMIN' } })
+    await deleteManagedUser({ actorUserId: 3, userId: 1 })
+    const history = await listDeletedUsers({ page: 1, pageSize: 20 })
+    expect(history.list.find(row => row.user.userId === '2')?.actor.username).toBe('owner')
+  })
+  it('resets credentials and rechecks the administrator inside the transaction', async () => {
+    const session = await sessionAndKey(3)
+    await resetManagedUserPassword({ actorUserId: 1, userId: 3, password: 'new-safe-password' })
+    expect(await readSessionToken(session.token)).toBeNull()
+    await expect(createManagedUser({ username: 'forbidden', password: 'safe-password', role: 'ADMIN' }, 3)).rejects.toMatchObject({ status: 401 })
+  })
+  it('round-trips attribution, merges deletion logs by UUID and imports multiple administrators', async () => {
+    await fixture.client.giftCardBatch.create({ data: { name: 'Site', points: 1, quantity: 1, createdById: 2 } })
+    const before = await exportDatabaseBackup()
+    await deleteManagedUser({ actorUserId: 1, userId: 2 })
+    await importDatabaseBackup(parseDatabaseImportPayload({ version: before.version, data: before.data, mode: 'overwrite' }))
+    expect(await fixture.client.user.count({ where: { role: 'ADMIN' } })).toBe(2)
+    expect(await fixture.client.userDeletionRecord.count()).toBe(1)
+    const restored = await fixture.client.user.findUniqueOrThrow({ where: { username: 'temporary' } })
+    await deleteManagedUser({ actorUserId: 1, userId: restored.id })
+    const after = await exportDatabaseBackup()
+    expect(after.data.giftCardBatches[0]).toMatchObject({ createdById: null })
+    await importDatabaseBackup(parseDatabaseImportPayload({ version: after.version, data: after.data, mode: 'overwrite' }))
+    await importDatabaseBackup(parseDatabaseImportPayload({ version: after.version, data: after.data, mode: 'overwrite' }))
+    expect(await fixture.client.userDeletionRecord.count()).toBe(2)
+    expect(JSON.parse((await fixture.client.giftCardBatch.findFirstOrThrow()).attributionJson).createdById.username).toBe('temporary')
+  })
+  it('converts explicitly validated 2.13.0 backups and rejects detached legacy operator references', async () => {
+    await fixture.client.giftCardBatch.create({ data: { name: 'Legacy', points: 1, quantity: 1, createdById: 2 } })
+    const backup = await exportDatabaseBackup()
+    const legacy = JSON.parse(JSON.stringify(backup.data)) as Record<string, Array<Record<string, unknown>>>
+    delete legacy.userDeletionRecords
+    for (const rows of Object.values(legacy)) for (const row of rows) delete row.attributionJson
+    const converted = parseDatabaseImportPayload({ version: '2.13.0', mode: 'overwrite', data: legacy })
+    expect(converted.version).toBe('2.14.0')
+    expect(converted.data.userDeletionRecords).toEqual([])
+    expect(JSON.parse(converted.data.giftCardBatches[0].attributionJson).createdById).toMatchObject({ userId: '2', username: 'temporary', role: 'ADMIN' })
+    await importDatabaseBackup(converted)
+    legacy.giftCardBatches[0].createdById = null
+    expect(() => parseDatabaseImportPayload({ version: '2.13.0', mode: 'overwrite', data: legacy })).toThrow()
+  })
+  it('authenticates deletion routes and exposes preview and history without credentials', async () => {
+    const session = await issueSession({ userId: 1 })
+    const request = (path: string, token = session.token, method = 'GET') => new NextRequest(`http://localhost/api/admin/mm/users/${path}`, { method, headers: { cookie: `sv_session=${token}` } })
+    const context = { params: Promise.resolve({ id: '2' }) }
+    expect((await deletionPreviewRoute(request('2/deletion-preview', ''), context)).status).toBe(401)
+    const marker = await fixture.client.systemInstallation.findUniqueOrThrow({ where: { id: 1 } })
+    expect((await deletionPreviewRoute(request('2/deletion-preview'), context)).status).toBe(200)
+    expect((await fixture.client.systemInstallation.findUniqueOrThrow({ where: { id: 1 } })).updatedAt).toEqual(marker.updatedAt)
+    expect((await deleteRoute(request('2', session.token, 'DELETE'), context)).status).toBe(200)
+    const response = await historyRoute(request('deleted'), { params: Promise.resolve({}) })
+    expect(response.status).toBe(200)
+    expect((await response.json()).data.list[0].user.username).toBe('temporary')
   })
 })

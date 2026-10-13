@@ -2,7 +2,7 @@
  * @file route.ts
  * @project SlothVault
  * @module Administrator User API
- * @description Lists and creates conventional user accounts for administrator support and point management.
+ * @description Lists and creates shared user and administrator accounts for administrator support and point management.
  * @logic Require the administrator role, parse bounded filters or account input, and return profile/role/balance summaries without password or session data.
  * @dependencies zod, admin session, points service, admin-users service
  * @index_tags api,admin,users,list,create,points
@@ -23,6 +23,7 @@ const createUserSchema = z.object({
   email: z.string().trim().email().max(255).optional(),
   displayName: z.string().trim().max(80).optional(),
   password: z.string().min(8).max(256),
+  role: z.enum(['USER', 'ADMIN']).optional(),
 })
 
 function bounded(value: string | null, fallback: number, max: number) {
@@ -41,11 +42,13 @@ export const GET = defineRoute(async (request) => {
     page: bounded(query.get('page'), 1, 1_000_000),
     pageSize: bounded(query.get('pageSize'), 20, 100),
     keyword: query.get('keyword') || undefined,
+    role: query.get('role') ? z.enum(['USER', 'ADMIN']).parse(query.get('role')) : undefined,
+    status: query.get('status') !== null ? z.enum(['0', '1']).transform(Number).parse(query.get('status')) : undefined,
   }))
 })
 
 export const POST = defineRoute(async (request) => {
-  await requireAdminSession(request)
+  const session = await requireAdminSession(request)
   const body = await readJson(request, createUserSchema)
-  return apiOk(await createManagedUser(body), 'created', 201)
+  return apiOk(await createManagedUser(body, session.userId), 'created', 201)
 })

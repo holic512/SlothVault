@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   prisma: {
     user: {
       create: vi.fn(),
+      upsert: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
     },
@@ -24,6 +25,7 @@ vi.mock('@/server/short-lived-state', () => ({
   storeEphemeralJson: mocks.storeEphemeralJson,
   consumeEphemeralJson: mocks.consumeEphemeralJson,
 }))
+vi.mock('@/server/database/unit-of-work', () => ({ unitOfWork: { execute: (fn: (tx: unknown) => unknown) => fn(mocks.prisma) } }))
 vi.mock('@/server/prisma', () => ({ prisma: mocks.prisma }))
 
 import {
@@ -99,7 +101,7 @@ describe('optional wallet authentication', () => {
     })
     mocks.prisma.user.findUnique.mockResolvedValue(null)
     mocks.hashPassword.mockResolvedValue('random-argon2-hash')
-    mocks.prisma.user.create.mockResolvedValue(walletUser(address))
+    mocks.prisma.user.upsert.mockResolvedValue(walletUser(address))
     mocks.prisma.user.update.mockResolvedValue(walletUser(address))
     mocks.issueSession.mockResolvedValue({
       token: 'session-token',
@@ -116,8 +118,9 @@ describe('optional wallet authentication', () => {
     })
 
     expect(mocks.consumeEphemeralJson).toHaveBeenCalledOnce()
-    expect(mocks.prisma.user.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
+    expect(mocks.prisma.user.upsert).toHaveBeenCalledWith({
+      where: { walletAddress: address }, update: {},
+      create: expect.objectContaining({
         walletAddress: address,
         passwordConfigured: false,
         role: 'USER',
@@ -128,7 +131,7 @@ describe('optional wallet authentication', () => {
       userId: 9,
       ip: '127.0.0.1',
       userAgent: 'vitest',
-    })
+    }, mocks.prisma)
     expect(result.user).toMatchObject({ role: 'USER', walletAddress: address })
   })
 })

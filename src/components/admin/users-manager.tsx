@@ -4,7 +4,7 @@
  * @file users-manager.tsx
  * @project SlothVault
  * @module User Administration
- * @description Provides administrator-managed user creation, profile and access updates, reversible account deletion, password resets, and point adjustments.
+ * @description Provides administrator-managed user creation, profile and access updates, true account deletion and independent audit history, password resets, and point adjustments.
  * @logic Query bounded user pages, keep credentials private, submit identity mutations through protected APIs, revoke sessions after access changes, and retain the point ledger workflow.
  * @dependencies Ant Design, React Query, next-intl, admin user APIs
  * @index_tags admin,users,crud,password,points,ledger
@@ -13,13 +13,15 @@
 import { useState } from 'react'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { App, Button, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Tag, Tooltip, Typography } from 'antd'
-import { Coins, Crown, KeyRound, Pencil, Plus, RefreshCw, Search, Trash2, UserRound } from 'lucide-react'
+import { Alert, App, Button, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Tabs, Tag, Tooltip, Typography } from 'antd'
+import { Ban, Check, Coins, Crown, KeyRound, Pencil, Plus, RefreshCw, Search, Trash2, UserRound } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { AdminPage, AdminPageActions, AdminTablePanel, AdminToolbar } from '@/components/admin/admin-page'
 import { formatAdminDate, formatAdminError } from '@/lib/admin-localization'
 import { apiFetch } from '@/lib/api-client'
+import type { AccountDeletionPreview, DeletedUserRow } from '@/types/admin-users'
+import type { SessionUser } from '@/types/user'
 
 type UserRow = {
   id: string
@@ -46,6 +48,7 @@ type UserFormValues = {
   password?: string
   confirmPassword?: string
   status: number
+  role: 'ADMIN' | 'USER'
 }
 
 type PasswordFormValues = {
@@ -88,6 +91,11 @@ export function UsersManager() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [keyword, setKeyword] = useState('')
+  const [view, setView] = useState('live')
+  const [roleFilter, setRoleFilter] = useState<string>()
+  const [statusFilter, setStatusFilter] = useState<number>()
+  const [deleting, setDeleting] = useState<UserRow | null>(null)
+  const [historyRecord, setHistoryRecord] = useState<DeletedUserRow | null>(null)
   const [adjusting, setAdjusting] = useState<UserRow | null>(null)
   const [editing, setEditing] = useState<UserRow | null>(null)
   const [resettingPassword, setResettingPassword] = useState<UserRow | null>(null)
@@ -100,13 +108,44 @@ export function UsersManager() {
   const [membershipForm] = Form.useForm<MembershipFormValues>()
 
   const query = useQuery({
-    queryKey: ['admin-users', page, pageSize, keyword],
+    queryKey: ['admin-users', page, pageSize, keyword, roleFilter, statusFilter],
+    enabled: view === 'live',
     queryFn: () => {
       const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
       if (keyword) params.set('keyword', keyword)
+      if (roleFilter) params.set('role', roleFilter)
+      if (statusFilter !== undefined) params.set('status', String(statusFilter))
       return apiFetch<{ list: UserRow[]; total: number }>(`/api/admin/mm/users?${params}`)
     },
   })
+  const sessionQuery = useQuery({ queryKey: ['session-user'], queryFn: () => apiFetch<SessionUser | null>('/api/auth/session') })
+  const historyQuery = useQuery({
+    queryKey: ['admin-users', 'deleted', page, pageSize, keyword], enabled: view === 'deleted',
+    queryFn: () => apiFetch<{ list: DeletedUserRow[]; total: number }>(`/api/admin/mm/users/deleted?${new URLSearchParams({ page: String(page), pageSize: String(pageSize), keyword })}`),
+  })
+  const deletionPreview = useQuery({
+    queryKey: ['admin-users', 'deletion-preview', deleting?.id], enabled: Boolean(deleting),
+    queryFn: () => apiFetch<AccountDeletionPreview>(`/api/admin/mm/users/${deleting!.id}/deletion-preview`),
+    staleTime: 0,
+  })
+  const deletionMutation = useMutation({
+    mutationFn: () => apiFetch(`/api/admin/mm/users/${deleting!.id}`, { method: 'DELETE' }),
+    onSuccess: async () => { message.success(t('messages.deleted')); setDeleting(null); await refresh() },
+    onError: async error => { message.error(formatAdminError(error, errorT)); await deletionPreview.refetch() },
+  })
+  const accessMutation = useMutation({
+    mutationFn: (user: UserRow) => apiFetch(`/api/admin/mm/users/${user.id}`, { method: 'PUT', body: JSON.stringify({ status: user.status === 1 ? 0 : 1 }) }),
+    onSuccess: async () => { message.success(t('messages.accessUpdated')); await refresh() },
+    onError: error => message.error(formatAdminError(error, errorT)),
+  })
+  const totalRecords = (values: Record<string, number> = {}) => Object.values(values).reduce((sum, value) => sum + value, 0)
+  const cleanupLabels: Record<string, string> = {
+    sessions: t('deletion.records.sessions'), mcpApiKeys: t('deletion.records.keys'), pointTransactions: t('deletion.records.points'),
+    membershipGrants: t('deletion.records.memberships'), giftCardRedemptions: t('deletion.records.redemptions'), avatarReferences: t('deletion.records.avatar'),
+  }
+  const renderCleanupDetails = (counts: Record<string, number>) => <Space orientation="vertical" size={2}>
+    {Object.entries(counts).filter(([, count]) => count > 0).map(([key, count]) => <Typography.Text key={key}>{cleanupLabels[key]}：{count}</Typography.Text>)}
+  </Space>
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['admin-users'] })
   const membershipLevelsQuery = useQuery({
     queryKey: ['admin-membership-levels'],
@@ -143,6 +182,7 @@ export function UsersManager() {
             email: values.email || null,
             displayName: values.displayName || null,
             status: values.status,
+            role: values.role,
           }),
         })
       }
@@ -153,6 +193,7 @@ export function UsersManager() {
           email: values.email || undefined,
           displayName: values.displayName || undefined,
           password: values.password,
+          role: values.role,
         }),
       })
     },
@@ -222,7 +263,7 @@ export function UsersManager() {
 
   const openCreate = () => {
     setEditing(null)
-    userForm.setFieldsValue({ username: '', email: '', displayName: '', password: '', confirmPassword: '', status: 1 })
+    userForm.setFieldsValue({ username: '', email: '', displayName: '', password: '', confirmPassword: '', status: 1, role: 'USER' })
     setFormOpen(true)
   }
   const openEdit = (user: UserRow) => {
@@ -232,6 +273,7 @@ export function UsersManager() {
       email: user.email || '',
       displayName: user.displayName || '',
       status: user.status,
+      role: user.role as UserFormValues['role'],
       password: '',
       confirmPassword: '',
     })
@@ -246,48 +288,40 @@ export function UsersManager() {
     setMembershipPermanent(false)
     membershipForm.resetFields()
   }
-  const confirmDisable = (user: UserRow) => {
-    modal.confirm({
-      title: t('messages.deleteConfirmTitle'),
-      content: (
-        <Space orientation="vertical" size={4}>
-          <span>{t('messages.deleteConfirm', { name: user.displayName || user.username })}</span>
-          <span>{t('messages.deleteNotice')}</span>
-        </Space>
-      ),
-      okText: t('operations.delete'),
-      okButtonProps: { danger: true },
-      cancelText: t('dialog.cancel'),
-      onOk: async () => {
-        await apiFetch(`/api/admin/mm/users/${user.id}`, { method: 'DELETE' })
-        message.success(t('messages.deleted'))
-        await refresh()
-      },
-    })
+  const confirmAccessChange = (user: UserRow) => {
+    if (user.status === 0) { accessMutation.mutate(user); return }
+    modal.confirm({ title: t('operations.disable'), content: t('messages.disableNotice'), okButtonProps: { danger: true }, onOk: () => accessMutation.mutateAsync(user) })
   }
 
   return (
     <AdminPage className="admin-users-page">
       <AdminPageActions>
         <Space>
-          <Button icon={<RefreshCw size={15} />} onClick={() => void query.refetch()}>{t('actions.refresh')}</Button>
+          <Button icon={<RefreshCw size={15} />} onClick={() => void (view === 'live' ? query.refetch() : historyQuery.refetch())}>{t('actions.refresh')}</Button>
           <Button type="primary" icon={<Plus size={15} />} onClick={openCreate}>{t('actions.create')}</Button>
         </Space>
       </AdminPageActions>
 
+      <Tabs activeKey={view} onChange={key => { setView(key); setPage(1) }} items={[{ key: 'live', label: t('views.live') }, { key: 'deleted', label: t('views.deleted') }]} />
       <AdminToolbar>
         <Input.Search
           allowClear
           value={keyword}
           prefix={<Search size={14} />}
-          placeholder={t('filters.keyword')}
-          onChange={(event) => setKeyword(event.target.value)}
+          placeholder={view === 'deleted' ? t('history.keyword') : t('filters.keyword')}
+          onChange={(event) => { setKeyword(event.target.value); setPage(1) }}
           onSearch={() => setPage(1)}
         />
+        {view === 'live' ? <Space wrap>
+          <Select allowClear value={roleFilter} placeholder={t('filters.role')} onChange={value => { setRoleFilter(value); setPage(1) }} options={[{ value: 'ADMIN', label: t('role.admin') }, { value: 'USER', label: t('role.user') }]} />
+          <Select allowClear value={statusFilter} placeholder={t('filters.status')} onChange={value => { setStatusFilter(value); setPage(1) }} options={[{ value: 1, label: t('status.active') }, { value: 0, label: t('status.disabled') }]} />
+        </Space> : null}
       </AdminToolbar>
 
+      {view === 'live' && query.isError ? <Alert type="error" title={formatAdminError(query.error, errorT)} /> : null}
+      {view === 'deleted' && historyQuery.isError ? <Alert type="error" title={formatAdminError(historyQuery.error, errorT)} /> : null}
       <AdminTablePanel>
-        <Table<UserRow>
+        {view === 'live' ? <Table<UserRow>
           rowKey="id"
           loading={query.isLoading}
           dataSource={query.data?.list || []}
@@ -338,7 +372,7 @@ export function UsersManager() {
             {
               title: t('table.operations'),
               fixed: 'right',
-              width: 192,
+              width: 230,
               render: (_value, user) => (
                 <Space className="admin-user-operations" size={4}>
                   <Tooltip title={t('operations.edit')}>
@@ -353,16 +387,28 @@ export function UsersManager() {
                   <Tooltip title={t('operations.membership')}>
                     <Button type="link" aria-label={t('operations.membership')} icon={<Crown size={14} />} onClick={() => openMembership(user)} />
                   </Tooltip>
-                  {user.role !== 'ADMIN' && user.status === 1 ? (
-                    <Tooltip title={t('operations.delete')}>
-                      <Button danger type="link" aria-label={t('operations.delete')} icon={<Trash2 size={14} />} onClick={() => confirmDisable(user)} />
-                    </Tooltip>
-                  ) : null}
+                  <Tooltip title={user.status === 1 ? t('operations.disable') : t('operations.enable')}>
+                    <Button type="link" disabled={user.id === sessionQuery.data?.id} aria-label={user.status === 1 ? t('operations.disable') : t('operations.enable')} icon={user.status === 1 ? <Ban size={14} /> : <Check size={14} />} onClick={() => confirmAccessChange(user)} />
+                  </Tooltip>
+                  <Tooltip title={t('operations.delete')}>
+                    <Button danger type="link" disabled={user.id === sessionQuery.data?.id} aria-label={t('operations.delete')} icon={<Trash2 size={14} />} onClick={() => setDeleting(user)} />
+                  </Tooltip>
                 </Space>
               ),
             },
           ]}
-        />
+        /> : <Table<DeletedUserRow>
+          rowKey="id" loading={historyQuery.isLoading} dataSource={historyQuery.data?.list || []}
+          pagination={{ current: page, pageSize, total: historyQuery.data?.total || 0, showSizeChanger: true, onChange: (next, size) => { setPage(next); setPageSize(size) } }}
+          columns={[
+            { title: t('table.user'), render: (_, row) => <span><strong>{row.user.displayName || row.user.username}</strong><br /><small>@{row.user.username}</small></span> },
+            { title: t('table.role'), render: (_, row) => row.user.role === 'ADMIN' ? t('role.admin') : t('role.user') },
+            { title: t('table.createdAt'), render: (_, row) => formatAdminDate(locale, row.createdAt) },
+            { title: t('history.deletedAt'), render: (_, row) => formatAdminDate(locale, row.deletedAt) },
+            { title: t('history.actor'), render: (_, row) => row.actor.displayName || row.actor.username },
+            { title: t('history.summary'), render: (_, row) => <Button type="link" onClick={() => setHistoryRecord(row)}>{t('history.details')}</Button> },
+          ]}
+        />}
       </AdminTablePanel>
 
       <Modal
@@ -408,10 +454,13 @@ export function UsersManager() {
               </Form.Item>
             </>
           ) : null}
+          <Form.Item name="role" label={t('dialog.role')} rules={[{ required: true }]} extra={editing?.id === sessionQuery.data?.id ? t('dialog.currentAdminHint') : t('dialog.roleHint')}>
+            <Select disabled={editing?.id === sessionQuery.data?.id} options={[{ value: 'USER', label: t('role.user') }, { value: 'ADMIN', label: t('role.admin') }]} />
+          </Form.Item>
           {editing ? (
             <Form.Item name="status" label={t('dialog.status')}>
               <Select
-                disabled={editing.role === 'ADMIN'}
+                disabled={editing.id === sessionQuery.data?.id}
                 options={[
                   { value: 1, label: t('status.active') },
                   { value: 0, label: t('status.disabled') },
@@ -420,6 +469,35 @@ export function UsersManager() {
             </Form.Item>
           ) : null}
         </Form>
+      </Modal>
+
+      <Modal open={Boolean(deleting)} title={t('messages.deleteConfirmTitle')} okText={t('operations.delete')} cancelText={t('dialog.cancel')}
+        confirmLoading={deletionMutation.isPending} okButtonProps={{ danger: true, disabled: !deletionPreview.data?.allowed || deletionPreview.isFetching }}
+        onCancel={() => setDeleting(null)} onOk={() => deletionMutation.mutate()}>
+        <Space orientation="vertical" className="full-width">
+          <Typography.Paragraph>{t('messages.deleteConfirm', { name: deleting?.displayName || deleting?.username || '' })}</Typography.Paragraph>
+          <Alert type="warning" title={t('messages.deleteNotice')} />
+          {deletionPreview.isPending ? <Typography.Text>{t('deletion.loading')}</Typography.Text> : null}
+          {deletionPreview.isError ? <Alert type="error" title={formatAdminError(deletionPreview.error, errorT)} action={<Button onClick={() => void deletionPreview.refetch()}>{t('actions.refresh')}</Button>} /> : null}
+          {deletionPreview.data?.blockers.map(blocker => <Alert key={blocker.reason} type="error" title={t(`deletion.blockers.${blocker.reason}`, { count: blocker.count })} />)}
+          {deletionPreview.data ? <>
+            <Typography.Text>{t('deletion.cleanup', { count: totalRecords(deletionPreview.data.cleanup) })}</Typography.Text>
+            {renderCleanupDetails(deletionPreview.data.cleanup)}
+            <Typography.Text>{t('deletion.retained', { count: totalRecords(deletionPreview.data.retained) })}</Typography.Text>
+            <Typography.Text type="secondary">{t('deletion.wallet')}</Typography.Text>
+          </> : null}
+        </Space>
+      </Modal>
+      <Modal open={Boolean(historyRecord)} title={t('history.details')} onCancel={() => setHistoryRecord(null)} footer={<Button onClick={() => setHistoryRecord(null)}>{t('membership.close')}</Button>}>
+        {historyRecord ? <Space orientation="vertical">
+          <Typography.Text>{historyRecord.user.username} · {historyRecord.user.userId}</Typography.Text>
+          <Typography.Text>{t('history.actor')}: {historyRecord.actor.username}</Typography.Text>
+          <Typography.Text>{t('history.deletedAt')}: {formatAdminDate(locale, historyRecord.deletedAt)}</Typography.Text>
+          <Typography.Text>{t('deletion.cleanup', { count: totalRecords(historyRecord.summary.cleanup) })}</Typography.Text>
+          {renderCleanupDetails(historyRecord.summary.cleanup)}
+          <Typography.Text>{t('deletion.retained', { count: totalRecords(historyRecord.summary.retained) })}</Typography.Text>
+          <Typography.Text type="secondary">{t('history.notice')}</Typography.Text>
+        </Space> : null}
       </Modal>
 
       <Modal

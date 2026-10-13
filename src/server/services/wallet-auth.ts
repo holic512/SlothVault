@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Optional Wallet Authentication
  * @description Implements process-memory Solana message challenges for optional account login or wallet binding.
- * @logic Validate a canonical address, store one process-local short-lived challenge, consume it exactly once, verify Ed25519 ownership, then bind or provision a regular user account and issue the normal HTTP session.
+ * @logic Validate a canonical address, store one process-local short-lived challenge, consume it exactly once, verify Ed25519 ownership, then recheck active identity, bind or provision a regular account and issue its session in the same transaction.
  * @dependencies @solana/web3.js, bs58, tweetnacl, short-lived state, Prisma User model, wallet-login contract
  * @index_tags wallet,login,binding,memory,challenge,web2
  * @author holic512
@@ -21,7 +21,8 @@ import { hashPassword } from '@/server/auth/password'
 import { USER_ROLE, USER_STATUS } from '@/server/auth/roles'
 import { issueSession } from '@/server/auth/session'
 import { HttpError } from '@/server/http/errors'
-import { prisma } from '@/server/prisma'
+import type { Prisma } from '@generated/prisma-postgresql/client'
+import { unitOfWork } from '@/server/database/unit-of-work'
 import {
   consumeEphemeralJson,
   shortLivedStateKey,
@@ -46,11 +47,6 @@ function canonicalWalletAddress(value: string) {
   }
 }
 
-function hasPrismaCode(error: unknown, code: string) {
-  return typeof error === 'object' && error !== null && 'code' in error &&
-    (error as { code?: unknown }).code === code
-}
-
 export async function createWalletLoginChallenge(input: {
   address: string
   userId?: number | null
@@ -69,34 +65,16 @@ export async function createWalletLoginChallenge(input: {
   return { challengeId, address, message, expiresAt }
 }
 
-async function provisionWalletUser(address: string) {
-  const existing = await prisma.user.findUnique({ where: { walletAddress: address } })
-  if (existing) return existing
-
-  const password = await hashPassword(randomBytes(32).toString('hex'))
-  const base = `wallet_${address.slice(0, 8).toLowerCase()}`
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    const username = attempt === 0 ? base : `${base}_${randomBytes(2).toString('hex')}`
-    try {
-      return await prisma.user.create({
-        data: {
-          username,
-          password,
-          passwordConfigured: false,
-          displayName: `Wallet ${address.slice(0, 4)}…${address.slice(-4)}`,
-          walletAddress: address,
-          role: USER_ROLE.USER,
-          status: USER_STATUS.ACTIVE,
-          lastLoginAt: new Date(),
-        },
-      })
-    } catch (error) {
-      if (!hasPrismaCode(error, 'P2002')) throw error
-      const raced = await prisma.user.findUnique({ where: { walletAddress: address } })
-      if (raced) return raced
-    }
-  }
-  throw new HttpError('Unable to create wallet account', 409, 409)
+async function provisionWalletUser(tx: Prisma.TransactionClient, address: string, password: string) {
+  return tx.user.upsert({
+    where: { walletAddress: address }, update: {},
+    create: {
+      username: `wallet_${address.slice(0, 8).toLowerCase()}_${randomBytes(4).toString('hex')}`,
+      password, passwordConfigured: false,
+      displayName: `Wallet ${address.slice(0, 4)}…${address.slice(-4)}`,
+      walletAddress: address, role: USER_ROLE.USER, status: USER_STATUS.ACTIVE,
+    },
+  })
 }
 
 export async function verifyWalletLogin(input: {
@@ -127,29 +105,31 @@ export async function verifyWalletLogin(input: {
   )
   if (!verified) throw new HttpError('Invalid wallet signature', 401, 401)
 
-  let user
-  if (challenge.userId) {
-    const owner = await prisma.user.findUnique({ where: { walletAddress: address } })
-    if (owner && owner.id !== challenge.userId) {
-      throw new HttpError('Wallet is already linked to another account', 409, 409)
+  const password = challenge.userId ? '' : await hashPassword(randomBytes(32).toString('hex'))
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await unitOfWork.execute(async tx => {
+        let user
+        if (challenge.userId) {
+          const target = await tx.user.findUnique({ where: { id: challenge.userId } })
+          if (!target) throw new HttpError('Wallet binding account no longer exists', 401, 401)
+          if (target.status !== USER_STATUS.ACTIVE) throw new HttpError('Account is disabled', 403, 403)
+          const owner = await tx.user.findUnique({ where: { walletAddress: address } })
+          if (owner && owner.id !== target.id) throw new HttpError('Wallet is already linked to another account', 409, 409)
+          user = await tx.user.update({ where: { id: target.id, status: USER_STATUS.ACTIVE }, data: { walletAddress: address, lastLoginAt: new Date(), updatedAt: new Date() } })
+        } else {
+          user = await provisionWalletUser(tx, address, password)
+          if (user.status !== USER_STATUS.ACTIVE) throw new HttpError('Account is disabled', 403, 403)
+          user = await tx.user.update({ where: { id: user.id, status: USER_STATUS.ACTIVE }, data: { lastLoginAt: new Date(), updatedAt: new Date() } })
+        }
+        const session = await issueSession({ userId: user.id, ip: input.ip, userAgent: input.userAgent }, tx)
+        return { user: userDto(user), session }
+      })
+    } catch (error) {
+      const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : null
+      if (code === 'P2025' && challenge.userId) throw new HttpError('Wallet binding account no longer exists', 401, 401)
+      if (!['P2002', 'P2034', 'P2025'].includes(String(code))) throw error
     }
-    user = await prisma.user.update({
-      where: { id: challenge.userId },
-      data: { walletAddress: address, lastLoginAt: new Date(), updatedAt: new Date() },
-    })
-  } else {
-    user = await provisionWalletUser(address)
-    if (user.status !== USER_STATUS.ACTIVE) throw new HttpError('Account is disabled', 403, 403)
-    user = await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date(), updatedAt: new Date() },
-    })
   }
-
-  const session = await issueSession({
-    userId: user.id,
-    ip: input.ip,
-    userAgent: input.userAgent,
-  })
-  return { user: userDto(user), session }
+  throw new HttpError('Wallet account changed; retry login', 409, 409)
 }

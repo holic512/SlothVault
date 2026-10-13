@@ -13,6 +13,7 @@ function emptyBackup(): BackupData {
     commissionInvitations: [], commissionAgreements: [], commissionSubmissions: [], commissionProofAttempts: [],
     commissionTemplates: [], commissionTemplateVersions: [], commissionSettings: [], commissions: [], commissionMilestones: [], commissionPlans: [], commissionFiles: [], commissionChanges: [], commissionDeliveries: [], commissionDeliveryItems: [], commissionPayments: [], commissionIssues: [], commissionAcceptances: [], commissionEvents: [],
     users: [],
+    userDeletionRecords: [],
     pointTransactions: [],
     giftCardBatches: [],
     giftCards: [],
@@ -140,7 +141,7 @@ describe('database backup membership validation', () => {
       id: '11', name: 'VIP', rank: 1, pricePoints: 10, validityDays: 30,
       status: 1, createdAt: timestamp, updatedAt: timestamp,
     })
-    data.membershipGrants.push({
+    data.membershipGrants.push({ attributionJson: '{}',
       id: '12', userId: '7', membershipLevelId: '11', source: 'POINT_PURCHASE',
       pointsCost: 10, grantedByUserId: null, grantedAt: timestamp,
       expiresAt: '2026-08-20T00:00:00.000Z', revokedAt: null, revokedByUserId: null,
@@ -179,7 +180,7 @@ describe('database backup release validation', () => {
       id: '3', projectVersionId: '2', categoryName: 'Guides', weight: 0, status: 1,
       createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
     })
-    data.noteInfos.push({
+    data.noteInfos.push({ attributionJson: '{}',
       id: '4', categoryId: '3', authorId: '7', noteTitle: 'Start', tags: [], weight: 0, status: 1,
       createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
     })

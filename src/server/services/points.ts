@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { attributedOperator } from '@/lib/user-attribution'
 
 import { createHash, randomBytes } from 'node:crypto'
 
@@ -198,7 +199,7 @@ export async function listGiftCardBatches(page: number, pageSize: number) {
       redeemed: batch.cards.length,
       status: batch.status,
       expiresAt: batch.expiresAt,
-      createdBy: batch.createdBy.username,
+      createdBy: attributedOperator(batch, 'createdById', batch.createdBy).username,
       createdAt: batch.createdAt,
     })),
   }
@@ -208,10 +209,12 @@ export async function listUsers(input: {
   page: number
   pageSize: number
   keyword?: string
+  role?: string
+  status?: number
 }) {
   const now = new Date()
   const keyword = input.keyword?.trim()
-  const where = keyword
+  const keywordWhere = keyword
     ? {
         OR: [
           { username: { contains: keyword } },
@@ -220,6 +223,7 @@ export async function listUsers(input: {
         ],
       }
     : undefined
+  const where = { ...keywordWhere, ...(input.role ? { role: input.role } : {}), ...(input.status !== undefined ? { status: input.status } : {}) }
   const [list, total] = await Promise.all([
     prisma.user.findMany({
       where,

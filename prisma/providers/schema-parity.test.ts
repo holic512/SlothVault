@@ -24,6 +24,7 @@ const expectedTables = {
   CommissionEvent: 'commission_event',
   Session: 'auth_session',
   User: 'auth_user',
+  UserDeletionRecord: 'auth_user_deletion_record',
   McpApiKey: 'mcp_api_key',
   PointTransaction: 'points_transaction',
   GiftCardBatch: 'points_gift_card_batch',
@@ -192,7 +193,7 @@ describe('provider schema parity', () => {
     expect(models.get('Contract')).toContain('bodyHash String @map("body_hash")')
     expect(models.get('Contract')).toContain('partyCommitment String @map("party_commitment")')
     expect(models.get('ContractCredential')).toContain('contractId Int @map("contract_id")')
-    expect(models.get('ContractAdminAudit')).toContain('actorUserId Int @map("actor_user_id")')
+    expect(models.get('ContractAdminAudit')).toContain('actorUserId Int? @map("actor_user_id")')
     expect(models.get('ContractCredentialAttempt')).toContain('lastValidBlockHeight BigInt @map("last_valid_block_height")')
     expect(models.has('SystemInstallation')).toBe(true)
     expect(models.has('RuntimeLock')).toBe(false)

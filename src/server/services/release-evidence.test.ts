@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   withEvidenceRpc: vi.fn(),
   finalizedEvidenceTransaction: vi.fn(),
   prisma: {
+    user: { findUnique: vi.fn().mockResolvedValue({ role: 'ADMIN', status: 1 }) },
     releaseCredentialAttempt: { findUnique: vi.fn(), findFirst: vi.fn() },
     releaseCredential: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn() },
     systemInstallation: { findFirst: vi.fn() },
@@ -52,7 +53,7 @@ describe('release evidence durable submission', () => {
     events.length = 0
   })
 
-  it('commits the transaction signature before the first RPC broadcast', async () => {
+  it('allows another active administrator to commit the original signed transaction before broadcast', async () => {
     const wallet = Keypair.generate()
     const memo = '{"protocol":"slothvault.project-version"}'
     const transaction = buildProjectVersionEvidenceTransaction({
@@ -106,7 +107,7 @@ describe('release evidence durable submission', () => {
     })
     mocks.finalizedEvidenceTransaction.mockResolvedValue(null)
 
-    await submitReleaseEvidence({ attemptId: 7, signedTransactionBase64, issuerUserId: 3 })
+    await submitReleaseEvidence({ attemptId: 7, signedTransactionBase64, issuerUserId: 99 })
 
     expect(events.slice(0, 3)).toEqual([
       'attempt-signature-committed',

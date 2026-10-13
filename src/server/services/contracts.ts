@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { attributedOperator } from '@/lib/user-attribution'
 
 import type { Prisma } from '@generated/prisma-postgresql/client'
 
@@ -62,7 +63,8 @@ type ContractRecord = {
   id: number
   contractId: string
   installationId: string | null
-  issuerUserId: number
+  issuerUserId: number | null
+  attributionJson?: string
   subjectUserId: number
   title: string
   body: string
@@ -82,7 +84,7 @@ type ContractRecord = {
   cancelledAt: Date | null
   createdAt: Date
   updatedAt: Date
-  issuerUser: { username: string; displayName: string | null }
+  issuerUser: { username: string; displayName: string | null } | null
   subjectUser: { username: string; displayName: string | null }
   attachmentFile: {
     id: number
@@ -121,7 +123,8 @@ type ContractRecord = {
     id: number
     action: string
     createdAt: Date
-    actorUser: { username: string; displayName: string | null }
+    attributionJson?: string
+    actorUser: { username: string; displayName: string | null } | null
   }>
 }
 
@@ -170,11 +173,13 @@ function credentialDto(credential: ContractRecord['credentials'][number]) {
 }
 
 function contractDto(contract: ContractRecord, includeAdminAudit = false) {
+  const issuedAudit = contract.adminAudits.find(audit => audit.action === 'ISSUED')
+  const provider = issuedAudit ? attributedOperator(issuedAudit, 'actorUserId', issuedAudit.actorUser) : attributedOperator(contract, 'issuerUserId', contract.issuerUser)
   return {
     id: contract.id.toString(),
     contractId: contract.contractId,
     snapshotHash: contract.snapshotHash || null,
-    providerAccount: contract.adminAudits.find((audit) => audit.action === 'ISSUED')?.actorUser.username || contract.issuerUser.username,
+    providerAccount: provider.username,
     customerAccount: contract.subjectUser.username,
     associatedFiles: contract.snapshotJson ? (JSON.parse(contract.snapshotJson).attachments || []) as Array<{ originalName: string; fileSize: string; sha256: string }> : [],
     title: contract.title,
@@ -193,9 +198,9 @@ function contractDto(contract: ContractRecord, includeAdminAudit = false) {
     declineReason: contract.declineReason,
     cancelledAt: contract.cancelledAt,
     issuer: {
-      id: contract.issuerUserId.toString(),
-      username: contract.issuerUser.username,
-      displayName: contract.issuerUser.displayName,
+      id: contract.issuerUserId?.toString() ?? null,
+      username: attributedOperator(contract, 'issuerUserId', contract.issuerUser).username,
+      displayName: attributedOperator(contract, 'issuerUserId', contract.issuerUser).displayName,
     },
     subject: {
       id: contract.subjectUserId.toString(),
@@ -216,8 +221,8 @@ function contractDto(contract: ContractRecord, includeAdminAudit = false) {
         action: audit.action,
         createdAt: audit.createdAt,
         actor: {
-          username: audit.actorUser.username,
-          displayName: audit.actorUser.displayName,
+          username: attributedOperator(audit, 'actorUserId', audit.actorUser).username,
+          displayName: attributedOperator(audit, 'actorUserId', audit.actorUser).displayName,
         },
       })),
     } : {}),

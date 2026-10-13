@@ -3,12 +3,13 @@
  * @project SlothVault
  * @module Database Runtime
  * @description Provides provider-neutral transaction boundaries and the supported SQLite process write mutex.
- * @logic Execute interactive Prisma transactions directly for server databases, queue SQLite writes within its single process, and expose one transaction client to repository/service operations.
+ * @logic Execute interactive Prisma transactions directly for server databases, queue SQLite writes within its single process, and expose an attributed transaction client to repository/service operations.
  * @dependencies generated Prisma transaction types, database/client, database/config-store
  * @index_tags database,unit-of-work,transaction,sqlite,mutex
  * @author holic512
  */
 import 'server-only'
+import { withUserAttribution } from './user-attribution'
 
 import type { Prisma } from '@generated/prisma-postgresql/client'
 
@@ -51,7 +52,7 @@ export class UnitOfWork {
     operation: (transaction: Prisma.TransactionClient) => Promise<T>,
     options: UnitOfWorkOptions = {},
   ) {
-    const run = () => getDatabaseClient().$transaction(operation, {
+    const run = () => getDatabaseClient().$transaction((tx) => operation(withUserAttribution(tx)), {
       ...(options.isolationLevel ? { isolationLevel: options.isolationLevel } : {}),
       ...(options.maxWait !== undefined ? { maxWait: options.maxWait } : {}),
       ...(options.timeout !== undefined ? { timeout: options.timeout } : {}),

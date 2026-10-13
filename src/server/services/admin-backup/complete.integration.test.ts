@@ -702,7 +702,7 @@ describe('persistent imported backup nodes', () => {
       if (kind === 'relation') data.data.membershipGrants[0].userId = '99999'
       if (kind === 'path') entries.set('../escape.txt', Buffer.from('unsafe'))
       if (kind === 'missing-field') Reflect.deleteProperty(data.data.projects[0], 'readAccessMode')
-      if (kind === 'old-version' || kind === 'future-version') Reflect.set(data, 'version', kind === 'old-version' ? '2.12.0' : '2.14.0')
+      if (kind === 'old-version' || kind === 'future-version') Reflect.set(data, 'version', kind === 'old-version' ? '2.12.0' : '2.15.0')
     })
     if (kind === 'checksum') bytes[30 + bytes.readUInt16LE(26) + bytes.readUInt16LE(28)] ^= 1
     const source = await uploaded(bytes, s.admin.id), { job } = await queueCompleteImport(source.importId, s.admin.id)
@@ -813,9 +813,9 @@ describe('persistent imported backup nodes', () => {
     expect(job.status).toBe('succeeded')
     const imported = await getBackupSnapshot(source.importId)
     await previewCompleteRestore({ snapshotId: imported.id }, s.admin.id)
-    await atomicJson(recordPath('snapshots', original.id), { ...original, manifest: { ...original.manifest, databaseVersion: '2.14.0' } })
+    await atomicJson(recordPath('snapshots', original.id), { ...original, manifest: { ...original.manifest, databaseVersion: '2.15.0' } })
     const historical = (await backupHistory()).snapshots.find(item => item.id === original.id)!
-    expect(historical).toMatchObject({ restorable: false, compatibility: { status: 'unsupported', sourceVersion: '2.14.0', targetVersion: DATABASE_BACKUP_VERSION, reason: 'data-version' } })
+    expect(historical).toMatchObject({ restorable: false, compatibility: { status: 'unsupported', sourceVersion: '2.15.0', targetVersion: DATABASE_BACKUP_VERSION, reason: 'data-version' } })
     await expect(previewCompleteRestore({ snapshotId: original.id }, s.admin.id)).rejects.toMatchObject({ status: 400, data: { reason: 'BACKUP_UNSUPPORTED_FORMAT' } })
     const download = await downloadGet(request('download', { token: s.session.token }), context(original.id))
     expect(download.status).toBe(200); await download.body!.cancel()

@@ -186,8 +186,10 @@ describe('commission workflow with real SQLite transactions', () => {
   })
   it('freezes submitted attachments, detects byte tampering and preserves exact snapshots through remapped restore', async () => {
     const file = await upload('requirements.txt', 'REQUIREMENT', 'original requirements', customer)
-    expect((await getWorkflow(Number(d.id), admin)).files).toHaveLength(0)
-    await expect(downloadCommissionFile(Number(d.id), Number(file.id), admin)).rejects.toThrow('不存在')
+    expect((await getWorkflow(Number(d.id), admin)).files).toHaveLength(1)
+    await expect(getWorkflow(Number(d.id), other)).rejects.toThrow('委托不存在')
+    expect(await (await downloadCommissionFile(Number(d.id), Number(file.id), admin)).text()).toBe('original requirements')
+    await expect(downloadCommissionFile(Number(d.id), Number(file.id), other)).rejects.toThrow('委托不存在')
     await command({ action: 'submission.create', kind: 'REQUIREMENT', note: '补充需求', fileKeys: [file.key], reference: d.events[0].id }, customer)
     const before = await fixture.client.commissionSubmission.findMany({ orderBy: { sequence: 'asc' } })
     const backup = await exportCommissionCollections(fixture.client as never)

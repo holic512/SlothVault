@@ -9,6 +9,8 @@
  * @author holic512
  */
 import 'server-only'
+import { assertActiveAdministrator } from '@/server/auth/administrator'
+import { attributedOperator } from '@/lib/user-attribution'
 import type { AccessViewer } from '@/lib/content-access'
 import { resolveProjectAccess } from './content-access'
 import type { Prisma } from '@generated/prisma-postgresql/client'
@@ -155,11 +157,12 @@ export async function cancelReleaseEvidenceAttempt(input: {
   issuerUserId: number
   reason?: string
 }) {
+  await assertActiveAdministrator(prisma, input.issuerUserId)
   const attempt = await prisma.releaseCredentialAttempt.findUnique({
     where: { id: input.attemptId },
     select: { id: true, issuerUserId: true, status: true, credential: { select: { subjectType: true, subjectManifestVersion: true } } },
   })
-  if (!attempt || !isCurrentCredential(attempt.credential) || attempt.issuerUserId !== input.issuerUserId) {
+  if (!attempt || !isCurrentCredential(attempt.credential)) {
     throw new HttpError('Evidence signing attempt not found', 404, 404)
   }
   if (attempt.status !== ATTEMPT_STATUS.PREPARED) {
@@ -216,6 +219,7 @@ export async function prepareEvidence(input: {
   issuerUserId: number
 }) {
   const started = performance.now()
+  await assertActiveAdministrator(prisma, input.issuerUserId)
   evidenceLog('prepare.start', { network: input.network })
   if (input.subject.type !== 'projectVersion') {
     throw new HttpError('Unsupported evidence subject', 400, 400)
@@ -406,6 +410,7 @@ export async function submitReleaseEvidence(input: {
   issuerUserId: number
 }) {
   const started = performance.now()
+  await assertActiveAdministrator(prisma, input.issuerUserId)
   evidenceLog('submit.start', { attemptId: input.attemptId })
   try {
     const result = await submitReleaseEvidenceInternal(input)
@@ -424,7 +429,7 @@ async function submitReleaseEvidenceInternal(input: { attemptId: number; signedT
     where: { id: input.attemptId },
     include: { credential: true },
   })
-  if (!attempt || !isCurrentCredential(attempt.credential) || attempt.issuerUserId !== input.issuerUserId) {
+  if (!attempt || !isCurrentCredential(attempt.credential)) {
     throw new HttpError('Evidence signing attempt not found', 404, 404)
   }
   if (attempt.status === ATTEMPT_STATUS.FINALIZED) {
@@ -727,7 +732,7 @@ function evidenceDto(credential: Prisma.ReleaseCredentialGetPayload<{ include: t
     manifestVersion: credential.projectVersion.manifestVersion,
     versionVisible,
     subjectVisible,
-    issuer: credential.issuerUser.displayName || credential.issuerUser.username,
+    issuer: attributedOperator(credential, 'issuerUserId', credential.issuerUser).displayName || attributedOperator(credential, 'issuerUserId', credential.issuerUser).username,
     network: credential.network,
     signerAddress: credential.signerAddress,
     memo: credential.memo,

@@ -1738,7 +1738,11 @@
       "conflict": "当前资源状态已变化，请刷新后重试。",
       "serviceUnavailable": "服务暂时不可用，请稍后重试。",
       "managedFileUnavailable": "正文引用的文件尚未上传成功、已失效或内容缺失，请先完成上传再保存。",
-      "fileTypeNotAllowed": "所选分类不支持该文件格式。正文图片使用图片分类，ZIP、PDF 等使用对应的下载附件分类。"
+      "fileTypeNotAllowed": "所选分类不支持该文件格式。正文图片使用图片分类，ZIP、PDF 等使用对应的下载附件分类。",
+      "currentAdmin": "不能移除当前管理员的访问权限。",
+      "lastAdmin": "必须保留至少一个启用管理员。",
+      "userDeleteBlocked": "该账号有关联合同、委托或认领记录，不能删除。",
+      "userDeleteStale": "账号关联已变化，请刷新删除预览后重试。"
     },
     "evidenceManager": {
       "status": {
@@ -1942,7 +1946,9 @@
     },
     "users": {
       "filters": {
-        "keyword": "搜索用户名、邮箱或显示名称"
+        "keyword": "搜索用户名、邮箱或显示名称",
+        "role": "全部角色",
+        "status": "全部状态"
       },
       "actions": {
         "refresh": "刷新",
@@ -1982,7 +1988,9 @@
         "password": "重置密码",
         "points": "调整积分",
         "membership": "会员权益",
-        "delete": "删除"
+        "delete": "删除",
+        "disable": "停用",
+        "enable": "启用"
       },
       "dialog": {
         "createTitle": "新增用户",
@@ -1996,7 +2004,10 @@
         "confirmPassword": "确认密码",
         "save": "保存",
         "resetPassword": "确认重置",
-        "cancel": "取消"
+        "cancel": "取消",
+        "role": "用户角色",
+        "roleHint": "管理员可管理整个站点；角色变更会注销该账号原有会话。",
+        "currentAdminHint": "当前登录管理员的角色与启用状态受到保护。"
       },
       "messages": {
         "created": "用户已创建",
@@ -2004,12 +2015,14 @@
         "passwordReset": "密码已重置，原有登录会话已注销",
         "deleteConfirmTitle": "删除用户",
         "deleteConfirm": "确认删除用户「{name}」？",
-        "deleteNotice": "删除会停用账号并注销所有会话，历史数据会保留。",
-        "deleted": "用户已停用",
+        "deleteNotice": "此操作真正删除账号及其积分、会员和登录凭据，无法恢复；站点业务与历史归因保留。",
+        "deleted": "账号已真正删除，钱包绑定已释放",
         "adjustedPoints": "积分已调整并写入流水",
         "membershipSet": "会员权益已设置",
         "membershipRevoked": "会员权益已取消",
-        "signedOut": "当前管理员密码已重置，请重新登录"
+        "signedOut": "当前管理员密码已重置，请重新登录",
+        "disableNotice": "停用后无法登录；账号、钱包绑定和历史数据保留，可再次启用。",
+        "accessUpdated": "账号状态已更新"
       },
       "validation": {
         "username": "用户名需为 3–32 位字母、数字或下划线",
@@ -2041,6 +2054,39 @@
         "revokeType": "撤销 {name}",
         "revokeTypeConfirm": "仅撤销这一类型的有效授权，其他会员权益保留。",
         "revokeAllConfirm": "将撤销该用户全部类型的会员权益，请确认。"
+      },
+      "views": {
+        "live": "用户列表",
+        "deleted": "已删除用户"
+      },
+      "deletion": {
+        "loading": "正在检查删除条件…",
+        "cleanup": "清理账号附属记录：{count} 条",
+        "retained": "保留站点业务关联：{count} 条",
+        "wallet": "删除后原钱包可登录新账号或绑定其他账号，新账号不继承旧权益。",
+        "blockers": {
+          "CURRENT_ADMIN": "不能删除当前登录管理员。",
+          "LAST_ADMIN": "不能删除最后一个启用管理员。",
+          "CUSTOMER_CONTRACTS": "该账号作为当事人关联合同 {count} 份，不能删除。",
+          "CUSTOMER_COMMISSIONS": "该账号关联客户委托 {count} 项，不能删除。",
+          "CLAIMED_INVITATIONS": "该账号有已认领邀请 {count} 条，不能删除。"
+        },
+        "records": {
+          "sessions": "登录会话",
+          "keys": "访问密钥",
+          "points": "积分流水",
+          "memberships": "会员授权",
+          "redemptions": "兑换者关联（兑换卡保持已兑换）",
+          "avatar": "头像引用"
+        }
+      },
+      "history": {
+        "deletedAt": "删除时间",
+        "actor": "执行管理员",
+        "summary": "清理摘要",
+        "details": "查看记录",
+        "notice": "这是一条历史删除记录，不是可恢复的账号；原账号凭据和钱包绑定已移除。",
+        "keyword": "搜索已删除账号名"
       }
     },
     "mcpKeys": {

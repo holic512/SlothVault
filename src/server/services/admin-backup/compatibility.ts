@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { convertLegacyStore, legacyCollectionKeys, legacyRowSchemas } from './legacy-v2-13'
 import type { BackupCompatibility } from '@/types/backup'
 import { HttpError } from '@/server/http/errors'
 import { ACTIVE_BACKUP_COLLECTION_KEYS, DATABASE_BACKUP_VERSION } from './constants'
@@ -24,7 +25,8 @@ type BackupVersionAdapter = {
 }
 
 // Add a source-version adapter only together with its source schema, explicit conversions, and compatibility tests.
-const adapters: ReadonlyMap<string, BackupVersionAdapter> = new Map([
+const adapters: ReadonlyMap<string, BackupVersionAdapter> = new Map<string, BackupVersionAdapter>([
+  ['2.13.0', { collectionKeys: legacyCollectionKeys, parseRow: (key, value) => legacyRowSchemas.get(key)!.parse(value) as { id: string }, toCurrentPayload: store => { convertLegacyStore(store); return storedPayload(store) } }],
   [DATABASE_BACKUP_VERSION, { collectionKeys: ACTIVE_BACKUP_COLLECTION_KEYS, parseRow: parseBackupRow, toCurrentPayload: storedPayload }],
 ])
 

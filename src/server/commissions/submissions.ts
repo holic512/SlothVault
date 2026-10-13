@@ -39,7 +39,7 @@ export async function snapshotFiles(tx: Prisma.TransactionClient, commissionId: 
   const result: SnapshotAttachment[] = []
   for (const key of keys) {
     const row = rows.find((item) => item.file.fileName === key)
-    if (!row || (!row.shared && row.uploaderUserId !== actor.userId)) throw new HttpError('附件不存在、尚未发布或不属于您', 404, 404)
+    if (!row || (!actor.isAdmin && !row.shared && row.uploaderUserId !== actor.userId)) throw new HttpError('附件不存在、尚未发布或不属于您', 404, 404)
     await verifyCommissionBytes(row)
     result.push({ key, name: row.file.originalName, size: row.file.fileSize.toString(), sha256: row.sha256, purpose: row.purpose })
   }

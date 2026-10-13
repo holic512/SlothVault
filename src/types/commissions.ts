@@ -30,7 +30,7 @@ export type CommissionDocumentDto = {
   associatedFiles: Array<{ id: string; originalName: string; fileSize: string; sha256: string }>
   providerAccount: string; customerAccount: string
 }
-export type CommissionFileDto = { id: string; purpose: string; sha256: string; uploaderUserId: string; shared: boolean; originalName: string; fileSize: string; createdAt: string }
+export type CommissionFileDto = { id: string; purpose: string; sha256: string; uploaderUserId: string | null; shared: boolean; originalName: string; fileSize: string; createdAt: string }
 export type DeliveryItemDto = { id: string; fileId: string | null; label: string; url: string | null; versionNote: string }
 export type CommissionDeliveryDto = { id: string; version: string; kind: string; note: string; testInstructions: string; status: string; publishedAt: string | null; receivedAt: string | null; receiptNote: string; items: DeliveryItemDto[] }
 export type CommissionPlanDto = { id: string; key: string; kind: string; title: string; amountFen: string; dueAt: string | null; basis: string; remindedAt: string | null; receivedFen: string; refundedFen: string; netFen: string; remainingFen: string; status: string }

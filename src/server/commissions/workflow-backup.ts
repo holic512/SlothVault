@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { attributionJsonSchema } from '@/lib/user-attribution'
 import { backupSet, recordStore, recordWhere } from '@/server/services/admin-backup/record-store'
 import { z } from 'zod'
 import { canonicalJson, verifySubmissionChain } from './submissions'
@@ -23,8 +24,8 @@ const rows = <T extends z.ZodType>(schema: T) => z.array(schema).default([])
 export const workflowBackupShape = {
   commissionInvitations: rows(z.object({ id, commissionId: id, tokenHash: hash, expiresAt: date, revokedAt: date.nullable(), claimedAt: date.nullable(), claimedById: id.nullable(), createdAt: date }).strict()),
   commissionAgreements: rows(z.object({ id, publicId: z.string().uuid(), commissionId: id, kind: z.enum(['AGREEMENT', 'SUPPLEMENT']), status: z.enum(['DRAFT', 'PENDING', 'CONFIRMED', 'DECLINED', 'SUPERSEDED']), title: z.string().max(255), body: z.string().max(200000), templateJson: json, valuesJson: json, fileKeysJson: json, totalFen: z.string().regex(/^\d{1,14}$/).nullable(), maintenanceDays: z.number().int().min(1).max(3650), confirmationMode: z.enum(['ONLINE', 'OFFLINE']), publishedEventId: z.string().uuid().nullable(), confirmedAt: date.nullable(), createdAt: date }).strict()),
-  commissionSubmissions: rows(z.object({ id, publicId: z.string().uuid(), commissionId: id, sequence: z.number().int().positive(), commandId: z.string().max(255), requestHash: hash, actorUserId: id.nullable(), type: z.string().max(255), snapshotJson: json, snapshotHash: hash, previousHash: hash.nullable(), proofRevision: z.number().int().nonnegative(), createdAt: date }).strict()),
-  commissionProofAttempts: rows(z.object({ id, submissionId: id, network: z.enum(['devnet', 'mainnet']), issuerUserId: id, signerAddress: z.string().max(64), status: z.enum(['PREPARED', 'SUBMITTED', 'FINALIZED', 'FAILED', 'CANCELLED']), memo: z.string().max(1000), messageHash: hash, transactionBase64: z.string().max(2000), lastValidBlockHeight: z.string().regex(/^\d+$/), expiresAt: date, transactionSignature: z.string().max(100).nullable(), slot: z.string().regex(/^\d+$/).nullable(), blockTime: date.nullable(), feeLamports: z.string().regex(/^\d+$/).nullable(), error: z.string().max(10000).nullable(), createdAt: date, finalizedAt: date.nullable() }).strict()),
+  commissionSubmissions: rows(z.object({ attributionJson: attributionJsonSchema, id, publicId: z.string().uuid(), commissionId: id, sequence: z.number().int().positive(), commandId: z.string().max(255), requestHash: hash, actorUserId: id.nullable(), type: z.string().max(255), snapshotJson: json, snapshotHash: hash, previousHash: hash.nullable(), proofRevision: z.number().int().nonnegative(), createdAt: date }).strict()),
+  commissionProofAttempts: rows(z.object({ attributionJson: attributionJsonSchema, id, submissionId: id, network: z.enum(['devnet', 'mainnet']), issuerUserId: id.nullable(), signerAddress: z.string().max(64), status: z.enum(['PREPARED', 'SUBMITTED', 'FINALIZED', 'FAILED', 'CANCELLED']), memo: z.string().max(1000), messageHash: hash, transactionBase64: z.string().max(2000), lastValidBlockHeight: z.string().regex(/^\d+$/), expiresAt: date, transactionSignature: z.string().max(100).nullable(), slot: z.string().regex(/^\d+$/).nullable(), blockTime: date.nullable(), feeLamports: z.string().regex(/^\d+$/).nullable(), error: z.string().max(10000).nullable(), createdAt: date, finalizedAt: date.nullable() }).strict()),
 }
 export const workflowCollectionSpecs = [
   { key: 'commissionInvitations', delegate: 'commissionInvitation', refs: { commissionId: 'commissions', claimedById: 'users' }, dates: ['expiresAt', 'revokedAt', 'claimedAt', 'createdAt'], money: [] },

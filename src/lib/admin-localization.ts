@@ -65,6 +65,10 @@ export function formatAdminBytes(locale: string, value: number | string | bigint
 export function formatAdminError(error: unknown, t: AdminErrorTranslator) {
   if (error instanceof ApiClientError) {
     if (error.data && typeof error.data === 'object' && 'reason' in error.data) {
+      if (error.data.reason === 'CURRENT_ADMIN') return t('currentAdmin')
+      if (error.data.reason === 'LAST_ADMIN') return t('lastAdmin')
+      if (error.data.reason === 'USER_DELETE_BLOCKED') return t('userDeleteBlocked')
+      if (error.data.reason === 'USER_DELETE_STALE') return t('userDeleteStale')
       if (error.data.reason === 'MANAGED_FILE_UNAVAILABLE') return t('managedFileUnavailable')
       if (error.data.reason === 'FILE_TYPE_NOT_ALLOWED') return t('fileTypeNotAllowed')
     }
