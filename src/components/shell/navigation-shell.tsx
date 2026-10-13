@@ -61,7 +61,7 @@ export function NavigationShell({
           padding={0}
           outerRadius={liquid ? '999px' : '20px'}
           blur={0.25}
-          refraction={8}
+          refraction={9}
           quality="high"
         >
           {navigation}

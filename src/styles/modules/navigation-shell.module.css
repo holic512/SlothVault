@@ -47,17 +47,7 @@
 }
 
 .glass {
-  --sv-liquid-glass-tint: color-mix(in srgb, var(--sv-bg-solid) 96%, transparent);
-
   pointer-events: auto;
-}
-
-:global(.dark) .glass {
-  --sv-liquid-glass-tint: color-mix(in srgb, var(--sv-bg-solid) 96%, transparent);
-}
-
-.glass[data-glass-enabled="true"] {
-  --sv-liquid-glass-fallback: var(--sv-liquid-glass-tint);
 }
 
 .glass[data-glass-enabled="false"] {

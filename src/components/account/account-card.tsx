@@ -25,7 +25,7 @@ export function AccountCard({
       contentClassName="account-card-content"
       padding={0}
       outerRadius={20}
-      refraction={8}
+      refraction={9}
       aria-busy={loading}
     >
       {(title || extra) && <div className="account-card-heading"><h2>{title}</h2>{extra}</div>}

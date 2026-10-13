@@ -18,7 +18,7 @@ export function PopupSurface({ children, className = '', padding = 8 }: {
       className={`nav-popup-surface ${className}`}
       padding={padding}
       outerRadius={18}
-      refraction={8}
+      refraction={9}
       blur={1}
     >
       {children}

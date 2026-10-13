@@ -31,15 +31,16 @@ export type CreateLiquidGlassMapOptions = {
   devicePixelRatio?: number
 }
 
+// Keep finer edge sampling bounded; maps are rebuilt only when geometry changes.
 const QUALITY_PIXEL_BUDGET: Record<LiquidGlassQuality, number> = {
   low: 18_000,
-  auto: 48_000,
-  high: 96_000,
+  auto: 72_000,
+  high: 144_000,
 }
 
 const QUALITY_PIXEL_RATIO: Record<LiquidGlassQuality, number> = {
   low: 0.75,
-  auto: 1.25,
+  auto: 1.5,
   high: 2,
 }
 
@@ -129,11 +130,11 @@ export function createLiquidGlassMap(options: CreateLiquidGlassMapOptions): Liqu
   const halfHeight = cssHeight / 2
   const radius = clamp(finiteOr(options.radius, 0), 0, Math.min(halfWidth, halfHeight))
   const edgeWidth = Math.min(32, radius > 0 ? radius : 32, halfWidth, halfHeight)
-  // smoothStep peaks at slope 1.5. A wider lens admits the navigation's
-  // 8px refraction while keeping the sampling derivative >= 0.535
-  // (magnification < 1.87), avoiding the earlier stretched background dots.
-  // Ending the field before the corner's medial axis also avoids a seam.
-  const strength = Math.min(refraction, edgeWidth * 0.31)
+  // smoothStep peaks at slope 1.5. Limit the slightly stronger lens to a
+  // sampling derivative >= 0.49 (magnification < 2.05), so small dots stay
+  // bounded instead of stretching into lines. End the field before the
+  // corner's medial axis to retain a smooth, neutral reading area.
+  const strength = Math.min(refraction, edgeWidth * 0.34)
   // SVG offsets are scale * (channel / 255 - 0.5). Twice the peak
   // displacement encodes the full signed range without clipping either end.
   const scale = strength * 2

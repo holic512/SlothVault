@@ -74,8 +74,7 @@
 }
 
 .nav-popup-surface[data-glass-enabled="true"] {
-  --sv-liquid-glass-tint: color-mix(in srgb, var(--sv-bg-solid) 96%, transparent);
-  --sv-liquid-glass-fallback: var(--sv-liquid-glass-tint);
+  --sv-liquid-glass-tint: rgb(255 255 255 / 72%);
 }
 
 .dark .nav-popup-surface[data-glass-enabled] {
@@ -83,7 +82,7 @@
 }
 
 .dark .nav-popup-surface[data-glass-enabled="true"] {
-  --sv-liquid-glass-tint: color-mix(in srgb, var(--sv-bg-solid) 96%, transparent);
+  --sv-liquid-glass-tint: rgb(18 20 24 / 76%);
 }
 
 .theme-panel.nav-popup-surface {

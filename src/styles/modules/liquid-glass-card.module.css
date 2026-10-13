@@ -18,6 +18,7 @@
 }
 
 .root {
+  /* Keep the refractive tint separate from the denser, blur-only fallback. */
   --sv-liquid-glass-tint: rgb(255 255 255 / 14%);
   --sv-liquid-glass-rim: rgb(255 255 255 / 92%);
 
@@ -28,7 +29,7 @@
   min-height: var(--sv-liquid-glass-min-height);
   margin: var(--sv-liquid-glass-margin);
   border-radius: var(--sv-liquid-glass-outer-radius);
-  background: var(--sv-liquid-glass-fallback, color-mix(in srgb, var(--sv-bg-solid) 78%, transparent));
+  background: color-mix(in srgb, var(--sv-bg-solid) 78%, transparent);
   box-shadow: 0 3px 9px rgb(0 0 0 / 8%);
   color: var(--sv-text);
   backdrop-filter: blur(14px) saturate(1.12);

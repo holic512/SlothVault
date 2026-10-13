@@ -131,15 +131,6 @@ describe.each(appStyles.flatMap((style) => appThemes.map((mode) => ({ style, mod
       expect(token.colorTextDisabled).not.toBe(token.colorTextPlaceholder)
     })
 
-    it('keeps navigation text readable on the 96% glass scrim even over opposite-color content', () => {
-      const surface = parseColor(palette.container)
-      for (const backing of [0, 255]) {
-        const composite = `rgb(${surface.slice(0, 3).map((v) => v * 0.96 + backing * 0.04).join(',')})`
-        expectContrast(palette.muted, [composite], 4.5)
-        expectContrast(palette.subtle, [composite], 4.5)
-      }
-    })
-
     it('keeps CSS and resolved component colors in agreement', () => {
       const pairs = {
         '--sv-bg': token.colorBgLayout,

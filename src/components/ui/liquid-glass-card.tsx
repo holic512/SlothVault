@@ -82,7 +82,7 @@ export function LiquidGlassCard({
   margin = 0,
   outerRadius = '24px',
   innerRadius,
-  refraction = 4,
+  refraction = 4.5,
   blur = 0.25,
   quality = 'auto',
   className,
@@ -97,7 +97,7 @@ export function LiquidGlassCard({
   const displacementRef = useRef<SVGFEDisplacementMapElement>(null)
   const reactId = useId()
   const filterId = `sv-liquid-glass-${reactId.replace(/[^a-zA-Z0-9_-]/g, '')}`
-  const safeRefraction = clamp(Number.isFinite(refraction) ? refraction : 4, 0, 32)
+  const safeRefraction = clamp(Number.isFinite(refraction) ? refraction : 4.5, 0, 32)
   const safeBlur = clamp(Number.isFinite(blur) ? blur : 0.25, 0, 40)
   const outerRadiusValue = asCssLength(outerRadius, '24px')
   const innerRadiusValue = innerRadius === undefined
