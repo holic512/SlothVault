@@ -5,7 +5,7 @@
  * @project SlothVault
  * @module Administrator Shell
  * @description Provides a responsive, grouped Ant Design navigation shell with an authenticated administrator header.
- * @logic Group site content, resources, user benefits, commissions, integrations, and maintenance beneath a standalone dashboard, share one breadcrumb model, and mount the signing-wallet tool only for evidence and contract workflows.
+ * @logic Group site content, resources, user benefits, commissions, integrations, and maintenance alongside audience analytics and system observability without altering the standalone dashboard, share one breadcrumb model, and mount the signing-wallet tool only for evidence and contract workflows.
  * @dependencies antd, next/dynamic, next/navigation, next-intl, brand-logo, theme-controls, wallet runtime
  * @index_tags admin,layout,navigation,sidebar,branding,menu-groups
  * @author holic512
@@ -14,6 +14,8 @@ import { useMemo, useState, type ReactNode } from 'react'
 
 import { Button, Drawer, Layout, Menu, Space, Tooltip, type MenuProps } from 'antd'
 import {
+  Activity,
+  ChartNoAxesCombined,
   ArchiveRestore,
   Blocks,
   BookOpenText,
@@ -85,6 +87,7 @@ export function AdminShell({ children, branding }: { children: ReactNode; brandi
   const menuRoutes = useMemo<AdminMenuRoute[]>(
     () => [
       { group: 'overview', key: '/admin/mm', icon: <PanelsTopLeft size={16} />, label: t('menu.dashboard') },
+      { group: 'overview', key: '/admin/mm/analytics', icon: <ChartNoAxesCombined size={16} />, label: t('menu.analytics') },
       { group: 'content', key: '/admin/mm/homepage', icon: <House size={16} />, label: t('menu.homepage') },
       { group: 'content', key: '/admin/mm/articles', icon: <Newspaper size={16} />, label: t('menu.articles') },
       { group: 'content', key: '/admin/mm/projects', icon: <Blocks size={16} />, label: t('menu.projects') },
@@ -98,6 +101,7 @@ export function AdminShell({ children, branding }: { children: ReactNode; brandi
       { group: 'collaboration', key: '/admin/mm/contract-templates', icon: <FileSignature size={16} />, label: t('menu.contractTemplates') },
       { group: 'integrations', key: '/admin/mm/evidence', icon: <ArchiveRestore size={16} />, label: t('menu.solana') },
       { group: 'integrations', key: '/admin/mm/mcp', icon: <KeyRound size={16} />, label: t('menu.mcpKeys') },
+      { group: 'system', key: '/admin/mm/observability', icon: <Activity size={16} />, label: t('menu.observability') },
       { group: 'system', key: '/admin/mm/backup', icon: <ArchiveRestore size={16} />, label: t('menu.backup') },
       { group: 'system', key: '/admin/mm/settings', icon: <Settings size={16} />, label: t('menu.settings') },
     ],

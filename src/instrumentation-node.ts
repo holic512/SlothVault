@@ -3,12 +3,14 @@
  * @project SlothVault
  * @module Server Bootstrap
  * @description Initializes persistence, migrates the configured database, resolves interrupted restores, and registers local automatic backups before serving traffic.
- * @logic Persist the master key, bootstrap opt-in Compose storage, migrate and lock SQLite when needed, preserve unresolved restore evidence, and register one backup scheduler outside builds.
+ * @logic Persist the master key, bootstrap opt-in Compose storage, migrate and lock SQLite when needed, preserve unresolved restore evidence, and register isolated telemetry and one backup scheduler outside builds.
  * @dependencies master-key, database/compose-bootstrap, database/config-store, database/client, database/migrations, sqlite-instance-lock, backup scheduler
  * @index_tags nodejs,startup,migrations,master-key,sqlite,compose,single-instance,backup,recovery
  * @author holic512
  */
 import 'server-only'
+import { RESTORE_COMMIT_CONFIG_KEY } from '@/server/services/admin-backup/constants'
+import { telemetryRuntime } from '@/server/telemetry/runtime'
 
 import { initializeCommissionRuntime } from '@/server/commissions/scheduler'
 import { getMasterKey } from '@/server/config/master-key'
@@ -27,6 +29,7 @@ import {
 
 export async function initializeNodeRuntime() {
   getMasterKey()
+  telemetryRuntime()
 
   const composeBootstrap = await bootstrapComposeDatabase()
   if (composeBootstrap.enabled) {
@@ -46,7 +49,11 @@ export async function initializeNodeRuntime() {
     try {
       if (configuration.provider === 'sqlite') acquireSqliteInstanceLock()
       await upgradeConfiguredDatabaseSchema(configuration.connection)
-      getDatabaseClient()
+      const client = getDatabaseClient()
+      try {
+        const restore = await client.systemConfig.findUnique({ where: { configKey: RESTORE_COMMIT_CONFIG_KEY }, select: { configValue: true } })
+        await telemetryRuntime()?.reconcileSourceGeneration(restore?.configValue || 'initial')
+      } catch { /* Telemetry reconciliation cannot make a healthy business runtime unavailable. */ }
     } catch (error) {
       if (error instanceof SqliteInstanceLockError) {
         console.error('[startup] SQLite instance lock is already held')

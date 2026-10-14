@@ -126,7 +126,7 @@ export function ProjectDocumentContent({ content, outlineLabel, projectId, canDo
           </nav>
         </details>
       )}
-      <div ref={documentRef}><MarkdownView content={content} projectId={projectId} canDownload={canDownload} downloadMessage={downloadMessage} /></div>
+      <div ref={documentRef} data-telemetry-reader="true"><MarkdownView content={content} projectId={projectId} canDownload={canDownload} downloadMessage={downloadMessage} /></div>
     </div>
   )
 }

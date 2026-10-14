@@ -3,11 +3,12 @@
  * @project SlothVault
  * @module Upload Runtime
  * @description Serves contained managed uploads after checking current reading or download permissions for GET and HEAD.
- * @logic Validate paths, authorize real live references before reading bytes, use private responses, and attach download formats without MIME sniffing.
+ * @logic Validate paths, authorize real live references before reading bytes, use private responses, attach download formats without MIME sniffing, and enqueue privacy-safe request/wait/handler timings.
  * @dependencies Next Route Handlers, file-access, admin file storage service, maintenance-lock
  * @index_tags uploads,permissions,path-containment,get,head,security-headers,maintenance-lock
  * @author holic512
  */
+import { createRequestProbe } from '@/server/telemetry/request'
 import { HttpError } from '@/server/http/errors'
 import type { NextRequest } from 'next/server'
 import { getRequestViewer } from '@/server/auth/viewer'
@@ -88,10 +89,18 @@ async function serveUpload(request: NextRequest, context: UploadRouteContext, he
   }
 }
 
-export async function GET(request: NextRequest, context: UploadRouteContext) {
-  return withMaintenanceLock('shared', () => serveUpload(request, context, false))
+async function measuredUpload(request: NextRequest, context: UploadRouteContext, headOnly: boolean) {
+  const probe = createRequestProbe(request), waitStarted = performance.now()
+  try {
+    const response = await withMaintenanceLock('shared', async () => {
+      probe?.wait(performance.now() - waitStarted)
+      const started = performance.now()
+      try { return await serveUpload(request, context, headOnly) }
+      finally { probe?.handler(performance.now() - started) }
+    })
+    probe?.finish(response.status)
+    return response
+  } catch (error) { probe?.finish(500); throw error }
 }
-
-export async function HEAD(request: NextRequest, context: UploadRouteContext) {
-  return withMaintenanceLock('shared', () => serveUpload(request, context, true))
-}
+export async function GET(request: NextRequest, context: UploadRouteContext) { return measuredUpload(request, context, false) }
+export async function HEAD(request: NextRequest, context: UploadRouteContext) { return measuredUpload(request, context, true) }

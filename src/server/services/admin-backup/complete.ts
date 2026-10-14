@@ -3,12 +3,13 @@
  * @project SlothVault
  * @module Complete Backup Operations
  * @description Coordinates generated and imported snapshots, administrator-bound previews, protected restores, and retention.
- * @logic Serialize operations, validate and publish imported archives without restoring, recheck compatible restore sources, and retain committed results despite cleanup failures.
+ * @logic Serialize operations, validate and publish imported archives without restoring, recheck compatible restore sources, rotate isolated telemetry epochs after committed restores, and retain committed results despite cleanup failures.
  * @dependencies private backup store, archive validation, restore journal, database unit-of-work, maintenance lock
  * @index_tags backup,restore,jobs,preflight,retention,transaction
  * @author holic512
  */
 import 'server-only'
+import { rotateTelemetryEpoch } from '@/server/telemetry/runtime'
 import { randomUUID } from 'node:crypto'
 import { lstat, rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
@@ -243,6 +244,7 @@ export async function runCompleteRestore(job: BackupJob, previewId: string, sess
         job.warnings.push('COMMIT_ACK_UNCERTAIN')
       }
       if (committed) {
+        await rotateTelemetryEpoch(job.id)
         job.warnings.push(...await invalidateBackupCaches())
         try { await updateBackupJob(job, { phase: 'cleaning' }) } catch { job.warnings.push('JOB_STATE_WRITE_FAILED') }
         try { await reconcileRestoreJournal(journal, true) } catch { job.warnings.push('RESTORE_CLEANUP_FAILED') }

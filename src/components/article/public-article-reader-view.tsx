@@ -71,7 +71,7 @@ export async function PublicArticleReaderView({
                     {article.viewerAuthenticated ? t('membershipAction') : t('loginAction')}
                   </Link>
                 </section>
-              ) : <MarkdownView content={article.content || ''} />}
+              ) : <div data-telemetry-reader="true"><MarkdownView content={article.content || ''} /></div>}
             </div>
           </article>
         </div>

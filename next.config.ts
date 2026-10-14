@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
     unoptimized: true,
   },
   serverExternalPackages: [
+    'better-sqlite3',
     '@prisma/adapter-better-sqlite3',
     '@prisma/adapter-mariadb',
     '@prisma/adapter-pg',
@@ -41,6 +42,11 @@ const nextConfig: NextConfig = {
       'prisma/providers/sqlite/schema.prisma',
       'prisma/providers/sqlite/migrations/**/*',
       'prisma.config.ts',
+      'scripts/telemetry-worker.mjs',
+      'scripts/telemetry-store.mjs',
+      'node_modules/better-sqlite3/**/*',
+      'node_modules/bindings/**/*',
+      'node_modules/file-uri-to-path/**/*',
     ],
   },
   outputFileTracingExcludes: {

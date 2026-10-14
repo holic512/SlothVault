@@ -7,7 +7,7 @@ type HomeData = { id: string; projectId: string; content: string; updatedAt: str
 export function ProjectHomeView({ home, access }: { home: HomeData; access: ProjectAccess }) {
   return (
     <main className="project-home-main">
-      <div className="project-home-container">
+      <div className="project-home-container" data-telemetry-reader={access.canRead ? 'true' : undefined}>
         <ProjectAccessNotice access={access} capability={access.canRead ? 'download' : 'read'} />
         <MarkdownView content={home.content} projectId={home.projectId} canDownload={access.canDownload} className="project-home-markdown" presentation="landing" />
       </div>
