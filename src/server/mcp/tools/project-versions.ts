@@ -162,27 +162,29 @@ export const projectVersionToolDefinitions: McpToolDefinition[] = collectMcpTool
   server.defineTool(
     'content.project.version.clone',
     {
-      title: '从发布版本创建草稿',
-      description: '从同一项目的未删除发布版本复制完整文档树，创建新草稿或填入同项目的完全空草稿。',
+      title: '复制项目版本为草稿',
+      description: '从同一项目版本完整复制文档树到新草稿或完全空草稿；默认仅发布版。复制草稿须显式 allowDraftSource=true 并提供 expectedSourceRevision，旧版本内容保留。',
       inputSchema: z.strictObject({
         projectId: decimalIdSchema,
         sourceVersionId: decimalIdSchema,
+        allowDraftSource: z.boolean().optional(),
+        expectedSourceRevision: z.number().int().nonnegative().optional(),
         version: z.string().trim().min(1).max(64).optional(),
         targetVersionId: decimalIdSchema.optional(),
         description: z.string().nullable().optional(),
         weight: databaseIntegerSchema.optional(),
-      }).refine((value) => value.targetVersionId !== undefined
+      }).refine(value => !value.allowDraftSource || value.expectedSourceRevision !== undefined, { message: '复制草稿必须提供 expectedSourceRevision。' }).refine((value) => value.targetVersionId !== undefined
         ? value.version === undefined && value.description === undefined && value.weight === undefined
         : value.version !== undefined, { message: '提供新版本号，或仅提供目标草稿 ID。' }),
       outputSchema: projectVersionOutputSchema,
       annotations: CREATE_ANNOTATIONS,
     },
-    async ({ projectId, sourceVersionId, version, description, weight, targetVersionId }) =>
+    async ({ projectId, sourceVersionId, version, description, weight, targetVersionId, allowDraftSource, expectedSourceRevision }) =>
       runMcpTool('content.project.version.clone', async () => {
         const parsedProjectId = mcpId(projectId, 'projectId')
         const parsedSourceId = mcpId(sourceVersionId, 'sourceVersionId')
         const source = await getAdminProjectVersion(parsedSourceId)
-        if (source.isDeleted || !source.publishedAt) {
+        if (source.isDeleted || (!source.publishedAt && !allowDraftSource)) {
           throw new HttpError('Clone source must be an undeleted published version', 409, 409, {
             reason: 'VERSION_NOT_PUBLISHED',
             projectVersionId: sourceVersionId,
@@ -196,6 +198,8 @@ export const projectVersionToolDefinitions: McpToolDefinition[] = collectMcpTool
           })
         }
         return cloneProjectVersion(parsedSourceId, {
+          ...(allowDraftSource ? { allowDraftSource: true } : {}),
+          ...(expectedSourceRevision !== undefined ? { expectedSourceRevision } : {}),
           ...(targetVersionId !== undefined ? { targetVersionId: mcpId(targetVersionId, 'targetVersionId') } : { version }),
           ...(description !== undefined ? { description } : {}),
           ...(weight !== undefined ? { weight } : {}),

@@ -36,7 +36,7 @@ for (const key of legacyCollectionKeys) {
   let array: z.ZodType = container
   while (!(array instanceof z.ZodArray) && 'unwrap' in array) array = (array as z.ZodDefault<z.ZodType>).unwrap()
   if (!(array instanceof z.ZodArray) || !(array.element instanceof z.ZodObject)) throw new Error('Invalid registered backup collection')
-  let row = array.element
+  let row = key === 'projectVersions' ? array.element.omit({ documentationStateJson: true }) : array.element
   if (key === 'users') row = row.omit({ usernameChangeMonth: true, usernameChangeCount: true, credentialsRevision: true })
   if (attributionCollections[key]) row = row.omit({ attributionJson: true })
   for (const field of formerlyRequired[key] ?? []) {

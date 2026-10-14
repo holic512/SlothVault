@@ -174,7 +174,7 @@ describe('database backup release validation', () => {
     })
     data.projectVersions.push({
       id: '2', projectId: '1', version: 'published', description: null, weight: 1, status: 1,
-      releaseId: 'b98bce11-168d-4d74-bfc0-975e083c3fe3', ...snapshot('published'), manifestVersion: 3, publishedAt: timestamp,
+      releaseId: 'b98bce11-168d-4d74-bfc0-975e083c3fe3', ...snapshot('published'), documentationStateJson: null, manifestVersion: 3, publishedAt: timestamp,
       createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
     })
     data.categories.push({
@@ -205,7 +205,7 @@ describe('content manifest v3 backup contract', () => {
     data.projectVersions = [1, 2].map(id => ({
       id: String(id), projectId: '1', version: `v${id}`, description: null, weight: 0,
       status: 1, releaseId: `550e8400-e29b-41d4-a716-44665544000${id}`,
-      ...snapshot(`v${id}`), manifestVersion: 3, publishedAt: timestamp,
+      ...snapshot(`v${id}`), documentationStateJson: null, manifestVersion: 3, publishedAt: timestamp,
       createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
     }))
     expect(parseDatabaseImportPayload({ data, version: '2.7.0' }).data.projectVersions).toHaveLength(2)

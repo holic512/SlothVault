@@ -44,7 +44,7 @@ const noteContentVersionOutputSchema = z.object({
   isDeleted: z.boolean(),
 })
 
-const noteContentOutputSchema = noteContentVersionOutputSchema.extend({
+export const noteContentOutputSchema = noteContentVersionOutputSchema.extend({
   content: z.string(),
 })
 

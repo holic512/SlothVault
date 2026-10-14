@@ -274,7 +274,7 @@ describe('administrator MCP server', () => {
       listReductionPercent: Number(((1 - after / before) * 100).toFixed(2)), oldLocateAndReadCalls: 1, newLocateAndReadCalls: 2 }) + '\n')
   })
 
-  it('publishes the 5.0 identity and the complete safe daily-management tool registry', async () => {
+  it('publishes the 5.1 identity and the complete safe daily-management tool registry', async () => {
     const initialize = await resultOf({
       jsonrpc: '2.0', id: 1, method: 'initialize',
       params: {
@@ -283,7 +283,7 @@ describe('administrator MCP server', () => {
       },
     })
     expect(initialize).toMatchObject({
-      result: { serverInfo: { name: 'slothvault-admin-mcp', version: '5.0.0' } },
+      result: { serverInfo: { name: 'slothvault-admin-mcp', version: '5.1.0' } },
     })
 
     const listed = await resultOf({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} })
@@ -294,6 +294,7 @@ describe('administrator MCP server', () => {
       'content.project.version.clone', 'content.project.version.check_draft',
       'content.project.version.integrity', 'content.project.version.manifest',
       'content.project.version.update', 'content.project.version.publish', 'content.project.version.set_visibility',
+      'content.project.version.outline', 'content.note.content.get_many', 'content.project.version.apply_draft',
       'content.category.list', 'content.category.create', 'content.category.update',
       'content.note.list', 'content.note.get', 'content.note.create', 'content.note.update',
       'content.note.tag.list', 'content.note.tag.add', 'content.note.tag.rename', 'content.note.tag.remove',
@@ -748,9 +749,9 @@ describe('SDK protocol simulation through the /mcp route', () => {
     mocks.listAdminProjects.mockResolvedValue({ list: [project({ latestVersion: "v1", latestVersionId: "11", categoryCount: 2 })], page: 1, pageSize: 20, total: 1 })
     try {
       await client.connect(transport)
-      expect(client.getServerVersion()).toEqual({ name: 'slothvault-admin-mcp', version: '5.0.0' })
+      expect(client.getServerVersion()).toEqual({ name: 'slothvault-admin-mcp', version: '5.1.0' })
       expect(client.getInstructions()).toBe(ADMIN_MCP_INSTRUCTIONS)
-      expect((await client.listTools()).tools).toHaveLength(71)
+      expect((await client.listTools()).tools).toHaveLength(74)
       expect((await client.listPrompts()).prompts).toHaveLength(4)
       expect((await client.listResourceTemplates()).resourceTemplates).toHaveLength(2)
       expect((await client.listResources()).resources).toEqual([])

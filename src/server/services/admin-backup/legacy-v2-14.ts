@@ -20,7 +20,7 @@ for (const key of walletLegacyCollectionKeys) {
   let schema: z.ZodType = backupDataSchema.shape[key]
   while (!(schema instanceof z.ZodArray) && 'unwrap' in schema) schema = (schema as z.ZodDefault<z.ZodType>).unwrap()
   if (!(schema instanceof z.ZodArray) || !(schema.element instanceof z.ZodObject)) throw new Error('Invalid legacy backup collection')
-  const row = key === 'users' ? schema.element.omit({ usernameChangeMonth: true, usernameChangeCount: true, credentialsRevision: true }) : schema.element
+  const row = key === 'projectVersions' ? schema.element.omit({ documentationStateJson: true }) : key === 'users' ? schema.element.omit({ usernameChangeMonth: true, usernameChangeCount: true, credentialsRevision: true }) : schema.element
   walletLegacyRowSchemas.set(key, row)
   source[key] = backupDataSchema.shape[key].isOptional() ? z.array(row).default([]) : z.array(row)
 }

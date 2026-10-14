@@ -6,7 +6,7 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const toolDirectory = path.join(projectRoot, 'src', 'server', 'mcp', 'tools')
 const outputPath = path.join(projectRoot, 'docs', 'MCP_REGISTRY.md')
 
-const EXPECTED_TOOL_COUNT = 71
+const EXPECTED_TOOL_COUNT = 74
 const TOOL_ANNOTATION_METADATA = {
   READ_ONLY_ANNOTATIONS: { risk: 'read', idempotency: 'idempotent' },
   CREATE_ANNOTATIONS: { risk: 'write', idempotency: 'non-idempotent' },
@@ -87,6 +87,15 @@ function render() {
       `| \`${resource.name}\` | \`${resource.uriTemplate}\` | \`${resource.mimeType}\` | ${resource.maxNameLength} | ${resource.maxBytes} |`),
     '',
     'This document is generated from the declaration registry. CI must run `npm run mcp:docs:check` and fail when the checked-in output is stale.',
+    '',
+    '## 项目文档同步',
+    '',
+    '`content.project.version.outline` 按页返回稳定键、主正文 ID、修订号与基线；不返回正文，每页最多 50。',
+    '`content.note.content.get_many` 显式读取最多 20 个正文 ID，正文 UTF-8 合计最多 512 KiB；超限拆批，不截断。',
+    '`content.project.version.apply_draft` 原子执行最多 20 项分类/笔记变更，检查 expectedRevision；超时先回读索引。',
+    'targetBaseline 与 plannedDocumentKeys 开始待完成同步；所有键完成、文档树及集中更新日志通过后 finalize 才确认基线。未完成同步不能发布。',
+    'clone 默认只复制发布版。allowDraftSource=true 与 expectedSourceRevision 显式允许复制草稿，保留旧内容并重映射实体与同版本文档链接。',
+    '文档管理元数据仅草稿可写，不改变既有 Manifest v3 哈希语义；旧接口仍可用。',
     '',
     '## 笔记标签',
     '',

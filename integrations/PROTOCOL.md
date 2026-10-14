@@ -17,7 +17,7 @@
 
 `POST /mcp` 使用 Streamable HTTP 和 `Authorization: Bearer <SlothVault MCP Key>`。Session 不作为 MCP 凭据。每次请求重验 Key 和管理员账户；缺失、无效、过期、停用 Key 或非管理员返回 401，未安装/维护返回 503，现有维护锁保留。
 
-SDK 初始化协商日期协议，当前 serverInfo 为 `slothvault-admin-mcp@5.0.0`。产品仅支持 Codex、Claude Code 原生 MCP 客户端；服务端按管理员 MCP Key 鉴权，不以 clientInfo.name、客户端版本或 User-Agent 判断准入。instructions 提供业务指导。67 个 Tool、4 个 Prompt、2 个 Resource 模板按实时目录发现。当前无独立 SSE 会话流，GET/DELETE 返回 405；宿主可通过 POST 完成发现、调用与 Resource 读取。
+SDK 初始化协商日期协议，当前 serverInfo 为 `slothvault-admin-mcp@5.1.0`。产品仅支持 Codex、Claude Code 原生 MCP 客户端；服务端按管理员 MCP Key 鉴权，不以 clientInfo.name、客户端版本或 User-Agent 判断准入。instructions 提供业务指导。74 个 Tool、4 个 Prompt、2 个 Resource 模板按实时目录发现。当前无独立 SSE 会话流，GET/DELETE 返回 405；宿主可通过 POST 完成发现、调用与 Resource 读取。
 
 退役客户端、兼容路由与本地数据的迁移说明统一见 [集成架构](./ARCHITECTURE.md#退役和本地遗留数据)。
 

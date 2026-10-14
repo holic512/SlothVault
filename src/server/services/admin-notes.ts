@@ -2,7 +2,7 @@
  * @file admin-notes.ts
  * @project SlothVault
  * @module Admin Notes
- * @description Owns note metadata and draft-only tags, and frozen published bodies, full or lightweight NoteContent queries, and serialized primary-version mutations for administration APIs and MCP.
+ * @description Owns transaction-reusable primary content writes, note metadata and draft-only tags, and frozen published bodies, full or lightweight NoteContent queries, and serialized primary-version mutations for administration APIs and MCP.
  * @logic Validate uploaded material before new body writes and synchronize managed file references and parent moves; Keep history listings free of Markdown payloads, lock every owning project version before writes, lock cross-version moves in stable order, increment note revisions, and normalize undeleted contents to exactly one primary in the same serializable transaction.
  * @dependencies server/prisma, admin-catalog parsing, Prisma NoteInfo/NoteContent models, server/http/errors, project-version release service
  * @index_tags admin,mcp,notes,note-content,service,transaction,revision-lock,primary-version
@@ -459,7 +459,7 @@ async function lockActiveNoteInfo(tx: Prisma.TransactionClient, noteInfoId: numb
   if (!noteInfo) throw new HttpError('NoteInfo not found', 404, 404)
 }
 
-async function normalizePrimaryContent(
+export async function normalizePrimaryContent(
   tx: Prisma.TransactionClient,
   noteInfoId: number,
   options: { preferredId?: number; forceLatest?: boolean } = {},
@@ -505,6 +505,19 @@ async function normalizePrimaryContent(
       data: { isPrimary: true, updatedAt: now },
     }))
   }
+}
+
+/** The caller must hold the owning draft version lock. */
+export async function writeDraftPrimaryContent(tx: Prisma.TransactionClient, noteInfoId: number, input: { content: string; versionNote?: string | null }) {
+  const primary = await tx.noteContent.findFirst({ where: { noteInfoId, isDeleted: false, isPrimary: true } })
+  if (primary && primary.content === input.content && (input.versionNote === undefined || primary.versionNote === input.versionNote)) return primary
+  await lockActiveNoteInfo(tx, noteInfoId)
+  await assertManagedContentFiles(tx, input.content)
+  const written = primary
+    ? await indexFileWrite(tx, 'NOTE_CONTENT', tx.noteContent.update({ where: { id: primary.id }, data: { content: input.content, ...(input.versionNote !== undefined ? { versionNote: input.versionNote } : {}) } }))
+    : await indexFileWrite(tx, 'NOTE_CONTENT', tx.noteContent.create({ data: { noteInfoId, content: input.content, versionNote: input.versionNote ?? null, isPrimary: false, status: 1 } }))
+  await normalizePrimaryContent(tx, noteInfoId, { preferredId: written.id })
+  return tx.noteContent.findUniqueOrThrow({ where: { id: written.id } })
 }
 
 export async function createNoteContent(input: CreateNoteContentInput) {

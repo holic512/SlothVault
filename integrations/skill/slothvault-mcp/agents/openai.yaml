@@ -1,6 +1,6 @@
 interface:
   display_name: "SlothVault MCP"
-  short_description: "SlothVault native MCP for Codex and Claude Code"
+  short_description: "Create and update SlothVault project docs via native MCP"
   default_prompt: "Use $slothvault-mcp with the current Codex or Claude Code host's connected native MCP tools to complete the requested operation."
 
 policy:

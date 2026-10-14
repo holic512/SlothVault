@@ -3,12 +3,13 @@
  * @project SlothVault
  * @module Project Version Release
  * @description Owns publication, content integrity, metadata locks, and atomic cloning into new or empty drafts.
- * @logic Serialize draft writes through a version revision lock, share publishability validation with non-mutating preflight, atomically save an immutable v3 publication snapshot, rebuild it using the frozen name for verification, and clone frozen trees into new drafts.
+ * @logic Serialize draft writes through a version revision lock, share publishability validation with non-mutating preflight, atomically save an immutable v3 publication snapshot, rebuild it using the frozen name for verification, and clone published or explicitly revision-locked draft trees with remapped documentation identities.
  * @dependencies node:crypto, Prisma transactions, database unit-of-work, public project cache
  * @index_tags project-version,release,manifest,sha256,publication,preflight,integrity,clone,transaction
  * @author holic512
  */
 import 'server-only'
+import { readDocumentationState, remapDocumentationState, remapDocumentationLinks } from '@/lib/project-documentation'
 import type { AccessViewer } from '@/lib/content-access'
 import { resolveProjectAccess, requireProjectCapability } from './content-access'
 import { indexFileWrite, syncFileReferences } from './file-references'
@@ -69,9 +70,13 @@ function inactiveProjectIssues(project: Pick<ReleaseTreeSource['project'], 'id' 
   ]
 }
 
-function buildPublishableRelease(source: ReleaseTreeSource): BuiltRelease {
+export function buildPublishableRelease(source: ReleaseTreeSource & { documentationStateJson?: string | null }): BuiltRelease {
+  const documentationIssues: ReleaseIssue[] = []
+  try {
+    if (readDocumentationState(source.documentationStateJson).pending) documentationIssues.push(issue('DOCUMENTATION_SYNC_INCOMPLETE', 'projectVersion', source.id, 'Documentation baseline is still pending'))
+  } catch { documentationIssues.push(issue('DOCUMENTATION_STATE_INVALID', 'projectVersion', source.id, 'Documentation metadata is invalid')) }
   const built = buildReleaseManifest(source)
-  const issues = [...inactiveProjectIssues(source.project), ...built.issues].sort(issueCompare)
+  const issues = [...inactiveProjectIssues(source.project), ...built.issues, ...documentationIssues].sort(issueCompare)
   if (issues.length > 0) return { manifest: null, bytes: null, hash: null, issues }
   return built
 }
@@ -79,7 +84,7 @@ function buildPublishableRelease(source: ReleaseTreeSource): BuiltRelease {
 export async function loadReleaseTree(
   reader: DatabaseReader,
   projectVersionId: number,
-): Promise<ReleaseTreeSource | null> {
+): Promise<(ReleaseTreeSource & { documentationStateJson?: string | null }) | null> {
   return reader.projectVersion.findUnique({
     where: { id: projectVersionId },
     select: {
@@ -88,6 +93,7 @@ export async function loadReleaseTree(
       description: true,
       weight: true,
       publishedAt: true,
+      documentationStateJson: true,
       isDeleted: true,
       project: { select: { id: true, projectName: true, status: true, isDeleted: true } },
       categories: {
@@ -567,15 +573,24 @@ export async function getProjectVersionManifest(
 
 export async function cloneProjectVersion(
   projectVersionId: number,
-  input: { version?: string; description?: string | null; weight?: number; targetVersionId?: number },
+  input: { version?: string; description?: string | null; weight?: number; targetVersionId?: number; allowDraftSource?: boolean; expectedSourceRevision?: number },
 ) {
+  if (input.targetVersionId === projectVersionId) throw new HttpError('Clone target cannot be its source', 409, 409, { reason: 'CLONE_TARGET_IS_SOURCE' })
   const versionLabel = input.version?.trim()
   if (input.targetVersionId !== undefined ? input.version !== undefined || input.description !== undefined || input.weight !== undefined : !versionLabel) {
     throw new HttpError('Choose a new version or an existing empty draft', 400, 400)
   }
 
   return executeVersionWrite(async (tx) => {
-    await lockPublishedProjectVersion(tx, projectVersionId)
+    const initial = await tx.projectVersion.findUnique({ where: { id: projectVersionId }, select: { publishedAt: true, documentRevision: true, isDeleted: true, documentationStateJson: true, project: { select: { isDeleted: true } } } })
+    if (!initial || initial.isDeleted || initial.project?.isDeleted) throw new HttpError('ProjectVersion not found', 404, 404)
+    if (input.expectedSourceRevision !== undefined && initial.documentRevision !== input.expectedSourceRevision) throw new HttpError('Source version changed', 409, 409, { reason: 'VERSION_WRITE_CONFLICT' })
+    if (!initial.publishedAt) {
+      if (!input.allowDraftSource || input.expectedSourceRevision === undefined) throw new HttpError('Clone source is not published', 409, 409, { reason: 'VERSION_NOT_PUBLISHED' })
+      if (readDocumentationState(initial.documentationStateJson).pending) throw new HttpError('Source documentation update is incomplete', 409, 409, { reason: 'SOURCE_DOCUMENTATION_SYNC_INCOMPLETE' })
+      const locked = await tx.projectVersion.updateMany({ where: { id: projectVersionId, isDeleted: false, publishedAt: null, documentRevision: input.expectedSourceRevision }, data: { documentRevision: { increment: 1 } } })
+      if (locked.count !== 1) throw new HttpError('Source version changed', 409, 409, { reason: 'VERSION_WRITE_CONFLICT' })
+    } else await lockPublishedProjectVersion(tx, projectVersionId)
     const source = await tx.projectVersion.findUnique({
       where: { id: projectVersionId },
       include: {
@@ -590,7 +605,7 @@ export async function cloneProjectVersion(
         },
       },
     })
-    if (!source || source.isDeleted || !source.publishedAt) {
+    if (!source || source.isDeleted || (!source.publishedAt && !input.allowDraftSource)) {
       throw new HttpError('Project version is not published', 409, 409, {
         reason: 'VERSION_NOT_PUBLISHED',
       })
@@ -626,6 +641,8 @@ export async function cloneProjectVersion(
       })
     }
 
+    const categoryIds = new Map<number, number>(), noteIds = new Map<number, number>()
+    const pendingContents: Array<{ noteInfoId: number; contents: typeof source.categories[number]['noteInfos'][number]['contents'] }> = []
     for (const category of source.categories) {
       const clonedCategory = await tx.category.create({
         data: {
@@ -635,6 +652,7 @@ export async function cloneProjectVersion(
           status: category.status,
         },
       })
+      categoryIds.set(category.id, clonedCategory.id)
       for (const note of category.noteInfos) {
         const clonedNote = await tx.noteInfo.create({
           data: {
@@ -647,19 +665,18 @@ export async function cloneProjectVersion(
             status: note.status,
           },
         })
-        for (const content of note.contents) {
-          await indexFileWrite(tx, 'NOTE_CONTENT', tx.noteContent.create({
-            data: {
-              noteInfoId: clonedNote.id,
-              content: content.content,
-              versionNote: content.versionNote,
-              isPrimary: content.isPrimary,
-              status: content.status,
-            },
-          }))
-        }
+        noteIds.set(note.id, clonedNote.id)
+        pendingContents.push({ noteInfoId: clonedNote.id, contents: note.contents })
       }
     }
+    for (const item of pendingContents) {
+      for (const content of item.contents) {
+        const body = remapDocumentationLinks(content.content, source.projectId, source.id, created.id, noteIds)
+        await indexFileWrite(tx, 'NOTE_CONTENT', tx.noteContent.create({ data: { noteInfoId: item.noteInfoId, content: body, versionNote: content.versionNote, isPrimary: content.isPrimary, status: content.status } }))
+      }
+    }
+    const documentationStateJson = remapDocumentationState(source.documentationStateJson, categoryIds, noteIds, undefined, source.id)
+    if (documentationStateJson !== null) await tx.projectVersion.update({ where: { id: created.id }, data: { documentationStateJson } })
 
     return {
       id: String(created.id),

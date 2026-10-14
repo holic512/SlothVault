@@ -9,6 +9,8 @@
  * @author holic512
  */
 import 'server-only'
+import { readDocumentationState } from '@/lib/project-documentation'
+import { convertDocumentationPayload } from './legacy-v2-15'
 import { convertWalletPayload } from './legacy-v2-14'
 import { DATABASE_BACKUP_VERSION } from './constants'
 import { PublicKey } from '@solana/web3.js'
@@ -126,6 +128,21 @@ export function validateBackupRelations(data: BackupData) {
   mapById('contractAdminAudit', data.contractAdminAudits)
   const contractCredentials = mapById('contractCredential', data.contractCredentials)
   mapById('contractCredentialAttempt', data.contractCredentialAttempts)
+
+  for (const version of projectVersions.values()) {
+    const state = readDocumentationState(version.documentationStateJson)
+    if (version.publishedAt && state.pending) invalidBackup('published version has an unfinished documentation sync')
+    const previous = state.clonedFromVersionId ? projectVersions.get(state.clonedFromVersionId) : null
+    if (previous && previous.projectId !== version.projectId) invalidBackup('documentation source belongs to another project')
+    for (const binding of state.categories) {
+      const category = categories.get(binding.categoryId)
+      if (!category || category.projectVersionId !== version.id) invalidBackup('documentation category belongs to another version')
+    }
+    for (const binding of state.documents) {
+      const note = noteInfos.get(binding.noteId)
+      if (!note || categories.get(note.categoryId)?.projectVersionId !== version.id) invalidBackup('documentation note belongs to another version')
+    }
+  }
 
   if (data.users.length > 0 && !data.users.some((user) => user.role === 'ADMIN')) {
     invalidBackup('user collection does not contain an administrator')
@@ -470,6 +487,7 @@ export function validateBackupRelations(data: BackupData) {
 export function parseDatabaseImportPayload(input: unknown): DatabaseImportPayload {
   if (input && typeof input === 'object' && 'version' in input && input.version === '2.13.0') input = { version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data: convertLegacyPayload(input) }
   if (input && typeof input === 'object' && 'version' in input && input.version === '2.14.0') input = { version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data: convertWalletPayload(input) }
+  if (input && typeof input === 'object' && 'version' in input && input.version === '2.15.0') input = { version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data: convertDocumentationPayload(input) }
   const source = input as { data?: Record<string, unknown> }
   if (!source?.data || ACTIVE_BACKUP_COLLECTION_KEYS.some(key => !Array.isArray(source.data![key]))) invalidBackup('complete backup is missing a collection')
   const parsed = databaseImportPayloadSchema.safeParse(input)

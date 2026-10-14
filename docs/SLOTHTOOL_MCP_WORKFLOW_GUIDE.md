@@ -1,6 +1,6 @@
 # Codex / Claude Code 原生 MCP 管理流程
 
-本版本支持 SlothVault MCP `5.0.0`：67 个工具、4 个 Prompt、2 个受保护 Resource 模板。Codex / Claude Code 应按需读取实时目录；本文中的工具名是本版本示例。
+本版本支持 SlothVault MCP `5.1.0`：74 个工具、4 个 Prompt、2 个受保护 Resource 模板。Codex / Claude Code 应按需读取实时目录；本文中的工具名是本版本示例。
 
 ## 连接与授权
 
@@ -61,3 +61,12 @@ slothtool slothvault skill update
 ## 委托项目工作流
 
 先核对普通用户账户，调用 `admin.commission.create` 建立草稿；也可以不指定用户，之后在网页邀请认领。`admin.commission.get` 提供最新 revision、冻结时间轴和可用操作，`admin.commission.update` 仅编辑草稿名称与需求。使用 `admin.contract-template.list` 读取 Markdown 模板，用 `admin.commission.document.draft.create` 保存合同或补充协议草稿。每次写请求保留 commandId，冲突时重新读取 revision。正式提交、合同确认、支付比例调整、交付与维护在委托网页完成。旧阶段更新和独立合同发起工具均已删除。
+
+
+## 当前项目文档的自动更新
+
+启用 `slothvault-mcp` Skill 后，在项目目录提出“创建项目文档到 SlothVault”或“更新项目文档”。默认保存草稿，不发布；新版本完整复制上一版，再按当前检出的 Commit 差异修订。草稿也可作为来源，但必须显式传复制许可和来源修订号。
+
+`outline` 按页返回轻量文档树、主正文 ID、稳定文档键及机器基线；`get_many` 只读取指定正文；`apply_draft` 每批最多 20 项、正文 512 KiB，在事务内检查修订号。所有计划文档和集中更新日志完成后，`finalize` 才确认源码基线；未完成同步不能发布。批写只返回本批文档映射，断点恢复从索引回读，不重新创建。
+
+项目检查脚本与整套文档校验脚本均只读、不联网、不执行教程命令。基线与执行日志保留在管理元数据或本地审计材料中，不放进普通教程。详见 [项目文档工作流](../integrations/skill/slothvault-mcp/references/project-documentation.md)。

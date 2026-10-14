@@ -2,13 +2,14 @@
  * @file database-schema.ts
  * @project SlothVault
  * @module Admin Database Backup Schema
- * @description Defines the portable 2.15 database-backup shape with membership entitlements, independent articles, contracts, project-version evidence, and current business records.
- * @logic Validate active collections strictly, retain v3 publication snapshots, note tags, member access and standalone blog content, include multi-wallet bindings and username quotas, and require the current data version and full overwrite restoration.
+ * @description Defines the portable 2.16 database-backup shape with membership entitlements, independent articles, contracts, project-version evidence, and current business records.
+ * @logic Validate active collections strictly, retain v3 publication snapshots, note tags, member access and standalone blog content, include source documentation baselines, multi-wallet bindings and username quotas, and require the current data version and full overwrite restoration.
  * @dependencies Zod, Node path rules, backup constants
  * @index_tags admin,backup,database,schema,zod,portable
  * @author holic512
  */
 import 'server-only'
+import { readDocumentationState } from '@/lib/project-documentation'
 import { attributionJsonSchema, userIdentitySchema } from '@/lib/user-attribution'
 
 import { isAbsolute } from 'node:path'
@@ -244,6 +245,10 @@ const projectVersionSchema = z.object({
   releaseId: z.string().uuid().nullable().optional().default(null),
   releaseHash: z.string().regex(/^[a-f0-9]{64}$/).nullable().optional().default(null),
   releaseManifestJson: z.string().nullable().optional().default(null),
+  documentationStateJson: z.string().max(2 * 1024 * 1024).nullable().optional().default(null).superRefine((raw, ctx) => {
+    if (raw === null) return
+    try { readDocumentationState(raw) } catch { ctx.addIssue({ code: 'custom', message: 'Invalid documentation metadata.' }) }
+  }),
   manifestVersion: z.literal(3).nullable().optional().default(null),
   publishedAt: dateStringSchema.nullable().optional().default(null),
   createdAt: dateStringSchema,

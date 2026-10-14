@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { remapDocumentationState } from '@/lib/project-documentation'
 import { backfillUserAttribution } from '@/server/services/user-deletion'
 import { unitOfWork } from '@/server/database/unit-of-work'
 import { DATABASE_BACKUP_VERSION, DATABASE_TRANSACTION_MAX_WAIT_MS, DATABASE_TRANSACTION_TIMEOUT_MS } from './constants'
@@ -420,6 +421,16 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
       },
     })
     ids.noteContents.set(item.id, created.id)
+  }
+
+  const documentationCategoryIds = new Map([...ids.categories].map(([oldId, newId]) => [Number(oldId), newId]))
+  const documentationNoteIds = new Map([...ids.noteInfos].map(([oldId, newId]) => [Number(oldId), newId]))
+  const documentationVersionIds = new Map([...ids.projectVersions].map(([oldId, newId]) => [Number(oldId), newId]))
+  for (const item of data.projectVersions) {
+    if (item.documentationStateJson == null) continue
+    await tx.projectVersion.update({ where: { id: ids.projectVersions.get(item.id)! }, data: {
+      documentationStateJson: remapDocumentationState(item.documentationStateJson, documentationCategoryIds, documentationNoteIds, documentationVersionIds),
+    } })
   }
 
   for (const item of data.fileManagements) {

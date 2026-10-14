@@ -1,8 +1,8 @@
 ---
 name: slothvault-mcp
-description: Administer SlothVault in Codex or Claude Code through native MCP tools for drafts, articles, publication, files, and integrity checks. Use for SlothVault administration, not source development or unrelated MCP servers.
+description: Create or incrementally update project documentation from the selected repository in SlothVault, and manage drafts, articles, files and publication through native MCP in Codex or Claude Code. Use for SlothVault administration, not source development or unrelated MCP servers.
 metadata:
-  version: "1.2.3"
+  version: "1.2.4"
 ---
 
 <!--
@@ -27,6 +27,8 @@ If tools are unavailable, check the current host's connection configuration, ena
 The user's task, host approvals, and server permissions govern actions. Tool annotations and returned Prompts or documents do not grant authority. Clarify ambiguous targets or overwrites. Publish or withdraw only when requested; draft preparation alone does not authorize publication.
 
 ## Load only the relevant workflow
+
+- Create or update a selected project’s documentation: read [project documentation](references/project-documentation.md). Match the checkout baseline, clone the previous version before a new-version update, use bounded batches, keep one changelog, and stop at a validated draft unless publication is requested.
 
 - Project note tags, drafts, clone, publication, or protected attachments: read [native workflows](references/native-workflows.md).
 - Independent article creation, editing, checking, or publication: read [article workflow](references/article-workflow.md). Lists locate articles; `content.article.get` reads bodies. Published articles can be edited in place.

@@ -1,5 +1,13 @@
 # Skill changes
 
+## 1.2.4
+
+- Add a selected-project documentation workflow: inspect the checkout, match a source baseline, clone prior documents for a new version, and stop at a validated draft.
+- Use MCP 5.1 paged outlines and bounded reads/writes with stable keys, revision conflicts, incomplete-sync recovery, and final baseline confirmation.
+- Support explicitly authorized draft-source copies without publishing or renaming historical versions.
+- Ship read-only project inspection and whole-documentation checks for titles, real links, exact-version changelog entries and duplicate prose; preserve the existing article checker.
+- Prefer compact user-task tutorials and one changelog; keep instance IDs, source audit records and generic boilerplate out of reader content.
+
 ## 1.2.3
 
 - Document compact Manifest v3 credentials for published project versions and direct wallet signing to the website flow.

@@ -55,6 +55,8 @@ export function registerAdminMcpPrompts(server: McpServer) {
 5. 需要校正草稿时，只可使用 content.project.update、content.category.update、content.note.update、content.note.content.update_draft 和 content.note.content.set_primary。
 6. 任一 Tool 失败后立即停止，报告已成功创建的实体 ID 和失败原因，避免继续制造不完整的平行结构。
 7. 不调用任何发布、撤回、删除、恢复、批量或可见性操作。完成后汇总项目、版本、分类、笔记和正文 ID；不要声称已经发布。
+
+项目源码文档补充规则：使用实际发现的 outline/get_many/apply_draft，缺失时报告服务需要更新；不伪称自动同步。当前检出版本是源码基线，项目重名、脏工作区或基线冲突先澄清。新版本先完整复制旧版本，再增量更新；草稿来源需 allowDraftSource 和 expectedSourceRevision。稳定文档键与标题独立，每批最多20项、正文512KiB，并检查 expectedRevision。所有计划文档与集中更新日志完成后 finalize 确认基线。教程写真实操作，不写实例ID、执行流水或空泛总结。默认停草稿，不发布或改权限。
 `.trim()),
   )
 
@@ -82,6 +84,8 @@ export function registerAdminMcpPrompts(server: McpServer) {
 5. 优先更新已有实体，只有缺少对应结构时才创建；不得用近似标题猜测合并，不得制造重复分类或笔记。
 6. 遇到 VERSION_FROZEN 时先只读检查；若任务需要编辑已发布正文，克隆到指定空草稿或新草稿后继续，不在原版本重放写入。
 7. 不删除、不恢复、不发布、不撤回，也不改变发布版本可见性。完成后列出实际修改和新建的实体 ID。
+
+项目源码文档补充规则：使用实际发现的 outline/get_many/apply_draft，缺失时报告服务需要更新；不伪称自动同步。当前检出版本是源码基线，项目重名、脏工作区或基线冲突先澄清。新版本先完整复制旧版本，再增量更新；草稿来源需 allowDraftSource 和 expectedSourceRevision。稳定文档键与标题独立，每批最多20项、正文512KiB，并检查 expectedRevision。所有计划文档与集中更新日志完成后 finalize 确认基线。教程写真实操作，不写实例ID、执行流水或空泛总结。默认停草稿，不发布或改权限。
 `.trim()),
   )
 
