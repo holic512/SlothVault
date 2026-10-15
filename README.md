@@ -1,77 +1,95 @@
 <div align="center">
-  <img src="./public/logo.png" alt="SlothVault logo" width="104" />
+
+<img src="./public/logo.png" alt="SlothVault 标志" width="88" />
 
 # SlothVault
 
-面向独立写作、项目发布与版本存证的自托管内容系统。
+**让内容有秩序，让版本可追溯。**
 
-管理员分别管理站点文章与项目版本内容；访客可直接阅读；注册用户拥有资料、安全、合同与积分工作区。已发布项目版本及委托提交记录可选择写入 Solana Memo 交易，形成可公开核验的凭证。
+面向独立写作、项目文档与版本存证的自托管内容系统。
+
+[![应用发布](https://github.com/holic512/SlothVault/actions/workflows/docker-build.yml/badge.svg)](https://github.com/holic512/SlothVault/actions/workflows/docker-build.yml)
+[![MIT License](https://img.shields.io/badge/License-MIT-18181b.svg)](./LICENSE)
+
+[快速开始](#快速开始) · [界面预览](#界面预览) · [核心能力](#核心能力) · [部署指南](./integrations/deployment/README.md) · [文档导航](#文档导航)
 
 </div>
 
-## 项目概述
+<p align="center">
+  <img src="./docs/assets/screenshots/2026-10-15/project-docs-light.webp" alt="SlothVault 中文项目文档阅读页：分类目录、版本入口、正文与页内导航" width="100%" />
+</p>
 
-SlothVault 基于 Next.js 16 App Router、React 19 和 Prisma 7，支持 SQLite、MySQL 与 PostgreSQL，并通过网页安装器完成首次配置。
+> 真实界面，演示内容。本文截图更新于 **2026-10-15**，取自当前仓库的隔离本地实例；正文依据仓库已有文档整理，不包含真实账号、业务数据或链上交易。截图来源与规格见[截图说明](./docs/assets/screenshots/2026-10-15/README.md)。
+
+## 为什么是 SlothVault
+
+SlothVault 将日常写作与长期维护的项目资料放在同一站点：文章按篇发布，项目文档按版本组织。你可以先完成内容发布，再按需添加公开可核验的版本存证，而不必让读者安装或连接钱包。
+
+- **写作与文档各得其所**：独立 Markdown 文章用于记录与分享；项目、版本、分类与笔记承载成体系的资料。
+- **草稿可以迭代，发布版本保持冻结**：校验文档树后生成发布快照与 Manifest v3，后续更新在新版本中继续。
+- **数据与部署由自己掌握**：选择 SQLite、MySQL 或 PostgreSQL，使用网页安装器、自托管附件和完整备份。
+- **管理不止于内容**：会员访问、积分卡密、委托交付与管理员 MCP，共用现有业务规则和权限边界。
 
 ## 界面预览
 
-> 截图于 2026-08-17 的本地实例，均已压缩为 WebP。资源按日期归档在 [`docs/assets/screenshots/2026-08-17/`](./docs/assets/screenshots/2026-08-17/)；示例数据不代表生产环境默认内容。
+### 公开阅读，从首页到正文
 
 <p align="center">
-  <img src="./docs/assets/screenshots/2026-08-17/public-home.webp" alt="SlothVault 公开首页空态" width="100%" />
+  <img src="./docs/assets/screenshots/2026-10-15/public-home.webp" alt="SlothVault 中文公开首页：管理员可编辑的 Markdown 内容、文章与项目入口" width="100%" />
 </p>
 
 <table>
   <tr>
-    <td width="50%"><img src="./docs/assets/screenshots/2026-08-17/account-overview.webp" alt="用户账户概览工作区" /></td>
-    <td width="50%"><img src="./docs/assets/screenshots/2026-08-17/admin-dashboard.webp" alt="管理后台仪表盘" /></td>
+    <td width="50%"><img src="./docs/assets/screenshots/2026-10-15/public-articles.webp" alt="独立文章归档：首篇推荐、摘要、日期与文章卡片" /></td>
+    <td width="50%"><img src="./docs/assets/screenshots/2026-10-15/article-reading.webp" alt="独立文章阅读页：标题、正文排版与内容导航" /></td>
   </tr>
   <tr>
-    <td align="center">账户概览：资料、安全与积分入口</td>
-    <td align="center">管理后台：内容、用户与系统状态概览</td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="./docs/assets/screenshots/2026-08-17/admin-user-management.webp" alt="管理后台用户管理页面" /></td>
-    <td width="50%"><img src="./docs/assets/screenshots/2026-08-17/admin-system-settings.webp" alt="管理后台系统设置页面" /></td>
-  </tr>
-  <tr>
-    <td align="center">用户管理：创建、编辑、密码重置与积分调整</td>
-    <td align="center">系统设置：品牌与 Solana 网络配置</td>
+    <td align="center"><strong>文章归档</strong><br />以文章为单位记录、发布与分享</td>
+    <td align="center"><strong>专注阅读</strong><br />Markdown 正文与清晰的内容层级</td>
   </tr>
 </table>
 
-## 核心功能
+### 同一套内容，不同的阅读环境
 
-| 范围 | 已实现能力 |
-| --- | --- |
-| 内容发布 | 独立 Markdown 文章，以及项目、版本、分类、项目文档、首页内容与受控文件管理。 |
-| 阅读体验 | 无需钱包即可阅读已发布文章和公开项目；文章详情、项目版本文档与存证凭证可直接分享。 |
-| 用户系统 | 用户名/邮箱密码登录、可选 Solana 钱包签名登录、账户资料、密码、钱包绑定与积分工作区。 |
-| 用户权益 | 不可变积分流水、管理员积分调整、批量生成卡密与一次性兑换。 |
-| 管理后台 | 文章与项目内容回收站、文件、用户、卡密、备份、系统设置及项目版本存证的集中管理。 |
-| 版本存证 | 项目发布保存紧凑 Manifest v3 和聚合哈希；每个发布版本、每个网络使用单笔 Memo 存证，不包含正文。阅读页顶部版本菜单提供凭证查看和 Manifest 下载，委托记录保留独立存证流程。 |
-| 数据库与部署 | 网页安装器支持 SQLite、MySQL 8.0+ 与 PostgreSQL 14+；提供 Docker Compose 部署。 |
+<table>
+  <tr>
+    <td width="72%"><img src="./docs/assets/screenshots/2026-10-15/project-docs-dark.webp" alt="SlothVault 深色主题项目文档：分类侧栏、版本入口与正文" /></td>
+    <td width="28%" align="center"><img src="./docs/assets/screenshots/2026-10-15/mobile-navigation.webp" alt="SlothVault 手机端展开的站点导航与中文首页" width="240" /></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>深色阅读</strong><br />保留项目目录与版本上下文</td>
+    <td align="center"><strong>移动导航</strong><br />在小屏幕上继续浏览</td>
+  </tr>
+</table>
 
-## 安装与快速开始
+截图展示的是内置界面与示例内容，不是安装后的默认首页；后台、账户与受限内容仍需对应身份授权。
 
-### 本地开发
+## 快速开始
 
-前置条件：Node.js `>=24.18.1`、npm `>=11.16.0`。使用 SQLite 本地开发无需 Docker。
+### 本地运行
+
+需要 **Node.js ≥ 24.18.1**；npm 版本以 [`package.json`](./package.json) 的 `packageManager` 为准。使用 SQLite 开发无需 Docker，也无需另外安装数据库服务。
 
 ```bash
+git clone https://github.com/holic512/SlothVault.git
+cd SlothVault
 npm ci
 APP_DATA_PATH=./data UPLOAD_STORAGE_PATH=./data/uploads npm run dev
 ```
 
-访问 [http://localhost:3000/install](http://localhost:3000/install)，在安装器中选择数据库、完成空库检查、初始化表结构并创建首位管理员。安装状态由系统维护，数据库连接不会通过 `DATABASE_URL` 或旧 `DB_*` 环境变量绕过安装器。
+打开 **[http://localhost:3000/install](http://localhost:3000/install)**，按安装器完成：
 
-### Docker Compose
+1. 选择 SQLite、MySQL 或 PostgreSQL。
+2. 检查目标空库并初始化表结构。
+3. 创建首位管理员，进入后台配置首页、文章或项目。
 
-应用镜像使用同一个版本 Tag 提供 `linux/amd64` 和 `linux/arm64`，Docker 会按主机架构选择。应用、Skill、Deployment 各自独立发布；发布版本、完整提交说明与失败重跑规则见 [发布流程](./docs/releasing.md)。
+数据库连接由安装器加密保存；`DATABASE_URL` 与旧 `DB_*` 环境变量不能绕过安装流程。连接现有服务器数据库前，请先阅读[数据库安装与迁移指南](./docs/DATABASE_INSTALLATION.md)。
 
-正式 Linux 部署由 SlothTool 的 `sv` 界面调用本仓库独立发布的 Deployment Package。纯标准库 Python 部署程序也可从源码直接执行；交互选择 SQLite、MySQL 或 PostgreSQL 后，会在部署根目录生成私有的 `/data/slothvault/compose.yml`，创建所选模式的持久化目录，拉取发布镜像并启动服务。首次 schema 初始化由应用自动完成；随后访问应用的 `/install` 页面创建首位管理员。
+### Linux 部署
 
-前置条件：Linux 已安装 Docker Engine、Docker Compose v2 与 Python 3.10+。SlothTool 插件不会尝试根据发行版自动安装 Docker。默认 `/data` 目录和 Nginx/证书配置需要管理员权限，建议从首次安装开始使用 `sudo`，后续 Docker 命令也使用同一权限级别。
+前置条件：**Docker Engine、Docker Compose v2、Python 3.10+**。部署程序不自动安装 Docker；发布镜像支持 `linux/amd64` 与 `linux/arm64`。
+
+通过 SlothTool 安装并运行独立部署包：
 
 ```bash
 npm install -g @holic512/slothtool
@@ -79,217 +97,158 @@ slothtool install slothvault
 sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy
 ```
 
-脚本的默认路径如下；输入时可按需改为其他绝对路径。生成的 `compose.yml` 包含数据库凭据（若选择 MySQL/PostgreSQL），因此脚本会将其权限设为 `0600`；所有持久化目录为 `0700`。
+也可以在源码目录直接执行 `sudo python3 integrations/deployment/install.py`，不依赖 SlothTool。程序交互选择数据库，默认生成 `/data/slothvault/compose.yml` 并启动应用；首次 schema 初始化完成后，再访问站点的 `/install` 创建管理员。
 
-| 模式 | 应用数据目录（映射至 `/app/data`） | 数据库数据目录 |
-| --- | --- | --- |
-| SQLite | `/data/slothvault/data` | `/data/slothvault/data/database/slothvault.db` |
-| MySQL 8.0 | `/data/slothvault/data` | `/data/slothvault/mysql` |
-| PostgreSQL 16 | `/data/slothvault/data` | `/data/slothvault/postgresql` |
-
-MySQL 与 PostgreSQL Compose 配置会等待数据库健康检查成功，再启动应用。应用目录保存加密数据库配置、上传文件和仅 SQLite 使用的数据库文件；服务器数据库始终存放在独立目录，不能与应用数据目录交叠。Docker 本地模式固定使用 Compose 内部网络的非 TLS 连接。
-
-### Nginx 与 HTTPS
-
-SlothTool 部署程序支持两种、且仅支持两种 Nginx：标准目录中的系统级 Nginx，以及用户显式指定的官方 Docker Hub `nginx` 容器。明确不支持宝塔 Nginx、`/www/server/nginx`、`/www/server/panel/vhost/nginx`、宝塔/面板镜像和其他第三方面板托管的 Nginx；程序不会猜测这些目录，也不会接管非 SlothVault 生成的 `slothvault.conf`。
-
-默认的 `--nginx-mode auto` 保持兼容：只检测宿主机 `PATH` 中的系统级 `nginx`，不会扫描、发现或接管任意 Docker 容器。系统级模式仅管理 `/etc/nginx/sites-available` + `/etc/nginx/sites-enabled` 或 `/etc/nginx/conf.d` 下的受管站点文件；写入后执行宿主机 `nginx -t`、`nginx -T`，再用 `systemctl reload nginx` 或 `nginx -s reload` 重载。它会拒绝 Nginx 可执行文件或实际配置来源指向宝塔目录的情况。
-
-Docker 模式必须显式提供容器名。脚本只接受 `nginx`、`library/nginx` 或 `docker.io/library/nginx`（可带标签或 digest）的官方镜像，只从 `docker inspect` 确认的宿主机 bind mount 推导配置位置：优先 `<宿主机目录> -> /etc/nginx/conf.d`，其次 `<宿主机目录> -> /etc/nginx` 再使用其 `conf.d/slothvault.conf`。它不写容器临时文件，不接受 named volume 或任意 `--nginx-config-dir`，也不会执行 `docker rm`、重建容器、`docker compose down`、连接网络或接管已有第三方容器。
-
-Docker Nginx 必须与 SlothVault 应用容器共享 Compose 网络，且应用在共享网络中带有 `slothvault` 别名；通过预检后配置固定使用 `proxy_pass http://slothvault:3000;`。这避免把 Docker 容器自己的 `127.0.0.1` 误作宿主机。先启动 SlothVault，再使用以下命令配置 HTTP 反代：
-
-```bash
-sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy \
-  --action nginx \
-  --nginx-mode docker \
-  --nginx-container slothvault-nginx
-```
-
-一个 SQLite 实例的典型官方 Nginx 容器挂载如下；MySQL/PostgreSQL 时将 `slothvault-sqlite_default` 换为相应的 Compose 网络。`/opt/slothvault/nginx/conf.d` 必须对宿主机脚本可写，容器可只读挂载它。
-
-```yaml
-services:
-  nginx:
-    image: nginx:alpine
-    container_name: slothvault-nginx
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /opt/slothvault/nginx/conf.d:/etc/nginx/conf.d:ro
-      - /data/slothvault/acme-challenge:/var/www/slothvault-acme:ro
-      - /etc/letsencrypt:/etc/letsencrypt:ro
-    networks:
-      - slothvault-sqlite_default
-
-networks:
-  slothvault-sqlite_default:
-    external: true
-```
-
-菜单中的“申请或更新 Let's Encrypt HTTPS 证书”使用宿主机 Certbot 的 `certonly --webroot` HTTP-01 验证，不会使用会自动改写站点文件的 `certbot --nginx`。输入一个或多个普通 DNS 域名（首个为主域名）、联系邮箱并确认服务条款后，`80` 提供 ACME 验证，签发成功后其余 HTTP 请求 `301` 跳转至 `443`；不会默认开启 HSTS。Docker HTTPS 还要求上例中 `/data/slothvault/acme-challenge` 和完整 `/etc/letsencrypt` 都已 bind mount 到容器。脚本从 inspect 使用容器内路径渲染 ACME 与证书配置，因而不会把宿主机证书路径错误写入 Docker Nginx。
-
-```bash
-sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy \
-  --action https \
-  --nginx-mode docker \
-  --nginx-container slothvault-nginx
-```
-
-证书功能需要域名 A/AAAA 已指向服务器、TCP `80` 和 `443` 已在防火墙/安全组放行，并以保留安装用户 SlothTool 数据目录的管理员调用方式运行，例如 `sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy`。缺少 Certbot 时，脚本仅会在 Debian/Ubuntu 使用 `apt-get`、在 Fedora/RHEL 使用 `dnf` 安装；不支持的发行版或缺少软件源时会停止并提示管理员处理，不会添加第三方仓库或改用 Snap。续约成功后系统级模式重载系统 Nginx，Docker 模式只执行经验证容器的 `docker exec <容器> nginx -s reload`；timer/cron 与首次 `certbot renew --dry-run --run-deploy-hooks` 保持一致。
-
-Docker 模式排查请优先执行 `docker inspect slothvault-nginx`、`docker exec slothvault-nginx nginx -t`、`docker exec slothvault-nginx nginx -T` 和 `docker network inspect slothvault-sqlite_default`。如果缺少配置、ACME、证书挂载或共同网络，脚本会在写入前停止；配置校验或重载失败时会恢复原有受管文件，并再次在容器内校验和重载恢复后的配置。若系统启用了 SELinux 且 Nginx 出现 `502`，还需要由系统管理员按发行版策略允许 Nginx 连接上游服务。
-
-未来更新不需要重新生成配置或迁移数据目录。插件会显示自身版本、运行中应用版本、GitHub 最新正式 Release，以及本次跨版本升级包含的提交日志。先检查，再按提示确认更新；SlothTool 插件本身则用 `slothtool update slothvault` 更新：
-
-```bash
-sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy --action check-update
-sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy --action update
-```
-
-应用更新仅拉取并重启 `compose.yml` 中已声明的镜像，持久化数据保持不变；部署程序不会自行下载或覆盖插件。仍可在确认需要绕过版本检查时使用以下 Docker Compose 命令：
-
-```bash
-docker compose -f /data/slothvault/compose.yml pull
-docker compose -f /data/slothvault/compose.yml up -d
-```
-
-仓库仍保留三份 `docker-compose*.yml` 和示例环境文件，供从源码构建或本地开发使用；生产服务器通过 SlothTool 插件运行 `slothtool slothvault deploy`。远程 MySQL/PostgreSQL 或自定义 CA 的部署，继续使用网页安装器手工配置，详见[数据库安装与迁移指南](./docs/DATABASE_INSTALLATION.md)。
-
-## 使用模型
-
-| 身份 | 可执行操作 |
+| 持久化内容 | 默认位置 |
 | --- | --- |
-| 访客 | 阅读已发布的独立文章与公开项目，访问版本存证凭证。 |
-| 普通用户 | 访客能力，以及资料维护、密码与钱包设置、积分查询和卡密兑换。 |
-| 管理员 | 普通用户能力，以及内容发布、用户/积分/卡密/文件/备份管理和版本存证。 |
+| 应用配置、上传文件与 SQLite 数据 | `/data/slothvault/data` |
+| MySQL 数据（选择该模式时） | `/data/slothvault/mysql` |
+| PostgreSQL 数据（选择该模式时） | `/data/slothvault/postgresql` |
 
-普通密码与钱包签名登录都会签发同一种 HttpOnly 数据库 Session。钱包流程仅验证地址所有权：浏览器签署一次性挑战消息，服务端验证 Ed25519 签名；不会发送钱包交易，也不会保存私钥。
+完整的 Nginx、HTTPS、更新与排错步骤集中在[部署指南](./integrations/deployment/README.md)。仓库内的三份 `docker-compose*.yml` 保留用于源码构建和本地开发，安装与目录隔离规则见[数据库指南](./docs/DATABASE_INSTALLATION.md)。
 
-## 内容与委托存证
+> **部署前请注意**：持久化数据目录与加密密钥必须一并保护；不要把上传文件放入 `public/`。当前短期挑战与限流使用进程内状态，不能将多个应用副本直接当作已支持的高可用部署。
 
-发布内容和区块链存证彼此独立：项目版本可先公开，后续由管理员钱包为发布版本进行存证。凭证绑定紧凑 Manifest v3 的 releaseHash 和正文树聚合 contentHash，使用 Solana 官方 Memo Program，不表示 NFT 所有权、版权归属或可转移资产。委托存证绑定不可变提交记录，通过委托工作区办理。旧单篇内容凭证已退役，当前项目版本凭证规则见 [Manifest v3](./docs/RELEASE_MANIFEST_V3.md)。
+## 核心能力
 
-后台的文章、项目、草稿版本及其文档、项目菜单和首页采用软删除。管理员在 `/admin/mm/trash` 按文章或项目层级查看、预览并恢复；删除父级会连带软删除未冻结的子级，恢复父级不会自动恢复子级，恢复子级则恢复必要的祖先。已发布版本与内容保持冻结，删除项目仅使其下线；恢复项目会立即重新启用并可能公开原有发布内容。历史已删记录的删除时间显示为未知。
+| 能力 | 当前实现 |
+| --- | --- |
+| **文章发布** | 独立 Markdown 文章、摘要、封面、归档、正文图片与受控下载附件。 |
+| **项目文档** | 项目 → 版本 → 分类 → 笔记；正文历史、主版本、标签、项目首页与菜单。 |
+| **版本发布** | 发布前文档树校验、不可变快照、紧凑 Manifest v3、完整性校验与受权限控制的 Manifest 下载。 |
+| **公开阅读** | 中文与英文界面、浅色与深色主题、移动端导航；公开内容无需连接钱包。 |
+| **账户与权益** | 密码登录、可选 Solana 钱包签名登录、多钱包绑定、资料与安全设置、并列会员类型、内容访问权限。 |
+| **积分与卡密** | 不可变积分流水、管理员积分调整、批量卡密与一次性兑换。 |
+| **委托与交付** | 需求记录、合同模板与版本、付款计划、交付、验收、维护及不可变提交记录。 |
+| **管理与恢复** | 内容回收站、文件、用户、系统设置、运行观测、完整备份、恢复预检与任务历史。 |
+| **自动化** | 管理员原生 MCP、项目文档索引与正文批读、带修订号的原子草稿批写，以及独立发布的 Skill。 |
 
-- Mainnet 凭证用于正式存证，Devnet 用于测试且仅允许 Phantom；同一发布版本在每个网络最多保留一条最终凭证。
-- 办理前校验发布快照与正文树完整性、展示网络与费用信息；交易显式设置计算预算和零优先费，基础手续费仍正常收取。
-- 未提交的过期请求可重新准备；提交结果不明时，当前页面保留已签交易供原请求重试，或按原交易签名对账。
-- 公开凭证路由为 `/evidence/<transactionSignature>`；来源版本下线后仍可核验链上记录，站内内容完整性可能无法核验，Manifest 下载继续遵守可见性和下载权限。
+### 内容如何组织
 
-## 架构
+```text
+站点
+├── 首页                         管理员维护的 Markdown 入口
+├── 独立文章                     按篇发布，可继续编辑
+└── 项目
+    ├── 项目首页与菜单
+    └── 版本                     草稿可编辑，发布后正文冻结
+        └── 分类
+            └── 笔记             标签与正文历史
+                └── 主正文       发布校验与内容哈希的来源
+```
+
+访客阅读公开文章和项目；注册用户拥有账户、安全、积分、会员与委托工作区；管理员负责内容、用户、备份和系统管理。会员限制由文章允许名单、项目阅读权限及下载权限共同定义，不以展示排序推断权限，详见[会员与项目访问](./docs/MEMBERSHIP_PROJECT_ACCESS.md)。
+
+### 可选存证，而非阅读前提
+
+内容发布与链上存证相互独立。管理员可为已发布项目版本发送一笔 Solana Memo 交易，绑定 Manifest v3 的 `releaseHash` 与正文树聚合 `contentHash`；正文不写入链上。同一发布版本在每个网络最多保留一条最终凭证。
+
+- **Mainnet** 用于正式存证；**Devnet** 用于测试，当前仅允许 Phantom。
+- 版本菜单提供凭证查看与 Manifest 下载；公开版本凭证路由为 `/evidence/<transactionSignature>`。
+- 委托记录保留独立的提交与存证流程，不与项目版本凭证混用。
+- 存证不代表 NFT、版权归属或可转移资产，也不免除正常链上手续费。
+
+完整的哈希规则、校验边界与可见性约束见 [Manifest v3 规范](./docs/RELEASE_MANIFEST_V3.md)；委托流程见[委托工作区说明](./docs/COMMISSION_WORKFLOW.md)。
+
+## 管理员 MCP 与项目文档维护
+
+内置 Streamable HTTP 入口 **`/mcp`** 使用可撤销的管理员 MCP Key 鉴权，不复用网页 Cookie。当前产品支持 **Codex、Claude Code 自带的原生 MCP 客户端**直连；SlothTool 只负责可选的 Skill 管理与部署，不参与 MCP 连接或工具调用。
+
+项目文档工作流可以从源码建立文档，或在保留历史发布版本的前提下增量更新：
+
+1. 检查源码和已有文档，确定本次变更范围。
+2. 为新版本复制上一版本的完整文档树，再修订受影响内容。
+3. 用稳定文档键、源码基线与修订号追踪草稿更新，维护集中更新日志。
+4. 校验草稿后交由管理员在明确授权下发布；默认不自动发布或改变权限。
+
+实际工具以[代码生成的 MCP Registry](./docs/MCP_REGISTRY.md)和宿主发现结果为准，避免依赖 README 中容易过期的工具数量或包版本。
+
+- [管理员 MCP 接入](./docs/MCP_ADMIN.md)：Key、鉴权与原生连接说明。
+- [Skill 项目文档工作流](./integrations/skill/slothvault-mcp/references/project-documentation.md)：文档生成、增量更新与发布边界。
+- [独立 Skill](./integrations/skill/README.md) · [Deployment Package](./integrations/deployment/README.md) · [集成职责边界](./integrations/ARCHITECTURE.md)。
+
+## 架构与数据安全
+
+基于 **Next.js 16 App Router、React 19、TypeScript 与 Prisma 7**。三种 SQL 数据库按安装配置择一使用，不要求同时部署。
 
 ```mermaid
 flowchart LR
-    Browser["浏览器"] --> Public["文章 / 项目阅读"]
-    Browser --> Account["账户与积分"]
-    Browser --> Admin["管理后台"]
-    McpClient["Codex / Claude Code 原生 MCP"] --> Mcp["MCP /mcp"]
-
-    Public --> Routes["Next.js App Router + Route Handlers"]
-    Account --> Routes
-    Admin --> Routes
-    Mcp --> McpKey["MCP Key 鉴权"]
-    Mcp --> Services
-    McpKey --> Prisma
-
-    Routes --> Services["服务层"]
-    Services --> Prisma["按安装配置选择的 Prisma Client"]
-    Prisma --> SQLite[(SQLite)]
-    Prisma --> MySQL[(MySQL)]
-    Prisma --> PostgreSQL[(PostgreSQL)]
-
-    Services --> Uploads[(受控上传目录)]
-    Services --> Memory["进程内 TTL 挑战与限流"]
-    Services --> Solana["Solana RPC / Memo 存证"]
-
-    Installer["网页安装器"] --> EncryptedConfig["加密数据库配置"]
-    Installer --> Prisma
+    Web["浏览器：公开阅读 / 账户 / 管理后台"] --> App["Next.js 页面与 Route Handlers"]
+    Native["原生 MCP 客户端"] --> MCP["/mcp · 管理员 Key"]
+    App --> Services["业务服务与权限校验"]
+    MCP --> Services
+    Services --> DB[("Prisma · SQLite / MySQL / PostgreSQL")]
+    Services --> Files[("受控附件与完整备份")]
+    Services --> Solana["可选：Solana RPC / Memo"]
+    Installer["网页安装器"] --> Config["加密数据库配置"]
+    Config --> DB
 ```
 
-账户、文章、积分、卡密和存证索引均以 SQL 数据库为权威来源。短期内存仅用于登录/注册限流与钱包一次性挑战，不承担余额或持久化业务状态。
+SQL 数据库是账户、Session、积分、卡密与存证索引的权威来源；进程内 TTL 状态只承担一次性钱包挑战和短期限流。钱包登录验证地址所有权，不发起交易，也不保存私钥；版本存证需要另行签署链上交易。
 
-## 配置与数据安全
+### 常用配置
 
-| 配置 | 用途 |
+| 配置 | 用途与默认值 |
 | --- | --- |
-| `APP_DATA_PATH` | 应用配置和本地数据库目录；本地默认 `<cwd>/data`，容器默认 `/app/data`。 |
-| `UPLOAD_STORAGE_PATH` | 受控上传目录；本地默认 `<cwd>/data/uploads`，容器默认 `/app/data/uploads`。 |
-| `BACKUP_DATABASE_TRANSACTION_TIMEOUT_MS` | 数据库备份/恢复事务超时，默认 3,600,000 毫秒（1 小时）；不包含压缩、传输和预检时间。 |
-| `BACKUP_STORAGE_PATH` | 完整备份的独立本地存储目录；默认 `${APP_DATA_PATH}/backups`，可挂载独立磁盘。 |
-| `ENCRYPTION_KEY` | 配置加密主密钥；未提供时系统会在配置目录生成持久化密钥。 |
-| `SOLANA_RPC_URL` | Mainnet 主 RPC 的环境回退值；可在后台 RPC 节点设置中查看、修改并测试已保存的地址。 |
-| `SOLANA_MAINNET_RPC_FALLBACK` | Mainnet 备用 RPC。 |
-| `SOLANA_DEVNET_RPC_URL` | Devnet 主 RPC 的环境回退值。 |
-| `SOLANA_DEVNET_RPC_FALLBACK` | Devnet 备用 RPC。 |
-| `NEXT_PUBLIC_SOLANA_RPC_URL` | 浏览器 Wallet Adapter 使用的公共集群地址。 |
+| `APP_DATA_PATH` | 配置和 SQLite 根目录；本地默认 `./data`，容器使用 `/app/data`。 |
+| `UPLOAD_STORAGE_PATH` | 受控上传目录；本地默认 `./data/uploads`，容器使用 `/app/data/uploads`。 |
+| `BACKUP_STORAGE_PATH` | 完整备份目录；默认 `${APP_DATA_PATH}/backups`，可挂载独立磁盘。 |
+| `BACKUP_DATABASE_TRANSACTION_TIMEOUT_MS` | 备份与恢复的数据库事务超时；默认 `3600000` 毫秒，不含压缩、传输和预检。 |
+| `ENCRYPTION_KEY` | 配置加密主密钥；未配置时在应用配置目录生成并持久化。 |
+| `SOLANA_RPC_URL` / `SOLANA_DEVNET_RPC_URL` | 对应网络主 RPC 的环境回退值；可在后台管理节点。 |
+| `SOLANA_MAINNET_RPC_FALLBACK` / `SOLANA_DEVNET_RPC_FALLBACK` | 对应网络的备用 RPC。 |
+| `NEXT_PUBLIC_SOLANA_RPC_URL` | 浏览器钱包使用的公共集群地址，不应包含私密凭据。 |
 
-浏览器钱包通过 Solana Wallet Standard 自动发现，不需要为每个扩展单独引入 SDK。安装且启用 Solana 账户的兼容钱包（例如 OKX Wallet）会出现在钱包选择器中；Devnet 存证仅允许 Phantom，其他兼容钱包仍可用于登录和支持的 Mainnet 签名。个人端和管理后台共用已安装钱包优先的选择器；个人端只在用户主动操作时连续完成连接、签名与登录，自动重连不创建账号会话。当前签名、登录和存证协议均为 Solana，尚不包含 EVM/OKB Chain 地址或交易支持。
+### 备份与恢复
 
-### 个人账号凭据
+后台提供包含数据库与附件的 ZIP64 完整备份、恢复预检、恢复前保护备份和任务历史。自动备份默认关闭；启用后的默认计划为每天 **Asia/Shanghai 03:00**，保留 **7** 份成功自动备份。支持分片上传续传与 HTTP Range 下载。
 
-安全与登录页支持一个账号绑定多个 Solana 地址，任一绑定地址均可登录该账号；同一地址不能绑定多个账号。可逐个解绑或原子换绑，换绑失败保留旧地址，浏览器断开连接不解除账号绑定。涉及凭据的操作需要当前密码或已绑定钱包再次验证；解绑最后一个钱包必须先配置密码并实际输入当前密码确认。
-
-钱包创建的账号可设置自己的登录用户名与密码。所有个人账号按北京时间自然月最多成功修改用户名三次，首次将自动用户名改为自选用户名也计次，原值提交及失败请求不计次；页面显示剩余额度与重置时间。密码设置／重置不受改名额度限制，成功后退出所有会话。
-
-## 管理员 MCP
-
-系统内置管理员 MCP Streamable HTTP 入口 `POST /mcp`，通过可撤销的管理员 MCP Key 鉴权，不复用网页 Cookie。当前服务端 `5.0.0` 提供 67 个 Tool、4 个 Prompt、2 个受保护 Resource，复用现有业务校验；清单见 [MCP Registry](./docs/MCP_REGISTRY.md)。产品仅支持 Codex、Claude Code 自带的 MCP 客户端直连，管理员在 Key 页明确创建后可一次性复制接入配置，详见 [管理员 MCP 接入](./docs/MCP_ADMIN.md)。宿主审批策略不改变服务端权限。
-
-[Skill](./integrations/skill/) 与 [Deployment](./integrations/deployment/) 继续以 `skill-v*`、`deployment-v*` 独立发布，归档和清单含版本、桥主版本及 SHA-256。Skill 1.2.0 使用宿主已发现工具；SlothTool skill install/update 可直接同步受管链接。Deployment 1.0.0 保持独立部署脚本、JSON 行桥和应用更新能力。原生接入无需专用 Python 包或 SlothTool；SlothTool 不参与 MCP 连接、发现或 Tool 调用。历史迁移与数据保留见 [集成架构的迁移说明](./integrations/ARCHITECTURE.md#退役和本地遗留数据)。应用版本和独立包版本分别准备。
-
-上传文件不进入 `public/`。后台提供包含数据库与附件的完整 ZIP、恢复预检、恢复前保护备份和任务历史，保留回收站、停用文件、会员权限及委托/合同/发布存证。自动备份默认关闭；手动开启后默认每天 `Asia/Shanghai` 时间 03:00 执行，保留 7 份成功自动备份。统一使用当前格式的 ZIP64 完整备份，数据库按 100 条分页写出 NDJSON；取消备份总量与附件大小上限，上传支持 8 MiB 分片续传，下载支持 HTTP Range。旧格式不再恢复，原有备份文件保留。备份包含账户、密码哈希、个人资料、积分和卡密哈希，应按敏感数据管理；部署、覆盖范围、账号保留规则及中断恢复见 [本地完整备份与恢复](./docs/BACKUP_AND_RESTORE.md)。
-
-## 项目结构
-
-```text
-src/
-├── app/                       # 页面、布局与 Route Handlers
-├── components/                # 公开、账户、管理端 React 组件
-├── i18n/                      # 语言请求解析与本地化元数据
-├── server/
-│   ├── auth/                  # Session、角色与密码
-│   ├── database/              # 多数据库、安装与迁移
-│   └── services/              # 内容、用户、积分、备份与存证业务
-└── types/                     # 浏览器安全 DTO
-
-prisma/providers/              # SQLite / MySQL / PostgreSQL schema 与迁移
-messages/                      # 中英文消息目录
-docs/assets/screenshots/        # README 截图，按日期归档
-data/                           # 本地配置、数据库与上传数据（已忽略）
-```
+备份可能包含密码哈希、个人资料、会员权限与业务记录，必须按敏感数据保管；加密密钥也应独立妥善保存。覆盖范围、格式兼容与恢复中断处理见[完整备份与恢复](./docs/BACKUP_AND_RESTORE.md)。
 
 ## 开发与验证
 
-```bash
-npm run prisma:validate
-npm run prisma:generate
-npm run typecheck
-npm run lint
-npm run lint:styles
-npm test
-npm run build
+```text
+src/
+├── app/                     页面、布局、API 与 MCP 入口
+├── components/              阅读、账户与后台交互组件
+├── server/                  业务服务、鉴权、数据库、MCP 与运行时
+├── i18n/                    国际化配置
+└── styles/                  样式与主题
+prisma/providers/            SQLite / MySQL / PostgreSQL schema 与迁移
+integrations/                独立 Skill、部署包与集成协议
+tests/visual/                代表性页面视觉基准
+docs/                        安装、权限、备份、存证与发布指南
 ```
 
-默认测试不会替代真实 Solana 钱包写入或跨数据库恢复验证。涉及真实 SQL 服务、RPC 或钱包的集成验证，应在隔离环境中显式执行。
+按改动选择最小充分检查，不默认执行全量测试和生产构建：
 
-## 文档
+| 命令 | 用途 |
+| --- | --- |
+| `npm run lint:styles` | 样式检查。 |
+| `npm run lint` | ESLint 检查。 |
+| `npm run typecheck` | TypeScript 类型检查。 |
+| `npm test -- <测试文件>` | 运行直接相关的 Vitest 测试。 |
+| `npm run test:visual` | 运行既有代表性视觉回归。 |
+| `npm run mcp:docs:check` | 核对 MCP 文档与工具声明。 |
+| `npm run build` | 需要验证生产打包时执行。 |
 
-- [数据库安装与迁移指南](./docs/DATABASE_INSTALLATION.md)
-- [项目版本 Manifest v3 规范](./docs/RELEASE_MANIFEST_V3.md)
+应用、Skill 与 Deployment 按各自发布单元管理。准备提交时遵循仓库的版本规则；版本文件与发布记录应在提交前同步，不由 CI 回写 Git 历史。详见[开发规则](./AGENTS.md)与[发布流程](./docs/releasing.md)。
+
+## 文档导航
+
+| 你想做什么 | 从这里开始 |
+| --- | --- |
+| 安装或迁移数据库 | [数据库安装与迁移](./docs/DATABASE_INSTALLATION.md) |
+| 在 Linux 部署、配置 Nginx / HTTPS 或更新 | [Deployment 部署指南](./integrations/deployment/README.md) |
+| 管理会员、阅读与下载权限 | [会员与项目访问](./docs/MEMBERSHIP_PROJECT_ACCESS.md) |
+| 管理委托、合同与交付 | [委托工作区](./docs/COMMISSION_WORKFLOW.md) |
+| 备份、恢复或处理恢复中断 | [完整备份与恢复](./docs/BACKUP_AND_RESTORE.md) |
+| 理解发布快照与存证哈希 | [Manifest v3](./docs/RELEASE_MANIFEST_V3.md) |
+| 连接管理员 MCP、查看工具清单 | [接入说明](./docs/MCP_ADMIN.md) · [Registry](./docs/MCP_REGISTRY.md) |
+| 通过智能体维护项目文档 | [Skill 工作流](./integrations/skill/slothvault-mcp/references/project-documentation.md) · [原生 MCP 工作流](./docs/SLOTHTOOL_MCP_WORKFLOW_GUIDE.md) |
+| 理解运行统计与诊断边界 | [运行观测](./docs/telemetry.md) |
+| 参与开发或准备发布 | [AGENTS.md](./AGENTS.md) · [发布流程](./docs/releasing.md) |
 
 ## 许可证
 
-SlothVault 自身源码采用 [MIT License](./LICENSE) 授权。第三方依赖按其各自许可证执行。
-
-管理员 MCP 支持项目版本发布、显示隐藏及文章发布与撤回。项目版本默认最近发布优先；发布后项目名称、说明和权重可修改，版本号、分类名称、笔记标题、正文及文档结构变更需克隆草稿，可直接克隆到同项目完全空的已有草稿。独立文章的已发布正文仍可原地编辑。配置与 Skill 更新步骤见 [原生 MCP 工作流](./docs/SLOTHTOOL_MCP_WORKFLOW_GUIDE.md)。
-
-
-### 自动维护项目文档
-
-使用 `slothvault-mcp` Skill，可以直接要求“为当前项目创建文档到 SlothVault”或“更新这个项目的文档”。默认保存草稿。新版本先完整复制上一版本，再修订受影响内容；每个项目保留一篇集中更新日志，不覆盖历史发布版。
-
-MCP 5.1 新增轻量文档索引、指定正文批读和原子草稿批写：每批最多 20 项、正文 512 KiB，并通过版本修订号避免并发覆盖。复制草稿须明确授权参数和来源修订号；旧复制调用仍默认只接受发布版。三数据库升级通过正常应用迁移流程执行，备份格式 2.16.0 保留源码基线并兼容 2.15.0、2.14.0、2.13.0。
-
-源码检查与整套文档校验均在本地只读进行；不会替用户发布、修改权限或接管原生 MCP 凭据。使用说明见 [Skill 项目文档工作流](./integrations/skill/slothvault-mcp/references/project-documentation.md)。
+SlothVault 使用 [MIT License](./LICENSE)。第三方依赖与资产声明见 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)。
