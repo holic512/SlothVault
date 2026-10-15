@@ -20,6 +20,7 @@ model Session {
   id        String    @id @db.Char(36)
   userId    Int       @map("user_id")
   tokenHash String    @unique(map: "uq_auth_session_token_hash") @map("token_hash") @db.VarChar(128)
+  persistent Boolean @default(false)
   createdAt DateTime  @default(now()) @map("created_at") @db.DateTime(3)
   expiresAt DateTime  @map("expires_at") @db.DateTime(3)
   revokedAt DateTime? @map("revoked_at") @db.DateTime(3)

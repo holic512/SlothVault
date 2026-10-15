@@ -14,7 +14,7 @@ import { setSessionCookie } from '@/server/auth/session'
 import { defineRoute } from '@/server/http/handler'
 import { readJson, requestClientIp } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
-import { enforceRateLimit } from '@/server/short-lived-state'
+import { enforcePasswordLoginRateLimit } from '@/server/auth/login-rate-limit'
 import { loginUser } from '@/server/services/user-auth'
 
 const loginSchema = z.object({
@@ -25,7 +25,7 @@ const loginSchema = z.object({
 
 export const POST = defineRoute(async (request) => {
   const ip = requestClientIp(request)
-  await enforceRateLimit({ scope: 'login', identity: ip, limit: 12, windowSeconds: 15 * 60 })
+  await enforcePasswordLoginRateLimit(ip)
   const body = await readJson(request, loginSchema)
   const result = await loginUser({
     ...body,
@@ -33,6 +33,6 @@ export const POST = defineRoute(async (request) => {
     userAgent: request.headers.get('user-agent'),
   })
   const response = apiOk(result.user)
-  setSessionCookie(response, result.session.token, result.session.expiresAt)
+  setSessionCookie(response, result.session.token, result.session.expiresAt, result.session.persistent)
   return response
 })

@@ -19,14 +19,16 @@ import { WalletRuntime } from '@/components/providers/wallet-runtime'
 import { useSolanaWallet } from '@/components/wallet/use-solana-wallet'
 import { signWalletMessage } from '@/components/wallet/wallet-connection'
 import { accountSecurityErrorReason } from '@/lib/account-security-error'
+import { authorizedAuthReturn } from '@/lib/auth-return'
+import { replaceClientSession } from '@/lib/session-client'
 import { apiFetch } from '@/lib/api-client'
 import type { WalletChallenge } from '@/types/account-security'
 import type { SessionUser } from '@/types/user'
-type LoginButtonProps = { redirectTo?: string; disabled?: boolean; onBusyChange?: (busy: boolean) => void }
+type LoginButtonProps = { remember?: boolean; redirectTo?: string; disabled?: boolean; onBusyChange?: (busy: boolean) => void }
 export function WalletLoginButton({ redirectTo = '/account', ...props }: LoginButtonProps) {
   return <WalletRuntime><WalletLoginButtonContent redirectTo={redirectTo} {...props} /></WalletRuntime>
 }
-function WalletLoginButtonContent({ redirectTo, disabled, onBusyChange }: LoginButtonProps & { redirectTo: string }) {
+function WalletLoginButtonContent({ redirectTo, disabled, onBusyChange, remember = false }: LoginButtonProps & { redirectTo: string }) {
   const t = useTranslations('UserAuth.wallet'), common = useTranslations('WalletConnection')
   const wallet = useSolanaWallet(), queryClient = useQueryClient(), router = useRouter(), { message } = App.useApp()
   const [phase, setPhase] = useState('idle'), locked = useRef(false)
@@ -38,9 +40,9 @@ function WalletLoginButtonContent({ redirectTo, disabled, onBusyChange }: LoginB
       const challenge = await apiFetch<WalletChallenge>('/api/auth/wallet/challenge', { method: 'POST', body: JSON.stringify({ purpose: 'login', address: snapshot.address }) })
       const proof = await signWalletMessage(snapshot, challenge.message, wallet.currentAdapter)
       setPhase('verifying')
-      return apiFetch<SessionUser>('/api/auth/wallet/verify', { method: 'POST', body: JSON.stringify({ challengeId: challenge.challengeId, ...proof }) })
+      return apiFetch<SessionUser>('/api/auth/wallet/verify', { method: 'POST', body: JSON.stringify({ challengeId: challenge.challengeId, ...proof, remember }) })
     },
-    onSuccess: async user => { message.success(t('loginSuccess')); queryClient.setQueryData(['session-user'], user); router.replace(redirectTo); router.refresh() },
+    onSuccess: async user => { message.success(t('loginSuccess')); await replaceClientSession(queryClient, user); router.replace(authorizedAuthReturn(redirectTo, user.role)); router.refresh() },
     onError: error => { const reason = accountSecurityErrorReason(error); if (reason !== 'WALLET_CANCELLED') message.error(common.has(`errors.${reason}`) ? common(`errors.${reason}`) : common('errors.WALLET_OPERATION_FAILED')) },
     onSettled: () => { locked.current = false; onBusyChange?.(false); setPhase('idle') },
   })

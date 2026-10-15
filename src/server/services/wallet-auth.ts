@@ -18,7 +18,7 @@ import { accountActionTarget } from '@/lib/account-credentials'
 import { buildWalletLoginMessage } from '@/lib/wallet-login'
 import { hashPassword } from '@/server/auth/password'
 import { USER_ROLE, USER_STATUS } from '@/server/auth/roles'
-import { issueSession } from '@/server/auth/session'
+import { isSessionActive, issueSession } from '@/server/auth/session'
 import { unitOfWork } from '@/server/database/unit-of-work'
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
@@ -34,7 +34,7 @@ export function canonicalWalletAddress(value: string) {
 }
 export async function activeCredentialUser(tx: Prisma.TransactionClient, context: CredentialContext) {
   const session = await tx.session.findUnique({ where: { id: context.sessionId }, include: { User: true } })
-  if (!session || session.userId !== context.userId || session.revokedAt || session.expiresAt.getTime() <= Date.now() || session.User.status !== USER_STATUS.ACTIVE) securityError('SESSION_CHANGED', 401)
+  if (!session || session.userId !== context.userId || !isSessionActive(session)) securityError('SESSION_CHANGED', 401)
   return session.User
 }
 export async function createWalletLoginChallenge(input: { purpose: WalletChallengePurpose; address: string; target?: AccountAction; context?: CredentialContext }) {
@@ -67,7 +67,7 @@ export async function consumeWalletProof(input: WalletProof, expected: { purpose
   if (signature.length !== nacl.sign.signatureLength || !nacl.sign.detached.verify(new TextEncoder().encode(challenge.message), signature, new PublicKey(address).toBytes())) securityError('WALLET_SIGNATURE_INVALID', 401)
   return address
 }
-export async function verifyWalletLogin(input: WalletProof & { ip: string | null; userAgent: string | null }) {
+export async function verifyWalletLogin(input: WalletProof & { ip: string | null; userAgent: string | null; remember?: boolean }) {
   const address = await consumeWalletProof(input, { purpose: 'login' })
   const password = await hashPassword(randomBytes(32).toString('hex'))
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -82,7 +82,7 @@ export async function verifyWalletLogin(input: WalletProof & { ip: string | null
         } })
         if (user.status !== USER_STATUS.ACTIVE) securityError('ACCOUNT_DISABLED', 403)
         user = await tx.user.update({ where: { id: user.id, status: USER_STATUS.ACTIVE, credentialsRevision: user.credentialsRevision, wallets: { some: { address } } }, data: { lastLoginAt: new Date(), updatedAt: new Date() } })
-        const session = await issueSession({ userId: user.id, ip: input.ip, userAgent: input.userAgent }, tx)
+        const session = await issueSession({ userId: user.id, persistent: input.remember === true, ip: input.ip, userAgent: input.userAgent }, tx)
         return { user: userDto(user), session }
       })
     } catch (error) {

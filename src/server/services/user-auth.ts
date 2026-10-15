@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module User Authentication Service
  * @description Implements conventional registration, password login, profile and managed-avatar updates, reauthenticated password-change delegation, and public user DTO mapping.
- * @logic Normalize human identifiers, hash passwords with Argon2id, enforce active identities, update login metadata, persist managed avatar references separately, and revoke existing sessions after credential changes.
+ * @logic Normalize human identifiers, hash passwords with Argon2id, enforce active identities, claim unchanged credentials transactionally before session issuance, persist managed avatar references separately, and revoke existing sessions after credential changes.
  * @dependencies Prisma User model, auth/password, auth/session, account-security service, database/unit-of-work
  * @index_tags user,registration,login,profile,avatar,password,web2
  * @author holic512
@@ -100,6 +100,7 @@ export async function loginUser(input: {
   remember: boolean
   ip: string | null
   userAgent: string | null
+  requiredRole?: typeof USER_ROLE.ADMIN
 }) {
   const identifier = input.identifier.trim().toLowerCase()
   const user = await prisma.user.findFirst({
@@ -108,24 +109,40 @@ export async function loginUser(input: {
   if (
     !user ||
     !user.passwordConfigured ||
+    (input.requiredRole !== undefined && user.role !== input.requiredRole) ||
     user.status !== USER_STATUS.ACTIVE ||
     !(await verifyPassword(user.password, input.password))
   ) {
     throw new HttpError('Invalid credentials', 401, 401)
   }
 
-  const updated = await prisma.user.update({
-    where: { id: user.id },
-    data: { lastLoginAt: new Date(), updatedAt: new Date() },
-  })
-  const ttlMs = (input.remember ? 30 : 7) * 24 * 60 * 60 * 1000
-  const session = await issueSession({
-    userId: user.id,
-    ttlMs,
-    ip: input.ip,
-    userAgent: input.userAgent,
-  })
-  return { user: userDto(updated), session }
+  try {
+    return await unitOfWork.execute(async (tx) => {
+      const claimed = await tx.user.updateMany({
+        where: {
+          id: user.id,
+          status: USER_STATUS.ACTIVE,
+          password: user.password,
+          passwordConfigured: true,
+          credentialsRevision: user.credentialsRevision,
+          ...(input.requiredRole ? { role: input.requiredRole } : {}),
+        },
+        data: { lastLoginAt: new Date(), updatedAt: new Date() },
+      })
+      if (claimed.count !== 1) throw new HttpError('Invalid credentials', 401, 401)
+      const updated = await tx.user.findUniqueOrThrow({ where: { id: user.id } })
+      const session = await issueSession({
+        userId: user.id,
+        persistent: input.remember,
+        ip: input.ip,
+        userAgent: input.userAgent,
+      }, tx)
+      return { user: userDto(updated), session }
+    })
+  } catch (error) {
+    if (hasPrismaCode(error, 'P2025')) throw new HttpError('Invalid credentials', 401, 401)
+    throw error
+  }
 }
 
 export async function updateUserProfile(userId: number, input: {

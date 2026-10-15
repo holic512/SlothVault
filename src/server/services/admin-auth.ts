@@ -2,18 +2,16 @@
  * @file admin-auth.ts
  * @project SlothVault
  * @module Admin Authentication Service
- * @description Owns administrator existence checks, credential verification, and session issuance.
- * @logic Count administrators, verify username/email credentials, and issue a duration-aware session.
- * @dependencies Prisma User model, server/auth/password, server/auth/session, server/http/errors
+ * @description Preserves legacy administrator authentication contracts through the shared identity service.
+ * @logic Count administrators and adapt legacy inputs and DTOs without duplicating credential verification or session policy.
+ * @dependencies Prisma User model, user-auth service, auth/roles
  * @index_tags admin,authentication,login,session,transaction
  * @author holic512
  */
 import 'server-only'
 
-import { verifyPassword } from '@/server/auth/password'
-import { USER_ROLE, USER_STATUS } from '@/server/auth/roles'
-import { issueSession } from '@/server/auth/session'
-import { HttpError } from '@/server/http/errors'
+import { USER_ROLE } from '@/server/auth/roles'
+import { loginUser } from '@/server/services/user-auth'
 import { prisma } from '@/server/prisma'
 
 export type LoginAdminInput = {
@@ -29,31 +27,9 @@ export async function hasAdminAccount() {
 }
 
 export async function loginAdmin(input: LoginAdminInput) {
-  const user = await prisma.user.findFirst({
-    where: {
-      role: USER_ROLE.ADMIN,
-      status: USER_STATUS.ACTIVE,
-      OR: [
-        { username: input.username.trim().toLowerCase() },
-        { email: input.username.trim().toLowerCase() },
-      ],
-    },
-  })
-
-  if (!user || !(await verifyPassword(user.password, input.password))) {
-    throw new HttpError('Invalid credentials', 401, 401)
-  }
-
-  const ttlMs = (input.remember ? 30 : 7) * 24 * 60 * 60 * 1000
-  const session = await issueSession({
-    userId: user.id,
-    ttlMs,
-    ip: input.ip,
-    userAgent: input.userAgent,
-  })
-
+  const result = await loginUser({ ...input, identifier: input.username, requiredRole: USER_ROLE.ADMIN })
   return {
-    user: { id: user.id, username: user.username, role: user.role },
-    session,
+    user: { id: Number(result.user.id), username: result.user.username, role: result.user.role },
+    session: result.session,
   }
 }

@@ -19,6 +19,7 @@ import { useLocale, useTranslations } from 'next-intl'
 
 import { AdminPage, AdminPageActions, AdminTablePanel, AdminToolbar } from '@/components/admin/admin-page'
 import { formatAdminDate, formatAdminError } from '@/lib/admin-localization'
+import { replaceClientSession } from '@/lib/session-client'
 import { apiFetch } from '@/lib/api-client'
 import type { AccountDeletionPreview, DeletedUserRow } from '@/types/admin-users'
 import type { SessionUser } from '@/types/user'
@@ -218,7 +219,8 @@ export function UsersManager() {
       passwordForm.resetFields()
       if (signedOut) {
         message.success(t('messages.signedOut'))
-        window.location.assign('/admin/auth/login')
+        await replaceClientSession(queryClient, null)
+        window.location.assign('/login?next=/admin/mm')
         return
       }
       message.success(t('messages.passwordReset'))

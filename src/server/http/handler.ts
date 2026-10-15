@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Server HTTP
  * @description Provides the shared error boundary, typed context, and process-wide read/write coordination for Next.js Route Handlers.
- * @logic Gate normal APIs until installation completes, run read-only methods concurrently, serialize state-changing methods, optionally retain a lock through streamed response consumption, capture privacy-safe request/lock/handler timing, and map domain/validation failures to the API envelope with route-specific cache headers.
+ * @logic Gate normal APIs until installation completes, run read-only methods concurrently, serialize state-changing methods, optionally retain a lock through streamed response consumption, capture privacy-safe request/lock/handler timing, and map failures to the API envelope while preventing authentication response caching.
  * @dependencies next/server, zod, server/http/errors, server/http/response, maintenance-lock, database/installation-state
  * @index_tags route-handler,error-boundary,validation,maintenance-lock,stream
  * @author holic512
@@ -202,6 +202,9 @@ export function defineRoute<Params extends Record<string, unknown> = Record<stri
     }
     try {
       const response = await run()
+      if (/^\/api\/(?:admin\/)?auth\//.test(request.nextUrl.pathname)) {
+        response.headers.set('Cache-Control', 'private, no-store')
+      }
       probe?.finish(response.status, streamingResponse)
       return response
     } catch (error) { probe?.finish(500); throw error }

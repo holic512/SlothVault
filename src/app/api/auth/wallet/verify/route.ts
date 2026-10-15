@@ -18,6 +18,7 @@ import { enforceRateLimit } from '@/server/short-lived-state'
 import { verifyWalletLogin } from '@/server/services/wallet-auth'
 
 const verifySchema = z.object({
+  remember: z.boolean().optional().default(false),
   challengeId: z.string().uuid(),
   address: z.string().trim().min(32).max(64),
   signature: z.string().trim().min(64).max(256),
@@ -33,6 +34,6 @@ export const POST = defineRoute(async (request) => {
     userAgent: request.headers.get('user-agent'),
   })
   const response = apiOk(result.user)
-  setSessionCookie(response, result.session.token, result.session.expiresAt)
+  setSessionCookie(response, result.session.token, result.session.expiresAt, result.session.persistent)
   return response
 })

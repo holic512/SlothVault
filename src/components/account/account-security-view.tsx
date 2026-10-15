@@ -22,6 +22,7 @@ import { useSolanaWallet } from '@/components/wallet/use-solana-wallet'
 import { signWalletMessage, type ConnectedWallet } from '@/components/wallet/wallet-connection'
 import { accountSecurityErrorReason } from '@/lib/account-security-error'
 import styles from '@/styles/modules/account.module.css'
+import { replaceClientSession } from '@/lib/session-client'
 import { apiFetch } from '@/lib/api-client'
 import type { AccountAction, AccountCredentials, CredentialsMutationResult, ReauthenticationProof, WalletBinding, WalletChallenge, WalletMutationResult, WalletProof } from '@/types/account-security'
 type CredentialValues = { username: string; newPassword?: string; confirmPassword?: string }
@@ -40,7 +41,7 @@ function SecurityContent() {
   useEffect(() => () => { proofRef.current?.reject(new Error('cancelled')); proofRef.current = null }, [])
   const showError = (error: unknown) => {
     const reason = accountSecurityErrorReason(error)
-    if (reason === 'SESSION_CHANGED') { router.replace('/login'); router.refresh() }
+    if (reason === 'SESSION_CHANGED') { void replaceClientSession(client, null).then(() => { router.replace('/login'); router.refresh() }) }
     if (reason !== 'WALLET_CANCELLED') message.error(common.has(`errors.${reason}`) ? common(`errors.${reason}`) : common('errors.WALLET_OPERATION_FAILED'))
   }
   const run = async (operation: () => Promise<void>) => {
@@ -99,7 +100,7 @@ function SecurityContent() {
     message.success(result.passwordChanged ? t('passwordUpdated') : t('credentialsUpdated'))
     form.resetFields(['newPassword', 'confirmPassword'])
     client.setQueryData(['account-credentials', result.user.id], result.credentials); client.setQueryData(['session-user'], result.user)
-    if (result.passwordChanged) { router.replace('/login'); router.refresh() }
+    if (result.passwordChanged) { await replaceClientSession(client, null); router.replace('/login'); router.refresh() }
   })
   const quota = credentials?.usernameChangeQuota
   return <div className="account-route">

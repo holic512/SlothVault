@@ -5,11 +5,12 @@
  * @project SlothVault
  * @module Application Providers
  * @description Defines the client-side provider boundary shared by every Next.js page.
- * @logic Apply server-resolved color, visual-style, and public-navigation appearance preferences before exposing shared design and query contexts; mount privacy-respecting public telemetry once; wallet runtime is mounted only by wallet-capable routes.
+ * @logic Apply server-resolved color, visual-style, and public-navigation appearance preferences before exposing shared design and query contexts; mount bounded session renewal and privacy-respecting public telemetry once; wallet runtime is mounted only by wallet-capable routes.
  * @dependencies app-theme-context, app-style-context, public-nav-style-context, design-system-provider
  * @index_tags providers,application,theme,style,public-nav,wallet
  * @author holic512
  */
+import { SessionCoordinator } from '@/components/auth/session-coordinator'
 import { PublicTelemetry } from '@/components/telemetry/public-telemetry'
 import type { ReactNode } from 'react'
 
@@ -36,7 +37,7 @@ export function AppProviders({
     <PublicNavStyleContextProvider initialPublicNavStyle={initialPublicNavStyle}>
       <AppStyleContextProvider initialStyle={initialStyle}>
         <AppThemeContextProvider initialTheme={initialTheme}>
-          <DesignSystemProvider><PublicTelemetry />{children}</DesignSystemProvider>
+          <DesignSystemProvider><SessionCoordinator /><PublicTelemetry />{children}</DesignSystemProvider>
         </AppThemeContextProvider>
       </AppStyleContextProvider>
     </PublicNavStyleContextProvider>

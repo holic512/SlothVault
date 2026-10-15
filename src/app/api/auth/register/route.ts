@@ -35,6 +35,6 @@ export const POST = defineRoute(async (request) => {
     userAgent: request.headers.get('user-agent'),
   })
   const response = apiOk(result.user, 'created', 201)
-  setSessionCookie(response, session.token, session.expiresAt)
+  setSessionCookie(response, session.token, session.expiresAt, session.persistent)
   return response
 })

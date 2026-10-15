@@ -2,8 +2,8 @@
  * @file session.ts
  * @project SlothVault
  * @module Authentication
- * @description Owns shared user session issuance, lookup, revocation, role guards, and secure cookie behavior.
- * @logic Store only SHA-256 token hashes, reject expired/revoked/disabled identities, and separate user and administrator authorization guards.
+ * @description Owns bounded shared sessions, atomic renewal, revocation, role guards, and persistent or browser-session cookies.
+ * @logic Keep authentication time immutable, enforce a seven-day absolute cap, renew only active nonpersistent sessions, and never revive revoked identities.
  * @dependencies node:crypto, next/server, Prisma Session/User models, auth/roles
  * @index_tags auth,session,cookie,user,admin,role
  * @author holic512
@@ -20,7 +20,22 @@ import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
 
 export const SESSION_COOKIE = 'sv_session'
-export const DEFAULT_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
+export const SESSION_ABSOLUTE_TTL_MS = 7 * 24 * 60 * 60 * 1000
+export const DEFAULT_SESSION_TTL_MS = 12 * 60 * 60 * 1000
+
+export function sessionAbsoluteExpiresAt(session: { createdAt: Date }) {
+  return new Date(session.createdAt.getTime() + SESSION_ABSOLUTE_TTL_MS)
+}
+
+export function isSessionActive(session: {
+  createdAt: Date
+  expiresAt: Date
+  revokedAt: Date | null
+  User: { status: number }
+}, now = Date.now()) {
+  return !session.revokedAt && session.User.status === USER_STATUS.ACTIVE &&
+    session.expiresAt.getTime() > now && sessionAbsoluteExpiresAt(session).getTime() > now
+}
 
 function sha256(value: string) {
   return createHash('sha256').update(value).digest('hex')
@@ -28,25 +43,29 @@ function sha256(value: string) {
 
 export async function issueSession(options: {
   userId: number
-  ttlMs?: number
+  persistent?: boolean
   ip?: string | null
   userAgent?: string | null
 }, client: Pick<Prisma.TransactionClient, 'session'> = prisma) {
-  const ttlMs = options.ttlMs ?? DEFAULT_SESSION_TTL_MS
+  const persistent = options.persistent === true
+  const createdAt = new Date()
+  const ttlMs = persistent ? SESSION_ABSOLUTE_TTL_MS : DEFAULT_SESSION_TTL_MS
   const token = randomBytes(32).toString('hex')
-  const expiresAt = new Date(Date.now() + ttlMs)
+  const expiresAt = new Date(createdAt.getTime() + ttlMs)
   const session = await client.session.create({
     data: {
       id: randomUUID(),
       userId: options.userId,
       tokenHash: sha256(token),
+      createdAt,
+      persistent,
       expiresAt,
       ip: options.ip?.slice(0, 255) || null,
       userAgent: options.userAgent || null,
     },
   })
 
-  return { token, expiresAt, sessionId: session.id }
+  return { token, expiresAt, persistent, sessionId: session.id }
 }
 
 export async function readSessionToken(token: string | undefined) {
@@ -57,12 +76,35 @@ export async function readSessionToken(token: string | undefined) {
     include: { User: true },
   })
 
-  if (!session || session.revokedAt || session.expiresAt.getTime() <= Date.now()) {
-    return null
-  }
-  if (session.User.status !== USER_STATUS.ACTIVE) return null
+  return session && isSessionActive(session) ? session : null
+}
 
-  return session
+/** Renewal changes expiry only; it never changes the token or authentication time. */
+export async function renewSessionToken(token: string | undefined) {
+  const session = await readSessionToken(token)
+  if (!session) return null
+  if (!session.persistent) {
+    const now = new Date()
+    const expiresAt = new Date(Math.min(
+      now.getTime() + DEFAULT_SESSION_TTL_MS,
+      sessionAbsoluteExpiresAt(session).getTime(),
+    ))
+    // A monotonic conditional update remains safe across processes, logout and disable races.
+    await prisma.session.updateMany({
+      where: {
+        id: session.id,
+        tokenHash: session.tokenHash,
+        persistent: false,
+        revokedAt: null,
+        createdAt: { gt: new Date(now.getTime() - SESSION_ABSOLUTE_TTL_MS) },
+        expiresAt: { gt: now, lt: expiresAt },
+        User: { status: USER_STATUS.ACTIVE },
+      },
+      data: { expiresAt },
+    })
+  }
+  // Re-read rather than returning the pre-update identity after a revoke/role change.
+  return readSessionToken(token)
 }
 
 export async function readSession(request: NextRequest) {
@@ -103,13 +145,14 @@ export function setSessionCookie(
   response: NextResponse,
   token: string,
   expiresAt: Date,
+  persistent = false,
 ) {
   response.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     path: '/',
-    expires: expiresAt,
+    ...(persistent ? { expires: expiresAt } : {}),
   })
 }
 

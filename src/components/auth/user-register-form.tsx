@@ -10,6 +10,9 @@
  * @index_tags register,user,password,profile,form
  * @author holic512
  */
+import { useQueryClient } from '@tanstack/react-query'
+import { authorizedAuthReturn } from '@/lib/auth-return'
+import { replaceClientSession } from '@/lib/session-client'
 import { useState } from 'react'
 
 import { MailOutlined, LockOutlined, UserOutlined } from '@ant-design/icons'
@@ -32,6 +35,7 @@ type RegisterValues = {
 export function UserRegisterForm({ returnTo = '/account' }: { returnTo?: string }) {
   const t = useTranslations('UserAuth.register')
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { message } = App.useApp()
   const [errorText, setErrorText] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -40,7 +44,7 @@ export function UserRegisterForm({ returnTo = '/account' }: { returnTo?: string 
     setSubmitting(true)
     setErrorText('')
     try {
-      await apiFetch<SessionUser>('/api/auth/register', {
+      const user = await apiFetch<SessionUser>('/api/auth/register', {
         method: 'POST',
         body: JSON.stringify({
           username: values.username,
@@ -49,8 +53,9 @@ export function UserRegisterForm({ returnTo = '/account' }: { returnTo?: string 
           password: values.password,
         }),
       })
+      await replaceClientSession(queryClient, user)
       message.success(t('success'))
-      router.replace(returnTo)
+      router.replace(authorizedAuthReturn(returnTo, user.role))
       router.refresh()
     } catch (error) {
       setErrorText(error instanceof Error ? error.message : t('failed'))

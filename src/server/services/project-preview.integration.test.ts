@@ -61,8 +61,8 @@ describe('administrator version preview', () => {
   it.each([null, { userId: 2, role: 'USER' }])('rejects unauthorized viewers before querying version data: %s', async viewer => {
     fixture.viewer = viewer
     const query = vi.spyOn(fixture.client.projectVersion, 'findFirst')
-    await expect(getPreviewVersion(projectId, versionId)).rejects.toThrow('redirect:/admin/auth/login')
-    await expect(getPreviewNote(projectId, versionId, noteId)).rejects.toThrow('redirect:/admin/auth/login')
+    await expect(getPreviewVersion(projectId, versionId)).rejects.toThrow(viewer ? 'redirect:/account' : 'redirect:/login?next=/admin/mm')
+    await expect(getPreviewNote(projectId, versionId, noteId)).rejects.toThrow(viewer ? 'redirect:/account' : 'redirect:/login?next=/admin/mm')
     expect(query).not.toHaveBeenCalled()
     query.mockRestore()
   })

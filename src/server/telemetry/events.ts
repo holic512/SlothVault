@@ -27,18 +27,9 @@ import type { TrustedPageEvent } from '@/types/telemetry'
 
 const schema=z.object({id:z.string().uuid(),page:z.string().max(180),visitorId:z.string().uuid().nullable(),visibleMs:z.number().int().min(0).max(1800000),depth:z.number().min(0).max(100)}).strict()
 function digest(scope:string,value:string){return createHmac('sha256',getMasterKey()).update(`telemetry:${scope}:${value}`).digest('hex')}
-export function isSameOriginTelemetry(request: NextRequest) {
-  const origin = request.headers.get('origin'), site = request.headers.get('sec-fetch-site')
-  if (!origin || (site && site !== 'same-origin')) return false
-  try {
-    const parsed = new URL(origin)
-    if (!['http:', 'https:'].includes(parsed.protocol) || parsed.origin !== origin) return false
-    if (origin === request.nextUrl.origin) return true
-    // TLS-terminating proxies may change the internal scheme; only browser-confirmed
-    // same-origin traffic with the preserved Host can use this compatibility path.
-    return site === 'same-origin' && parsed.host === request.headers.get('host')
-  } catch { return false }
-}
+export { isSameOriginRequest as isSameOriginTelemetry } from '@/server/http/same-origin'
+import { isSameOriginRequest as isSameOriginTelemetry } from '@/server/http/same-origin'
+
 export async function ingestTelemetry(request:NextRequest) {
   if(!isSameOriginTelemetry(request)) throw new HttpError('Cross-origin telemetry is not allowed',403,403)
   if(request.headers.get('dnt')==='1'||request.headers.get('sec-gpc')==='1') return {accepted:false,reason:'PRIVACY_PREFERENCE'}

@@ -82,7 +82,7 @@ export function InstallWizard() {
       }
 
       if (state.status === 'INSTALLED') {
-        router.replace('/admin/auth/login')
+        router.replace('/login?next=/admin/mm')
         return
       }
       if (state.status === 'SCHEMA_READY') {
@@ -198,7 +198,7 @@ export function InstallWizard() {
       setServerStatus('INSTALLED')
       setActiveStep(3)
       message.success(t('messages.adminSuccess'))
-      loginTimer.current = window.setTimeout(() => router.replace('/admin/auth/login'), 1200)
+      loginTimer.current = window.setTimeout(() => router.replace('/login?next=/admin/mm'), 1200)
     } catch (error) {
       setFlowError(errorMessage(error, t('errors.admin')))
     } finally {
@@ -344,7 +344,7 @@ export function InstallWizard() {
             />
           ) : null}
 
-          {activeStep === 3 ? <CompleteStage t={t} onLogin={() => router.replace('/admin/auth/login')} /> : null}
+          {activeStep === 3 ? <CompleteStage t={t} onLogin={() => router.replace('/login?next=/admin/mm')} /> : null}
         </div>
       </Card>
     </InstallShell>

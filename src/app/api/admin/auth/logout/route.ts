@@ -1,15 +1,11 @@
-import { NextResponse } from 'next/server'
-
-import {
-  clearSessionCookie,
-  revokeSessionToken,
-  SESSION_COOKIE,
-} from '@/server/auth/session'
-import { defineRoute } from '@/server/http/handler'
-
-export const POST = defineRoute(async (request) => {
-  await revokeSessionToken(request.cookies.get(SESSION_COOKIE)?.value)
-  const response = NextResponse.json({ code: 0, message: 'ok', data: null })
-  clearSessionCookie(response)
-  return response
-})
+/**
+ * @file route.ts
+ * @project SlothVault
+ * @module Legacy Logout Adapter
+ * @description Retains the old administrator logout URL without duplicating session logic.
+ * @logic Delegate revocation and cookie clearing to the shared logout handler.
+ * @dependencies auth/logout route
+ * @index_tags auth,logout,compatibility
+ * @author holic512
+ */
+export { POST } from '@/app/api/auth/logout/route'

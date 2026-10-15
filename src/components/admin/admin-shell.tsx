@@ -44,6 +44,8 @@ import { usePathname, useRouter } from 'next/navigation'
 import { ThemeControls } from '@/components/theme/theme-controls'
 import { BrandLogo } from '@/components/shell/brand-logo'
 import { WalletRuntime } from '@/components/providers/wallet-runtime'
+import { useQueryClient } from '@tanstack/react-query'
+import { replaceClientSession } from '@/lib/session-client'
 import { apiFetch } from '@/lib/api-client'
 import adminStyles from '@/styles/modules/admin.module.css'
 import type { SystemBranding } from '@/types/branding'
@@ -81,6 +83,7 @@ export function AdminShell({ children, branding }: { children: ReactNode; brandi
   const t = useTranslations('AdminMM')
   const pathname = usePathname()
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -137,8 +140,9 @@ export function AdminShell({ children, branding }: { children: ReactNode; brandi
   const walletEnabled = pathname === '/admin/mm/evidence' || pathname.startsWith('/admin/mm/commissions')
 
   const logout = async () => {
-    await apiFetch('/api/admin/auth/logout', { method: 'POST', body: JSON.stringify({}) })
-    router.replace('/admin/auth/login')
+    await apiFetch('/api/auth/logout', { method: 'POST', body: JSON.stringify({}) })
+    await replaceClientSession(queryClient, null)
+    router.replace('/login?next=/admin/mm')
     router.refresh()
   }
 

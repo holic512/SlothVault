@@ -28,7 +28,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (pathname === '/install' || pathname === '/maintenance') {
-    return NextResponse.redirect(new URL('/admin/auth/login', request.url))
+    return NextResponse.redirect(new URL('/login?next=/admin/mm', request.url))
   }
   return NextResponse.next()
 }

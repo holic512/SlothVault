@@ -27,7 +27,6 @@ export type PageTitleKey =
   | 'adminFiles'
   | 'adminGiftCards'
   | 'adminHomepage'
-  | 'adminLogin'
   | 'adminMembershipLevels'
   | 'adminMcpKeys'
   | 'adminArticleEdit'

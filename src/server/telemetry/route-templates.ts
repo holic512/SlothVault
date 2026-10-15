@@ -48,6 +48,7 @@ export const ROUTE_TEMPLATES = [
   '/api/admin/mm/gift-cards',
   '/api/account/membership',
   '/api/admin/auth/session',
+  '/api/auth/session/renew',
   '/api/admin/mm/analytics',
   '/api/admin/mm/dashboard',
   '/api/auth/wallet/verify',

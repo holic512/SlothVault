@@ -256,25 +256,6 @@
       }
     }
   },
-  "AdminLogin": {
-    "hero": {
-      "badge": "Admin Console",
-      "title": "Admin Login",
-      "desc": "Enter admin credentials to access the console"
-    },
-    "form": {
-      "username": "Username or Email",
-      "password": "Password",
-      "rememberUsername": "Remember username",
-      "stayLoggedIn": "Stay logged in for 30 days",
-      "submit": "Sign In",
-      "submitting": "Signing in…"
-    },
-    "status": {
-      "required": "Please fill in all required fields",
-      "error": "Invalid username or password"
-    }
-  },
   "Install": {
     "hero": {
       "badge": "First-run deployment protocol",
@@ -442,7 +423,6 @@
     "accountMembership": "Membership center",
     "accountProfile": "Profile",
     "accountSecurity": "Security & sign-in",
-    "adminLogin": "Admin Login",
     "adminArticles": "Article Management",
     "adminArticleEdit": "Article Editor",
     "adminDashboard": "Admin Dashboard",
@@ -2371,7 +2351,10 @@
       "identifierRequired": "Enter your username or email",
       "password": "Password",
       "passwordRequired": "Enter your password",
-      "remember": "Keep me signed in for 30 days",
+      "remember": "Keep me signed in for up to 7 days",
+      "rememberUsername": "Remember account",
+      "persistentHint": "Stay signed in on this device until 7 days after authentication. Sign in again when it expires. Do not use on shared devices.",
+      "sessionHint": "Use a nonpersistent session: expires after 12 hours without renewal, and always within 7 days. Use Sign out to explicitly end your session.",
       "submit": "Sign in",
       "or": "or",
       "noAccount": "Don't have an account? ",

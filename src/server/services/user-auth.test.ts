@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
       findFirst: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
     },
   },
 }))
@@ -92,7 +94,8 @@ describe('conventional user authentication', () => {
   it('logs in by username or email and issues the ordinary database session', async () => {
     mocks.prisma.user.findFirst.mockResolvedValue(userRecord())
     mocks.verifyPassword.mockResolvedValue(true)
-    mocks.prisma.user.update.mockResolvedValue(userRecord({ lastLoginAt: new Date() }))
+    mocks.prisma.user.updateMany.mockResolvedValue({ count: 1 })
+    mocks.prisma.user.findUniqueOrThrow.mockResolvedValue(userRecord({ lastLoginAt: new Date() }))
     mocks.issueSession.mockResolvedValue({
       token: 'session-token',
       expiresAt: new Date('2026-08-29T00:00:00.000Z'),
@@ -117,11 +120,19 @@ describe('conventional user authentication', () => {
     })
     expect(mocks.issueSession).toHaveBeenCalledWith({
       userId: 7,
-      ttlMs: 30 * 24 * 60 * 60 * 1000,
+      persistent: true,
       ip: '127.0.0.1',
       userAgent: 'vitest',
-    })
+    }, mocks.prisma)
     expect(result.user.role).toBe('USER')
+  })
+
+  it('refuses to issue a session if credentials changed after password verification', async () => {
+    mocks.prisma.user.findFirst.mockResolvedValue(userRecord())
+    mocks.verifyPassword.mockResolvedValue(true)
+    mocks.prisma.user.updateMany.mockResolvedValue({ count: 0 })
+    await expect(loginUser({ identifier: 'writer', password: 'safe-password', remember: false, ip: null, userAgent: null })).rejects.toMatchObject({ status: 401 })
+    expect(mocks.issueSession).not.toHaveBeenCalled()
   })
 
   it('updates the avatar only through the dedicated managed-avatar operation', async () => {

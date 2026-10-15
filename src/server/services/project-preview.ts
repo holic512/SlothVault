@@ -19,7 +19,8 @@ import { projectAccessInclude, projectPolicyDto } from './content-access'
 
 export async function requirePreviewAdmin() {
   const viewer = await getPageViewer()
-  if (!viewer || !isAdminRole(viewer.role)) redirect('/admin/auth/login')
+  if (!viewer) redirect('/login?next=/admin/mm')
+  if (!isAdminRole(viewer.role)) redirect('/account')
   return viewer
 }
 

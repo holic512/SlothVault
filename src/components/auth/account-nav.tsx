@@ -18,8 +18,8 @@ import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 
 import { PopupSurface } from '@/components/ui/popup-surface'
-import { ApiClientError, apiFetch } from '@/lib/api-client'
-import type { SessionUser } from '@/types/user'
+import { fetchSessionUser, replaceClientSession } from '@/lib/session-client'
+import { apiFetch } from '@/lib/api-client'
 
 export function AccountNav({ compact = false }: { compact?: boolean }) {
   const t = useTranslations('Account.nav')
@@ -28,14 +28,7 @@ export function AccountNav({ compact = false }: { compact?: boolean }) {
   const query = useQuery({
     queryKey: ['session-user'],
     retry: false,
-    queryFn: async () => {
-      try {
-        return await apiFetch<SessionUser | null>('/api/auth/session')
-      } catch (error) {
-        if (error instanceof ApiClientError && error.status === 401) return null
-        throw error
-      }
-    },
+    queryFn: fetchSessionUser,
   })
 
   if (!query.data) {
@@ -49,7 +42,7 @@ export function AccountNav({ compact = false }: { compact?: boolean }) {
   const user = query.data
   const logout = async () => {
     await apiFetch('/api/auth/logout', { method: 'POST', body: JSON.stringify({}) })
-    await queryClient.invalidateQueries({ queryKey: ['session-user'] })
+    await replaceClientSession(queryClient, null)
     router.replace('/')
     router.refresh()
   }

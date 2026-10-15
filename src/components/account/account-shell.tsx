@@ -19,7 +19,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { usePathname } from 'next/navigation'
 
-import { apiFetch } from '@/lib/api-client'
+import { fetchSessionUser } from '@/lib/session-client'
 import styles from '@/styles/modules/account.module.css'
 import type { SessionUser } from '@/types/user'
 
@@ -68,9 +68,10 @@ export function AccountShell({
   ]
   const sessionQuery = useQuery({
     queryKey: ['session-user'],
-    queryFn: () => apiFetch<SessionUser | null>('/api/auth/session'),
+    queryFn: fetchSessionUser,
     initialData: initialUser,
   })
+  if (sessionQuery.data === null) return null
   const user = sessionQuery.data || initialUser
 
   return (

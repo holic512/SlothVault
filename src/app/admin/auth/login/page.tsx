@@ -1,17 +1,16 @@
-import { AuthFrame } from '@/components/auth/auth-frame'
-import { LoginForm } from '@/components/auth/login-form'
-import { createPageMetadata } from '@/i18n/metadata'
-
-export const dynamic = 'force-dynamic'
-
-export async function generateMetadata() {
-  return createPageMetadata('adminLogin')
-}
+/**
+ * @file page.tsx
+ * @project SlothVault
+ * @module Legacy Login Redirect
+ * @description Redirects the retired administrator login page to the unified login.
+ * @logic Keep old bookmarks working without rendering a second authentication form.
+ * @dependencies Next redirect, auth-return
+ * @index_tags auth,admin,redirect,compatibility
+ * @author holic512
+ */
+import { redirect } from 'next/navigation'
+import { ADMIN_LOGIN_URL } from '@/lib/auth-return'
 
 export default function AdminLoginPage() {
-  return (
-    <AuthFrame>
-      <LoginForm />
-    </AuthFrame>
-  )
+  redirect(ADMIN_LOGIN_URL)
 }

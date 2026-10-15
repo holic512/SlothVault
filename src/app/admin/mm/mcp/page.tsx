@@ -23,7 +23,8 @@ export async function generateMetadata() {
 export default async function McpKeysPage() {
   const cookieStore = await cookies()
   const session = await readSessionToken(cookieStore.get(SESSION_COOKIE)?.value)
-  if (!session || !isAdminRole(session.User.role)) redirect('/admin/auth/login')
+  if (!session) redirect('/login?next=/admin/mm')
+  if (!isAdminRole(session.User.role)) redirect('/account')
   const administratorId = session.User.id.toString()
   return <McpKeysManager key={administratorId} administratorId={administratorId} />
 }

@@ -22,7 +22,8 @@ export const dynamic = 'force-dynamic'
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies()
   const session = await readSessionToken(cookieStore.get(SESSION_COOKIE)?.value)
-  if (!session || !isAdminRole(session.User.role)) redirect('/admin/auth/login')
+  if (!session) redirect('/login?next=/admin/mm')
+  if (!isAdminRole(session.User.role)) redirect('/account')
 
   return <AdminTypographyProvider><AdminShell branding={await getSystemBranding()}>{children}</AdminShell></AdminTypographyProvider>
 }
