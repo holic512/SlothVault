@@ -1,6 +1,6 @@
 {
   "name": "slothvault",
-  "version": "2.6.13",
+  "version": "2.6.14",
   "private": true,
   "type": "module",
   "engines": {
@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "npm run prisma:generate && next build",
+    "build": "npm run prisma:generate && npm run plugins:build && next build",
     "postbuild": "node scripts/sanitize-standalone.mjs",
     "start": "next start",
     "lint": "eslint .",
@@ -22,7 +22,10 @@
     "prisma:generate": "node scripts/generate-prisma.mjs",
     "prisma:validate": "node scripts/generate-prisma.mjs --validate",
     "postinstall": "npm run prisma:generate",
-    "version:prepare": "node scripts/release-version.mjs --prepare"
+    "version:prepare": "node scripts/release-version.mjs --prepare",
+    "plugins:build": "node scripts/build-plugins.mjs",
+    "predev": "npm run plugins:build",
+    "plugins:pack": "node plugins/sdk/cli.mjs pack plugins/gift-cards dist/plugins/gift-cards && node plugins/sdk/cli.mjs pack plugins/example dist/plugins/example"
   },
   "dependencies": {
     "@ant-design/cssinjs": "2.1.2",
@@ -51,6 +54,7 @@
     "dompurify": "3.4.16",
     "dotenv": "17.4.2",
     "echarts": "6.1.0",
+    "kysely": "0.29.6",
     "lucide-react": "1.24.0",
     "mariadb": "3.4.5",
     "mermaid": "12.1.0",
@@ -68,12 +72,17 @@
     "remark-gfm": "4.0.1",
     "remark-parse": "11.0.0",
     "remark-rehype": "11.1.2",
+    "semver": "7.8.5",
     "sharp": "0.35.4",
     "tweetnacl": "1.0.3",
     "unified": "11.0.5",
     "unzipper": "0.12.5",
     "zod": "4.4.3",
-    "zustand": "5.0.15"
+    "zustand": "5.0.15",
+    "rollup": "4.64.7",
+    "typescript": "5.9.3",
+    "@rollup/plugin-commonjs": "29.0.3",
+    "@rollup/plugin-node-resolve": "16.0.3"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",
@@ -83,6 +92,7 @@
     "@types/pg": "8.15.6",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
+    "@types/semver": "7.7.1",
     "@types/sharp": "0.31.1",
     "@types/unzipper": "0.10.11",
     "eslint": "9.39.5",
@@ -91,7 +101,6 @@
     "prisma": "7.3.0",
     "stylelint": "17.14.1",
     "stylelint-config-standard": "40.0.0",
-    "typescript": "5.9.3",
     "vitest": "4.1.11"
   },
   "packageManager": "npm@11.16.0"

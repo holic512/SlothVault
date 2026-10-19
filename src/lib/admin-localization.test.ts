@@ -12,6 +12,10 @@ import { ApiClientError } from '@/lib/api-client'
 const translate = ((key: string) => `translated:${key}`) as unknown as ReturnType<typeof useTranslations<'AdminMM.errors'>>
 
 describe('administration localization utilities', () => {
+  it('does not format missing dates as the Unix epoch', () => {
+    for (const value of [null, undefined, '']) expect(formatAdminDate('en', value)).toBe('—')
+  })
+
   it('formats numeric, byte, and date values through the active locale', () => {
     const value = new Date('2026-08-10T12:30:00.000Z')
 

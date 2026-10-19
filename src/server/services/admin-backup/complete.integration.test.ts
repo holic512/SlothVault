@@ -814,9 +814,9 @@ describe('persistent imported backup nodes', () => {
     expect(job.status).toBe('succeeded')
     const imported = await getBackupSnapshot(source.importId)
     await previewCompleteRestore({ snapshotId: imported.id }, s.admin.id)
-    await atomicJson(recordPath('snapshots', original.id), { ...original, manifest: { ...original.manifest, databaseVersion: '2.16.0' } })
+    await atomicJson(recordPath('snapshots', original.id), { ...original, manifest: { ...original.manifest, databaseVersion: '2.19.0' } })
     const historical = (await backupHistory()).snapshots.find(item => item.id === original.id)!
-    expect(historical).toMatchObject({ restorable: false, compatibility: { status: 'unsupported', sourceVersion: '2.16.0', targetVersion: DATABASE_BACKUP_VERSION, reason: 'data-version' } })
+    expect(historical).toMatchObject({ restorable: false, compatibility: { status: 'unsupported', sourceVersion: '2.19.0', targetVersion: DATABASE_BACKUP_VERSION, reason: 'data-version' } })
     await expect(previewCompleteRestore({ snapshotId: original.id }, s.admin.id)).rejects.toMatchObject({ status: 400, data: { reason: 'BACKUP_UNSUPPORTED_FORMAT' } })
     const download = await downloadGet(request('download', { token: s.session.token }), context(original.id))
     expect(download.status).toBe(200); await download.body!.cancel()

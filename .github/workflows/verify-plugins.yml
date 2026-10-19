@@ -1,0 +1,75 @@
+# @file .github/workflows/verify-plugins.yml
+# @project SlothVault
+# @module Shared Plugin Release Verification
+# @description Validates immutable plugin sources and all database providers without repository write permissions.
+# @logic Build host tooling, package source fixtures and verify types plus real three-provider behavior independently from publishing.
+# @dependencies GitHub Actions, Node, PostgreSQL, MySQL, plugin SDK builder
+# @index_tags plugins,verification,release,migrations
+# @author holic512
+name: Verify independent plugins
+on:
+  pull_request:
+    paths:
+      - 'plugins/**'
+      - 'src/server/plugins/**'
+      - 'scripts/build-plugins.mjs'
+      - 'scripts/plugin-worker.ts'
+      - 'scripts/plugin-bundler.mjs'
+      - 'scripts/plugin-compiler.mjs'
+      - 'src/app/api/plugins/**'
+      - 'src/app/api/admin/mm/plugins/**'
+      - 'src/components/plugins/**'
+      - 'src/components/admin/plugins-manager.tsx'
+      - 'src/components/admin/plugin-installer.tsx'
+      - 'src/server/services/admin-backup/**'
+      - 'prisma/providers/**'
+      - 'src/server/database/mysql-migrations.integration.test.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - 'vitest.config.ts'
+      - '.github/workflows/release-plugins.yml'
+      - '.github/workflows/verify-plugins.yml'
+  workflow_call:
+    inputs:
+      source_ref:
+        description: Immutable source commit validated by the application release workflow
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgresql:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: plugin_test_ci_only
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-retries 15
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: plugin_test_ci_only
+        ports: ['3306:3306']
+        options: --health-cmd "mysqladmin ping --silent" --health-interval 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.source_ref || github.sha }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.18.1'
+          cache: npm
+      - run: npm ci
+      - run: npm run plugins:build
+      - run: npm run plugins:pack
+      - run: npm run typecheck
+      - name: Test package, ownership, lifecycle and three-database contracts
+        env:
+          SLOTHVAULT_PLUGIN_TEST_POSTGRESQL_URL: postgresql://postgres:plugin_test_ci_only@127.0.0.1:5432/postgres
+          SLOTHVAULT_PLUGIN_TEST_MYSQL_URL: mysql://root:plugin_test_ci_only@127.0.0.1:3306/mysql
+        run: npx vitest run src/server/plugins src/server/services/points.test.ts src/server/database/mysql-migrations.integration.test.ts

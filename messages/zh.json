@@ -469,7 +469,8 @@
       "commissions": "委托项目",
       "contractTemplates": "合同模板",
       "analytics": "运营仪表盘",
-      "observability": "运维仪表盘"
+      "observability": "运维仪表盘",
+      "plugins": "插件管理"
     },
     "menuGroups": {
       "overview": "概览",
@@ -1631,7 +1632,8 @@
         "categories": "{active} 个已启用 · {notes} 篇启用笔记",
         "points": "已兑换 {redeemed}/{total} 张卡密",
         "files": "已管理 {count} 个文件",
-        "evidence": "{finalized} 已确认 · {pending} 待处理"
+        "evidence": "{finalized} 已确认 · {pending} 待处理",
+        "corePoints": "主系统积分账本"
       },
       "trend": {
         "title": "运营活动趋势",
@@ -1917,7 +1919,7 @@
       "dialog": {
         "createTitle": "发行积分卡密",
         "codesTitle": "卡密已生成",
-        "codesDescription": "系统只保存哈希；关闭后无法再次查看这些明文卡密。"
+        "codesDescription": "卡密已发行，也可随时在批次明细中查看和复制。"
       },
       "form": {
         "name": "批次名称",
@@ -2337,13 +2339,88 @@
       "newActivity": "本期出现新活动",
       "previousPeriod": "较上一等长窗口",
       "incompleteSince": "自 {time} 起曾存在采集缺口"
+    },
+    "plugins": {
+      "refresh": "刷新",
+      "install": "安装插件",
+      "saved": "已保存",
+      "architecture": "安装源码包后由宿主编译；插件按需启用，数据保存在主数据库和 data/plugins。",
+      "trustWarning": "插件按完整应用信任执行。SHA-256 只校验内容一致性，不证明作者可信或代码安全。请仅安装你信任的代码。",
+      "plugin": "插件",
+      "version": "版本",
+      "state": "状态",
+      "data": "所属数据",
+      "operations": "操作",
+      "tableCount": "{count} 张表",
+      "details": "详情 / 配置",
+      "disableConfirm": "禁用插件并停止其后台任务？",
+      "enableConfirm": "启用此已信任插件？",
+      "disable": "禁用",
+      "enable": "启用",
+      "update": "从 Release 安装 / 更新",
+      "uninstall": "卸载",
+      "checkReleases": "检查 Release",
+      "upload": "上传插件 ZIP",
+      "package": "安装包",
+      "preview": "校验 / 预览",
+      "capabilities": "声明的能力",
+      "trustAccept": "我信任此安装包，并授予其代码完整应用访问权限。",
+      "confirmInstall": "确认安装",
+      "description": "说明",
+      "source": "来源",
+      "manual": "手动上传源码包",
+      "config": "配置（JSON）",
+      "saveConfig": "校验并保存配置",
+      "rollback": "恢复上一版本",
+      "rollbackWarning": "恢复升级前插件数据和代码？主系统积分余额和流水不会回退。",
+      "schemaNote": "配置按插件 JSON Schema 校验。掩码密钥未替换时继续保留原值。",
+      "error": "错误",
+      "tasks": "任务 / Hook",
+      "attempts": "尝试次数",
+      "retainDefault": "默认仅卸载插件程序，保留配置、业务表和数据，重新安装后可以继续使用。",
+      "deleteData": "同时清理此插件的业务表和配置",
+      "deleteWarning": "数据库清理不可撤销。请输入插件 ID 确认；不会删除主系统积分余额、流水或会员权益。",
+      "retry": "重试与恢复",
+      "compatibility": "兼容范围",
+      "dependencies": "插件依赖",
+      "phase": "执行步骤",
+      "officialCatalog": "官方插件",
+      "manualInstall": "手动安装",
+      "official": "官方目录",
+      "officialId": "官方插件 ID · 来源需自行确认",
+      "installedVersion": "已安装",
+      "checkUpdates": "检查更新",
+      "selectPlugin": "选择插件",
+      "availableVersions": "可用版本",
+      "noRelease": "暂无可安装的 Release，请稍后刷新或手动上传源码包。",
+      "selectVersion": "选择版本",
+      "sourceUpload": "点击或拖拽上传插件源码 ZIP",
+      "sourceUploadHint": "包含源码、plugin.json、plugin.build.json 和校验清单，无需手动构建。",
+      "advancedSource": "高级：从 GitHub Release 安装",
+      "inspecting": "正在校验源码包…",
+      "previewFailed": "预览失败或插件不兼容",
+      "compatible": "已通过宿主、SDK 与 Node 兼容性检查",
+      "compiling": "正在编译并安装…",
+      "installFailed": "安装失败，原版本未被替换",
+      "runtimeLabels": {
+        "ERROR": "异常",
+        "UNINSTALLED": "已卸载",
+        "DISABLED": "已禁用",
+        "RUNNING": "运行中",
+        "IDLE": "已启用 · 按需运行"
+      },
+      "codeLabels": {
+        "MISSING": "源码缺失",
+        "PRESENT": "源码已保存"
+      },
+      "noOfficialPlugins": "暂无官方插件，请使用手动安装。"
     }
   },
   "UserAuth": {
     "login": {
       "kicker": "账户",
       "title": "登录 SlothVault",
-      "description": "使用普通账户维护个人资料、处理合同和兑换积分。",
+      "description": "使用普通账户维护个人资料、处理合同和管理积分。",
       "sessionReadFailed": "无法读取登录状态",
       "success": "登录成功",
       "failed": "登录失败",
@@ -2456,7 +2533,7 @@
       "actions": {
         "profile": "编辑个人资料",
         "security": "管理安全与登录",
-        "points": "兑换卡密与查看积分",
+        "points": "查看积分余额与记录",
         "membership": "开通与管理会员权益",
         "commissions": "委托项目"
       },
@@ -2505,7 +2582,7 @@
     "points": {
       "kicker": "积分",
       "title": "积分中心",
-      "description": "兑换卡密并查看每一笔积分变动。",
+      "description": "查看积分余额及每一笔积分变动。",
       "redeemed": "已兑换 {points} 积分",
       "current": "当前积分",
       "redeemTitle": "兑换卡密",
@@ -2728,5 +2805,78 @@
     "loadFailed": "账号安全信息加载失败。",
     "retry": "重试",
     "loading": "加载中…"
+  },
+  "Plugins": {
+    "giftCards": {
+      "manage": {
+        "actions": {
+          "refresh": "刷新",
+          "create": "发行卡密",
+          "generate": "生成卡密",
+          "cancel": "取消",
+          "confirmSaved": "我已保存",
+          "copyAll": "复制全部卡密"
+        },
+        "messages": {
+          "codesCopied": "卡密已复制",
+          "copyFailed": "复制失败，请手动选择卡密复制。"
+        },
+        "table": {
+          "batch": "批次",
+          "points": "面值",
+          "quantity": "数量",
+          "redemption": "兑换进度",
+          "expiresAt": "到期时间",
+          "issuer": "发行人"
+        },
+        "pointsValue": "{value} 积分",
+        "permanent": "长期有效",
+        "dialog": {
+          "createTitle": "发行积分卡密",
+          "codesTitle": "卡密已生成",
+          "codesDescription": "卡密已发行，也可随时在批次明细中查看和复制。"
+        },
+        "form": {
+          "name": "批次名称",
+          "points": "单卡积分",
+          "quantity": "发行数量",
+          "expiresAt": "到期时间（可选）"
+        },
+        "plaintextNotice": "卡密以明文保存，数据库和备份中也包含完整兑换码。",
+        "allStatuses": "全部状态",
+        "copyPage": "复制当前页",
+        "copy": "复制",
+        "code": "完整卡密",
+        "status": "状态",
+        "redeemedBy": "兑换人",
+        "redeemedAt": "兑换时间",
+        "statuses": {
+          "unused": "未使用",
+          "used": "已使用",
+          "expired": "已过期",
+          "disabled": "已停用"
+        }
+      },
+      "redeem": {
+        "kicker": "积分",
+        "title": "卡密兑换",
+        "description": "输入卡密领取积分；积分余额与流水请前往积分中心查看。",
+        "redeemed": "已兑换 {points} 积分",
+        "current": "当前积分",
+        "redeemTitle": "兑换卡密",
+        "codeRequired": "请输入卡密",
+        "redeem": "兑换积分",
+        "history": "积分记录",
+        "table": {
+          "time": "时间",
+          "description": "说明",
+          "defaultDescription": "积分变动",
+          "change": "变动",
+          "balance": "余额"
+        },
+        "code": "兑换码",
+        "usePoints": "用积分开通会员"
+      }
+    }
   }
 }

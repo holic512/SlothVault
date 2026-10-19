@@ -28,8 +28,13 @@ const expectedTables = {
   UserDeletionRecord: 'auth_user_deletion_record',
   McpApiKey: 'mcp_api_key',
   PointTransaction: 'points_transaction',
-  GiftCardBatch: 'points_gift_card_batch',
-  GiftCard: 'points_gift_card',
+  PluginInstallation: 'plugin_installation',
+  PluginPackage: 'plugin_package',
+  PluginOwnedTable: 'plugin_owned_table',
+  PluginMigration: 'plugin_migration',
+  PluginOperation: 'plugin_operation',
+  PluginTask: 'plugin_task',
+  PluginPointReceipt: 'plugin_point_receipt',
   Article: 'blog_article',
   MembershipLevel: 'membership_level',
   MembershipGrant: 'membership_grant',
@@ -162,7 +167,8 @@ describe('provider schema parity', () => {
     expect(models.get('McpApiKey')).toContain('secretHash String @map("secret_hash")')
     expect(models.get('McpApiKey')).toContain('lastUsedAt DateTime? @map("last_used_at")')
     expect(models.get('PointTransaction')).toContain('balanceAfter Int @map("balance_after")')
-    expect(models.get('GiftCard')).toContain('codeHash String @unique')
+    expect(models.has('GiftCard')).toBe(false)
+    expect(models.has('GiftCardBatch')).toBe(false)
     expect(models.get('Article')).toContain('publishedAt DateTime? @map("published_at")')
     expect(models.get('Article')).toContain('@@index([status, isDeleted, publishedAt]')
     expect(models.get('Article')).toContain('requiredMembershipLevelId Int? @map("required_membership_level_id")')
@@ -217,8 +223,6 @@ describe('provider schema parity', () => {
       'User',
       'McpApiKey',
       'PointTransaction',
-      'GiftCardBatch',
-      'GiftCard',
       'Article',
       'MembershipLevel',
       'MembershipGrant',

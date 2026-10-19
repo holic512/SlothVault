@@ -2971,3 +2971,38 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
+
+/* A page contribution must participate in the shell's flex sizing chain. */
+.root :global(.plugin-page-host--admin) {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.root :global(.plugin-page-host--admin > .admin-page-stack) {
+  flex: 1;
+}
+
+:global(.plugin-catalog-entry) {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border: 1px solid var(--sv-border);
+  border-radius: 8px;
+}
+
+:global(.plugin-catalog-entry.is-selected) {
+  border-color: var(--sv-primary);
+}
+
+@media (width <= 640px) {
+  :global(.plugin-catalog-entry) {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

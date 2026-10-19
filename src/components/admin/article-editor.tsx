@@ -1,12 +1,14 @@
 'use client'
 
+import { PluginSlot } from '@/components/plugins/plugin-ui'
+
 /**
  * @file article-editor.tsx
  * @project SlothVault
  * @module Independent Article Editor
  * @description Provides a focused administrator workspace for article metadata, optional cover, Markdown body, and publication lifecycle.
- * @logic Hydrate existing drafts, persist edits before lifecycle transitions, upload separate cover/body images and downloads before saving, and allow published articles to update in place.
- * @dependencies Ant Design, React Query, Next navigation, MarkdownContentEditor, article and file APIs
+ * @logic Hydrate existing drafts, persist edits before lifecycle transitions, upload separate cover/body images and downloads before saving, and allow published articles to update in place. Expose a declared plugin action slot without granting DOM or lifecycle overrides.
+ * @dependencies Ant Design, React Query, Next navigation, MarkdownContentEditor, article and file APIs, PluginSlot
  * @index_tags admin,article,editor,markdown,cover,publish
  * @author holic512
  */
@@ -228,6 +230,7 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
           {dirty ? <Typography.Text type="warning">{t('unsaved')}</Typography.Text> : null}
         </Space>
         <Space size={6} wrap>
+          <PluginSlot name="admin.article.actions" surface="admin" />
           {articleId ? <Button danger icon={<Trash2 size={15} />} onClick={remove}>{t('delete')}</Button> : null}
           {published ? (
             <Button icon={<EyeOff size={15} />} loading={busy} disabled={uploading} onClick={() => void runLifecycle('withdraw')}>{t('withdraw')}</Button>

@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { enqueuePluginEvent } from '@/server/plugins/events'
 import { readDocumentationState, remapDocumentationState, remapDocumentationLinks } from '@/lib/project-documentation'
 import type { AccessViewer } from '@/lib/content-access'
 import { resolveProjectAccess, requireProjectCapability } from './content-access'
@@ -380,6 +381,7 @@ export async function publishProjectVersion(projectVersionId: number) {
           publishedAt: true,
         },
       })
+      await enqueuePluginEvent(tx, 'core.project-version.published', { projectVersionId, projectId: updated.projectId, releaseId: updated.releaseId })
       return requireCompleteReleaseFields(updated)
     } catch (error) {
       if (hasPrismaCode(error, 'P2002')) {

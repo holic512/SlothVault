@@ -37,7 +37,16 @@ describe('Next runtime contract', () => {
           file.endsWith(`${sep}route.ts`) &&
           !normalizedPath(relative(adminRoot, file)).startsWith('auth/'),
       )
-      .filter((file) => !readFileSync(file, 'utf8').includes('requireAdminSession(request)'))
+      .filter((file) => {
+        const source = readFileSync(file, 'utf8')
+        if (source.includes('requireAdminSession(request)')) return false
+        const shared = source.includes("from '@/server/commissions/http'") && /(?:commissionActor|commissionsList|commissionsCreate|commissionRead|commissionCommand)\([\s\S]*?request,[\s\S]*?true/.test(source)
+        if (shared) {
+          expect(readFileSync(join(root, 'src/server/commissions/http.ts'), 'utf8')).toContain('admin ? requireAdminSession(request) : requireUserSession(request)')
+          return false
+        }
+        return true
+      })
       .map((file) => normalizedPath(relative(root, file)))
     expect(unguarded).toEqual([])
   })
@@ -99,7 +108,6 @@ describe('Next runtime contract', () => {
     for (const obsoleteDirectory of [
       'legacy-nuxt',
       'server',
-      'plugins',
       'i18n',
       'data/uploads-legacy-nuxt',
     ]) {
@@ -143,15 +151,15 @@ describe('Next runtime contract', () => {
     expect(existsSync(join(root, 'deploy'))).toBe(false)
     expect(dockerfile).toContain('SLOTHVAULT_RELEASE_TAG')
     expect(dockerfile).toContain('org.opencontainers.image.revision')
-    expect(workflow).toContain('Prepare immutable release identity')
-    expect(workflow).toContain('SLOTHVAULT_RELEASE_COMMIT_SHA=${{ github.sha }}')
+    expect(workflow).toContain('prepare --root source')
+    expect(workflow).toContain('SLOTHVAULT_RELEASE_COMMIT_SHA=${{ needs.validate.outputs.sha }}')
     expect(workflow).not.toContain('release_metadata.py')
     expect(workflow).not.toContain('git archive "${GITHUB_SHA}:deploy" | tar -x')
     expect(workflow).not.toContain('slothvault-deploy.zip')
     expect(sanitizer).toContain('removeSourceMaps(standaloneRoot)')
     expect(sanitizer).toContain('pruneSharpRuntimePackages(standaloneRoot)')
-    expect(workflow).toContain('Inspect published image sizes')
-    expect(workflow).toContain('Compressed Image Size')
+    expect(workflow).toContain('Record deployment and size summary')
+    expect(readFileSync(join(root, 'scripts/release-delivery.mjs'), 'utf8')).toContain('Compressed size')
   })
 
   it('keeps the runtime free of the removed Redis service', () => {
@@ -199,6 +207,28 @@ describe('Next runtime contract', () => {
     expect(schema).not.toContain('model CompressedNft')
     expect(existsSync(join(root, 'src', 'server', 'services', 'solana-chain.ts'))).toBe(false)
     expect(existsSync(join(root, 'src', 'server', 'services', 'filebase.ts'))).toBe(false)
+  })
+
+  it('gates application images on independent three-provider checks and publishes plugin source without compilation', () => {
+    const application = readFileSync(join(root, '.github/workflows/docker-build.yml'), 'utf8')
+    const plugins = readFileSync(join(root, '.github/workflows/verify-plugins.yml'), 'utf8')
+    const release = readFileSync(join(root, '.github/workflows/release-plugins.yml'), 'utf8')
+    expect(application).toContain('needs: [validate, verify-plugins]')
+    expect(application).toContain('uses: ./.github/workflows/verify-plugins.yml')
+    expect(release).not.toContain('uses: ./.github/workflows/verify-plugins.yml')
+    expect(release).toContain('node plugins/release.mjs')
+    expect(release).toContain("if: startsWith(github.ref, 'refs/tags/plugin-sdk-v')")
+    expect(release).toContain('npm ci --ignore-scripts')
+    expect(release).not.toContain('vitest')
+    expect(plugins).toContain('pull_request:')
+    expect(plugins).not.toContain('contents: write')
+    expect(application).toContain('source_ref: ${{ needs.validate.outputs.sha }}')
+    expect(plugins).toContain('workflow_call:')
+    expect(plugins).toContain('ref: ${{ inputs.source_ref || github.sha }}')
+    expect(plugins).toContain('SLOTHVAULT_PLUGIN_TEST_POSTGRESQL_URL:')
+    expect(plugins).toContain('SLOTHVAULT_PLUGIN_TEST_MYSQL_URL:')
+    expect(plugins).toContain('src/server/database/mysql-migrations.integration.test.ts')
+    expect(plugins).not.toContain('Prepare selected immutable release')
   })
 
   it('coordinates streamed backups with state-changing Route Handlers', () => {

@@ -1,0 +1,48 @@
+{
+  "name": "@slothvault/plugin-sdk",
+  "version": "1.0.0",
+  "type": "module",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "cli.mjs",
+    "README.md",
+    "LICENSE"
+  ],
+  "bin": {
+    "slothvault-plugin": "./cli.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.mjs"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.mjs"
+    },
+    "./protocol": {
+      "types": "./dist/protocol.d.ts",
+      "import": "./dist/protocol.mjs"
+    }
+  },
+  "engines": {
+    "node": ">=24.18.1"
+  },
+  "dependencies": {
+    "archiver": "7.0.1",
+    "kysely": "0.29.6",
+    "semver": "7.8.5",
+    "zod": "4.4.3"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.101.4",
+    "antd": "^6.5.1",
+    "next-intl": "^4.13.7",
+    "react": "^19.2.8"
+  }
+}

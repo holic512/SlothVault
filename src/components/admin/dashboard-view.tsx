@@ -1,12 +1,14 @@
 'use client'
 
+import { PluginSlot } from '@/components/plugins/plugin-ui'
+
 /**
  * @file dashboard-view.tsx
  * @project SlothVault
  * @module Admin Operations Dashboard
  * @description Renders the responsive operations command center with live metrics, accessible SVG trends, health, distribution, attention, and activity surfaces.
- * @logic Fetch one selectable dashboard window, format data in the active locale, measure the chart viewport to keep labels unscaled, expose metric and activity links, and retain readable zero, loading, and failure states across themes.
- * @dependencies Ant Design, React Query, next-intl, Lucide, admin dashboard API, admin localization utilities
+ * @logic Fetch one selectable dashboard window, format data in the active locale, measure the chart viewport to keep labels unscaled, expose metric and activity links, and retain readable zero, loading, and failure states across themes. Keep optional plugin statistics in an isolated lazy dashboard slot.
+ * @dependencies Ant Design, React Query, next-intl, Lucide, admin dashboard API, admin localization utilities, PluginSlot
  * @index_tags admin,dashboard,operations,analytics,trends,i18n,responsive
  * @author holic512
  */
@@ -48,7 +50,6 @@ type DashboardData = {
   range: { days: DashboardRange; start: string; end: string; generatedAt: string }
   overview: {
     users: { total: number; activeSessions: number; totalPoints: number }
-    giftCards: { total: number; redeemed: number }
     articles: { total: number; published: number }
     projects: { total: number; active: number }
     versions: { total: number; active: number }
@@ -252,7 +253,7 @@ export function DashboardView() {
     { key: 'projects', icon: Boxes, tone: 'projects', title: t('stats.projects'), value: formatAdminNumber(locale, overview.projects.total), meta: t('metrics.projects', { active: formatAdminNumber(locale, overview.projects.active), versions: formatAdminNumber(locale, overview.versions.total), count: formatAdminNumber(locale, periodTotals.projects) }), href: '/admin/mm/projects' },
     { key: 'content', icon: Newspaper, tone: 'content', title: t('stats.articles'), value: formatAdminNumber(locale, overview.articles.total), meta: t('metrics.content', { published: formatAdminNumber(locale, overview.articles.published), notes: formatAdminNumber(locale, overview.notes.total), count: formatAdminNumber(locale, periodTotals.articles) }), href: '/admin/mm/articles' },
     { key: 'categories', icon: FolderTree, tone: 'categories', title: t('stats.categories'), value: formatAdminNumber(locale, overview.categories.total), meta: t('metrics.categories', { active: formatAdminNumber(locale, overview.categories.active), notes: formatAdminNumber(locale, overview.notes.active) }), href: '/admin/mm/notes' },
-    { key: 'points', icon: Coins, tone: 'points', title: t('stats.points'), value: formatAdminNumber(locale, overview.users.totalPoints), meta: t('metrics.points', { redeemed: formatAdminNumber(locale, overview.giftCards.redeemed), total: formatAdminNumber(locale, overview.giftCards.total) }), href: '/admin/mm/gift-cards' },
+    { key: 'points', icon: Coins, tone: 'points', title: t('stats.points'), value: formatAdminNumber(locale, overview.users.totalPoints), meta: t('metrics.corePoints'), href: '/admin/mm/users' },
     { key: 'files', icon: FileStack, tone: 'files', title: t('stats.files'), value: formatAdminBytes(locale, overview.files.totalSizeBytes), meta: t('metrics.files', { count: formatAdminNumber(locale, overview.files.total) }), href: '/admin/mm/files' },
     { key: 'evidence', icon: ArchiveRestore, tone: 'evidence', title: t('stats.evidence'), value: formatAdminNumber(locale, evidence.total), meta: t('metrics.evidence', { finalized: formatAdminNumber(locale, evidence.finalized), pending: formatAdminNumber(locale, evidence.pending) }), href: '/admin/mm/evidence' },
   ]
@@ -281,6 +282,8 @@ export function DashboardView() {
           )
         })}
       </section>
+
+      <PluginSlot name="admin.dashboard.cards" surface="admin" />
 
       <section className="dashboard-primary-grid">
         <Card className="dashboard-panel dashboard-trend-panel" title={<PanelTitle icon={ChartNoAxesCombined} title={t('trend.title')} description={t('trend.description', { days: data.range.days })} />}>

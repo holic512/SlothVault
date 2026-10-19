@@ -11,9 +11,9 @@
 import 'server-only'
 import { z } from 'zod'
 import { backupDataSchema } from './database-schema'
-import { ACTIVE_BACKUP_COLLECTION_KEYS } from './constants'
+import { LEGACY_BACKUP_COLLECTION_KEYS } from './constants'
 import type { RecordStore } from './record-store'
-export const walletLegacyCollectionKeys = ACTIVE_BACKUP_COLLECTION_KEYS.filter(key => key !== 'userWallets')
+export const walletLegacyCollectionKeys = LEGACY_BACKUP_COLLECTION_KEYS.filter(key => key !== 'userWallets')
 export const walletLegacyRowSchemas = new Map<string, z.ZodType>()
 const source: Record<string, z.ZodType> = {}
 for (const key of walletLegacyCollectionKeys) {

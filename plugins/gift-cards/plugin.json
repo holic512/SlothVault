@@ -1,0 +1,256 @@
+{
+  "schema": 1,
+  "id": "slothvault.gift-cards",
+  "name": "Gift cards",
+  "version": "1.1.0",
+  "description": "Manage plaintext gift cards and redeem points on a dedicated account page.",
+  "author": "holic512",
+  "engines": {
+    "slothvault": ">=2.6.13 <3",
+    "sdk": "^1.0.0",
+    "node": ">=24.18.1"
+  },
+  "server": "server/index.mjs",
+  "capabilities": [
+    "database",
+    "points.credit",
+    "users.read"
+  ],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "maxBatchQuantity": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 500,
+        "default": 500
+      }
+    },
+    "required": [
+      "maxBatchQuantity"
+    ],
+    "additionalProperties": false
+  },
+  "configDefaults": {
+    "maxBatchQuantity": 500
+  },
+  "tables": [
+    {
+      "name": "batches",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "primary": true,
+          "generated": true
+        },
+        {
+          "name": "attribution_json",
+          "type": "text"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "length": 128
+        },
+        {
+          "name": "points",
+          "type": "integer"
+        },
+        {
+          "name": "quantity",
+          "type": "integer"
+        },
+        {
+          "name": "expires_at",
+          "type": "datetime",
+          "nullable": true
+        },
+        {
+          "name": "status",
+          "type": "integer"
+        },
+        {
+          "name": "created_by_id",
+          "type": "integer",
+          "nullable": true,
+          "references": {
+            "table": "auth_user",
+            "column": "id",
+            "onDelete": "SET NULL",
+            "coreCollection": "users",
+            "attributionField": "createdById"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": "datetime"
+        },
+        {
+          "name": "updated_at",
+          "type": "datetime"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "created_by_id"
+          ]
+        },
+        {
+          "columns": [
+            "status",
+            "expires_at"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cards",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "primary": true,
+          "generated": true
+        },
+        {
+          "name": "batch_id",
+          "type": "integer",
+          "references": {
+            "table": "batches",
+            "column": "id",
+            "onDelete": "CASCADE"
+          }
+        },
+        {
+          "name": "code",
+          "type": "string",
+          "length": 32
+        },
+        {
+          "name": "status",
+          "type": "integer"
+        },
+        {
+          "name": "redeemed_by_id",
+          "type": "integer",
+          "nullable": true,
+          "references": {
+            "table": "auth_user",
+            "column": "id",
+            "onDelete": "SET NULL",
+            "coreCollection": "users"
+          }
+        },
+        {
+          "name": "redeemed_at",
+          "type": "datetime",
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "type": "datetime"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "code"
+          ],
+          "unique": true
+        },
+        {
+          "columns": [
+            "batch_id",
+            "status"
+          ]
+        },
+        {
+          "columns": [
+            "redeemed_by_id"
+          ]
+        }
+      ]
+    }
+  ],
+  "migrations": [
+    "initial"
+  ],
+  "services": [
+    "list",
+    "issue",
+    "redeem",
+    "stats"
+  ],
+  "api": [
+    {
+      "key": "list",
+      "path": "batches",
+      "method": "GET",
+      "access": {
+        "audience": "admin"
+      }
+    },
+    {
+      "key": "issue",
+      "path": "batches",
+      "method": "POST",
+      "access": {
+        "audience": "admin"
+      }
+    },
+    {
+      "key": "redeem",
+      "path": "redeem",
+      "method": "POST",
+      "access": {
+        "audience": "user"
+      }
+    },
+    {
+      "key": "stats",
+      "path": "stats",
+      "method": "GET",
+      "access": {
+        "audience": "admin"
+      }
+    },
+    {
+      "key": "cards",
+      "path": "cards",
+      "method": "GET",
+      "access": {
+        "audience": "admin"
+      }
+    }
+  ],
+  "ui": [
+    {
+      "key": "manage",
+      "asset": "client/manage.js",
+      "surface": "admin",
+      "kind": "page",
+      "title": "Gift cards",
+      "titleZh": "卡密管理",
+      "path": "",
+      "menu": true,
+      "access": {
+        "audience": "admin"
+      }
+    },
+    {
+      "key": "redeem",
+      "asset": "client/redeem.js",
+      "surface": "account",
+      "kind": "page",
+      "title": "Redeem gift card",
+      "titleZh": "卡密兑换",
+      "access": {
+        "audience": "user"
+      },
+      "path": "redeem",
+      "menu": true
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "format": "source-v1",
+  "server": "src/server.ts",
+  "client": {
+    "admin": "src/client.tsx",
+    "account": "src/client.tsx",
+    "public": "src/client.tsx",
+    "banner": "src/client.tsx",
+    "article-action": "src/client.tsx"
+  }
+}

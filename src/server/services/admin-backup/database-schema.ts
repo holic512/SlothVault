@@ -2,13 +2,14 @@
  * @file database-schema.ts
  * @project SlothVault
  * @module Admin Database Backup Schema
- * @description Defines the portable 2.16 database-backup shape with membership entitlements, independent articles, contracts, project-version evidence, and current business records.
+ * @description Defines the portable 2.17 database-backup shape with membership entitlements, independent articles, contracts, project-version evidence, and current business records.
  * @logic Validate active collections strictly, retain v3 publication snapshots, note tags, member access and standalone blog content, include source documentation baselines, multi-wallet bindings and username quotas, and require the current data version and full overwrite restoration.
  * @dependencies Zod, Node path rules, backup constants
  * @index_tags admin,backup,database,schema,zod,portable
  * @author holic512
  */
 import 'server-only'
+import { pluginBackupShape } from '@/server/plugins/backup'
 import { readDocumentationState } from '@/lib/project-documentation'
 import { attributionJsonSchema, userIdentitySchema } from '@/lib/user-attribution'
 
@@ -504,6 +505,7 @@ const userDeletionRecordSchema = z.object({
 }).strict()
 
 export const backupDataSchema = z.object({
+  ...pluginBackupShape,
   ...commissionBackupShape,
   users: z.array(userSchema).default([]),
   userWallets: z.array(z.object({ id: idStringSchema, userId: idStringSchema, address: nonEmptyString(64), createdAt: dateStringSchema }).strict()).default([]),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { extractVariables, synchronizeFields, renderSimpleTemplate } from './commission-workflow'
-import { safeAuthReturn } from './auth-return'
+import { safeAuthReturn, authorizedAuthReturn } from './auth-return'
 describe('simple Markdown contracts', () => {
   it('extracts Chinese variables once in first appearance order', () => {
     expect(extractVariables('{{ 项目名称 }} {{金额_1}} {{项目名称}}')).toEqual(['项目名称', '金额_1'])
@@ -32,9 +32,12 @@ describe('simple Markdown contracts', () => {
     expect(renderSimpleTemplate('{{日期}}', fields, { 日期: '2026-10-09' }, true)).toBe('2026&#45;10&#45;09')
     expect(() => renderSimpleTemplate('{{金额}}', [{ key: '金额', label: '金额', type: 'money', required: true }], { 金额: '1.234' }, true)).toThrow()
   })
-  it('only returns to a known invitation landing route', () => {
+  it('keeps invitation returns safe and applies the unified admin return policy', () => {
     const target = '/commission-invitations/' + 'a'.repeat(43)
     expect(safeAuthReturn(target)).toBe(target)
-    for (const input of ['//evil.example', '/\\evil.example', 'https://evil.example', '/admin/mm', target + '?next=https://evil.example']) expect(safeAuthReturn(input)).toBe('/account')
+    expect(safeAuthReturn('/admin/mm')).toBe('/admin/mm')
+    expect(authorizedAuthReturn('/admin/mm', 'USER')).toBe('/account')
+    expect(authorizedAuthReturn('/admin/mm', 'ADMIN')).toBe('/admin/mm')
+    for (const input of ['//evil.example', '/\\evil.example', 'https://evil.example', target + '?next=https://evil.example']) expect(safeAuthReturn(input)).toBe('/account')
   })
 })

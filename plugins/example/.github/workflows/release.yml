@@ -1,0 +1,39 @@
+# Standalone-repository template. First publish the pinned SDK Release, then copy
+# example/ to your own repository, rename its ID and replace tsconfig.json with
+# tsconfig.standalone.json. Commit package-lock.json after installing the SDK.
+name: Package and release plugin source
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      SDK_REPOSITORY: holic512/SlothVault
+      SDK_VERSION: 1.0.0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.18.1'
+      - name: Download the pinned trusted SDK archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "plugin-sdk-v$SDK_VERSION" --repo "$SDK_REPOSITORY" --pattern '*.tgz' --pattern checksums.sha256 --dir .sdk
+          (cd .sdk && sha256sum -c checksums.sha256)
+      - name: Install locked developer dependencies
+        run: npm ci --ignore-scripts
+      - name: Check tag and package source without compilation
+        run: |
+          node --input-type=module -e "import fs from 'node:fs'; const p=JSON.parse(fs.readFileSync('plugin.json')); if ('v'+p.version!==process.env.GITHUB_REF_NAME) process.exit(1)"
+          npx --no-install slothvault-plugin pack . dist
+      - name: Publish explicit plugin version, never application Latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release create "$GITHUB_REF_NAME" dist/*.zip dist/checksums.sha256 --generate-notes --latest=false --verify-tag

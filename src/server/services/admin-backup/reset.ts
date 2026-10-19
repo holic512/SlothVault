@@ -3,12 +3,17 @@
  * @project SlothVault
  * @module Admin System Reset
  * @description Coordinates optional database deletion and controlled upload reset with filesystem rollback.
- * @logic Stage visible uploads, recreate standard directories, delete database records transactionally, and restore staged files if database reset fails.
- * @dependencies database unit-of-work, Node filesystem APIs, admin upload root, backup deletion and file safety
+ * @logic Stage visible uploads, recreate standard directories, delete database records transactionally, and restore staged files if database reset fails. Quiesce plugin workers and journal owned-table removal using the same database commit receipt.
+ * @dependencies database unit-of-work, Node filesystem APIs, admin upload root, backup deletion and file safety, plugin staging restore
  * @index_tags admin,backup,reset,database,files,rollback
  * @author holic512
  */
 import 'server-only'
+import { preparePluginRestore, reconcilePluginRestore, pluginBackupShape } from '@/server/plugins/backup'
+import { initializePlugins, resetPluginInitialization, reloadPluginRegistry } from '@/server/plugins/manager'
+import { prisma } from '@/server/prisma'
+import { RESTORE_COMMIT_CONFIG_KEY } from './constants'
+import { z } from 'zod'
 
 import { randomUUID } from 'node:crypto'
 import {
@@ -123,17 +128,25 @@ export async function resetSystem(options: {
   }
 
   let databaseResult: Awaited<ReturnType<typeof deleteBusinessData>> | null = null
+  const pluginReceipt = randomUUID()
   try {
     if (options.clearDatabase) {
+      await preparePluginRestore({ ...z.object(pluginBackupShape).parse({}), giftCards: [], giftCardBatches: [] }, pluginReceipt)
       databaseResult = await unitOfWork.execute(
-        (tx) => deleteBusinessData(tx),
+        async tx => {
+          const result = await deleteBusinessData(tx)
+          await tx.systemConfig.create({ data: { configKey: RESTORE_COMMIT_CONFIG_KEY, configValue: pluginReceipt } })
+          return result
+        },
         {
           maxWait: DATABASE_TRANSACTION_MAX_WAIT_MS,
           timeout: DATABASE_TRANSACTION_TIMEOUT_MS,
         },
       )
+      await reconcilePluginRestore(); resetPluginInitialization(); await initializePlugins()
     }
   } catch (error) {
+    if (options.clearDatabase) { await reconcilePluginRestore(); await reloadPluginRegistry(); const receipt = await prisma.systemConfig.findUnique({ where: { configKey: RESTORE_COMMIT_CONFIG_KEY } }); if (receipt?.configValue === pluginReceipt) throw error }
     if (stagedFiles) {
       try {
         await removeResetDirectories(resetDirectories)

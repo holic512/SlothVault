@@ -5,9 +5,7 @@ generated/prisma-*
 docs
 docx
 *.md
-data/uploads
-data/config
-data/database
+data
 docker-data
 .git
 .github
@@ -32,3 +30,5 @@ playwright-report
 test-results
 deploy
 integrations
+plugins/*/dist
+generated/plugin-runtime

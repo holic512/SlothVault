@@ -3,12 +3,16 @@
  * @project SlothVault
  * @module Admin Database Backup Import
  * @description Imports a validated portable database backup through a full overwrite restore while preserving immutable release identities.
- * @logic Preflight conflicts, preserve all administrator wallet credentials and quotas, restore wallet bindings in deterministic order and note tags, map old identifiers to new records, preserve release metadata, rebuild each published manifest after ID remapping, reject identity/hash drift, and expose a transaction-scoped import for coordinated file recovery.
- * @dependencies database unit-of-work, server/http/errors, project-version release service, backup schema, backup validation, business-data deletion
+ * @logic Preflight conflicts, preserve all administrator wallet credentials and quotas, restore wallet bindings in deterministic order and note tags, map old identifiers to new records, preserve release metadata, rebuild each published manifest after ID remapping, reject identity/hash drift, and expose a transaction-scoped import for coordinated file recovery. Stage owned plugin tables, remap entity and membership references, and reconcile switches under the core restore receipt.
+ * @dependencies database unit-of-work, server/http/errors, project-version release service, backup schema, backup validation, business-data deletion, plugin staging restore
  * @index_tags admin,backup,database,import,restore,id-mapping
  * @author holic512
  */
 import 'server-only'
+import { importPluginRecords, preparePluginRestore, reconcilePluginRestore } from '@/server/plugins/backup'
+import { initializePlugins, reloadPluginRegistry, resetPluginInitialization } from '@/server/plugins/manager'
+import { RESTORE_COMMIT_CONFIG_KEY } from './constants'
+import { randomUUID } from 'node:crypto'
 import { remapDocumentationState } from '@/lib/project-documentation'
 import { backfillUserAttribution } from '@/server/services/user-deletion'
 import { unitOfWork } from '@/server/database/unit-of-work'
@@ -196,40 +200,6 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
       },
     })
     ids.pointTransactions.set(item.id, record.id)
-  }
-
-  for (const item of data.giftCardBatches) {
-    const record = await tx.giftCardBatch.create({
-      data: {
-        attributionJson: item.attributionJson,
-        name: item.name,
-        points: item.points,
-        quantity: item.quantity,
-        expiresAt: item.expiresAt ? new Date(item.expiresAt) : null,
-        status: item.status,
-        createdById: item.createdById ? requiredMappedId(ids.users, item.createdById, 'giftCardBatch createdById') : null,
-        createdAt: new Date(item.createdAt),
-        updatedAt: new Date(item.updatedAt),
-      },
-    })
-    ids.giftCardBatches.set(item.id, record.id)
-  }
-
-  for (const item of data.giftCards) {
-    const record = await tx.giftCard.create({
-      data: {
-        batchId: requiredMappedId(ids.giftCardBatches, item.batchId, 'giftCard batchId'),
-        codeHash: item.codeHash,
-        codeHint: item.codeHint,
-        status: item.status,
-        redeemedById: item.redeemedById
-          ? requiredMappedId(ids.users, item.redeemedById, 'giftCard redeemedById')
-          : null,
-        redeemedAt: item.redeemedAt ? new Date(item.redeemedAt) : null,
-        createdAt: new Date(item.createdAt),
-      },
-    })
-    ids.giftCards.set(item.id, record.id)
   }
 
   for (const item of data.membershipGrants) {
@@ -694,6 +664,7 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
       fileReferenceCount += 1
     }
   }
+  await importPluginRecords(tx, data, ids)
   return {
     message: 'Database import completed successfully',
     mode,
@@ -729,6 +700,9 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
 }
 
 export async function invalidateBackupCaches() {
+  await reconcilePluginRestore()
+  resetPluginInitialization()
+  await initializePlugins()
   try {
     await Promise.all([invalidatePublicArticleCache(), invalidatePublicProjectCache()])
     return [] as string[]
@@ -740,6 +714,14 @@ export async function invalidateBackupCaches() {
 /** Transaction adapter for isolated business integration tests; live restores also coordinate the file journal. */
 export async function importDatabaseBackup(payload: DatabaseImportPayload, options: DatabaseRestoreOptions = {}) {
   if (payload.version !== DATABASE_BACKUP_VERSION || payload.mode !== 'overwrite') throw new HttpError('Unsupported backup format', 400, 400, { reason: 'BACKUP_UNSUPPORTED_FORMAT' })
-  const result = await unitOfWork.execute(tx => importDatabaseRecords(tx, payload, options), { maxWait: DATABASE_TRANSACTION_MAX_WAIT_MS, timeout: DATABASE_TRANSACTION_TIMEOUT_MS })
-  return { ...result, warnings: await invalidateBackupCaches() }
+  const receipt = `plugin-restore:${randomUUID()}`
+  try {
+    await preparePluginRestore(payload.data, receipt)
+    const result = await unitOfWork.execute(async tx => {
+      const value = await importDatabaseRecords(tx, payload, options)
+      await tx.systemConfig.upsert({ where: { configKey: RESTORE_COMMIT_CONFIG_KEY }, create: { configKey: RESTORE_COMMIT_CONFIG_KEY, configValue: receipt }, update: { configValue: receipt } })
+      return value
+    }, { maxWait: DATABASE_TRANSACTION_MAX_WAIT_MS, timeout: DATABASE_TRANSACTION_TIMEOUT_MS })
+    return { ...result, warnings: await invalidateBackupCaches() }
+  } finally { await reconcilePluginRestore(); await reloadPluginRegistry() }
 }

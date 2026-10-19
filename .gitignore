@@ -42,3 +42,11 @@ data/backups
 
 # Docker local persistent data
 docker-data/
+
+# Independently built plugin artifacts and local runtime data
+/generated/plugin-runtime/
+/plugins/sdk/dist/
+data/plugins/
+
+# All app runtime data (including telemetry and per-plugin storage) is private.
+/data/

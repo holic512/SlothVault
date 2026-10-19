@@ -29,6 +29,12 @@
       ],
       "@generated/*": [
         "./generated/*"
+      ],
+      "@slothvault/plugin-sdk": [
+        "plugins/sdk/src/index.ts"
+      ],
+      "@slothvault/plugin-sdk/*": [
+        "plugins/sdk/src/*"
       ]
     }
   },
@@ -41,7 +47,9 @@
     "src/**/*.tsx",
     "generated/**/*.ts",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    "plugins/*/src/**/*.ts",
+    "plugins/*/src/**/*.tsx"
   ],
   "exclude": [
     "node_modules"

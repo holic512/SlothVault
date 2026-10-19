@@ -5,8 +5,8 @@
  * @project SlothVault
  * @module Personal Account Workspace
  * @description Provides the compact identity rail, grouped section navigation, and shared session state for split account routes.
- * @logic Use the server-verified account as initial state, keep the client session query synchronized after profile mutations, and group account, collaboration, and benefit routes under concise navigation labels.
- * @dependencies React, React Query, Ant Design, Next navigation, account.module.css, auth session API
+ * @logic Use the server-verified account as initial state, keep the client session query synchronized after profile mutations, and group account, collaboration, and benefit routes under concise navigation labels. Append authorized account-plugin destinations without replacing core account context.
+ * @dependencies React, React Query, Ant Design, Next navigation, account.module.css, auth session API, plugin UI registry
  * @index_tags account,workspace,navigation,profile,security,points
  * @author holic512
  */
@@ -16,6 +16,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Avatar, Button, Typography } from 'antd'
 import { Coins, Crown, FileSignature, LayoutDashboard, ShieldCheck, UserRound } from 'lucide-react'
 import Link from 'next/link'
+import { PluginMenuLinks } from '@/components/plugins/plugin-ui'
 import { useTranslations } from 'next-intl'
 import { usePathname } from 'next/navigation'
 
@@ -98,6 +99,7 @@ export function AccountShell({
                   ))}
                 </div>
               ))}
+              <PluginMenuLinks surface="account" />
             </nav>
             {user.role === 'ADMIN' ? (
               <div className="account-rail-footer">

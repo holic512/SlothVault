@@ -3,12 +3,13 @@
  * @project SlothVault
  * @module Portable Database Snapshot
  * @description Writes current business collections as paged, validated NDJSON snapshots.
- * @logic Read one repeatable snapshot in primary-key pages, convert provider scalars, and persist rows and integrity metadata without loading the whole database.
- * @dependencies Prisma unit-of-work, backup record schemas, private disk record store, Node streams
+ * @logic Read one repeatable snapshot in primary-key pages, convert provider scalars, and persist rows and integrity metadata without loading the whole database. Include registered plugin tables without executing their code and retain legacy card collections.
+ * @dependencies Prisma unit-of-work, backup record schemas, private disk record store, Node streams, plugin backup descriptors
  * @index_tags backup,database,ndjson,pagination,snapshot
  * @author holic512
  */
 import 'server-only'
+import { exportPluginRows, pluginBackupDelegates } from '@/server/plugins/backup'
 import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, open, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -28,8 +29,9 @@ import { validateBackupRelations } from './database-validation'
 import { RecordStore } from './record-store'
 
 export const collectionDelegates: Record<string, string> = {
+  ...pluginBackupDelegates,
   ...Object.fromEntries(commissionCollectionSpecs.map(spec => [spec.key, spec.delegate])),
-  users: 'user', userWallets: 'userWallet', userDeletionRecords: 'userDeletionRecord', pointTransactions: 'pointTransaction', giftCardBatches: 'giftCardBatch', giftCards: 'giftCard', membershipLevels: 'membershipLevel', membershipGrants: 'membershipGrant', articles: 'article', projects: 'project', projectVersions: 'projectVersion', categories: 'category', projectMenus: 'projectMenu', projectHomes: 'projectHome', noteInfos: 'noteInfo', noteContents: 'noteContent', fileManagements: 'fileManagement', fileReferences: 'fileReference', systemConfigs: 'systemConfig', systemHomepages: 'systemHomepage', contracts: 'contract', contractAdminAudits: 'contractAdminAudit', contractCredentials: 'contractCredential', contractCredentialAttempts: 'contractCredentialAttempt', releaseCredentials: 'releaseCredential', releaseCredentialAttempts: 'releaseCredentialAttempt',
+  users: 'user', userWallets: 'userWallet', userDeletionRecords: 'userDeletionRecord', pointTransactions: 'pointTransaction', membershipLevels: 'membershipLevel', membershipGrants: 'membershipGrant', articles: 'article', projects: 'project', projectVersions: 'projectVersion', categories: 'category', projectMenus: 'projectMenu', projectHomes: 'projectHome', noteInfos: 'noteInfo', noteContents: 'noteContent', fileManagements: 'fileManagement', fileReferences: 'fileReference', systemConfigs: 'systemConfig', systemHomepages: 'systemHomepage', contracts: 'contract', contractAdminAudits: 'contractAdminAudit', contractCredentials: 'contractCredential', contractCredentialAttempts: 'contractCredentialAttempt', releaseCredentials: 'releaseCredential', releaseCredentialAttempts: 'releaseCredentialAttempt',
 }
 export function backupRowSchema(key: string): z.ZodType {
   let schema: z.ZodType = backupDataSchema.shape[key as keyof typeof backupDataSchema.shape]
@@ -70,7 +72,12 @@ export async function exportDatabaseSnapshot(directory: string, store: RecordSto
       const handle = await open(resolve(directory, 'database', `${key}.ndjson`), 'wx', 0o600)
       const hash = createHash('sha256'); let bytes = 0, count = 0, after = 0
       try {
-        while (true) {
+        if (key === 'pluginRows') {
+          for await (const row of exportPluginRows(tx)) {
+            const value = parseBackupRow(key, row), line = Buffer.from(JSON.stringify(value) + '\n')
+            store.put(key, value); await handle.writeFile(line); hash.update(line); bytes += line.length; count++; processedRecords++
+          }
+        } else while (true) {
           const where: Record<string, unknown> = { id: { gt: after } }
           if (key === 'systemConfigs') where.configKey = { notIn: [RESTORE_COMMIT_CONFIG_KEY, ...DEPRECATED_CONFIG_KEYS] }
           if (key === 'releaseCredentials') { where.subjectType = 'PROJECT_VERSION'; where.subjectManifestVersion = 3 }

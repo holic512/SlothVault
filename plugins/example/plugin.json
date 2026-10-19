@@ -1,0 +1,146 @@
+{
+  "schema": 1,
+  "id": "slothvault.example",
+  "name": "Extension example",
+  "version": "1.0.0",
+  "author": "holic512",
+  "description": "Installable SDK example: pages, slots, modal, API, hooks, jobs and an owned table.",
+  "engines": {
+    "slothvault": ">=2.6.13 <3",
+    "sdk": "^1.0.0",
+    "node": ">=24.18.1"
+  },
+  "server": "server/index.mjs",
+  "capabilities": [
+    "database",
+    "events"
+  ],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "message": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      }
+    },
+    "required": [
+      "message"
+    ],
+    "additionalProperties": false
+  },
+  "configDefaults": {
+    "message": "Hello from an independently installed plugin"
+  },
+  "tables": [
+    {
+      "name": "counters",
+      "columns": [
+        {
+          "name": "id",
+          "type": "string",
+          "length": 100,
+          "primary": true
+        },
+        {
+          "name": "value",
+          "type": "integer"
+        }
+      ]
+    },
+    {
+      "name": "deliveries",
+      "columns": [
+        {
+          "name": "id",
+          "type": "string",
+          "length": 100,
+          "primary": true
+        }
+      ]
+    }
+  ],
+  "migrations": [
+    "initial"
+  ],
+  "api": [
+    {
+      "key": "status",
+      "path": "status",
+      "method": "GET",
+      "access": {
+        "audience": "public"
+      }
+    }
+  ],
+  "events": [
+    "core.article.published",
+    "core.project-version.published"
+  ],
+  "jobs": [
+    {
+      "key": "tick",
+      "intervalSeconds": 60
+    }
+  ],
+  "ui": [
+    {
+      "key": "admin",
+      "asset": "client/admin.js",
+      "surface": "admin",
+      "kind": "page",
+      "title": "Extension example",
+      "titleZh": "插件示例",
+      "menu": true,
+      "access": {
+        "audience": "admin"
+      }
+    },
+    {
+      "key": "account",
+      "asset": "client/account.js",
+      "surface": "account",
+      "kind": "page",
+      "title": "Extension example",
+      "titleZh": "插件示例",
+      "menu": true,
+      "access": {
+        "audience": "user"
+      }
+    },
+    {
+      "key": "public",
+      "asset": "client/public.js",
+      "surface": "public",
+      "kind": "page",
+      "title": "Extension example",
+      "titleZh": "插件示例",
+      "menu": true,
+      "access": {
+        "audience": "public"
+      }
+    },
+    {
+      "key": "banner",
+      "asset": "client/banner.js",
+      "surface": "public",
+      "kind": "slot",
+      "slot": "public.home.before",
+      "title": "Extension example",
+      "access": {
+        "audience": "public"
+      }
+    },
+    {
+      "key": "article-action",
+      "asset": "client/article-action.js",
+      "surface": "admin",
+      "kind": "slot",
+      "slot": "admin.article.actions",
+      "title": "Extension example",
+      "access": {
+        "audience": "admin"
+      }
+    }
+  ]
+}

@@ -26,7 +26,7 @@ async function seed() {
 describe('portable multi-wallet backups', () => {
   it('restores every member wallet and quota while retaining the current administrator credentials and session', async () => {
     const seeded = await seed(), snapshot = await exportDatabaseBackup(), adminExtra = address()
-    expect(snapshot.version).toBe('2.15.0')
+    expect(snapshot.version).toBe('2.18.0')
     const session = await issueSession({ userId: seeded.admin.id })
     await fixture.client.userWallet.create({ data: { userId: seeded.admin.id, address: adminExtra } })
     await fixture.client.user.update({ where: { id: seeded.admin.id }, data: { password: 'admin-current', usernameChangeMonth: '2026-10', usernameChangeCount: 3, credentialsRevision: 8 } })
@@ -54,11 +54,12 @@ describe('portable multi-wallet backups', () => {
   it.each(['2.13.0', '2.14.0'])('converts the explicit %s source contract into one binding per old address', async version => {
     const seeded = await seed(), snapshot = await exportDatabaseBackup()
     const data = JSON.parse(JSON.stringify(snapshot.data)) as Record<string, Array<Record<string, unknown>>>
+    for (const key of ['pluginInstallations','pluginTables','pluginMigrations','pluginPointReceipts','pluginRows']) delete data[key]
     delete data.userWallets
     for (const user of data.users) { delete user.usernameChangeMonth; delete user.usernameChangeCount; delete user.credentialsRevision }
     if (version === '2.13.0') delete data.userDeletionRecords
     const converted = parseDatabaseImportPayload({ version, mode: 'overwrite', data })
-    expect(converted.version).toBe('2.15.0')
+    expect(converted.version).toBe('2.18.0')
     expect(converted.data.userWallets.map(wallet => wallet.address).sort()).toEqual([seeded.adminAddress, seeded.memberAddress].sort())
     expect(converted.data.users.every(user => user.usernameChangeCount === 0 && user.credentialsRevision === 0)).toBe(true)
   })

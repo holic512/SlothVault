@@ -5,8 +5,8 @@
  * @project SlothVault
  * @module Administrator Shell
  * @description Provides a responsive, grouped Ant Design navigation shell with an authenticated administrator header.
- * @logic Group site content, resources, user benefits, commissions, integrations, and maintenance alongside audience analytics and system observability without altering the standalone dashboard, share one breadcrumb model, and mount the signing-wallet tool only for evidence and contract workflows.
- * @dependencies antd, next/dynamic, next/navigation, next-intl, brand-logo, theme-controls, wallet runtime
+ * @logic Group site content, resources, user benefits, commissions, integrations, and maintenance alongside audience analytics and system observability without altering the standalone dashboard, share one breadcrumb model, and mount the signing-wallet tool only for evidence and contract workflows. Append authorized installed-plugin pages through the shared contribution registry.
+ * @dependencies antd, next/dynamic, next/navigation, next-intl, brand-logo, theme-controls, wallet runtime, plugin UI registry
  * @index_tags admin,layout,navigation,sidebar,branding,menu-groups
  * @author holic512
  */
@@ -41,6 +41,8 @@ import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
+import { usePluginContributions, pluginPageHref } from '@/components/plugins/plugin-ui'
+import { useLocale } from 'next-intl'
 import { ThemeControls } from '@/components/theme/theme-controls'
 import { BrandLogo } from '@/components/shell/brand-logo'
 import { WalletRuntime } from '@/components/providers/wallet-runtime'
@@ -82,6 +84,8 @@ type AdminMenuRoute = {
 export function AdminShell({ children, branding }: { children: ReactNode; branding: SystemBranding }) {
   const t = useTranslations('AdminMM')
   const pathname = usePathname()
+  const pluginContributions = usePluginContributions('admin')
+  const pluginLocale = useLocale()
   const router = useRouter()
   const queryClient = useQueryClient()
   const [collapsed, setCollapsed] = useState(false)
@@ -99,7 +103,8 @@ export function AdminShell({ children, branding }: { children: ReactNode; brandi
       { group: 'resources', key: '/admin/mm/trash', icon: <Trash2 size={16} />, label: t('menu.trash') },
       { group: 'users', key: '/admin/mm/users', icon: <Users size={16} />, label: t('menu.users') },
       { group: 'users', key: '/admin/mm/membership-levels', icon: <Crown size={16} />, label: t('menu.membershipLevels') },
-      { group: 'users', key: '/admin/mm/gift-cards', icon: <TicketCheck size={16} />, label: t('menu.giftCards') },
+      ...(pluginContributions.data ?? []).filter(ui => ui.kind === 'page' && ui.menu).map(ui => ({ group: 'integrations' as const, key: pluginPageHref(ui), icon: <TicketCheck size={16} />, label: pluginLocale === 'zh' ? ui.titleZh ?? ui.title : ui.title })),
+      { group: 'integrations', key: '/admin/mm/plugins', icon: <Blocks size={16} />, label: t('menu.plugins') },
       { group: 'collaboration', key: '/admin/mm/commissions', icon: <FileSignature size={16} />, label: t('menu.commissions') },
       { group: 'collaboration', key: '/admin/mm/contract-templates', icon: <FileSignature size={16} />, label: t('menu.contractTemplates') },
       { group: 'integrations', key: '/admin/mm/evidence', icon: <ArchiveRestore size={16} />, label: t('menu.solana') },
@@ -108,7 +113,7 @@ export function AdminShell({ children, branding }: { children: ReactNode; brandi
       { group: 'system', key: '/admin/mm/backup', icon: <ArchiveRestore size={16} />, label: t('menu.backup') },
       { group: 'system', key: '/admin/mm/settings', icon: <Settings size={16} />, label: t('menu.settings') },
     ],
-    [t],
+    [t, pluginContributions.data, pluginLocale],
   )
 
   const menuItems = useMemo<MenuProps['items']>(() => {

@@ -1,0 +1,55 @@
+# @file .github/workflows/release-plugins.yml
+# @project SlothVault
+# @module Independent Plugin and SDK Delivery
+# @description Packages immutable source plugins; only the SDK publishes its own runtime build.
+# @logic Validate committed tag/version and archive structure, then publish without changing application Latest or compiling plugin source.
+# @dependencies GitHub Actions, Node, source packer
+# @index_tags plugins,release,source,github-actions,sdk
+# @author holic512
+name: Release independent plugin or SDK
+on:
+  push:
+    tags: ['plugin-sdk-v*', 'plugin-gift-cards-v*', 'plugin-example-v*']
+permissions:
+  contents: read
+concurrency:
+  group: plugin-release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.18.1'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Build SDK runtime only for an SDK release
+        if: startsWith(github.ref, 'refs/tags/plugin-sdk-v')
+        run: npm run plugins:build
+      - name: Validate tag and package source
+        id: identity
+        run: node plugins/release.mjs "$GITHUB_REF_NAME"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: plugin-release
+          path: ${{ steps.identity.outputs.directory }}/*
+          if-no-files-found: error
+  publish:
+    needs: package
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: plugin-release
+          path: release
+      - name: Publish independent release without changing Latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release create "$GITHUB_REF_NAME" release/* --title "$GITHUB_REF_NAME" --generate-notes --latest=false --verify-tag

@@ -358,7 +358,7 @@
 }
 
 .root :global(.account-points-summary) {
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
 }
 

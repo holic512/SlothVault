@@ -168,8 +168,8 @@ export async function prepareModuleVersion(module, { root = new URL('../', impor
 export function isApplicationChange(paths) {
   // Retired workflow names remain here only to classify historical commits identically.
   // This list is not a packaging or publishing entry point.
-  const integrationWorkflow = /^\.github\/workflows\/release-(?:toolkit|vault-module|mcp-client|skill|deployment)\.yml$/
-  return paths.some(file => file && !file.startsWith('integrations/') && !integrationWorkflow.test(file))
+  const integrationWorkflow = /^\.github\/workflows\/release-(?:toolkit|vault-module|mcp-client|skill|deployment|plugins)\.yml$/
+  return paths.some(file => file && !file.startsWith('integrations/') && (!file.startsWith('plugins/') || file === 'plugins/catalog.json' || file.startsWith('plugins/sdk/')) && !integrationWorkflow.test(file))
 }
 
 function applicationCommitCount(baseline, commit, root) {

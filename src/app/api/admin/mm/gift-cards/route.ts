@@ -34,11 +34,12 @@ function bounded(value: string | null, fallback: number, max: number) {
 }
 
 export const GET = defineRoute(async (request) => {
-  await requireAdminSession(request)
+  const session = await requireAdminSession(request)
   const query = request.nextUrl.searchParams
   return apiOk(await listGiftCardBatches(
     bounded(query.get('page'), 1, 1_000_000),
     bounded(query.get('pageSize'), 20, 100),
+    session.userId,
   ))
 })
 

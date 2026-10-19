@@ -196,6 +196,7 @@ await cp(
 )
 await copyNextProductionRuntimes()
 await copyRuntimePackageClosure('prisma')
+for (const dependency of ['rollup', 'typescript', '@rollup/plugin-node-resolve', '@rollup/plugin-commonjs', 'zod', 'kysely']) await copyRuntimePackageClosure(dependency)
 await cp(
   resolve(process.cwd(), '.next', 'static'),
   resolve(standaloneRoot, '.next', 'static'),

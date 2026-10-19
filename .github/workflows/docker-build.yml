@@ -14,16 +14,26 @@ on:
     branches: [master, main]
     paths-ignore:
       - 'integrations/**'
+      - 'plugins/gift-cards/**'
+      - 'plugins/example/**'
+      - 'plugins/README.md'
+      - 'plugins/release.mjs'
       - '.github/workflows/release-vault-module.yml'
       - '.github/workflows/release-skill.yml'
       - '.github/workflows/release-deployment.yml'
+      - '.github/workflows/release-plugins.yml'
   push:
     branches: [master, main]
     paths-ignore:
       - 'integrations/**'
+      - 'plugins/gift-cards/**'
+      - 'plugins/example/**'
+      - 'plugins/README.md'
+      - 'plugins/release.mjs'
       - '.github/workflows/release-vault-module.yml'
       - '.github/workflows/release-skill.yml'
       - '.github/workflows/release-deployment.yml'
+      - '.github/workflows/release-plugins.yml'
   workflow_dispatch:
     inputs:
       ref:
@@ -99,8 +109,14 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  build:
+  verify-plugins:
     needs: validate
+    uses: ./.github/workflows/verify-plugins.yml
+    with:
+      source_ref: ${{ needs.validate.outputs.sha }}
+
+  build:
+    needs: [validate, verify-plugins]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     strategy:

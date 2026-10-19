@@ -3,12 +3,13 @@
  * @project SlothVault
  * @module Account Deletion Policy
  * @description Previews account cleanup and detaches site-owned attribution while retaining customer contracts and evidence.
- * @logic Count protected customer relationships, preserve independent operator snapshots, clear nullable references, and expose credential-free deletion history.
- * @dependencies Prisma transactions, account audit registry
+ * @logic Count protected customer relationships, preserve independent operator snapshots, clear nullable references, and expose credential-free deletion history. Detach plugin-owned nullable user references and retain financial idempotency receipts after account deletion.
+ * @dependencies Prisma transactions, account audit registry, plugin user-attribution adapter
  * @index_tags users,deletion,audit,contracts,wallet,backup
  * @author holic512
  */
 import 'server-only'
+import { pluginUserAttribution } from '@/server/plugins/user-attribution'
 import type { Prisma } from '@generated/prisma-postgresql/client'
 import { readAttribution, USER_ATTRIBUTION_FIELDS, type UserIdentity } from '@/lib/user-attribution'
 import { snapshotUser } from '@/server/database/user-attribution'
@@ -36,7 +37,6 @@ export async function inspectUserDeletion(tx: Tx, userId: number, actorUserId: n
     ['mcpApiKeys', tx.mcpApiKey.count({ where: { userId } })],
     ['pointTransactions', tx.pointTransaction.count({ where: { userId } })],
     ['membershipGrants', tx.membershipGrant.count({ where: { userId } })],
-    ['giftCardRedemptions', tx.giftCard.count({ where: { redeemedById: userId } })],
     ['avatarReferences', tx.fileReference.count({ where: { sourceType: 'USER_AVATAR', sourceId: userId } })],
   ].map(async ([key, value]) => [key, await value]))) as Record<string, number>
   const retained = Object.fromEntries(await Promise.all(Object.entries(USER_ATTRIBUTION_FIELDS).filter(([model]) => model !== 'pointTransaction').map(async ([model, fields]) => [model, await delegate(tx, model).count({ where: { OR: fields.map(field => ({ [field]: userId })), ...(model === 'membershipGrant' ? { userId: { not: userId } } : {}) } })]))) as Record<string, number>
@@ -46,6 +46,8 @@ export async function inspectUserDeletion(tx: Tx, userId: number, actorUserId: n
 
 /** Fill only absent identities; frozen contract and submission bytes are never touched. */
 export async function detachUserAttribution(tx: Tx, userId: number, identity: UserIdentity) {
+  await tx.pluginPointReceipt.updateMany({ where: { userId }, data: { userId: null } })
+  await pluginUserAttribution(tx, userId, identity)
   for (const [model, fields] of Object.entries(USER_ATTRIBUTION_FIELDS)) {
     const store = delegate(tx, model)
     let after = 0
@@ -73,6 +75,7 @@ export async function detachUserAttribution(tx: Tx, userId: number, identity: Us
 
 /** Used after schema deployment, on legacy imports, and for pre-snapshot account records. */
 export async function backfillUserAttribution(tx: Tx, includeLegacyLedger = true) {
+  await pluginUserAttribution(tx)
   const identities = new Map<number, UserIdentity>()
   for (const [model, fields] of Object.entries(USER_ATTRIBUTION_FIELDS)) {
     if (model === 'pointTransaction' && !includeLegacyLedger) continue

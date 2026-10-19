@@ -17,6 +17,8 @@ vi.mock('@/server/database/client', () => ({ getDatabaseClient: () => fixture.cl
 vi.mock('@/server/prisma', () => ({ get prisma() { return fixture.client } }))
 vi.mock('@/server/services/admin-files', async load => ({ ...await load<typeof import('@/server/services/admin-files')>(), get UPLOAD_ROOT() { return fixture.root + '/uploads' } }))
 vi.mock('@/server/database/runtime-health', () => ({ readRuntimeInstallationPublicStatus: async () => ({ status: 'INSTALLED' }), isDatabaseConnectivityError: () => false }))
+import { insertLegacyCard, legacyCardRows } from '@/test/legacy-cards'
+import { snapshotUser } from '@/server/database/user-attribution'
 import { withUserAttribution } from '@/server/database/user-attribution'
 import { hashPassword } from '@/server/auth/password'
 import { mutateAccountWallet } from './account-security'
@@ -46,6 +48,13 @@ beforeEach(async () => {
   for (const [id, username, role] of [[1, 'owner', 'ADMIN'], [2, 'temporary', 'ADMIN'], [3, 'customer', 'USER']] as const) await fixture.client.user.create({ data: { id, username, role, password: 'test-only', displayName: username } })
 })
 afterEach(async () => { await fixture.client.$disconnect(); rmSync(fixture.root, { recursive: true, force: true }) })
+async function createLegacyBatch(data: { name: string; points: number; quantity: number; createdById: number }) {
+  return insertLegacyCard(fixture.client, 'giftCardBatches', { ...data, attributionJson: JSON.stringify({ createdById: await snapshotUser(fixture.client, data.createdById) }), status: 1, expiresAt: null, createdAt: new Date(), updatedAt: new Date() })
+}
+async function readLegacyBatch(id?: number) {
+  const rows = await legacyCardRows(fixture.client, 'giftCardBatches', id ? id - 1 : 0)
+  return (id ? rows.find(row => row.id === id) : rows[0]) as { id: number; createdById: number | null; attributionJson: string }
+}
 const actor = { userId: 1, isAdmin: true }, otherAdmin = { userId: 2, isAdmin: true }
 async function sessionAndKey(userId: number) {
   const session = await issueSession({ userId })
@@ -99,19 +108,21 @@ describe('account roles, real deletion and independent history', () => {
   it('deletes points, memberships and credentials but never makes redeemed gift cards reusable', async () => {
     const level = await fixture.client.membershipLevel.create({ data: { name: 'Member', rank: 1, pricePoints: 10 } })
     await fixture.client.membershipGrant.create({ data: { userId: 3, membershipLevelId: level.id, source: 'ADMIN_GRANT', grantedByUserId: 2 } })
-    const batch = await fixture.client.giftCardBatch.create({ data: { name: 'Gift', points: 10, quantity: 1, createdById: 2 } })
-    await fixture.client.giftCard.create({ data: { batchId: batch.id, codeHash: 'a'.repeat(64), codeHint: 'card', status: 2, redeemedById: 3, redeemedAt: new Date() } })
+    const batch = await createLegacyBatch({ name: 'Gift', points: 10, quantity: 1, createdById: 2 })
+    await insertLegacyCard(fixture.client, 'giftCards', { batchId: batch.id, codeHash: 'a'.repeat(64), codeHint: 'card', status: 2, redeemedById: 3, redeemedAt: new Date(), createdAt: new Date() })
     await fixture.client.pointTransaction.create({ data: { userId: 3, type: 'ADMIN_ADJUSTMENT', referenceId: '2', amount: 10, balanceAfter: 10 } })
+    await fixture.client.pluginPointReceipt.create({ data: { pluginId: 'slothvault.gift-cards', sourceKey: 'historical-redeem', userId: 3, amount: 10, balanceAfter: 10 } })
     const session = await sessionAndKey(3)
     const preview = await previewManagedUserDeletion({ actorUserId: 1, userId: 3 })
-    expect(preview).toMatchObject({ allowed: true, cleanup: { pointTransactions: 1, membershipGrants: 1, giftCardRedemptions: 1 } })
+    expect(preview).toMatchObject({ allowed: true, cleanup: { pointTransactions: 1, membershipGrants: 1 } })
     await deleteManagedUser({ actorUserId: 1, userId: 3 })
     expect(await fixture.client.user.findUnique({ where: { id: 3 } })).toBeNull()
+    expect((await fixture.client.pluginPointReceipt.findFirstOrThrow()).userId).toBeNull()
     expect(await fixture.client.pointTransaction.count()).toBe(0)
     expect(await fixture.client.membershipGrant.count()).toBe(0)
     expect(await fixture.client.session.count({ where: { userId: 3 } })).toBe(0)
     expect(await readSessionToken(session.token)).toBeNull()
-    expect(await fixture.client.giftCard.findFirstOrThrow()).toMatchObject({ status: 2, redeemedById: null })
+    expect((await legacyCardRows(fixture.client, 'giftCards', 0))[0]).toMatchObject({ status: 2, redeemedById: null })
     expect(JSON.stringify(await listDeletedUsers({ page: 1, pageSize: 20 }))).not.toMatch(/password|secretHash|tokenHash|walletAddress/)
   })
   it('merges later revocation attribution without changing the original grant operator', async () => {
@@ -125,11 +136,11 @@ describe('account roles, real deletion and independent history', () => {
     expect(JSON.parse(stored.attributionJson)).toMatchObject({ grantedByUserId: { username: 'temporary' }, revokedByUserId: { username: 'owner' } })
   })
   it('rolls back cleanup, detached references and audit records when final deletion fails', async () => {
-    const batch = await fixture.client.giftCardBatch.create({ data: { name: 'Rollback', points: 1, quantity: 1, createdById: 2 } })
+    const batch = await createLegacyBatch({ name: 'Rollback', points: 1, quantity: 1, createdById: 2 })
     const session = await sessionAndKey(2)
     await fixture.client.$executeRawUnsafe("CREATE TRIGGER reject_account_deletion BEFORE DELETE ON auth_user WHEN OLD.id = 2 BEGIN SELECT RAISE(ABORT, 'injected deletion failure'); END")
     await expect(deleteManagedUser({ actorUserId: 1, userId: 2 })).rejects.toThrow()
-    expect((await fixture.client.giftCardBatch.findUniqueOrThrow({ where: { id: batch.id } })).createdById).toBe(2)
+    expect((await readLegacyBatch(batch.id)).createdById).toBe(2)
     expect(await fixture.client.userDeletionRecord.count()).toBe(0)
     expect(await readSessionToken(session.token)).not.toBeNull()
     expect((await fixture.client.mcpApiKey.findFirstOrThrow()).status).toBe(1)
@@ -188,10 +199,10 @@ describe('account roles, real deletion and independent history', () => {
     expect(workflow.events.at(-1)?.snapshot.actor.name).toBe('owner')
   })
   it('preserves deleted operators through renames, demotion and later deletion of the deleting administrator', async () => {
-    const batch = await fixture.client.giftCardBatch.create({ data: { name: 'Site', points: 1, quantity: 1, createdById: 2 } })
+    const batch = await createLegacyBatch({ name: 'Site', points: 1, quantity: 1, createdById: 2 })
     await updateManagedUser({ actorUserId: 1, userId: 2, values: { username: 'renamed', role: 'USER' } })
     await deleteManagedUser({ actorUserId: 1, userId: 2 })
-    const historical = await fixture.client.giftCardBatch.findUniqueOrThrow({ where: { id: batch.id } })
+    const historical = await readLegacyBatch(batch.id)
     expect(JSON.parse(historical.attributionJson).createdById.username).toBe('temporary')
     await updateManagedUser({ actorUserId: 1, userId: 3, values: { role: 'ADMIN' } })
     await deleteManagedUser({ actorUserId: 3, userId: 1 })
@@ -205,7 +216,7 @@ describe('account roles, real deletion and independent history', () => {
     await expect(createManagedUser({ username: 'forbidden', password: 'safe-password', role: 'ADMIN' }, 3)).rejects.toMatchObject({ status: 401 })
   })
   it('round-trips attribution, merges deletion logs by UUID and imports multiple administrators', async () => {
-    await fixture.client.giftCardBatch.create({ data: { name: 'Site', points: 1, quantity: 1, createdById: 2 } })
+    await createLegacyBatch({ name: 'Site', points: 1, quantity: 1, createdById: 2 })
     const before = await exportDatabaseBackup()
     await deleteManagedUser({ actorUserId: 1, userId: 2 })
     await importDatabaseBackup(parseDatabaseImportPayload({ version: before.version, data: before.data, mode: 'overwrite' }))
@@ -214,18 +225,19 @@ describe('account roles, real deletion and independent history', () => {
     const restored = await fixture.client.user.findUniqueOrThrow({ where: { username: 'temporary' } })
     await deleteManagedUser({ actorUserId: 1, userId: restored.id })
     const after = await exportDatabaseBackup()
-    expect(after.data.giftCardBatches[0]).toMatchObject({ createdById: null })
+    expect(after.data).not.toHaveProperty('giftCardBatches')
     await importDatabaseBackup(parseDatabaseImportPayload({ version: after.version, data: after.data, mode: 'overwrite' }))
     await importDatabaseBackup(parseDatabaseImportPayload({ version: after.version, data: after.data, mode: 'overwrite' }))
     expect(await fixture.client.userDeletionRecord.count()).toBe(2)
-    expect(JSON.parse((await fixture.client.giftCardBatch.findFirstOrThrow()).attributionJson).createdById.username).toBe('temporary')
+    expect(await readLegacyBatch()).toBeUndefined()
   })
   it('converts explicitly validated 2.13.0 backups and rejects detached legacy operator references', async () => {
-    await fixture.client.giftCardBatch.create({ data: { name: 'Legacy', points: 1, quantity: 1, createdById: 2 } })
+    await createLegacyBatch({ name: 'Legacy', points: 1, quantity: 1, createdById: 2 })
     const backup = await exportDatabaseBackup()
     const legacy = JSON.parse(JSON.stringify(backup.data)) as Record<string, Array<Record<string, unknown>>>
     delete legacy.userDeletionRecords
     delete legacy.userWallets
+    for (const key of Object.keys(legacy)) if (key.startsWith('plugin')) delete legacy[key]
     for (const user of legacy.users) {
       delete user.usernameChangeMonth
       delete user.usernameChangeCount
@@ -233,11 +245,12 @@ describe('account roles, real deletion and independent history', () => {
     }
     for (const rows of Object.values(legacy)) for (const row of rows) delete row.attributionJson
     const converted = parseDatabaseImportPayload({ version: '2.13.0', mode: 'overwrite', data: legacy })
-    expect(converted.version).toBe('2.15.0')
+    expect(converted.version).toBe('2.18.0')
     expect(converted.data.userDeletionRecords).toEqual([])
-    expect(JSON.parse(converted.data.giftCardBatches[0].attributionJson).createdById).toMatchObject({ userId: '2', username: 'temporary', role: 'ADMIN' })
+    expect(converted.data.giftCardBatches).toEqual([])
+    expect(converted.data.giftCards).toEqual([])
     await importDatabaseBackup(converted)
-    legacy.giftCardBatches[0].createdById = null
+    legacy.giftCardBatches = [{ id: '1', name: 'Retired', points: 1, quantity: 1, expiresAt: null, status: 1, createdById: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }]
     expect(() => parseDatabaseImportPayload({ version: '2.13.0', mode: 'overwrite', data: legacy })).toThrow()
   })
   it('authenticates deletion routes and exposes preview and history without credentials', async () => {

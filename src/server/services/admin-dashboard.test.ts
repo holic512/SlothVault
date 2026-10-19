@@ -4,7 +4,6 @@ const mocks = vi.hoisted(() => ({
   prisma: {
     user: { count: vi.fn(), aggregate: vi.fn(), findMany: vi.fn() },
     session: { count: vi.fn(), findMany: vi.fn() },
-    giftCard: { count: vi.fn() },
     article: { count: vi.fn(), findMany: vi.fn() },
     project: { count: vi.fn(), findMany: vi.fn() },
     projectVersion: { count: vi.fn() },
@@ -27,7 +26,6 @@ describe('admin dashboard service', () => {
     for (const model of [
       mocks.prisma.user,
       mocks.prisma.session,
-      mocks.prisma.giftCard,
       mocks.prisma.article,
       mocks.prisma.project,
       mocks.prisma.projectVersion,
@@ -111,10 +109,13 @@ describe('admin dashboard service', () => {
     const result = await getAdminDashboard({ range: 7, now })
 
     expect(result.overview.users.totalPoints).toBe(0)
+    expect(result.overview).not.toHaveProperty('giftCards')
     expect(result.overview.files).toMatchObject({ total: 0, totalSizeBytes: 0n, byType: [] })
     expect(result.overview.blockchain.evidence).toEqual({ total: 5, finalized: 2, failed: 1, pending: 2 })
     expect(mocks.prisma.releaseCredential.count.mock.calls.map(([input]) => input.where)).toEqual([
-      { subjectType: 'NOTE_CONTENT' }, { subjectType: 'NOTE_CONTENT', status: 2 }, { subjectType: 'NOTE_CONTENT', status: -1 },
+      { subjectType: 'PROJECT_VERSION', subjectManifestVersion: 3 },
+      { subjectType: 'PROJECT_VERSION', subjectManifestVersion: 3, status: 2 },
+      { subjectType: 'PROJECT_VERSION', subjectManifestVersion: 3, status: -1 },
     ])
     expect(result.health).toEqual({
       projectUtilization: 0,

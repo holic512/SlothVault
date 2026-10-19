@@ -9,13 +9,16 @@
  * @author holic512
  */
 import 'server-only'
+import { discardRetiredCardPayload } from './retired-gift-cards'
+import { validatePluginBackup } from '@/server/plugins/backup'
 import { readDocumentationState } from '@/lib/project-documentation'
 import { convertDocumentationPayload } from './legacy-v2-15'
 import { convertWalletPayload } from './legacy-v2-14'
 import { DATABASE_BACKUP_VERSION } from './constants'
+import { z } from 'zod'
 import { PublicKey } from '@solana/web3.js'
-import { attributionCollections, convertLegacyPayload } from './legacy-v2-13'
-import { readAttribution, USER_ATTRIBUTION_FIELDS } from '@/lib/user-attribution'
+import { attributionCollections, legacyAttributionFields, convertLegacyPayload } from './legacy-v2-13'
+import { readAttribution } from '@/lib/user-attribution'
 import { backupMap, backupSet, recordStore, recordWhere, recordIndex } from './record-store'
 import { canonicalProjectVersionEvidenceMemo } from '@/server/services/project-version-evidence-protocol'
 import { canonicalReleaseManifest, parseReleaseManifest, releaseManifestHash } from '@/server/services/release-manifest'
@@ -83,13 +86,15 @@ function assertReference<T>(
 }
 
 export function validateBackupRelations(data: BackupData) {
+  if (data.giftCards.length || data.giftCardBatches.length) invalidBackup('Historical gift cards are retired; new cards must use generic plugin rows')
+  validatePluginBackup(data)
   try { validateCommissionBackup(data) } catch (error) { invalidBackup(error instanceof Error ? error.message : 'Invalid commission backup') }
 
   for (const [key, model] of Object.entries(attributionCollections)) {
     for (const row of data[key as keyof BackupData] as Array<Record<string, unknown>>) {
       const snapshots = readAttribution(row.attributionJson as string)
       const mandatory = !['pointTransaction', 'membershipGrant', 'noteInfo', 'commissionSubmission'].includes(model)
-      for (const field of USER_ATTRIBUTION_FIELDS[model]) {
+      for (const field of legacyAttributionFields[model]) {
         if (field === 'confirmedById') continue
         if (mandatory && row[field] === null && !snapshots[field]) invalidBackup(`Missing historical attribution: ${key}.${field}`)
       }
@@ -485,9 +490,20 @@ export function validateBackupRelations(data: BackupData) {
 }
 
 export function parseDatabaseImportPayload(input: unknown): DatabaseImportPayload {
+  const sourceVersion = (input as { version?: string } | null)?.version
   if (input && typeof input === 'object' && 'version' in input && input.version === '2.13.0') input = { version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data: convertLegacyPayload(input) }
   if (input && typeof input === 'object' && 'version' in input && input.version === '2.14.0') input = { version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data: convertWalletPayload(input) }
   if (input && typeof input === 'object' && 'version' in input && input.version === '2.15.0') input = { version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data: convertDocumentationPayload(input) }
+  if (input && typeof input === 'object' && 'version' in input && input.version === '2.16.0') {
+    const legacy = z.object({ version: z.literal('2.16.0'), mode: z.literal('overwrite'), data: z.record(z.string(), z.unknown()) }).strict().parse(input)
+    if ( Object.keys(legacy.data).some(key => key.startsWith('plugin'))) invalidBackup('plugin collections cannot use a legacy version')
+    input = { version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data: { ...legacy.data, pluginInstallations: [], pluginTables: [], pluginMigrations: [], pluginPointReceipts: [], pluginRows: [] } }
+  }
+  if (sourceVersion === '2.17.0') {
+    const legacy = z.object({ version: z.literal('2.17.0'), mode: z.literal('overwrite'), data: z.record(z.string(), z.unknown()) }).strict().parse(input)
+    input = { version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data: legacy.data }
+  }
+  if (sourceVersion && sourceVersion !== DATABASE_BACKUP_VERSION && input && typeof input === 'object' && 'data' in input) input = { ...input, data: discardRetiredCardPayload(input.data as Record<string, unknown>) }
   const source = input as { data?: Record<string, unknown> }
   if (!source?.data || ACTIVE_BACKUP_COLLECTION_KEYS.some(key => !Array.isArray(source.data![key]))) invalidBackup('complete backup is missing a collection')
   const parsed = databaseImportPayloadSchema.safeParse(input)

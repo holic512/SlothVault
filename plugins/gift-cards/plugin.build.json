@@ -1,0 +1,8 @@
+{
+  "format": "source-v1",
+  "server": "src/server.ts",
+  "client": {
+    "manage": "src/manage.tsx",
+    "redeem": "src/redeem.tsx"
+  }
+}

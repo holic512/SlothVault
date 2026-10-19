@@ -16,6 +16,7 @@ function emptyBackup(): BackupData {
     userWallets: [],
     userDeletionRecords: [],
     pointTransactions: [],
+    pluginInstallations: [], pluginTables: [], pluginMigrations: [], pluginPointReceipts: [], pluginRows: [],
     giftCardBatches: [],
     giftCards: [],
     membershipLevels: [],
@@ -231,5 +232,15 @@ describe('current database format', () => {
     const data = emptyBackup()
     Reflect.deleteProperty(data.projects[0], 'readAccessMode')
     expect(() => parseDatabaseImportPayload({ data })).toThrow(/access policy/)
+  })
+})
+
+
+describe('explicit pre-plugin 2.16 source envelope', () => {
+  it('converts only an explicit overwrite request and rejects ignored outer fields', () => {
+    const data = Object.fromEntries(Object.entries(emptyBackup()).filter(([key]) => !key.startsWith('plugin')))
+    expect(parse({ version: '2.16.0', mode: 'overwrite', data }).version).toBe(DATABASE_BACKUP_VERSION)
+    expect(() => parse({ version: '2.16.0', mode: 'append', data })).toThrow()
+    expect(() => parse({ version: '2.16.0', mode: 'overwrite', data, unexpected: true })).toThrow()
   })
 })

@@ -78,8 +78,6 @@ model User {
   membershipGrants       MembershipGrant[] @relation("MembershipGrantUser")
   grantedMembershipGrants MembershipGrant[] @relation("MembershipGrantGrantedBy")
   revokedMembershipGrants MembershipGrant[] @relation("MembershipGrantRevokedBy")
-  createdGiftCardBatches GiftCardBatch[]     @relation("GiftCardBatchCreator")
-  redeemedGiftCards      GiftCard[]          @relation("GiftCardRedemption")
   releaseCredentials     ReleaseCredential[] @relation("ReleaseCredentialIssuer")
   credentialAttempts     ReleaseCredentialAttempt[] @relation("ReleaseCredentialAttemptIssuer")
   issuedContracts       Contract[]          @relation("ContractIssuer")
@@ -128,42 +126,6 @@ model PointTransaction {
   @@index([userId, createdAt], map: "idx_points_transaction_user_created")
   @@index([type, referenceId], map: "idx_points_transaction_reference")
   @@map("points_transaction")
-}
-
-model GiftCardBatch {
-  attributionJson String @default("{}") @map("attribution_json")
-  id          Int        @id @default(autoincrement())
-  name        String
-  points      Int
-  quantity    Int
-  expiresAt   DateTime?  @map("expires_at")
-  status      Int        @default(1)
-  createdById Int?        @map("created_by_id")
-  createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt   DateTime   @default(now()) @map("updated_at")
-  createdBy   User?       @relation("GiftCardBatchCreator", fields: [createdById], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  cards       GiftCard[]
-
-  @@index([createdById], map: "idx_gift_card_batch_creator")
-  @@index([status, expiresAt], map: "idx_gift_card_batch_status_expires")
-  @@map("points_gift_card_batch")
-}
-
-model GiftCard {
-  id           Int           @id @default(autoincrement())
-  batchId      Int           @map("batch_id")
-  codeHash     String        @unique(map: "uq_gift_card_code_hash") @map("code_hash")
-  codeHint     String        @map("code_hint")
-  status       Int           @default(1)
-  redeemedById Int?          @map("redeemed_by_id")
-  redeemedAt   DateTime?     @map("redeemed_at")
-  createdAt    DateTime      @default(now()) @map("created_at")
-  batch        GiftCardBatch @relation(fields: [batchId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  redeemedBy   User?         @relation("GiftCardRedemption", fields: [redeemedById], references: [id], onDelete: SetNull, onUpdate: NoAction)
-
-  @@index([batchId, status], map: "idx_gift_card_batch_status")
-  @@index([redeemedById], map: "idx_gift_card_redeemed_by")
-  @@map("points_gift_card")
 }
 
 model Article {
@@ -1029,4 +991,92 @@ model UserDeletionRecord {
 
   @@index([deletedAt], map: "idx_auth_user_deletion_deleted_at")
   @@map("auth_user_deletion_record")
+}
+
+model PluginInstallation {
+  id Int @id @default(autoincrement())
+  pluginId String @unique @map("plugin_id")
+  version String
+  digest String
+  manifestJson String @map("manifest_json")
+  configCiphertext String @default("") @map("config_ciphertext")
+  accessBindingsJson String @default("{}") @map("access_bindings_json")
+  installed Boolean @default(true)
+  enabled Boolean @default(false)
+  generation Int @default(1)
+  source String?
+  error String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+  @@map("plugin_installation")
+}
+
+model PluginPackage {
+  id Int @id @default(autoincrement())
+  pluginId String @map("plugin_id")
+  version String
+  digest String @unique
+  manifestJson String @map("manifest_json")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@map("plugin_package")
+}
+
+model PluginOwnedTable {
+  id Int @id @default(autoincrement())
+  pluginId String @map("plugin_id")
+  name String @unique
+  descriptorJson String @map("descriptor_json")
+  @@map("plugin_owned_table")
+}
+
+model PluginMigration {
+  id Int @id @default(autoincrement())
+  pluginId String @map("plugin_id")
+  key String
+  digest String
+  createdAt DateTime @default(now()) @map("created_at")
+  @@unique([pluginId, key])
+  @@map("plugin_migration")
+}
+
+model PluginOperation {
+  id Int @id @default(autoincrement())
+  pluginId String @map("plugin_id")
+  action String
+  status String @default("RUNNING")
+  phase String
+  payloadJson String @default("{}") @map("payload_json")
+  error String?
+  actorUserId Int? @map("actor_user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+  @@map("plugin_operation")
+}
+
+model PluginTask {
+  id Int @id @default(autoincrement())
+  pluginId String @map("plugin_id")
+  taskKey String @unique @map("task_key")
+  kind String
+  handler String
+  payloadJson String @default("null") @map("payload_json")
+  status String @default("PENDING")
+  attempts Int @default(0)
+  runAt DateTime @map("run_at")
+  error String?
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([status, runAt])
+  @@map("plugin_task")
+}
+
+model PluginPointReceipt {
+  id Int @id @default(autoincrement())
+  pluginId String @map("plugin_id")
+  sourceKey String @map("source_key")
+  userId Int? @map("user_id")
+  amount Int
+  balanceAfter Int @map("balance_after")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@unique([pluginId, sourceKey])
+  @@map("plugin_point_receipt")
 }

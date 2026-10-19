@@ -13,10 +13,11 @@ import { z } from 'zod'
 import { USER_ATTRIBUTION_FIELDS, type UserIdentity } from '@/lib/user-attribution'
 import { backupDataSchema, type BackupData } from './database-schema'
 import { legacyWalletData, convertWalletStore } from './legacy-v2-14'
-import { ACTIVE_BACKUP_COLLECTION_KEYS } from './constants'
+import { LEGACY_BACKUP_COLLECTION_KEYS } from './constants'
 import type { RecordStore } from './record-store'
 
-export const attributionCollections: Record<string, keyof typeof USER_ATTRIBUTION_FIELDS> = {
+export const legacyAttributionFields = { ...USER_ATTRIBUTION_FIELDS, giftCardBatch: ['createdById'] } as const
+export const attributionCollections: Record<string, keyof typeof legacyAttributionFields> = {
   pointTransactions: 'pointTransaction', giftCardBatches: 'giftCardBatch', membershipGrants: 'membershipGrant', noteInfos: 'noteInfo',
   contracts: 'contract', contractAdminAudits: 'contractAdminAudit', contractCredentials: 'contractCredential', contractCredentialAttempts: 'contractCredentialAttempt',
   releaseCredentials: 'releaseCredential', releaseCredentialAttempts: 'releaseCredentialAttempt', commissionPayments: 'commissionPayment',
@@ -28,7 +29,7 @@ const formerlyRequired: Record<string, string[]> = {
   releaseCredentials: ['issuerUserId'], releaseCredentialAttempts: ['issuerUserId'], commissionPayments: ['createdById'], commissionChanges: ['createdById'], commissionIssues: ['createdById'],
   commissionFiles: ['uploaderUserId'], commissionEvents: ['actorUserId'], commissionProofAttempts: ['issuerUserId'],
 }
-export const legacyCollectionKeys = ACTIVE_BACKUP_COLLECTION_KEYS.filter(key => key !== 'userDeletionRecords' && key !== 'userWallets')
+export const legacyCollectionKeys = LEGACY_BACKUP_COLLECTION_KEYS.filter(key => key !== 'userDeletionRecords' && key !== 'userWallets')
 export const legacyRowSchemas = new Map<string, z.ZodType>()
 const sourceCollections: Record<string, z.ZodType> = {}
 for (const key of legacyCollectionKeys) {
@@ -54,7 +55,7 @@ function convertRow(key: string, row: Row, findUser: (id: string) => Row | undef
   const model = attributionCollections[key]
   if (!model) return row
   const snapshots: Record<string, UserIdentity> = {}
-  for (const field of USER_ATTRIBUTION_FIELDS[model]) {
+  for (const field of legacyAttributionFields[model]) {
     const id = model === 'pointTransaction' && row.type === 'ADMIN_ADJUSTMENT' ? row.referenceId : row[field]
     if (typeof id !== 'string') continue
     const user = findUser(id)

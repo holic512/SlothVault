@@ -469,7 +469,8 @@
       "commissions": "Commissions",
       "contractTemplates": "Contract templates",
       "analytics": "Audience analytics",
-      "observability": "Application observability"
+      "observability": "Application observability",
+      "plugins": "Plugins"
     },
     "menuGroups": {
       "overview": "Overview",
@@ -1631,7 +1632,8 @@
         "categories": "{active} active · {notes} active notes",
         "points": "{redeemed}/{total} gift cards redeemed",
         "files": "{count} managed files",
-        "evidence": "{finalized} finalized · {pending} pending"
+        "evidence": "{finalized} finalized · {pending} pending",
+        "corePoints": "Core points ledger"
       },
       "trend": {
         "title": "Operations activity",
@@ -1917,7 +1919,7 @@
       "dialog": {
         "createTitle": "Issue point gift cards",
         "codesTitle": "Gift cards generated",
-        "codesDescription": "Only hashes are stored. The plaintext codes cannot be viewed again after this dialog closes."
+        "codesDescription": "Codes issued. You can view and copy them again in batch details."
       },
       "form": {
         "name": "Batch name",
@@ -2337,13 +2339,88 @@
       "newActivity": "New activity this period",
       "previousPeriod": "vs. previous equal window",
       "incompleteSince": "Collection gaps recorded since {time}"
+    },
+    "plugins": {
+      "refresh": "Refresh",
+      "install": "Install plugin",
+      "saved": "Saved",
+      "architecture": "The host compiles source packages on install. Plugin data stays in the main database and data/plugins.",
+      "trustWarning": "Plugins run with full application trust. SHA-256 checks integrity, not author identity or code safety. Install only code you trust.",
+      "plugin": "Plugin",
+      "version": "Version",
+      "state": "State",
+      "data": "Owned data",
+      "operations": "Actions",
+      "tableCount": "{count} tables",
+      "details": "Details / configuration",
+      "disableConfirm": "Disable this plugin and stop its tasks?",
+      "enableConfirm": "Enable this trusted plugin?",
+      "disable": "Disable",
+      "enable": "Enable",
+      "update": "Install / update from Release",
+      "uninstall": "Uninstall",
+      "checkReleases": "Check Releases",
+      "upload": "Upload a plugin ZIP",
+      "package": "Package",
+      "preview": "Verify / preview",
+      "capabilities": "Declared capabilities",
+      "trustAccept": "I trust this package and grant its code full application access.",
+      "confirmInstall": "Confirm installation",
+      "description": "Description",
+      "source": "Source",
+      "manual": "Manually uploaded source package",
+      "config": "Configuration (JSON)",
+      "saveConfig": "Validate and save configuration",
+      "rollback": "Restore previous version",
+      "rollbackWarning": "Restore the pre-upgrade plugin data and code? Core balances and ledger are not rolled back.",
+      "schemaNote": "Configuration is validated against the plugin JSON Schema. Masked secrets are retained unless replaced.",
+      "error": "Error",
+      "tasks": "Tasks / hooks",
+      "attempts": "Attempts",
+      "retainDefault": "Default: remove plugin code but retain configuration, tables and data for reinstalling later.",
+      "deleteData": "Also delete this plugin’s tables and configuration",
+      "deleteWarning": "Irreversible database cleanup. Type the plugin ID to confirm. Core balances, ledger and membership entitlements are never deleted.",
+      "retry": "Retry / recover",
+      "compatibility": "Compatibility",
+      "dependencies": "Dependencies",
+      "phase": "Phase",
+      "officialCatalog": "Official plugins",
+      "manualInstall": "Manual install",
+      "official": "Official catalog",
+      "officialId": "Official ID · verify the source",
+      "installedVersion": "Installed",
+      "checkUpdates": "Check updates",
+      "selectPlugin": "Select plugin",
+      "availableVersions": "Available versions",
+      "noRelease": "No installable release. Refresh later or upload a source ZIP.",
+      "selectVersion": "Select a version",
+      "sourceUpload": "Click or drop a plugin source ZIP",
+      "sourceUploadHint": "Include source files, plugin.json, plugin.build.json and hashes. No manual build needed.",
+      "advancedSource": "Advanced: install from a GitHub Release",
+      "inspecting": "Verifying source package…",
+      "previewFailed": "Preview failed or plugin incompatible",
+      "compatible": "Host, SDK and Node compatibility verified",
+      "compiling": "Compiling and installing…",
+      "installFailed": "Installation failed; the previous version was retained",
+      "runtimeLabels": {
+        "ERROR": "Error",
+        "UNINSTALLED": "Uninstalled",
+        "DISABLED": "Disabled",
+        "RUNNING": "Running",
+        "IDLE": "Enabled · on demand"
+      },
+      "codeLabels": {
+        "MISSING": "Source missing",
+        "PRESENT": "Source stored"
+      },
+      "noOfficialPlugins": "No official plugins listed. Use manual installation."
     }
   },
   "UserAuth": {
     "login": {
       "kicker": "Account",
       "title": "Sign in to SlothVault",
-      "description": "Use your account to manage your profile, review contracts, and redeem points.",
+      "description": "Use your account to manage your profile, review contracts, and manage your points.",
       "sessionReadFailed": "Could not read your sign-in status",
       "success": "Signed in successfully",
       "failed": "Sign-in failed",
@@ -2456,7 +2533,7 @@
       "actions": {
         "profile": "Edit your profile",
         "security": "Manage security and sign-in",
-        "points": "Redeem codes and view points",
+        "points": "View point balance and history",
         "membership": "Manage membership benefits",
         "commissions": "My commissions"
       },
@@ -2505,7 +2582,7 @@
     "points": {
       "kicker": "Points",
       "title": "Points",
-      "description": "Redeem gift codes and review every points change.",
+      "description": "View your point balance and every ledger entry.",
       "redeemed": "Redeemed {points} points",
       "current": "Current points",
       "redeemTitle": "Redeem a gift code",
@@ -2728,5 +2805,78 @@
     "loadFailed": "Unable to load account security information.",
     "retry": "Retry",
     "loading": "Loading…"
+  },
+  "Plugins": {
+    "giftCards": {
+      "manage": {
+        "actions": {
+          "refresh": "Refresh",
+          "create": "Issue gift cards",
+          "generate": "Generate codes",
+          "cancel": "Cancel",
+          "confirmSaved": "I saved them",
+          "copyAll": "Copy all codes"
+        },
+        "messages": {
+          "codesCopied": "Gift card codes copied",
+          "copyFailed": "Copy failed. Select and copy the code manually."
+        },
+        "table": {
+          "batch": "Batch",
+          "points": "Value",
+          "quantity": "Quantity",
+          "redemption": "Redemption",
+          "expiresAt": "Expires",
+          "issuer": "Issuer"
+        },
+        "pointsValue": "{value} points",
+        "permanent": "No expiry",
+        "dialog": {
+          "createTitle": "Issue point gift cards",
+          "codesTitle": "Gift cards generated",
+          "codesDescription": "Codes issued. You can view and copy them again in batch details."
+        },
+        "form": {
+          "name": "Batch name",
+          "points": "Points per card",
+          "quantity": "Quantity",
+          "expiresAt": "Expiry time (optional)"
+        },
+        "plaintextNotice": "Codes are stored in plaintext, including database backups.",
+        "allStatuses": "All statuses",
+        "copyPage": "Copy current page",
+        "copy": "Copy",
+        "code": "Full code",
+        "status": "Status",
+        "redeemedBy": "Redeemed by",
+        "redeemedAt": "Redeemed at",
+        "statuses": {
+          "unused": "Unused",
+          "used": "Used",
+          "expired": "Expired",
+          "disabled": "Disabled"
+        }
+      },
+      "redeem": {
+        "kicker": "Points",
+        "title": "Redeem gift card",
+        "description": "Redeem a code for points. View your balance and ledger in the points center.",
+        "redeemed": "Redeemed {points} points",
+        "current": "Current points",
+        "redeemTitle": "Redeem a gift code",
+        "codeRequired": "Enter a gift code",
+        "redeem": "Redeem points",
+        "history": "Points history",
+        "table": {
+          "time": "Time",
+          "description": "Description",
+          "defaultDescription": "Points adjustment",
+          "change": "Change",
+          "balance": "Balance"
+        },
+        "code": "Gift code",
+        "usePoints": "Use points for membership"
+      }
+    }
   }
 }

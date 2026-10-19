@@ -3,12 +3,14 @@
  * @project SlothVault
  * @module Server Bootstrap
  * @description Initializes persistence, migrates the configured database, resolves interrupted restores, and registers local automatic backups before serving traffic.
- * @logic Persist the master key, bootstrap opt-in Compose storage, migrate and lock SQLite when needed, preserve unresolved restore evidence, and register isolated telemetry and one backup scheduler outside builds.
- * @dependencies master-key, database/compose-bootstrap, database/config-store, database/client, database/migrations, sqlite-instance-lock, backup scheduler
+ * @logic Persist the master key, bootstrap opt-in Compose storage, migrate and lock SQLite when needed, preserve unresolved restore evidence, and register isolated telemetry and one backup scheduler outside builds. Reconcile plugin schema switches before traffic, then register lazy plugin metadata and its scheduler without importing plugin code.
+ * @dependencies master-key, database/compose-bootstrap, database/config-store, database/client, database/migrations, sqlite-instance-lock, backup scheduler, plugin recovery and manager
  * @index_tags nodejs,startup,migrations,master-key,sqlite,compose,single-instance,backup,recovery
  * @author holic512
  */
 import 'server-only'
+import { reconcilePluginRestore } from '@/server/plugins/backup'
+import { initializePlugins } from '@/server/plugins/manager'
 import { RESTORE_COMMIT_CONFIG_KEY } from '@/server/services/admin-backup/constants'
 import { telemetryRuntime } from '@/server/telemetry/runtime'
 
@@ -63,5 +65,9 @@ export async function initializeNodeRuntime() {
     }
   }
   await initializeBackupRuntime()
-  if (configuration && configuration.status !== 'CONFIGURING') initializeCommissionRuntime()
+  await reconcilePluginRestore()
+  if (configuration && configuration.status !== 'CONFIGURING') {
+    initializeCommissionRuntime()
+    try { await initializePlugins() } catch { console.error('[plugins] Initialization failed; plugin administration requires attention') }
+  }
 }

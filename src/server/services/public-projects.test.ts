@@ -55,7 +55,7 @@ describe('public project reading', () => {
     expect(mocks.prisma.projectHome.findUnique).toHaveBeenCalledWith({ where: { projectId: 4 } })
   })
 
-  it('returns only content evidence and does not expose retired release credentials', async () => {
+  it('returns note content without retired per-note evidence or version credential fields', async () => {
     const updatedAt = new Date('2026-07-30T12:00:00.000Z')
     const issuedAt = new Date('2026-07-30T13:00:00.000Z')
     mocks.prisma.projectVersion.findFirst.mockResolvedValue({
@@ -107,20 +107,7 @@ describe('public project reading', () => {
       content: '# Essay',
       versionNote: 'First edition',
       updatedAt,
-      releaseId: '550e8400-e29b-41d4-a716-446655440000',
-      releaseHash: 'a'.repeat(64),
-      manifestVersion: 1,
-      publishedAt: new Date('2026-07-30T11:00:00.000Z'),
-      noteEvidence: [{
-        transactionSignature: 'ContentSignature111111111111111111111111111',
-        signerAddress: 'Owner111111111111111111111111111111111111',
-        network: 'mainnet',
-        contentHash: 'b'.repeat(64),
-        finalizedAt: issuedAt,
-      }],
     })
-    expect(mocks.prisma.releaseCredential.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ noteContentId: 18, subjectType: 'NOTE_CONTENT' }),
-    }))
+    expect(mocks.prisma.releaseCredential.findMany).not.toHaveBeenCalled()
   })
 })

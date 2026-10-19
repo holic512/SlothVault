@@ -22,7 +22,6 @@ export const attributionSchema = z.record(z.string(), userIdentitySchema)
 
 export const USER_ATTRIBUTION_FIELDS = {
   pointTransaction: ['operatorUserId'],
-  giftCardBatch: ['createdById'],
   membershipGrant: ['grantedByUserId', 'revokedByUserId'],
   noteInfo: ['authorId'],
   contract: ['issuerUserId'],

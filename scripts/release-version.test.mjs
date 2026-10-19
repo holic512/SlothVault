@@ -47,6 +47,9 @@ describe('release version resolution', () => {
 
   it('does not count toolkit-only commits as application changes', () => {
     expect(isApplicationChange(['integrations/slothvault-runtime/lib/service.js'])).toBe(false)
+    expect(isApplicationChange(['plugins/gift-cards/src/server.ts'])).toBe(false)
+    expect(isApplicationChange(['plugins/catalog.json'])).toBe(true)
+    expect(isApplicationChange(['plugins/sdk/src/protocol.ts'])).toBe(true)
     expect(isApplicationChange(['.github/workflows/release-toolkit.yml'])).toBe(false)
     expect(isApplicationChange(['integrations/slothvault-runtime/package.json', 'src/server/mcp/server.ts'])).toBe(true)
   })

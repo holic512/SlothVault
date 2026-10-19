@@ -3,13 +3,14 @@
  * @project SlothVault
  * @module Public Homepage
  * @description Renders the administrator-managed Markdown homepage or a concise empty state with optional database-backed filing information.
- * @logic Read enabled homepage content at request time, render it when meaningful, and otherwise direct visitors to the administrator for publication.
- * @dependencies homepage service, MarkdownView, PublicNavbar, SystemFilingFooter, next-intl
+ * @logic Read enabled homepage content at request time, render it when meaningful, and otherwise direct visitors to the administrator for publication. Render lazy authorized plugin slots before and after core homepage content.
+ * @dependencies homepage service, MarkdownView, PublicNavbar, SystemFilingFooter, next-intl, PluginSlot
  * @index_tags homepage,public,markdown,empty-state
  * @author holic512
  */
 import { getTranslations } from 'next-intl/server'
 
+import { PluginSlot } from '@/components/plugins/plugin-ui'
 import { MarkdownView } from '@/components/markdown/markdown-view'
 import { PublicNavbar } from '@/components/shell/public-navbar'
 import { SystemFilingFooter } from '@/components/shell/system-filing-footer'
@@ -36,6 +37,7 @@ export default async function HomePage() {
       <PublicNavbar branding={branding} />
       <main className="homepage-main">
         <div className="content-container content-container--reading">
+          <PluginSlot name="public.home.before" surface="public" />
           {content ? (
             <MarkdownView content={content} className="homepage-markdown" presentation="landing" />
           ) : (
@@ -44,6 +46,7 @@ export default async function HomePage() {
               <p>{t('description')}</p>
             </section>
           )}
+          <PluginSlot name="public.home.after" surface="public" />
         </div>
       </main>
       <SystemFilingFooter />

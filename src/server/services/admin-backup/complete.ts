@@ -3,12 +3,14 @@
  * @project SlothVault
  * @module Complete Backup Operations
  * @description Coordinates generated and imported snapshots, administrator-bound previews, protected restores, and retention.
- * @logic Serialize operations, validate and publish imported archives without restoring, recheck compatible restore sources, rotate isolated telemetry epochs after committed restores, and retain committed results despite cleanup failures.
- * @dependencies private backup store, archive validation, restore journal, database unit-of-work, maintenance lock
+ * @logic Serialize operations, validate and publish imported archives without restoring, recheck compatible restore sources, rotate isolated telemetry epochs after committed restores, and retain committed results despite cleanup failures. Reconcile plugin staging and registry state before releasing the restore maintenance lock.
+ * @dependencies private backup store, archive validation, restore journal, database unit-of-work, maintenance lock, plugin staging restore
  * @index_tags backup,restore,jobs,preflight,retention,transaction
  * @author holic512
  */
 import 'server-only'
+import { reloadPluginRegistry } from '@/server/plugins/manager'
+import { preparePluginRestore, reconcilePluginRestore } from '@/server/plugins/backup'
 import { rotateTelemetryEpoch } from '@/server/telemetry/runtime'
 import { randomUUID } from 'node:crypto'
 import { lstat, rm } from 'node:fs/promises'
@@ -71,7 +73,7 @@ export async function previewCompleteRestore(source: BackupSource, actorUserId: 
     await ensureBackupStorage()
     bundle = await readCompleteBundle(artifact.path, directory, false, progress)
     const policy = await withMaintenanceLock('shared', () => unitOfWork.execute((tx) => inspectImportAccounts(tx, bundle!.payload, { actorUserId, replaceUsers: true }), { mode: 'read', maxWait: DATABASE_TRANSACTION_MAX_WAIT_MS, timeout: DATABASE_TRANSACTION_TIMEOUT_MS }))
-    const warnings: string[] = []
+    const warnings: string[] = bundle.manifest.databaseVersion === '2.18.0' ? [] : ['LEGACY_GIFT_CARDS_RETIRED']
     const preview: PreviewRecord = { id, source, manifest: bundle.manifest, warnings, preservedAdministrator: policy.admin.username, createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(), actorUserId, sha256: artifact.sha256 }
     await atomicJson(recordPath('previews', id), preview)
     const { actorUserId: _actor, sha256: _sha, ...dto } = preview
@@ -218,6 +220,8 @@ export async function runCompleteRestore(job: BackupJob, previewId: string, sess
     bundle = await readCompleteBundle(artifact.path, input, true, progressFor(job))
     job.warnings.push(...preview.warnings)
     await withMaintenanceLock('exclusive', async () => {
+      try {
+      await preparePluginRestore(bundle!.payload.data, job.id)
       const options = { actorUserId: job.actorUserId!, preserveSessionId: sessionId, replaceUsers: true }
       await unitOfWork.execute((tx) => inspectImportAccounts(tx, bundle!.payload, options), { mode: 'read', maxWait: DATABASE_TRANSACTION_MAX_WAIT_MS, timeout: DATABASE_TRANSACTION_TIMEOUT_MS })
       await updateBackupJob(job, { phase: 'protecting' })
@@ -249,6 +253,7 @@ export async function runCompleteRestore(job: BackupJob, previewId: string, sess
         try { await updateBackupJob(job, { phase: 'cleaning' }) } catch { job.warnings.push('JOB_STATE_WRITE_FAILED') }
         try { await reconcileRestoreJournal(journal, true) } catch { job.warnings.push('RESTORE_CLEANUP_FAILED') }
       }
+      } finally { await reconcilePluginRestore(); await reloadPluginRegistry() }
     })
   } catch (error) { failure = error }
   finally { bundle?.store.close(); release(); try { await rm(input, { recursive: true, force: true }) } catch { job.warnings.push('WORK_CLEANUP_FAILED') } }

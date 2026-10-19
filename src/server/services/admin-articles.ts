@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { enqueuePluginEvent } from '@/server/plugins/events'
 import { assertManagedContentFiles, indexFileWrite } from './file-references'
 import { allowedMembershipIdsSchema, validateMembershipIds } from './content-access'
 
@@ -297,11 +298,13 @@ export async function publishAdminArticle(id: number) {
     if (!current.title.trim() || !current.content.trim()) {
       throw new HttpError('Title and content are required before publishing', 400, 400)
     }
-    return indexFileWrite(tx, 'ARTICLE', tx.article.update({
+    const published = await indexFileWrite(tx, 'ARTICLE', tx.article.update({
       where: { id },
       data: { status: 1, publishedAt: current.publishedAt ?? new Date(), updatedAt: new Date() },
       include: ARTICLE_ACCESS_INCLUDE,
     }))
+    if (current.status !== 1) await enqueuePluginEvent(tx, 'core.article.published', { articleId: id })
+    return published
   }, { mode: 'write', isolationLevel: 'Serializable' })
   await invalidatePublicArticleCache(id)
   return adminArticleDto(article)

@@ -152,7 +152,7 @@ describe('project permissions, file references and portable backup', () => {
     const s = await seed()
     await client.$transaction(tx => rebuildFileReferences(tx))
     const backup = await exportDatabaseBackup()
-    expect(backup.version).toBe('2.14.0')
+    expect(backup.version).toBe('2.18.0')
     expect(backup.data.noteInfos[0].tags).toEqual(['API', '教程'])
     expect(backup.data.noteInfos[0]).not.toHaveProperty('tagsJson')
     const parsed = parseDatabaseImportPayload({ data: backup.data, version: backup.version, mode: 'overwrite' })

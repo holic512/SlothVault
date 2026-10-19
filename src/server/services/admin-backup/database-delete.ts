@@ -3,24 +3,26 @@
  * @project SlothVault
  * @module Admin Database Business Data Deletion
  * @description Deletes all backup-managed business collections in referentially safe order.
- * @logic Remove dependent records before their parents and return exact per-collection and aggregate counts.
- * @dependencies Prisma transaction client
+ * @logic Remove dependent records before their parents and return exact per-collection and aggregate counts. Clear dynamic plugin rows and metadata before referenced core records.
+ * @dependencies Prisma transaction client, plugin table registry
  * @index_tags admin,backup,database,delete,transaction
  * @author holic512
  */
 import 'server-only'
+import { clearPluginDataForRestore } from '@/server/plugins/backup'
 import { deleteCommissionCollections } from '@/server/commissions/backup'
 
 import type { Prisma } from '@generated/prisma-postgresql/client'
 
 export async function deleteBusinessData(tx: Prisma.TransactionClient) {
+  await clearPluginDataForRestore(tx)
   const commissionChildren = await deleteCommissionCollections(tx, false)
   const fileReferences = await tx.fileReference.deleteMany({})
   const articleMemberships = await tx.articleMembership.deleteMany({})
   const projectReadMemberships = await tx.projectReadMembership.deleteMany({})
   const projectDownloadMemberships = await tx.projectDownloadMembership.deleteMany({})
-  const giftCards = await tx.giftCard.deleteMany({})
-  const giftCardBatches = await tx.giftCardBatch.deleteMany({})
+  const giftCards = { count: 0 }
+  const giftCardBatches = { count: 0 }
   const pointTransactions = await tx.pointTransaction.deleteMany({})
   const articles = await tx.article.deleteMany({})
   const membershipGrants = await tx.membershipGrant.deleteMany({})

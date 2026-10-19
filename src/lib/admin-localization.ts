@@ -46,7 +46,8 @@ export function formatAdminNumber(locale: string, value: number | bigint) {
   return new Intl.NumberFormat(languageTag(locale)).format(value)
 }
 
-export function formatAdminDate(locale: string, value: string | Date, includeTime = true) {
+export function formatAdminDate(locale: string, value: string | Date | null | undefined, includeTime = true) {
+  if (value == null || value === '') return '—'
   return new Intl.DateTimeFormat(languageTag(locale), includeTime
     ? { dateStyle: 'medium', timeStyle: 'short' }
     : { dateStyle: 'medium' },

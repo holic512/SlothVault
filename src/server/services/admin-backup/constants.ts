@@ -14,7 +14,7 @@ import { commissionCollectionKeys } from '@/server/commissions/backup'
 import { BUSINESS_TYPE_CONFIG } from '@/server/services/admin-files'
 
 export const ZIP_PATH_MAX_BYTES = 1024
-export const DATABASE_BACKUP_VERSION = '2.16.0' as const
+export const DATABASE_BACKUP_VERSION = '2.18.0' as const
 export const BACKUP_MANIFEST_MAX_BYTES = 16 * 1024 * 1024
 export const RESTORE_COMMIT_CONFIG_KEY = '__backup_restore_commit__'
 
@@ -60,9 +60,11 @@ export const BACKUP_COLLECTION_KEYS = [
   'contractCredentialAttempts',
   'releaseCredentials',
   'releaseCredentialAttempts',
+  'pluginInstallations', 'pluginTables', 'pluginMigrations', 'pluginPointReceipts', 'pluginRows',
 ] as const
 
-export const ACTIVE_BACKUP_COLLECTION_KEYS = BACKUP_COLLECTION_KEYS
+export const ACTIVE_BACKUP_COLLECTION_KEYS = BACKUP_COLLECTION_KEYS.filter(key => key !== 'giftCards' && key !== 'giftCardBatches')
+export const LEGACY_BACKUP_COLLECTION_KEYS = BACKUP_COLLECTION_KEYS.filter(key => !key.startsWith('plugin'))
 
 export const DEPRECATED_CONFIG_KEYS = new Set([
   'solana_network',

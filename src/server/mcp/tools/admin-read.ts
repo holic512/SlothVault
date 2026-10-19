@@ -275,8 +275,8 @@ export const adminReadToolDefinitions: McpToolDefinition[] = collectMcpToolDefin
       outputSchema: paginatedListSchema(giftCardBatchSchema),
       annotations: READ_ONLY_ANNOTATIONS,
     },
-    async ({ page, pageSize }) => runMcpTool('admin.gift_card.batch.list', async () => ({
-      ...(await listGiftCardBatches(page, pageSize)),
+    async ({ page, pageSize }, context) => runMcpTool('admin.gift_card.batch.list', async () => ({
+      ...(await listGiftCardBatches(page, pageSize, context.principal.userId)),
       page,
       pageSize,
     })),

@@ -9,6 +9,12 @@
  * @author holic512
  */
 export const ROUTE_TEMPLATES = [
+  '/api/admin/mm/plugins/sources',
+  '/api/admin/mm/plugins',
+  '/api/plugins/contributions',
+  '/api/admin/mm/plugins/[id]',
+  '/api/plugins/assets/[pluginId]/[digest]/[...path]',
+  '/api/plugins/[pluginId]/[...path]',
   '/api/admin/contracts/evidence/networks',
   '/api/admin/mm/backup/restores/preview',
   '/api/admin/mm/backup/snapshots/import',

@@ -5,8 +5,8 @@
  * @project SlothVault
  * @module Public Navigation
  * @description Provides shared homepage, independent article, project, account, locale, and theme navigation for public pages.
- * @logic Supply public destinations and account actions to the shared navigation shell while keeping the mobile drawer local.
- * @dependencies next/link, next-intl, navigation-shell, account-nav, brand-logo, theme-controls
+ * @logic Supply public destinations and account actions to the shared navigation shell while keeping the mobile drawer local. Render enabled public-plugin destinations in both desktop and mobile navigation.
+ * @dependencies next/link, next-intl, navigation-shell, account-nav, brand-logo, theme-controls, plugin UI registry
  * @index_tags navbar,public,navigation,liquid-glass,branding,responsive
  * @author holic512
  */
@@ -16,6 +16,7 @@ import { Button, Drawer } from 'antd'
 import { FolderKanban, Menu, Newspaper } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
+import { PluginMenuLinks } from '@/components/plugins/plugin-ui'
 import { usePathname } from 'next/navigation'
 
 import { NavigationShell } from '@/components/shell/navigation-shell'
@@ -58,6 +59,7 @@ export function PublicNavbar({ branding }: { branding: SystemBranding }) {
               <FolderKanban size={15} />
               {t('projects')}
             </Link>
+            <PluginMenuLinks surface="public" />
           </>
         }
         actions={
@@ -105,6 +107,7 @@ export function PublicNavbar({ branding }: { branding: SystemBranding }) {
             <FolderKanban size={17} />
             {t('projects')}
           </Link>
+          <PluginMenuLinks surface="public" onNavigate={() => setMobileOpen(false)} />
         </nav>
       </Drawer>
     </>

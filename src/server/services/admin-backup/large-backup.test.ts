@@ -9,8 +9,8 @@ import archiver from 'archiver'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const fixture = vi.hoisted(() => ({ root: `/tmp/sv-large-backup-${process.pid}-${Date.now()}`, records: 0, pages: [] as number[] }))
 vi.mock('@/server/services/admin-files', async load => ({ ...await load<typeof import('@/server/services/admin-files')>(), UPLOAD_ROOT: fixture.root + '/uploads' }))
-vi.mock('@/server/database/unit-of-work', () => ({ unitOfWork: { execute: async (callback: (tx: object) => unknown) => callback(new Proxy({}, { get(_target, key) { return { findMany: async (input: { where: { id: { gt: number } }; take: number }) => {
-  fixture.pages.push(input.take)
+vi.mock('@/server/database/unit-of-work', () => ({ unitOfWork: { execute: async (callback: (tx: object) => unknown) => callback(new Proxy({}, { get(_target, key) { if (key === '$queryRawUnsafe') return async () => []; return { findMany: async (input: { where: { id: { gt: number } }; take: number }) => {
+  if (typeof input.take === 'number') fixture.pages.push(input.take)
   if (key !== 'systemConfig') return []
   const count = Math.min(input.take, fixture.records - input.where.id.gt)
   return Array.from({ length: Math.max(0, count) }, (_, index) => ({ id: input.where.id.gt + index + 1, configKey: 'large-test-' + (input.where.id.gt + index + 1), configValue: 'x'.repeat(500), description: null, createdAt: new Date('2026-01-01Z'), updatedAt: new Date('2026-01-01Z') }))

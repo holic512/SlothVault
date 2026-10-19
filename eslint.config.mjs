@@ -7,7 +7,11 @@ export default defineConfig([
   ...nextTypeScript,
   globalIgnores([
     '.next/**',
+    '.cache/**',
+    'data/**',
     'generated/**',
+    'dist/**',
+    'plugins/*/dist/**',
     'playwright-report/**',
     'public/uploads/**',
     'test-results/**',
