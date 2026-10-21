@@ -2,17 +2,24 @@
 # @project SlothVault
 # @module Shared Plugin Release Verification
 # @description Validates immutable plugin sources and all database providers without repository write permissions.
-# @logic Build host tooling, package source fixtures and verify types plus real three-provider behavior independently from publishing.
+# @logic Build host tooling, package all source plugins, verify types and three-provider behavior, then hand immutable source archives to application publication.
 # @dependencies GitHub Actions, Node, PostgreSQL, MySQL, plugin SDK builder
 # @index_tags plugins,verification,release,migrations
 # @author holic512
-name: Verify independent plugins
+name: Verify source plugins and release assets
 on:
   pull_request:
     paths:
       - 'plugins/**'
       - 'src/server/plugins/**'
       - 'scripts/build-plugins.mjs'
+      - 'scripts/plugin-release-assets.mjs'
+      - 'scripts/plugin-release-assets.test.mjs'
+      - 'scripts/release-delivery.mjs'
+      - 'scripts/release-delivery.test.mjs'
+      - 'scripts/release-version.mjs'
+      - 'scripts/release-version.test.mjs'
+      - '.github/workflows/docker-build.yml'
       - 'scripts/plugin-worker.ts'
       - 'scripts/plugin-bundler.mjs'
       - 'scripts/plugin-compiler.mjs'
@@ -67,9 +74,22 @@ jobs:
       - run: npm ci
       - run: npm run plugins:build
       - run: npm run plugins:pack
+      - name: Read the pinned source's plugin delivery policy
+        id: policy
+        run: node -e "const fs = require('node:fs'); const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); fs.appendFileSync(process.env.GITHUB_OUTPUT, 'enabled=' + (pkg.slothvaultRelease?.pluginAssets === true) + '\n')"
+      - name: Test source packaging and release delivery contracts
+        run: npm test -- scripts/plugin-release-assets.test.mjs scripts/release-delivery.test.mjs scripts/release-version.test.mjs
       - run: npm run typecheck
       - name: Test package, ownership, lifecycle and three-database contracts
         env:
           SLOTHVAULT_PLUGIN_TEST_POSTGRESQL_URL: postgresql://postgres:plugin_test_ci_only@127.0.0.1:5432/postgres
           SLOTHVAULT_PLUGIN_TEST_MYSQL_URL: mysql://root:plugin_test_ci_only@127.0.0.1:3306/mysql
         run: npx vitest run src/server/plugins src/server/services/points.test.ts src/server/database/mysql-migrations.integration.test.ts
+      - name: Store every verified source plugin for application publication
+        if: steps.policy.outputs.enabled == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: application-plugins
+          path: dist/application/plugins/*
+          if-no-files-found: error
+          retention-days: 7

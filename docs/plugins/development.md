@@ -19,9 +19,9 @@ src/optional.css
 
 插件源码仅通过包内相对路径引用自己的文件；服务端可引用 SDK server/protocol、宿主 zod/kysely 和 Node 内置模块。客户端仅引用宿主 React、JSX runtime 和 SDK client。禁止任意第三方包解析、跨目录源码、tsconfig hooks 或插件提供的构建代码。
 
-类型与行为检查由独立 verify-plugins 工作流执行，应用镜像发布仍以三库检查为前置。插件 Release 工作流仅验证 Tag/版本并打源码 ZIP，不编译插件；SDK 自身发布才构建 SDK。
+类型与行为检查由独立 verify-plugins 工作流执行，应用镜像发布仍以三库检查为前置。每次应用 Release 都从固定提交打包全部源码插件并附带统一 `checksums.sha256`，不先构建插件发布 bundle；SDK 自身仍独立发布。插件单独变更也准备应用新版本，CI 不回写版本提交。
 
-类型检查属于开发/CI；宿主安装执行语法编译、来源校验和运行健康检查，不执行插件 package.json scripts。生产包同样允许同版本新摘要手动重新安装，更新记录保留摘要；发布 Tag 仍要求递增版本，不覆盖已发布 Tag。
+类型检查属于开发/CI；宿主安装执行语法编译、来源校验和运行健康检查，不执行插件 package.json scripts。生产包同样允许同版本新摘要手动重新安装，更新记录保留摘要；官方插件改为从应用 `vM.m.p` Release 安装：未变插件允许同版本重复随应用发布，已发布源码有变更则必须显式递增插件版本，不覆盖已发布附件或 Tag。
 
 ## 扩展规范
 

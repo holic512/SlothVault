@@ -6,12 +6,13 @@ import { join, basename, dirname } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { ReleaseDelivery, releaseVersion, verifyAsset, verifyImageConfig } from './release-delivery.mjs'
+import { discoverReleasePlugins } from './plugin-release-assets.mjs'
 
 const temporary = []
 afterEach(() => { for (const directory of temporary.splice(0)) rmSync(directory, { recursive: true, force: true }) })
 const digest = value => `sha256:${createHash('sha256').update(value).digest('hex')}`
 
-function fixture() {
+function fixture({ pluginAssets = false } = {}) {
   const directory = mkdtempSync(join(tmpdir(), 'slothvault-delivery-'))
   temporary.push(directory)
   const root = join(directory, 'source')
@@ -24,7 +25,13 @@ function fixture() {
   git(['config', 'commit.gpgsign', 'false'])
   execFileSync('git', ['init', '--bare', '-q', join(directory, 'origin')])
   git(['remote', 'add', 'origin', join(directory, 'origin')])
-  write('package.json', JSON.stringify({ version: '1.0.0' }))
+  write('package.json', JSON.stringify({ version: '1.0.0', ...(pluginAssets ? { slothvaultRelease: { pluginAssets: true } } : {}) }))
+  if (pluginAssets) for (const name of ['alpha', 'beta']) {
+    write(`plugins/${name}/plugin.json`, JSON.stringify({ id: `test.${name}`, version: '1.0.0' }))
+    write(`plugins/${name}/package.json`, JSON.stringify({ version: '1.0.0' }))
+    write(`plugins/${name}/plugin.build.json`, JSON.stringify({ format: 'source-v1', server: 'src/server.ts' }))
+    write(`plugins/${name}/src/server.ts`, `initial ${name}`)
+  }
   write('package-lock.json', JSON.stringify({ version: '1.0.0', packages: { '': { version: '1.0.0' } } }))
   for (const moduleName of ['skill', 'deployment']) {
     write(`integrations/${moduleName}/module.json`, JSON.stringify({ schema: 1, module: moduleName, version: '1.0.0', bridgeApiMajor: 1 }))
@@ -137,7 +144,16 @@ function fixture() {
   const outdir = join(directory, 'out')
   mkdirSync(outdir)
   const assets = id => {
-    if (id.module === 'application') return [join(outdir, 'slothvault-image-manifest.json')]
+    if (id.module === 'application') {
+      const image = join(outdir, 'slothvault-image-manifest.json')
+      if (!pluginAssets) return [image]
+      writeFileSync(image, '{}')
+      const paths = discoverReleasePlugins(root).map(plugin => join(outdir, plugin.asset))
+      for (const path of paths) writeFileSync(path, `verified-${basename(path)}`)
+      const checksums = join(outdir, 'checksums.sha256')
+      writeFileSync(checksums, paths.map(path => `${digest(readFileSync(path)).slice(7)}  ${basename(path)}\n`).join(''))
+      return [image, ...paths, checksums]
+    }
     const paths = [join(outdir, `slothvault-${id.module}-${id.version}.tgz`), join(outdir, `slothvault-${id.module}-manifest.json`)]
     for (const path of paths) writeFileSync(path, `verified-${basename(path)}`)
     return paths
@@ -367,8 +383,8 @@ describe('pinned targets and release recovery', () => {
 })
 
 describe('native image merge and latest promotion', () => {
-  function imageFixture() {
-    const f = fixture()
+  function imageFixture(options) {
+    const f = fixture(options)
     const id = f.identity('application')
     const records = ['amd64', 'arm64'].map(arch => ({ platform: `linux/${arch}`, digest: f.native(id, arch), sha: id.sha, version: id.version, tag: id.tag }))
     const directory = join(f.outdir, 'digests')
@@ -376,6 +392,22 @@ describe('native image merge and latest promotion', () => {
     for (const record of records) writeFileSync(join(directory, `platform-${record.platform.split('/')[1]}.json`), JSON.stringify(record))
     return { ...f, id, records, directory }
   }
+
+  it('never promotes a new application release missing a source plugin attachment', async () => {
+    const f = imageFixture({ pluginAssets: true })
+    f.assets(f.id)
+    await f.delivery.mergeImages(f.id, f.directory, f.outdir)
+    f.delivery.publish(f.id, f.outdir)
+    const release = f.releases.get(f.id.tag)
+    expect(release.assets).toHaveLength(4)
+    const removed = release.assets.splice(1, 1)[0]
+    const before = f.mutations.length
+    await expect(f.delivery.promote(f.id, f.outdir)).rejects.toThrow('asset is missing')
+    expect(f.mutations).toHaveLength(before)
+    expect(f.aliases.has('docker.io/example/vault:latest')).toBe(false)
+    release.assets.push(removed)
+    expect(await f.delivery.promote(f.id, f.outdir)).toBe('latest')
+  })
 
   it('merges only matching complete native results and reuses immutable versions', async () => {
     const f = imageFixture()
@@ -435,5 +467,86 @@ describe('native image merge and latest promotion', () => {
     f.tag(f.id.tag)
     f.registry.get(f.records[1].digest).config.config.Env = []
     await expect(f.delivery.promote(f.id, f.outdir)).rejects.toThrow('SLOTHVAULT_APP_VERSION')
+  })
+})
+
+
+describe('complete application source plugin publication', () => {
+  it('requires every local artifact before any remote mutation', () => {
+    for (let missing = 0; missing < 4; missing++) {
+      const f = fixture({ pluginAssets: true }), id = f.identity('application')
+      const paths = f.assets(id)
+      rmSync(paths[missing])
+      expect(() => f.delivery.publish(id, f.outdir)).toThrow()
+      expect(f.mutations).toEqual([])
+      expect(f.releases.size).toBe(0)
+    }
+  })
+  it('resumes a draft with every source ZIP and verifies repeat publications without writes', () => {
+    const f = fixture({ pluginAssets: true }), id = f.identity('application')
+    const expected = f.assets(id).map(path => basename(path))
+    f.interruptAfterUploads(1)
+    expect(() => f.delivery.publish(id, f.outdir)).toThrow('upload interruption')
+    expect(f.releases.get(id.tag)).toMatchObject({ draft: true, assets: [expect.objectContaining({ name: 'slothvault-image-manifest.json' })] })
+    f.interruptAfterUploads(Infinity)
+    expect(f.delivery.publish(id, f.outdir)).toBe('published')
+    expect(f.releases.get(id.tag).assets.map(asset => asset.name)).toEqual(expected)
+    const before = f.mutations.length
+    expect(f.delivery.publish(id, f.outdir)).toBe('verified-existing')
+    expect(f.mutations).toHaveLength(before)
+    f.releases.get(id.tag).assets[1].digest = 'sha256:' + '0'.repeat(64)
+    expect(() => f.delivery.publish(id, f.outdir)).toThrow('asset conflicts')
+    expect(f.mutations).toHaveLength(before)
+  })
+  it('rejects source changes at an already published plugin version and accepts an explicit increment', async () => {
+    const f = fixture({ pluginAssets: true })
+    const initial = f.assets(f.identity('application'))
+    f.addRelease('v1.0.0', { assets: initial.map(path => ({ name: basename(path), size: readFileSync(path).length, digest: digest(readFileSync(path)) })) })
+    f.write('plugins/alpha/src/server.ts', 'changed source')
+    const saveVersion = version => {
+      f.write('package.json', JSON.stringify({ version, slothvaultRelease: { pluginAssets: true } }))
+      f.write('package-lock.json', JSON.stringify({ version, packages: { '': { version } } }))
+    }
+    saveVersion('1.0.1'); f.commit('Changed source without plugin version')
+    await expect(f.delivery.prepare('application', { publish: true })).rejects.toThrow('without advancing')
+    f.write('plugins/alpha/plugin.json', '{"id":"test.alpha","version":"1.0.1"}')
+    f.write('plugins/alpha/package.json', '{"version":"1.0.1"}')
+    saveVersion('1.0.2'); f.commit('Explicit plugin and application versions')
+    await expect(f.delivery.prepare('application', { publish: true })).resolves.toMatchObject({ version: '1.0.2', plugin_assets: true })
+    expect(f.mutations).toEqual([])
+    f.write('plugins/alpha/plugin.json', '{"id":"test.alpha","version":"0.9.0"}')
+    f.write('plugins/alpha/package.json', '{"version":"0.9.0"}')
+    f.commit('Attempted plugin downgrade')
+    expect(() => f.delivery.validatePluginVersions(f.git(['rev-parse', 'HEAD']))).toThrow('cannot decrease')
+  })
+})
+
+describe('default application delivery with unchanged plugins', () => {
+  it('attaches every unchanged plugin again on the next application Release without advancing plugin versions', async () => {
+    const f = fixture({ pluginAssets: true })
+    const first = { ...f.identity('application'), version: '1.0.0', tag: 'v1.0.0' }
+    f.assets(first)
+    f.delivery.publish(first, f.outdir)
+    const firstAssets = f.releases.get(first.tag).assets.filter(asset => asset.name.endsWith('.zip'))
+    f.write('app.js', 'an unrelated application update')
+    f.write('package.json', '{"version":"1.0.1","slothvaultRelease":{"pluginAssets":true}}')
+    f.write('package-lock.json', '{"version":"1.0.1","packages":{"":{"version":"1.0.1"}}}')
+    f.commit('Application update with unchanged plugins')
+    const second = await f.delivery.prepare('application', { publish: true })
+    f.assets(second)
+    expect(f.delivery.publish(second, f.outdir)).toBe('published')
+    expect(f.releases.get(second.tag).assets.filter(asset => asset.name.endsWith('.zip'))).toEqual(firstAssets)
+    expect(second.tag).not.toBe(first.tag)
+    expect(f.releases.size).toBe(2)
+  })
+
+  it('includes source-only plugin commits in application notes only after opting into the delivery policy', () => {
+    for (const pluginAssets of [false, true]) {
+      const f = fixture({ pluginAssets })
+      f.write('plugins/alpha/src/server.ts', 'source-only payload change')
+      f.commit('PLUGIN_SOURCE_ONLY_NOTE')
+      const notes = f.delivery.notes(f.identity('application'))
+      expect(notes.includes('PLUGIN_SOURCE_ONLY_NOTE')).toBe(pluginAssets)
+    }
   })
 })

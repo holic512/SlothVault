@@ -3,8 +3,8 @@
  * @project SlothVault
  * @module Independent release delivery
  * @description Delivers commit-derived releases without replacing published tags, assets or images.
- * @logic Pin source identity, create drafts through their returned Release ID, verify immutable assets and native images, then promote only the newest successful application.
- * @dependencies Git, GitHub CLI, Docker Buildx, release-version, docker-image-size
+ * @logic Pin source identity, create drafts through their returned Release ID, verify complete source-plugin attachments and native images under the pinned delivery policy, then promote only the newest successful application.
+ * @dependencies Git, GitHub CLI, Docker Buildx, release-version, plugin-release-assets, docker-image-size
  * @index_tags release,github-actions,arm64,manifest,commit-log,recovery
  * @author holic512
  */
@@ -15,8 +15,9 @@ import { basename, join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import { pathToFileURL } from 'node:url'
 
-import { compareVersions, isApplicationChange, isModulePackageFile, parseSemanticVersion, prepareModuleVersion, resolveReleaseIdentity } from './release-version.mjs'
+import { compareVersions, isApplicationChange, isModulePackageFile, parseSemanticVersion, prepareModuleVersion, resolveReleaseIdentity, packageMetadataAtCommit } from './release-version.mjs'
 import { inspectPlatformSizes, supportedPlatforms, formatMebibytes } from './docker-image-size.mjs'
+import { applicationReleaseAssets, discoverReleasePlugins, pluginAssetsEnabled } from './plugin-release-assets.mjs'
 
 const shaPattern = /^[a-f0-9]{40}$/
 const digestPattern = /^sha256:[a-f0-9]{64}$/
@@ -31,8 +32,8 @@ export function releaseVersion(module, tag) {
   return match?.[1] ?? null
 }
 
-export function relevantChanges(module, paths) {
-  return module === 'application' ? isApplicationChange(paths) : paths.some(file => isModulePackageFile(module, file))
+export function relevantChanges(module, paths, options) {
+  return module === 'application' ? isApplicationChange(paths, options) : paths.some(file => isModulePackageFile(module, file))
 }
 
 export function verifyImageConfig(config, identity, platform) {
@@ -155,7 +156,7 @@ export class ReleaseDelivery {
     if (existing && !tagged && (!existing.draft || existing.target_commitish !== head)) throw new Error(`Release ${tag} is missing a matching immutable target`)
     if (tagged && tagged !== head) {
       const paths = this.git(['diff', '--name-only', '-z', tagged, head], true).split('\0').filter(Boolean)
-      if (relevantChanges(module, paths)) throw new Error(`Content conflicts with existing ${tag}; advance the version`)
+      if (relevantChanges(module, paths, { pluginAssets: pluginAssetsEnabled(metadata) })) throw new Error(`Content conflicts with existing ${tag}; advance the version`)
       if (publish) this.assertDefaultAncestor(tagged)
     }
     if (existing?.prerelease) throw new Error(`Cannot replace prerelease ${tag}`)
@@ -169,7 +170,34 @@ export class ReleaseDelivery {
       const lock = jsonFile(join(this.root, 'package-lock.json'))
       if (lock.version !== metadata.version || lock.packages?.['']?.version !== metadata.version) throw new Error('Application lockfile version is inconsistent')
     }
-    return { module, sha: tagged ?? head, version: metadata.version, tag, publish, state: existing ? (existing.draft ? 'draft' : 'published') : 'new' }
+    if (module === 'application' && pluginAssetsEnabled(metadata)) this.validatePluginVersions(tagged ?? head)
+    return { module, sha: tagged ?? head, version: metadata.version, tag, publish, plugin_assets: module === 'application' && pluginAssetsEnabled(metadata), state: existing ? (existing.draft ? 'draft' : 'published') : 'new' }
+  }
+
+  /** Compare source payloads, not ZIP compression bytes, against prior published plugin versions. */
+  validatePluginVersions(sha) {
+    const current = discoverReleasePlugins(this.root)
+    const ancestors = new Set(this.git(['rev-list', '--first-parent', sha]).split('\n'))
+    const sourceTree = (commit, directory) => this.git(['ls-tree', '-r', commit, '--', `${directory}/plugin.json`, `${directory}/plugin.build.json`, `${directory}/src`])
+      .split('\n').filter(Boolean).map(line => line.replace(/^\d+ /, '').replace(`\t${directory}/`, '\t')).join('\n')
+    for (const release of this.releases().filter(item => !item.draft && !item.prerelease && releaseVersion('application', item.tag_name))) {
+      const publishedPlugins = current.filter(plugin => release.assets?.some(asset => new RegExp(`^slothvault-plugin-${plugin.id.replaceAll('.', '\\.')}-(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.zip$`).test(asset.name)))
+      if (!publishedPlugins.length) continue
+      const target = this.tagCommit(release.tag_name)
+      if (!target) throw new Error(`Published release ${release.tag_name} is missing its tag`)
+      if (!ancestors.has(target)) continue
+      const manifests = this.git(['ls-tree', '-r', '--name-only', target, '--', 'plugins']).split('\n').filter(path => /^plugins\/[^/]+\/plugin\.json$/.test(path))
+        .map(path => ({ path, manifest: JSON.parse(this.git(['show', `${target}:${path}`])) }))
+      for (const plugin of publishedPlugins) {
+        const previous = manifests.find(item => item.manifest.id === plugin.id)
+        if (!previous || !release.assets.some(asset => asset.name === `slothvault-plugin-${plugin.id}-${previous.manifest.version}.zip`)) throw new Error(`Published plugin identity conflicts: ${plugin.id}`)
+        const comparison = compareVersions(plugin.version, previous.manifest.version)
+        if (comparison < 0) throw new Error(`Plugin version cannot decrease: ${plugin.id}`)
+        if (comparison === 0 && sourceTree(sha, plugin.directory) !== sourceTree(target, previous.path.slice(0, -'/plugin.json'.length))) {
+          throw new Error(`Plugin source changed without advancing its version: ${plugin.id}`)
+        }
+      }
+    }
   }
 
   notes(identity) {
@@ -180,7 +208,7 @@ export class ReleaseDelivery {
       .filter(item => positions.has(item.sha) && positions.get(item.sha) > 0)
       .sort((a, b) => positions.get(a.sha) - positions.get(b.sha))[0]
     const commits = lineage.slice(0, previous ? positions.get(previous.sha) : undefined).reverse()
-      .filter(sha => relevantChanges(identity.module, this.changedFiles(sha)))
+      .filter(sha => relevantChanges(identity.module, this.changedFiles(sha), { pluginAssets: pluginAssetsEnabled(packageMetadataAtCommit(sha, this.root)) }))
     return commits.map(sha => {
       const object = this.git(['cat-file', 'commit', sha], true)
       const message = object.slice(object.indexOf('\n\n') + 2)
@@ -231,9 +259,10 @@ export class ReleaseDelivery {
     this.git(['fetch', '--tags', 'origin'])
     this.assertDefaultAncestor(identity.sha)
     if (this.git(['rev-parse', 'HEAD']) !== identity.sha) throw new Error('Source checkout does not match release identity')
-    const assets = identity.module === 'application' ? [join(outdir, 'slothvault-image-manifest.json')] : [
+    const assets = identity.module === 'application' ? applicationReleaseAssets(this.root, outdir) : [
       join(outdir, `slothvault-${identity.module}-${identity.version}.tgz`), join(outdir, `slothvault-${identity.module}-manifest.json`),
     ]
+    if (identity.module === 'application' && pluginAssetsEnabled(jsonFile(join(this.root, 'package.json')))) this.validatePluginVersions(identity.sha)
     let release = this.release(identity.tag)
     if (release) {
       this.verifyReleaseTarget(release, identity)
@@ -328,7 +357,7 @@ export class ReleaseDelivery {
     const manifest = jsonFile(join(outdir, 'slothvault-image-manifest.json'))
     const actual = await this.inspectImage(identity)
     if (JSON.stringify(actual) !== JSON.stringify(manifest)) throw new Error('Version image changed since publication')
-    this.checkAssets(release, [join(outdir, 'slothvault-image-manifest.json')])
+    this.checkAssets(release, applicationReleaseAssets(this.root, outdir))
     const previous = this.dockerInspect(`${this.image}:latest`, undefined, { missing: true })
     if (previous?.digest !== manifest.digest) {
       this.run('docker', ['buildx', 'imagetools', 'create', '--tag', `${this.image}:latest`, `${this.image}@${manifest.digest}`])

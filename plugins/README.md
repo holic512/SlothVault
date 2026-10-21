@@ -1,4 +1,4 @@
-# 独立源码插件
+# 源码插件与应用发布
 
 插件源码、SDK 和内置官方目录集中在本目录。插件不是 Next.js 路由文件，也不会随应用启动自动安装。
 
@@ -16,18 +16,29 @@ node plugins/sdk/cli.mjs pack plugins/gift-cards dist/plugins/gift-cards
 
 不提供本地任意目录导入 API、文件监听、插件专用开发服务器或自动 npm install。`npm run plugins:pack` 可一次打包卡密与示例源码。
 
-## 文件与版本
+## 每个应用 Release 默认附带全部插件
 
-| 内容 | 路径 | 版本 / Tag |
+普通插件不再依赖 `plugin-*` 标签发布。应用发布工作流从固定提交打包所有带 `plugin.json` 的目录（当前为卡密和示例），不判断插件是否变更；SDK 没有插件 Manifest，不混入安装包。发布产物只包含源码，不先构建插件 bundle。
+
+```sh
+npm run plugins:pack
+```
+
+单插件产物保留在 `dist/plugins/{目录名}/`；应用 Release 附件集中在 `dist/application/plugins/`，包含所有源码 ZIP 和覆盖全部 ZIP 的 `checksums.sha256`。不会将各目录的同名校验文件直接合并覆盖。
+
+| 内容 | 当前版本 | 发布方式 |
 | --- | --- | --- |
-| 官方清单 | `catalog.json` | 随主应用发布；安装和检查更新仍查询 GitHub Release |
-| 卡密插件 | `gift-cards/` | 1.1.0 / `plugin-gift-cards-v1.1.0` |
-| 开发示例 | `example/` | 1.0.0 / `plugin-example-v1.0.0` |
-| SDK / 打包 CLI | `sdk/` | 1.0.0 / `plugin-sdk-v1.0.0` |
+| 卡密插件 | 1.1.0 | 应用 `vM.m.p` Release 中的 `slothvault-plugin-slothvault.gift-cards-1.1.0.zip` |
+| 开发示例 | 1.0.0 | 应用 `vM.m.p` Release 中的 `slothvault-plugin-slothvault.example-1.0.0.zip` |
+| SDK / 打包 CLI | 1.0.0 | 继续使用 `plugin-sdk-v1.0.0` 独立发布 |
 
-标签是发布约定，不表示已创建远程 Release。官方 ID 可以由手动包使用；这只表示目录匹配，不证明上传文件的来源可信。
+新提交通过根 `package.json` 中的 `slothvaultRelease.pluginAssets: true` 声明附件契约。每个新应用 Release 必须同时包含镜像清单、全部插件 ZIP 和统一校验文件，附件未齐全时不得公开 Release 或提升 Latest。草稿可以补传缺失附件；已发布附件、标签及历史版本不会被覆盖。历史提交没有该标记，重试时沿用旧契约。
 
-插件 Release 上传源码 ZIP 与 `checksums.sha256`，不发布前后端 bundle。独立校验 workflow 负责类型/行为测试；发布流程只校验版本和包结构并归档源码，不编译插件、不回写 Git 历史。发布前应确认对应提交的独立验证已通过。普通插件源码独立发版；SDK 和目录也是宿主输入，修改它们需要准备应用版本。
+插件自身版本显式维护：`package.json` 和 `plugin.json` 版本必须一致；源码未变可重复携带相同版本，已发布源码发生变化必须升级插件版本。插件源码、Manifest 或包版本单独变化也属于应用发布输入，提交前执行 `npm run version:prepare` 同步应用与锁文件版本。CI 只校验和发布，不自动回写版本提交。
+
+发布步骤：更新插件源码及其显式版本（无变化则不改）→ `npm run plugins:pack` 与相关检查 → 提交前按仓库规则准备应用版本 → 由维护者提交并推送默认分支 → 查看应用发布工作流，确认 Release 包含所有插件 ZIP 和 `checksums.sha256` → 升级宿主后从后台官方目录选择版本安装。
+
+`v2.6.14` 及以前的应用 Release 不补包、不改标签。旧宿主仍按旧目录查找独立插件标签，需要升级宿主，或下载可信源码 ZIP 后手动上传。GitHub 的 Source code ZIP/tar.gz 是整个仓库快照，不能作为插件包。官方 ID 只表示目录匹配，不证明手动上传文件的来源可信。
 
 ## 生产运行
 

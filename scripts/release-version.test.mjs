@@ -14,6 +14,7 @@ import {
   prepareSkillVersion,
   releaseTagForVersion,
   releaseVersionForCommitCount,
+  resolveReleaseIdentity,
 } from './release-version.mjs'
 
 describe('release version resolution', () => {
@@ -201,5 +202,58 @@ describe('independent module version preparation', () => {
     f.git(['tag', 'skill-v1.3.0'])
     await expect(prepareSkillVersion({ root: f.root })).rejects.toThrow('older than skill-v1.3.0')
     expect(JSON.parse(f.read('module.json')).version).toBe('1.2.0')
+  })
+})
+
+
+describe('application versions with committed plugin delivery policies', () => {
+  const directories = []
+  afterEach(() => { for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true }) })
+  function fixture() {
+    const directory = mkdtempSync(join(tmpdir(), 'sv-plugin-app-version-'))
+    directories.push(directory)
+    const root = pathToFileURL(`${directory}/`)
+    const git = args => execFileSync('git', args, { cwd: directory, stdio: 'pipe' }).toString().trim()
+    const write = (path, data) => { mkdirSync(join(directory, path, '..'), { recursive: true }); writeFileSync(join(directory, path), data) }
+    const metadata = { version: '1.0.0' }
+    const save = () => write('package.json', JSON.stringify(metadata))
+    save()
+    write('package-lock.json', JSON.stringify({ version: '1.0.0', packages: { '': { version: '1.0.0' } } }))
+    write('plugins/alpha/src/server.ts', 'initial source')
+    git(['init', '-q', '-b', 'master']); git(['config', 'user.name', 'Version Test']); git(['config', 'user.email', 'version@example.invalid']); git(['config', 'commit.gpgsign', 'false'])
+    const commit = () => { git(['add', '.']); git(['commit', '-qm', 'Version fixture']); return git(['rev-parse', 'HEAD']) }
+    commit()
+    return { root, directory, metadata, save, write, commit }
+  }
+  it('counts plugin source changes only under the policy of their own commit', async () => {
+    const f = fixture()
+    f.write('plugins/alpha/src/server.ts', 'legacy independent plugin change')
+    f.commit()
+    const options = { root: f.root, packageJsonPath: new URL('package.json', f.root) }
+    expect((await resolveReleaseIdentity(options)).version).toBe('1.0.0')
+    f.metadata.slothvaultRelease = { pluginAssets: true }; f.save()
+    expect((await preparePackageVersion(options)).version).toBe('1.0.1')
+    f.commit()
+    expect((await resolveReleaseIdentity(options)).version).toBe('1.0.1')
+    f.write('plugins/alpha/src/server.ts', 'new application plugin payload')
+    expect((await preparePackageVersion(options)).version).toBe('1.0.2')
+    expect((await preparePackageVersion(options)).version).toBe('1.0.2')
+    f.commit()
+    expect((await resolveReleaseIdentity(options)).version).toBe('1.0.2')
+  })
+  it('rejects a committed plugin-only change without preparing the application version', async () => {
+    const f = fixture()
+    f.metadata.slothvaultRelease = { pluginAssets: true }; f.save()
+    const options = { root: f.root, packageJsonPath: new URL('package.json', f.root) }
+    await preparePackageVersion(options); f.commit()
+    f.write('plugins/alpha/src/server.ts', 'forgot the app version')
+    f.commit()
+    await expect(resolveReleaseIdentity(options)).rejects.toThrow('required release version 1.0.2')
+  })
+  it('includes package inputs but not plugin documentation under the new policy', () => {
+    const options = { pluginAssets: true }
+    for (const path of ['plugins/alpha/src/server.ts', 'plugins/alpha/plugin.json', 'plugins/alpha/plugin.build.json', 'plugins/alpha/package.json']) expect(isApplicationChange([path], options)).toBe(true)
+    expect(isApplicationChange(['plugins/alpha/README.md'], options)).toBe(false)
+    expect(isApplicationChange(['integrations/skill/module.json'], options)).toBe(false)
   })
 })

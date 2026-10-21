@@ -1,6 +1,6 @@
 {
   "name": "slothvault",
-  "version": "2.6.14",
+  "version": "2.6.15",
   "private": true,
   "type": "module",
   "engines": {
@@ -25,7 +25,7 @@
     "version:prepare": "node scripts/release-version.mjs --prepare",
     "plugins:build": "node scripts/build-plugins.mjs",
     "predev": "npm run plugins:build",
-    "plugins:pack": "node plugins/sdk/cli.mjs pack plugins/gift-cards dist/plugins/gift-cards && node plugins/sdk/cli.mjs pack plugins/example dist/plugins/example"
+    "plugins:pack": "node scripts/plugin-release-assets.mjs"
   },
   "dependencies": {
     "@ant-design/cssinjs": "2.1.2",
@@ -103,5 +103,8 @@
     "stylelint-config-standard": "40.0.0",
     "vitest": "4.1.11"
   },
-  "packageManager": "npm@11.16.0"
+  "packageManager": "npm@11.16.0",
+  "slothvaultRelease": {
+    "pluginAssets": true
+  }
 }

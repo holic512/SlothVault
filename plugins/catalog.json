@@ -8,7 +8,7 @@
       "description": "Issue gift cards, inspect redemption details, and redeem points on a dedicated account page.",
       "descriptionZh": "发行卡密、查看卡密全文与使用情况，并提供独立的账户兑换页面。",
       "repository": "holic512/SlothVault",
-      "tagPrefix": "plugin-gift-cards-v"
+      "tagPrefix": "v"
     }
   ]
 }

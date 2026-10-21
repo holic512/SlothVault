@@ -3,14 +3,17 @@
  * @project SlothVault
  * @module Release Version Resolution
  * @description Synchronizes application and independent integration versions before commits.
- * @logic Advance changed integration packages against tags and committed versions, synchronize metadata and CHANGELOG, then map application commits to the patch/minor cycle; Actions only validate committed versions.
- * @dependencies Node.js node:child_process, node:fs/promises, Git, integration module metadata
+ * @logic Advance changed integration packages against tags and committed versions, synchronize metadata and CHANGELOG, then apply each committed plugin delivery policy to the application patch/minor cycle; Actions only validate committed versions.
+ * @dependencies Node.js node:child_process, node:fs/promises, Git, integration module metadata, committed plugin delivery policy
  * @index_tags release,version,semver,github-actions,git-history,docker
  * @author holic512
  */
 import { execFileSync } from 'node:child_process'
 import { appendFile, readFile, writeFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { isPluginPackageFile, pluginAssetsEnabled } from './plugin-release-assets.mjs'
 
 const MAX_PATCH_VERSION = 20
 const PATCH_CYCLE_SIZE = MAX_PATCH_VERSION + 1
@@ -165,11 +168,11 @@ export async function prepareModuleVersion(module, { root = new URL('../', impor
   return { version, releasedVersion: releasedVersion || null, changedFiles }
 }
 
-export function isApplicationChange(paths) {
+export function isApplicationChange(paths, { pluginAssets = false } = {}) {
   // Retired workflow names remain here only to classify historical commits identically.
   // This list is not a packaging or publishing entry point.
   const integrationWorkflow = /^\.github\/workflows\/release-(?:toolkit|vault-module|mcp-client|skill|deployment|plugins)\.yml$/
-  return paths.some(file => file && !file.startsWith('integrations/') && (!file.startsWith('plugins/') || file === 'plugins/catalog.json' || file.startsWith('plugins/sdk/')) && !integrationWorkflow.test(file))
+  return paths.some(file => file && !file.startsWith('integrations/') && (!file.startsWith('plugins/') || file === 'plugins/catalog.json' || file.startsWith('plugins/sdk/') || (pluginAssets && isPluginPackageFile(file))) && !integrationWorkflow.test(file))
 }
 
 function applicationCommitCount(baseline, commit, root) {
@@ -177,17 +180,25 @@ function applicationCommitCount(baseline, commit, root) {
   const commits = git(['rev-list', '--first-parent', '--reverse', `${baseline}..${commit}`], root).split('\n').filter(Boolean)
   return commits.filter(sha => isApplicationChange(
     git(['diff', '--name-only', `${sha}^1`, sha], root).split('\n').filter(Boolean),
+    { pluginAssets: pluginAssetsEnabled(packageMetadataAtCommit(sha, root)) },
   )).length
 }
 
 function pendingApplicationChange(root) {
   const tracked = git(['diff', 'HEAD', '--name-only'], root).split('\n').filter(Boolean)
-  return isApplicationChange(tracked)
+  const metadata = JSON.parse(readFileSync(new URL('package.json', root instanceof URL ? root : pathToFileURL(`${resolve(root ?? process.cwd())}/`)), 'utf8'))
+  return isApplicationChange(tracked, { pluginAssets: pluginAssetsEnabled(metadata) })
+}
+
+export function packageMetadataAtCommit(commit, root) {
+  // Notes can include the initial README-only history before package.json existed.
+  if (!git(['ls-tree', '--name-only', commit, '--', 'package.json'], root)) return {}
+  return JSON.parse(git(['show', `${commit}:package.json`], root))
 }
 
 function packageVersionAtCommit(commit, root) {
   try {
-    const packageJson = JSON.parse(git(['show', `${commit}:package.json`], root))
+    const packageJson = packageMetadataAtCommit(commit, root)
     return typeof packageJson.version === 'string' ? packageJson.version : null
   } catch {
     return null

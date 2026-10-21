@@ -17,7 +17,7 @@ import { isSameOriginRequest } from '@/server/http/same-origin'
 import { readJson } from '@/server/http/request'
 import { listPlugins } from '@/server/plugins/manager'
 import { MAX_PLUGIN_PACKAGE_BYTES, stagePluginPackage, verifyPluginPackage } from '@/server/plugins/packages'
-import { downloadPluginRelease, githubRepository, OFFICIAL_PLUGINS } from '@/server/plugins/sources'
+import { downloadPluginRelease, githubRepository, OFFICIAL_PLUGINS, officialPluginSourceMatches } from '@/server/plugins/sources'
 export const dynamic = 'force-dynamic'
 export const GET = defineRoute(async request => { await requireAdminSession(request); return apiOk(await listPlugins()) }, { cacheControl: 'private, no-store' })
 export const POST = defineRoute(async request => {
@@ -29,7 +29,7 @@ export const POST = defineRoute(async request => {
     source = githubRepository(input.repository)
     if (input.pluginId) {
       const official = OFFICIAL_PLUGINS.find(item => item.id === input.pluginId)
-      if (!official || official.repository !== source || !input.tag.startsWith(official.tagPrefix) || !input.asset.startsWith(`slothvault-plugin-${official.id}-`)) throw new HttpError('Official source identity mismatch', 400)
+      if (!official || !officialPluginSourceMatches(official, source, input.tag, input.asset)) throw new HttpError('Official source identity mismatch', 400)
     }
     bytes = await downloadPluginRelease(source, input.tag, input.asset)
     if (input.pluginId && (await verifyPluginPackage(bytes)).manifest.id !== input.pluginId) throw new HttpError('Official package ID mismatch', 400)

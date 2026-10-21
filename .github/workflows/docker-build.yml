@@ -2,7 +2,7 @@
 # @project SlothVault
 # @module Native container and application release delivery
 # @description Validates native amd64/arm64 images and publishes immutable application releases.
-# @logic Pin and validate source, smoke-test both architectures, merge verified digests, complete the Release, then safely promote latest.
+# @logic Pin and validate source, smoke-test both architectures, merge verified digests, attach every source plugin, complete the Release, then safely promote latest.
 # @dependencies GitHub Actions, Docker Buildx, Docker Hub, release-delivery, docker-smoke
 # @index_tags github-actions,docker,arm64,release,manifest,recovery
 # @author holic512
@@ -14,8 +14,6 @@ on:
     branches: [master, main]
     paths-ignore:
       - 'integrations/**'
-      - 'plugins/gift-cards/**'
-      - 'plugins/example/**'
       - 'plugins/README.md'
       - 'plugins/release.mjs'
       - '.github/workflows/release-vault-module.yml'
@@ -26,8 +24,6 @@ on:
     branches: [master, main]
     paths-ignore:
       - 'integrations/**'
-      - 'plugins/gift-cards/**'
-      - 'plugins/example/**'
       - 'plugins/README.md'
       - 'plugins/release.mjs'
       - '.github/workflows/release-vault-module.yml'
@@ -62,6 +58,7 @@ jobs:
       sha: ${{ steps.identity.outputs.sha }}
       version: ${{ steps.identity.outputs.version }}
       tag: ${{ steps.identity.outputs.tag }}
+      plugin_assets: ${{ steps.identity.outputs.plugin_assets }}
       publish: ${{ steps.identity.outputs.publish }}
       reuse: ${{ steps.image.outputs.reuse }}
       amd64_digest: ${{ steps.image.outputs.amd64_digest }}
@@ -233,6 +230,12 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Download every source plugin from the pinned verification job
+        if: needs.validate.outputs.plugin_assets == 'true'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: application-plugins
+          path: dist/application
       - name: Capture historical size baseline
         run: node scripts/docker-image-size.mjs "$IMAGE_REPOSITORY:latest" --allow-partial --allow-missing > dist/application/previous-sizes.json
       - name: Merge verified platforms or verify existing version image
