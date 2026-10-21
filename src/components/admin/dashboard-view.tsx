@@ -6,19 +6,21 @@ import { PluginSlot } from '@/components/plugins/plugin-ui'
  * @file dashboard-view.tsx
  * @project SlothVault
  * @module Admin Operations Dashboard
- * @description Renders the responsive operations command center with live metrics, accessible SVG trends, health, distribution, attention, and activity surfaces.
- * @logic Fetch one selectable dashboard window, format data in the active locale, measure the chart viewport to keep labels unscaled, expose metric and activity links, and retain readable zero, loading, and failure states across themes. Keep optional plugin statistics in an isolated lazy dashboard slot.
+ * @description Renders a compact administration overview with grouped metrics, accessible activity trends, content readiness, evidence follow-up and recent changes.
+ * @logic Preserve overview data while changing the trend window, distinguish empty rates from zero, use integer chart ticks, and expose keyboard-accessible metric and activity links across themes and screen sizes. Retain optional plugin statistics in their existing lazy dashboard slot.
  * @dependencies Ant Design, React Query, next-intl, Lucide, admin dashboard API, admin localization utilities, PluginSlot
  * @index_tags admin,dashboard,operations,analytics,trends,i18n,responsive
  * @author holic512
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { useQuery } from '@tanstack/react-query'
-import { Alert, Button, Card, Empty, Progress, Segmented, Skeleton, Tag, Typography } from 'antd'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { Alert, Button, Card, Empty, Progress, Segmented, Skeleton, Tag } from 'antd'
 import type { LucideIcon } from 'lucide-react'
 import {
   ArchiveRestore,
+  ArrowRight,
+  ArrowUpRight,
   BadgeCheck,
   BookOpenText,
   Boxes,
@@ -31,7 +33,6 @@ import {
   FolderUp,
   Newspaper,
   RefreshCw,
-  ServerCog,
   ShieldCheck,
   Users,
   UsersRound,
@@ -42,6 +43,7 @@ import Link from 'next/link'
 import { AdminPage } from '@/components/admin/admin-page'
 import { formatAdminBytes, formatAdminDate, formatAdminNumber } from '@/lib/admin-localization'
 import { apiFetch } from '@/lib/api-client'
+import { VALID_BUSINESS_TYPES } from '@/lib/file-business-types'
 
 type DashboardRange = 7 | 30 | 90
 type TrendKey = 'users' | 'projects' | 'articles' | 'notes'
@@ -76,11 +78,11 @@ type DashboardData = {
 
 const TREND_KEYS = ['users', 'projects', 'articles', 'notes'] as const
 
-const TREND_STYLE: Record<TrendKey, { color: string; className: string }> = {
-  users: { color: 'var(--sv-dashboard-users)', className: 'is-users' },
-  projects: { color: 'var(--sv-dashboard-projects)', className: 'is-projects' },
-  articles: { color: 'var(--sv-dashboard-content)', className: 'is-content' },
-  notes: { color: 'var(--sv-dashboard-notes)', className: 'is-notes' },
+const TREND_CLASS: Record<TrendKey, string> = {
+  users: 'is-users',
+  projects: 'is-projects',
+  articles: 'is-content',
+  notes: 'is-notes',
 }
 
 const ACTIVITY_ICON: Record<DashboardData['recentActivity']['feed'][number]['type'], LucideIcon> = {
@@ -96,12 +98,14 @@ function DashboardTrendChart({
   locale,
   ariaLabel,
   emptyLabel,
+  noSeriesLabel,
 }: {
   trend: DashboardData['trend']
   labels: Record<TrendKey, string>
   locale: string
   ariaLabel: string
   emptyLabel: string
+  noSeriesLabel: string
 }) {
   const [visible, setVisible] = useState<Record<TrendKey, boolean>>({
     users: true,
@@ -129,14 +133,17 @@ function DashboardTrendChart({
 
   const { width, height, fontSize } = viewport
   const visibleKeys = TREND_KEYS.filter((key) => visible[key])
-  const maximum = Math.max(1, ...trend.flatMap((point) => visibleKeys.map((key) => point[key])))
+  const peak = Math.max(1, ...trend.flatMap((point) => visibleKeys.map((key) => point[key])))
+  const tickCount = Math.min(4, peak)
+  const tickStep = Math.ceil(peak / tickCount)
+  const maximum = tickStep * tickCount
   const left = Math.max(28, String(maximum).length * fontSize * 0.65 + 12)
   const right = fontSize * 2
   const top = fontSize * 1.5
   const bottom = fontSize * 3
   const chartWidth = Math.max(1, width - left - right)
   const chartHeight = Math.max(1, height - top - bottom)
-  const hasData = trend.some((point) => TREND_KEYS.some((key) => point[key] > 0))
+  const hasData = trend.some((point) => visibleKeys.some((key) => point[key] > 0))
   const x = (index: number) => left + (trend.length <= 1 ? chartWidth / 2 : (index / (trend.length - 1)) * chartWidth)
   const y = (value: number) => top + chartHeight - (value / maximum) * chartHeight
   const polyline = (key: TrendKey) => trend.map((point, index) => `${x(index)},${y(point[key])}`).join(' ')
@@ -149,25 +156,25 @@ function DashboardTrendChart({
         {TREND_KEYS.map((key) => (
           <button
             aria-pressed={visible[key]}
-            className={`dashboard-trend-toggle ${TREND_STYLE[key].className} ${visible[key] ? '' : 'is-muted'}`}
+            className={`dashboard-trend-toggle ${TREND_CLASS[key]} ${visible[key] ? '' : 'is-muted'}`}
             key={key}
             onClick={() => setVisible((current) => ({ ...current, [key]: !current[key] }))}
             type="button"
           >
-            <span aria-hidden="true" />
+            <span className="dashboard-trend-swatch" aria-hidden="true" />
             {labels[key]}
+            <strong>{formatAdminNumber(locale, trend.reduce((total, point) => total + point[key], 0))}</strong>
           </button>
         ))}
       </div>
       <div className="dashboard-chart-stage">
         <svg ref={chartRef} aria-label={ariaLabel} role="img">
-          {[0, .25, .5, .75, 1].map((step) => {
-            const position = top + chartHeight * step
-            const value = Math.round(maximum * (1 - step))
+          {Array.from({ length: tickCount + 1 }, (_, index) => index * tickStep).map((value) => {
+            const position = y(value)
             return (
-              <g key={step}>
+              <g key={value}>
                 <line className="dashboard-chart-grid" x1={left} x2={width - right} y1={position} y2={position} />
-                <text className="dashboard-chart-axis" x={left - 7} y={position + 3} textAnchor="end">{value}</text>
+                <text className="dashboard-chart-axis" x={left - 7} y={position + 3} textAnchor="end">{formatAdminNumber(locale, value)}</text>
               </g>
             )
           })}
@@ -179,15 +186,15 @@ function DashboardTrendChart({
             ) : null
           ))}
           {visibleKeys.map((key) => (
-            <polyline className={`dashboard-chart-line ${TREND_STYLE[key].className}`} fill="none" key={key} points={polyline(key)} />
+            <polyline className={`dashboard-chart-line ${TREND_CLASS[key]}`} fill="none" key={key} points={polyline(key)} />
           ))}
-          {visibleKeys.flatMap((key) => trend.map((point, index) => (
-            <circle className={`dashboard-chart-dot ${TREND_STYLE[key].className}`} cx={x(index)} cy={y(point[key])} key={`${key}-${point.date}`} r="2.5">
+          {visibleKeys.flatMap((key) => trend.map((point, index) => point[key] > 0 ? (
+            <circle className={`dashboard-chart-dot ${TREND_CLASS[key]}`} cx={x(index)} cy={y(point[key])} key={`${key}-${point.date}`} r="3">
               <title>{`${labels[key]} · ${point.date}: ${point[key]}`}</title>
             </circle>
-          )))}
+          ) : null))}
         </svg>
-        {!hasData ? <div className="dashboard-chart-empty"><ChartNoAxesCombined size={20} /><span>{emptyLabel}</span></div> : null}
+        {!hasData ? <div className="dashboard-chart-empty"><ChartNoAxesCombined size={20} /><span>{visibleKeys.length ? emptyLabel : noSeriesLabel}</span></div> : null}
       </div>
     </div>
   )
@@ -195,11 +202,13 @@ function DashboardTrendChart({
 
 export function DashboardView() {
   const t = useTranslations('AdminMM.dashboard')
+  const fileT = useTranslations('AdminMM.files.businessType')
   const locale = useLocale()
   const [range, setRange] = useState<DashboardRange>(30)
   const query = useQuery({
     queryKey: ['admin-dashboard', range],
     queryFn: () => apiFetch<DashboardData>(`/api/admin/mm/dashboard?range=${range}`),
+    placeholderData: keepPreviousData,
   })
   const data = query.data
 
@@ -210,7 +219,7 @@ export function DashboardView() {
     notes: t('trend.notes'),
   }), [t])
 
-  if (query.isError) {
+  if (query.isError && !data) {
     return (
       <AdminPage className="admin-dashboard-page">
         <DashboardToolbar range={range} setRange={setRange} loading={query.isFetching} onRefresh={() => void query.refetch()} t={t} />
@@ -229,9 +238,10 @@ export function DashboardView() {
     return (
       <AdminPage className="admin-dashboard-page">
         <DashboardToolbar range={range} setRange={setRange} loading onRefresh={() => undefined} t={t} />
-        <div className="dashboard-metric-grid" aria-busy="true">
-          {Array.from({ length: 8 }, (_, index) => <Card className="dashboard-metric-card" key={index}><Skeleton active paragraph={{ rows: 2 }} title={false} /></Card>)}
-        </div>
+        <section className="dashboard-overview" aria-busy="true">
+          <div className="dashboard-metric-grid">{Array.from({ length: 4 }, (_, index) => <div className="dashboard-metric-card" key={index}><Skeleton active paragraph={{ rows: 2 }} title={false} /></div>)}</div>
+          <div className="dashboard-supporting-metrics">{Array.from({ length: 4 }, (_, index) => <div className="dashboard-supporting-metric" key={index}><Skeleton active paragraph={{ rows: 1 }} title={false} /></div>)}</div>
+        </section>
         <div className="dashboard-loading-panels"><Skeleton active paragraph={{ rows: 8 }} /><Skeleton active paragraph={{ rows: 8 }} /></div>
       </AdminPage>
     )
@@ -242,22 +252,28 @@ export function DashboardView() {
   const metrics: Array<{
     key: string
     icon: LucideIcon
-    tone: string
     title: string
     value: string
     meta: string
     href: string
   }> = [
-    { key: 'users', icon: Users, tone: 'users', title: t('stats.users'), value: formatAdminNumber(locale, overview.users.total), meta: t('metrics.users', { count: formatAdminNumber(locale, periodTotals.users), days: data.range.days }), href: '/admin/mm/users' },
-    { key: 'sessions', icon: ShieldCheck, tone: 'sessions', title: t('stats.activeSessions'), value: formatAdminNumber(locale, overview.users.activeSessions), meta: t('metrics.sessions'), href: '/admin/mm/users' },
-    { key: 'projects', icon: Boxes, tone: 'projects', title: t('stats.projects'), value: formatAdminNumber(locale, overview.projects.total), meta: t('metrics.projects', { active: formatAdminNumber(locale, overview.projects.active), versions: formatAdminNumber(locale, overview.versions.total), count: formatAdminNumber(locale, periodTotals.projects) }), href: '/admin/mm/projects' },
-    { key: 'content', icon: Newspaper, tone: 'content', title: t('stats.articles'), value: formatAdminNumber(locale, overview.articles.total), meta: t('metrics.content', { published: formatAdminNumber(locale, overview.articles.published), notes: formatAdminNumber(locale, overview.notes.total), count: formatAdminNumber(locale, periodTotals.articles) }), href: '/admin/mm/articles' },
-    { key: 'categories', icon: FolderTree, tone: 'categories', title: t('stats.categories'), value: formatAdminNumber(locale, overview.categories.total), meta: t('metrics.categories', { active: formatAdminNumber(locale, overview.categories.active), notes: formatAdminNumber(locale, overview.notes.active) }), href: '/admin/mm/notes' },
-    { key: 'points', icon: Coins, tone: 'points', title: t('stats.points'), value: formatAdminNumber(locale, overview.users.totalPoints), meta: t('metrics.corePoints'), href: '/admin/mm/users' },
-    { key: 'files', icon: FileStack, tone: 'files', title: t('stats.files'), value: formatAdminBytes(locale, overview.files.totalSizeBytes), meta: t('metrics.files', { count: formatAdminNumber(locale, overview.files.total) }), href: '/admin/mm/files' },
-    { key: 'evidence', icon: ArchiveRestore, tone: 'evidence', title: t('stats.evidence'), value: formatAdminNumber(locale, evidence.total), meta: t('metrics.evidence', { finalized: formatAdminNumber(locale, evidence.finalized), pending: formatAdminNumber(locale, evidence.pending) }), href: '/admin/mm/evidence' },
+    { key: 'users', icon: Users, title: t('stats.users'), value: formatAdminNumber(locale, overview.users.total), meta: t('metrics.users', { count: formatAdminNumber(locale, periodTotals.users), days: data.range.days }), href: '/admin/mm/users' },
+    { key: 'sessions', icon: ShieldCheck, title: t('stats.activeSessions'), value: formatAdminNumber(locale, overview.users.activeSessions), meta: t('metrics.sessions'), href: '/admin/mm/users' },
+    { key: 'projects', icon: Boxes, title: t('stats.projects'), value: formatAdminNumber(locale, overview.projects.total), meta: t('metrics.projects', { active: formatAdminNumber(locale, overview.projects.active), versions: formatAdminNumber(locale, overview.versions.total), count: formatAdminNumber(locale, periodTotals.projects) }), href: '/admin/mm/projects' },
+    { key: 'content', icon: Newspaper, title: t('stats.articles'), value: formatAdminNumber(locale, overview.articles.total), meta: t('metrics.content', { published: formatAdminNumber(locale, overview.articles.published), notes: formatAdminNumber(locale, overview.notes.total), count: formatAdminNumber(locale, periodTotals.articles) }), href: '/admin/mm/articles' },
+    { key: 'categories', icon: FolderTree, title: t('stats.categories'), value: formatAdminNumber(locale, overview.categories.total), meta: t('metrics.categories', { active: formatAdminNumber(locale, overview.categories.active), notes: formatAdminNumber(locale, overview.notes.active) }), href: '/admin/mm/notes' },
+    { key: 'points', icon: Coins, title: t('stats.points'), value: formatAdminNumber(locale, overview.users.totalPoints), meta: t('metrics.corePoints'), href: '/admin/mm/users' },
+    { key: 'files', icon: FileStack, title: t('stats.files'), value: formatAdminBytes(locale, overview.files.totalSizeBytes), meta: t('metrics.files', { count: formatAdminNumber(locale, overview.files.total) }), href: '/admin/mm/files' },
+    { key: 'evidence', icon: ArchiveRestore, title: t('stats.evidence'), value: formatAdminNumber(locale, evidence.total), meta: t('metrics.evidence', { finalized: formatAdminNumber(locale, evidence.finalized), pending: formatAdminNumber(locale, evidence.pending) }), href: '/admin/mm/evidence' },
   ]
-  const healthEntries = Object.entries(data.health) as Array<[keyof DashboardData['health'], number]>
+  const primaryKeys = ['users', 'projects', 'content', 'files']
+  const healthEntries = [
+    { key: 'projectUtilization', active: overview.projects.active, total: overview.projects.total },
+    { key: 'articlePublicationRate', active: overview.articles.published, total: overview.articles.total },
+    { key: 'noteUtilization', active: overview.notes.active, total: overview.notes.total },
+    { key: 'categoryUtilization', active: overview.categories.active, total: overview.categories.total },
+    { key: 'evidenceFinalizationRate', active: evidence.finalized, total: evidence.total },
+  ] as const
   const fileTypes = [...overview.files.byType].sort((left, right) => right.count - left.count).slice(0, 5)
   const fileMaximum = Math.max(1, ...fileTypes.map((item) => item.count))
   const attention = [
@@ -266,35 +282,51 @@ export function DashboardView() {
   ].filter(Boolean) as Array<{ key: string; icon: LucideIcon; tone: string; title: string; description: string; href: string }>
 
   return (
-    <AdminPage className="admin-dashboard-page">
+    <AdminPage className="admin-dashboard-page" aria-busy={query.isFetching}>
       <DashboardToolbar range={range} setRange={setRange} loading={query.isFetching} onRefresh={() => void query.refetch()} t={t} generatedAt={formatAdminDate(locale, data.range.generatedAt)} />
 
-      <section className="dashboard-metric-grid" aria-label={t('metrics.title')}>
-        {metrics.map((metric) => {
-          const Icon = metric.icon
-          return (
-            <Link className={`dashboard-metric-card is-${metric.tone}`} href={metric.href} key={metric.key}>
-              <span className="dashboard-metric-topline"><span className="dashboard-metric-icon"><Icon size={19} /></span><span className="dashboard-metric-arrow">↗</span></span>
-              <span className="dashboard-metric-label">{metric.title}</span>
-              <strong className="dashboard-metric-value">{metric.value}</strong>
-              <span className="dashboard-metric-meta">{metric.meta}</span>
-            </Link>
-          )
-        })}
+      {query.isError ? <Alert type="warning" showIcon title={t('messages.loadFailed')} description={t('messages.stale')} action={<Button onClick={() => void query.refetch()}>{t('actions.refresh')}</Button>} /> : null}
+
+      <section className="dashboard-overview" aria-label={t('metrics.title')}>
+        <div className="dashboard-metric-grid">
+          {metrics.filter((metric) => primaryKeys.includes(metric.key)).map((metric) => {
+            const Icon = metric.icon
+            return (
+              <Link className="dashboard-metric-card" href={metric.href} key={metric.key}>
+                <span className="dashboard-metric-label"><Icon size={15} aria-hidden="true" />{metric.title}<ArrowUpRight className="dashboard-metric-arrow" size={14} aria-hidden="true" /></span>
+                <strong className="dashboard-metric-value">{metric.value}</strong>
+                <span className="dashboard-metric-meta">{metric.meta}</span>
+              </Link>
+            )
+          })}
+        </div>
+        <div className="dashboard-supporting-metrics">
+          {metrics.filter((metric) => !primaryKeys.includes(metric.key)).map((metric) => {
+            const Icon = metric.icon
+            return <Link className="dashboard-supporting-metric" href={metric.href} key={metric.key}><span><Icon size={14} aria-hidden="true" />{metric.title}</span><strong>{metric.value}</strong><small>{metric.meta}</small></Link>
+          })}
+        </div>
       </section>
 
       <PluginSlot name="admin.dashboard.cards" surface="admin" />
 
+      {attention.length ? <section className="dashboard-attention-list" aria-label={t('attention.title')}>
+        {attention.map((item) => {
+          const Icon = item.icon
+          return <Link className={`dashboard-attention-item is-${item.tone}`} href={item.href} key={item.key}><Icon size={18} aria-hidden="true" /><span><strong>{item.title}</strong><small>{item.description}</small></span><ArrowRight size={15} aria-hidden="true" /></Link>
+        })}
+      </section> : null}
+
       <section className="dashboard-primary-grid">
         <Card className="dashboard-panel dashboard-trend-panel" title={<PanelTitle icon={ChartNoAxesCombined} title={t('trend.title')} description={t('trend.description', { days: data.range.days })} />}>
-          <DashboardTrendChart ariaLabel={t('trend.accessible')} emptyLabel={t('trend.empty')} labels={trendLabels} locale={locale} trend={data.trend} />
+          <DashboardTrendChart ariaLabel={t('trend.accessible')} emptyLabel={t('trend.empty')} noSeriesLabel={t('trend.selectSeries')} labels={trendLabels} locale={locale} trend={data.trend} />
         </Card>
-        <Card className="dashboard-panel dashboard-health-panel" title={<PanelTitle icon={ServerCog} title={t('health.title')} description={t('health.description')} />}>
+        <Card className="dashboard-panel dashboard-health-panel" title={<PanelTitle icon={BookOpenText} title={t('health.title')} description={t('health.description')} />}>
           <div className="dashboard-health-list">
-            {healthEntries.map(([key, value]) => (
+            {healthEntries.map(({ key, active, total }) => (
               <div className="dashboard-health-row" key={key}>
-                <div><span>{t(`health.${key}`)}</span><strong>{formatAdminNumber(locale, value)}%</strong></div>
-                <Progress percent={value} showInfo={false} strokeColor="var(--sv-dashboard-health)" />
+                <div><span>{t(`health.${key}`)}</span><small>{formatAdminNumber(locale, active)} / {formatAdminNumber(locale, total)}</small><strong>{total ? `${formatAdminNumber(locale, data.health[key])}%` : '—'}</strong></div>
+                <Progress percent={data.health[key]} showInfo={false} strokeColor="var(--sv-dashboard-health)" />
               </div>
             ))}
           </div>
@@ -302,63 +334,50 @@ export function DashboardView() {
       </section>
 
       <section className="dashboard-secondary-grid">
-        <Card className="dashboard-panel" title={<PanelTitle icon={FolderUp} title={t('files.typeDistribution')} description={t('files.description', { count: formatAdminNumber(locale, overview.files.total) })} />}>
-          {fileTypes.length ? (
-            <div className="dashboard-distribution-list">
-              {fileTypes.map((item) => (
-                <div className="dashboard-distribution-row" key={item.type}>
-                  <div><span>{t('files.type', { type: item.type })}</span><strong>{formatAdminNumber(locale, item.count)}</strong></div>
-                  <span className="dashboard-distribution-track"><span style={{ width: `${(item.count / fileMaximum) * 100}%` }} /></span>
-                  <small>{formatAdminBytes(locale, item.sizeBytes)}</small>
-                </div>
-              ))}
+        <Card className="dashboard-panel dashboard-activity-panel" title={<PanelTitle icon={Clock3} title={t('recent.title')} description={t('recent.description')} />}>
+          {data.recentActivity.feed.length ? (
+            <div className="dashboard-activity-list">
+              {data.recentActivity.feed.map((item) => {
+                const Icon = ACTIVITY_ICON[item.type]
+                return (
+                  <Link className="dashboard-activity-item" href={item.href} key={item.id}>
+                    <span className={`dashboard-activity-icon is-${item.type}`}><Icon size={17} aria-hidden="true" /></span>
+                    <span className="dashboard-activity-copy"><strong>{item.title}</strong><small>{item.detail || t(`recent.types.${item.type}`)}</small></span>
+                    {item.status ? <Tag className="dashboard-activity-status" color={item.status === 'active' ? 'success' : item.status === 'expired' ? 'warning' : 'error'}>{t(`recent.status.${item.status}`)}</Tag> : null}
+                    <time dateTime={item.timestamp}>{formatAdminDate(locale, item.timestamp)}</time>
+                    <ArrowUpRight className="dashboard-activity-arrow" size={14} aria-hidden="true" />
+                  </Link>
+                )
+              })}
             </div>
           ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('messages.noData')} />}
         </Card>
-        <Card className="dashboard-panel" title={<PanelTitle icon={BadgeCheck} title={t('evidence.title')} description={t('evidence.description')} />}>
-          <div className="dashboard-evidence-summary">
-            {[
-              { key: 'finalized', value: evidence.finalized, tone: 'success' },
-              { key: 'pending', value: evidence.pending, tone: 'warning' },
-              { key: 'failed', value: evidence.failed, tone: 'danger' },
-            ].map((item) => (
-              <Link className={`dashboard-evidence-status is-${item.tone}`} href="/admin/mm/evidence" key={item.key}>
-                <span>{t(`evidence.${item.key}`)}</span><strong>{formatAdminNumber(locale, item.value)}</strong>
-              </Link>
-            ))}
-          </div>
-          <Link className="dashboard-panel-link" href="/admin/mm/evidence">{t('actions.openEvidence')} <span aria-hidden="true">→</span></Link>
-        </Card>
-        <Card className="dashboard-panel dashboard-attention-panel" title={<PanelTitle icon={CircleAlert} title={t('attention.title')} description={t('attention.description')} />}>
-          {attention.length ? (
-            <div className="dashboard-attention-list">
-              {attention.map((item) => {
-                const Icon = item.icon
-                return <Link className={`dashboard-attention-item is-${item.tone}`} href={item.href} key={item.key}><Icon size={18} /><span><strong>{item.title}</strong><small>{item.description}</small></span><span aria-hidden="true">→</span></Link>
+        <div className="dashboard-side-stack">
+          <Card className="dashboard-panel" title={<PanelTitle icon={FolderUp} title={t('files.typeDistribution')} description={t('files.description', { count: formatAdminNumber(locale, overview.files.total) })} />}>
+            {fileTypes.length ? <div className="dashboard-distribution-list">
+              {fileTypes.map((item) => {
+                const businessType = VALID_BUSINESS_TYPES.find((type) => type === item.type)
+                return <div className="dashboard-distribution-row" key={item.type}>
+                  <div><span>{businessType ? fileT(businessType) : item.type}</span><strong>{formatAdminNumber(locale, item.count)}</strong></div>
+                  <span className="dashboard-distribution-track"><span style={{ width: `${(item.count / fileMaximum) * 100}%` }} /></span>
+                  <small>{formatAdminBytes(locale, item.sizeBytes)}</small>
+                </div>
               })}
+            </div> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('messages.noData')} />}
+          </Card>
+          <Card className="dashboard-panel" title={<PanelTitle icon={BadgeCheck} title={t('evidence.title')} description={t('evidence.description')} />}>
+            <div className="dashboard-evidence-summary">
+              {[
+                { key: 'finalized', value: evidence.finalized, tone: 'success' },
+                { key: 'pending', value: evidence.pending, tone: 'warning' },
+                { key: 'failed', value: evidence.failed, tone: 'danger' },
+              ].map((item) => <Link className={`dashboard-evidence-status is-${item.tone}`} href="/admin/mm/evidence" key={item.key}><span>{t(`evidence.${item.key}`)}</span><strong>{formatAdminNumber(locale, item.value)}</strong></Link>)}
             </div>
-          ) : <div className="dashboard-all-clear"><ShieldCheck size={22} /><span><strong>{t('attention.clearTitle')}</strong><small>{t('attention.clearDescription')}</small></span></div>}
-        </Card>
+            {!attention.length ? <div className="dashboard-all-clear"><ShieldCheck size={16} aria-hidden="true" /><span><strong>{t('attention.clearTitle')}</strong><small>{t('attention.clearDescription')}</small></span></div> : null}
+            <Link className="dashboard-panel-link" href="/admin/mm/evidence">{t('actions.openEvidence')} <ArrowRight size={14} aria-hidden="true" /></Link>
+          </Card>
+        </div>
       </section>
-
-      <Card className="dashboard-panel dashboard-activity-panel" title={<PanelTitle icon={Clock3} title={t('recent.title')} description={t('recent.description')} />}>
-        {data.recentActivity.feed.length ? (
-          <div className="dashboard-activity-list">
-            {data.recentActivity.feed.map((item) => {
-              const Icon = ACTIVITY_ICON[item.type]
-              return (
-                <Link className="dashboard-activity-item" href={item.href} key={item.id}>
-                  <span className={`dashboard-activity-icon is-${item.type}`}><Icon size={17} /></span>
-                  <span className="dashboard-activity-copy"><strong>{item.title}</strong><small>{item.detail || t(`recent.types.${item.type}`)}</small></span>
-                  {item.status ? <Tag className="dashboard-activity-status" color={item.status === 'active' ? 'success' : item.status === 'expired' ? 'warning' : 'error'}>{t(`recent.status.${item.status}`)}</Tag> : null}
-                  <time dateTime={item.timestamp}>{formatAdminDate(locale, item.timestamp)}</time>
-                  <span className="dashboard-activity-arrow" aria-hidden="true">→</span>
-                </Link>
-              )
-            })}
-          </div>
-        ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('messages.noData')} />}
-      </Card>
     </AdminPage>
   )
 }
@@ -381,18 +400,17 @@ function DashboardToolbar({
   return (
     <header className="dashboard-toolbar">
       <div className="dashboard-toolbar-copy">
-        <span className="dashboard-eyebrow">{t('eyebrow')}</span>
-        <div><Typography.Title level={3}>{t('title')}</Typography.Title><Typography.Text type="secondary">{t('desc')}</Typography.Text></div>
+        <h1>{t('title')}</h1>
+        <div className="dashboard-toolbar-meta"><p>{t('desc')}</p>{generatedAt ? <span className="dashboard-generated-at">{t('generatedAt', { date: generatedAt })}</span> : null}</div>
       </div>
       <div className="dashboard-toolbar-actions">
         <Segmented<DashboardRange> aria-label={t('rangeLabel')} disabled={loading} onChange={setRange} options={[7, 30, 90].map((value) => ({ label: t('range', { days: value }), value: value as DashboardRange }))} value={range} />
         <Button icon={<RefreshCw size={15} />} loading={loading} onClick={onRefresh}>{t('actions.refresh')}</Button>
-        {generatedAt ? <Typography.Text className="dashboard-generated-at" type="secondary">{t('generatedAt', { date: generatedAt })}</Typography.Text> : null}
       </div>
     </header>
   )
 }
 
 function PanelTitle({ icon: Icon, title, description }: { icon: LucideIcon; title: string; description: string }) {
-  return <span className="dashboard-panel-title"><span><Icon size={16} /></span><span><strong>{title}</strong><small>{description}</small></span></span>
+  return <div className="dashboard-panel-title"><Icon size={17} aria-hidden="true" /><div><h2>{title}</h2><small>{description}</small></div></div>
 }

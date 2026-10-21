@@ -1676,13 +1676,14 @@
         "description": "Daily movement across the last {days} days",
         "accessible": "Operations activity trend for users, projects, articles, and notes",
         "empty": "No operations activity exists in this time range",
+        "selectSeries": "Select a series above to view its activity trend.",
         "users": "New users",
         "projects": "Projects created",
         "articles": "Articles published",
         "notes": "Notes created"
       },
       "health": {
-        "title": "System Health",
+        "title": "Content and evidence overview",
         "description": "Content readiness and evidence completion",
         "articlePublicationRate": "Article Publication Rate",
         "projectUtilization": "Project Utilization",
@@ -1742,6 +1743,7 @@
         "loading": "Loading...",
         "loadFailed": "Load failed",
         "loadFailedDescription": "Operations data is temporarily unavailable. Refresh and try again.",
+        "stale": "Data could not be updated. Your last loaded results are still shown. Refresh to try again.",
         "noData": "No data"
       }
     },
@@ -1968,7 +1970,8 @@
       "filters": {
         "keyword": "Search username, email, or display name",
         "role": "All roles",
-        "status": "All statuses"
+        "status": "All statuses",
+        "showDeleted": "Show deleted users"
       },
       "actions": {
         "refresh": "Refresh",

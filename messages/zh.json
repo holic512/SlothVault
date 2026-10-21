@@ -1676,13 +1676,14 @@
         "description": "最近 {days} 天的日粒度变化",
         "accessible": "用户、项目、文章和笔记的运营活动趋势图",
         "empty": "所选时间范围内还没有运营活动",
+        "selectSeries": "选择上方图例，查看对应的活动趋势",
         "users": "新增用户",
         "projects": "创建项目",
         "articles": "发布文章",
         "notes": "创建笔记"
       },
       "health": {
-        "title": "系统健康度",
+        "title": "内容与存证概况",
         "description": "内容可用性与存证完成率",
         "articlePublicationRate": "文章发布率",
         "projectUtilization": "项目启用率",
@@ -1742,6 +1743,7 @@
         "loading": "加载中...",
         "loadFailed": "加载失败",
         "loadFailedDescription": "暂时无法读取运营数据，请稍后刷新重试。",
+        "stale": "暂时无法更新数据，当前保留上次成功加载的结果。请刷新重试。",
         "noData": "暂无数据"
       }
     },
@@ -1968,7 +1970,8 @@
       "filters": {
         "keyword": "搜索用户名、邮箱或显示名称",
         "role": "全部角色",
-        "status": "全部状态"
+        "status": "全部状态",
+        "showDeleted": "查看已删除用户"
       },
       "actions": {
         "refresh": "刷新",

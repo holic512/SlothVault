@@ -5,7 +5,7 @@
  * @project SlothVault
  * @module User Administration
  * @description Provides administrator-managed user creation, profile and access updates, true account deletion and independent audit history, password resets, and point adjustments.
- * @logic Query bounded user pages, keep credentials private, submit identity mutations through protected APIs, revoke sessions after access changes, and retain the point ledger workflow.
+ * @logic Query bounded user pages with inline search, access filters and a deleted-user toggle, keep credentials private, submit protected identity mutations, and retain session revocation and point ledgers.
  * @dependencies Ant Design, React Query, next-intl, admin user APIs
  * @index_tags admin,users,crud,password,points,ledger
  * @author holic512
@@ -13,7 +13,7 @@
 import { useState } from 'react'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, App, Button, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Tabs, Tag, Tooltip, Typography } from 'antd'
+import { Alert, App, Button, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Tag, Tooltip, Typography } from 'antd'
 import { Ban, Check, Coins, Crown, KeyRound, Pencil, Plus, RefreshCw, Search, Trash2, UserRound } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
@@ -304,20 +304,27 @@ export function UsersManager() {
         </Space>
       </AdminPageActions>
 
-      <Tabs activeKey={view} onChange={key => { setView(key); setPage(1) }} items={[{ key: 'live', label: t('views.live') }, { key: 'deleted', label: t('views.deleted') }]} />
-      <AdminToolbar>
+      <AdminToolbar className="admin-users-toolbar">
         <Input.Search
+          className="admin-users-search"
           allowClear
           value={keyword}
           prefix={<Search size={14} />}
+          aria-label={view === 'deleted' ? t('history.keyword') : t('filters.keyword')}
           placeholder={view === 'deleted' ? t('history.keyword') : t('filters.keyword')}
           onChange={(event) => { setKeyword(event.target.value); setPage(1) }}
           onSearch={() => setPage(1)}
         />
-        {view === 'live' ? <Space wrap>
-          <Select allowClear value={roleFilter} placeholder={t('filters.role')} onChange={value => { setRoleFilter(value); setPage(1) }} options={[{ value: 'ADMIN', label: t('role.admin') }, { value: 'USER', label: t('role.user') }]} />
-          <Select allowClear value={statusFilter} placeholder={t('filters.status')} onChange={value => { setStatusFilter(value); setPage(1) }} options={[{ value: 1, label: t('status.active') }, { value: 0, label: t('status.disabled') }]} />
-        </Space> : null}
+        <div className="admin-users-filters">
+          {view === 'live' ? <>
+            <Select className="admin-users-filter" allowClear value={roleFilter} aria-label={t('filters.role')} placeholder={t('filters.role')} onChange={value => { setRoleFilter(value); setPage(1) }} options={[{ value: 'ADMIN', label: t('role.admin') }, { value: 'USER', label: t('role.user') }]} />
+            <Select className="admin-users-filter" allowClear value={statusFilter} aria-label={t('filters.status')} placeholder={t('filters.status')} onChange={value => { setStatusFilter(value); setPage(1) }} options={[{ value: 1, label: t('status.active') }, { value: 0, label: t('status.disabled') }]} />
+          </> : null}
+          <label className="admin-switch-label admin-users-deleted-toggle">
+            <Switch size="small" checked={view === 'deleted'} aria-label={t('filters.showDeleted')} onChange={checked => { setView(checked ? 'deleted' : 'live'); setPage(1) }} />
+            {t('filters.showDeleted')}
+          </label>
+        </div>
       </AdminToolbar>
 
       {view === 'live' && query.isError ? <Alert type="error" title={formatAdminError(query.error, errorT)} /> : null}
