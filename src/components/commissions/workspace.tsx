@@ -3,7 +3,7 @@
  * @file workspace.tsx
  * @project SlothVault
  * @module Commission Workspace
- * @description Presents one timeline-led workflow to administrators and customers.
+ * @description Presents a timeline-led workflow with shared administration list and detail surfaces.
  * @logic Separate lifecycle, payment and maintenance while offering stage-specific commands and immutable submissions.
  * @dependencies React Query, Ant Design, commission workflow APIs
  * @index_tags commissions,workspace,timeline,contracts
@@ -13,7 +13,9 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, App, Button, Descriptions, Drawer, Empty, Form, Input, Modal, Progress, Select, Space, Spin, Table, Tabs, Tag, Timeline } from 'antd'
+import { Alert, App, Button, Descriptions, Drawer, Empty, Form, Input, Modal, Progress, Select, Skeleton, Space, Table, Tabs, Tag, Timeline } from 'antd'
+import { ArrowLeft, FilePenLine, FileSignature, Plus, RefreshCw } from 'lucide-react'
+import { AdminPage, AdminPageActions, AdminTablePanel, AdminToolbar } from '@/components/admin/admin-page'
 import { apiFetch } from '@/lib/api-client'
 import { WORKFLOW_STAGES, type WorkflowAgreement, type WorkflowDetail, type WorkflowSummary } from '@/lib/commission-workflow'
 import { agreementTagColors, getWorkflowTagColor, issueTagColors } from '@/theme/tag-colors'
@@ -32,7 +34,7 @@ const noteField: ActionField = { key: 'note', label: '说明', type: 'textarea',
 export function CommissionWorkspace({ admin, id }: { admin: boolean; id?: string }) {
   const router = useRouter(), cache = useQueryClient(), { message, modal } = App.useApp()
   const api = `/api/${admin ? 'admin' : 'account'}/commissions`, prefix = admin ? '/admin/mm/commissions' : '/account/commissions', base = `${api}/${id}`
-  const [keyword, setKeyword] = useState(''), [stage, setStage] = useState<string>(), [page, setPage] = useState(1), [tab, setTab] = useState('timeline')
+  const [search, setSearch] = useState(''), [keyword, setKeyword] = useState(''), [stage, setStage] = useState<string>(), [page, setPage] = useState(1), [tab, setTab] = useState('timeline')
   const [dialog, setDialog] = useState<ActionDialogSpec | null>(null), [createOpen, setCreateOpen] = useState(false), [createForm] = Form.useForm()
   const [userSearch, setUserSearch] = useState(''), [invite, setInvite] = useState<{ path: string; expiresAt: string } | null>(null)
   const [draft, setDraft] = useState<{ agreement?: WorkflowAgreement; kind: string; commandId: string } | null>(null), [reading, setReading] = useState<WorkflowAgreement | null>(null)
@@ -51,23 +53,45 @@ export function CommissionWorkspace({ admin, id }: { admin: boolean; id?: string
   const confirm = (title: string, payload: Record<string, unknown>) => modal.confirm({ title, content: '确认后将产生不可覆盖的正式时间轴记录。', okText: '确认提交', cancelText: '返回', onOk: async () => { await command.mutateAsync(payload) } })
   const supplement = (kind = 'REQUIREMENT') => open(kinds[kind], 'submission.create', [noteField, filesField, referenceField, ...(kind === 'PROGRESS' ? [{ key: 'progress', label: '实施进度（0—100）', type: 'number' as const, initial: d?.progress || 0, required: true }] : [])], { kind })
   const updatePayment = () => open('更新用户支付比例', 'payment.update', [{ key: 'percent', label: '已支付比例（0—100）', type: 'number', required: true, initial: d?.paymentPercent || 0 }, { ...noteField, required: false, label: '付款说明（调低比例时必填）' }, filesField])
-  if (!id) return <div className={styles.workspace}>
-    <header className={styles.heading}><div><h1>{admin ? '委托管理' : '我的委托'}</h1><p>从需求、合同到交付与维护，在同一条时间轴中跟进。</p></div><Space>{admin ? <Link href="/admin/mm/contract-templates"><Button>合同模板</Button></Link> : null}<Button type="primary" onClick={() => { createForm.resetFields(); setCreateOpen(true) }}>建立委托</Button></Space></header>
-    <div className={styles.filters}><Input.Search placeholder="搜索委托名称" allowClear onSearch={(value) => { setKeyword(value); setPage(1) }} /><Select placeholder="全部阶段" allowClear value={stage} onChange={(value) => { setStage(value); setPage(1) }} options={Object.entries(WORKFLOW_STAGES).map(([value, label]) => ({ value, label }))} /><Button onClick={() => void list.refetch()}>刷新</Button></div>
-    {list.error ? <Alert type="error" title={list.error.message} /> : null}
-    <Table rowKey="id" dataSource={list.data?.list} loading={list.isPending} scroll={{ x: 850 }} pagination={{ current: page, total: list.data?.total, pageSize: 20, showSizeChanger: false, onChange: setPage }} locale={{ emptyText: <Empty description="还没有委托，建立委托后即可准备需求与合同" /> }} columns={[
-      { title: '委托', dataIndex: 'title', render: (title, row) => <Link href={`${prefix}/${row.id}`}>{title}</Link> }, { title: '关联用户', dataIndex: 'subject', render: (value) => value || '待认领' },
-      { title: '当前阶段', render: (_, row) => <Tag color={getWorkflowTagColor(row)}>{row.archived ? '历史归档' : WORKFLOW_STAGES[row.stage]}{row.paused ? ' · 暂停' : ''}</Tag> },
-      { title: '用户支付比例', dataIndex: 'paymentPercent', width: 150, render: (value) => <Progress percent={value} size="small" /> },
-      { title: '待处理事项', dataIndex: 'nextAction' }, { title: '更新时间', dataIndex: 'updatedAt', render: date },
-    ]} />
+  const Page = admin ? AdminPage : 'div'
+  const TablePanel = admin ? AdminTablePanel : 'div'
+  const Toolbar = admin ? AdminToolbar : 'div'
+  const workspaceClass = `${styles.workspace} ${admin ? styles['admin-workspace'] : ''}`
+  const openCreate = () => { createForm.resetFields(); setCreateOpen(true) }
+  const filtered = Boolean(keyword || stage)
+  const resetFilters = () => { setSearch(''); setKeyword(''); setStage(undefined); setPage(1) }
+  const listActions = <Space wrap>
+    {admin ? <Button href="/admin/mm/contract-templates" icon={<FileSignature size={15} />}>合同模板</Button> : null}
+    <Button icon={<RefreshCw size={15} />} loading={list.isFetching} onClick={() => void list.refetch()}>刷新</Button>
+    <Button type="primary" icon={<Plus size={15} />} onClick={openCreate}>建立委托</Button>
+  </Space>
+  if (!id) return <Page className={workspaceClass}>
+    {admin ? <AdminPageActions className={styles['list-actions']}>{listActions}</AdminPageActions> : <header className={styles.heading}><div><h1>我的委托</h1><p>从需求、合同到交付与维护，在同一条时间轴中跟进。</p></div>{listActions}</header>}
+    <Toolbar className={admin ? undefined : styles['list-toolbar']}>
+      <div className={admin ? 'admin-filters' : styles['list-filters']}>
+        <Input.Search aria-label="搜索委托名称" placeholder="搜索委托名称" allowClear value={search} onChange={(event) => { setSearch(event.target.value); if (!event.target.value) { setKeyword(''); setPage(1) } }} onSearch={(value) => { setKeyword(value.trim()); setPage(1) }} />
+        <Select aria-label="委托阶段" placeholder="全部阶段" allowClear value={stage} onChange={(value) => { setStage(value); setPage(1) }} options={Object.entries(WORKFLOW_STAGES).map(([value, label]) => ({ value, label }))} />
+      </div>
+    </Toolbar>
+    {list.error ? <Alert showIcon type="error" title="委托加载失败" description={list.error.message} action={<Button size="small" onClick={() => void list.refetch()}>重试</Button>} /> : null}
+    <TablePanel>
+      <Table rowKey="id" dataSource={list.data?.list || []} loading={list.isPending} scroll={{ x: 1120 }} pagination={{ current: page, total: list.data?.total || 0, pageSize: 20, showSizeChanger: false, onChange: setPage }} locale={{ emptyText: list.error ? '委托加载失败，请重试' : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={filtered ? '没有符合筛选条件的委托' : '还没有委托，建立后即可准备需求与合同'}><Button type={filtered ? 'default' : 'primary'} onClick={filtered ? resetFilters : openCreate}>{filtered ? '清除筛选' : '建立委托'}</Button></Empty> }} columns={[
+        { title: '委托', dataIndex: 'title', width: 220, ellipsis: true, render: (title, row) => <Link href={`${prefix}/${row.id}`}>{title}</Link> },
+        { title: '关联用户', dataIndex: 'subject', width: 140, ellipsis: true, render: (value) => value || <span className={styles.muted}>待认领</span> },
+        { title: '当前阶段', width: 140, render: (_, row) => <Tag color={getWorkflowTagColor(row)}>{row.archived ? '历史归档' : WORKFLOW_STAGES[row.stage]}{row.paused ? ' · 暂停' : ''}</Tag> },
+        { title: '用户支付比例', dataIndex: 'paymentPercent', width: 150, render: (value) => <Progress percent={value} size="small" /> },
+        { title: '待处理事项', dataIndex: 'nextAction', width: 200, ellipsis: true },
+        { title: '更新时间', dataIndex: 'updatedAt', width: 180, render: date },
+        { title: '操作', fixed: 'right', width: 110, render: (_, row) => <Button type="link" href={`${prefix}/${row.id}`} icon={<FilePenLine size={14} />}>查看详情</Button> },
+      ]} />
+    </TablePanel>
     <Modal title="建立委托" open={createOpen} onCancel={() => setCreateOpen(false)} onOk={() => createForm.submit()} confirmLoading={create.isPending} okText="建立草稿" cancelText="返回"><Form form={createForm} layout="vertical" initialValues={{ entry: 'invite' }} onFinish={(values) => create.mutate(values)}>
-      <Form.Item name="title" label="委托名称" rules={[{ required: true }]}><Input maxLength={255} /></Form.Item>
+      <Form.Item name="title" label="委托名称" rules={[{ required: true, whitespace: true, message: '请输入委托名称' }]}><Input maxLength={255} /></Form.Item>
       {admin ? <><Form.Item name="entry" label="参与用户"><Select options={[{ value: 'invite', label: '生成链接邀请用户认领' }, { value: 'user', label: '指定已有用户' }]} /></Form.Item>{entry === 'user' ? <Form.Item name="subjectUserId" label="选择用户" rules={[{ required: true }]}><Select showSearch filterOption={false} onSearch={setUserSearch} loading={users.isFetching} options={users.data?.list.filter((user) => user.role === 'USER' && user.status === 1).map((user) => ({ value: user.id, label: user.displayName ? `${user.displayName}（${user.username}）` : user.username }))} /></Form.Item> : null}</> : null}
       <Form.Item name="requirements" label="需求草稿"><Input.TextArea rows={5} maxLength={10000} placeholder="说明项目目标和需要实现的内容，建立后可继续上传附件。" /></Form.Item>
     </Form></Modal>
-  </div>
-  if (!d) return <div className={styles.workspace}>{query.error ? <Alert type="error" title={query.error.message} /> : <Spin />}</div>
+  </Page>
+  if (!d) return <Page className={workspaceClass}>{query.error ? <Alert showIcon type="error" title={query.error.message} action={<Button onClick={() => void query.refetch()}>重试</Button>} /> : <Skeleton active />}</Page>
   const attachmentLinks = (keys: string[]) => <Space wrap>{keys.map((key) => { const file = d.files.find((item) => item.key === key); return file ? <a key={key} href={`${base}/files/${file.id}`}>{file.name}</a> : <span key={key}>附件缺失</span> })}</Space>
   const primary = d.archived ? null : d.stage === 'DRAFT' ? <Button type="primary" onClick={() => open('正式提交委托', 'request.submit', [{ ...noteField, label: '委托需求', initial: d.requirements }, filesField])}>提交委托</Button>
     : can('request.accept') ? <Button type="primary" onClick={() => confirm('确认接受此委托', { action: 'request.accept' })}>接单</Button>
@@ -100,8 +124,8 @@ export function CommissionWorkspace({ admin, id }: { admin: boolean; id?: string
     <Table rowKey="id" dataSource={d.files} pagination={false} scroll={{ x: 550 }} columns={[{ title: '文件', render: (_, file) => <a href={`${base}/files/${file.id}`}>{file.name}</a> }, { title: '状态', render: (_, file) => <Tag color={file.submitted ? 'success' : 'warning'}>{file.submitted ? '已正式提交' : '附件草稿，仅自己可见'}</Tag> }, { title: '大小', dataIndex: 'size', render: (value) => `${(Number(value) / 1024).toFixed(1)} KiB` }, { title: '校验', render: (_, file) => <details><summary>SHA-256</summary><code className={styles.hash}>{file.sha256}</code></details> }]} />
     {admin && !d.archived ? <WorkflowEvidencePanel events={d.events} onUpdated={() => void refresh()} /> : null}
   </section>
-  return <div className={styles.workspace}>
-    <Link className={styles.back} href={prefix}>返回委托列表</Link><header className={styles.heading}><div><h1>{d.title}</h1><p>{d.subject ? `委托用户：${d.subject}` : '尚未绑定用户，请生成邀请链接，由用户登录认领。'}</p></div><Space wrap><Button onClick={() => void refresh()}>刷新</Button>{primary}</Space></header>
+  return <Page className={workspaceClass}>
+    <div><Button type="link" href={prefix} icon={<ArrowLeft size={14} />}>返回委托列表</Button></div><header className={styles.heading}><div><h1>{d.title}</h1><p>{d.subject ? `委托用户：${d.subject}` : '尚未绑定用户，请生成邀请链接，由用户登录认领。'}</p></div><Space wrap><Button icon={<RefreshCw size={15} />} loading={query.isFetching} onClick={() => void refresh()}>刷新</Button>{primary}</Space></header>
     {query.error ? <Alert type="error" title={query.error.message} /> : null}{d.archived ? <Alert type="info" title="旧流程只读归档，原合同与证据继续保留" /> : null}
     <div className={styles['status-bar']}><div><span>合同生命周期</span><strong>{d.archived ? '历史归档' : WORKFLOW_STAGES[d.stage]}{d.paused ? ' · 暂停' : ''}</strong></div><div><span>用户支付比例</span><strong>{d.paymentPercent}%</strong>{can('payment.update') ? <Button size="small" type="link" onClick={updatePayment}>更新比例</Button> : null}</div><div><span>维护截止时间</span><strong>{d.maintenanceClosedAt ? '已关闭' : d.maintenanceEndsAt ? date(d.maintenanceEndsAt) : '正式交付后开始'}</strong></div></div>
     <div className={styles['detail-grid']}><div className={styles.main}><Tabs activeKey={tab} onChange={setTab} items={[{ key: 'timeline', label: '时间轴', children: timeline }, { key: 'contracts', label: '需求与合同', children: contracts }, { key: 'maintenance', label: '交付与维护', children: maintenance }, { key: 'files', label: '文件与存证', children: fileTab }]} /></div><aside className={styles.sidebar}><h2>当前安排</h2><p>{d.nextAction}</p><Descriptions column={1} size="small" items={[{ key: 'payment', label: '合同金额', children: d.totalFen ? `¥${formatFen(d.totalFen)}` : '尚未约定' }, { key: 'progress', label: '实施进度', children: `${d.progress}%` }, { key: 'duration', label: '维护期限', children: `${d.maintenanceDays} 个自然日` }]} />
@@ -109,7 +133,7 @@ export function CommissionWorkspace({ admin, id }: { admin: boolean; id?: string
     </aside></div>
     <ActionDialog spec={dialog} busy={command.isPending} onClose={() => setDialog(null)} onSave={(values) => { const { linksText, ...payload } = values; if (values.action === 'delivery.publish') payload.links = String(linksText || '').split('\n').map((line) => line.trim()).filter(Boolean); if (['payment.update', 'maintenance.close'].includes(String(payload.action))) payload.note ||= ''; command.mutate(payload) }} />
     <WorkflowAgreementEditor key={draft?.commandId || 'closed'} detail={d} spec={draft} busy={command.isPending} onClose={() => setDraft(null)} onSave={(input) => command.mutate(input)} />
-    <Drawer title={reading?.title || '合同'} open={Boolean(reading)} onClose={() => setReading(null)} width="min(850px, 100vw)">{reading ? <><Tag color={agreementTagColors[reading.status] ?? 'default'}>{contractStates[reading.status]}</Tag><section className={styles.paper}><MarkdownView content={reading.body} /></section>{attachmentLinks(reading.fileKeys)}{!admin && reading.status === 'PENDING' && reading.confirmationMode === 'ONLINE' ? <div className={styles.actions}><Button type="primary" disabled={!can('agreement.confirm')} onClick={() => confirm('确认已阅读并同意此合同版本', { action: 'agreement.confirm', id: Number(reading.id), eventId: reading.publishedEventId })}>确认合同</Button><Button disabled={!can('agreement.decline')} onClick={() => open('提出合同异议', 'agreement.decline', [noteField], { id: Number(reading.id), eventId: reading.publishedEventId })}>提出异议</Button></div> : null}</> : null}</Drawer>
+    <Drawer title={reading?.title || '合同'} open={Boolean(reading)} onClose={() => setReading(null)} size="min(850px, 100vw)">{reading ? <><Tag color={agreementTagColors[reading.status] ?? 'default'}>{contractStates[reading.status]}</Tag><section className={styles.paper}><MarkdownView content={reading.body} /></section>{attachmentLinks(reading.fileKeys)}{!admin && reading.status === 'PENDING' && reading.confirmationMode === 'ONLINE' ? <div className={styles.actions}><Button type="primary" disabled={!can('agreement.confirm')} onClick={() => confirm('确认已阅读并同意此合同版本', { action: 'agreement.confirm', id: Number(reading.id), eventId: reading.publishedEventId })}>确认合同</Button><Button disabled={!can('agreement.decline')} onClick={() => open('提出合同异议', 'agreement.decline', [noteField], { id: Number(reading.id), eventId: reading.publishedEventId })}>提出异议</Button></div> : null}</> : null}</Drawer>
     <Modal title="邀请链接已生成" open={Boolean(invite)} onCancel={() => setInvite(null)} footer={<Button onClick={() => setInvite(null)}>完成</Button>}>{invite ? <><p>登录后仅可认领一次，重新生成会使旧链接失效。</p><Input.TextArea readOnly value={`${typeof window === 'undefined' ? '' : window.location.origin}${invite.path}`} rows={3} /><p>有效期至 {date(invite.expiresAt)}</p><Button onClick={() => void navigator.clipboard.writeText(`${window.location.origin}${invite.path}`).then(() => message.success('已复制邀请链接')).catch(() => message.error('复制失败，请手动复制'))}>复制链接</Button></> : null}</Modal>
-  </div>
+  </Page>
 }

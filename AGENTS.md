@@ -32,3 +32,13 @@
 3. 本地普通登录表单可使用用户明确提供的测试凭据自动登录；本条仅覆盖本项目的测试登录。遇验证码、双因素验证或其他安全挑战立即停止，交由用户处理，不绕过认证。
 4. 发行、兑换、安装和卸载等交互默认在独立端口及临时 SQLite 中验证，不污染现有账户账本。使用真实页面操作及截图验证，不以 HTTP 成功替代视觉验收。
 5. 清理临时文件前核对来源、活动进程和保留范围。可清理本任务的旧日志、测试数据库及可再生成缓存；保留用户数据、一致性备份、来源不明的修改及其他任务文件。最终仅保留必要的脱敏截图和验收结论。
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
