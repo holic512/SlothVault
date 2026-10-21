@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -208,7 +208,14 @@ describe('independent module version preparation', () => {
 
 describe('application versions with committed plugin delivery policies', () => {
   const directories = []
-  afterEach(() => { for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true }) })
+  beforeEach(() => {
+    // CI's checkout SHA does not belong to these isolated fixture repositories.
+    vi.stubEnv('GITHUB_SHA', 'f'.repeat(40))
+  })
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true })
+  })
   function fixture() {
     const directory = mkdtempSync(join(tmpdir(), 'sv-plugin-app-version-'))
     directories.push(directory)
@@ -229,7 +236,7 @@ describe('application versions with committed plugin delivery policies', () => {
     const f = fixture()
     f.write('plugins/alpha/src/server.ts', 'legacy independent plugin change')
     f.commit()
-    const options = { root: f.root, packageJsonPath: new URL('package.json', f.root) }
+    const options = { root: f.root, packageJsonPath: new URL('package.json', f.root), commit: 'HEAD' }
     expect((await resolveReleaseIdentity(options)).version).toBe('1.0.0')
     f.metadata.slothvaultRelease = { pluginAssets: true }; f.save()
     expect((await preparePackageVersion(options)).version).toBe('1.0.1')
@@ -244,7 +251,7 @@ describe('application versions with committed plugin delivery policies', () => {
   it('rejects a committed plugin-only change without preparing the application version', async () => {
     const f = fixture()
     f.metadata.slothvaultRelease = { pluginAssets: true }; f.save()
-    const options = { root: f.root, packageJsonPath: new URL('package.json', f.root) }
+    const options = { root: f.root, packageJsonPath: new URL('package.json', f.root), commit: 'HEAD' }
     await preparePackageVersion(options); f.commit()
     f.write('plugins/alpha/src/server.ts', 'forgot the app version')
     f.commit()
