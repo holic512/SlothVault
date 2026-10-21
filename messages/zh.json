@@ -784,10 +784,10 @@
     },
     "projectMenu": {
       "title": "菜单配置 · {name}",
-      "desc": "配置项目顶部导航，最多支持两级菜单。",
+      "desc": "首页与文档固定保留；自定义菜单支持两级。",
       "defaultHint": "首页与文档固定在前两项，随界面语言自动翻译，不可修改，无需重复创建。",
       "includeDeleted": "包含已删除",
-      "newRoot": "新增一级菜单",
+      "newRoot": "添加菜单",
       "source": {
         "builtin": "系统内置",
         "custom": "自定义"
@@ -797,17 +797,20 @@
         "label": "菜单文本",
         "url": "链接",
         "type": "类型",
-        "status": "状态",
-        "operations": "操作"
+        "status": "显示",
+        "operations": "操作",
+        "navigation": "项目导航菜单，可横向滚动"
       },
       "type": {
         "internal": "站内",
-        "external": "外链"
+        "external": "外链",
+        "group": "子菜单分组"
       },
       "status": {
         "enabled": "启用",
         "disabled": "停用",
-        "deleted": "已删除"
+        "deleted": "已删除",
+        "always": "固定"
       },
       "operations": {
         "child": "新增子菜单",
@@ -815,28 +818,61 @@
         "retry": "重试",
         "edit": "编辑",
         "delete": "删除",
-        "restore": "恢复"
+        "restore": "恢复",
+        "visibility": "显示「{name}」",
+        "childOf": "为「{name}」添加子菜单",
+        "editNamed": "编辑「{name}」",
+        "deleteNamed": "删除「{name}」"
       },
       "dialog": {
         "createTitle": "新增菜单",
+        "createChildTitle": "新增子菜单 · {name}",
         "editTitle": "编辑菜单",
         "parent": "父级菜单",
         "root": "一级菜单",
         "label": "菜单文本",
         "url": "跳转链接",
-        "external": "外部链接",
-        "weight": "权重",
+        "external": "外部链接（新窗口打开）",
+        "weight": "排序权重",
         "status": "状态",
         "cancel": "取消",
-        "save": "保存"
+        "save": "保存",
+        "labelPlaceholder": "例如：GitHub",
+        "urlPlaceholder": "https://github.com/… 或 /docs",
+        "icon": "菜单图标",
+        "preview": "导航预览",
+        "previewName": "菜单名称",
+        "advanced": "层级与排序"
       },
       "messages": {
         "labelRequired": "请输入菜单文本",
+        "externalUrl": "请输入完整的 http:// 或 https:// 链接",
+        "internalUrl": "站内链接须以 / 开头，例如 /docs",
         "loadFailed": "自定义导航加载失败",
         "saved": "菜单已保存",
         "deleted": "菜单已删除，可在回收站查看或恢复",
         "restored": "菜单已恢复",
         "deleteConfirm": "确认删除菜单「{name}」及其子菜单？"
+      },
+      "icons": {
+        "auto": "自动匹配",
+        "none": "不显示图标",
+        "home": "首页",
+        "book-open": "文档",
+        "github": "GitHub",
+        "gitlab": "GitLab",
+        "discord": "Discord",
+        "youtube": "YouTube",
+        "twitter": "Twitter / X",
+        "code": "代码",
+        "terminal": "终端",
+        "download": "下载",
+        "globe": "网站",
+        "link": "链接",
+        "folder": "文件夹",
+        "message-circle": "讨论",
+        "file-text": "文件",
+        "external-link": "外部链接"
       }
     },
     "categories": {

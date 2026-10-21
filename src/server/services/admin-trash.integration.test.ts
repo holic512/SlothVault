@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path'
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3'
 import Database from 'better-sqlite3'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { deleteProjectMenu } from './admin-content'
 import { PrismaClient } from '../../../generated/prisma-sqlite/client'
 
 type SqliteTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$use' | '$transaction' | '$extends'>
@@ -179,7 +180,8 @@ describe('SQLite content trash round trip', () => {
     const child = await client.projectMenu.create({ data: { projectId: project.id, parentId: parent.id, label: 'Child' } })
     const previouslyDeleted = await client.projectMenu.create({ data: { projectId: project.id, parentId: parent.id, label: 'Older', isDeleted: true } })
 
-    await deleteTrashItem('menu', parent.id)
+    await deleteProjectMenu(parent.id)
+    expect(mocks.invalidate).toHaveBeenCalledWith(project.id)
     const deletedParent = await client.projectMenu.findUniqueOrThrow({ where: { id: parent.id } })
     expect(await client.projectMenu.findUniqueOrThrow({ where: { id: child.id } })).toMatchObject({ isDeleted: true, deletedAt: deletedParent.deletedAt })
     expect(await client.projectMenu.findUniqueOrThrow({ where: { id: previouslyDeleted.id } })).toMatchObject({ isDeleted: true, deletedAt: null })

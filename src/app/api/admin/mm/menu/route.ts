@@ -2,7 +2,7 @@
  * @file route.ts
  * @project SlothVault
  * @module Admin Project Menu API
- * @description Lists a project's navigation as a flat collection or two-level tree and creates new menu entries.
+ * @description Lists flat or two-level project navigation and creates entries with optional stable icon keys.
  * @logic Authenticate, parse list/create inputs, delegate menu invariants and persistence, and wrap compatibility responses.
  * @dependencies admin session, server/http helpers, admin catalog parser, admin content service
  * @index_tags api,admin,project-menu,list,tree,create
@@ -29,6 +29,7 @@ const createMenuSchema = z.object({
   projectId: z.unknown().optional(),
   parentId: z.unknown().optional(),
   label: z.unknown().optional(),
+  icon: z.unknown().optional(),
   url: z.unknown().optional(),
   isExternal: z.unknown().optional(),
   weight: z.unknown().optional(),

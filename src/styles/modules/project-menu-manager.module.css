@@ -1,0 +1,215 @@
+:global(.ant-modal).manager,
+:global(.ant-modal).editor {
+  top: 40px;
+  max-width: calc(100vw - 32px);
+}
+
+.manager :global(.ant-modal-title),
+.editor :global(.ant-modal-title) {
+  font-size: 18px !important;
+}
+
+.content {
+  display: grid;
+  min-width: 0;
+  gap: 20px;
+  padding-top: 16px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.manager :global(.ant-btn),
+.editor :global(.ant-btn),
+.editor :global(.ant-input),
+.editor :global(.ant-select),
+.editor :global(.ant-form-item-label) > label {
+  font-size: 14px;
+}
+
+.toolbar :global(.ant-btn) {
+  min-height: 38px;
+  flex-shrink: 0;
+}
+
+.table-scroll {
+  min-width: 0;
+  max-height: min(58vh, calc(100dvh - 240px));
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--sv-border);
+  border-radius: 12px;
+  scrollbar-color: var(--sv-text-muted) transparent;
+  scrollbar-width: thin;
+}
+
+.table-scroll:focus-visible {
+  outline: 2px solid var(--sv-accent);
+  outline-offset: 3px;
+}
+
+.table-scroll :global(.ant-table-wrapper) {
+  min-width: 860px;
+}
+
+.table-scroll :global(.ant-table-cell) {
+  padding: 14px 18px !important;
+  font-size: 14px;
+}
+
+.table-scroll :global(.ant-table-thead) :global(.ant-table-cell) {
+  padding-block: 12px !important;
+  font-size: 13px;
+}
+
+.table-scroll :global(.ant-table-row):last-child > td {
+  border-bottom: 0;
+}
+
+.menu-label,
+.icon-option,
+.destination,
+.preview {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.menu-label {
+  display: inline-flex;
+  max-width: calc(100% - 26px);
+  vertical-align: middle;
+}
+
+.icon-slot {
+  display: inline-flex;
+  width: 18px;
+  height: 20px;
+  flex: 0 0 18px;
+  align-items: center;
+  justify-content: center;
+}
+
+.label-text,
+.destination > span,
+.preview > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.label-text {
+  font-weight: 500;
+}
+
+.muted,
+.destination {
+  color: var(--sv-text-muted);
+}
+
+.muted,
+.destination > svg {
+  flex-shrink: 0;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.actions :global(.ant-btn) {
+  min-width: 34px;
+  height: 34px;
+}
+
+.editor :global(.ant-modal-body) {
+  max-height: calc(100dvh - 220px);
+  overflow-y: auto;
+  padding-top: 20px;
+}
+
+.editor :global(.ant-form-item) {
+  margin-bottom: 20px;
+}
+
+.editor :global(.ant-input),
+.editor :global(.ant-select),
+.editor :global(.ant-input-number) {
+  min-height: 38px;
+}
+
+.icon-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 20px;
+}
+
+.icon-field :global(.ant-form-item) {
+  margin: 0;
+}
+
+.preview {
+  min-height: 38px;
+  align-self: end;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--sv-bg-soft);
+}
+
+.switch-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-block: 24px 12px;
+  font-size: 14px;
+}
+
+.advanced-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.editor :global(.ant-collapse-header) {
+  padding-inline: 0 !important;
+}
+
+.editor :global(.ant-collapse-body) {
+  padding-inline: 0 !important;
+}
+
+@media (max-width: 600px) {
+  :global(.ant-modal).manager,
+  :global(.ant-modal).editor {
+    top: 20px;
+    max-width: calc(100vw - 20px);
+    margin: 0 auto;
+  }
+
+  .toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .content {
+    gap: 16px;
+  }
+
+  .table-scroll {
+    max-height: 60dvh;
+  }
+
+  .advanced-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+}

@@ -40,6 +40,7 @@ import { parseReleaseManifest } from './release-manifest'
 import { getPublicArticleMetadata, resolvePublicArticleReader } from './public-articles'
 import { getActiveMemberships, purchaseMembership, replaceManagedUserMembership, revokeManagedUserMembership } from './membership'
 import { exportDatabaseBackup } from './admin-backup/database-export'
+import { DATABASE_BACKUP_VERSION } from './admin-backup/constants'
 import { importDatabaseBackup } from './admin-backup/database-import'
 import { parseDatabaseImportPayload } from './admin-backup/database-validation'
 import { updateAdminNote } from './admin-notes'
@@ -152,7 +153,7 @@ describe('project permissions, file references and portable backup', () => {
     const s = await seed()
     await client.$transaction(tx => rebuildFileReferences(tx))
     const backup = await exportDatabaseBackup()
-    expect(backup.version).toBe('2.18.0')
+    expect(backup.version).toBe(DATABASE_BACKUP_VERSION)
     expect(backup.data.noteInfos[0].tags).toEqual(['API', '教程'])
     expect(backup.data.noteInfos[0]).not.toHaveProperty('tagsJson')
     const parsed = parseDatabaseImportPayload({ data: backup.data, version: backup.version, mode: 'overwrite' })

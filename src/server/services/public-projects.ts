@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Public Project Reading
  * @description Centralizes public immutable project navigation, manifest metadata, document reads, and version transaction evidence.
- * @logic Require a visible published release, resolve an optional active project homepage, and expose release evidence with independent membership reading policies.
+ * @logic Require a visible published release, return parent and child navigation with raw nullable icon keys, resolve optional homepages, and expose release evidence with independent membership reading policies.
  * @dependencies Prisma project, document, and release credential models
  * @index_tags public-project,public-reader,versions,notes,evidence,permissions
  * @author holic512
@@ -126,12 +126,14 @@ export async function getProjectMenu(projectId: number) {
   return list.map((menu) => ({
     id: menu.id.toString(),
     label: menu.label,
+    icon: menu.icon,
     url: menu.url,
     isExternal: menu.isExternal,
     weight: menu.weight,
     children: menu.children.map((child) => ({
       id: child.id.toString(),
       label: child.label,
+      icon: child.icon,
       url: child.url,
       isExternal: child.isExternal,
       weight: child.weight,

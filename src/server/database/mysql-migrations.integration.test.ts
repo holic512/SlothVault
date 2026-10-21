@@ -34,7 +34,7 @@ describe.skipIf(!databaseUrl)('native MySQL migration deployment', () => {
       client = await mariadb.createConnection({ ...connection, database })
       const history = await client.query('SELECT migration_name, checksum FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY migration_name')
       expect(history.some((row: { migration_name: string }) => row.migration_name === repair)).toBe(true)
-      expect(history.at(-1).migration_name).toBe('20261019000000_source_plugins')
+      expect(history.at(-1).migration_name).toBe('20261021000000_project_menu_icons')
       // Emulate an already deployed installation with later migration receipts:
       // only this test DB loses the new repair's receipt, never production data.
       await client.query('CREATE INDEX fixture_existing_version_fk ON release_credential (project_version_id)')

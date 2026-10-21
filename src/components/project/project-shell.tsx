@@ -24,6 +24,7 @@ import {
   type PublicProject,
 } from '@/components/project/project-context'
 import { ProjectCredentialMenu } from './project-credential-menu'
+import { ProjectMenuIcon } from './project-menu-icon'
 import { NavigationShell } from '@/components/shell/navigation-shell'
 import { ThemeControls } from '@/components/theme/theme-controls'
 import { AccountNav } from '@/components/auth/account-nav'
@@ -133,6 +134,7 @@ function ProjectNavigation({
               const active = isActive(entry.key)
               return (
                 <Link key={entry.key} className={active ? 'is-active' : ''} aria-current={active ? 'page' : undefined} href={entry.href}>
+                  <ProjectMenuIcon icon={entry.key === 'home' ? 'home' : 'book-open'} />
                   {t(entry.translationKey)}
                 </Link>
               )
@@ -144,6 +146,7 @@ function ProjectNavigation({
                   menu={{
                     items: menu.children.map((child) => ({
                       key: child.id,
+                      icon: <ProjectMenuIcon {...child} />,
                       label: child.isExternal ? (
                         <a href={contextualFileUrl(child.url ?? undefined, projectId, true) || '#'} target="_blank" rel="noreferrer">{child.label}</a>
                       ) : (
@@ -152,12 +155,12 @@ function ProjectNavigation({
                     })),
                   }}
                 >
-                  <Button type="text">{menu.label}<ChevronDown size={13} /></Button>
+                  <Button type="text" icon={<ProjectMenuIcon {...menu} />}>{menu.label}<ChevronDown size={13} /></Button>
                 </Dropdown>
               ) : menu.isExternal ? (
-                <a key={menu.id} href={contextualFileUrl(menu.url ?? undefined, projectId, true) || '#'} target="_blank" rel="noreferrer">{menu.label}</a>
+                <a key={menu.id} href={contextualFileUrl(menu.url ?? undefined, projectId, true) || '#'} target="_blank" rel="noreferrer"><ProjectMenuIcon {...menu} />{menu.label}</a>
               ) : (
-                <Link key={menu.id} href={resolveUrl(menu.url)}>{menu.label}</Link>
+                <Link key={menu.id} href={resolveUrl(menu.url)}><ProjectMenuIcon {...menu} />{menu.label}</Link>
               ),
             )}
           </>
@@ -204,6 +207,7 @@ function ProjectNavigation({
             const active = isActive(entry.key)
             return (
               <Link key={entry.key} className={active ? 'is-active' : ''} aria-current={active ? 'page' : undefined} href={entry.href} onClick={() => setMobileOpen(false)}>
+                <ProjectMenuIcon icon={entry.key === 'home' ? 'home' : 'book-open'} />
                 {t(entry.translationKey)}
               </Link>
             )
@@ -230,23 +234,23 @@ function ProjectNavigation({
               ? menu.children.map((child) =>
                   child.isExternal ? (
                     <a key={child.id} href={contextualFileUrl(child.url ?? undefined, projectId, true) || '#'} target="_blank" rel="noreferrer" onClick={() => setMobileOpen(false)}>
-                      {child.label}
+                      <ProjectMenuIcon {...child} />{child.label}
                     </a>
                   ) : (
                     <Link key={child.id} href={resolveUrl(child.url)} onClick={() => setMobileOpen(false)}>
-                      {child.label}
+                      <ProjectMenuIcon {...child} />{child.label}
                     </Link>
                   ),
                 )
               : menu.isExternal
                 ? [
                     <a key={menu.id} href={contextualFileUrl(menu.url ?? undefined, projectId, true) || '#'} target="_blank" rel="noreferrer" onClick={() => setMobileOpen(false)}>
-                      {menu.label}
+                      <ProjectMenuIcon {...menu} />{menu.label}
                     </a>,
                   ]
                 : [
                     <Link key={menu.id} href={resolveUrl(menu.url)} onClick={() => setMobileOpen(false)}>
-                      {menu.label}
+                      <ProjectMenuIcon {...menu} />{menu.label}
                     </Link>,
                   ],
           )}

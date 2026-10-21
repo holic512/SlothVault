@@ -24,7 +24,7 @@ import type { BackupHistoryResponse, BackupJob, BackupPhase, BackupSnapshot, Bac
 import { inspectImportAccounts } from './accounts'
 import { createCompleteSnapshot, readCompleteBundle, sha256File } from './archive'
 import { backupCompatibility, requireBackupCompatibility } from './compatibility'
-import { BACKUP_UPLOAD_TTL_MS, DATABASE_TRANSACTION_MAX_WAIT_MS, DATABASE_TRANSACTION_TIMEOUT_MS, RESTORE_COMMIT_CONFIG_KEY } from './constants'
+import { BACKUP_UPLOAD_TTL_MS, DATABASE_TRANSACTION_MAX_WAIT_MS, DATABASE_TRANSACTION_TIMEOUT_MS, RESTORE_COMMIT_CONFIG_KEY, RETIRED_CARD_SOURCE_VERSIONS } from './constants'
 import { importDatabaseRecords, invalidateBackupCaches } from './database-import'
 import { ensureUploadRoot } from './files-common'
 import { markImportedSnapshotDeleted, publishBackupUpload, readBackupUploadRecord, withBackupUpload, type BackupUploadRecord } from './uploads'
@@ -73,7 +73,7 @@ export async function previewCompleteRestore(source: BackupSource, actorUserId: 
     await ensureBackupStorage()
     bundle = await readCompleteBundle(artifact.path, directory, false, progress)
     const policy = await withMaintenanceLock('shared', () => unitOfWork.execute((tx) => inspectImportAccounts(tx, bundle!.payload, { actorUserId, replaceUsers: true }), { mode: 'read', maxWait: DATABASE_TRANSACTION_MAX_WAIT_MS, timeout: DATABASE_TRANSACTION_TIMEOUT_MS }))
-    const warnings: string[] = bundle.manifest.databaseVersion === '2.18.0' ? [] : ['LEGACY_GIFT_CARDS_RETIRED']
+    const warnings: string[] = RETIRED_CARD_SOURCE_VERSIONS.has(bundle.manifest.databaseVersion) ? ['LEGACY_GIFT_CARDS_RETIRED'] : []
     const preview: PreviewRecord = { id, source, manifest: bundle.manifest, warnings, preservedAdministrator: policy.admin.username, createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(), actorUserId, sha256: artifact.sha256 }
     await atomicJson(recordPath('previews', id), preview)
     const { actorUserId: _actor, sha256: _sha, ...dto } = preview

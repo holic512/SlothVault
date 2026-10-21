@@ -2,7 +2,7 @@
  * @file route.ts
  * @project SlothVault
  * @module Admin Project Menu API
- * @description Reads, edits, and cascade-deletes one project menu inside a two-level hierarchy.
+ * @description Reads, edits, and cascade-deletes a project menu, preserving omitted icon choices and accepting null for automatic icons.
  * @logic Authenticate, parse path/query/body inputs, delegate transactional menu commands, and wrap compatibility responses.
  * @dependencies admin session, server/http helpers, admin catalog parser, admin content service
  * @index_tags api,admin,project-menu,update,cascade-delete
@@ -26,6 +26,7 @@ import {
 const updateMenuSchema = z.object({
   parentId: z.unknown().optional(),
   label: z.unknown().optional(),
+  icon: z.unknown().optional(),
   url: z.unknown().optional(),
   isExternal: z.unknown().optional(),
   weight: z.unknown().optional(),

@@ -5,13 +5,13 @@
  * @project SlothVault
  * @module Theme and Locale Controls
  * @description Exposes visual style, shared card and popup appearance, light/dark mode, and language controls for every application surface.
- * @logic Persist appearance preferences independently, update each preference optimistically, and restore the last selection if persistence fails.
+ * @logic Persist appearance preferences independently, pass pointer or keyboard origins to theme reveals, and restore appearance selections when supported persistence fails.
  * @dependencies antd, next-intl, app-theme-context, app-style-context, public-nav-style-context, preferences API
  * @index_tags theme,style,public-nav,liquid-glass,locale,standard,accessibility
  * @author holic512
  */
 
-import { useTransition } from 'react'
+import { useRef, useTransition } from 'react'
 
 import { App, Button, Popover, Segmented, Typography } from 'antd'
 import { Moon, PanelsTopLeft, Sun } from 'lucide-react'
@@ -24,6 +24,7 @@ import { SurfaceAppearanceControl } from '@/components/theme/surface-appearance-
 import { PopupSurface } from '@/components/ui/popup-surface'
 import { apiFetch } from '@/lib/api-client'
 import { isAppTheme } from '@/theme/app-theme'
+import type { ThemeTransitionOrigin } from '@/theme/theme-transition'
 import { isAppStyle } from '@/theme/app-style'
 
 export function ThemeControls() {
@@ -38,12 +39,21 @@ export function ThemeControls() {
   const [changingTheme, startThemeTransition] = useTransition()
   const [changingStyle, startStyleTransition] = useTransition()
   const light = resolvedTheme === 'light'
+  const modeSection = useRef<HTMLDivElement>(null)
+  const pointerOrigin = useRef<ThemeTransitionOrigin | undefined>(undefined)
 
   const changeTheme = (nextTheme: string | number) => {
     const theme = String(nextTheme)
-    if (!isAppTheme(theme)) return
+    if (!isAppTheme(theme) || theme === resolvedTheme) return
 
-    setTheme(theme)
+    const option = modeSection.current?.querySelector<HTMLElement>(`[data-theme-option="${theme}"]`)
+    const bounds = option?.getBoundingClientRect()
+    const origin = pointerOrigin.current ?? (bounds ? {
+      x: bounds.left + bounds.width / 2,
+      y: bounds.top + bounds.height / 2,
+    } : undefined)
+    pointerOrigin.current = undefined
+    setTheme(theme, origin)
     startThemeTransition(async () => {
       await apiFetch('/api/preferences/theme', {
         method: 'POST',
@@ -109,7 +119,13 @@ export function ThemeControls() {
         <Typography.Text type="secondary">{t('section.cardStyle')}</Typography.Text>
         <SurfaceAppearanceControl />
       </div>
-      <div className="theme-control-section">
+      <div
+        className="theme-control-section"
+        ref={modeSection}
+        onPointerDownCapture={(event) => { pointerOrigin.current = { x: event.clientX, y: event.clientY } }}
+        onPointerCancelCapture={() => { pointerOrigin.current = undefined }}
+        onKeyDownCapture={() => { pointerOrigin.current = undefined }}
+      >
         <Typography.Text type="secondary">{t('section.mode')}</Typography.Text>
         <Segmented
           block
@@ -118,8 +134,8 @@ export function ThemeControls() {
           value={light ? 'light' : 'dark'}
           onChange={changeTheme}
           options={[
-            { label: <span className="theme-style-option"><Sun size={14} aria-hidden />{t('mode.light')}</span>, value: 'light' },
-            { label: <span className="theme-style-option"><Moon size={14} aria-hidden />{t('mode.dark')}</span>, value: 'dark' },
+            { label: <span className="theme-style-option" data-theme-option="light"><Sun size={14} aria-hidden />{t('mode.light')}</span>, value: 'light' },
+            { label: <span className="theme-style-option" data-theme-option="dark"><Moon size={14} aria-hidden />{t('mode.dark')}</span>, value: 'dark' },
           ]}
         />
       </div>
@@ -141,7 +157,7 @@ export function ThemeControls() {
   )
 
   return (
-    <Popover content={content} trigger="click" placement="bottomRight" arrow={false} classNames={{ root: 'theme-controls-popup' }}>
+    <Popover content={content} trigger="click" placement="bottom" arrow={false} classNames={{ root: 'theme-controls-popup' }}>
       <Button
         className="icon-action"
         aria-label={t('aria.openThemeSettings')}

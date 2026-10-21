@@ -9,7 +9,6 @@
  * @author holic512
  */
 import Tag from 'antd/es/tag'
-import TypographyParagraph from 'antd/es/typography/Paragraph'
 import TypographyText from 'antd/es/typography/Text'
 import TypographyTitle from 'antd/es/typography/Title'
 import { getLocale, getTranslations } from 'next-intl/server'
@@ -93,7 +92,6 @@ export async function ProjectNoteView({
           {tags.length ? <div className="docs-note-tags" aria-label={t('tags')}>
             {tags.map((tag) => <Tag key={tag} color={getContentTagColor(tag)}>{tag}</Tag>)}
           </div> : null}
-          {note?.versionNote ? <TypographyParagraph type="secondary">{note.versionNote}</TypographyParagraph> : null}
           <ProjectAccessNotice access={access} capability={note ? 'download' : 'read'} />
         </header>
         {note ? <ProjectDocumentContent key={note.id} content={note.content} outlineLabel={t('outline')} projectId={projectId} canDownload={access.canDownload} downloadMessage={t('permissions.downloadUnavailable')} /> : null}

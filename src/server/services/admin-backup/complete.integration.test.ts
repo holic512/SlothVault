@@ -238,14 +238,14 @@ async function seed() {
   const deletedNote = await client.noteInfo.create({ data: { categoryId: deletedCategory.id, noteTitle: 'Deleted note', weight: 0, status: 0, isDeleted: true, deletedAt } })
   await client.noteContent.create({ data: { noteInfoId: deletedNote.id, content: '[proof](/uploads/other/proof.txt)', status: 0, isDeleted: true, deletedAt } })
   await client.article.create({ data: { title: 'Deleted article', content: 'Stored trash', status: 0, isDeleted: true, deletedAt, allowedMemberships: { create: { membershipLevelId: level.id } } } })
-  const menu = await client.projectMenu.create({ data: { projectId: project.id, label: 'Deleted menu', weight: 0, status: 0, isDeleted: true, deletedAt } })
-  await client.projectMenu.create({ data: { projectId: project.id, parentId: menu.id, label: 'Deleted child', weight: 0, status: 0, isDeleted: true, deletedAt } })
+  const menu = await client.projectMenu.create({ data: { projectId: project.id, label: 'Deleted menu', icon: 'github', weight: 0, status: 0, isDeleted: true, deletedAt } })
+  await client.projectMenu.create({ data: { projectId: project.id, parentId: menu.id, label: 'Deleted child', icon: 'none', weight: 0, status: 0, isDeleted: true, deletedAt } })
   await client.$transaction((tx) => rebuildFileReferences(tx))
   const session = await issueSession({ userId: admin.id })
   const otherSession = await issueSession({ userId: user.id })
   await client.mcpApiKey.create({ data: { userId: user.id, publicId: randomUUID().replaceAll('-', ''), secretHash: 'test-only', name: 'old-key' } })
   await client.systemInstallation.create({ data: { id: 1, provider: fixture.provider, status: 'INSTALLED', schemaRevision: 10, installationId: randomUUID() } })
-  return { admin, user, file, release, session, otherSession }
+  return { admin, user, file, project, release, session, otherSession }
 }
 async function snapshot() { return createCompleteSnapshot('manual', randomUUID(), async () => undefined) }
 async function staged() {
@@ -258,6 +258,7 @@ async function staged() {
 describe(`complete backups with isolated ${fixture.provider} and uploads`, () => {
   it('restores trash, disabled files, policies, points, signed contracts and releases while preserving current administrator credentials', async () => {
     const s = await seed()
+    await client.projectMenu.create({ data: { projectId: s.project.id, label: 'Automatic menu' } })
     const actor = { userId: s.admin.id, isAdmin: true, sessionId: s.session.sessionId }
     let commission = await createCommission({ userId: s.user.id, isAdmin: false }, { commandId: randomUUID(), title: 'Restore evidence', purpose: 'Backup', requirements: 'Preserve signed snapshots' })
     const template = (await listContractTemplates())[0].versions.find((version) => version.status === 'PUBLISHED')!
@@ -286,7 +287,10 @@ describe(`complete backups with isolated ${fixture.provider} and uploads`, () =>
     const restored = await exportDatabaseBackup()
     expect(restored.data.noteContents.map((item) => [item.content, item.isDeleted, item.deletedAt])).toEqual(before.data.noteContents.map((item) => [item.content, item.isDeleted, item.deletedAt]))
     expect(restored.data.articles[0]).toMatchObject({ isDeleted: true, deletedAt: deletedAt.toISOString() })
-    expect(restored.data.projectMenus).toHaveLength(2)
+    expect(restored.data.projectMenus).toHaveLength(3)
+    const menuChoices = (data: Exported) => Object.fromEntries(data.data.projectMenus.map(menu => [menu.label, { icon: menu.icon, isDeleted: menu.isDeleted }]))
+    expect(menuChoices(restored)).toEqual(menuChoices(before))
+    expect(restored.data.projectMenus.find(menu => menu.label === 'Deleted child')!.parentId).toBe(restored.data.projectMenus.find(menu => menu.label === 'Deleted menu')!.id)
     expect(restored.data.fileManagements[0].status).toBe(0)
     expect(restored.data.fileReferences).toHaveLength(before.data.fileReferences.length)
     expect(restored.data.projects[0]).toMatchObject({ readAccessMode: 'MEMBERSHIPS', downloadAccessMode: 'DISABLED' })
@@ -646,6 +650,28 @@ describe('persistent imported backup nodes', () => {
     expect((await backupHistory()).snapshots).toHaveLength(1)
   })
 
+  it('imports and restores pre-icon 2.18 ZIP data without changing archive bytes or emitting retired-card warnings', async () => {
+    const s = await seed(), original = await snapshot()
+    const bytes = await editedBundle(original, data => {
+      Reflect.set(data, 'version', '2.18.0')
+      for (const menu of data.data.projectMenus) Reflect.deleteProperty(menu, 'icon')
+    })
+    const source = await uploaded(bytes, s.admin.id), { job } = await queueCompleteImport(source.importId, s.admin.id)
+    await runCompleteImport(job)
+    expect(job.status).toBe('succeeded')
+    const imported = await getBackupSnapshot(source.importId)
+    const preview = await previewCompleteRestore({ snapshotId: imported.id }, s.admin.id)
+    expect(preview.warnings).toEqual([])
+    expect(imported.manifest.databaseVersion).toBe('2.18.0')
+    const restore = await queueCompleteRestore(preview.id, s.admin.id)
+    await runCompleteRestore(restore, preview.id, s.session.sessionId)
+    expect(restore.status).toBe('succeeded')
+    const restored = await exportDatabaseBackup()
+    expect(restored.version).toBe(DATABASE_BACKUP_VERSION)
+    expect(restored.data.projectMenus.map(menu => menu.icon)).toEqual([null, null])
+    expect(await fs.readFile(artifactPath(imported.id))).toEqual(bytes)
+  })
+
   it('keeps original bytes after restart and upload expiry, then restores only when requested', async () => {
     const s = await seed(), original = await snapshot(), bytes = await fs.readFile(artifactPath(original.id))
     const source = await uploaded(bytes, s.admin.id)
@@ -814,9 +840,9 @@ describe('persistent imported backup nodes', () => {
     expect(job.status).toBe('succeeded')
     const imported = await getBackupSnapshot(source.importId)
     await previewCompleteRestore({ snapshotId: imported.id }, s.admin.id)
-    await atomicJson(recordPath('snapshots', original.id), { ...original, manifest: { ...original.manifest, databaseVersion: '2.19.0' } })
+    await atomicJson(recordPath('snapshots', original.id), { ...original, manifest: { ...original.manifest, databaseVersion: '2.20.0' } })
     const historical = (await backupHistory()).snapshots.find(item => item.id === original.id)!
-    expect(historical).toMatchObject({ restorable: false, compatibility: { status: 'unsupported', sourceVersion: '2.19.0', targetVersion: DATABASE_BACKUP_VERSION, reason: 'data-version' } })
+    expect(historical).toMatchObject({ restorable: false, compatibility: { status: 'unsupported', sourceVersion: '2.20.0', targetVersion: DATABASE_BACKUP_VERSION, reason: 'data-version' } })
     await expect(previewCompleteRestore({ snapshotId: original.id }, s.admin.id)).rejects.toMatchObject({ status: 400, data: { reason: 'BACKUP_UNSUPPORTED_FORMAT' } })
     const download = await downloadGet(request('download', { token: s.session.token }), context(original.id))
     expect(download.status).toBe(200); await download.body!.cancel()

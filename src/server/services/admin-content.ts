@@ -2,9 +2,9 @@
  * @file admin-content.ts
  * @project SlothVault
  * @module Admin Content Services
- * @description Owns project-home, project-menu, and system-homepage persistence, validation, transactions, and stable DTO mapping.
+ * @description Owns homepage and project-menu persistence, nullable stable menu icon validation, transactions, and DTO mapping.
  * @logic Validate content commands and uploaded material before writes, enforce active project and two-level menu invariants, synchronize managed file references inside atomic mutations, invalidate affected public-project cache entries, and serialize database records for admin APIs.
- * @dependencies Prisma project content models, server/http/errors, admin-catalog helpers, public-project-cache, file-references
+ * @dependencies Prisma project content models, project-menu-icons, server/http/errors, admin-catalog helpers, public-project-cache, file-references
  * @index_tags admin,homepage,project-menu,system-homepage,transaction,dto,validation,cache
  * @author holic512
  */
@@ -14,6 +14,7 @@ import { assertManagedContentFiles, indexFileWrite } from './file-references'
 import type { Prisma } from '@generated/prisma-postgresql/client'
 
 import { DOCUMENT_CONTENT_MAX_CHARACTERS } from '@/lib/document-content'
+import { isProjectMenuIcon } from '@/lib/project-menu-icons'
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
 import { invalidatePublicProjectCache } from '@/server/services/public-project-cache'
@@ -49,6 +50,7 @@ type ProjectMenuLike = {
   projectId: number
   parentId: number | null
   label: string
+  icon: string | null
   url: string | null
   isExternal: boolean
   weight: number
@@ -78,6 +80,7 @@ export type ListProjectMenusInput = {
 export type CreateProjectMenuInput = {
   parentId?: unknown
   label?: unknown
+  icon?: unknown
   url?: unknown
   isExternal?: unknown
   weight?: unknown
@@ -145,6 +148,7 @@ export function projectMenuDtoBase(menu: ProjectMenuLike) {
     projectId: menu.projectId.toString(),
     parentId: menu.parentId?.toString() || null,
     label: menu.label,
+    icon: menu.icon,
     url: menu.url,
     isExternal: menu.isExternal,
     weight: menu.weight,
@@ -360,6 +364,12 @@ export async function listProjectMenus(input: ListProjectMenusInput) {
   return list.map(projectMenuDtoBase)
 }
 
+function projectMenuIcon(value: unknown) {
+  if (value === null || value === undefined) return null
+  if (!isProjectMenuIcon(value)) throw new HttpError('Invalid icon', 400, 400)
+  return value
+}
+
 export async function createProjectMenu(projectId: number, input: CreateProjectMenuInput) {
   const label = typeof input.label === 'string' ? input.label.trim() : ''
   if (!label) throw new HttpError('Missing label', 400, 400)
@@ -370,6 +380,7 @@ export async function createProjectMenu(projectId: number, input: CreateProjectM
       ? null
       : parseJsonDecimalId(input.parentId, 'parentId')
   const url = normalizeMenuUrl(input.url, isExternal)
+  const icon = projectMenuIcon(input.icon)
 
   const menu = await prisma.$transaction(async (tx) => {
     await requireActiveProject(tx, projectId)
@@ -379,6 +390,7 @@ export async function createProjectMenu(projectId: number, input: CreateProjectM
         projectId,
         parentId,
         label,
+        icon,
         url,
         isExternal,
         weight: integerValue(input.weight, 0),
@@ -386,6 +398,7 @@ export async function createProjectMenu(projectId: number, input: CreateProjectM
       },
     }))
   })
+  await invalidatePublicProjectCache(projectId)
   return projectMenuDtoBase(menu)
 }
 
@@ -441,12 +454,14 @@ export async function updateProjectMenu(id: number, input: UpdateProjectMenuInpu
       data.label = label
     }
     if (resultingUrl !== undefined) data.url = resultingUrl
+    if (input.icon !== undefined) data.icon = projectMenuIcon(input.icon)
     if (typeof input.isExternal === 'boolean') data.isExternal = input.isExternal
     if (input.weight !== undefined) data.weight = integerValue(input.weight, current.weight)
     if (input.status !== undefined) data.status = integerValue(input.status, current.status)
     if (Object.keys(data).length === 1) throw new HttpError('No fields to update', 400, 400)
     return indexFileWrite(tx, 'PROJECT_MENU', tx.projectMenu.update({ where: { id }, data }))
   })
+  await invalidatePublicProjectCache(menu.projectId)
   return projectMenuDtoBase(menu)
 }
 

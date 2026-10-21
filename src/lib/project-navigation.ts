@@ -39,6 +39,7 @@ export type CustomProjectMenu = {
   projectId: string
   parentId: string | null
   label: string
+  icon?: string | null
   url: string | null
   isExternal: boolean
   weight: number
@@ -53,6 +54,7 @@ export type ProjectMenuRow = {
   kind: 'builtin'
   rowKey: string
   label: string
+  icon: 'home' | 'book-open'
   url: string
   isExternal: false
   status: 1
@@ -81,6 +83,7 @@ export function buildProjectMenuRows(
       kind: 'builtin',
       rowKey: `builtin:${entry.key}`,
       label: translate(entry.translationKey),
+      icon: entry.key === 'home' ? 'home' : 'book-open',
       url: entry.href,
       isExternal: false,
       status: 1,

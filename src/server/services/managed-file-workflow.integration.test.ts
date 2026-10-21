@@ -27,6 +27,7 @@ import { createProjectHome, createSystemHomepage, updateSystemHomepage } from '.
 import { assertManagedContentFiles } from './file-references'
 import { upgradeFileClassifications } from '@/server/database/file-classification-upgrade'
 import { exportDatabaseBackup } from './admin-backup/database-export'
+import { DATABASE_BACKUP_VERSION } from './admin-backup/constants'
 import { parseDatabaseImportPayload } from './admin-backup/database-validation'
 import { importDatabaseBackup } from './admin-backup/database-import'
 
@@ -149,7 +150,7 @@ describe('managed file classification and upload-before-content writes', () => {
     const admin = await fixture.client.user.create({ data: { username: 'admin', password: randomUUID(), role: 'ADMIN' } })
     await fixture.client.fileManagement.create({ data: { originalName: 'a.png', fileName: 'a.png', filePath: 'uploads/article-attachment/a.png', fileSize: 1n, businessType: 'ArticleAttachment' } })
     const backup = await exportDatabaseBackup()
-    expect(backup.version).toBe('2.18.0')
+    expect(backup.version).toBe(DATABASE_BACKUP_VERSION)
     await importDatabaseBackup(parseDatabaseImportPayload({ version: backup.version, data: backup.data, mode: 'overwrite' }), { actorUserId: admin.id })
     expect((await fixture.client.fileManagement.findFirstOrThrow()).businessType).toBe('ArticleAttachment')
     expect(() => parseDatabaseImportPayload({ version: '2.11.0', data: backup.data, mode: 'overwrite' })).toThrow()

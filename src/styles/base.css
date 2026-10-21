@@ -135,3 +135,22 @@ h3 {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* Scope snapshot layering to explicit color-mode reveals, not other transitions. */
+html[data-theme-transition]::view-transition-group(root) {
+  animation: none;
+}
+
+html[data-theme-transition]::view-transition-old(root),
+html[data-theme-transition]::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+html[data-theme-transition]::view-transition-old(root) {
+  z-index: 1;
+}
+
+html[data-theme-transition]::view-transition-new(root) {
+  z-index: 2;
+}

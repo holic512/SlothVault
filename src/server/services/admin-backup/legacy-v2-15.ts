@@ -10,12 +10,12 @@
  */
 import 'server-only'
 import { z } from 'zod'
-import { backupDataSchema } from './database-schema'
-import { parseBackupRow } from './database-export'
+import { backupDataSchema, legacyProjectMenuSchema } from './database-schema'
+import { addLegacyMenuIcons, parseMenuLegacyRow } from './legacy-v2-18'
 import type { RecordStore } from './record-store'
 const oldVersionSchema = backupDataSchema.shape.projectVersions.element.omit({ documentationStateJson: true })
 export function parseDocumentationLegacyRow(key: string, value: unknown): { id: string } {
-  return key === 'projectVersions' ? oldVersionSchema.parse(value) : parseBackupRow(key, value)
+  return key === 'projectVersions' ? oldVersionSchema.parse(value) : parseMenuLegacyRow(key, value)
 }
 export function convertDocumentationStore(store: RecordStore) {
   for (const row of store.iterate<Record<string, unknown> & { id: string }>('projectVersions')) {
@@ -23,8 +23,8 @@ export function convertDocumentationStore(store: RecordStore) {
   }
 }
 
-const oldDataSchema = backupDataSchema.extend({ projectVersions: z.array(oldVersionSchema) })
+const oldDataSchema = backupDataSchema.extend({ projectVersions: z.array(oldVersionSchema), projectMenus: z.array(legacyProjectMenuSchema) })
 const oldPayloadSchema = z.strictObject({ version: z.literal('2.15.0'), mode: z.literal('overwrite'), data: oldDataSchema })
 export function convertDocumentationPayload(input: unknown) {
-  return backupDataSchema.parse(oldPayloadSchema.parse(input).data)
+  return backupDataSchema.parse(addLegacyMenuIcons(oldPayloadSchema.parse(input).data))
 }

@@ -14,7 +14,8 @@ import { validatePluginBackup } from '@/server/plugins/backup'
 import { readDocumentationState } from '@/lib/project-documentation'
 import { convertDocumentationPayload } from './legacy-v2-15'
 import { convertWalletPayload } from './legacy-v2-14'
-import { DATABASE_BACKUP_VERSION } from './constants'
+import { DATABASE_BACKUP_VERSION, RETIRED_CARD_SOURCE_VERSIONS } from './constants'
+import { addLegacyMenuIcons } from './legacy-v2-18'
 import { z } from 'zod'
 import { PublicKey } from '@solana/web3.js'
 import { attributionCollections, legacyAttributionFields, convertLegacyPayload } from './legacy-v2-13'
@@ -497,13 +498,13 @@ export function parseDatabaseImportPayload(input: unknown): DatabaseImportPayloa
   if (input && typeof input === 'object' && 'version' in input && input.version === '2.16.0') {
     const legacy = z.object({ version: z.literal('2.16.0'), mode: z.literal('overwrite'), data: z.record(z.string(), z.unknown()) }).strict().parse(input)
     if ( Object.keys(legacy.data).some(key => key.startsWith('plugin'))) invalidBackup('plugin collections cannot use a legacy version')
-    input = { version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data: { ...legacy.data, pluginInstallations: [], pluginTables: [], pluginMigrations: [], pluginPointReceipts: [], pluginRows: [] } }
+    input = { version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data: { ...addLegacyMenuIcons(legacy.data), pluginInstallations: [], pluginTables: [], pluginMigrations: [], pluginPointReceipts: [], pluginRows: [] } }
   }
-  if (sourceVersion === '2.17.0') {
-    const legacy = z.object({ version: z.literal('2.17.0'), mode: z.literal('overwrite'), data: z.record(z.string(), z.unknown()) }).strict().parse(input)
-    input = { version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data: legacy.data }
+  if (sourceVersion === '2.17.0' || sourceVersion === '2.18.0') {
+    const legacy = z.object({ version: z.literal(sourceVersion), mode: z.literal('overwrite'), data: z.record(z.string(), z.unknown()) }).strict().parse(input)
+    input = { version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data: addLegacyMenuIcons(legacy.data) }
   }
-  if (sourceVersion && sourceVersion !== DATABASE_BACKUP_VERSION && input && typeof input === 'object' && 'data' in input) input = { ...input, data: discardRetiredCardPayload(input.data as Record<string, unknown>) }
+  if (sourceVersion && RETIRED_CARD_SOURCE_VERSIONS.has(sourceVersion) && input && typeof input === 'object' && 'data' in input) input = { ...input, data: discardRetiredCardPayload(input.data as Record<string, unknown>) }
   const source = input as { data?: Record<string, unknown> }
   if (!source?.data || ACTIVE_BACKUP_COLLECTION_KEYS.some(key => !Array.isArray(source.data![key]))) invalidBackup('complete backup is missing a collection')
   const parsed = databaseImportPayloadSchema.safeParse(input)

@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Backup Data Compatibility
  * @description Resolves portable backup data versions independently of application releases and database schema revisions.
- * @logic Admit only explicitly registered source formats, validate source rows before conversion, and convert 2.13 attribution and 2.14 single-wallet identities, and 2.15 documentation-free snapshots, and build current payloads in a temporary record store.
+ * @logic Validate registered source contracts, convert legacy attribution, wallets, documentation and menu icons in a temporary store, and retire cards only from pre-2.18 snapshots.
  * @dependencies backup data contracts, portable database export, private record store
  * @index_tags backup,version,compatibility,conversion,restore
  * @author holic512
@@ -13,9 +13,10 @@ import { discardRetiredCardStore } from './retired-gift-cards'
 import { parseDocumentationLegacyRow, convertDocumentationStore } from './legacy-v2-15'
 import { walletLegacyCollectionKeys, walletLegacyRowSchemas, convertWalletStore } from './legacy-v2-14'
 import { convertLegacyStore, legacyCollectionKeys, legacyRowSchemas } from './legacy-v2-13'
+import { convertMenuIconStore, parseMenuLegacyRow } from './legacy-v2-18'
 import type { BackupCompatibility } from '@/types/backup'
 import { HttpError } from '@/server/http/errors'
-import { ACTIVE_BACKUP_COLLECTION_KEYS, LEGACY_BACKUP_COLLECTION_KEYS, BACKUP_COLLECTION_KEYS, DATABASE_BACKUP_VERSION } from './constants'
+import { ACTIVE_BACKUP_COLLECTION_KEYS, LEGACY_BACKUP_COLLECTION_KEYS, BACKUP_COLLECTION_KEYS, DATABASE_BACKUP_VERSION, RETIRED_CARD_SOURCE_VERSIONS } from './constants'
 import { parseBackupRow, storedPayload } from './database-export'
 import type { DatabaseImportPayload } from './database-schema'
 import type { RecordStore } from './record-store'
@@ -32,8 +33,9 @@ const adapters: ReadonlyMap<string, BackupVersionAdapter> = new Map<string, Back
   ['2.13.0', { collectionKeys: legacyCollectionKeys, parseRow: (key, value) => legacyRowSchemas.get(key)!.parse(value) as { id: string }, toCurrentPayload: store => { convertLegacyStore(store); return storedPayload(store) } }],
   ['2.14.0', { collectionKeys: walletLegacyCollectionKeys, parseRow: (key, value) => walletLegacyRowSchemas.get(key)!.parse(value) as { id: string }, toCurrentPayload: store => { convertWalletStore(store); return storedPayload(store) } }],
   ['2.15.0', { collectionKeys: LEGACY_BACKUP_COLLECTION_KEYS, parseRow: parseDocumentationLegacyRow, toCurrentPayload: store => { convertDocumentationStore(store); return storedPayload(store) } }],
-  ['2.16.0', { collectionKeys: LEGACY_BACKUP_COLLECTION_KEYS, parseRow: parseBackupRow, toCurrentPayload: storedPayload }],
-  ['2.17.0', { collectionKeys: BACKUP_COLLECTION_KEYS, parseRow: parseBackupRow, toCurrentPayload: storedPayload }],
+  ['2.16.0', { collectionKeys: LEGACY_BACKUP_COLLECTION_KEYS, parseRow: parseMenuLegacyRow, toCurrentPayload: storedPayload }],
+  ['2.17.0', { collectionKeys: BACKUP_COLLECTION_KEYS, parseRow: parseMenuLegacyRow, toCurrentPayload: storedPayload }],
+  ['2.18.0', { collectionKeys: ACTIVE_BACKUP_COLLECTION_KEYS, parseRow: parseMenuLegacyRow, toCurrentPayload: storedPayload }],
   [DATABASE_BACKUP_VERSION, { collectionKeys: ACTIVE_BACKUP_COLLECTION_KEYS, parseRow: parseBackupRow, toCurrentPayload: storedPayload }],
 ])
 
@@ -50,5 +52,10 @@ export function requireBackupCompatibility(manifest: { formatVersion?: unknown; 
   if (compatibility.status === 'unsupported') throw new HttpError('Unsupported backup format or data version', 400, 400, { reason: 'BACKUP_UNSUPPORTED_FORMAT', compatibility })
   const adapter = adapters.get(compatibility.sourceVersion)!
   if (compatibility.sourceVersion === DATABASE_BACKUP_VERSION) return adapter
-  return { ...adapter, toCurrentPayload: store => { const payload = adapter.toCurrentPayload(store); discardRetiredCardStore(store); return payload } }
+  return { ...adapter, toCurrentPayload: store => {
+    convertMenuIconStore(store)
+    const payload = adapter.toCurrentPayload(store)
+    if (RETIRED_CARD_SOURCE_VERSIONS.has(compatibility.sourceVersion)) discardRetiredCardStore(store)
+    return payload
+  } }
 }

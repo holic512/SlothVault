@@ -5,8 +5,8 @@
  * @project SlothVault
  * @module Theme Hydration Boundary
  * @description Owns the cookie-seeded application color mode for client components without injecting a runtime script.
- * @logic Start from the server-resolved theme, synchronize explicit color-mode changes to the document class, and expose a single validated theme state to client consumers.
- * @dependencies React Context, app-theme
+ * @logic Hydrate from the server theme, commit document and React colors together, and reveal explicit changes from their interaction origin with accessible fallbacks.
+ * @dependencies React Context, react-dom, app-theme, theme-transition
  * @index_tags theme,context,hydration,ssr
  * @author holic512
  */
@@ -15,16 +15,20 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from 'react'
 
+import { flushSync } from 'react-dom'
+
 import type { AppTheme } from '@/theme/app-theme'
+import { createThemeTransition, type ThemeTransitionOrigin } from '@/theme/theme-transition'
 
 type AppThemeContextValue = {
   theme: AppTheme
-  setTheme: (theme: AppTheme) => void
+  setTheme: (theme: AppTheme, origin?: ThemeTransitionOrigin) => void
 }
 
 const AppThemeContext = createContext<AppThemeContextValue>({
@@ -47,10 +51,18 @@ export function AppThemeContextProvider({
 }) {
   const [theme, setThemeState] = useState(initialTheme)
 
-  const setTheme = useCallback((nextTheme: AppTheme) => {
-    setThemeState(nextTheme)
-    applyThemeClass(nextTheme)
-  }, [])
+  const [transition] = useState(() => createThemeTransition(initialTheme, (nextTheme) => {
+    flushSync(() => {
+      setThemeState(nextTheme)
+      applyThemeClass(nextTheme)
+    })
+  }))
+
+  useEffect(() => () => transition.cancel(), [transition])
+
+  const setTheme = useCallback((nextTheme: AppTheme, origin?: ThemeTransitionOrigin) => {
+    transition.setTheme(nextTheme, origin)
+  }, [transition])
 
   const value = useMemo(() => ({ theme, setTheme }), [setTheme, theme])
   return <AppThemeContext value={value}>{children}</AppThemeContext>

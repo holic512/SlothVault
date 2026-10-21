@@ -18,6 +18,7 @@ const KNOWN_ERROR_KEYS: Record<string, Parameters<AdminErrorTranslator>[0]> = {
   Unauthorized: 'unauthorized',
   'Invalid request data': 'invalidRequest',
   'Invalid JSON body': 'invalidRequest',
+  'Invalid icon': 'invalidRequest',
   'Request body is too large': 'requestTooLarge',
   'Invalid dashboard range': 'invalidRequest',
   'System configuration requires maintenance': 'maintenance',

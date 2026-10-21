@@ -57,3 +57,17 @@ it('renders draft bodies with preview directory links and without release claims
   expect(html).not.toContain('/manifest')
   expect(html).not.toContain('Invalid Date')
 })
+
+it.each([undefined, '/preview/project/1/v/2'])('keeps revision notes out of the reader with preview base %s', async (previewBase) => {
+  const versionNote = '2026-10-14: Internal revision history'
+  const html = renderToStaticMarkup(await ProjectNoteView({
+    projectId: '1', versionId: '2', noteId: '3', sidebar: [],
+    note: { id: '4', noteId: '3', noteTitle: 'Guide', content: '# Guide', versionNote, updatedAt: '2026-10-10T00:00:00Z' },
+    noteTitle: 'Guide', tags: ['API'], access: evaluateProjectAccess(policy, true, []), previewBase,
+  }))
+  expect(html).not.toContain(versionNote)
+  expect(html).toContain('Guide')
+  expect(html).toContain('API')
+  expect(html).toContain('updated')
+  expect(html).toContain('Protected body')
+})

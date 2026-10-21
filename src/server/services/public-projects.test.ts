@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   prisma: {
     project: { findFirst: vi.fn() },
     projectHome: { findUnique: vi.fn() },
+    projectMenu: { findMany: vi.fn() },
     projectVersion: { findFirst: vi.fn() },
     noteInfo: { findFirst: vi.fn() },
     noteContent: { findMany: vi.fn() },
@@ -17,9 +18,17 @@ import {
   findPublicProjectHome,
   getProjectNote,
   getPublicProject,
+  getProjectMenu,
 } from '@/server/services/public-projects'
 
 describe('public project reading', () => {
+  it('returns raw parent and child menu icon choices without resolving automatic defaults', async () => {
+    mocks.prisma.project.findFirst.mockResolvedValue({ id: 4, updatedAt: new Date() })
+    mocks.prisma.projectMenu.findMany.mockResolvedValue([{ id: 1, label: 'Parent', icon: null, url: null, isExternal: false, weight: 0,
+      children: [{ id: 2, label: 'Child', icon: 'none', url: '/guide', isExternal: false, weight: 0 }] }])
+    expect(await getProjectMenu(4)).toMatchObject([{ icon: null, children: [{ icon: 'none' }] }])
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
   })

@@ -7,6 +7,7 @@ const fixture = vi.hoisted(() => ({ client: null as unknown as AppPrismaClient }
 vi.mock('@/server/database/client', () => ({ getDatabaseClient: () => fixture.client, configuredDatabaseProvider: () => 'sqlite', databaseSnapshotIsolationLevel: () => 'Serializable' }))
 vi.mock('@/server/prisma', () => ({ get prisma() { return fixture.client } }))
 import { exportDatabaseBackup } from './admin-backup/database-export'
+import { DATABASE_BACKUP_VERSION } from './admin-backup/constants'
 import { importDatabaseBackup } from './admin-backup/database-import'
 import { parseDatabaseImportPayload } from './admin-backup/database-validation'
 import { issueSession, readSessionToken } from '@/server/auth/session'
@@ -26,7 +27,7 @@ async function seed() {
 describe('portable multi-wallet backups', () => {
   it('restores every member wallet and quota while retaining the current administrator credentials and session', async () => {
     const seeded = await seed(), snapshot = await exportDatabaseBackup(), adminExtra = address()
-    expect(snapshot.version).toBe('2.18.0')
+    expect(snapshot.version).toBe(DATABASE_BACKUP_VERSION)
     const session = await issueSession({ userId: seeded.admin.id })
     await fixture.client.userWallet.create({ data: { userId: seeded.admin.id, address: adminExtra } })
     await fixture.client.user.update({ where: { id: seeded.admin.id }, data: { password: 'admin-current', usernameChangeMonth: '2026-10', usernameChangeCount: 3, credentialsRevision: 8 } })
@@ -59,7 +60,7 @@ describe('portable multi-wallet backups', () => {
     for (const user of data.users) { delete user.usernameChangeMonth; delete user.usernameChangeCount; delete user.credentialsRevision }
     if (version === '2.13.0') delete data.userDeletionRecords
     const converted = parseDatabaseImportPayload({ version, mode: 'overwrite', data })
-    expect(converted.version).toBe('2.18.0')
+    expect(converted.version).toBe(DATABASE_BACKUP_VERSION)
     expect(converted.data.userWallets.map(wallet => wallet.address).sort()).toEqual([seeded.adminAddress, seeded.memberAddress].sort())
     expect(converted.data.users.every(user => user.usernameChangeCount === 0 && user.credentialsRevision === 0)).toBe(true)
   })

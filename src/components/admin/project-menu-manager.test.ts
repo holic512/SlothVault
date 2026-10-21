@@ -72,9 +72,9 @@ describe('project navigation administration', () => {
   })
 
   it.each([
-    ['en', 'Home', 'Docs', 'System built-in', 'Fixed entry, cannot be modified'],
-    ['zh', '首页', '文档', '系统内置', '固定入口，不可修改'],
-  ])('shows both read-only built-in rows with no custom menus in %s', (locale, home, docs, source, fixed) => {
+    ['en', 'Home', 'Docs', 'System built-in'],
+    ['zh', '首页', '文档', '系统内置'],
+  ])('shows both read-only built-in rows with no custom menus in %s', (locale, home, docs, source) => {
     scenario.locale = locale
     const html = renderManager()
     const rows = html.match(/<tr\b[^>]*data-row-key="builtin:[^"]+"[^>]*>[\s\S]*?<\/tr>/g) || []
@@ -83,7 +83,6 @@ describe('project navigation administration', () => {
     expect(rows[1]).toContain(docs)
     for (const row of rows) {
       expect(row).toContain(source)
-      expect(row).toContain(fixed)
       expect(row).not.toContain('<button')
     }
     expect(html).toContain('/project/42/home')
@@ -109,10 +108,12 @@ describe('project navigation administration', () => {
     const html = renderManager()
     const row = html.match(/<tr\b[^>]*data-row-key="custom:9"[^>]*>[\s\S]*?<\/tr>/)?.[0] || ''
     expect(row).toContain('Community')
-    expect(row).toContain('Custom')
     expect(row).toContain('Add child')
     expect(row).toContain('Edit')
     expect(row).toContain('Delete')
+    expect(row).toContain('role="switch"')
+    expect(html).toContain('tabindex="0"')
+    expect(html).not.toContain('ant-table-cell-fix-right')
     expect(html.indexOf('data-row-key="custom:9"')).toBeGreaterThan(html.indexOf('data-row-key="builtin:docs"'))
   })
 })

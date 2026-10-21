@@ -244,6 +244,50 @@ async function resultOf(message: Record<string, unknown>) {
 }
 
 describe('administrator MCP server', () => {
+  it('preserves parent/child menu icons in both outputs and forwards nullable icon-only mutations', async () => {
+    const menu = { id: '2', projectId: '1', parentId: null, label: 'Menu', icon: 'github', url: null,
+      isExternal: false, weight: 0, status: 1, createdAt: timestamp, updatedAt: timestamp, isDeleted: false }
+    const tree = { ...menu, children: [{ ...menu, id: '3', parentId: '2', icon: 'none' }] }
+    mocks.listProjectMenus.mockResolvedValue([tree])
+    mocks.getProjectMenu.mockResolvedValue(tree)
+    for (const [name, args] of [['list', { projectId: '1' }], ['get', { menuId: '2' }]] as const) {
+      const result = await resultOf({ jsonrpc: '2.0', id: 90, method: 'tools/call', params: { name: `content.project.menu.${name}`, arguments: args } })
+      expect(result.result.isError).not.toBe(true)
+      expect(result.result.structuredContent).toMatchObject(name === 'list' ? { list: [{ icon: 'github', children: [{ icon: 'none' }] }] } : { icon: 'github', children: [{ icon: 'none' }] })
+      expect(JSON.parse(result.result.content[0].text)).toEqual(result.result.structuredContent)
+    }
+    for (const icon of [null, 'none'] as const) {
+      mocks.createProjectMenu.mockResolvedValue({ ...menu, icon })
+      mocks.updateProjectMenu.mockResolvedValue({ ...menu, icon })
+      for (const [name, args] of [['create', { projectId: '1', label: 'Menu', icon }], ['update', { menuId: '2', icon }]] as const) {
+        const result = await resultOf({ jsonrpc: '2.0', id: 91, method: 'tools/call', params: { name: `content.project.menu.${name}`, arguments: args } })
+        expect(result.result.isError).not.toBe(true)
+        expect(result.result.structuredContent).toMatchObject({ icon })
+        expect(name === 'create' ? mocks.createProjectMenu : mocks.updateProjectMenu).toHaveBeenLastCalledWith(name === 'create' ? 1 : 2, expect.objectContaining({ icon }))
+      }
+    }
+    mocks.updateProjectMenu.mockResolvedValue(menu)
+    const omitted = await resultOf({ jsonrpc: '2.0', id: 92, method: 'tools/call', params: { name: 'content.project.menu.update', arguments: { menuId: '2', label: 'Renamed' } } })
+    expect(omitted.result.isError).not.toBe(true)
+    expect(mocks.updateProjectMenu).toHaveBeenLastCalledWith(2, expect.objectContaining({ icon: undefined }))
+    mocks.createProjectMenu.mockResolvedValue({ ...menu, icon: null })
+    const created = await resultOf({ jsonrpc: '2.0', id: 93, method: 'tools/call', params: { name: 'content.project.menu.create', arguments: { projectId: '1', label: 'Menu' } } })
+    expect(created.result.isError).not.toBe(true)
+    expect(mocks.createProjectMenu).toHaveBeenLastCalledWith(1, expect.objectContaining({ icon: undefined }))
+  })
+
+  it('rejects invalid MCP menu icon keys without calling persistence', async () => {
+    mocks.createProjectMenu.mockClear(); mocks.updateProjectMenu.mockClear()
+    for (const icon of ['', 'Github', 'unknown', 42, false, {}]) {
+      for (const [name, args] of [['create', { projectId: '1', label: 'Menu', icon }], ['update', { menuId: '2', icon }]] as const) {
+        const result = await resultOf({ jsonrpc: '2.0', id: 94, method: 'tools/call', params: { name: `content.project.menu.${name}`, arguments: args } })
+        expect(result.result.isError).toBe(true)
+      }
+    }
+    expect(mocks.createProjectMenu).not.toHaveBeenCalled()
+    expect(mocks.updateProjectMenu).not.toHaveBeenCalled()
+  })
+
   it('keeps bodies out of list schemas and both wire outputs, and measures list/detail payloads', async () => {
     const article = { id: '12', title: 'Article', summary: null, cover: null, content: '正文示例'.repeat(5_000), status: 1,
       allowedMembershipLevelIds: [], allowedMembershipLevels: [], requiredMembershipLevelId: null,

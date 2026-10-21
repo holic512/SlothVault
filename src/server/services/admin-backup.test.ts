@@ -58,6 +58,31 @@ function emptyBackup(): BackupData {
   }
 }
 
+describe('project menu icon backup contracts', () => {
+  const menu = { id: '2', projectId: '1', parentId: null, label: 'Menu', url: null, isExternal: false,
+    weight: 0, status: 1, createdAt: timestamp, updatedAt: timestamp, isDeleted: false }
+
+  it.each([null, 'github', 'none'] as const)('retains explicit current icon %s', icon => {
+    const data = emptyBackup()
+    data.projectMenus = [{ ...menu, icon }]
+    expect(parse({ version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data }).data.projectMenus[0].icon).toBe(icon)
+  })
+
+  it.each([undefined, '', 'Github', 'unknown', 42, false, {}])('rejects missing or invalid current icons: %s', icon => {
+    const data = { ...emptyBackup(), projectMenus: [{ ...menu, icon }] }
+    expect(() => parse({ version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data })).toThrow()
+  })
+
+  it.each(['2.13.0', '2.14.0', '2.15.0', '2.16.0', '2.17.0', '2.18.0'])('converts %s JSON menus and rejects a new field disguised as legacy data', version => {
+    const data: Record<string, unknown> = { ...emptyBackup(), projectMenus: [menu] }
+    if (version <= '2.16.0') for (const key of Object.keys(data)) if (key.startsWith('plugin')) delete data[key]
+    if (version <= '2.14.0') delete data.userWallets
+    if (version === '2.13.0') delete data.userDeletionRecords
+    expect(parse({ version, mode: 'overwrite', data }).data.projectMenus[0].icon).toBeNull()
+    expect(() => parse({ version, mode: 'overwrite', data: { ...data, projectMenus: [{ ...menu, icon: null }] } })).toThrow()
+  })
+})
+
 describe('database backup system branding validation', () => {
   it('retains a system-logo path independently of file record IDs', () => {
     const data = emptyBackup()

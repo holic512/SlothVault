@@ -326,6 +326,7 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
           ? requiredMappedId(ids.projectMenus, item.parentId, 'parentId')
           : null,
         label: item.label,
+        icon: item.icon,
         url: item.url,
         isExternal: item.isExternal,
         weight: item.weight,

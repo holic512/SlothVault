@@ -784,10 +784,10 @@
     },
     "projectMenu": {
       "title": "Menu · {name}",
-      "desc": "Configure the project header navigation with up to two levels.",
+      "desc": "Home and Docs stay fixed. Custom menus support two levels.",
       "defaultHint": "Home and Docs are fixed in the first two positions and automatically follow the interface language. They cannot be modified and do not need to be recreated.",
       "includeDeleted": "Include deleted",
-      "newRoot": "New top-level menu",
+      "newRoot": "Add menu",
       "source": {
         "builtin": "System built-in",
         "custom": "Custom"
@@ -797,17 +797,20 @@
         "label": "Label",
         "url": "URL",
         "type": "Type",
-        "status": "Status",
-        "operations": "Actions"
+        "status": "Visible",
+        "operations": "Actions",
+        "navigation": "Project navigation menus, scroll horizontally"
       },
       "type": {
         "internal": "Internal",
-        "external": "External"
+        "external": "External",
+        "group": "Menu group"
       },
       "status": {
         "enabled": "Enabled",
         "disabled": "Disabled",
-        "deleted": "Deleted"
+        "deleted": "Deleted",
+        "always": "Fixed"
       },
       "operations": {
         "child": "Add child",
@@ -815,28 +818,61 @@
         "retry": "Retry",
         "edit": "Edit",
         "delete": "Delete",
-        "restore": "Restore"
+        "restore": "Restore",
+        "visibility": "Show {name}",
+        "childOf": "Add child to {name}",
+        "editNamed": "Edit {name}",
+        "deleteNamed": "Delete {name}"
       },
       "dialog": {
         "createTitle": "New menu",
+        "createChildTitle": "New child · {name}",
         "editTitle": "Edit menu",
         "parent": "Parent menu",
         "root": "Top level",
         "label": "Label",
         "url": "Destination URL",
-        "external": "External link",
-        "weight": "Weight",
+        "external": "External link (opens in a new tab)",
+        "weight": "Sort weight",
         "status": "Status",
         "cancel": "Cancel",
-        "save": "Save"
+        "save": "Save",
+        "labelPlaceholder": "e.g. GitHub",
+        "urlPlaceholder": "https://github.com/… or /docs",
+        "icon": "Menu icon",
+        "preview": "Navigation preview",
+        "previewName": "Menu label",
+        "advanced": "Hierarchy and order"
       },
       "messages": {
         "labelRequired": "Please enter a menu label",
+        "externalUrl": "Enter a complete http:// or https:// URL",
+        "internalUrl": "Internal links must start with /, e.g. /docs",
         "loadFailed": "Failed to load custom navigation",
         "saved": "Menu saved",
         "deleted": "Menu deleted. View or restore it in Trash.",
         "restored": "Menu restored",
         "deleteConfirm": "Delete menu \"{name}\" and its children?"
+      },
+      "icons": {
+        "auto": "Automatic",
+        "none": "No icon",
+        "home": "Home",
+        "book-open": "Docs",
+        "github": "GitHub",
+        "gitlab": "GitLab",
+        "discord": "Discord",
+        "youtube": "YouTube",
+        "twitter": "Twitter / X",
+        "code": "Code",
+        "terminal": "Terminal",
+        "download": "Download",
+        "globe": "Website",
+        "link": "Link",
+        "folder": "Folder",
+        "message-circle": "Discussion",
+        "file-text": "File",
+        "external-link": "External link"
       }
     },
     "categories": {

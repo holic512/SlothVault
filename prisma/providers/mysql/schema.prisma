@@ -218,6 +218,7 @@ model ProjectMenu {
   projectId  Int         @map("project_id")
   parentId   Int?        @map("parent_id")
   label      String         @db.VarChar(64)
+  icon       String?        @db.VarChar(64)
   url        String?        @db.VarChar(2048)
   isExternal Boolean        @default(false) @map("is_external")
   weight     Int            @default(0)

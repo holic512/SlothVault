@@ -30,6 +30,7 @@ export type ProjectVersion = {
 export type ProjectMenu = {
   id: string
   label: string
+  icon?: string | null
   url: string | null
   isExternal: boolean
   weight: number

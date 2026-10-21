@@ -30,6 +30,7 @@ import { createWalletLoginChallenge, verifyWalletLogin } from './wallet-auth'
 import { createWorkflow, executeWorkflowCommand, getWorkflow } from '@/server/commissions/workflow'
 import { uploadCommissionFile, downloadCommissionFile } from '@/server/commissions/workflow-files'
 import { exportDatabaseBackup } from './admin-backup/database-export'
+import { DATABASE_BACKUP_VERSION } from './admin-backup/constants'
 import { importDatabaseBackup } from './admin-backup/database-import'
 import { parseDatabaseImportPayload } from './admin-backup/database-validation'
 import { GET as deletionPreviewRoute } from '@/app/api/admin/mm/users/[id]/deletion-preview/route'
@@ -245,7 +246,7 @@ describe('account roles, real deletion and independent history', () => {
     }
     for (const rows of Object.values(legacy)) for (const row of rows) delete row.attributionJson
     const converted = parseDatabaseImportPayload({ version: '2.13.0', mode: 'overwrite', data: legacy })
-    expect(converted.version).toBe('2.18.0')
+    expect(converted.version).toBe(DATABASE_BACKUP_VERSION)
     expect(converted.data.userDeletionRecords).toEqual([])
     expect(converted.data.giftCardBatches).toEqual([])
     expect(converted.data.giftCards).toEqual([])

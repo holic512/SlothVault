@@ -2,7 +2,7 @@
  * @file pages.ts
  * @project SlothVault
  * @module MCP Page Structure Tools
- * @description Registers MCP 3.0 project homepage, project menu, and system homepage management tools.
+ * @description Registers MCP 3.0 homepage and project menu tools, including nullable stable navigation icon keys.
  * @logic Expose ordinary reads, creates, and updates while omitting deletion and restoration fields from every MCP contract.
  * @dependencies MCP TypeScript SDK, zod, document limits, admin content service, MCP tool contracts
  * @index_tags mcp,tools,homepage,project-home,menu,content
@@ -15,6 +15,7 @@ import { z } from 'zod'
 import { collectMcpToolDefinitions, type McpToolDefinition } from '@/server/mcp/registry'
 
 import { DOCUMENT_CONTENT_MAX_CHARACTERS } from '@/lib/document-content'
+import { projectMenuIconKeys } from '@/lib/project-menu-icons'
 import {
   createProjectHome,
   createProjectMenu,
@@ -59,6 +60,7 @@ const menuBaseOutputSchema = z.object({
   projectId: decimalIdSchema,
   parentId: decimalIdSchema.nullable(),
   label: z.string(),
+  icon: z.enum(projectMenuIconKeys).nullable(),
   url: z.string().nullable(),
   isExternal: z.boolean(),
   weight: z.number().int(),
@@ -84,6 +86,7 @@ const homepageOutputSchema = z.object({
 const menuValuesSchema = {
   parentId: decimalIdSchema.nullable().optional(),
   label: z.string().trim().min(1).max(64),
+  icon: z.enum(projectMenuIconKeys).nullable().optional(),
   url: z.string().trim().max(2_048).nullable().optional(),
   isExternal: z.boolean().default(false),
   weight: databaseIntegerSchema.default(0),
@@ -205,10 +208,10 @@ export const pageToolDefinitions: McpToolDefinition[] = collectMcpToolDefinition
       outputSchema: menuBaseOutputSchema,
       annotations: CREATE_ANNOTATIONS,
     },
-    async ({ projectId, parentId, label, url, isExternal, weight, status }) =>
+    async ({ projectId, parentId, label, icon, url, isExternal, weight, status }) =>
       runMcpTool('content.project.menu.create', async () => createProjectMenu(
         mcpId(projectId, 'projectId'),
-        { parentId, label, url, isExternal, weight, status },
+        { parentId, label, icon, url, isExternal, weight, status },
       )),
   )
 
@@ -221,23 +224,24 @@ export const pageToolDefinitions: McpToolDefinition[] = collectMcpToolDefinition
         menuId: decimalIdSchema,
         parentId: decimalIdSchema.nullable().optional(),
         label: menuValuesSchema.label.optional(),
+        icon: menuValuesSchema.icon,
         url: menuValuesSchema.url,
         isExternal: z.boolean().optional(),
         weight: databaseIntegerSchema.optional(),
         status: statusSchema.optional(),
       }).refine(
-        ({ parentId, label, url, isExternal, weight, status }) =>
-          parentId !== undefined || label !== undefined || url !== undefined ||
+        ({ parentId, label, icon, url, isExternal, weight, status }) =>
+          parentId !== undefined || label !== undefined || icon !== undefined || url !== undefined ||
           isExternal !== undefined || weight !== undefined || status !== undefined,
         { message: '至少提供一个需要更新的菜单字段。' },
       ),
       outputSchema: menuBaseOutputSchema,
       annotations: UPDATE_ANNOTATIONS,
     },
-    async ({ menuId, parentId, label, url, isExternal, weight, status }) =>
+    async ({ menuId, parentId, label, icon, url, isExternal, weight, status }) =>
       runMcpTool('content.project.menu.update', async () => updateProjectMenu(
         mcpId(menuId, 'menuId'),
-        { parentId, label, url, isExternal, weight, status },
+        { parentId, label, icon, url, isExternal, weight, status },
       )),
   )
 

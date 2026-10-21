@@ -2,7 +2,7 @@
  * @file database-schema.ts
  * @project SlothVault
  * @module Admin Database Backup Schema
- * @description Defines the portable 2.17 database-backup shape with membership entitlements, independent articles, contracts, project-version evidence, and current business records.
+ * @description Defines the portable 2.19 database-backup shape, including nullable stable project-menu icon keys.
  * @logic Validate active collections strictly, retain v3 publication snapshots, note tags, member access and standalone blog content, include source documentation baselines, multi-wallet bindings and username quotas, and require the current data version and full overwrite restoration.
  * @dependencies Zod, Node path rules, backup constants
  * @index_tags admin,backup,database,schema,zod,portable
@@ -17,6 +17,7 @@ import { isAbsolute } from 'node:path'
 
 import { z } from 'zod'
 import { noteTagsSchema } from '@/lib/note-tags'
+import { projectMenuIconKeys } from '@/lib/project-menu-icons'
 import { commissionBackupShape } from '@/server/commissions/backup'
 
 import {
@@ -275,6 +276,7 @@ const projectMenuSchema = z.object({
   projectId: idStringSchema,
   parentId: nullableIdStringSchema,
   label: limitedString(64),
+  icon: z.enum(projectMenuIconKeys).nullable(),
   url: nullableString(2048),
   isExternal: z.boolean(),
   weight: intSchema,
@@ -284,6 +286,8 @@ const projectMenuSchema = z.object({
   isDeleted: z.boolean(),
   deletedAt: dateStringSchema.nullable().optional(),
 }).strict()
+
+export const legacyProjectMenuSchema = projectMenuSchema.omit({ icon: true })
 
 const projectHomeSchema = z.object({
   id: idStringSchema,

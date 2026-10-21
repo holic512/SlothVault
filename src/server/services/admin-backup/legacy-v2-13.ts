@@ -11,7 +11,7 @@
 import 'server-only'
 import { z } from 'zod'
 import { USER_ATTRIBUTION_FIELDS, type UserIdentity } from '@/lib/user-attribution'
-import { backupDataSchema, type BackupData } from './database-schema'
+import { backupDataSchema, legacyProjectMenuSchema, type BackupData } from './database-schema'
 import { legacyWalletData, convertWalletStore } from './legacy-v2-14'
 import { LEGACY_BACKUP_COLLECTION_KEYS } from './constants'
 import type { RecordStore } from './record-store'
@@ -38,6 +38,7 @@ for (const key of legacyCollectionKeys) {
   while (!(array instanceof z.ZodArray) && 'unwrap' in array) array = (array as z.ZodDefault<z.ZodType>).unwrap()
   if (!(array instanceof z.ZodArray) || !(array.element instanceof z.ZodObject)) throw new Error('Invalid registered backup collection')
   let row = key === 'projectVersions' ? array.element.omit({ documentationStateJson: true }) : array.element
+  if (key === 'projectMenus') row = legacyProjectMenuSchema
   if (key === 'users') row = row.omit({ usernameChangeMonth: true, usernameChangeCount: true, credentialsRevision: true })
   if (attributionCollections[key]) row = row.omit({ attributionJson: true })
   for (const field of formerlyRequired[key] ?? []) {
