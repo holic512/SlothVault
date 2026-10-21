@@ -228,11 +228,14 @@ docs/                        安装、权限、备份、存证与发布指南
 | `npm run lint` | ESLint 检查。 |
 | `npm run typecheck` | TypeScript 类型检查。 |
 | `npm test -- <测试文件>` | 运行直接相关的 Vitest 测试。 |
+| `npm run verify:plugins` | 与 CI 共用的插件打包、发布契约、类型及生命周期检查；默认 SQLite，配置测试数据库 URL 后同时验证 MySQL / PostgreSQL。 |
 | `npm run test:visual` | 运行既有代表性视觉回归。 |
 | `npm run mcp:docs:check` | 核对 MCP 文档与工具声明。 |
 | `npm run build` | 需要验证生产打包时执行。 |
 
 应用、Skill 与 Deployment 按各自发布单元管理。准备提交时遵循仓库的版本规则；版本文件与发布记录应在提交前同步，不由 CI 回写 Git 历史。详见[开发规则](./AGENTS.md)与[发布流程](./docs/releasing.md)。
+
+插件或数据库兼容性变更应执行 `npm run verify:plugins`。三库测试使用专用本地服务，通过 `SLOTHVAULT_PLUGIN_TEST_MYSQL_URL` 与 `SLOTHVAULT_PLUGIN_TEST_POSTGRESQL_URL` 配置；测试自行创建并删除随机命名的临时库。未配置时，相应分支会跳过，SQLite 通过不代表三库均通过。插件生命周期套件为每个用例保留 30 秒上限，以覆盖源码冷编译、Worker 重启和重装；普通单测仍使用默认时限，不通过自动重试掩盖失败。
 
 ## 文档导航
 

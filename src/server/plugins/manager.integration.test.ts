@@ -37,7 +37,10 @@ const cases = [
   { provider: 'postgresql' as const, url: process.env.SLOTHVAULT_PLUGIN_TEST_POSTGRESQL_URL },
   { provider: 'mysql' as const, url: process.env.SLOTHVAULT_PLUGIN_TEST_MYSQL_URL },
 ]
-for (const testCase of cases) describe.skipIf(testCase.provider !== 'sqlite' && !testCase.url)(`plugin integration / ${testCase.provider}`, () => {
+// Each case may compile source packages and restart workers several times. The
+// unit-test default (5s) can expire during cold compilation on CI, leaving an
+// unfinished lifecycle operation racing the next fixture's database setup.
+for (const testCase of cases) describe.skipIf(testCase.provider !== 'sqlite' && !testCase.url)(`plugin integration / ${testCase.provider}`, { timeout: 30_000 }, () => {
   let cleanup: (() => Promise<void>) | undefined
   beforeEach(async () => {
     mocks.provider = testCase.provider
@@ -77,7 +80,7 @@ for (const testCase of cases) describe.skipIf(testCase.provider !== 'sqlite' && 
     expect(pluginRegistry.get('slothvault.gift-cards')?.enabled).toBe(false)
     await setPluginEnabled('slothvault.gift-cards', true, 1)
   }, 60000)
-  afterEach(async () => { for (const id of pluginWorkers.keys()) await stopPluginWorker(id); resetPluginInitialization(); await mocks.client?.$disconnect(); await cleanup?.(); cleanup = undefined; rmSync(mocks.directory, { recursive: true, force: true }) })
+  afterEach(async () => { for (const id of pluginWorkers.keys()) await stopPluginWorker(id); resetPluginInitialization(); await mocks.client?.$disconnect(); await cleanup?.(); cleanup = undefined; rmSync(mocks.directory, { recursive: true, force: true }) }, 60_000)
   it('manually installs owned tables, redeems atomically, and keeps the core ledger after data-purging uninstall', async () => {
     const admin = await mocks.client!.user.create({ data: { username: 'admin', password: 'test', role: 'ADMIN' } })
     const user = await mocks.client!.user.create({ data: { username: 'reader', password: 'test' } })
@@ -128,7 +131,7 @@ for (const testCase of cases) describe.skipIf(testCase.provider !== 'sqlite' && 
     expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1)
     expect(await mocks.client!.pointTransaction.count()).toBe(1)
     expect((await mocks.client!.user.findUniqueOrThrow({ where: { id: user.id } })).pointsBalance).toBe(40)
-  }, 30000)
+  })
   it('restores schema, data and the old version after a broken independent upgrade', async () => {
     const admin = await mocks.client!.user.create({ data: { username: 'admin', password: 'test', role: 'ADMIN' } })
     await initializePlugins()
@@ -142,7 +145,7 @@ for (const testCase of cases) describe.skipIf(testCase.provider !== 'sqlite' && 
     expect((await listPlugins())[0]).toMatchObject({ version: '1.1.0', enabled: true })
     expect(await invokePluginService('slothvault.gift-cards', 'list', { actor: { userId: admin.id, role: 'ADMIN' } })).toMatchObject({ total: 1 })
     expect((await mocks.client!.pluginOperation.findFirstOrThrow({ where: { action: 'UPDATE' } })).status).toBe('FAILED')
-  }, 30000)
+  })
   it('does not restore the same upgrade snapshot twice and erase post-rollback data', async () => {
     await initializePlugins()
     const update = await editTestPackage(readFileSync('dist/plugins/gift-cards/slothvault-plugin-slothvault.gift-cards-1.1.0.zip'), files => {
@@ -173,7 +176,7 @@ for (const testCase of cases) describe.skipIf(testCase.provider !== 'sqlite' && 
     const item = pluginRegistry.get('slothvault.example')!
     expect(item.manifest.version).toBe('1.0.0')
     expect(await invokeRegisteredPlugin(item, 'api', 'status', { actor: null })).toMatchObject({ counters: [{ id: 'articles', value: 1 }] })
-  }, 30000)
+  })
   it('does not bypass an unfinished recovery through enable, configure, repair or rollback', async () => {
     await initializePlugins()
     const id = 'slothvault.gift-cards'
@@ -266,7 +269,7 @@ for (const testCase of cases) describe.skipIf(testCase.provider !== 'sqlite' && 
     expect(counters[0].value).toBe(1)
     expect(await mocks.client!.pluginTask.count({ where: { status: 'PENDING' } })).toBe(0)
     expect(pluginWorkers.has('slothvault.example')).toBe(false)
-  }, 30000)
+  })
   it('restores owned tables without plugin code and remaps declared core IDs', async () => {
     await initializePlugins()
     const level = await mocks.client!.membershipLevel.create({ data: { name: 'Old member', rank: 1, pricePoints: 10 } })
@@ -307,7 +310,7 @@ for (const testCase of cases) describe.skipIf(testCase.provider !== 'sqlite' && 
     await expect(invokeRegisteredPlugin(pluginRegistry.get('slothvault.example')!, 'api', 'status', { actor: null })).rejects.toThrow()
     await installPlugin(bytes, { trusted: true, actorUserId: null })
     expect(await invokeRegisteredPlugin(pluginRegistry.get('slothvault.example')!, 'api', 'status', { actor: null })).toMatchObject({ counters: [{ id: 'articles', value: 1 }] })
-  }, 30000)
+  })
   it('restores plaintext cards and their owned batch references without special legacy collections', async () => {
     const admin = await mocks.client!.user.create({ data: { username: 'admin', password: 'test', role: 'ADMIN' } })
     await initializePlugins()
@@ -335,6 +338,6 @@ for (const testCase of cases) describe.skipIf(testCase.provider !== 'sqlite' && 
     await reconcilePluginRestore()
     const restored = await mocks.client!.$queryRawUnsafe<{ batch_id: number }[]>(`SELECT batch_id FROM ${quoteIdentifier(name)}`)
     expect(restored[0].batch_id).toBe(Number(first.batch.id))
-  }, 30000)
+  })
 
 })

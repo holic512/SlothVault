@@ -1,6 +1,6 @@
 {
   "name": "slothvault",
-  "version": "2.6.17",
+  "version": "2.6.18",
   "private": true,
   "type": "module",
   "engines": {
@@ -25,7 +25,8 @@
     "version:prepare": "node scripts/release-version.mjs --prepare",
     "plugins:build": "node scripts/build-plugins.mjs",
     "predev": "npm run plugins:build",
-    "plugins:pack": "node scripts/plugin-release-assets.mjs"
+    "plugins:pack": "node scripts/plugin-release-assets.mjs",
+    "verify:plugins": "npm run plugins:build && npm run plugins:pack && npm test -- scripts/plugin-release-assets.test.mjs scripts/release-delivery.test.mjs scripts/release-version.test.mjs && npm run typecheck && npm test -- src/server/plugins src/server/services/points.test.ts src/server/database/mysql-migrations.integration.test.ts --maxWorkers=2"
   },
   "dependencies": {
     "@ant-design/cssinjs": "2.1.2",
