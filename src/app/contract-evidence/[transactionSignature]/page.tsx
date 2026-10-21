@@ -9,8 +9,8 @@
  * @author holic512
  */
 import TypographyParagraph from 'antd/es/typography/Paragraph'
-import { Alert, Tag } from 'antd'
-import { BadgeCheck, ExternalLink, FileKey2, FlaskConical, ShieldCheck } from 'lucide-react'
+import { Tag } from 'antd'
+import { BadgeCheck, ExternalLink, FileKey2, ShieldCheck } from 'lucide-react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
@@ -42,11 +42,10 @@ export default async function ContractEvidenceReceiptPage({ params }: { params: 
     <PublicNavbar branding={await getSystemBranding()} />
     <main className="evidence-receipt-shell">
       <header className="evidence-receipt-header">
-        <span className="evidence-receipt-seal">{evidence.network === 'devnet' ? <FlaskConical /> : <ShieldCheck />}</span>
+        <span className="evidence-receipt-seal"><ShieldCheck /></span>
         <div><p>SLOTHVAULT · CONTRACT EVIDENCE</p><h1>合同防篡改凭证</h1><span>公开页仅提供哈希级核验，不含合同正文、PDF 或签约身份。</span></div>
-        <Tag color={evidence.network === 'devnet' ? 'warning' : 'success'}>{evidence.network === 'devnet' ? 'DEVNET · 测试凭证' : 'MAINNET · 链上存证'}</Tag>
+        <Tag color="success">MAINNET · 链上存证</Tag>
       </header>
-      {evidence.network === 'devnet' ? <Alert showIcon type="warning" title="这是 Devnet 测试凭证，不应作为长期正式链上记录。" /> : null}
       <section className="evidence-receipt-paper">
         <div className="evidence-receipt-title"><span>核验范围</span><strong>{finalized ? '合同冻结摘要已写入链上' : '合同链上凭证处理中'}</strong></div>
         <dl>

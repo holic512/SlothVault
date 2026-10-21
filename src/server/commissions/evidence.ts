@@ -3,12 +3,13 @@
  * @project SlothVault
  * @module Commission Evidence Transactions
  * @description Anchors immutable event hashes using administrator-signed Solana Memo transactions.
- * @logic Authorize every active administrator independently of the original operator, record unsigned validation failures and expiry, persist signed bytes before broadcast, retry identical payloads during reconciliation, and log safe phase metadata without rewriting frozen snapshots.
+ * @logic Authorize every active administrator independently of the original operator, record unsigned validation failures and expiry, persist signed bytes before broadcast, retry identical payloads during reconciliation, and log safe phase metadata without rewriting frozen snapshots; expose test evidence only through administrator reads.
  * @dependencies existing Solana Memo transaction and RPC runtime, Prisma
  * @index_tags commissions,evidence,solana,privacy,retry
  * @author holic512
  */
 import 'server-only'
+import { evidenceVisible, type EvidenceAudience } from '@/lib/evidence-visibility'
 import { assertActiveAdministrator } from '@/server/auth/administrator'
 import { PublicKey } from '@solana/web3.js'
 import { evidenceLog, evidenceReason, TERMINAL_EVIDENCE_REASONS } from '@/lib/evidence-diagnostics'
@@ -159,10 +160,21 @@ export async function reconcileWorkflowEvidence(id: number) {
   evidenceLog('commission.reconcile.result', { attemptId: id, status: failure ? 'FAILED' : 'SUBMITTED', transactionSignature: attempt.transactionSignature })
   return { id: String(id), status: failure ? 'FAILED' : 'SUBMITTED', signature: attempt.transactionSignature }
 }
-export async function publicWorkflowEvidence(signature: string) {
+async function readWorkflowEvidence(signature: string, audience: EvidenceAudience) {
   if (!/^[1-9A-HJ-NP-Za-km-z]{70,100}$/.test(signature)) throw new HttpError('交易签名无效', 400, 400)
   const attempt = await prisma.commissionProofAttempt.findUnique({ where: { transactionSignature: signature }, include: { submission: { include: { commission: true } } } })
-  if (!attempt) throw new HttpError('存证不存在', 404, 404)
+  if (!attempt || !evidenceVisible(attempt.network, audience)) throw new HttpError('存证不存在', 404, 404)
+  return attempt
+}
+function workflowReceipt(attempt: Awaited<ReturnType<typeof readWorkflowEvidence>>) {
+  const event = attempt.submission
+  return { protocol: 'slothvault.commission', version: 1, eventId: event.publicId, snapshotHash: event.snapshotHash, previousHash: event.previousHash, network: attempt.network, signer: attempt.signerAddress, signature: attempt.transactionSignature!, submittedAt: event.createdAt.toISOString(), blockTime: attempt.blockTime?.toISOString() || null }
+}
+export const getPublicWorkflowEvidenceReceipt = async (signature: string) => workflowReceipt(await readWorkflowEvidence(signature, 'public'))
+export const getAdminWorkflowEvidenceReceipt = async (signature: string) => workflowReceipt(await readWorkflowEvidence(signature, 'admin'))
+
+async function verifyWorkflowEvidence(signature: string, audience: EvidenceAudience) {
+  const attempt = await readWorkflowEvidence(signature, audience)
   const event = attempt.submission
   const expected = commissionEvidenceMemo({ commissionId: event.commission.commissionId, eventId: event.publicId, snapshotHash: event.snapshotHash, previousHash: event.previousHash, network: attempt.network })
   let verified = false, result = '尚未取得最终链上确认'
@@ -176,5 +188,8 @@ export async function publicWorkflowEvidence(signature: string) {
       result = verified ? '链上摘要与冻结快照一致' : '链上摘要不一致'
     }
   } catch { result = '本次核验未完成，请稍后重试或联系管理员' }
-  return { verified, result, protocol: 'slothvault.commission', version: 1, eventId: event.publicId, snapshotHash: event.snapshotHash, previousHash: event.previousHash, network: attempt.network, signer: attempt.signerAddress, signature, submittedAt: event.createdAt.toISOString(), blockTime }
+  return { ...workflowReceipt(attempt), verified, result, blockTime }
 }
+
+export const publicWorkflowEvidence = (signature: string) => verifyWorkflowEvidence(signature, 'public')
+export const verifyAdminWorkflowEvidence = (signature: string) => verifyWorkflowEvidence(signature, 'admin')

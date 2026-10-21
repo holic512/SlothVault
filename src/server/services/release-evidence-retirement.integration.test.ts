@@ -35,9 +35,11 @@ vi.mock('@/server/services/release-evidence-chain', () => ({
   withEvidenceRpc: mocks.rpc, finalizedEvidenceTransaction: mocks.finalized,
   evidenceRpcError: (error: unknown) => { throw error }, testEvidenceEndpoint: vi.fn(),
 }))
-import { cancelReleaseEvidenceAttempt, getAdminReleaseEvidence, getPublicReleaseEvidenceManifest, getPublicReleaseEvidence, listReleaseEvidence, prepareEvidence, reconcileReleaseEvidence, submitReleaseEvidence, verifyPublicReleaseEvidence } from './release-evidence'
+import { cancelReleaseEvidenceAttempt, getAdminReleaseEvidence, getAdminReleaseEvidenceReceipt, verifyAdminReleaseEvidence, getPublicReleaseEvidenceManifest, getPublicReleaseEvidence, listReleaseEvidence, prepareEvidence, reconcileReleaseEvidence, submitReleaseEvidence, verifyPublicReleaseEvidence } from './release-evidence'
+import { canonicalProjectVersionEvidenceMemo } from './project-version-evidence-protocol'
+import { parseReleaseManifest } from './release-manifest'
 import { publishProjectVersion } from './project-version-release'
-import { getProjectVersionEvidenceSummary } from './release-evidence'
+import { getProjectVersionEvidenceSummary, getAdminProjectVersionEvidenceSummary } from './release-evidence'
 import { POST as preparePost } from '@/app/api/admin/evidence/prepare/route'
 import { GET as publicGet } from '@/app/api/evidence/[transactionSignature]/route'
 import { GET as listGet } from '@/app/api/admin/evidence/route'
@@ -74,6 +76,27 @@ beforeEach(async () => {
 afterEach(async () => { await client.$disconnect(); rmSync(directory, { recursive: true, force: true }) })
 
 describe('project-version v3 evidence boundaries with SQLite', () => {
+  it.each([[[]], [['devnet']], [['mainnet']], [['mainnet', 'devnet']]])('exposes only formal project receipts publicly for %j', async (networks) => {
+    const version = await client.projectVersion.findUniqueOrThrow({ where: { id: versionId } })
+    for (const network of networks) await client.releaseCredential.create({ data: { projectVersionId: versionId, issuerUserId: 1, subjectType: 'PROJECT_VERSION', subjectId: version.releaseId!, subjectHash: version.releaseHash!, subjectManifestVersion: 3, network, signerAddress: '11111111111111111111111111111111', memo: canonicalProjectVersionEvidenceMemo({ installationId: (await client.systemInstallation.findFirstOrThrow()).installationId!, releaseId: version.releaseId!, manifest: parseReleaseManifest(version.releaseManifestJson), releaseHash: version.releaseHash!, network: network as 'mainnet' | 'devnet', signer: '11111111111111111111111111111111' }), transactionSignature: (network === 'mainnet' ? '6' : '7').repeat(88), status: 2 } })
+    const publicSummary = await getProjectVersionEvidenceSummary(versionId, { publicProjectId: 1, viewer: { userId: 1, role: 'ADMIN' } })
+    expect(publicSummary.networks).toHaveLength(1)
+    expect(publicSummary.networks[0]).toMatchObject({ network: 'mainnet', status: networks.includes('mainnet') ? 2 : null })
+    expect((await getAdminProjectVersionEvidenceSummary(versionId)).networks.filter(n => n.status === 2).map(n => n.network)).toEqual([...networks.filter(n => n === 'mainnet'), ...networks.filter(n => n === 'devnet')])
+    if (networks.includes('devnet')) {
+      const sig = '7'.repeat(88)
+      expect(await getPublicReleaseEvidence(sig)).toBeNull()
+      await expect(verifyPublicReleaseEvidence(sig)).rejects.toMatchObject({ status: 404 })
+      await expect(getPublicReleaseEvidenceManifest(sig, { userId: 1, role: 'ADMIN' })).rejects.toMatchObject({ status: 404 })
+      for (const suffix of ['', '?live=1', '?audience=admin&includeDevnet=true']) expect((await publicGet(new NextRequest(`http://localhost/api/evidence/${sig}${suffix}`), { params: Promise.resolve({ transactionSignature: sig }) })).status).toBe(404)
+      expect(mocks.finalized).not.toHaveBeenCalled()
+      expect(await getAdminReleaseEvidenceReceipt(sig)).toMatchObject({ network: 'devnet' })
+      mocks.finalized.mockResolvedValue(null)
+      expect(await verifyAdminReleaseEvidence(sig)).toMatchObject({ verified: false, evidence: { network: 'devnet' } })
+    }
+    if (networks.includes('mainnet')) expect(await getPublicReleaseEvidence('6'.repeat(88))).toMatchObject({ network: 'mainnet' })
+  })
+
   it('persists a specific compute rejection and allows preparing a fresh attempt', async () => {
     const wallet = Keypair.generate()
     mocks.rpc.mockImplementation(async (_network: string, operation: (connection: unknown) => Promise<unknown>) => operation({
@@ -157,7 +180,7 @@ describe('project-version v3 evidence boundaries with SQLite', () => {
       getLatestBlockhash: async () => ({ blockhash: '11111111111111111111111111111111', lastValidBlockHeight: 100 }),
       getFeeForMessage: async () => ({ value: 5000 }), getBalance: async () => 100000,
     }))
-    const prepared = await prepareEvidence({ subject: { type: 'projectVersion', projectVersionId: versionId }, network: 'devnet', signerAddress: wallet.publicKey.toBase58(), issuerUserId: 1 })
+    const prepared = await prepareEvidence({ subject: { type: 'projectVersion', projectVersionId: versionId }, network: 'mainnet', signerAddress: wallet.publicKey.toBase58(), issuerUserId: 1 })
     const transaction = Transaction.from(Buffer.from(prepared.transactionBase64, 'base64'))
     transaction.sign(wallet)
     const signed = transaction.serialize().toString('base64')
@@ -192,9 +215,11 @@ describe('project-version v3 evidence boundaries with SQLite', () => {
     await expect(cancelReleaseEvidenceAttempt({ attemptId: Number(prepared.attemptId), issuerUserId: 1 })).resolves.toMatchObject({ status: -1 })
     expect((await client.releaseCredential.findUniqueOrThrow({ where: { id: legacyId } })).status).toBe(0)
   })
-  it('reads two network statuses and request-local permissions without RPC or body fields', async () => {
+  it('reads audience-scoped network statuses and request-local permissions without RPC or body fields', async () => {
     const summary = await getProjectVersionEvidenceSummary(versionId, { publicProjectId: 1 })
-    expect(summary.networks.map(n => [n.network, n.status])).toEqual([['mainnet', null], ['devnet', null]])
+    expect(summary.networks.map(n => [n.network, n.status])).toEqual([['mainnet', null]])
+    expect((await getAdminProjectVersionEvidenceSummary(versionId)).networks.map(n => n.network)).toEqual(['mainnet', 'devnet'])
+    expect((await getProjectVersionEvidenceSummary(versionId, { publicProjectId: 1, viewer: { userId: 1, role: 'ADMIN' } })).networks.map(n => n.network)).toEqual(['mainnet'])
     expect(summary.canDownload).toBe(true)
     expect(JSON.stringify(summary)).not.toMatch(/Exact content|issuerUserId|messageHash|rpcUrl|transactionBase64/)
     await client.project.update({ where: { id: 1 }, data: { downloadAccessMode: 'DISABLED' } })
@@ -225,7 +250,7 @@ describe('project-version v3 evidence boundaries with SQLite', () => {
     expect(next.credentialId).toBe(retry.credentialId)
     const mainnet = await prepareEvidence({ ...input, network: 'mainnet' })
     expect(mainnet.credentialId).not.toBe(next.credentialId)
-    expect((await getProjectVersionEvidenceSummary(versionId)).networks.map(n => n.status)).toEqual([0, 0])
+    expect((await getAdminProjectVersionEvidenceSummary(versionId)).networks.map(n => n.status)).toEqual([0, 0])
   })
 
   it('records invalid signed messages as failed, retains history, and allows a new attempt', async () => {

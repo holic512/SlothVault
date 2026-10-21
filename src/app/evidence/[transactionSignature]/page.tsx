@@ -9,7 +9,7 @@
  * @author holic512
  */
 import { Alert, Tag } from 'antd'
-import { BadgeCheck, Download, ExternalLink, FileKey2, FlaskConical, Fingerprint, WalletCards } from 'lucide-react'
+import { BadgeCheck, Download, ExternalLink, FileKey2, Fingerprint, WalletCards } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -46,16 +46,15 @@ export default async function EvidenceReceiptPage({ params }: { params: Promise<
     <PublicNavbar branding={await getSystemBranding()} />
     <main className="evidence-receipt-shell">
       <header className="evidence-receipt-header">
-        <span className="evidence-receipt-seal">{evidence.network === 'devnet' ? <FlaskConical /> : <BadgeCheck />}</span>
+        <span className="evidence-receipt-seal"><BadgeCheck /></span>
         <div>
           <p>SLOTHVAULT · PROJECT VERSION EVIDENCE</p>
-          <h1>{evidence.network === 'devnet' ? '项目版本测试凭证' : '项目版本凭证'}</h1>
+          <h1>项目版本凭证</h1>
           <span>公开编号由 Solana 交易签名唯一确定</span>
         </div>
-        <Tag color={evidence.network === 'devnet' ? 'warning' : 'success'}>{evidence.network === 'devnet' ? 'DEVNET · 测试凭证' : 'MAINNET · 正式存证'}</Tag>
+        <Tag color="success">MAINNET · 正式存证</Tag>
       </header>
 
-      {evidence.network === 'devnet' ? <Alert showIcon type="warning" title="这是 Devnet 测试凭证，不具备 Mainnet 正式存证标识。" /> : null}
       {!evidence.subjectVisible ? <Alert showIcon type="info" title={'来源内容当前不公开'} description={'该凭证绑定的内容不是当前公开、启用的项目版本；仅展示不可逆标识、哈希和链上信息。'} /> : null}
 
       <section className="evidence-receipt-paper">
@@ -67,7 +66,7 @@ export default async function EvidenceReceiptPage({ params }: { params: Promise<
           <div><dt>稳定对象标识</dt><dd><code>{evidence.subjectId}</code></dd></div>
           <div><dt><WalletCards size={16} />签名钱包</dt><dd><code>{evidence.signerAddress}</code></dd></div>
           <div><dt><FileKey2 size={16} />交易签名</dt><dd><code>{evidence.transactionSignature}</code></dd></div>
-          <div><dt>网络</dt><dd>{evidence.network === 'mainnet' ? 'Solana Mainnet' : 'Solana Devnet（测试）'}</dd></div>
+          <div><dt>网络</dt><dd>Solana Mainnet</dd></div>
           <div><dt>区块位置</dt><dd>{evidence.slot || '待确认'}</dd></div>
           <div><dt>区块时间</dt><dd>{evidence.blockTime ? new Date(evidence.blockTime).toLocaleString('zh-CN') : '待确认'}</dd></div>
           <div><dt>交易费用</dt><dd>{evidence.feeLamports ? `${evidence.feeLamports} lamports` : '待确认'}</dd></div>

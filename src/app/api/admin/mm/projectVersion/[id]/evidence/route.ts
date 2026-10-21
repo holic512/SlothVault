@@ -12,10 +12,10 @@ import { requireAdminSession } from '@/server/auth/session'
 import { defineRoute } from '@/server/http/handler'
 import { parseBigIntId } from '@/server/http/request'
 import { apiOk } from '@/server/http/response'
-import { getProjectVersionEvidenceSummary } from '@/server/services/release-evidence'
+import { getAdminProjectVersionEvidenceSummary } from '@/server/services/release-evidence'
 export const dynamic = 'force-dynamic'
 export const GET = defineRoute<{ id: string }>(async (request, context) => {
   const session = await requireAdminSession(request)
   const { id } = await context.params
-  return apiOk(await getProjectVersionEvidenceSummary(parseBigIntId(id, 'version id'), { viewer: { userId: session.User.id, role: 'ADMIN' } }))
+  return apiOk(await getAdminProjectVersionEvidenceSummary(parseBigIntId(id, 'version id'), { viewer: { userId: session.User.id, role: 'ADMIN' } }))
 }, { cacheControl: 'private, no-store' })

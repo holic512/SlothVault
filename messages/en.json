@@ -1256,7 +1256,7 @@
       "desc": "Manage system branding, website filings, and transaction-evidence network profiles",
       "tips": {
         "title": "Configuration Tips",
-        "content": "Administrators can view and edit RPC URLs. Node tests use saved settings. Disabling a network blocks new issuance without hiding historical receipts."
+        "content": "Administrators can view and edit RPC URLs. Node tests use saved settings. Disabling a network blocks new issuance without hiding historical administrator receipts. Test evidence is available only in administration; users receive Mainnet evidence only."
       },
       "groups": {
         "branding": "System Branding",
@@ -1781,6 +1781,7 @@
       },
       "network": {
         "label": "Network",
+        "all": "All networks",
         "mainnet": "Mainnet · formal evidence",
         "mainnetCredential": "Formal credential",
         "mainnetWithCost": "Mainnet · formal evidence (uses real SOL)",
@@ -2747,10 +2748,11 @@
     "transaction": "Transaction signature",
     "blockTime": "Block time",
     "receipt": "View chain receipt",
-    "devnetNote": "Devnet is a test network. Test and mainnet credentials are shown separately.",
+    "devnetNote": "Devnet is a test network available only in administration.",
     "noTransaction": "No chain transaction yet.",
     "status": {
       "notSubmitted": "Not on chain",
+      "notSubmittedFormal": "Not yet on Mainnet",
       "awaitingSignature": "Awaiting signature",
       "confirming": "Confirming",
       "finalized": "On chain",
@@ -2917,5 +2919,24 @@
         "usePoints": "Use points for membership"
       }
     }
+  },
+  "AdminEvidenceReceipt": {
+    "title": "Evidence receipt",
+    "devnet": "Devnet · Test receipt",
+    "mainnet": "Mainnet · Formal evidence",
+    "testNotice": "This test receipt is available only in administration and does not count as formal evidence for users.",
+    "unavailable": "Unavailable",
+    "contentHash": "Version content hash",
+    "hash": "Evidence digest",
+    "subject": "Stable subject identifier",
+    "signer": "Signing wallet",
+    "status": "Chain status",
+    "finalized": "Finalized",
+    "pending": "Not finalized",
+    "id": "Receipt identifier",
+    "previousHash": "Previous digest",
+    "submittedAt": "Submission time",
+    "signature": "Transaction signature",
+    "blockTime": "Block time"
   }
 }

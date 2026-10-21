@@ -3,12 +3,13 @@
  * @project SlothVault
  * @module Web2 Contract and Evidence Service
  * @description Reads retained contracts and protected attachments, and verifies existing contract evidence.
- * @logic Authorize retained document reads, validate frozen snapshots, and reconcile existing credentials against finalized chain facts.
+ * @logic Authorize retained document reads, validate frozen snapshots, and reconcile existing credentials against finalized chain facts, and restrict test receipts to administrator reads.
  * @dependencies Prisma contracts/files/users, Solana Memo transaction/runtime, network configuration
  * @index_tags contracts,web2,signature,attachment,authorization,solana,evidence,verification
  * @author holic512
  */
 import 'server-only'
+import { evidenceVisible, type EvidenceAudience } from '@/lib/evidence-visibility'
 import { attributedOperator } from '@/lib/user-attribution'
 
 import type { Prisma } from '@generated/prisma-postgresql/client'
@@ -209,7 +210,7 @@ function contractDto(contract: ContractRecord, includeAdminAudit = false) {
     },
     createdAt: contract.createdAt,
     updatedAt: contract.updatedAt,
-    credentials: contract.credentials.map(credentialDto),
+    credentials: contract.credentials.filter(credential => evidenceVisible(credential.network, includeAdminAudit ? 'admin' : 'public')).map(credentialDto),
     ...(includeAdminAudit ? {
       signedAudit: contract.signedAt ? {
         sessionId: contract.signedSessionId,
@@ -428,7 +429,7 @@ export async function reconcileContractEvidence(credentialId: number, issuerUser
   }))
 }
 
-export async function getPublicContractEvidence(signature: string) {
+async function readContractEvidence(signature: string, audience: EvidenceAudience) {
   const credential = await prisma.contractCredential.findUnique({
     where: { transactionSignature: signature },
     select: {
@@ -445,7 +446,7 @@ export async function getPublicContractEvidence(signature: string) {
       contract: { select: { contractHash: true } },
     },
   })
-  if (!credential) return null
+  if (!credential || !evidenceVisible(credential.network, audience)) return null
   return {
     id: String(credential.id),
     contractHash: credential.contract.contractHash,
@@ -461,8 +462,11 @@ export async function getPublicContractEvidence(signature: string) {
   }
 }
 
-export async function verifyPublicContractEvidence(signature: string) {
-  const evidence = await getPublicContractEvidence(signature)
+export const getPublicContractEvidence = (signature: string) => readContractEvidence(signature, 'public')
+export const getAdminContractEvidenceReceipt = (signature: string) => readContractEvidence(signature, 'admin')
+
+async function verifyContractEvidence(signature: string, audience: EvidenceAudience) {
+  const evidence = await readContractEvidence(signature, audience)
   if (!evidence) throw new HttpError('Contract evidence not found', 404, 404)
   const verification = await prisma.contractCredential.findUnique({
     where: { transactionSignature: signature },
@@ -501,6 +505,9 @@ export async function verifyPublicContractEvidence(signature: string) {
     return { verified: false, evidence }
   }
 }
+
+export const verifyPublicContractEvidence = (signature: string) => verifyContractEvidence(signature, 'public')
+export const verifyAdminContractEvidence = (signature: string) => verifyContractEvidence(signature, 'admin')
 
 export async function readAuthorizedContractAttachment(input: { id: number; userId: number; isAdmin: boolean }) {
   const contract = await requireContract(input.id)

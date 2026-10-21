@@ -39,9 +39,13 @@ import {
   CONTRACT_STATUS,
   readAuthorizedContractAttachment,
   getPublicContractEvidence,
+  getAdminContractEvidenceReceipt,
+  getAdminContract,
+  verifyPublicContractEvidence,
   getUserContract,
   listUserContracts,
 } from '@/server/services/contracts'
+import { finalizedEvidenceTransaction } from '@/server/services/release-evidence-chain'
 import { contractBodyHash } from '@/server/services/contract-evidence-protocol'
 
 const issuedAt = new Date('2026-08-18T00:00:00.000Z')
@@ -116,7 +120,7 @@ describe('contract user boundaries', () => {
   it('returns only the public hash receipt fields without contract or participant content', async () => {
     mocks.prisma.contractCredential.findUnique.mockResolvedValue({
       id: 33,
-      network: 'devnet',
+      network: 'mainnet',
       transactionSignature: '5'.repeat(88),
       status: 2,
       slot: 99n,
@@ -133,7 +137,7 @@ describe('contract user boundaries', () => {
     expect(receipt).toEqual(expect.objectContaining({
       id: '33',
       contractHash: 'c'.repeat(64),
-      network: 'devnet',
+      network: 'mainnet',
       transactionSignature: '5'.repeat(88),
     }))
     expect(receipt).not.toHaveProperty('memo')
@@ -142,4 +146,23 @@ describe('contract user boundaries', () => {
     expect(receipt).not.toHaveProperty('attachmentHash')
     expect(receipt).not.toHaveProperty('contractId')
   })
+  it('conceals test receipts before live RPC while retaining administrator hash-only reads', async () => {
+    mocks.prisma.contractCredential.findUnique.mockResolvedValue({ id: 33, network: 'devnet', transactionSignature: '5'.repeat(88), contract: { contractHash: 'c'.repeat(64) } })
+    expect(await getPublicContractEvidence('5'.repeat(88))).toBeNull()
+    await expect(verifyPublicContractEvidence('5'.repeat(88))).rejects.toMatchObject({ status: 404 })
+    expect(finalizedEvidenceTransaction).not.toHaveBeenCalled()
+    expect(await getAdminContractEvidenceReceipt('5'.repeat(88))).toMatchObject({ network: 'devnet', contractHash: 'c'.repeat(64) })
+  })
+  it.each([[[]], [['devnet']], [['mainnet']], [['mainnet', 'devnet']]])('filters user contract details and lists independently of test history: %j', async (networks) => {
+    const credentials = networks.map(network => ({ id: network === 'devnet' ? 2 : 1, network, attempts: [] }))
+    const contract = contractRecord({ credentials })
+    mocks.prisma.contract.findUnique.mockResolvedValue(contract)
+    mocks.prisma.contract.findMany.mockResolvedValue([contract])
+    mocks.prisma.contract.count.mockResolvedValue(1)
+    const expected = networks.filter(network => network === 'mainnet')
+    expect((await getUserContract(7, 22)).credentials.map(e => e.network)).toEqual(expected)
+    expect((await listUserContracts(7, { page: 1, pageSize: 20 })).list[0].credentials.map(e => e.network)).toEqual(expected)
+    expect((await getAdminContract(22)).credentials.map(e => e.network)).toEqual(networks)
+  })
+
 })

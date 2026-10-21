@@ -3,12 +3,13 @@
  * @project SlothVault
  * @module Unified Content Evidence Ledger
  * @description Owns project-version Solana Memo evidence preparation, durable submission, reconciliation, listing, and public verification in one ledger.
- * @logic Reserve immutable subjects, record precise unsigned failures, persist signatures before broadcast, retry only identical signed bytes after uncertain responses, and finalize from matching chain facts while keeping public metadata free of bodies.
+ * @logic Reserve immutable subjects, record precise unsigned failures, persist signatures before broadcast, retry only identical signed bytes after uncertain responses, and finalize from matching chain facts while keeping public metadata free of bodies and test networks confined to administrator reads.
  * @dependencies Prisma transactions, release integrity, project-version evidence protocol, Solana RPC runtime, system configuration
  * @index_tags release,notes,content,evidence,solana,memo,ledger,verification
  * @author holic512
  */
 import 'server-only'
+import { evidenceNetworks, evidenceVisible, type EvidenceAudience } from '@/lib/evidence-visibility'
 import { assertActiveAdministrator } from '@/server/auth/administrator'
 import { attributedOperator } from '@/lib/user-attribution'
 import type { AccessViewer } from '@/lib/content-access'
@@ -821,14 +822,14 @@ export async function getAdminReleaseEvidence(id: number) {
   return evidenceDto(credential)
 }
 
-export async function getPublicReleaseEvidence(signature: string) {
+async function readReleaseEvidence(signature: string, audience: EvidenceAudience) {
   const credential = await prisma.releaseCredential.findUnique({
     where: { transactionSignature: signature },
     include: {
       ...evidenceRelations,
     },
   })
-  if (!credential || !isCurrentCredential(credential)) return null
+  if (!credential || !evidenceVisible(credential.network, audience) || !isCurrentCredential(credential)) return null
   const stored = evidenceDto(credential)
   const redactEditorialSource =
     !stored.subjectVisible
@@ -864,6 +865,9 @@ export async function getPublicReleaseEvidence(signature: string) {
   }
 }
 
+export const getPublicReleaseEvidence = (signature: string) => readReleaseEvidence(signature, 'public')
+export const getAdminReleaseEvidenceReceipt = (signature: string) => readReleaseEvidence(signature, 'admin')
+
 export async function getPublicReleaseEvidenceManifest(signature: string, viewer: AccessViewer = null) {
   const evidence = await getPublicReleaseEvidence(signature)
   if (!evidence || !evidence.subjectVisible || !evidence.projectVersionId || !evidence.projectId) throw new HttpError('Public version evidence manifest not found', 404, 404)
@@ -873,7 +877,7 @@ export async function getPublicReleaseEvidenceManifest(signature: string, viewer
 }
 
 /** Read only stored compact snapshots and ledger metadata; never load bodies or call RPC. */
-export async function getProjectVersionEvidenceSummary(projectVersionId: number, options: { publicProjectId?: number; viewer?: AccessViewer } = {}) {
+async function readProjectVersionEvidenceSummary(projectVersionId: number, options: { publicProjectId?: number; viewer?: AccessViewer }, audience: EvidenceAudience) {
   const version = await prisma.projectVersion.findFirst({
     where: { id: projectVersionId, isDeleted: false, publishedAt: { not: null }, manifestVersion: RELEASE_MANIFEST_VERSION,
       ...(options.publicProjectId !== undefined ? { projectId: options.publicProjectId, status: 1, project: { isDeleted: false, status: 1 } } : {}),
@@ -887,7 +891,7 @@ export async function getProjectVersionEvidenceSummary(projectVersionId: number,
     if (manifest.version !== version.version || releaseManifestHash(version.releaseManifestJson!) !== version.releaseHash) throw new Error('Digest mismatch')
   } catch { throw new HttpError('Publication snapshot integrity failed', 409, 409) }
   const [credentials, access] = await Promise.all([
-    prisma.releaseCredential.findMany({ where: { projectVersionId, subjectType: PROJECT_VERSION_EVIDENCE_SUBJECT, subjectManifestVersion: RELEASE_MANIFEST_VERSION, subjectId: version.releaseId },
+    prisma.releaseCredential.findMany({ where: { projectVersionId, network: { in: evidenceNetworks(audience) }, subjectType: PROJECT_VERSION_EVIDENCE_SUBJECT, subjectManifestVersion: RELEASE_MANIFEST_VERSION, subjectId: version.releaseId },
       select: { network: true, subjectHash: true, status: true, transactionSignature: true, signerAddress: true, blockTime: true, finalizedAt: true },
     }),
     resolveProjectAccess(version.projectId, options.viewer ?? null),
@@ -895,15 +899,18 @@ export async function getProjectVersionEvidenceSummary(projectVersionId: number,
   if (credentials.some(item => item.subjectHash !== version.releaseHash)) throw new HttpError('Evidence digest differs from publication', 409, 409)
   return { projectVersionId: String(version.id), releaseId: version.releaseId, releaseHash: version.releaseHash, manifest, publishedAt: version.publishedAt,
     canDownload: access.canDownload, downloadReason: access.downloadReason,
-    networks: (['mainnet', 'devnet'] as const).map(network => {
+    networks: evidenceNetworks(audience).map(network => {
       const credential = credentials.find(item => item.network === network)
       return { network, status: credential?.status ?? null, transactionSignature: credential?.transactionSignature ?? null, signerAddress: credential?.signerAddress ?? null, blockTime: credential?.blockTime ?? null, finalizedAt: credential?.finalizedAt ?? null }
     }),
   }
 }
 
-export async function verifyPublicReleaseEvidence(signature: string) {
-  const evidence = await getPublicReleaseEvidence(signature)
+export const getProjectVersionEvidenceSummary = (projectVersionId: number, options: { publicProjectId?: number; viewer?: AccessViewer } = {}) => readProjectVersionEvidenceSummary(projectVersionId, options, 'public')
+export const getAdminProjectVersionEvidenceSummary = (projectVersionId: number, options: { viewer?: AccessViewer } = {}) => readProjectVersionEvidenceSummary(projectVersionId, options, 'admin')
+
+async function verifyReleaseEvidence(signature: string, audience: EvidenceAudience) {
+  const evidence = await readReleaseEvidence(signature, audience)
   if (!evidence) throw new HttpError('Release evidence not found', 404, 404)
   let chain: Awaited<ReturnType<typeof finalizedEvidenceTransaction>>
   try {
@@ -931,6 +938,9 @@ export async function verifyPublicReleaseEvidence(signature: string) {
     ...(chain && !chain.failed ? { chain: { slot: chain.slot.toString(), blockTime: chain.blockTime, feeLamports: chain.feeLamports.toString() } } : {}),
   }
 }
+
+export const verifyPublicReleaseEvidence = (signature: string) => verifyReleaseEvidence(signature, 'public')
+export const verifyAdminReleaseEvidence = (signature: string) => verifyReleaseEvidence(signature, 'admin')
 
 export async function testReleaseEvidenceNetworks(network?: SolanaNetwork) {
   const networks: SolanaNetwork[] = network ? [network] : ['mainnet', 'devnet']

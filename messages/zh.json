@@ -1256,7 +1256,7 @@
       "desc": "管理系统品牌、网站备案与交易存证网络档案",
       "tips": {
         "title": "配置说明",
-        "content": "RPC 地址可在管理员表单中查看和修改；节点测试仅使用已保存的配置。禁用网络仅阻止新存证，不影响历史核验。"
+        "content": "RPC 地址可在管理员表单中查看和修改；节点测试仅使用已保存的配置。禁用网络仅阻止新存证，不影响后台历史核验。测试凭证仅在管理后台展示，用户侧只提供 Mainnet 正式存证。"
       },
       "groups": {
         "branding": "系统品牌",
@@ -1781,6 +1781,7 @@
       },
       "network": {
         "label": "网络",
+        "all": "全部网络",
         "mainnet": "Mainnet · 正式存证",
         "mainnetCredential": "正式凭证",
         "mainnetWithCost": "Mainnet · 正式存证（消耗真实 SOL）",
@@ -2747,10 +2748,11 @@
     "transaction": "交易签名",
     "blockTime": "链上时间",
     "receipt": "查看链上回执",
-    "devnetNote": "Devnet 为测试网络，测试凭证与正式凭证分开显示。",
+    "devnetNote": "Devnet 为测试网络，仅在管理后台展示。",
     "noTransaction": "尚无链上交易。",
     "status": {
       "notSubmitted": "未上链",
+      "notSubmittedFormal": "尚未正式上链",
       "awaitingSignature": "待签名",
       "confirming": "确认中",
       "finalized": "已上链",
@@ -2917,5 +2919,24 @@
         "usePoints": "用积分开通会员"
       }
     }
+  },
+  "AdminEvidenceReceipt": {
+    "title": "存证回执",
+    "devnet": "Devnet · 测试凭证",
+    "mainnet": "Mainnet · 正式存证",
+    "testNotice": "此测试凭证仅在管理后台展示，不作为用户侧的正式存证。",
+    "unavailable": "暂无",
+    "contentHash": "版本内容哈希",
+    "hash": "凭证摘要哈希",
+    "subject": "稳定对象标识",
+    "signer": "签名钱包",
+    "status": "上链状态",
+    "finalized": "已最终确认",
+    "pending": "尚未最终确认",
+    "id": "凭证编号",
+    "previousHash": "前序摘要",
+    "submittedAt": "业务提交时间",
+    "signature": "交易签名",
+    "blockTime": "链上时间"
   }
 }

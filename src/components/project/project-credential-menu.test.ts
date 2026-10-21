@@ -33,17 +33,21 @@ describe('publication credential menu', () => {
     expect(html).not.toContain('Not on chain')
     expect(mocks.menu.items[1].disabled).toBe(true)
   })
-  it.each([true, false])('keeps network states separate and enforces download capability %s', canDownload => {
+  it.each([true, false])('hides test evidence in public views and enforces download capability %s', canDownload => {
     mocks.result = { isPending: false, isFetching: false, isError: false, data: {
       releaseId: 'release', releaseHash: 'a'.repeat(64), manifest: { schema: 3, projectName: 'Publication name', version: '1.0', contentHash: 'b'.repeat(64) }, publishedAt: '2026-10-10T00:00:00Z', canDownload, downloadReason: canDownload ? 'ALLOWED' : 'DOWNLOAD_DISABLED',
       networks: [{ network: 'mainnet', status: null, transactionSignature: null, signerAddress: null, blockTime: null }, { network: 'devnet', status: 2, transactionSignature: 'signature', signerAddress: 'wallet', blockTime: null }],
     } }
     const html = render()
     expect(html).toContain('Publication name')
-    expect(html).toContain('Not on chain')
-    expect(html).toContain('On chain')
-    expect(html).toContain('/evidence/signature')
-    expect(html).toContain('?cluster=devnet')
+    expect(html).toContain('Not yet on Mainnet')
+    expect(html).not.toContain('On chain')
+    expect(html).not.toContain('/evidence/signature')
+    expect(html).not.toContain('Devnet')
+    expect(html).not.toContain('?cluster=devnet')
+    const preview = render('2', true)
+    expect(preview).toContain('/admin/mm/evidence/receipts/release/signature')
+    expect(preview).toContain('?cluster=devnet')
     expect(mocks.menu.items[1].disabled).toBe(!canDownload)
     expect(html).not.toContain('/manifest')
   })

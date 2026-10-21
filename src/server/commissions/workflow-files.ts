@@ -3,12 +3,13 @@
  * @project SlothVault
  * @module Private Commission Files
  * @description Streams bounded private uploads, verified downloads, delivery bundles and project archives.
- * @logic Authorize the commission before reading bytes, allow administrators to manage all site drafts, keep file identities immutable, and publish only frozen delivery manifests through protected routes.
+ * @logic Confine test evidence to administrator responses and exports. Authorize the commission before reading bytes, allow administrators to manage all site drafts, keep file identities immutable, and publish only frozen delivery manifests through protected routes.
  * @dependencies node streams/filesystem, archiver, managed file root, commission service
  * @index_tags commissions,uploads,delivery,files,sha256,archive,privacy
  * @author holic512
  */
 import 'server-only'
+import { evidenceVisible } from '@/lib/evidence-visibility'
 import { createHash, randomUUID } from 'node:crypto'
 import { createReadStream } from 'node:fs'
 import { mkdir, open, realpath, unlink } from 'node:fs/promises'
@@ -116,7 +117,7 @@ export async function commissionArchive(id: number, actor: CommissionActor) {
     if (digest(record.snapshotJson) !== record.snapshotHash) throw new HttpError('快照完整性校验失败', 409, 409)
     archive.append(record.snapshotJson, { name: `snapshots/${record.publicId}.json` })
   }
-  archive.append(JSON.stringify({ protocol: 'slothvault.commission.archive', version: 1, commissionId: detail.publicId, files: detail.files.filter((file) => file.submitted), events: records.map((record) => ({ eventId: record.publicId, sequence: record.sequence, hash: record.snapshotHash, previousHash: record.previousHash, proofs: record.proofs.map((proof) => ({ network: proof.network, status: proof.status, memo: proof.memo, transactionSignature: proof.transactionSignature, signerAddress: proof.signerAddress, slot: proof.slot?.toString() || null, blockTime: proof.blockTime?.toISOString() || null })) })) }, null, 2), { name: 'manifest.json' })
+  archive.append(JSON.stringify({ protocol: 'slothvault.commission.archive', version: 1, commissionId: detail.publicId, files: detail.files.filter((file) => file.submitted), events: records.map((record) => ({ eventId: record.publicId, sequence: record.sequence, hash: record.snapshotHash, previousHash: record.previousHash, proofs: record.proofs.filter(proof => evidenceVisible(proof.network, actor.isAdmin ? 'admin' : 'public')).map((proof) => ({ network: proof.network, status: proof.status, memo: proof.memo, transactionSignature: proof.transactionSignature, signerAddress: proof.signerAddress, slot: proof.slot?.toString() || null, blockTime: proof.blockTime?.toISOString() || null })) })) }, null, 2), { name: 'manifest.json' })
   for (const agreement of detail.agreements.filter((item) => item.publishedEventId)) archive.append(agreement.body, { name: `contracts/${agreement.publicId}.md` })
   void archive.finalize().catch((error: Error) => archive.destroy(error))
   return new Response(Readable.toWeb(archive) as ReadableStream<Uint8Array>, { headers: downloadHeaders(`${detail.title}-项目归档.zip`, 'application/zip') })

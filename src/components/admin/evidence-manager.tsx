@@ -5,7 +5,7 @@
  * @project SlothVault
  * @module Unified Evidence Administration
  * @description Provides one localized receipt ledger for project-version evidence with publication selection.
- * @logic Restrict Devnet to Phantom, retain signed bytes for uncertain submissions, display expired attempts and precise failures, and refresh both ledger and receipt during reconciliation.
+ * @logic Filter the ledger with network tabs and status controls, restrict Devnet to Phantom, retain uncertain submissions, and refresh both ledger and receipt during reconciliation.
  * @dependencies React Query, Ant Design, next-intl, use-solana-wallet, release evidence APIs, admin localization utilities
  * @index_tags admin,evidence,solana,wallet,receipts,reconciliation,i18n,error-handling
  * @author holic512
@@ -26,6 +26,7 @@ import {
   Select,
   Space,
   Table,
+  Tabs,
   Tag,
   Timeline,
   Tooltip,
@@ -383,13 +384,25 @@ export function EvidenceManager() {
         <Button type="link" onClick={() => setSelectedId(row.id)}>{t('actions.details')}</Button>
         {(row.status === -1 || expired(row)) ? <Button type="link" onClick={() => openIssue(row)}>{t('actions.retry')}</Button> : null}
         {row.status === 0 || row.status === 1 ? <Button type="link" loading={reconcile.isPending} onClick={() => reconcile.mutate(row.id)}>{t('actions.reconcile')}</Button> : null}
-        {row.transactionSignature ? <Button type="link" href={`/evidence/${row.transactionSignature}`} target="_blank">{t('actions.verify')}</Button> : null}
+        {row.transactionSignature ? <Button type="link" href={`/admin/mm/evidence/receipts/release/${row.transactionSignature}`} target="_blank">{t('actions.verify')}</Button> : null}
       </Space>,
     },
   ]
 
   return <AdminPage>
-    <AdminPageActions>
+    <AdminPageActions className="evidence-page-actions">
+      <Tabs
+        className="evidence-network-tabs"
+        size="small"
+        aria-label={t('network.label')}
+        activeKey={network || 'all'}
+        onChange={(value) => { setNetwork(value === 'all' ? undefined : value as Network); setPage(1) }}
+        items={[
+          { key: 'all', label: t('network.all') },
+          { key: 'mainnet', label: <Tooltip title={t('network.mainnet')}>Mainnet</Tooltip> },
+          { key: 'devnet', label: <Tooltip title={t('network.devnet')}>Devnet</Tooltip> },
+        ]}
+      />
       <Space wrap>
         <Button icon={<RefreshCw size={15} />} loading={query.isFetching} onClick={() => void query.refetch()}>{t('actions.refresh')}</Button>
         <Button type="primary" icon={<FileSignature size={15} />} onClick={() => openIssue()}>{t('actions.issue')}</Button>
@@ -405,8 +418,7 @@ export function EvidenceManager() {
         <Segmented options={[{ label: t('toolbar.all'), value: 'all' }, { label: t('toolbar.myWallet'), value: 'wallet', icon: <WalletCards size={14} /> }]} value={scope} onChange={(value) => { setScope(value as 'all' | 'wallet'); setPage(1) }} />
       </div>
       <Space className="evidence-toolbar-filters" wrap>
-          <Select allowClear placeholder={t('network.label')} value={network} onChange={(value) => { setNetwork(value); setPage(1) }} options={[{ value: 'mainnet', label: t('network.mainnet') }, { value: 'devnet', label: t('network.devnet') }]} />
-          <Select allowClear placeholder={t('toolbar.status')} value={status} onChange={(value) => { setStatus(value); setPage(1) }} options={Object.keys(STATUS).map((value) => ({ value: Number(value), label: statusLabel(Number(value)) }))} />
+          <Select className="evidence-status-filter" allowClear aria-label={t('toolbar.status')} placeholder={t('toolbar.status')} popupMatchSelectWidth={false} value={status} onChange={(value) => { setStatus(value); setPage(1) }} options={Object.keys(STATUS).map((value) => ({ value: Number(value), label: statusLabel(Number(value)) }))} />
           <Input allowClear prefix={<Search size={14} />} placeholder={t('toolbar.transaction')} value={signature} onChange={(event) => { setSignature(event.target.value); setPage(1) }} />
       </Space>
     </AdminToolbar>
@@ -420,7 +432,7 @@ export function EvidenceManager() {
           <div><strong>{`${row.projectName} / ${row.version}`}</strong><Tag color={row.network === 'devnet' ? 'warning' : 'success'}>{row.network === 'devnet' ? t('network.devnetCredential') : t('network.mainnetCredential')}</Tag></div>
           <code title={row.subjectHash || ''}>{compact(row.subjectHash, 14, 10)}</code>
           <Space><Tag color={statusMeta(row.status)?.color}>{rowStatusLabel(row)}</Tag><Typography.Text type="secondary">{compact(row.signerAddress)}</Typography.Text></Space>
-          <Space><Button size="small" onClick={() => setSelectedId(row.id)}>{t('actions.details')}</Button>{(row.status === -1 || expired(row)) ? <Button size="small" onClick={() => openIssue(row)}>{t('actions.retry')}</Button> : null}{row.status === 0 || row.status === 1 ? <Button size="small" onClick={() => reconcile.mutate(row.id)}>{t('actions.reconcile')}</Button> : null}{row.transactionSignature ? <Button size="small" href={`/evidence/${row.transactionSignature}`}>{t('actions.verify')}</Button> : null}</Space>
+          <Space><Button size="small" onClick={() => setSelectedId(row.id)}>{t('actions.details')}</Button>{(row.status === -1 || expired(row)) ? <Button size="small" onClick={() => openIssue(row)}>{t('actions.retry')}</Button> : null}{row.status === 0 || row.status === 1 ? <Button size="small" onClick={() => reconcile.mutate(row.id)}>{t('actions.reconcile')}</Button> : null}{row.transactionSignature ? <Button size="small" href={`/admin/mm/evidence/receipts/release/${row.transactionSignature}`}>{t('actions.verify')}</Button> : null}</Space>
         </article>)}
       </div>
     </AdminTablePanel>

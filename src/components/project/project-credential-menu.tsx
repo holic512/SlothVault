@@ -40,6 +40,7 @@ export function ProjectCredentialMenu({ projectId, versionId, preview = false, m
     enabled: requested, gcTime: 0, staleTime: 0, refetchOnWindowFocus: false, retry: false,
   })
   const data = query.isError ? undefined : query.data
+  const networks = data?.networks.filter(item => preview || item.network === 'mainnet') ?? []
   const downloadReason = query.isFetching ? t('permissionLoading') : !data ? t(query.isError ? 'loadFailed' : 'permissionLoading') : data.canDownload ? '' : t(data.downloadReason === 'DOWNLOAD_DISABLED' ? 'downloadDisabled' : data.downloadReason === 'LOGIN_REQUIRED' ? 'loginRequired' : 'membershipRequired')
   const date = (value: string) => new Date(value).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US')
   const statusKey = (status: number | null) => status === null ? 'notSubmitted' : status === 2 ? 'finalized' : status === 1 ? 'confirming' : status === 0 ? 'awaitingSignature' : 'failed'
@@ -66,14 +67,14 @@ export function ProjectCredentialMenu({ projectId, versionId, preview = false, m
           { key: 'content', label: t('contentHash'), children: <Typography.Text code copyable>{data.manifest.contentHash}</Typography.Text> },
           { key: 'credential', label: t('releaseHash'), children: <Typography.Text code copyable>{data.releaseHash}</Typography.Text> },
         ]} />
-        <div className={styles.networks}>{data.networks.map(network => <section className={styles.network} key={network.network}>
-          <div className={styles['network-heading']}><strong>{network.network === 'mainnet' ? 'Solana Mainnet' : 'Solana Devnet'}</strong><Tag color={network.status === 2 ? 'success' : network.status === -1 ? 'error' : network.status === 1 ? 'processing' : 'default'}>{t(`status.${statusKey(network.status)}`)}</Tag></div>
+        <div className={styles.networks}>{networks.map(network => <section className={styles.network} key={network.network}>
+          <div className={styles['network-heading']}><strong>{network.network === 'mainnet' ? 'Solana Mainnet' : 'Solana Devnet'}</strong><Tag color={network.status === 2 ? 'success' : network.status === -1 ? 'error' : network.status === 1 ? 'processing' : 'default'}>{t(`status.${network.status === null && network.network === 'mainnet' ? 'notSubmittedFormal' : statusKey(network.status)}`)}</Tag></div>
           {network.network === 'devnet' ? <p className={styles['network-note']}>{t('devnetNote')}</p> : null}
           {network.signerAddress ? <p><span>{t('wallet')}</span><Typography.Text code copyable>{network.signerAddress}</Typography.Text></p> : null}
           {network.transactionSignature ? <>
             <p><span>{t('transaction')}</span><Typography.Text code copyable>{network.transactionSignature}</Typography.Text></p>
             {network.blockTime ? <p><span>{t('blockTime')}</span>{date(network.blockTime)}</p> : null}
-            <Space wrap><Button size="small" href={`/evidence/${network.transactionSignature}`} target="_blank" rel="noreferrer" icon={<BadgeCheck size={14} />}>{t('receipt')}</Button><Button size="small" href={`https://explorer.solana.com/tx/${encodeURIComponent(network.transactionSignature)}${network.network === 'devnet' ? '?cluster=devnet' : ''}`} target="_blank" rel="noreferrer" icon={<ExternalLink size={14} />}>Explorer</Button></Space>
+            <Space wrap><Button size="small" href={preview ? `/admin/mm/evidence/receipts/release/${network.transactionSignature}` : `/evidence/${network.transactionSignature}`} target="_blank" rel="noreferrer" icon={<BadgeCheck size={14} />}>{t('receipt')}</Button><Button size="small" href={`https://explorer.solana.com/tx/${encodeURIComponent(network.transactionSignature)}${network.network === 'devnet' ? '?cluster=devnet' : ''}`} target="_blank" rel="noreferrer" icon={<ExternalLink size={14} />}>Explorer</Button></Space>
           </> : <p className={styles['network-note']}>{t('noTransaction')}</p>}
         </section>)}</div>
       </> : null}

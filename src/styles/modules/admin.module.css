@@ -1704,8 +1704,23 @@
   overflow: hidden;
 }
 
+.root :global(.evidence-page-actions) {
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.root :global(.evidence-network-tabs) {
+  min-width: 0;
+}
+
+.root :global(.evidence-network-tabs) > :global(.ant-tabs-nav) {
+  margin: 0;
+}
+
 .root :global(.evidence-toolbar) {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   justify-content: space-between;
@@ -1716,6 +1731,10 @@
 .root :global(.evidence-toolbar-filters) {
   display: flex;
   align-items: center;
+}
+
+.root :global(.evidence-status-filter) {
+  width: 200px;
 }
 
 .root :global(.evidence-toolbar-primary) {
@@ -2641,6 +2660,19 @@
 }
 
 @media (max-width: 640px) {
+  .root :global(.admin-page-actions.evidence-page-actions) {
+    overflow: visible;
+  }
+
+  .root :global(.evidence-network-tabs),
+  .root :global(.evidence-page-actions) > :global(.ant-space) {
+    width: 100%;
+  }
+
+  .root :global(.evidence-page-actions) > :global(.ant-space) {
+    justify-content: flex-end;
+  }
+
   .root :global(.evidence-toolbar) {
     align-items: stretch;
     flex-direction: column;
