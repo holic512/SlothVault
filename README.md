@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./public/logo.png" alt="SlothVault 标志" width="88" />
+<img src="./docs/assets/readme-brand.svg" alt="SlothVault 标志" width="88" />
 
 # SlothVault
 
@@ -16,10 +16,17 @@
 </div>
 
 <p align="center">
-  <img src="./docs/assets/screenshots/2026-10-15/project-docs-light.webp" alt="SlothVault 中文项目文档阅读页：分类目录、版本入口、正文与页内导航" width="100%" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/screenshots/2026-10-23/project-docs-dark.webp" />
+    <img src="./docs/assets/screenshots/2026-10-23/project-docs-light.webp" alt="SlothVault 当前项目文档阅读页：分类目录、版本切换、正文与页内导航，适配明亮和暗黑主题" width="100%" />
+  </picture>
 </p>
 
-> 真实界面，演示内容。本文截图更新于 **2026-10-15**，取自当前仓库的隔离本地实例；正文依据仓库已有文档整理，不包含真实账号、业务数据或链上交易。截图来源与规格见[截图说明](./docs/assets/screenshots/2026-10-15/README.md)。
+<p align="center">
+  同一份项目文档 · <a href="./docs/assets/screenshots/2026-10-23/project-docs-light.webp">明亮主题</a> · <a href="./docs/assets/screenshots/2026-10-23/project-docs-dark.webp">暗黑主题</a>
+</p>
+
+> 真实界面，演示内容。截图更新于 **2026-10-23**，基于 **2.7.9** 的隔离本地实例，展示当前单色编辑风格、明暗主题与分组导航。顶部预览随阅读环境的明暗偏好切换；截图不包含真实业务数据或链上交易。来源与规格见[截图说明](./docs/assets/screenshots/2026-10-23/README.md)。
 
 ## 为什么是 SlothVault
 
@@ -28,20 +35,20 @@ SlothVault 将日常写作与长期维护的项目资料放在同一站点：文
 - **写作与文档各得其所**：独立 Markdown 文章用于记录与分享；项目、版本、分类与笔记承载成体系的资料。
 - **草稿可以迭代，发布版本保持冻结**：校验文档树后生成发布快照与 Manifest v3，后续更新在新版本中继续。
 - **数据与部署由自己掌握**：选择 SQLite、MySQL 或 PostgreSQL，使用网页安装器、自托管附件和完整备份。
-- **管理不止于内容**：会员访问、积分卡密、委托交付与管理员 MCP，共用现有业务规则和权限边界。
+- **管理不止于内容**：会员访问、积分账本、委托交付与管理员 MCP；按需安装卡密、Solana 购分等插件。
 
 ## 界面预览
 
 ### 公开阅读，从首页到正文
 
 <p align="center">
-  <img src="./docs/assets/screenshots/2026-10-15/public-home.webp" alt="SlothVault 中文公开首页：管理员可编辑的 Markdown 内容、文章与项目入口" width="100%" />
+  <img src="./docs/assets/screenshots/2026-10-23/public-home-light.webp" alt="SlothVault 明亮主题公开首页：悬浮导航、Markdown 内容与文章和项目入口" width="100%" />
 </p>
 
 <table>
   <tr>
-    <td width="50%"><img src="./docs/assets/screenshots/2026-10-15/public-articles.webp" alt="独立文章归档：首篇推荐、摘要、日期与文章卡片" /></td>
-    <td width="50%"><img src="./docs/assets/screenshots/2026-10-15/article-reading.webp" alt="独立文章阅读页：标题、正文排版与内容导航" /></td>
+    <td width="50%"><img src="./docs/assets/screenshots/2026-10-23/public-articles-light.webp" alt="明亮主题文章归档：首篇推荐、摘要、日期与文章卡片" /></td>
+    <td width="50%"><img src="./docs/assets/screenshots/2026-10-23/article-reading-light.webp" alt="明亮主题文章阅读页：标题、摘要、发布时间与 Markdown 正文" /></td>
   </tr>
   <tr>
     <td align="center"><strong>文章归档</strong><br />以文章为单位记录、发布与分享</td>
@@ -49,20 +56,26 @@ SlothVault 将日常写作与长期维护的项目资料放在同一站点：文
   </tr>
 </table>
 
-### 同一套内容，不同的阅读环境
+### 账户与后台，按职责组织操作
 
 <table>
   <tr>
-    <td width="72%"><img src="./docs/assets/screenshots/2026-10-15/project-docs-dark.webp" alt="SlothVault 深色主题项目文档：分类侧栏、版本入口与正文" /></td>
-    <td width="28%" align="center"><img src="./docs/assets/screenshots/2026-10-15/mobile-navigation.webp" alt="SlothVault 手机端展开的站点导航与中文首页" width="240" /></td>
+    <td width="50%"><img src="./docs/assets/screenshots/2026-10-23/account-purchase-light.webp" alt="明亮主题账户购分页：可折叠分组导航、钱包入口与默认 USDT 支付选项" /></td>
+    <td width="50%"><img src="./docs/assets/screenshots/2026-10-23/admin-plugins-dark.webp" alt="暗黑主题插件后台：分组导航、支付插件配置表单与高级 JSON 入口" /></td>
   </tr>
   <tr>
-    <td align="center"><strong>深色阅读</strong><br />保留项目目录与版本上下文</td>
-    <td align="center"><strong>移动导航</strong><br />在小屏幕上继续浏览</td>
+    <td align="center"><strong>账户工作区 · 明亮</strong><br />插件入口融入导航，USDT 为默认购分币种</td>
+    <td align="center"><strong>插件管理 · 暗黑</strong><br />可视化配置、校验与独立插件管理</td>
   </tr>
 </table>
 
-截图展示的是内置界面与示例内容，不是安装后的默认首页；后台、账户与受限内容仍需对应身份授权。
+账户与管理后台分别记住导航分组的折叠偏好，并自动展开当前页面所在分组；手机端通过抽屉浏览导航。
+
+<p align="center">
+  <img src="./docs/assets/screenshots/2026-10-23/mobile-navigation.webp" alt="SlothVault 暗黑主题手机首页，展开包含首页、文章与项目入口的移动导航抽屉" width="280" />
+</p>
+
+截图使用示例内容与本地测试管理员，首页可由管理员编辑；账户、后台与受限内容需要对应身份授权。购分截图停留在钱包未连接状态，配置中的收款地址仅为演示公钥。
 
 ## 快速开始
 
@@ -116,9 +129,11 @@ sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy
 | **文章发布** | 独立 Markdown 文章、摘要、封面、归档、正文图片与受控下载附件。 |
 | **项目文档** | 项目 → 版本 → 分类 → 笔记；正文历史、主版本、标签、项目首页与菜单。 |
 | **版本发布** | 发布前文档树校验、不可变快照、紧凑 Manifest v3、完整性校验与受权限控制的 Manifest 下载。 |
-| **公开阅读** | 中文与英文界面、浅色与深色主题、移动端导航；公开内容无需连接钱包。 |
+| **公开阅读** | 中文与英文界面、明亮与暗黑主题、单色编辑与标准界面风格、标准与液态玻璃卡片；移动端抽屉导航。公开内容无需连接钱包。 |
 | **账户与权益** | 密码登录、可选 Solana 钱包签名登录、多钱包绑定、资料与安全设置、并列会员类型、内容访问权限。 |
-| **积分与卡密** | 不可变积分流水、管理员积分调整、批量卡密与一次性兑换。 |
+| **积分与购分** | 宿主管理积分余额、不可变流水与管理员调整；卡密插件提供批量发行和一次性兑换，Solana 支付插件默认使用 USDT 购分。 |
+| **插件扩展** | 独立源码插件、配置表单与高级 JSON、更新检查和安装预览；安装与更新前明确确认信任，按插件授予权限。 |
+| **工作区导航** | 账户与后台按职责分组，可折叠侧栏、持久化分组偏好，自动展开当前页面所属分组。 |
 | **委托与交付** | 需求记录、合同模板与版本、付款计划、交付、验收、维护及不可变提交记录。 |
 | **管理与恢复** | 内容回收站、文件、用户、系统设置、运行观测、完整备份、恢复预检与任务历史。 |
 | **自动化** | 管理员原生 MCP、项目文档索引与正文批读、带修订号的原子草稿批写，以及独立发布的 Skill。 |
@@ -139,11 +154,19 @@ sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy
 
 访客阅读公开文章和项目；注册用户拥有账户、安全、积分、会员与委托工作区；管理员负责内容、用户、备份和系统管理。会员限制由文章允许名单、项目阅读权限及下载权限共同定义，不以展示排序推断权限，详见[会员与项目访问](./docs/MEMBERSHIP_PROJECT_ACCESS.md)。
 
+### 按需扩展积分交易
+
+积分账本由宿主管理，购分与卡密功能由独立插件提供。管理员在插件管理中预览安装包、确认信任、填写配置并启用插件，相关入口随后出现在账户或后台导航中；发现更新后可查看预览并手动确认安装。
+
+**Solana 购买积分**插件以 **USDT 为首选**，也可选择 SOL，**仅支持 Solana Mainnet**。管理员配置收款钱包、每 USDT 对应积分和订单范围；用户连接钱包获取报价，再确认付款。服务端核验实际链上到账后，才记入积分账本。
+
+安装、持久化与备份说明见[插件运维指南](./docs/plugins/operations.md)；支付配置与到账校验见[Solana 支付插件](./plugins/sol-payments/README.md)。
+
 ### 可选存证，而非阅读前提
 
 内容发布与链上存证相互独立。管理员可为已发布项目版本发送一笔 Solana Memo 交易，绑定 Manifest v3 的 `releaseHash` 与正文树聚合 `contentHash`；正文不写入链上。同一发布版本在每个网络最多保留一条最终凭证。
 
-- **Mainnet** 用于正式存证；**Devnet** 用于测试，当前仅允许 Phantom。
+- 存证支持 **Mainnet** 与 **Devnet**，Devnet 当前仅允许 Phantom；这里的网络选择仅适用于存证，购分支付固定使用 Mainnet。
 - 版本菜单提供凭证查看与 Manifest 下载；公开版本凭证路由为 `/evidence/<transactionSignature>`。
 - 委托记录保留独立的提交与存证流程，不与项目版本凭证混用。
 - 存证不代表 NFT、版权归属或可转移资产，也不免除正常链上手续费。
@@ -179,12 +202,12 @@ flowchart LR
     MCP --> Services
     Services --> DB[("Prisma · SQLite / MySQL / PostgreSQL")]
     Services --> Files[("受控附件与完整备份")]
-    Services --> Solana["可选：Solana RPC / Memo"]
+    Services --> Solana["可选：Solana RPC / 支付与 Memo 存证"]
     Installer["网页安装器"] --> Config["加密数据库配置"]
     Config --> DB
 ```
 
-SQL 数据库是账户、Session、积分、卡密与存证索引的权威来源；进程内 TTL 状态只承担一次性钱包挑战和短期限流。钱包登录验证地址所有权，不发起交易，也不保存私钥；版本存证需要另行签署链上交易。
+SQL 数据库是账户、Session、积分、插件业务数据与存证索引的权威来源；进程内 TTL 状态只承担一次性钱包挑战和短期限流。钱包登录验证地址所有权，不发起交易，也不保存私钥；购分付款与版本存证分别需要用户确认并签署交易。
 
 ### 常用配置
 
@@ -215,6 +238,7 @@ src/
 ├── i18n/                    国际化配置
 └── styles/                  样式与主题
 prisma/providers/            SQLite / MySQL / PostgreSQL schema 与迁移
+plugins/                     独立源码插件与 SDK
 integrations/                独立 Skill、部署包与集成协议
 tests/visual/                代表性页面视觉基准
 docs/                        安装、权限、备份、存证与发布指南
@@ -235,7 +259,7 @@ docs/                        安装、权限、备份、存证与发布指南
 
 应用、Skill 与 Deployment 按各自发布单元管理。准备提交时遵循仓库的版本规则；版本文件与发布记录应在提交前同步，不由 CI 回写 Git 历史。详见[开发规则](./AGENTS.md)与[发布流程](./docs/releasing.md)。
 
-插件或数据库兼容性变更应执行 `npm run verify:plugins`。三库测试使用专用本地服务，通过 `SLOTHVAULT_PLUGIN_TEST_MYSQL_URL` 与 `SLOTHVAULT_PLUGIN_TEST_POSTGRESQL_URL` 配置；测试自行创建并删除随机命名的临时库。未配置时，相应分支会跳过，SQLite 通过不代表三库均通过。插件生命周期套件为每个用例保留 30 秒上限，以覆盖源码冷编译、Worker 重启和重装；普通单测仍使用默认时限，不通过自动重试掩盖失败。
+插件或数据库兼容性变更应执行 `npm run verify:plugins`。三库测试使用专用本地服务，通过 `SLOTHVAULT_PLUGIN_TEST_MYSQL_URL` 与 `SLOTHVAULT_PLUGIN_TEST_POSTGRESQL_URL` 配置；测试自行创建并删除随机命名的临时库。未配置时，相应分支会跳过，SQLite 通过不代表三库均通过。涉及源码冷编译、Worker 重启和重装的集成测试按套件设置有界时限，不通过自动重试掩盖失败。
 
 ## 文档导航
 
@@ -244,6 +268,8 @@ docs/                        安装、权限、备份、存证与发布指南
 | 安装或迁移数据库 | [数据库安装与迁移](./docs/DATABASE_INSTALLATION.md) |
 | 在 Linux 部署、配置 Nginx / HTTPS 或更新 | [Deployment 部署指南](./integrations/deployment/README.md) |
 | 管理会员、阅读与下载权限 | [会员与项目访问](./docs/MEMBERSHIP_PROJECT_ACCESS.md) |
+| 安装插件、管理插件数据与备份 | [插件运维指南](./docs/plugins/operations.md) |
+| 配置 Solana 主网 USDT / SOL 购分 | [Solana 支付插件](./plugins/sol-payments/README.md) |
 | 管理委托、合同与交付 | [委托工作区](./docs/COMMISSION_WORKFLOW.md) |
 | 备份、恢复或处理恢复中断 | [完整备份与恢复](./docs/BACKUP_AND_RESTORE.md) |
 | 理解发布快照与存证哈希 | [Manifest v3](./docs/RELEASE_MANIFEST_V3.md) |
