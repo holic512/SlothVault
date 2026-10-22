@@ -4,7 +4,7 @@
  * @file settings-manager.tsx
  * @project SlothVault
  * @module System Settings Administration
- * @description Provides shared settings drafts, readable RPC inputs with independent node probes, and read-only system updates.
+ * @description Provides shared settings drafts, RPC and market-source probes, and read-only system updates.
  * @logic Reconcile saved settings without discarding drafts, confirm writes by readback, and run cancellable saved-node probes concurrently with isolated outcomes.
  * @dependencies Ant Design, React Query, next-intl, Next navigation, admin-settings-draft, admin-rpc-test, api-client
  * @index_tags admin,settings,routing,draft,branding,filing,logo,favicon,rpc,configuration,system-update,release
@@ -20,6 +20,7 @@ import Link from 'next/link'
 import { useRouter, useSelectedLayoutSegment } from 'next/navigation'
 
 import { AdminPage } from '@/components/admin/admin-page'
+import { MarketSourceTests } from '@/components/admin/market-source-tests'
 import { RpcSettingsField } from '@/components/admin/rpc-settings-field'
 import { formatAdminDate, formatAdminError } from '@/lib/admin-localization'
 import {
@@ -66,7 +67,7 @@ type SystemUpdateInfo = {
 }
 
 const SYSTEM_FAVICON_CONFIG_KEY = 'SYSTEM_FAVICON_FILE_PATH'
-const SECTION_ICONS = { branding: ImageUp, filing: FileBadge, policy: Waypoints, rpc: ServerCog, updates: RefreshCw }
+const SECTION_ICONS = { branding: ImageUp, filing: FileBadge, policy: Waypoints, rpc: ServerCog, market: ServerCog, updates: RefreshCw }
 
 type SettingsContextValue = {
   data: ConfigData | null
@@ -78,6 +79,7 @@ type SettingsContextValue = {
   testingRpcNodes: boolean
   rpcTestingDisabled: boolean
   rpcDirty: boolean
+  marketTestingDisabled: boolean
 }
 const SettingsContext = createContext<SettingsContextValue | null>(null)
 
@@ -258,7 +260,7 @@ export function SettingsManager({ children }: { children: ReactNode }) {
                 ? t('logo.fieldLabel')
                 : config.kind === 'icon'
                   ? t('favicon.fieldLabel')
-                  : <code>{config.key}</code>}
+                  : config.key.startsWith('MARKET_') ? t(`market.fields.${config.key}`) : <code>{config.key}</code>}
           </span>
           {sensitive && config.configured ? <Tag color="success">{t('configured')}</Tag> : null}
         </span>
@@ -273,6 +275,8 @@ export function SettingsManager({ children }: { children: ReactNode }) {
             unCheckedChildren={t('disabled')}
             onChange={(checked) => setValue(config.key, String(checked))}
           />
+        ) : config.kind === 'market-provider' ? (
+          <Segmented disabled={editingLocked} value={values[config.key]} options={[{ value: 'okx', label: 'OKX' }, { value: 'bitget', label: 'Bitget' }]} onChange={value => setValue(config.key, String(value))} />
         ) : config.kind === 'network' ? (
           <Segmented
             disabled={editingLocked}
@@ -351,6 +355,7 @@ export function SettingsManager({ children }: { children: ReactNode }) {
       error: query.error,
       retry: () => { void query.refetch() },
       renderConfig,
+      marketTestingDisabled: busy || dirtySections.has('market'),
       testAllRpcNodes,
       testingRpcNodes,
       rpcTestingDisabled,
@@ -480,6 +485,7 @@ export function SettingsSection({ section }: { section: SettingsSectionKey }) {
           title={<span className="settings-card-title"><Icon size={16} />{section === 'branding' ? t('branding.cardTitle') : t('tabs.fieldsCount', { count: configs.length })}</span>}
         >
           <div className="settings-fields">{configs.map(context.renderConfig)}</div>
+          {section === 'market' ? <MarketSourceTests key={configs.map(c => c.value).join("|")} disabled={context.marketTestingDisabled} /> : null}
         </Card> : <Empty description={t('empty')} />}
       </> : null}
     </>}

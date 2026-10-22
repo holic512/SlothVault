@@ -9,6 +9,15 @@
       "descriptionZh": "发行卡密、查看卡密全文与使用情况，并提供独立的账户兑换页面。",
       "repository": "holic512/SlothVault",
       "tagPrefix": "v"
+    },
+    {
+      "id": "slothvault.sol-payments",
+      "name": "SOL payments",
+      "nameZh": "SOL 购买积分",
+      "description": "Purchase points with SOL using five-minute locked SOL/USDT quotes and finalized on-chain settlement. Pausing sales preserves pending payments; disabling pauses reconciliation until re-enabled.",
+      "descriptionZh": "使用 SOL 购买积分，五分钟锁价，链上最终确认后自动入账。",
+      "repository": "holic512/SlothVault",
+      "tagPrefix": "v"
     }
   ]
 }

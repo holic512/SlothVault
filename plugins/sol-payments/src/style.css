@@ -1,0 +1,25 @@
+[data-sv-plugin="slothvault.sol-payments"] .sol-payment-address {
+  overflow-wrap: anywhere;
+  white-space: normal;
+  margin-bottom: 0;
+}
+
+[data-sv-plugin="slothvault.sol-payments"] .ant-descriptions-item-content {
+  min-width: 0;
+}
+
+[data-sv-plugin="slothvault.sol-payments"] .ant-form-inline {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+[data-sv-plugin="slothvault.sol-payments"] .sol-payments {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  min-width: 0;
+}
+
+[data-sv-plugin="slothvault.sol-payments"] .ant-form-item-control {
+  min-width: 140px;
+}

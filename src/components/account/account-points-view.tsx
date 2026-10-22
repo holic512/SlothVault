@@ -5,7 +5,7 @@
  * @project SlothVault
  * @module Account Points Center
  * @description Provides the authenticated core balance and ledger without optional card redemption UI.
- * @logic Read host balances and ledger independently of optional card redemption contributions.
+ * @logic Read host balances and ledger while rendering authorized account.points plugin entry contributions.
  * @dependencies React Query, Ant Design, account shell, account points API
  * @index_tags account,points,gift-card,ledger
  * @author holic512
@@ -19,6 +19,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useAccountUser } from '@/components/account/account-shell'
 import { AccountCard } from '@/components/account/account-card'
 import { AccountQueryError } from '@/components/account/account-query-error'
+import { PluginSlot } from '@/components/plugins/plugin-ui'
 import { apiFetch } from '@/lib/api-client'
 
 type PointEntry = {
@@ -52,6 +53,7 @@ export function AccountPointsView() {
         <AccountQueryError retry={() => void pointsQuery.refetch()} />
       ) : (
         <>
+          <PluginSlot name="account.points" surface="account" />
           <div className="account-points-summary">
             <AccountCard className="account-overview-balance">
               <Statistic title={t('current')} value={pointsBalance} prefix={<Coins size={17} />} />

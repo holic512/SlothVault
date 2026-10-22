@@ -3,7 +3,7 @@
  * @file plugin-ui.tsx
  * @project SlothVault
  * @module Lazy Plugin UI Runtime
- * @description Renders authorized native React contributions with shared contexts and per-contribution error boundaries.
+ * @description Renders authorized React contributions with shared contexts, optional host wallet runtime and error boundaries.
  * @logic Fetch safe metadata, load only requested entries, pin registrations to script digests, and remove scoped styles after unmount.
  * @dependencies React, React Query, plugin protocol types, lazy host facade
  * @index_tags plugins,ui,slots,lazy,error-boundary
@@ -16,6 +16,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { PluginUi } from '@slothvault/plugin-sdk/protocol'
 import type { PluginComponentProps } from '@slothvault/plugin-sdk/client'
+import { WalletRuntime } from '@/components/providers/wallet-runtime'
 import { apiFetch } from '@/lib/api-client'
 type Host = ReturnType<typeof import('./ui-facade')['createUiFacade']> & { register(id: string, key: string, component: ComponentType<PluginComponentProps>): void }
 declare global { interface Window { SlothVaultPluginHost?: Host } }
@@ -75,7 +76,8 @@ export function PluginContribution({ contribution, path }: { contribution: Plugi
   if (errorKey === keyOf(contribution)) return <div role="alert">Plugin UI unavailable / 插件界面暂不可用</div>
   if (!loaded || loaded.key !== keyOf(contribution)) return <span aria-busy="true" />
   const { View } = loaded
-  return <PluginBoundary key={keyOf(contribution)}><div data-sv-plugin={contribution.pluginId} className={contribution.kind === 'page' ? `plugin-page-host plugin-page-host--${contribution.surface}` : 'plugin-slot-host'}><View pluginId={contribution.pluginId} componentKey={contribution.key} path={path} /></div></PluginBoundary>
+  const view = <View pluginId={contribution.pluginId} componentKey={contribution.key} path={path} />
+  return <PluginBoundary key={keyOf(contribution)}><div data-sv-plugin={contribution.pluginId} className={contribution.kind === 'page' ? `plugin-page-host plugin-page-host--${contribution.surface}` : 'plugin-slot-host'}>{contribution.wallet && contribution.surface !== 'admin' ? <WalletRuntime>{view}</WalletRuntime> : view}</div></PluginBoundary>
 }
 export function PluginSlot({ name, surface }: { name: string; surface: 'admin' | 'account' | 'public' }) {
   const query = usePluginContributions(surface)

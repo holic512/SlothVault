@@ -30,10 +30,10 @@ function renderNavigation(activeSection: string | null, dirty: SettingsSectionKe
 describe('settings route navigation', () => {
   afterEach(() => { scenario.locale = 'en' })
 
-  it.each(['branding', 'filing', 'policy', 'rpc', 'updates'])('selects only the current %s destination', (section) => {
+  it.each(['branding', 'filing', 'policy', 'rpc', 'market', 'updates'])('selects only the current %s destination', (section) => {
     const html = renderNavigation(section)
     const links = html.match(/<a\b[^>]*>[\s\S]*?<\/a>/g) || []
-    expect(links).toHaveLength(5)
+    expect(links).toHaveLength(6)
     const active = links.filter((link) => link.includes('aria-current="page"'))
     expect(active).toHaveLength(1)
     expect(active[0]).toContain(`href="/admin/mm/settings/${section}"`)

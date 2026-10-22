@@ -50,13 +50,13 @@ function configuration(overrides: Record<string, Partial<SettingsConfigItem>> = 
 }
 
 describe('shared settings draft', () => {
-  it('registers all five destinations and partitions policy and RPC fields', () => {
+  it('registers all six destinations and partitions policy and RPC fields', () => {
     const data = configuration()
     expect(SETTINGS_SECTIONS.map(getSettingsSectionPath)).toEqual([
       '/admin/mm/settings/branding', '/admin/mm/settings/filing', '/admin/mm/settings/policy',
-      '/admin/mm/settings/rpc', '/admin/mm/settings/updates',
+      '/admin/mm/settings/rpc', '/admin/mm/settings/market', '/admin/mm/settings/updates',
     ])
-    expect(SETTINGS_SECTIONS.map((section) => getSettingsSectionConfigs(data, section).length)).toEqual([2, 4, 3, 4, 0])
+    expect(SETTINGS_SECTIONS.map((section) => getSettingsSectionConfigs(data, section).length)).toEqual([2, 4, 3, 4, 0, 0])
     expect(getSettingsSectionConfigs(data, 'rpc').every((item) => !item.sensitive)).toBe(true)
     expect(getSettingsSectionConfigs(data, 'policy').map((item) => item.key)).toEqual([
       'SOLANA_DEFAULT_NETWORK', 'SOLANA_MAINNET_ENABLED', 'SOLANA_DEVNET_ENABLED',

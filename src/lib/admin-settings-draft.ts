@@ -20,14 +20,14 @@ export type SettingsConfigItem = {
   effectiveValue?: string
   previewUrl?: string
   isCustom?: boolean
-  kind?: 'boolean' | 'network' | 'url' | 'image' | 'icon' | 'text'
+  kind?: 'boolean' | 'network' | 'url' | 'image' | 'icon' | 'text' | 'market-provider'
 }
 export type SettingsConfigData = {
   configs: SettingsConfigItem[]
   groups: { key: string; label: string; configs: SettingsConfigItem[] }[]
 }
 
-export const SETTINGS_SECTIONS = ['branding', 'filing', 'policy', 'rpc', 'updates'] as const
+export const SETTINGS_SECTIONS = ['branding', 'filing', 'policy', 'rpc', 'market', 'updates'] as const
 export type SettingsSectionKey = (typeof SETTINGS_SECTIONS)[number]
 export const ADMIN_SETTINGS_QUERY_KEY = ['admin-system-config'] as const
 export const ADMIN_SETTINGS_ENDPOINT = '/api/admin/mm/config'

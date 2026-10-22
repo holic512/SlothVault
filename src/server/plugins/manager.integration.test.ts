@@ -223,7 +223,7 @@ for (const testCase of cases) describe.skipIf(testCase.provider !== 'sqlite' && 
     const post = vi.spyOn(worker.worker, 'postMessage')
     worker.pending.set('credit-guard', {
       resolve: () => undefined, reject: () => undefined, timer: setTimeout(() => undefined, 10_000),
-      scope: { actor: { userId: user.id, role: 'USER' }, transactions, ddl: false, readOnly: false, background: false, active: true, hosts: new Set() },
+      scope: { scheduledJob: false, actor: { userId: user.id, role: 'USER' }, transactions, ddl: false, readOnly: false, background: false, active: true, hosts: new Set() },
     })
     try {
       await worker.host({ id: 1, invocationId: 'credit-guard', method: 'points.credit', payload: { userId: user.id, amount: 5, sourceKey: 'missing-tx', description: 'test' } })

@@ -6,7 +6,7 @@ const storage = vi.hoisted(() => ({ path: '' }))
 vi.mock('@/server/config/app-data', () => ({ appDataPath: () => storage.path }))
 vi.mock('@/server/config/master-key', () => ({ getMasterKey: () => 'test-plugin-key' }))
 import { verifyPluginPackage, stagePluginPackage, verifyInstalledPackage, packageAsset } from './packages'
-import { editTestPackage, readTestPackage } from './test-package'
+import { editTestPackage, readTestPackage, readTestManifest } from './test-package'
 import { assertPortableTableGraph, pluginManifestSchema } from '@slothvault/plugin-sdk/protocol'
 import { githubRepository } from './sources'
 import { encryptPluginConfig, decryptPluginConfig, validatePluginConfig, maskedPluginConfig } from './config'
@@ -71,5 +71,13 @@ describe('static plugin package trust boundary', () => {
     expect(pluginManifestSchema.safeParse(bad).success).toBe(false)
     const cycle = [{ name: 'loop', columns: [{ name: 'id', type: 'integer' as const, primary: true, nullable: false, generated: false, references: { table: 'loop', column: 'id', onDelete: 'CASCADE' as const } }], indexes: [] }]
     expect(() => assertPortableTableGraph(cycle)).toThrow('Cyclic')
+  })
+})
+
+describe('background settlement permission declaration', () => {
+  it('requires the foreground point-credit capability as well', () => {
+    const manifest = readTestManifest('sol-payments')
+    expect(pluginManifestSchema.safeParse(manifest).success).toBe(true)
+    expect(pluginManifestSchema.safeParse({...manifest,capabilities:manifest.capabilities.filter(value=>value !== 'points.credit')}).success).toBe(false)
   })
 })

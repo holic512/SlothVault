@@ -1284,7 +1284,11 @@
           "label": "System Updates",
           "description": "View the running version, latest official release, and all cumulative release notes."
         },
-        "fieldsCount": "{count} settings"
+        "fieldsCount": "{count} settings",
+        "market": {
+          "label": "Price sources",
+          "description": "Configure primary and fallback server-side prices. New quotes stop when fresh prices are unavailable."
+        }
       },
       "updates": {
         "cardTitle": "System Updates",
@@ -1347,7 +1351,11 @@
         "SOLANA_MAINNET_RPC_FALLBACK": "Mainnet fallback for connection failures",
         "SOLANA_DEVNET_ENABLED": "Allow Devnet test evidence",
         "SOLANA_DEVNET_RPC_PRIMARY": "Devnet primary server-only RPC",
-        "SOLANA_DEVNET_RPC_FALLBACK": "Devnet fallback for connection failures"
+        "SOLANA_DEVNET_RPC_FALLBACK": "Devnet fallback for connection failures",
+        "MARKET_PRIMARY_PROVIDER": "Server-side access only. New quotes stop when both sources fail.",
+        "MARKET_PRIMARY_URL": "Server-side access only. New quotes stop when both sources fail.",
+        "MARKET_FALLBACK_PROVIDER": "Server-side access only. New quotes stop when both sources fail.",
+        "MARKET_FALLBACK_URL": "Server-side access only. New quotes stop when both sources fail."
       },
       "placeholder": "Enter configuration value",
       "placeholderConfigured": "Leave empty to keep the saved address",
@@ -1443,6 +1451,23 @@
           "configurationChanged": "Server settings changed. Refresh and try again.",
           "requestTimeout": "Test request timed out. Try again."
         }
+      },
+      "market": {
+        "fields": {
+          "MARKET_PRIMARY_PROVIDER": "Primary provider",
+          "MARKET_PRIMARY_URL": "Primary endpoint",
+          "MARKET_FALLBACK_PROVIDER": "Fallback provider",
+          "MARKET_FALLBACK_URL": "Fallback endpoint"
+        },
+        "test": "Test",
+        "testAll": "Test both sources",
+        "primary": "Primary",
+        "fallback": "Fallback",
+        "saveFirst": "Save changes before testing saved sources.",
+        "failed": "No fresh quote. Check the endpoint, adapter and server connection.",
+        "price": "SOL/USDT",
+        "time": "Quote time",
+        "latency": "Latency"
       }
     },
     "backup": {

@@ -221,3 +221,22 @@ describe('administrator RPC configuration', () => {
     expect(mocks.prisma.$transaction).not.toHaveBeenCalled()
   })
 })
+
+describe('system market source settings', () => {
+  it('exposes separate public provider and endpoint settings with primary/fallback defaults', async () => {
+    const result = await listAdminSettings()
+    expect(result.groups.find(group => group.key === 'market')?.configs).toHaveLength(4)
+    expect(result.configs.find(config => config.key === 'MARKET_PRIMARY_PROVIDER')).toMatchObject({value:'okx',kind:'market-provider'})
+    expect(result.configs.find(config => config.key === 'MARKET_FALLBACK_URL')?.value).toContain('api.bitget.com')
+  })
+  it('rejects unsupported adapters and private/insecure price endpoints before saving', async () => {
+    for (const value of ['http://example.com', 'https://127.0.0.1', 'https://[::1]', 'https://user:secret@example.com']) {
+      await expect(updateAdminSettings([{key:'MARKET_PRIMARY_URL',value}])).rejects.toThrow()
+    }
+    await expect(updateAdminSettings([{key:'MARKET_PRIMARY_PROVIDER',value:'custom-script'}])).rejects.toThrow('Invalid market provider')
+    expect(mocks.transaction.systemConfig.upsert).not.toHaveBeenCalled()
+  })
+  it('saves a known adapter and endpoint through the shared transaction', async () => {
+    await expect(updateAdminSettings([{key:'MARKET_PRIMARY_PROVIDER',value:'bitget'},{key:'MARKET_PRIMARY_URL',value:'https://api.bitget.com/api/v2/spot/market/tickers?symbol=SOLUSDT'}])).resolves.toMatchObject({updated:2})
+  })
+})

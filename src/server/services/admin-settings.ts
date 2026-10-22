@@ -2,7 +2,7 @@
  * @file admin-settings.ts
  * @project SlothVault
  * @module Admin Settings Service
- * @description Owns branding, filing records, readable administrator RPC configuration, validated writes, and database-backed refresh checks.
+ * @description Owns branding, filing, administrator RPC and public market-source configuration, validated writes and refresh checks.
  * @logic Join stored rows with a typed registry and effective RPC defaults, validate changes, reject invalid evidence defaults, and persist changes atomically.
  * @dependencies Prisma SystemConfig/FileManagement models, server/http/errors, system configuration and branding services
  * @index_tags admin,settings,branding,filing,logo,favicon,solana,evidence,rpc,validation,transaction
@@ -14,6 +14,8 @@ import { indexFileWrite } from './file-references'
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
 import { CONFIG_KEYS, resolveSolanaRpcUrl } from '@/server/services/system-config'
+import { MARKET_DEFAULTS } from '@/types/market-data'
+import { validateMarketUrl } from './market-data'
 import { RPC_NODES } from '@/types/admin-rpc'
 import {
   getSystemBranding,
@@ -22,6 +24,7 @@ import {
 } from '@/server/services/system-branding'
 
 export const ADMIN_CONFIG_DEFINITIONS = [
+  ...Object.entries(MARKET_DEFAULTS).map(([key, defaultValue]) => ({ key, defaultValue, group: 'market', kind: key.endsWith('_URL') ? 'url' as const : 'market-provider' as const, sensitive: false, description: 'Server-side SOL/USDT market source' })),
   {
     key: CONFIG_KEYS.SYSTEM_LOGO_FILE_PATH,
     group: 'branding',
@@ -150,6 +153,10 @@ function validateConfigValue(
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
       throw new HttpError(`${definition.key} must use HTTP(S)`, 400, 400)
     }
+  }
+  if (definition.group === 'market' && value) {
+    if (definition.kind === 'url') validateMarketUrl(value)
+    else if (!['okx', 'bitget'].includes(value)) throw new HttpError('Invalid market provider', 400)
   }
   if (definition.kind === 'boolean' && value !== 'true' && value !== 'false') {
     throw new HttpError(`${definition.key} must be true or false`, 400, 400)

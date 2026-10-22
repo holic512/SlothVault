@@ -31,6 +31,7 @@ const dispatch = defineRoute<{ pluginId: string; path: string[] }>(async (reques
   await requirePluginAccess(boundPluginAccess(item, endpoint.access), actor)
   const mutation = !['GET', 'HEAD'].includes(request.method)
   if (mutation && !isSameOriginRequest(request)) throw new HttpError('Same-origin request required', 403)
+  if (id === 'slothvault.sol-payments' && mutation) await enforceRateLimit({ scope: `sol-payments:${endpoint.key}`, identity: String(actor?.userId), limit: endpoint.key === 'create' ? 6 : endpoint.key === 'reconcile' ? 12 : 20, windowSeconds: 60 })
   await enforceRateLimit({ scope: 'plugin-api', identity: `${id}:${endpoint.key}:${actor?.userId ?? requestClientIp(request)}`, limit: id === 'slothvault.gift-cards' && endpoint.key === 'redeem' ? 12 : 120, windowSeconds: id === 'slothvault.gift-cards' && endpoint.key === 'redeem' ? 900 : 60 })
   const input = mutation ? await readJson(request, z.unknown(), { maxBytes: 1024 * 1024 }) : undefined
   return apiOk(await invokeRegisteredPlugin(item, 'api', endpoint.key, { actor, input, query: Object.fromEntries(request.nextUrl.searchParams), params: params.path }, false, !mutation))

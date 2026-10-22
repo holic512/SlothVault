@@ -18,7 +18,7 @@ node plugins/sdk/cli.mjs pack plugins/gift-cards dist/plugins/gift-cards
 
 ## 每个应用 Release 默认附带全部插件
 
-普通插件不再依赖 `plugin-*` 标签发布。应用发布工作流从固定提交打包所有带 `plugin.json` 的目录（当前为卡密和示例），不判断插件是否变更；SDK 没有插件 Manifest，不混入安装包。发布产物只包含源码，不先构建插件 bundle。
+普通插件不再依赖 `plugin-*` 标签发布。应用发布工作流从固定提交打包所有带 `plugin.json` 的目录（当前为卡密、SOL 收款和示例），不判断插件是否变更；SDK 没有插件 Manifest，不混入安装包。发布产物只包含源码，不先构建插件 bundle。
 
 ```sh
 npm run plugins:pack
@@ -30,7 +30,8 @@ npm run plugins:pack
 | --- | --- | --- |
 | 卡密插件 | 1.1.1 | 应用 `vM.m.p` Release 中的 `slothvault-plugin-slothvault.gift-cards-1.1.1.zip` |
 | 开发示例 | 1.0.1 | 应用 `vM.m.p` Release 中的 `slothvault-plugin-slothvault.example-1.0.1.zip` |
-| SDK / 打包 CLI | 1.0.1 | 使用 `plugin-sdk-v1.0.1` 独立发布 |
+| SOL 购买积分 | 1.0.0 | 应用 Release 中的 `slothvault-plugin-slothvault.sol-payments-1.0.0.zip` |
+| SDK / 打包 CLI | 1.1.0 | 使用 `plugin-sdk-v1.1.0` 独立发布 |
 
 新提交通过根 `package.json` 中的 `slothvaultRelease.pluginAssets: true` 声明附件契约。每个新应用 Release 必须同时包含镜像清单、全部插件 ZIP 和统一校验文件，附件未齐全时不得公开 Release 或提升 Latest。草稿可以补传缺失附件；已发布附件、标签及历史版本不会被覆盖。历史提交没有该标记，重试时沿用旧契约。
 
@@ -47,3 +48,7 @@ npm run plugins:pack
 所有插件本地持久文件位于 `APP_DATA_PATH/plugins/{pluginId}/`，包括 archives、packages、compiled、staging、snapshots。业务数据和状态在主数据库，SQLite 本身位于 `data/database`。插件 ID 用作目录名，不使用可变的展示名称。
 
 详细说明见主仓库 `docs/plugins/`。
+
+## SOL 购买积分
+
+新增 `sol-payments` 插件使用宿主公共行情、Mainnet 交易校验及积分账本。配置与恢复规则见 [sol-payments/README.md](sol-payments/README.md)。SDK 1.1.0 新增对应受限接口；新插件要求宿主 >=2.7.7，默认关闭销售。

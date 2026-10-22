@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0
+
+- Add system-owned market quotes and fixed Mainnet SOL transfer services.
+- Add explicit background point-credit permission for declared scheduler jobs.
+- Share the host wallet hook with optional wallet-enabled plugin contributions.
+
+
 ## 1.0.1
 
 - 将最低 Node.js 版本同步至 24.22.1，保持安全运行要求与宿主一致。

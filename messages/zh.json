@@ -1284,7 +1284,11 @@
           "label": "系统更新",
           "description": "查看当前运行版本、最新正式版本及全部跨版本日志。"
         },
-        "fieldsCount": "{count} 项设置"
+        "fieldsCount": "{count} 项设置",
+        "market": {
+          "label": "价格源",
+          "description": "配置主、备用服务端行情接口。有效行情不可用时停止生成新报价。"
+        }
       },
       "updates": {
         "cardTitle": "系统更新",
@@ -1347,7 +1351,11 @@
         "SOLANA_MAINNET_RPC_FALLBACK": "Mainnet 备用 RPC，仅在网络故障时切换",
         "SOLANA_DEVNET_ENABLED": "允许办理 Devnet 测试凭证",
         "SOLANA_DEVNET_RPC_PRIMARY": "Devnet 主 RPC，仅服务端使用",
-        "SOLANA_DEVNET_RPC_FALLBACK": "Devnet 备用 RPC，仅在网络故障时切换"
+        "SOLANA_DEVNET_RPC_FALLBACK": "Devnet 备用 RPC，仅在网络故障时切换",
+        "MARKET_PRIMARY_PROVIDER": "仅服务端访问；两个来源依次失败时禁止生成新报价。",
+        "MARKET_PRIMARY_URL": "仅服务端访问；两个来源依次失败时禁止生成新报价。",
+        "MARKET_FALLBACK_PROVIDER": "仅服务端访问；两个来源依次失败时禁止生成新报价。",
+        "MARKET_FALLBACK_URL": "仅服务端访问；两个来源依次失败时禁止生成新报价。"
       },
       "placeholder": "请输入配置值",
       "placeholderConfigured": "留空以保留已保存地址",
@@ -1443,6 +1451,23 @@
           "configurationChanged": "服务端配置已变化，请刷新后重试",
           "requestTimeout": "测试请求超时，请重试"
         }
+      },
+      "market": {
+        "fields": {
+          "MARKET_PRIMARY_PROVIDER": "主价格源适配器",
+          "MARKET_PRIMARY_URL": "主价格源接口",
+          "MARKET_FALLBACK_PROVIDER": "备用价格源适配器",
+          "MARKET_FALLBACK_URL": "备用价格源接口"
+        },
+        "test": "检测",
+        "testAll": "检测两个来源",
+        "primary": "主价格源",
+        "fallback": "备用价格源",
+        "saveFirst": "请先保存更改，再检测已保存的价格源。",
+        "failed": "未取得有效行情，检查地址、适配器及服务器网络。",
+        "price": "SOL/USDT",
+        "time": "行情时间",
+        "latency": "耗时"
       }
     },
     "backup": {

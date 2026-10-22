@@ -1,0 +1,13 @@
+{
+  "format": "source-v1",
+  "server": "src/server.ts",
+  "client": {
+    "purchase": "src/purchase.tsx",
+    "manage": "src/manage.tsx",
+    "entry": "src/entry.tsx"
+  },
+  "css": {
+    "purchase": "src/style.css",
+    "manage": "src/style.css"
+  }
+}

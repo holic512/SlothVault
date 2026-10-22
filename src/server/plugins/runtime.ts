@@ -2,7 +2,7 @@
  * @file runtime.ts
  * @project SlothVault
  * @module Plugin Worker Supervisor
- * @description Lazily activates stoppable workers and bounds RPC, transaction and core-service access.
+ * @description Lazily activates workers and bounds SQL, market, SOL transfer and scheduled point-credit access.
  * @logic Associate every host call with an admitted invocation, roll back abandoned transactions, and terminate unhealthy instances without importing plugin code on the main thread.
  * @dependencies worker_threads, plugin database bridge, encrypted config, Prisma
  * @index_tags plugins,worker,rpc,transactions,lifecycle
@@ -25,7 +25,9 @@ import { verifyInstalledPackage } from './packages'
 import { compiledAsset, ensureCompiledPlugin } from './compiler'
 import { pluginRegistry, type RegisteredPlugin } from './state'
 import { enqueuePluginEvent } from './events'
-type Scope = { actor: PluginInvocation['actor']; transactions: PluginTransactions; ddl: boolean; readOnly: boolean; background: boolean; active: boolean; hosts: Set<Promise<void>> }
+import { getMarketQuote } from '@/server/services/market-data'
+import { validateSolIntent, prepareSolTransfer, validateSignedTransfer, broadcastSolTransfer, observeSolTransfer } from '@/server/services/sol-payment-chain'
+type Scope = { scheduledJob: boolean; actor: PluginInvocation['actor']; transactions: PluginTransactions; ddl: boolean; readOnly: boolean; background: boolean; active: boolean; hosts: Set<Promise<void>> }
 type Pending = { resolve(value: unknown): void; reject(error: Error): void; timer: ReturnType<typeof setTimeout>; scope: Scope }
 export class PluginWorker {
   readonly worker: Worker
@@ -85,11 +87,23 @@ export class PluginWorker {
           if (scope.readOnly && !/^\s*select\b/i.test(query.sql)) throw new HttpError('This lifecycle is read only', 403)
           value = scope.background && !tx ? await withMaintenanceLock(/^\s*select\b/i.test(query.sql) ? 'shared' : 'exclusive', () => { assertActive(); return runPluginQuery(query, tx, scope.ddl, assertActive) }) : await runPluginQuery(query, tx, scope.ddl, assertActive)
         } else throw new HttpError('Unknown database method', 400)
+      } else if (message.method === 'market.quote') {
+        if (scope.readOnly || !manifest.capabilities.includes('market.read') || scope.transactions.active) throw new HttpError('Market quote is not permitted in this scope', 403)
+        value = await getMarketQuote()
+      } else if (message.method.startsWith('solana.')) {
+        if (scope.readOnly || !manifest.capabilities.includes('solana.transfer') || scope.transactions.active) throw new HttpError('SOL transfers are not permitted in this scope', 403)
+        if (message.method === 'solana.validateIntent') value = validateSolIntent(payload)
+        else if (message.method === 'solana.prepare') value = await prepareSolTransfer(manifest.id, payload)
+        else if (message.method === 'solana.validateSigned') value = { signature: validateSignedTransfer(manifest.id, payload).signature }
+        else if (message.method === 'solana.broadcast') value = await broadcastSolTransfer(manifest.id, payload)
+        else if (message.method === 'solana.observe') value = await observeSolTransfer(manifest.id, payload)
+        else throw new HttpError('Unknown SOL transfer method', 400)
+        assertActive()
       } else if (message.method === 'users.snapshot') {
         if (!manifest.capabilities.includes('users.read')) throw new HttpError('Users capability was not declared', 403)
         value = await snapshotUser(tx ?? prisma, Number(payload.userId))
       } else if (message.method === 'points.credit') {
-        if (scope.readOnly || !manifest.capabilities.includes('points.credit') || !scope.actor || (scope.actor.role !== 'ADMIN' && scope.actor.userId !== payload.userId)) throw new HttpError('Plugin cannot credit this account', 403)
+        if (scope.readOnly || !manifest.capabilities.includes('points.credit') || !(scope.actor ? (scope.actor.role === 'ADMIN' || scope.actor.userId === payload.userId) : scope.scheduledJob && manifest.capabilities.includes('points.credit.background'))) throw new HttpError('Plugin cannot credit this account', 403)
         if (!tx && scope.transactions.active) throw new HttpError('Pass the current transaction when crediting points inside a transaction', 409)
         const credit = async (reader: PluginTransaction) => {
           assertActive()
@@ -128,7 +142,7 @@ export class PluginWorker {
     if (this.stopped || this.pending.size >= 16) throw new HttpError('Plugin is busy or stopped', 503)
     this.lastUsed = Date.now()
     return new Promise<unknown>((resolve, reject) => {
-      const id = randomUUID(); const scope: Scope = { active: true, hosts: new Set(), actor: (input as PluginInvocation | undefined)?.actor ?? null, transactions: new PluginTransactions(options.background ? () => acquireMaintenanceLock('exclusive') : undefined), background: options.background ?? false, ddl: options.ddl ?? false, readOnly: options.readOnly ?? false }
+      const id = randomUUID(); const scope: Scope = { scheduledJob: group === 'jobs' && options.background === true && !!options.task && this.registered.manifest.jobs.some(job => job.key === key), active: true, hosts: new Set(), actor: (input as PluginInvocation | undefined)?.actor ?? null, transactions: new PluginTransactions(options.background ? () => acquireMaintenanceLock('exclusive') : undefined), background: options.background ?? false, ddl: options.ddl ?? false, readOnly: options.readOnly ?? false }
       const timer = setTimeout(() => { reject(new HttpError('Plugin execution timed out', 504)); void this.stop() }, options.timeout ?? 15_000)
       this.pending.set(id, { resolve, reject, timer, scope }); this.worker.postMessage({ type: 'invoke', id, group, key, input, task: options.task })
     })

@@ -1,0 +1,398 @@
+{
+  "schema": 1,
+  "id": "slothvault.sol-payments",
+  "name": "SOL payments",
+  "version": "1.0.0",
+  "description": "Purchase points with SOL using five-minute locked SOL/USDT quotes and finalized on-chain settlement. Pausing sales preserves pending payments; disabling pauses reconciliation until re-enabled.",
+  "author": "holic512",
+  "engines": {
+    "slothvault": ">=2.7.7 <3",
+    "sdk": "^1.1.0",
+    "node": ">=24.22.1"
+  },
+  "server": "server/index.mjs",
+  "capabilities": [
+    "database",
+    "points.credit",
+    "points.credit.background",
+    "market.read",
+    "solana.transfer",
+    "users.read"
+  ],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "salesEnabled": {
+        "type": "boolean",
+        "default": false
+      },
+      "recipient": {
+        "type": "string",
+        "maxLength": 44
+      },
+      "pointsPerUsdt": {
+        "type": "string",
+        "pattern": "^(0|[1-9][0-9]{0,9})(\\.[0-9]{1,8})?$"
+      },
+      "minPoints": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1000000
+      },
+      "maxPoints": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1000000
+      }
+    },
+    "required": [
+      "salesEnabled",
+      "recipient",
+      "pointsPerUsdt",
+      "minPoints",
+      "maxPoints"
+    ],
+    "additionalProperties": false
+  },
+  "configDefaults": {
+    "salesEnabled": false,
+    "recipient": "",
+    "pointsPerUsdt": "0",
+    "minPoints": 1,
+    "maxPoints": 1000000
+  },
+  "tables": [
+    {
+      "name": "orders",
+      "columns": [
+        {
+          "name": "id",
+          "type": "string",
+          "primary": true,
+          "length": 36
+        },
+        {
+          "name": "user_id",
+          "type": "integer",
+          "nullable": true,
+          "references": {
+            "table": "auth_user",
+            "column": "id",
+            "onDelete": "SET NULL",
+            "coreCollection": "users",
+            "attributionField": "userId"
+          }
+        },
+        {
+          "name": "attribution_json",
+          "type": "text"
+        },
+        {
+          "name": "request_key",
+          "type": "string",
+          "length": 80
+        },
+        {
+          "name": "points",
+          "type": "integer"
+        },
+        {
+          "name": "payer",
+          "type": "string",
+          "length": 44
+        },
+        {
+          "name": "recipient",
+          "type": "string",
+          "length": 44
+        },
+        {
+          "name": "lamports",
+          "type": "string",
+          "length": 32
+        },
+        {
+          "name": "rate",
+          "type": "string",
+          "length": 48
+        },
+        {
+          "name": "quote_json",
+          "type": "text"
+        },
+        {
+          "name": "network",
+          "type": "string",
+          "length": 10
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "length": 24
+        },
+        {
+          "name": "active_attempt_id",
+          "type": "string",
+          "length": 36,
+          "nullable": true
+        },
+        {
+          "name": "revision",
+          "type": "integer"
+        },
+        {
+          "name": "expires_at",
+          "type": "datetime"
+        },
+        {
+          "name": "created_at",
+          "type": "datetime"
+        },
+        {
+          "name": "updated_at",
+          "type": "datetime"
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "length": 100,
+          "nullable": true
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "user_id",
+            "request_key"
+          ],
+          "unique": true
+        },
+        {
+          "columns": [
+            "user_id",
+            "created_at"
+          ]
+        },
+        {
+          "columns": [
+            "status"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "attempts",
+      "columns": [
+        {
+          "name": "id",
+          "type": "string",
+          "primary": true,
+          "length": 36
+        },
+        {
+          "name": "order_id",
+          "type": "string",
+          "length": 36,
+          "references": {
+            "table": "orders",
+            "column": "id",
+            "onDelete": "CASCADE"
+          }
+        },
+        {
+          "name": "prepared_json",
+          "type": "text"
+        },
+        {
+          "name": "signed_transaction",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "signature",
+          "type": "string",
+          "length": 88,
+          "nullable": true
+        },
+        {
+          "name": "network",
+          "type": "string",
+          "length": 10
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "length": 24
+        },
+        {
+          "name": "slot",
+          "type": "string",
+          "length": 32,
+          "nullable": true
+        },
+        {
+          "name": "checks",
+          "type": "integer"
+        },
+        {
+          "name": "next_check_at",
+          "type": "datetime"
+        },
+        {
+          "name": "created_at",
+          "type": "datetime"
+        },
+        {
+          "name": "updated_at",
+          "type": "datetime"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "network",
+            "signature"
+          ],
+          "unique": true
+        },
+        {
+          "columns": [
+            "status",
+            "next_check_at"
+          ]
+        },
+        {
+          "columns": [
+            "order_id"
+          ]
+        }
+      ]
+    }
+  ],
+  "migrations": [
+    "initial"
+  ],
+  "jobs": [
+    {
+      "key": "reconcile",
+      "intervalSeconds": 60
+    }
+  ],
+  "api": [
+    {
+      "key": "options",
+      "path": "purchase-options",
+      "method": "GET",
+      "access": {
+        "audience": "user"
+      }
+    },
+    {
+      "key": "create",
+      "path": "orders",
+      "method": "POST",
+      "access": {
+        "audience": "user"
+      }
+    },
+    {
+      "key": "list",
+      "path": "orders",
+      "method": "GET",
+      "access": {
+        "audience": "user"
+      }
+    },
+    {
+      "key": "detail",
+      "path": "order",
+      "method": "GET",
+      "access": {
+        "audience": "user"
+      }
+    },
+    {
+      "key": "prepare",
+      "path": "payment/prepare",
+      "method": "POST",
+      "access": {
+        "audience": "user"
+      }
+    },
+    {
+      "key": "submit",
+      "path": "payment/submit",
+      "method": "POST",
+      "access": {
+        "audience": "user"
+      }
+    },
+    {
+      "key": "reconcile",
+      "path": "payment/reconcile",
+      "method": "POST",
+      "access": {
+        "audience": "user"
+      }
+    },
+    {
+      "key": "admin-list",
+      "path": "admin/orders",
+      "method": "GET",
+      "access": {
+        "audience": "admin"
+      }
+    },
+    {
+      "key": "admin-reconcile",
+      "path": "admin/reconcile",
+      "method": "POST",
+      "access": {
+        "audience": "admin"
+      }
+    }
+  ],
+  "ui": [
+    {
+      "key": "purchase",
+      "asset": "client/purchase.js",
+      "surface": "account",
+      "kind": "page",
+      "title": "Buy points",
+      "titleZh": "\u8d2d\u4e70\u79ef\u5206",
+      "path": "purchase",
+      "menu": true,
+      "access": {
+        "audience": "user"
+      },
+      "wallet": true,
+      "css": "client/purchase.css"
+    },
+    {
+      "key": "manage",
+      "asset": "client/manage.js",
+      "surface": "admin",
+      "kind": "page",
+      "title": "SOL payment orders",
+      "titleZh": "SOL \u6536\u6b3e\u8ba2\u5355",
+      "path": "",
+      "menu": true,
+      "access": {
+        "audience": "admin"
+      },
+      "css": "client/manage.css"
+    },
+    {
+      "key": "entry",
+      "asset": "client/entry.js",
+      "surface": "account",
+      "kind": "slot",
+      "slot": "account.points",
+      "title": "Buy points",
+      "titleZh": "\u8d2d\u4e70\u79ef\u5206",
+      "access": {
+        "audience": "user"
+      }
+    }
+  ]
+}
