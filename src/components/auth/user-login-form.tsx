@@ -4,8 +4,8 @@
  * @file user-login-form.tsx
  * @project SlothVault
  * @module User Login Form
- * @description Implements conventional username/email login with wallet address login as a secondary option.
- * @logic Remember only opted-in identifiers, share the bounded persistence preference with wallet login, reset identity caches, and validate role-aware return targets.
+ * @description Presents focused username/email login with optional wallet login and expandable session guidance.
+ * @logic Group independent sign-in preferences, remember only opted-in identifiers, share bounded persistence with wallet login, reset identity caches, and validate role-aware return targets.
  * @dependencies Ant Design, Next navigation, auth API, wallet-login-button
  * @index_tags login,user,password,wallet,form
  * @author holic512
@@ -14,7 +14,6 @@ import { useEffect, useState } from 'react'
 
 import { useQueryClient } from '@tanstack/react-query'
 
-import { LockOutlined, UserOutlined } from '@ant-design/icons'
 import { Alert, App, Button, Card, Checkbox, Divider, Form, Input, Typography } from 'antd'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -86,18 +85,15 @@ export function UserLoginForm({ returnTo = '/account' }: { returnTo?: string }) 
   }
 
   return (
-    <Card className="auth-card auth-card--user" variant="borderless">
+    <Card className="auth-card auth-card--user auth-card--login" variant="borderless">
       <div className="auth-heading auth-heading--editorial">
-        <Typography.Text className="auth-kicker">{t('kicker')}</Typography.Text>
         <Typography.Title level={1}>{t('title')}</Typography.Title>
-        <Typography.Paragraph type="secondary">
-          {t('description')}
-        </Typography.Paragraph>
       </div>
 
       {errorText ? <Alert className="auth-alert" type="error" showIcon title={errorText} /> : null}
 
       <Form<LoginValues>
+        className="auth-login-form"
         form={form}
         disabled={walletSubmitting || submitting}
         layout="vertical"
@@ -105,27 +101,34 @@ export function UserLoginForm({ returnTo = '/account' }: { returnTo?: string }) 
         initialValues={{ remember: false, rememberUsername: false }}
         onFinish={(values) => void submit(values)}
       >
-        <Form.Item name="identifier" rules={[{ required: true, message: t('identifierRequired') }]}>
-          <Input prefix={<UserOutlined />} placeholder={t('identifier')} autoComplete="username" />
+        <Form.Item name="identifier" label={t('identifier')} rules={[{ required: true, message: t('identifierRequired') }]}>
+          <Input autoComplete="username" />
         </Form.Item>
-        <Form.Item name="password" rules={[{ required: true, message: t('passwordRequired') }]}>
-          <Input.Password prefix={<LockOutlined />} placeholder={t('password')} autoComplete="current-password" />
+        <Form.Item name="password" label={t('password')} rules={[{ required: true, message: t('passwordRequired') }]}>
+          <Input.Password autoComplete="current-password" />
         </Form.Item>
-        <Form.Item name="rememberUsername" valuePropName="checked">
-          <Checkbox onChange={event => { if (!event.target.checked) saveRememberedAccount(null) }}>{t('rememberUsername')}</Checkbox>
-        </Form.Item>
-        <Form.Item name="remember" valuePropName="checked">
-          <Checkbox>{t('remember')}</Checkbox>
-        </Form.Item>
-        <Button block type="primary" htmlType="submit" loading={submitting} disabled={walletSubmitting}>
+        <div className="auth-login-preferences">
+          <Form.Item name="rememberUsername" valuePropName="checked">
+            <Checkbox onChange={event => { if (!event.target.checked) saveRememberedAccount(null) }}>{t('rememberUsername')}</Checkbox>
+          </Form.Item>
+          <Form.Item name="remember" valuePropName="checked">
+            <Checkbox>{t('remember')}</Checkbox>
+          </Form.Item>
+        </div>
+        <details className="auth-login-session">
+          <summary>{t('sessionDetails')}</summary>
+          <Typography.Paragraph type="secondary">{t(remember ? 'persistentHint' : 'sessionHint')}</Typography.Paragraph>
+        </details>
+        <Button className="auth-login-submit" block type="primary" htmlType="submit" loading={submitting} disabled={walletSubmitting}>
           {t('submit')}
         </Button>
       </Form>
 
-      <Typography.Paragraph className="auth-footnote" type="secondary">{t(remember ? 'persistentHint' : 'sessionHint')}</Typography.Paragraph>
       <Divider plain>{t('or')}</Divider>
-      <WalletLoginButton remember={remember} redirectTo={returnTo} disabled={submitting} onBusyChange={setWalletSubmitting} />
-      <Typography.Paragraph className="auth-footnote" type="secondary">
+      <div className="auth-login-alternative">
+        <WalletLoginButton remember={remember} redirectTo={returnTo} disabled={submitting} onBusyChange={setWalletSubmitting} />
+      </div>
+      <Typography.Paragraph className="auth-footnote auth-login-register" type="secondary">
         {t('noAccount')}<Link href={returnTo === '/account' ? '/register' : `/register?next=${encodeURIComponent(returnTo)}`}>{t('register')}</Link>
       </Typography.Paragraph>
     </Card>

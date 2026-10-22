@@ -2470,6 +2470,7 @@
       "passwordRequired": "请输入密码",
       "remember": "7 天内免登录",
       "rememberUsername": "记住账号",
+      "sessionDetails": "登录状态说明",
       "persistentHint": "在本设备保留登录至本次认证后第 7 天；到期需重新登录。公共设备请勿勾选。",
       "sessionHint": "不持久保存登录；12 小时未续期将退出，活跃续期也不超过 7 天。请使用退出登录主动注销。",
       "submit": "登录",

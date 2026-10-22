@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Authentication Experience Styles
  * @description Scopes login, registration, maintenance, and authentication frame presentation.
- * @logic Center a stable editorial authentication surface and adapt it to compact screens.
+ * @logic Center shared authentication surfaces and give login a focused, touch-friendly form with responsive preference grouping.
  * @dependencies SlothVault design tokens, feature markup
  * @index_tags css-module,auth,login,register
  * @author holic512
@@ -131,4 +131,107 @@
 
 .root :global(.auth-card) :global(.ant-divider) {
   margin: 16px 0;
+}
+
+.root :global(.auth-card--login) :global(.ant-card-body) {
+  padding: var(--sv-space-6);
+}
+
+.root :global(.auth-card--login) :global(.auth-heading) {
+  margin-bottom: 28px;
+}
+
+.root :global(.auth-card--login) h1:global(.ant-typography) {
+  margin: 0;
+  letter-spacing: -0.025em;
+}
+
+.root :global(.auth-login-form) :global(.ant-form-item) {
+  margin-bottom: 20px;
+}
+
+.root :global(.auth-login-form) :global(.ant-form-item-label) {
+  padding-bottom: var(--sv-space-2);
+}
+
+.root :global(.auth-login-form) :global(input.ant-input),
+.root :global(.auth-login-form) :global(.ant-input-affix-wrapper) {
+  min-height: 44px;
+  font-size: 1rem;
+}
+
+.root :global(.auth-login-form) :global(.ant-input-affix-wrapper) :global(input.ant-input) {
+  min-height: 0;
+}
+
+.root :global(.auth-login-preferences) {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  column-gap: var(--sv-space-4);
+}
+
+.root :global(.auth-login-preferences) :global(.ant-form-item) {
+  margin-bottom: 0;
+}
+
+.root :global(.auth-login-preferences) :global(.ant-checkbox-wrapper) {
+  min-height: 44px;
+  align-items: center;
+}
+
+.root :global(.auth-login-session) {
+  margin: var(--sv-space-1) 0 var(--sv-space-5);
+  color: var(--sv-text-muted);
+  font-size: var(--sv-font-secondary);
+  line-height: var(--sv-line-body);
+}
+
+.root :global(.auth-login-session) summary {
+  width: fit-content;
+  padding-block: var(--sv-space-1);
+  cursor: pointer;
+  text-underline-offset: 3px;
+}
+
+.root :global(.auth-login-session) summary:hover {
+  color: var(--sv-text);
+  text-decoration: underline;
+}
+
+.root :global(.auth-login-session) :global(.ant-typography) {
+  margin: var(--sv-space-2) 0 0;
+  font-size: inherit;
+  text-align: left;
+}
+
+.root :global(.auth-card--login) :global(.auth-login-submit),
+.root :global(.auth-login-alternative) > :global(.ant-btn) {
+  min-height: 44px;
+  border-radius: 6px;
+}
+
+.root :global(.auth-card--login) :global(.ant-divider) {
+  margin-block: var(--sv-space-5);
+  color: var(--sv-text-muted);
+  font-size: var(--sv-font-secondary);
+}
+
+.root :global(.auth-login-alternative) > :global(.ant-btn) {
+  box-shadow: none;
+}
+
+.root :global(.auth-login-register) {
+  margin-top: var(--sv-space-5) !important;
+}
+
+.root :global(.auth-login-register) a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+  .root :global(.auth-card--login) :global(.ant-card-body) {
+    padding: 28px var(--sv-space-5);
+  }
 }
