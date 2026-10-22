@@ -1,0 +1,183 @@
+.drawer:global(.ant-drawer) :global(.ant-drawer-header) {
+  padding: var(--sv-space-5);
+  border-bottom-color: var(--sv-border);
+}
+
+.drawer:global(.ant-drawer) :global(.ant-drawer-body) {
+  padding: var(--sv-space-5);
+}
+
+.drawer:global(.ant-drawer) :global(.ant-drawer-footer) {
+  padding: var(--sv-space-4) var(--sv-space-5) max(var(--sv-space-4), env(safe-area-inset-bottom));
+  border-top-color: var(--sv-border);
+  background: var(--sv-surface);
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-3);
+  line-height: 1.5;
+}
+
+.title svg,
+.wallet-heading svg {
+  flex-shrink: 0;
+  color: var(--sv-text-muted);
+}
+
+.content {
+  display: grid;
+  gap: var(--sv-space-5);
+  min-width: 0;
+}
+
+.notices {
+  display: grid;
+  gap: var(--sv-space-3);
+  min-width: 0;
+}
+
+.notices :global(.ant-alert),
+.form > :global(.ant-alert) {
+  padding: var(--sv-space-3) var(--sv-space-4);
+  border-radius: var(--sv-radius);
+}
+
+.notices :global(.ant-alert-description) {
+  margin-top: var(--sv-space-1);
+  line-height: 1.7;
+}
+
+.intro:global(.ant-alert) {
+  border-color: var(--sv-border);
+  background: color-mix(in srgb, var(--sv-bg-soft) 50%, var(--sv-surface));
+}
+
+.intro :global(.ant-alert-title) {
+  color: var(--sv-text);
+  font-weight: 600;
+}
+
+.intro :global(.ant-alert-icon),
+.intro :global(.ant-alert-description) {
+  color: var(--sv-text-muted);
+}
+
+.form {
+  display: grid;
+  gap: var(--sv-space-5);
+  min-width: 0;
+}
+
+.form > :global(.ant-form-item) {
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.form :global(.ant-form-item-label) > label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.form :global(.ant-select) {
+  width: 100%;
+  font-size: 14px;
+}
+
+.wallet {
+  display: grid;
+  gap: var(--sv-space-3);
+  min-width: 0;
+  padding-top: var(--sv-space-5);
+  border-top: 1px solid var(--sv-border);
+}
+
+.wallet-heading,
+.wallet-heading > span {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-2);
+}
+
+.wallet-heading {
+  flex-wrap: wrap;
+  justify-content: space-between;
+  color: var(--sv-text-muted);
+  font-size: 13px;
+}
+
+.wallet-heading :global(.ant-tag) {
+  margin: 0;
+}
+
+.address:global(.ant-typography) {
+  display: block;
+  min-width: 0;
+  padding: var(--sv-space-3) var(--sv-space-4);
+  border-radius: var(--sv-radius-sm);
+  background: var(--sv-bg-soft);
+  font-family: var(--sv-font-mono);
+  font-size: 13px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+
+.details :global(.ant-descriptions-item-content) {
+  min-width: 0;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.details :global(.ant-typography) code {
+  margin-inline: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+.actions {
+  display: grid;
+  gap: var(--sv-space-2);
+}
+
+.actions :global(.ant-btn) {
+  height: auto;
+  min-height: 40px;
+  padding-block: var(--sv-space-2);
+  white-space: normal;
+}
+
+.actions :global(.ant-btn-lg) {
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.actions :global(.ant-btn) > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (width <= 640px) {
+  .drawer:global(.ant-drawer) :global(.ant-drawer-content-wrapper) {
+    max-width: 100%;
+  }
+
+  .drawer:global(.ant-drawer) :global(.ant-drawer-header),
+  .drawer:global(.ant-drawer) :global(.ant-drawer-body) {
+    padding: var(--sv-space-4);
+  }
+
+  .drawer:global(.ant-drawer) :global(.ant-drawer-footer) {
+    padding-inline: var(--sv-space-4);
+  }
+}
+
+.timeline > :global(.ant-typography) {
+  margin: 0 0 var(--sv-space-4);
+}
+
+.timeline :global(.ant-timeline-item-last) {
+  padding-bottom: 0;
+}

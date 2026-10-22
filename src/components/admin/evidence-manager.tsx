@@ -5,12 +5,12 @@
  * @project SlothVault
  * @module Unified Evidence Administration
  * @description Provides one localized receipt ledger for project-version evidence with publication selection.
- * @logic Filter the ledger with network tabs and status controls, restrict Devnet to Phantom, retain uncertain submissions, and refresh both ledger and receipt during reconciliation.
+ * @logic Filter the ledger, guide issuance with persistent actions, restrict Devnet signing to Phantom, and recover paid evidence by transaction hash without another signature.
  * @dependencies React Query, Ant Design, next-intl, use-solana-wallet, release evidence APIs, admin localization utilities
  * @index_tags admin,evidence,solana,wallet,receipts,reconciliation,i18n,error-handling
  * @author holic512
  */
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -52,6 +52,7 @@ import { formatAdminDate, formatAdminError, formatAdminNumber } from '@/lib/admi
 import { apiFetch, ApiClientError } from '@/lib/api-client'
 import { EvidenceSubmissionCache, evidenceRequest } from '@/lib/evidence-client'
 import { evidenceReason, EvidenceSigningError, isExpiredEvidenceAttempt } from '@/lib/evidence-diagnostics'
+import styles from '@/styles/modules/evidence-manager.module.css'
 
 type Network = 'mainnet' | 'devnet'
 type SubjectType = 'PROJECT_VERSION'
@@ -128,6 +129,7 @@ type Prepared = {
   network: Network
   walletName: string | null
 }
+type SyncInput = { network: Network; signerAddress: string; transactionSignature: string }
 
 const STATUS = {
   [-1]: { labelKey: 'status.failed', color: 'error', icon: <CircleAlert size={14} /> },
@@ -174,10 +176,14 @@ export function EvidenceManager() {
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [issueOpen, setIssueOpen] = useState(false)
+  const [syncOpen, setSyncOpen] = useState(false)
   const [prepared, setPrepared] = useState<Prepared | null>(null)
   const [retrySubject, setRetrySubject] = useState<Evidence | null>(null)
   const [issueProjectId, setIssueProjectId] = useState('')
   const [form] = Form.useForm<{ projectVersionId: number; network: Network }>()
+  const [syncForm] = Form.useForm<SyncInput>()
+  const issueFormId = useId()
+  const syncFormId = useId()
   const issueNetwork = Form.useWatch('network', form)
   const signedCache = useRef(new EvidenceSubmissionCache())
   const [submissionUncertain, setSubmissionUncertain] = useState(false)
@@ -207,6 +213,8 @@ export function EvidenceManager() {
       WALLET_SIGNATURE_CANCELLED: 'signatureRejected', CHAIN_SUBMISSION_FAILED: 'chainFailed',
       BLOCKHASH_EXPIRED: 'blockhashExpired', CHAIN_TRANSACTION_FAILED: 'chainFailed', CHAIN_EVIDENCE_MISMATCH: 'messageMismatch',
       CHAIN_COMPUTE_BUDGET_EXCEEDED: 'computeBudgetExceeded', CHAIN_BLOCKHASH_UNAVAILABLE: 'submissionUnknown', EVIDENCE_BALANCE_INSUFFICIENT: 'balanceInsufficient',
+      EVIDENCE_SYNC_SIGNATURE_INVALID: 'syncSignatureInvalid', EVIDENCE_SYNC_WALLET_INVALID: 'syncWalletInvalid',
+      EVIDENCE_SYNC_NOT_FINALIZED: 'syncNotFinalized', EVIDENCE_SYNC_WALLET_MISMATCH: 'syncWalletMismatch', EVIDENCE_SYNC_NOT_MATCHED: 'syncNotMatched',
     } as const
     if (reason in specific) return t(`messages.${specific[reason as keyof typeof specific]}`)
     if (reason === 'EVIDENCE_TOO_LARGE') return t('messages.tooLarge')
@@ -238,6 +246,7 @@ export function EvidenceManager() {
   })
   const selected = query.data?.list.find((item) => item.id === selectedId) ?? null
   const expired = (row: Evidence) => row.status === 0 && !row.transactionSignature && Boolean(row.attempts[0] && isExpiredEvidenceAttempt(row.attempts[0], now))
+  const hasSignedAttempts = (row: Evidence) => Boolean(row.transactionSignature || row.attempts.some(attempt => attempt.transactionSignature))
   const rowStatusLabel = (row: Evidence) => expired(row) ? t('status.expired') : statusLabel(row.status)
   const versionsQuery = useQuery({
     queryKey: ['published-versions-for-evidence', issueProjectId],
@@ -255,6 +264,26 @@ export function EvidenceManager() {
     },
     onError: (error) => message.error(evidenceErrorMessage(error)),
   })
+  const sync = useMutation({
+    mutationFn: (values: SyncInput) => evidenceRequest<{ evidence: Evidence; syncedSignature: string }>('/api/admin/evidence/sync', values, { network: values.network }, 'sync'),
+    onSuccess: async ({ evidence }) => {
+      if (prepared?.credentialId === evidence.id) {
+        signedCache.current.clear(); setPrepared(null); setSubmissionUncertain(false)
+      }
+      setScope('all'); setNetwork(evidence.network); setStatus(undefined); setSignature(''); setPage(1)
+      await refresh()
+    },
+  })
+  const openSync = (row?: Evidence) => {
+    sync.reset()
+    syncForm.setFieldsValue({
+      network: row?.network ?? network ?? 'mainnet',
+      signerAddress: row?.signerAddress ?? signer,
+      transactionSignature: row?.transactionSignature ?? row?.attempts.find(attempt => attempt.transactionSignature)?.transactionSignature ?? signature,
+    })
+    setSelectedId(null)
+    setSyncOpen(true)
+  }
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 10_000)
     return () => clearInterval(timer)
@@ -280,7 +309,10 @@ export function EvidenceManager() {
       return { ...next, walletName }
     },
     onSuccess: async (next) => { setPrepared(next); await refresh() },
-    onError: (error) => message.error(evidenceErrorMessage(error)),
+    onError: async (error) => {
+      message.error(evidenceErrorMessage(error))
+      if (['EVIDENCE_ALREADY_FINALIZED', 'EVIDENCE_ALREADY_SUBMITTED'].includes(evidenceReason(error))) await refresh()
+    },
   })
   const submit = useMutation({
     mutationFn: async (next: Prepared) => {
@@ -383,7 +415,7 @@ export function EvidenceManager() {
       title: t('table.actions'), width: 170, fixed: 'right', render: (_, row) => <Space size={2}>
         <Button type="link" onClick={() => setSelectedId(row.id)}>{t('actions.details')}</Button>
         {(row.status === -1 || expired(row)) ? <Button type="link" onClick={() => openIssue(row)}>{t('actions.retry')}</Button> : null}
-        {row.status === 0 || row.status === 1 ? <Button type="link" loading={reconcile.isPending} onClick={() => reconcile.mutate(row.id)}>{t('actions.reconcile')}</Button> : null}
+        {row.status === 0 || row.status === 1 || (row.status === -1 && hasSignedAttempts(row)) ? <Button type="link" loading={reconcile.isPending} onClick={() => reconcile.mutate(row.id)}>{t('actions.reconcile')}</Button> : null}
         {row.transactionSignature ? <Button type="link" href={`/admin/mm/evidence/receipts/release/${row.transactionSignature}`} target="_blank">{t('actions.verify')}</Button> : null}
       </Space>,
     },
@@ -405,6 +437,7 @@ export function EvidenceManager() {
       />
       <Space wrap>
         <Button icon={<RefreshCw size={15} />} loading={query.isFetching} onClick={() => void query.refetch()}>{t('actions.refresh')}</Button>
+        <Button icon={<RefreshCw size={15} />} onClick={() => openSync()}>{t('actions.sync')}</Button>
         <Button type="primary" icon={<FileSignature size={15} />} onClick={() => openIssue()}>{t('actions.issue')}</Button>
       </Space>
     </AdminPageActions>
@@ -432,30 +465,75 @@ export function EvidenceManager() {
           <div><strong>{`${row.projectName} / ${row.version}`}</strong><Tag color={row.network === 'devnet' ? 'warning' : 'success'}>{row.network === 'devnet' ? t('network.devnetCredential') : t('network.mainnetCredential')}</Tag></div>
           <code title={row.subjectHash || ''}>{compact(row.subjectHash, 14, 10)}</code>
           <Space><Tag color={statusMeta(row.status)?.color}>{rowStatusLabel(row)}</Tag><Typography.Text type="secondary">{compact(row.signerAddress)}</Typography.Text></Space>
-          <Space><Button size="small" onClick={() => setSelectedId(row.id)}>{t('actions.details')}</Button>{(row.status === -1 || expired(row)) ? <Button size="small" onClick={() => openIssue(row)}>{t('actions.retry')}</Button> : null}{row.status === 0 || row.status === 1 ? <Button size="small" onClick={() => reconcile.mutate(row.id)}>{t('actions.reconcile')}</Button> : null}{row.transactionSignature ? <Button size="small" href={`/admin/mm/evidence/receipts/release/${row.transactionSignature}`}>{t('actions.verify')}</Button> : null}</Space>
+          <Space wrap><Button size="small" onClick={() => setSelectedId(row.id)}>{t('actions.details')}</Button>{(row.status === -1 || expired(row)) ? <Button size="small" onClick={() => openIssue(row)}>{t('actions.retry')}</Button> : null}{row.status === 0 || row.status === 1 || (row.status === -1 && hasSignedAttempts(row)) ? <Button size="small" onClick={() => reconcile.mutate(row.id)}>{t('actions.reconcile')}</Button> : null}{row.transactionSignature ? <Button size="small" href={`/admin/mm/evidence/receipts/release/${row.transactionSignature}`}>{t('actions.verify')}</Button> : null}</Space>
         </article>)}
       </div>
     </AdminTablePanel>
 
-    <Drawer title={t('receipt.title')} size={560} open={Boolean(selected)} onClose={() => setSelectedId(null)}>
-      {selected ? <>
-        <Descriptions bordered size="small" column={1} items={[
+    <Drawer title={t('receipt.title')} size={560} open={Boolean(selected)} onClose={() => setSelectedId(null)} footer={selected && (selected.transactionSignature || selected.status !== 2) ? <div className={styles.actions}>
+      {selected.transactionSignature ? <Button block href={explorerUrl(selected.transactionSignature, selected.network)} target="_blank" icon={<ExternalLink size={14} />}>{t('actions.openExplorer')}</Button> : null}
+      {selected.status !== 2 ? <Button block onClick={() => openSync(selected)}>{t('actions.sync')}</Button> : null}
+    </div> : undefined}>
+      {selected ? <div className={styles.content}>
+        <Descriptions className={styles.details} bordered size="small" column={1} items={[
           { key: 'release', label: t('receipt.subject'), children: `${selected.projectName} / ${selected.version}` },
           { key: 'hash', label: t('receipt.contentHash'), children: <Typography.Text copyable code>{selected.subjectHash}</Typography.Text> },
           { key: 'network', label: t('receipt.networkTrust'), children: networkLabel(selected.network) },
           { key: 'wallet', label: t('receipt.wallet'), children: <Typography.Text copyable code>{selected.signerAddress}</Typography.Text> },
           { key: 'tx', label: t('receipt.transaction'), children: selected.transactionSignature ? <Typography.Text copyable code>{selected.transactionSignature}</Typography.Text> : t('receipt.notGenerated') },
         ]} />
+        <section className={styles.timeline}>
         <Typography.Title level={5}>{t('receipt.timeline')}</Typography.Title>
         <Timeline items={selected.attempts.map((attempt) => ({
           color: attempt.status === 2 ? 'green' : attempt.status === -1 ? 'red' : 'blue',
-          content: <div><strong>{isExpiredEvidenceAttempt(attempt, now) ? t('status.expired') : statusLabel(attempt.status)}</strong><br /><Typography.Text type="secondary">{formatAdminDate(locale, attempt.createdAt)}</Typography.Text>{attempt.failureMessage ? <Alert type="error" showIcon title={t('messages.failure')} description={evidenceErrorMessage(new ApiClientError('Evidence attempt failed', 400, 400, { reason: attempt.failureCode }))} /> : null}</div>,
+          content: <div>
+            <strong>{isExpiredEvidenceAttempt(attempt, now) ? t('status.expired') : statusLabel(attempt.status)}</strong><br />
+            <Typography.Text type="secondary">{formatAdminDate(locale, attempt.createdAt)}</Typography.Text>
+            {attempt.transactionSignature ? <div><Typography.Link href={explorerUrl(attempt.transactionSignature, selected.network)} target="_blank" rel="noreferrer" title={t('actions.openExplorer')}>{compact(attempt.transactionSignature)}</Typography.Link></div> : null}
+            {attempt.failureMessage ? <Alert type="error" showIcon title={t('messages.failure')} description={evidenceErrorMessage(new ApiClientError('Evidence attempt failed', 400, 400, { reason: attempt.failureCode }))} /> : null}
+          </div>,
         }))} />
-        {selected.transactionSignature ? <Button block href={explorerUrl(selected.transactionSignature, selected.network)} target="_blank" icon={<ExternalLink size={14} />}>{t('actions.openExplorer')}</Button> : null}
-      </> : <Empty />}
+        </section>
+      </div> : <Empty />}
     </Drawer>
 
-    <Drawer title={retrySubject ? t('drawer.retryTitle') : t('drawer.issueTitle')} size={620} open={issueOpen} forceRender={hydrated} onClose={() => {
+    <Drawer rootClassName={styles.drawer} title={<span className={styles.title}><RefreshCw size={19} aria-hidden="true" />{t('sync.title')}</span>} size={560} open={syncOpen} forceRender={hydrated} onClose={() => { if (!sync.isPending) setSyncOpen(false) }} footer={
+      <div className={styles.actions}><Button block type="primary" size="large" htmlType="submit" form={syncFormId} loading={sync.isPending}>{t('sync.submit')}</Button></div>
+    }>
+      <div className={styles.content}>
+        <Alert className={styles.intro} showIcon type="info" title={t('sync.noticeTitle')} description={t('sync.noticeDescription')} />
+        <Form id={syncFormId} form={syncForm} layout="vertical" className={styles.form} disabled={sync.isPending} onFinish={values => sync.mutate(values)} onValuesChange={() => sync.reset()}>
+          <Form.Item name="network" label={t('drawer.network')} rules={[{ required: true }]}>
+            <Select size="large" options={(['mainnet', 'devnet'] as const).map(value => ({ value, label: networkLabel(value) }))} />
+          </Form.Item>
+          <Form.Item name="signerAddress" label={t('sync.wallet')} extra={t('sync.walletHelp')} rules={[{ required: true, message: t('messages.syncWalletInvalid') }, { pattern: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/, transform: value => value?.trim(), message: t('messages.syncWalletInvalid') }]}>
+            <Input size="large" autoComplete="off" spellCheck={false} placeholder={t('sync.walletPlaceholder')} />
+          </Form.Item>
+          <Form.Item name="transactionSignature" label={t('sync.hash')} rules={[{ required: true, message: t('messages.syncSignatureInvalid') }, { pattern: /^[1-9A-HJ-NP-Za-km-z]{64,88}$/, transform: value => value?.trim(), message: t('messages.syncSignatureInvalid') }]}>
+            <Input.TextArea rows={3} autoComplete="off" spellCheck={false} placeholder={t('sync.hashPlaceholder')} />
+          </Form.Item>
+        </Form>
+        {sync.isError ? <Alert type="error" showIcon title={t('sync.failed')} description={evidenceErrorMessage(sync.error)} /> : null}
+        {sync.data ? <>
+          <Alert type="success" showIcon title={t('sync.success')} description={t('sync.successDescription', { project: sync.data.evidence.projectName, version: sync.data.evidence.version })} />
+          <Descriptions className={styles.details} layout="vertical" size="small" column={1} items={[
+            { key: 'network', label: t('drawer.network'), children: networkLabel(sync.data.evidence.network) },
+            { key: 'wallet', label: t('sync.wallet'), children: <Typography.Text code copyable>{sync.data.evidence.signerAddress}</Typography.Text> },
+            { key: 'hash', label: t('sync.hash'), children: <Typography.Text code copyable>{sync.data.syncedSignature}</Typography.Text> },
+          ]} />
+          <Button block icon={<ExternalLink size={14} />} href={explorerUrl(sync.data.syncedSignature, sync.data.evidence.network)} target="_blank" rel="noreferrer">{t('actions.openExplorer')}</Button>
+        </> : null}
+      </div>
+    </Drawer>
+
+    <Drawer rootClassName={styles.drawer} title={<span className={styles.title}><FileSignature size={19} aria-hidden="true" />{retrySubject ? t('drawer.retryTitle') : t('drawer.issueTitle')}</span>} size={620} open={issueOpen} forceRender={hydrated} footer={
+      <div className={styles.actions}>
+        {prepared ? <>
+          <Button block type="primary" size="large" loading={submit.isPending} disabled={signer !== prepared.signerAddress || !wallet.canSignForNetwork(prepared.network)} onClick={() => submit.mutate(prepared)}>{t(submissionUncertain ? 'actions.retrySubmission' : 'actions.sign')}</Button>
+          <Button block disabled={submit.isPending || submissionUncertain} onClick={() => void cancelPrepared('The administrator chose to revise the prepared evidence')}>{t('actions.backToEdit')}</Button>
+        </> : <Button block type="primary" htmlType="submit" form={issueFormId} size="large" loading={prepare.isPending} disabled={!signer || !issueNetwork || !wallet.canSignForNetwork(issueNetwork)}>{t('actions.prepare')}</Button>}
+      </div>
+    } onClose={() => {
       if (prepare.isPending || submit.isPending) return
       setIssueOpen(false)
       if (signedCache.current.pending) return
@@ -463,61 +541,73 @@ export function EvidenceManager() {
       form.resetFields()
       void cancelPrepared('The evidence drawer was closed before signing')
     }}>
-      <Alert showIcon type="info" title={t('drawer.independentTitle')} description={t('drawer.independentDescription')} />
-      {retrySubject ? <Alert showIcon type="warning" title={t('drawer.retryTitleAlert')} description={`${retrySubject.projectName} / ${retrySubject.version}`} /> : null}
-      {versionsQuery.isError || projectsQuery.isError ? <Alert showIcon type="error" title={t('drawer.loadOptionsFailed')} description={evidenceErrorMessage(versionsQuery.error || projectsQuery.error)} /> : null}
-      {wallet.walletName && wallet.walletName !== 'Phantom' ? <Alert showIcon type="warning" title={t('messages.phantomRequired')} /> : null}
-      {prepared && submissionUncertain ? <Alert showIcon type="warning" title={t('messages.submissionUnknown')} action={<Button onClick={() => reconcile.mutate(prepared.credentialId)} loading={reconcile.isPending}>{t('actions.reconcile')}</Button>} /> : null}
-      {prepared && prepared.expiresAt <= now && !submissionUncertain ? <Alert showIcon type="warning" title={t('messages.expired')} /> : null}
-      <Form form={form} layout="vertical" onFinish={(values) => prepare.mutate(values)}>
-        {!retrySubject ? <>
-          <Form.Item label={t('drawer.project')} required>
-            <Select
-              disabled={Boolean(prepared)}
-              showSearch
-              loading={projectsQuery.isLoading}
-              optionFilterProp="label"
-              value={issueProjectId || undefined}
-              placeholder={t('drawer.selectProject')}
-              options={(projectsQuery.data?.list || []).map((item) => ({ value: item.id, label: item.projectName }))}
-              onChange={(value) => {
-                setIssueProjectId(value)
-                form.setFieldValue('projectVersionId', undefined)
-              }}
-            />
+      <div className={styles.content}>
+        <div className={styles.notices}>
+          <Alert className={styles.intro} showIcon type="info" title={t('drawer.independentTitle')} description={t('drawer.independentDescription')} />
+          {retrySubject ? <Alert showIcon type="warning" title={t('drawer.retryTitleAlert')} description={`${retrySubject.projectName} / ${retrySubject.version}`} /> : null}
+          {versionsQuery.isError || projectsQuery.isError ? <Alert showIcon type="error" title={t('drawer.loadOptionsFailed')} description={evidenceErrorMessage(versionsQuery.error || projectsQuery.error)} /> : null}
+          {wallet.walletName && wallet.walletName !== 'Phantom' ? <Alert showIcon type="warning" title={t('messages.phantomRequired')} /> : null}
+          {prepared && submissionUncertain ? <Alert showIcon type="warning" title={t('messages.submissionUnknown')} action={<Button onClick={() => reconcile.mutate(prepared.credentialId)} loading={reconcile.isPending}>{t('actions.reconcile')}</Button>} /> : null}
+          {prepared && prepared.expiresAt <= now && !submissionUncertain ? <Alert showIcon type="warning" title={t('messages.expired')} /> : null}
+        </div>
+        <Form id={issueFormId} className={styles.form} form={form} layout="vertical" onFinish={(values) => prepare.mutate(values)}>
+          {!retrySubject ? <>
+            <Form.Item label={t('drawer.project')} htmlFor={`${issueFormId}-project`} required>
+              <Select
+                id={`${issueFormId}-project`}
+                size="large"
+                disabled={Boolean(prepared)}
+                showSearch
+                loading={projectsQuery.isLoading}
+                optionFilterProp="label"
+                value={issueProjectId || undefined}
+                placeholder={t('drawer.selectProject')}
+                options={(projectsQuery.data?.list || []).map((item) => ({ value: item.id, label: item.projectName }))}
+                onChange={(value) => {
+                  setIssueProjectId(value)
+                  form.setFieldValue('projectVersionId', undefined)
+                }}
+              />
+            </Form.Item>
+            <Form.Item name="projectVersionId" label={t('drawer.publishedVersion')} rules={[{ required: true }]}>
+              <Select
+                size="large"
+                disabled={Boolean(prepared) || !issueProjectId}
+                showSearch
+                loading={versionsQuery.isLoading}
+                optionFilterProp="label"
+                placeholder={t('drawer.selectPublishedVersion')}
+                options={(versionsQuery.data?.list || []).filter((item) => item.publishedAt && item.manifestVersion === 3).map((item) => ({ value: Number(item.id), label: `${item.version} · ${item.releaseHash?.slice(0, 10) || t('subject.noHash')}…` }))}
+              />
+            </Form.Item>
+          </> : null}
+          <Form.Item
+            name="network"
+            label={t('drawer.network')}
+            rules={[{ required: true }]}
+            extra={issueNetwork === 'mainnet' ? t('drawer.mainnetSolNotice') : issueNetwork === 'devnet' ? t('drawer.devnetSolNotice') : undefined}
+          >
+            <Select size="large" placeholder={t('drawer.network')} disabled={Boolean(prepared)} options={(query.data?.networks || []).map((item) => ({ value: item.network, disabled: !item.enabled || !wallet.canSignForNetwork(item.network), label: `${networkLabel(item.network)}${item.enabled ? '' : t('network.disabled')}` }))} />
           </Form.Item>
-          <Form.Item name="projectVersionId" label={t('drawer.publishedVersion')} rules={[{ required: true }]}>
-            <Select
-              disabled={Boolean(prepared) || !issueProjectId}
-              showSearch
-              loading={versionsQuery.isLoading}
-              optionFilterProp="label"
-              placeholder={t('drawer.selectPublishedVersion')}
-              options={(versionsQuery.data?.list || []).filter((item) => item.publishedAt && item.manifestVersion === 3).map((item) => ({ value: Number(item.id), label: `${item.version} · ${item.releaseHash?.slice(0, 10) || t('subject.noHash')}…` }))}
-            />
-          </Form.Item>
-        </> : null}
-        <Form.Item name="network" label={t('drawer.network')} rules={[{ required: true }]}>
-          <Select disabled={Boolean(prepared)} options={(query.data?.networks || []).map((item) => ({ value: item.network, disabled: !item.enabled || !wallet.canSignForNetwork(item.network), label: `${networkLabel(item.network)}${item.enabled ? '' : t('network.disabled')}` }))} />
-        </Form.Item>
-        {prepared ? <Alert showIcon type="success" title={t('drawer.preparedTitle')} description={t('drawer.preparedDescription')} /> : null}
-        <Descriptions size="small" column={1} items={[
-          { key: 'signer', label: t('drawer.signer'), children: <Typography.Text code copyable>{prepared?.signerAddress || signer || t('drawer.notConnected')}</Typography.Text> },
-          ...(prepared ? [
+          {prepared ? <Alert showIcon type="success" title={t('drawer.preparedTitle')} description={t('drawer.preparedDescription')} /> : null}
+          <section className={styles.wallet} aria-labelledby={`${issueFormId}-wallet`}>
+            <div className={styles['wallet-heading']}>
+              <span id={`${issueFormId}-wallet`}><WalletCards size={17} aria-hidden="true" />{t('drawer.signer')}</span>
+              {wallet.walletName ? <Tag>{wallet.walletName}</Tag> : null}
+            </div>
+            <Typography.Text className={styles.address} copyable={Boolean(prepared?.signerAddress || signer)}>{prepared?.signerAddress || signer || t('drawer.notConnected')}</Typography.Text>
+          </section>
+          {prepared ? <Descriptions className={styles.details} layout="vertical" size="small" column={1} items={[
             { key: 'release', label: t('drawer.source'), children: `${prepared.project} / ${prepared.version}` },
             { key: 'hash', label: t('receipt.contentHash'), children: <Typography.Text code copyable>{prepared.releaseHash}</Typography.Text> },
             { key: 'network', label: t('receipt.networkTrust'), children: networkLabel(prepared.network, true) },
             { key: 'balance', label: t('drawer.balance'), children: t('units.lamports', { value: formatAdminNumber(locale, prepared.balanceLamports) }) },
             { key: 'fee', label: t('drawer.estimatedFee'), children: t('units.lamports', { value: formatAdminNumber(locale, prepared.feeLamports) }) },
             { key: 'memo', label: t('drawer.finalMemo'), children: <Typography.Text code copyable>{prepared.memo}</Typography.Text> },
-          ] : []),
-        ]} />
-        {prepared && signer !== prepared.signerAddress ? <Alert showIcon type="warning" title={t('drawer.walletChangedTitle')} description={t('drawer.walletChangedDescription')} /> : null}
-        {prepared ? <Space orientation="vertical" style={{ width: '100%' }}>
-          <Button block type="primary" size="large" loading={submit.isPending} disabled={signer !== prepared.signerAddress || !wallet.canSignForNetwork(prepared.network)} onClick={() => submit.mutate(prepared)}>{t(submissionUncertain ? 'actions.retrySubmission' : 'actions.sign')}</Button>
-          <Button block disabled={submit.isPending || submissionUncertain} onClick={() => void cancelPrepared('The administrator chose to revise the prepared evidence')}>{t('actions.backToEdit')}</Button>
-        </Space> : <Button block type="primary" htmlType="submit" size="large" loading={prepare.isPending} disabled={!signer || !issueNetwork || !wallet.canSignForNetwork(issueNetwork)}>{t('actions.prepare')}</Button>}
-      </Form>
+          ]} /> : null}
+          {prepared && signer !== prepared.signerAddress ? <Alert showIcon type="warning" title={t('drawer.walletChangedTitle')} description={t('drawer.walletChangedDescription')} /> : null}
+        </Form>
+      </div>
     </Drawer>
   </AdminPage>
 }
