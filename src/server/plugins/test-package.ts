@@ -1,7 +1,20 @@
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { Writable } from 'node:stream'
 import archiver from 'archiver'
 import { Open } from 'unzipper'
+import { pluginManifestSchema } from '@slothvault/plugin-sdk/protocol'
+
+export function readTestManifest(name: string) {
+  return pluginManifestSchema.parse(JSON.parse(readFileSync(resolve('plugins', name, 'plugin.json'), 'utf8')))
+}
+
+/** Read the current build; stale archives must never supply integration fixtures. */
+export function readTestPackage(name: string) {
+  const { id, version } = readTestManifest(name)
+  return readFileSync(resolve('dist/plugins', name, `slothvault-plugin-${id}-${version}.zip`))
+}
 
 /** Test-only publisher; repack to exercise actual integrity validation and workers. */
 export async function editTestPackage(bytes: Buffer, edit: (files: Map<string, Buffer>) => void, rewriteHashes = true) {

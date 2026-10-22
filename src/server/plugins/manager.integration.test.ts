@@ -1,6 +1,7 @@
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { randomBytes } from 'node:crypto'
+import { inc } from 'semver'
 import { Pool } from 'pg'
 import mariadb from 'mariadb'
 import { PrismaPg } from '@prisma/adapter-pg'
@@ -21,7 +22,7 @@ vi.mock('@/server/config/master-key', () => ({ getMasterKey: () => 'plugin-test-
 import { initializePlugins, invokePluginService, listPlugins, uninstallPlugin, installPlugin, resetPluginInitialization, setPluginEnabled, savePluginConfig, invokeRegisteredPlugin, rollbackPlugin } from './manager'
 import { pluginWorkers, startPluginWorker, stopPluginWorker } from './runtime'
 import { pluginRegistry } from './state'
-import { editTestPackage } from './test-package'
+import { editTestPackage, readTestManifest, readTestPackage } from './test-package'
 import { enqueuePluginEvent } from './events'
 import { tickPluginTasks } from './scheduler'
 import { clearPluginDataForRestore, exportPluginRows, importPluginRecords, pluginBackupShape, preparePluginRestore, reconcilePluginRestore, validatePluginBackup, type PluginBackupData } from './backup'
@@ -32,6 +33,8 @@ import { z } from 'zod'
 import { acquireMaintenanceLock } from '@/server/services/maintenance-lock'
 import { boundPluginAccess } from './access'
 
+const giftCardVersion = readTestManifest('gift-cards').version
+const exampleVersion = readTestManifest('example').version
 const cases = [
   { provider: 'sqlite' as const, url: '' },
   { provider: 'postgresql' as const, url: process.env.SLOTHVAULT_PLUGIN_TEST_POSTGRESQL_URL },
@@ -76,7 +79,7 @@ for (const testCase of cases) describe.skipIf(testCase.provider !== 'sqlite' && 
     await initializePlugins()
     expect(pluginRegistry.has('slothvault.gift-cards')).toBe(false)
     expect(await tableExists('points_gift_card')).toBe(false)
-    await installPlugin(readFileSync('dist/plugins/gift-cards/slothvault-plugin-slothvault.gift-cards-1.1.0.zip'), { trusted: true, actorUserId: null })
+    await installPlugin(readTestPackage('gift-cards'), { trusted: true, actorUserId: null })
     expect(pluginRegistry.get('slothvault.gift-cards')?.enabled).toBe(false)
     await setPluginEnabled('slothvault.gift-cards', true, 1)
   }, 60000)
@@ -101,7 +104,7 @@ for (const testCase of cases) describe.skipIf(testCase.provider !== 'sqlite' && 
     expect(await mocks.client!.pointTransaction.count()).toBe(1)
     resetPluginInitialization(); await initializePlugins()
     expect((await listPlugins())[0].installed).toBe(false)
-    await installPlugin(readFileSync('dist/plugins/gift-cards/slothvault-plugin-slothvault.gift-cards-1.1.0.zip'), { trusted: true, actorUserId: admin.id })
+    await installPlugin(readTestPackage('gift-cards'), { trusted: true, actorUserId: admin.id })
     await setPluginEnabled('slothvault.gift-cards', true, admin.id)
     expect(await tableExists(pluginTableMap(pluginRegistry.get('slothvault.gift-cards')!.manifest).cards)).toBe(true)
     expect(await invokePluginService('slothvault.gift-cards', 'list', { actor: { userId: admin.id, role: 'ADMIN' } })).toMatchObject({ total: 0 })
@@ -111,7 +114,7 @@ for (const testCase of cases) describe.skipIf(testCase.provider !== 'sqlite' && 
     await initializePlugins()
     await invokePluginService('slothvault.gift-cards', 'issue', { actor: { userId: admin.id, role: 'ADMIN' }, input: { name: 'Retained', points: 20, quantity: 2 } })
     await uninstallPlugin('slothvault.gift-cards', { deleteData: false, actorUserId: admin.id })
-    await installPlugin(readFileSync('dist/plugins/gift-cards/slothvault-plugin-slothvault.gift-cards-1.1.0.zip'), { trusted: true, actorUserId: admin.id })
+    await installPlugin(readTestPackage('gift-cards'), { trusted: true, actorUserId: admin.id })
     await setPluginEnabled('slothvault.gift-cards', true, admin.id)
     expect(await invokePluginService('slothvault.gift-cards', 'list', { actor: { userId: admin.id, role: 'ADMIN' } })).toMatchObject({ total: 1, list: [{ name: 'Retained', quantity: 2 }] })
   })
@@ -136,51 +139,51 @@ for (const testCase of cases) describe.skipIf(testCase.provider !== 'sqlite' && 
     const admin = await mocks.client!.user.create({ data: { username: 'admin', password: 'test', role: 'ADMIN' } })
     await initializePlugins()
     await invokePluginService('slothvault.gift-cards', 'issue', { actor: { userId: admin.id, role: 'ADMIN' }, input: { name: 'Before upgrade', points: 20, quantity: 1 } })
-    const broken = await editTestPackage(readFileSync('dist/plugins/gift-cards/slothvault-plugin-slothvault.gift-cards-1.1.0.zip'), files => {
-      const manifest = JSON.parse(files.get('plugin.json')!.toString()); manifest.version = '1.1.1'
+    const broken = await editTestPackage(readTestPackage('gift-cards'), files => {
+      const manifest = JSON.parse(files.get('plugin.json')!.toString()); manifest.version = inc(manifest.version, 'patch')!
       files.set('plugin.json', Buffer.from(JSON.stringify(manifest)))
       files.set('src/server.ts', Buffer.from('throw new Error("TEST_BROKEN_UPGRADE")'))
     })
     await expect(installPlugin(broken, { trusted: true, actorUserId: admin.id })).rejects.toThrow('activation failed')
-    expect((await listPlugins())[0]).toMatchObject({ version: '1.1.0', enabled: true })
+    expect((await listPlugins())[0]).toMatchObject({ version: giftCardVersion, enabled: true })
     expect(await invokePluginService('slothvault.gift-cards', 'list', { actor: { userId: admin.id, role: 'ADMIN' } })).toMatchObject({ total: 1 })
     expect((await mocks.client!.pluginOperation.findFirstOrThrow({ where: { action: 'UPDATE' } })).status).toBe('FAILED')
   })
   it('does not restore the same upgrade snapshot twice and erase post-rollback data', async () => {
     await initializePlugins()
-    const update = await editTestPackage(readFileSync('dist/plugins/gift-cards/slothvault-plugin-slothvault.gift-cards-1.1.0.zip'), files => {
+    const update = await editTestPackage(readTestPackage('gift-cards'), files => {
       const manifest = JSON.parse(files.get('plugin.json')!.toString())
-      manifest.version = '1.1.1'
+      manifest.version = inc(manifest.version, 'patch')!
       files.set('plugin.json', Buffer.from(JSON.stringify(manifest)))
     })
     await installPlugin(update, { trusted: true, actorUserId: null })
     await rollbackPlugin('slothvault.gift-cards', 1)
-    expect(pluginRegistry.get('slothvault.gift-cards')?.manifest.version).toBe('1.1.0')
+    expect(pluginRegistry.get('slothvault.gift-cards')?.manifest.version).toBe(giftCardVersion)
     await expect(rollbackPlugin('slothvault.gift-cards', 1)).rejects.toThrow('matching upgrade snapshot')
     expect(await mocks.client!.pluginOperation.count({ where: { action: 'ROLLBACK' } })).toBe(1)
   })
 
   it('recovers actual table data after a migration performs DDL and then fails', async () => {
     await initializePlugins()
-    const original = readFileSync('dist/plugins/example/slothvault-plugin-slothvault.example-1.0.0.zip')
+    const original = readTestPackage('example')
     await installPlugin(original, { trusted: true, actorUserId: null })
     await setPluginEnabled('slothvault.example', true, 1)
     await enqueuePluginEvent(mocks.client!, 'core.article.published', { id: 1 }); await tickPluginTasks()
     const update = await editTestPackage(original, files => {
-      const manifest = JSON.parse(files.get('plugin.json')!.toString()); manifest.version = '1.1.1'; manifest.migrations.push('partial-ddl')
+      const manifest = JSON.parse(files.get('plugin.json')!.toString()); manifest.version = inc(manifest.version, 'patch')!; manifest.migrations.push('partial-ddl')
       manifest.tables[0].columns.push({ name: 'partial', type: 'text', nullable: true })
       files.set('plugin.json', Buffer.from(JSON.stringify(manifest)))
       files.set('src/server.ts', Buffer.from(`export default ctx => ({ api: { status: async () => ({}) }, events: { 'core.article.published': async () => {}, 'core.project-version.published': async () => {} }, jobs: { tick: async () => {} }, migrations: { initial: async () => {}, 'partial-ddl': async () => { await ctx.db.schema.alterTable(ctx.table('counters')).addColumn('partial', 'text').execute(); throw new Error('AFTER_DDL_FAILURE') } } })`))
     })
     await expect(installPlugin(update, { trusted: true, actorUserId: null })).rejects.toThrow('AFTER_DDL_FAILURE')
     const item = pluginRegistry.get('slothvault.example')!
-    expect(item.manifest.version).toBe('1.0.0')
+    expect(item.manifest.version).toBe(exampleVersion)
     expect(await invokeRegisteredPlugin(item, 'api', 'status', { actor: null })).toMatchObject({ counters: [{ id: 'articles', value: 1 }] })
   })
   it('does not bypass an unfinished recovery through enable, configure, repair or rollback', async () => {
     await initializePlugins()
     const id = 'slothvault.gift-cards'
-    const bytes = readFileSync('dist/plugins/gift-cards/slothvault-plugin-slothvault.gift-cards-1.1.0.zip')
+    const bytes = readTestPackage('gift-cards')
     for (const error of ['PLUGIN_RECOVERY_REQUIRED', 'PLUGIN_UNINSTALL_INCOMPLETE']) {
       await mocks.client!.pluginInstallation.update({ where: { pluginId: id }, data: { enabled: false, error } })
       pluginRegistry.get(id)!.enabled = false
@@ -198,15 +201,15 @@ for (const testCase of cases) describe.skipIf(testCase.provider !== 'sqlite' && 
 
   it('rejects enabled upgrades whose new dependency is disabled before changing tables', async () => {
     await initializePlugins()
-    await installPlugin(readFileSync('dist/plugins/example/slothvault-plugin-slothvault.example-1.0.0.zip'), { trusted: true, actorUserId: null })
-    const update = await editTestPackage(readFileSync('dist/plugins/gift-cards/slothvault-plugin-slothvault.gift-cards-1.1.0.zip'), files => {
+    await installPlugin(readTestPackage('example'), { trusted: true, actorUserId: null })
+    const update = await editTestPackage(readTestPackage('gift-cards'), files => {
       const manifest = JSON.parse(files.get('plugin.json')!.toString())
-      manifest.version = '1.1.1'
-      manifest.dependencies = { 'slothvault.example': '^1.0.0' }
+      manifest.version = inc(manifest.version, 'patch')!
+      manifest.dependencies = { 'slothvault.example': `^${exampleVersion}` }
       files.set('plugin.json', Buffer.from(JSON.stringify(manifest)))
     })
     await expect(installPlugin(update, { trusted: true, actorUserId: null })).rejects.toThrow('dependency')
-    expect(pluginRegistry.get('slothvault.gift-cards')).toMatchObject({ enabled: true, manifest: { version: '1.1.0' } })
+    expect(pluginRegistry.get('slothvault.gift-cards')).toMatchObject({ enabled: true, manifest: { version: giftCardVersion } })
     expect(await mocks.client!.pluginOperation.count({ where: { action: 'UPDATE' } })).toBe(0)
   })
 
@@ -238,7 +241,7 @@ for (const testCase of cases) describe.skipIf(testCase.provider !== 'sqlite' && 
 
   it('runs declared hooks/jobs asynchronously and cancels pending work on disable', async () => {
     await initializePlugins()
-    await installPlugin(readFileSync('dist/plugins/example/slothvault-plugin-slothvault.example-1.0.0.zip'), { trusted: true, actorUserId: null })
+    await installPlugin(readTestPackage('example'), { trusted: true, actorUserId: null })
     expect(pluginRegistry.get('slothvault.example')?.enabled).toBe(false)
     expect(pluginWorkers.has('slothvault.example')).toBe(false)
     expect(await enqueuePluginEvent(mocks.client!, 'core.article.published', { id: 1 })).toBeUndefined()
@@ -274,7 +277,7 @@ for (const testCase of cases) describe.skipIf(testCase.provider !== 'sqlite' && 
     await initializePlugins()
     const level = await mocks.client!.membershipLevel.create({ data: { name: 'Old member', rank: 1, pricePoints: 10 } })
     const owner = await mocks.client!.user.create({ data: { username: 'oldowner', password: 'test' } })
-    const bytes = await editTestPackage(readFileSync('dist/plugins/example/slothvault-plugin-slothvault.example-1.0.0.zip'), files => {
+    const bytes = await editTestPackage(readTestPackage('example'), files => {
       const manifest = JSON.parse(files.get('plugin.json')!.toString())
       manifest.ui.find((ui: { surface: string; kind: string }) => ui.surface === 'public' && ui.kind === 'page').access = { audience: 'memberships', membershipLevelIds: [level.id] }
       manifest.tables.push({ name: 'references', columns: [{ name: 'id', type: 'integer', generated: true, primary: true }, { name: 'owner_id', type: 'integer', nullable: true, references: { table: 'auth_user', column: 'id', onDelete: 'SET NULL', coreCollection: 'users' } }, { name: 'counter_id', type: 'string', length: 100, references: { table: 'counters', column: 'id', onDelete: 'CASCADE' } }] })
@@ -316,8 +319,8 @@ for (const testCase of cases) describe.skipIf(testCase.provider !== 'sqlite' && 
     await initializePlugins()
     const issue = (name: string) => invokePluginService('slothvault.gift-cards', 'issue', { actor: { userId: admin.id, role: 'ADMIN' }, input: { name, points: 10, quantity: 1 } }) as Promise<{ batch: { id: string } }>
     const first = await issue('Original batch')
-    const update = await editTestPackage(readFileSync('dist/plugins/gift-cards/slothvault-plugin-slothvault.gift-cards-1.1.0.zip'), files => {
-      const manifest = JSON.parse(files.get('plugin.json')!.toString()); manifest.version = '1.1.1'
+    const update = await editTestPackage(readTestPackage('gift-cards'), files => {
+      const manifest = JSON.parse(files.get('plugin.json')!.toString()); manifest.version = inc(manifest.version, 'patch')!
       manifest.tables.push({ name: 'annotations', columns: [{ name: 'id', type: 'integer', primary: true, generated: true }, { name: 'batch_id', type: 'integer', references: { table: 'batches', column: 'id', onDelete: 'CASCADE' } }] })
       files.set('plugin.json', Buffer.from(JSON.stringify(manifest)))
     })

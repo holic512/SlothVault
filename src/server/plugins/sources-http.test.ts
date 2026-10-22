@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import { NextRequest } from 'next/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -9,10 +8,11 @@ vi.mock('@/server/plugins/manager', () => ({ listPlugins: async () => [], instal
 import { GET } from '@/app/api/admin/mm/plugins/sources/route'
 import { POST } from '@/app/api/admin/mm/plugins/route'
 import { sha256 } from './packages'
+import { readTestManifest, readTestPackage } from './test-package'
 
 const repository = 'holic512/SlothVault'
-const pluginId = 'slothvault.gift-cards'
-const asset = `slothvault-plugin-${pluginId}-1.1.0.zip`
+const { id: pluginId, version } = readTestManifest('gift-cards')
+const asset = `slothvault-plugin-${pluginId}-${version}.zip`
 const request = (tag = 'v2.6.15', name = asset) => new NextRequest('http://localhost/api/admin/mm/plugins', {
   method: 'POST', headers: { Origin: 'http://localhost', 'Content-Type': 'application/json' },
   body: JSON.stringify({ repository, pluginId, tag, asset: name }),
@@ -22,7 +22,7 @@ afterEach(() => vi.unstubAllGlobals())
 
 describe('official plugin discovery and preview contract', () => {
   it('discovers an application Release and previews its real source ZIP through the same official identity policy', async () => {
-    const bytes = readFileSync(`dist/plugins/gift-cards/${asset}`)
+    const bytes = readTestPackage('gift-cards')
     const release = { tag_name: 'v2.6.15', draft: false, prerelease: false, body: null, assets: [asset, 'checksums.sha256'].map(name => ({ name, size: bytes.length, browser_download_url: `https://github.com/${repository}/releases/download/v2.6.15/${name}` })) }
     const fetch = vi.fn().mockImplementation((url: URL) => {
       if (url.pathname.endsWith('/checksums.sha256')) return Promise.resolve(new Response(`${sha256(bytes)}  ${asset}\n`))
@@ -32,10 +32,10 @@ describe('official plugin discovery and preview contract', () => {
     vi.stubGlobal('fetch', fetch)
     const versions = await GET(new NextRequest(`http://localhost/api/admin/mm/plugins/sources?pluginId=${pluginId}`), { params: Promise.resolve({}) })
     expect(versions.status).toBe(200)
-    expect((await versions.json()).data).toEqual([expect.objectContaining({ tag: 'v2.6.15', version: '1.1.0', asset })])
+    expect((await versions.json()).data).toEqual([expect.objectContaining({ tag: 'v2.6.15', version, asset })])
     const preview = await POST(request(), { params: Promise.resolve({}) })
     expect(preview.status).toBe(200)
-    expect((await preview.json()).data).toMatchObject({ manifest: { id: pluginId, version: '1.1.0' }, digest: sha256(bytes), verified: true, source: repository })
+    expect((await preview.json()).data).toMatchObject({ manifest: { id: pluginId, version }, digest: sha256(bytes), verified: true, source: repository })
     expect(mocks.install).not.toHaveBeenCalled()
   })
 

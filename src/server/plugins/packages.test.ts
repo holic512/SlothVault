@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -6,12 +6,12 @@ const storage = vi.hoisted(() => ({ path: '' }))
 vi.mock('@/server/config/app-data', () => ({ appDataPath: () => storage.path }))
 vi.mock('@/server/config/master-key', () => ({ getMasterKey: () => 'test-plugin-key' }))
 import { verifyPluginPackage, stagePluginPackage, verifyInstalledPackage, packageAsset } from './packages'
-import { editTestPackage } from './test-package'
+import { editTestPackage, readTestPackage } from './test-package'
 import { assertPortableTableGraph, pluginManifestSchema } from '@slothvault/plugin-sdk/protocol'
 import { githubRepository } from './sources'
 import { encryptPluginConfig, decryptPluginConfig, validatePluginConfig, maskedPluginConfig } from './config'
 
-const bytes = () => readFileSync('dist/plugins/gift-cards/slothvault-plugin-slothvault.gift-cards-1.1.0.zip')
+const bytes = () => readTestPackage('gift-cards')
 describe('static plugin package trust boundary', () => {
   beforeEach(() => { storage.path = mkdtempSync(resolve(tmpdir(), 'sv-plugin-package-')) })
   afterEach(() => rmSync(storage.path, { recursive: true, force: true }))

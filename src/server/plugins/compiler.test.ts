@@ -7,8 +7,8 @@ vi.mock('@/server/config/app-data', () => ({ appDataPath: () => storage.path }))
 vi.mock('@/server/config/master-key', () => ({ getMasterKey: () => 'isolated-source-compiler-test-key' }))
 import { ensureCompiledPlugin, compiledAsset } from './compiler'
 import { stagePluginPackage, readVerifiedPluginAsset } from './packages'
-import { editTestPackage } from './test-package'
-const bytes = () => readFileSync('dist/plugins/gift-cards/slothvault-plugin-slothvault.gift-cards-1.1.0.zip')
+import { editTestPackage, readTestPackage } from './test-package'
+const bytes = () => readTestPackage('gift-cards')
 beforeEach(() => { storage.path = mkdtempSync(resolve(tmpdir(), 'sv-source-compiler-')) })
 afterEach(() => rmSync(storage.path, { recursive: true, force: true }))
 describe('source-only installation compiler', () => {
