@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.0
+
+- 增加随插件发布的中英文资源、配置展示元数据和统一导航图标。
+- 扩展宿主账户卡片、配置展示和局部 i18n Provider，兼容原有插件接口。
+
 ## 1.1.0
 
 - Add system-owned market quotes and fixed Mainnet SOL transfer services.

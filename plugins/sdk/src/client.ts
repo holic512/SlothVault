@@ -2,7 +2,7 @@
  * @file client.ts
  * @project SlothVault
  * @module Plugin Client SDK
- * @description Declares the curated host UI and wallet facade shared with separately built React plugins.
+ * @description Declares host UI, account cards, plugin dictionaries and wallet APIs shared with separately built React plugins.
  * @logic Resolve this external module from the host, never bundle a second React or design-system context.
  * @dependencies React, Ant Design, React Query, next-intl, host plugin bridge
  * @index_tags plugins,sdk,ui,theme
@@ -14,7 +14,7 @@ export { useLocale, useTranslations } from 'next-intl'
 export type PluginComponentProps = { pluginId: string; componentKey: string; path?: string[] }
 export type PluginAccount = { id: string; username: string; displayName: string | null; role: string; pointsBalance: number }
 export type PluginUiHost = {
-  usePluginWallet(): { address: string | null; connected: boolean; walletName: string | null; requestConnection(): Promise<{ address: string }>; signPreparedTransaction(base64: string, network: 'mainnet', attemptId?: string): Promise<string> }
+  usePluginWallet(): { address: string | null; connected: boolean; walletName: string | null; requestConnection(options?: { forceSelect?: boolean; expectedAddress?: string }): Promise<{ address: string }>; signPreparedTransaction(base64: string, network: 'mainnet', attemptId?: string): Promise<string> }
   usePluginAccount(): PluginAccount | null | undefined
   api<T>(pluginId: string, path: string, options?: RequestInit): Promise<T>
   invalidateAccount(): Promise<void>
@@ -33,3 +33,8 @@ export function formatAdminNumber(locale: string, value: number): string { retur
 export function formatAdminError(error: unknown, t: unknown): string { void t; return error instanceof Error ? error.message : 'Error' }
 
 export const usePluginWallet: PluginUiHost['usePluginWallet'] = () => { throw new Error('Plugin client must be loaded by SlothVault') }
+
+/** Local dictionaries inherit the host language; legacy host namespaces remain available. */
+export function PluginI18nProvider(props: { messages: Record<'zh' | 'en', import('next-intl').AbstractIntlMessages>; children: import('react').ReactNode }) { return props.children }
+export function PluginAccountCard(props: { children: import('react').ReactNode; title?: import('react').ReactNode; extra?: import('react').ReactNode; className?: string; loading?: boolean }) { return props.children }
+export const PluginToolbar = PluginPage

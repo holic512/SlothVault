@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "slothvault.gift-cards",
   "name": "Gift cards",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Manage plaintext gift cards and redeem points on a dedicated account page.",
   "author": "holic512",
   "engines": {
-    "slothvault": ">=2.6.13 <3",
-    "sdk": "^1.0.0",
+    "slothvault": ">=2.7.8 <3",
+    "sdk": "^1.2.0",
     "node": ">=24.22.1"
   },
   "server": "server/index.mjs",
@@ -237,7 +237,8 @@
       "menu": true,
       "access": {
         "audience": "admin"
-      }
+      },
+      "icon": "ticket"
     },
     {
       "key": "redeem",
@@ -250,7 +251,30 @@
         "audience": "user"
       },
       "path": "redeem",
-      "menu": true
+      "menu": true,
+      "icon": "ticket"
     }
-  ]
+  ],
+  "display": {
+    "name": {
+      "zh": "卡密兑换",
+      "en": "Gift cards"
+    },
+    "description": {
+      "zh": "发行、管理卡密，并通过账户页面兑换积分。",
+      "en": "Manage plaintext gift cards and redeem points on a dedicated account page."
+    },
+    "config": {
+      "maxBatchQuantity": {
+        "label": {
+          "zh": "单批最大发行数量",
+          "en": "Maximum cards per batch"
+        },
+        "description": {
+          "zh": "每次发行的卡密数量上限，最多 500 张。",
+          "en": "Maximum number of cards issued at once, up to 500."
+        }
+      }
+    }
+  }
 }

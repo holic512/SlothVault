@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "slothvault.sol-payments",
   "name": "SOL payments",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Purchase points with SOL using five-minute locked SOL/USDT quotes and finalized on-chain settlement. Pausing sales preserves pending payments; disabling pauses reconciliation until re-enabled.",
   "author": "holic512",
   "engines": {
-    "slothvault": ">=2.7.7 <3",
-    "sdk": "^1.1.0",
+    "slothvault": ">=2.7.8 <3",
+    "sdk": "^1.2.0",
     "node": ">=24.22.1"
   },
   "server": "server/index.mjs",
@@ -359,14 +359,15 @@
       "surface": "account",
       "kind": "page",
       "title": "Buy points",
-      "titleZh": "\u8d2d\u4e70\u79ef\u5206",
+      "titleZh": "购买积分",
       "path": "purchase",
       "menu": true,
       "access": {
         "audience": "user"
       },
       "wallet": true,
-      "css": "client/purchase.css"
+      "css": "client/purchase.css",
+      "icon": "coins"
     },
     {
       "key": "manage",
@@ -374,13 +375,14 @@
       "surface": "admin",
       "kind": "page",
       "title": "SOL payment orders",
-      "titleZh": "SOL \u6536\u6b3e\u8ba2\u5355",
+      "titleZh": "SOL 收款订单",
       "path": "",
       "menu": true,
       "access": {
         "audience": "admin"
       },
-      "css": "client/manage.css"
+      "css": "client/manage.css",
+      "icon": "wallet"
     },
     {
       "key": "entry",
@@ -389,10 +391,73 @@
       "kind": "slot",
       "slot": "account.points",
       "title": "Buy points",
-      "titleZh": "\u8d2d\u4e70\u79ef\u5206",
+      "titleZh": "购买积分",
       "access": {
         "audience": "user"
+      },
+      "icon": "coins"
+    }
+  ],
+  "display": {
+    "name": {
+      "zh": "SOL 购买积分",
+      "en": "SOL payments"
+    },
+    "description": {
+      "zh": "使用 SOL 购买积分；暂停销售仍保留待付款订单，禁用插件会暂停到账核验。",
+      "en": "Purchase points with SOL using five-minute locked SOL/USDT quotes and finalized on-chain settlement. Pausing sales preserves pending payments; disabling pauses reconciliation until re-enabled."
+    },
+    "config": {
+      "salesEnabled": {
+        "label": {
+          "zh": "开放新订单",
+          "en": "Accept new orders"
+        },
+        "description": {
+          "zh": "关闭后仍会处理已有订单。禁用整个插件会暂停到账核验。",
+          "en": "Existing orders continue when sales are paused. Disabling the plugin pauses reconciliation."
+        }
+      },
+      "recipient": {
+        "label": {
+          "zh": "收款钱包地址",
+          "en": "Recipient wallet"
+        },
+        "description": {
+          "zh": "接收 SOL 的 Solana 主网地址。",
+          "en": "The Solana Mainnet address that receives SOL."
+        }
+      },
+      "pointsPerUsdt": {
+        "label": {
+          "zh": "每 USDT 对应积分",
+          "en": "Points per USDT"
+        },
+        "description": {
+          "zh": "用于换算积分价格，按十进制文本保存以保留精度。",
+          "en": "Conversion rate stored as decimal text to preserve precision."
+        }
+      },
+      "minPoints": {
+        "label": {
+          "zh": "单笔最少积分",
+          "en": "Minimum points per order"
+        },
+        "description": {
+          "zh": "单笔订单允许购买的最低积分数。",
+          "en": "Minimum points allowed in one order."
+        }
+      },
+      "maxPoints": {
+        "label": {
+          "zh": "单笔最多积分",
+          "en": "Maximum points per order"
+        },
+        "description": {
+          "zh": "不得小于单笔最少积分。",
+          "en": "Must be at least the minimum points per order."
+        }
       }
     }
-  ]
+  }
 }

@@ -25,13 +25,18 @@ export const POST = defineRoute(async request => {
   if (!isSameOriginRequest(request)) throw new HttpError('Same-origin request required', 403)
   let bytes: Buffer; let source: string | null = null
   if (request.headers.get('content-type')?.includes('application/json')) {
-    const input = await readJson(request, z.object({ repository: z.string().max(200), tag: z.string().max(150), asset: z.string().max(200), pluginId: z.string().optional() }).strict(), { maxBytes: 4096 })
+    const input = await readJson(request, z.object({ repository: z.string().max(200), tag: z.string().max(150), asset: z.string().max(200), pluginId: z.string().optional(), expectedPluginId: z.string().optional() }).strict(), { maxBytes: 4096 })
     source = githubRepository(input.repository)
     if (input.pluginId) {
       const official = OFFICIAL_PLUGINS.find(item => item.id === input.pluginId)
       if (!official || !officialPluginSourceMatches(official, source, input.tag, input.asset)) throw new HttpError('Official source identity mismatch', 400)
     }
+    if (input.expectedPluginId) {
+      const official = OFFICIAL_PLUGINS.find(item => item.id === input.expectedPluginId && item.repository === source)
+      if (official && !officialPluginSourceMatches(official, source, input.tag, input.asset)) throw new HttpError('Official source identity mismatch', 400)
+    }
     bytes = await downloadPluginRelease(source, input.tag, input.asset)
+    if (input.expectedPluginId && (await verifyPluginPackage(bytes)).manifest.id !== input.expectedPluginId) throw new HttpError('Plugin identity mismatch', 400)
     if (input.pluginId && (await verifyPluginPackage(bytes)).manifest.id !== input.pluginId) throw new HttpError('Official package ID mismatch', 400)
   } else {
     if (Number(request.headers.get('content-length')) > MAX_PLUGIN_PACKAGE_BYTES) throw new HttpError('Plugin upload is too large', 413)

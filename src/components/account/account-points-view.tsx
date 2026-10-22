@@ -17,6 +17,7 @@ import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { useAccountUser } from '@/components/account/account-shell'
+import styles from '@/styles/modules/account-points.module.css'
 import { AccountCard } from '@/components/account/account-card'
 import { AccountQueryError } from '@/components/account/account-query-error'
 import { PluginSlot } from '@/components/plugins/plugin-ui'
@@ -53,11 +54,13 @@ export function AccountPointsView() {
         <AccountQueryError retry={() => void pointsQuery.refetch()} />
       ) : (
         <>
-          <PluginSlot name="account.points" surface="account" />
           <div className="account-points-summary">
             <AccountCard className="account-overview-balance">
               <Statistic title={t('current')} value={pointsBalance} prefix={<Coins size={17} />} />
-              <Link className="account-text-link" href="/account/membership">{t('usePoints')}</Link>
+              <div className={styles.actions}>
+                <PluginSlot name="account.points" surface="account" />
+                <Link className="account-text-link" href="/account/membership">{t('usePoints')}</Link>
+              </div>
             </AccountCard>
           </div>
 

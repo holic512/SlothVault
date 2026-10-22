@@ -1,0 +1,84 @@
+.root :global(.admin-brand),
+.root :global(.admin-collapse) {
+  flex-shrink: 0;
+}
+
+.menu-viewport {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+}
+
+.root .menu-viewport :global(.admin-menu) {
+  overflow: visible;
+}
+
+.root :global(.admin-sider) {
+  height: 100dvh;
+}
+
+.root :global(.admin-menu.ant-menu-root) :global(.ant-menu-submenu-title) {
+  height: auto;
+  min-height: 36px;
+  margin-block: 2px;
+  padding-block: 8px;
+  padding-inline: 9px 28px !important;
+  border-radius: var(--sv-admin-radius);
+  font-size: var(--sv-admin-font-navigation);
+  line-height: 1.5;
+}
+
+.root :global(.admin-menu) :global(.ant-menu-submenu-title) :global(.ant-menu-title-content),
+.mobile :global(.ant-menu-title-content) {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.root :global(.admin-menu) :global(.ant-menu-inline) {
+  background: transparent !important;
+}
+
+.root :global(.admin-menu:not(.ant-menu-inline-collapsed)) :global(.ant-menu-sub) :global(.ant-menu-item) {
+  height: auto;
+  min-height: 34px;
+  padding-block: 6px;
+  padding-inline: 18px 8px !important;
+  line-height: 1.5;
+}
+
+.root :global(.admin-menu:not(.ant-menu-inline-collapsed)) :global(.ant-menu-item) :global(.ant-menu-title-content) {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.root :global(.admin-menu.ant-menu-inline-collapsed) :global(.ant-menu-submenu-title) {
+  padding-inline: 16px !important;
+}
+
+.root :global(.admin-menu.ant-menu-inline-collapsed) :global(.ant-menu-submenu-title) :global(.ant-menu-title-content) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.mobile :global(.ant-menu) {
+  border-inline-end: 0;
+}
+
+.mobile :global(.ant-menu.ant-menu-root) :global(.ant-menu-item),
+.mobile :global(.ant-menu.ant-menu-root) :global(.ant-menu-submenu-title) {
+  height: auto;
+  min-height: 44px;
+  padding-block: 10px;
+  line-height: 1.5;
+}
+
+.root :global(.admin-collapse):focus-visible {
+  outline: 2px solid var(--sv-primary);
+  outline-offset: -3px;
+}

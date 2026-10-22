@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "slothvault.example",
   "name": "Extension example",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "author": "holic512",
   "description": "Installable SDK example: pages, slots, modal, API, hooks, jobs and an owned table.",
   "engines": {
-    "slothvault": ">=2.6.13 <3",
-    "sdk": "^1.0.0",
+    "slothvault": ">=2.7.8 <3",
+    "sdk": "^1.2.0",
     "node": ">=24.22.1"
   },
   "server": "server/index.mjs",
@@ -94,7 +94,8 @@
       "menu": true,
       "access": {
         "audience": "admin"
-      }
+      },
+      "icon": "blocks"
     },
     {
       "key": "account",
@@ -106,7 +107,8 @@
       "menu": true,
       "access": {
         "audience": "user"
-      }
+      },
+      "icon": "blocks"
     },
     {
       "key": "public",
@@ -118,7 +120,8 @@
       "menu": true,
       "access": {
         "audience": "public"
-      }
+      },
+      "icon": "blocks"
     },
     {
       "key": "banner",
@@ -129,7 +132,8 @@
       "title": "Extension example",
       "access": {
         "audience": "public"
-      }
+      },
+      "icon": "blocks"
     },
     {
       "key": "article-action",
@@ -140,7 +144,30 @@
       "title": "Extension example",
       "access": {
         "audience": "admin"
+      },
+      "icon": "blocks"
+    }
+  ],
+  "display": {
+    "name": {
+      "zh": "扩展示例",
+      "en": "Extension example"
+    },
+    "description": {
+      "zh": "展示独立插件的页面、插槽和后台任务。",
+      "en": "Installable SDK example: pages, slots, modal, API, hooks, jobs and an owned table."
+    },
+    "config": {
+      "message": {
+        "label": {
+          "zh": "展示消息",
+          "en": "Display message"
+        },
+        "description": {
+          "zh": "显示给用户的自定义文本；内容不会自动翻译。",
+          "en": "Custom text shown to users; its content is not automatically translated."
+        }
       }
     }
-  ]
+  }
 }

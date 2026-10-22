@@ -18,7 +18,8 @@ import { useLocale, useTranslations } from '@slothvault/plugin-sdk/client'
 
 import { PluginPage as AdminPage, PluginPageActions as AdminPageActions, PluginTablePanel as AdminTablePanel } from '@slothvault/plugin-sdk/client'
 import { formatAdminDate, formatAdminError, formatAdminNumber } from '@slothvault/plugin-sdk/client'
-import { api } from '@slothvault/plugin-sdk/client'
+import { messages } from './messages'
+import { PluginI18nProvider, api } from '@slothvault/plugin-sdk/client'
 
 type BatchRow = {
   id: string
@@ -40,6 +41,10 @@ type IssueResult = {
 }
 
 export default function GiftCardsManager() {
+  return <PluginI18nProvider messages={messages}><GiftCardsManagerContent /></PluginI18nProvider>
+}
+
+function GiftCardsManagerContent() {
   const t = useTranslations('Plugins.giftCards.manage')
   const errorT = useTranslations('AdminMM.errors')
   const locale = useLocale()
@@ -96,7 +101,7 @@ export default function GiftCardsManager() {
         </Space>
       </AdminPageActions>
 
-      {query.isError && <Alert type="error" title={query.error.message} action={<Button onClick={() => void query.refetch()}>{t('actions.refresh')}</Button>} />}
+      {query.isError && <Alert type="error" title={formatAdminError(query.error, errorT)} action={<Button onClick={() => void query.refetch()}>{t('actions.refresh')}</Button>} />}
       <AdminTablePanel>
         <Table<BatchRow>
           rowKey="id"
@@ -113,14 +118,14 @@ export default function GiftCardsManager() {
           columns={[
             { title: t('table.batch'), dataIndex: 'name', minWidth: 180, render: (name, row) => <Button type="link" onClick={() => { setSelectedBatch(row); setCardPage(1); setStatus(undefined) }}>{name}</Button> },
             { title: t('table.points'), dataIndex: 'points', width: 100, render: (value) => t('pointsValue', { value: formatAdminNumber(locale, value) }) },
-            { title: t('table.quantity'), dataIndex: 'quantity', width: 80 },
+            { title: t('table.quantity'), dataIndex: 'quantity', width: 80, render: value => formatAdminNumber(locale, value) },
             {
               title: t('table.redemption'),
               width: 180,
               render: (_value, batch) => (
                 <Progress
                   percent={batch.quantity ? Math.round(batch.redeemed / batch.quantity * 100) : 0}
-                  format={() => `${batch.redeemed}/${batch.quantity}`}
+                  format={() => `${formatAdminNumber(locale, batch.redeemed)}/${formatAdminNumber(locale, batch.quantity)}`}
                   strokeColor="var(--sv-primary)"
                 />
               ),
@@ -138,7 +143,7 @@ export default function GiftCardsManager() {
             <Select value={status} allowClear placeholder={t('allStatuses')} style={{ minWidth: 150 }} onChange={value => { setStatus(value); setCardPage(1) }} options={['unused', 'used', 'expired', 'disabled'].map(value => ({ value, label: t(`statuses.${value}`) }))} />
             <Button disabled={!details.data?.list.length} onClick={() => void copyCodes(details.data!.list.map(row => row.code))}>{t('copyPage')}</Button>
           </Space>
-          {details.isError && <Alert type="error" title={details.error.message} action={<Button onClick={() => void details.refetch()}>{t('actions.refresh')}</Button>} />}
+          {details.isError && <Alert type="error" title={formatAdminError(details.error, errorT)} action={<Button onClick={() => void details.refetch()}>{t('actions.refresh')}</Button>} />}
           <Table<CardRow> rowKey="id" size="small" loading={details.isPending} dataSource={details.data?.list ?? []} scroll={{ x: 840 }} pagination={{ current: cardPage, pageSize: 20, total: details.data?.total ?? 0, showSizeChanger: false, onChange: setCardPage }} columns={[
             { title: t('code'), dataIndex: 'code', width: 260, render: value => <Space><Typography.Text code>{value}</Typography.Text><Button size="small" onClick={() => void copyCodes([value])}>{t('copy')}</Button></Space> },
             { title: t('table.points'), dataIndex: 'points', width: 80 },

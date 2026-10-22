@@ -1,0 +1,11 @@
+.actions {
+  display: flex;
+  gap: 12px 20px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.actions > * {
+  min-width: 0;
+  max-width: 100%;
+}

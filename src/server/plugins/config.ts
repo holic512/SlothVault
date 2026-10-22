@@ -22,7 +22,7 @@ export function validatePluginConfig(manifest: PluginManifest, values: Record<st
     if (Buffer.byteLength(JSON.stringify(parsed)) > 64 * 1024) throw new HttpError('Plugin configuration exceeds 64 KiB', 413)
     return parsed
   }
-  catch (error) { if (error instanceof z.ZodError || error instanceof HttpError) throw error; throw new HttpError('Unsupported plugin configuration schema', 400) }
+  catch (error) { if (error instanceof z.ZodError) throw new HttpError('Invalid plugin configuration', 400, 400, { reason: 'PLUGIN_CONFIG_INVALID', issues: error.issues.map(issue => ({ path: issue.path, code: issue.code })) }); if (error instanceof HttpError) throw error; throw new HttpError('Unsupported plugin configuration schema', 400) }
 }
 export function encryptPluginConfig(value: Record<string, unknown>) {
   const iv = randomBytes(12); const cipher = createCipheriv('aes-256-gcm', key(), iv)

@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 /**
  * @file page.tsx
  * @project SlothVault
@@ -9,4 +10,4 @@
  * @author holic512
  */
 import { PluginsManager } from '@/components/admin/plugins-manager'
-export default function PluginsPage() { return <PluginsManager /> }
+export default function PluginsPage() { return <Suspense><PluginsManager /></Suspense> }

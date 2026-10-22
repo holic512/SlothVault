@@ -8,18 +8,87 @@
   min-width: 0;
 }
 
-[data-sv-plugin="slothvault.sol-payments"] .ant-form-inline {
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
 [data-sv-plugin="slothvault.sol-payments"] .sol-payments {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
+  gap: 20px;
   min-width: 0;
 }
 
-[data-sv-plugin="slothvault.sol-payments"] .ant-form-item-control {
-  min-width: 140px;
+[data-sv-plugin="slothvault.sol-payments"] .sol-payment-heading .ant-typography:last-child {
+  margin-bottom: 0;
+}
+
+[data-sv-plugin="slothvault.sol-payments"] .sol-wallet-summary {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+[data-sv-plugin="slothvault.sol-payments"] .sol-wallet-identity {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+[data-sv-plugin="slothvault.sol-payments"] .sol-wallet-identity summary {
+  cursor: pointer;
+  color: var(--sv-text-muted);
+}
+
+[data-sv-plugin="slothvault.sol-payments"] .sol-purchase-form {
+  margin-top: 16px;
+}
+
+[data-sv-plugin="slothvault.sol-payments"] .sol-points-input {
+  width: min(100%, 320px);
+}
+
+[data-sv-plugin="slothvault.sol-payments"] .sol-order-filters {
+  display: grid;
+  grid-template-columns: minmax(100px, 0.6fr) repeat(2, minmax(150px, 1fr)) minmax(160px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+[data-sv-plugin="slothvault.sol-payments"] .sol-order-filters .ant-form-item {
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+[data-sv-plugin="slothvault.sol-payments"] .sol-order-filters .ant-input-number {
+  width: 100%;
+}
+
+[data-sv-plugin="slothvault.sol-payments"] .sol-order-id {
+  display: block;
+  width: 100%;
+  padding-inline: 0;
+  text-align: start;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-sv-plugin="slothvault.sol-payments"] .sol-order-id > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (width <= 1100px) {
+  [data-sv-plugin="slothvault.sol-payments"] .sol-order-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width <= 600px) {
+  [data-sv-plugin="slothvault.sol-payments"] .sol-order-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  [data-sv-plugin="slothvault.sol-payments"] .sol-wallet-summary > .ant-btn {
+    width: 100%;
+  }
 }

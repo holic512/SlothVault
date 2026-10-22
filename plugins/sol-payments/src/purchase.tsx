@@ -2,16 +2,22 @@
  * @file purchase.tsx
  * @project SlothVault
  * @module SOL Purchase Page
- * @description Lets signed-in users review a locked quote and sign its exact native SOL transfer.
+ * @description Presents localized account-native purchase cards, wallet identity and locked SOL quotes.
  * @logic Recover orders by URL, retain request idempotency, reconcile pending payments and refresh host balances after settlement.
  * @dependencies Plugin client SDK, React, payment UI
  * @index_tags plugins,payments,wallet,account
  * @author holic512
  */
 import { useEffect, useRef, useState } from 'react'
-import { Alert, Button, Card, Form, InputNumber, Space, Table, Typography, api, invalidateAccount, usePluginWallet, useQuery, useQueryClient, useMutation } from '@slothvault/plugin-sdk/client'
+import { Alert, Button, PluginAccountCard, PluginI18nProvider, Tag, Form, InputNumber, Space, Table, Typography, api, invalidateAccount, usePluginWallet, useQuery, useQueryClient, useMutation, useLocale, useTranslations } from '@slothvault/plugin-sdk/client'
+import { messages } from './messages'
 import { ID, useCopy, useStatus, PaymentError, OrderDetails, type Order, type Options } from './ui'
 export default function Purchase() {
+  return <PluginI18nProvider messages={messages}><PurchaseContent /></PluginI18nProvider>
+}
+
+function PurchaseContent() {
+  const locale = useLocale(), t = useTranslations('Plugins.solPayments')
   const c = useCopy(), status = useStatus(), wallet = usePluginWallet(), queryClient = useQueryClient()
   const [selectedId, setSelectedId] = useState<string | null>(() => typeof window === 'undefined' ? null : new URL(window.location.href).searchParams.get('order'))
   const [page, setPage] = useState(1), [error, setError] = useState<unknown>(null), [now, setNow] = useState(() => Date.now())
@@ -31,13 +37,15 @@ export default function Purchase() {
     const timer = setInterval(()=>{ void api(ID,'payment/reconcile',{method:'POST',body:JSON.stringify({orderId:id})}).then(()=>queryClient.invalidateQueries({queryKey:[ID,'order',id]})).catch(()=>undefined) },15000)
     return ()=>clearInterval(timer)
   },[orderId,orderStatus,queryClient])
-  const connect = useMutation({ mutationFn:()=>wallet.requestConnection(), onError:setError })
+  const connect = useMutation({ mutationFn:()=>wallet.requestConnection({ forceSelect: wallet.connected }), onSuccess:()=>setError(null), onError:setError })
   const quote = useMutation({ mutationFn:async ({ points }: { points:number }) => {
+    if (!wallet.connected) throw new Error('WALLET_DISCONNECTED')
     if (!wallet.address) throw new Error('EVIDENCE_WALLET_CHANGED')
     if (!request.current || request.current.points !== points || request.current.payer !== wallet.address) request.current={points,payer:wallet.address,requestKey:crypto.randomUUID()}
     return api<Order>(ID,'orders',{method:'POST',body:JSON.stringify(request.current)})
   },onSuccess:async result=>{ request.current=null; setError(null); select(result.id); queryClient.setQueryData([ID,'order',result.id],result); await refresh() },onError:setError })
   const pay = useMutation({ mutationFn:async () => {
+    if (!wallet.connected) throw new Error('WALLET_DISCONNECTED')
     if (!order || wallet.address !== order.payer) throw new Error('EVIDENCE_WALLET_CHANGED')
     const result=await api<{attemptId:string;prepared:{transactionBase64:string}}>(ID,'payment/prepare',{method:'POST',body:JSON.stringify({orderId:order.id})})
     const signedTransaction=await wallet.signPreparedTransaction(result.prepared.transactionBase64,'mainnet',result.attemptId)
@@ -45,27 +53,39 @@ export default function Purchase() {
   },onSuccess:async()=>{setError(null);await refresh()},onError:async e=>{setError(e);await refresh()} })
   const reconcile=useMutation({mutationFn:()=>api(ID,'payment/reconcile',{method:'POST',body:JSON.stringify({orderId:order?.id})}),onSuccess:refresh,onError:setError})
   const remaining=order?Math.max(0,Math.ceil((Date.parse(order.expiresAt)-now)/1000)):0
+  const connected = wallet.connected && !!wallet.address
+  const minPoints = options.data?.minPoints ?? 1, maxPoints = options.data?.maxPoints ?? 1000000
   return <div className="account-route sol-payments">
-    <Typography.Title level={3}>{c.title}</Typography.Title><Typography.Paragraph type="secondary">{c.intro}</Typography.Paragraph>
+    <header className="sol-payment-heading"><Typography.Title level={3}>{c.title}</Typography.Title><Typography.Paragraph type="secondary">{c.intro}</Typography.Paragraph></header>
     {error?<PaymentError error={error}/>:null}
     {options.isError || orderQuery.isError || history.isError ? <Alert type="error" title={c.loadFailed} action={<Button onClick={()=>{void options.refetch();void history.refetch();if(selectedId)void orderQuery.refetch()}}>{c.retry}</Button>}/>:null}
-    <Card className="account-route-card" size="small" title={c.wallet}><Space wrap><Typography.Text className="sol-payment-address">{wallet.address ?? '—'}</Typography.Text><Button loading={connect.isPending} onClick={()=>connect.mutate()}>{c.connect}</Button></Space></Card>
-    {!selectedId ? <Card className="account-route-card" size="small" title={c.points} loading={options.isPending}>
+    <PluginAccountCard className="account-route-card" title={c.wallet}>
+      <div className="sol-wallet-summary">
+        <div className="sol-wallet-identity">
+          <Space wrap><Tag color={connected ? 'success' : 'default'}>{connected ? c.connected : c.disconnected}</Tag>{connected && wallet.walletName ? <Typography.Text strong>{wallet.walletName}</Typography.Text> : null}</Space>
+          {connected && wallet.address ? <Typography.Text className="sol-payment-address" title={wallet.address} copyable={{ text: wallet.address }}>{wallet.address.slice(0, 6)}…{wallet.address.slice(-6)}</Typography.Text> : <Typography.Text type="secondary">{c.walletRequired}</Typography.Text>}
+          {connected && wallet.address ? <details><summary>{c.viewFullAddress}</summary><Typography.Text className="sol-payment-address">{wallet.address}</Typography.Text></details> : null}
+        </div>
+        <Button loading={connect.isPending} onClick={()=>connect.mutate()}>{connected ? c.switchWallet : c.connect}</Button>
+      </div>
+    </PluginAccountCard>
+    {!selectedId ? <PluginAccountCard className="account-route-card" title={c.points} loading={options.isPending}>
       {options.data&&!options.data.salesEnabled?<Alert type="info" title={c.paused}/>:null}
-      <Form layout="vertical" onFinish={values=>quote.mutate(values as {points:number})}>
-        <Form.Item name="points" label={c.points} rules={[{required:true,message:c.points},{type:'integer',min:options.data?.minPoints??1,max:options.data?.maxPoints??1000000,message:c.points}]}><InputNumber min={options.data?.minPoints??1} max={options.data?.maxPoints??1000000} precision={0}/></Form.Item>
-        <Button type="primary" htmlType="submit" loading={quote.isPending} disabled={!wallet.address||!options.data?.salesEnabled}>{c.quote}</Button>
+      <Form className="sol-purchase-form" layout="vertical" disabled={!options.data?.salesEnabled} onFinish={values=>quote.mutate(values as {points:number})}>
+        <Form.Item name="points" label={c.points} extra={t('pointsRange', { min: minPoints, max: maxPoints })} rules={[{required:true,message:c.pointsRequired},{type:'integer',min:minPoints,max:maxPoints,message:c.pointsInvalid}]}><InputNumber min={minPoints} max={maxPoints} precision={0} className="sol-points-input" /></Form.Item>
+        <Button type="primary" htmlType="submit" loading={quote.isPending} disabled={!connected||!options.data?.salesEnabled}>{c.quote}</Button>
       </Form>
-    </Card>:<Card className="account-route-card" size="small" title={c.details} loading={orderQuery.isPending}>
+    </PluginAccountCard>:<PluginAccountCard className="account-route-card" title={c.details} loading={orderQuery.isPending}>
       {order?<><OrderDetails order={order}/>
         {order.status==='CONFIRMING'?<Alert type="info" showIcon title={c.pending}/>:order.status==='PAID'?<Alert type="success" showIcon title={c.success}/>:order.status==='NEEDS_REVIEW'?<Alert type="warning" showIcon title={c.review}/>:null}
-        {order.status==='AWAITING_PAYMENT'&&remaining>0?<Space orientation="vertical"><Typography.Text>{c.remaining}: {remaining} {c.seconds}</Typography.Text><Typography.Text type="secondary">{c.balance}</Typography.Text><Button type="primary" loading={pay.isPending} disabled={wallet.address!==order.payer} onClick={()=>pay.mutate()}>{c.pay}</Button></Space>:null}
+        {order.status==='AWAITING_PAYMENT' && (!connected || wallet.address !== order.payer) ? <Alert type="warning" showIcon title={connected ? c.walletMismatch : c.walletRequired} /> : null}
+        {order.status==='AWAITING_PAYMENT'&&remaining>0?<Space orientation="vertical"><Typography.Text>{c.remaining}: {remaining} {c.seconds}</Typography.Text><Typography.Text type="secondary">{c.balance}</Typography.Text><Button type="primary" loading={pay.isPending} disabled={!connected||wallet.address!==order.payer} onClick={()=>pay.mutate()}>{c.pay}</Button></Space>:null}
         {order.status==='EXPIRED'||order.status==='AWAITING_PAYMENT'&&!remaining?<Alert type="warning" title={c.expired}/>:null}
         <Space wrap>{['CONFIRMING','NEEDS_REVIEW'].includes(order.status)?<Button loading={reconcile.isPending} onClick={()=>reconcile.mutate()}>{c.check}</Button>:<Button disabled={pay.isPending} onClick={()=>select(null)}>{c.newOrder}</Button>}<Button onClick={()=>void refresh()}>{c.refresh}</Button></Space>
       </>:null}
-    </Card>}
-    <Card className="account-route-card" title={c.history} size="small"><Table<Order> size="small" rowKey="id" loading={history.isPending} dataSource={history.data?.list??[]} scroll={{x:640}} locale={{emptyText:c.noData}} pagination={{current:page,pageSize:20,total:history.data?.total??0,onChange:setPage}} columns={[
-      {title:c.created,dataIndex:'createdAt',render:v=>new Date(v).toLocaleString()}, {title:c.received,dataIndex:'points'}, {title:c.status,dataIndex:'status',render:status}, {title:c.details,key:'view',render:(_,row)=><Button type="link" onClick={()=>select(row.id)}>{c.inspect}</Button>},
-    ]}/></Card>
+    </PluginAccountCard>}
+    <PluginAccountCard className="account-route-card" title={c.history}><Table<Order> size="small" rowKey="id" loading={history.isPending} dataSource={history.data?.list??[]} scroll={history.data?.list.length ? {x:640} : undefined} locale={{emptyText:c.noData}} pagination={{current:page,pageSize:20,total:history.data?.total??0,onChange:setPage,hideOnSinglePage:true}} columns={[
+      {title:c.created,dataIndex:'createdAt',render:v=>new Date(v).toLocaleString(locale)}, {title:c.received,dataIndex:'points',render:v=>Number(v).toLocaleString(locale)}, {title:c.status,dataIndex:'status',render:status}, {title:c.details,key:'view',render:(_,row)=><Button type="link" onClick={()=>select(row.id)}>{c.inspect}</Button>},
+    ]}/></PluginAccountCard>
   </div>
 }

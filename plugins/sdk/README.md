@@ -20,3 +20,25 @@ Declare `solana.transfer` for `context.solana.validateIntent`, `prepare`, `valid
 `points.credit.background` additionally permits `points.credit` from an actual host-scheduled declared job without a user actor. Both permissions must be declared. Foreground calls retain the user/administrator ownership restriction. Settlement must pass its Kysely transaction to `points.credit` and use a stable source key.
 
 An account UI contribution can declare `wallet: true` and call `usePluginWallet()` from the client facade. The host supplies its existing WalletRuntime; do not create or bundle another wallet provider. Old manifests remain compatible.
+
+
+### Localized configuration and account UI (SDK 1.2)
+
+Packages may provide `display.name`, `display.description`, and `display.config[field]`
+with `{ zh, en }` text. Each configuration field supports `label`, `description`, and
+`placeholder`; configuration values remain governed by `configSchema`. Missing
+metadata falls back to the original manifest text and field key. Simple scalar
+schemas render as fields; complex schemas retain the lossless JSON editor.
+
+Wrap a contribution with `PluginI18nProvider messages={{ zh, en }}` to ship its
+own dictionaries. The provider inherits the host locale and merges local namespaces
+with host messages, so existing `useTranslations` calls remain supported.
+`PluginAccountCard` shares account surface appearance; `PluginToolbar` shares the
+administrator filter surface. UI contributions accept optional `icon` values
+`blocks`, `coins`, `ticket`, `wallet`, or `settings`.
+
+Updates use the installed source and exact plugin identity. Packages without a
+recorded source require explicit ZIP upload. Updating requires package preview and
+code trust, preserves configuration and enabled state, and uses the existing
+transactional upgrade and recovery mechanism. Publish SDK 1.2 packages with
+`engines.sdk: "^1.2.0"` and a host minimum supporting these additions.

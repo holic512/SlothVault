@@ -9,6 +9,8 @@
  * @index_tags plugins,installer,catalog,source
  * @author holic512
  */
+import { PluginUpdater } from './plugin-updater'
+import { pluginErrorKey, pluginText } from '@/lib/plugin-presentation'
 import { useState } from 'react'
 import { Alert, App, Button, Checkbox, Collapse, Descriptions, Empty, Input, Modal, Select, Space, Spin, Tabs, Tag, Typography, Upload } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
@@ -18,7 +20,7 @@ import { apiFetch } from '@/lib/api-client'
 type Catalog = { id: string; name: string; nameZh: string; description: string; descriptionZh: string; repository: string; tagPrefix: string }
 type Release = { repository: string; tag: string; asset: string; notes: string; size: number; version: string }
 type Preview = { manifest: PluginManifest; digest: string; source: string | null }
-export function PluginInstaller({ installed, initialId, onClose, onInstalled }: { installed: PluginListItem[]; initialId?: string; onClose: () => void; onInstalled: () => Promise<void> }) {
+function NewPluginInstaller({ installed, initialId, onClose, onInstalled }: { installed: PluginListItem[]; initialId?: string; onClose: () => void; onInstalled: () => Promise<void> }) {
   const t = useTranslations('AdminMM.plugins'), locale = useLocale(), { message } = App.useApp()
   const [tab, setTab] = useState('official'), [selected, setSelected] = useState<string | undefined>(initialId)
   const [repository, setRepository] = useState(''), [manualRepo, setManualRepo] = useState('')
@@ -45,7 +47,7 @@ export function PluginInstaller({ installed, initialId, onClose, onInstalled }: 
   const chosen = releases.data?.find(item => `${item.tag}/${item.asset}` === releaseKey)
   const releasePicker = source ? <Space orientation="vertical" style={{ width: '100%' }}>
     <Space><Typography.Text strong>{t('availableVersions')}</Typography.Text><Button size="small" disabled={busy} loading={releases.isFetching} onClick={() => void releases.refetch()}>{t('checkReleases')}</Button></Space>
-    {releases.isPending ? <Spin /> : releases.error ? <Alert type="error" showIcon title={releases.error.message} /> : !releases.data?.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('noRelease')} /> : <Space.Compact style={{ width: '100%' }}>
+    {releases.isPending ? <Spin /> : releases.error ? <Alert type="error" showIcon title={t(`errors.${pluginErrorKey(releases.error)}`)} /> : !releases.data?.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('noRelease')} /> : <Space.Compact style={{ width: '100%' }}>
       <Select style={{ flex: 1, minWidth: 0 }} placeholder={t('selectVersion')} disabled={busy} value={releaseKey} onChange={value => { reset(); setReleaseKey(value) }} options={releases.data.map(item => ({ value: `${item.tag}/${item.asset}`, label: `${item.version} · ${item.tag}` }))} />
       <Button disabled={!chosen || busy} loading={inspect.isPending} onClick={() => chosen && inspect.mutate({ release: chosen, pluginId: tab === 'official' ? selected : undefined })}>{t('preview')}</Button>
     </Space.Compact>}
@@ -55,7 +57,7 @@ export function PluginInstaller({ installed, initialId, onClose, onInstalled }: 
     <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Tabs activeKey={tab} onChange={value => { reset(); setTab(value) }} items={[
         { key: 'official', label: t('officialCatalog'), disabled: busy, children: <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-          {catalog.isPending && <Spin />}{catalog.error && <Alert type="error" title={catalog.error.message} action={<Button onClick={() => void catalog.refetch()}>{t('refresh')}</Button>} />}
+          {catalog.isPending && <Spin />}{catalog.error && <Alert type="error" title={t(`errors.${pluginErrorKey(catalog.error)}`)} action={<Button onClick={() => void catalog.refetch()}>{t('refresh')}</Button>} />}
           {catalog.isSuccess && !catalog.data.length && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('noOfficialPlugins')} />}
           {catalog.data?.map(item => { const current = installed.find(value => value.id === item.id && value.installed); return <div key={item.id} className={`plugin-catalog-entry${selected === item.id ? ' is-selected' : ''}`}>
             <div><Typography.Text strong>{locale === 'zh' ? item.nameZh : item.name}</Typography.Text> <Tag>{t('official')}</Tag><div><Typography.Text type="secondary">{item.id}{current ? ` · ${t('installedVersion')} ${current.version}` : ''}</Typography.Text></div><Typography.Paragraph>{locale === 'zh' ? item.descriptionZh : item.description}</Typography.Paragraph></div>
@@ -71,10 +73,10 @@ export function PluginInstaller({ installed, initialId, onClose, onInstalled }: 
         </Space> },
       ]} />
       {inspect.isPending && <Spin description={t('inspecting')} />}
-      {inspect.error && <Alert type="error" showIcon title={t('previewFailed')} description={inspect.error.message} />}
+      {inspect.error && <Alert type="error" showIcon title={t('previewFailed')} description={t(`errors.${pluginErrorKey(inspect.error)}`)} />}
       {preview && <>
         <Descriptions size="small" bordered column={1} items={[
-          { key: 'name', label: t('plugin'), children: <>{preview.manifest.name} · {preview.manifest.id} {catalog.data?.some(item => item.id === preview.manifest.id) && <Tag>{t('officialId')}</Tag>}</> },
+          { key: 'name', label: t('plugin'), children: <>{pluginText(preview.manifest, 'name', locale)} · {preview.manifest.id} {catalog.data?.some(item => item.id === preview.manifest.id) && <Tag>{t('officialId')}</Tag>}</> },
           { key: 'version', label: t('version'), children: preview.manifest.version },
           { key: 'compatible', label: t('compatibility'), children: t('compatible') },
           { key: 'source', label: t('source'), children: preview.source ?? t('manual') },
@@ -85,7 +87,12 @@ export function PluginInstaller({ installed, initialId, onClose, onInstalled }: 
         <Checkbox checked={trusted} disabled={busy} onChange={event => setTrusted(event.target.checked)}>{t('trustAccept')}</Checkbox>
         <Button type="primary" disabled={!trusted || inspect.isPending} loading={install.isPending} onClick={() => install.mutate()}>{install.isPending ? t('compiling') : t('confirmInstall')}</Button>
       </>}
-      {install.error && <Alert type="error" showIcon title={t('installFailed')} description={install.error.message} />}
+      {install.error && <Alert type="error" showIcon title={t('installFailed')} description={t(`errors.${pluginErrorKey(install.error)}`)} />}
     </Space>
   </Modal>
+}
+
+export function PluginInstaller(props: { installed: PluginListItem[]; initialId?: string; onClose: () => void; onInstalled: () => Promise<void> }) {
+  const item = props.installed.find(item => item.id === props.initialId && item.installed)
+  return item ? <PluginUpdater item={item} onClose={props.onClose} onInstalled={props.onInstalled} /> : <NewPluginInstaller {...props} />
 }

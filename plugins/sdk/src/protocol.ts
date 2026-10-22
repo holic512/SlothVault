@@ -2,7 +2,7 @@
  * @file protocol.ts
  * @project SlothVault
  * @module Plugin Protocol v1
- * @description Defines portable packages, explicit settlement permissions, wallet contributions and typed market/SOL contracts.
+ * @description Defines portable packages, bilingual display metadata, navigation icons, update results and typed settlement contracts.
  * @logic Validate metadata without importing executable code; keep browser metadata separate from server configuration.
  * @dependencies zod, semver
  * @index_tags plugins,sdk,manifest,permissions
@@ -11,7 +11,7 @@
 import { z } from 'zod'
 import semver from 'semver'
 
-export const PLUGIN_API_VERSION = '1.1.0'
+export const PLUGIN_API_VERSION = '1.2.0'
 export const GIFT_CARDS_PLUGIN_ID = 'slothvault.gift-cards'
 export const pluginIdSchema = z.string().regex(/^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$/).max(100)
 export const assetPathSchema = z.string().max(200).refine(value => /^[a-zA-Z0-9_./-]+$/.test(value) && !value.startsWith('/') && !value.split('/').some(p => !p || p === '.' || p === '..'), 'Invalid package path')
@@ -66,8 +66,15 @@ export function assertPortableTableGraph(tables: PluginTable[]) {
   }
   for (const table of tables) visit(table)
 }
+const localizedText = z.object({ zh: z.string().max(2000), en: z.string().max(2000) }).strict()
+export const pluginDisplaySchema = z.object({
+  name: localizedText.optional(), description: localizedText.optional(),
+  config: z.record(z.string(), z.object({ label: localizedText, description: localizedText.optional(), placeholder: localizedText.optional() }).strict()).optional(),
+}).strict()
+export const pluginIconSchema = z.enum(['blocks', 'coins', 'ticket', 'wallet', 'settings'])
 export const pluginManifestSchema = z.object({
   schema: z.literal(1), id: pluginIdSchema, name: z.string().min(1).max(100), version,
+  display: pluginDisplaySchema.optional(),
   description: z.string().max(2000).default(''), author: z.string().max(200),
   engines: z.object({ slothvault: range, sdk: range, node: range }).strict(),
   server: assetPathSchema.refine(path => path.startsWith('server/') && path.endsWith('.mjs'), 'Backend entry must be server/*.mjs').optional(), capabilities: z.array(z.enum(['database', 'points.credit', 'points.credit.background', 'market.read', 'solana.transfer', 'users.read', 'events', 'services'])).max(20).default([]),
@@ -82,7 +89,7 @@ export const pluginManifestSchema = z.object({
   ui: z.array(z.object({
     key: z.string().regex(/^[a-z][a-z0-9.-]{0,79}$/), asset: assetPathSchema.refine(path => path.startsWith('client/') && path.endsWith('.js'), 'UI entry must be client/*.js'), css: assetPathSchema.refine(path => path.startsWith('client/') && path.endsWith('.css'), 'UI CSS must be client/*.css').optional(),
     surface: z.enum(['admin', 'account', 'public']), wallet: z.boolean().optional(), kind: z.enum(['page', 'slot']),
-    title: z.string().min(1).max(100), titleZh: z.string().max(100).optional(),
+    icon: pluginIconSchema.optional(), title: z.string().min(1).max(100), titleZh: z.string().max(100).optional(),
     path: z.string().regex(/^[a-z0-9/-]*$/).default(''), menu: z.boolean().default(false),
     slot: z.enum(['admin.dashboard.cards', 'admin.article.actions', 'account.points', 'public.home.before', 'public.home.after']).optional(),
     access: accessSchema.default({ audience: 'admin', membershipLevelIds: [] }), order: z.number().int().min(-1000).max(1000).default(0),
@@ -110,3 +117,6 @@ export type MarketQuote = { base: 'SOL'; quote: 'USDT'; price: string; provider:
 export type SolTransferIntent = { orderId: string; payer: string; recipient: string; lamports: string; network: 'mainnet' }
 export type PreparedSolTransfer = SolTransferIntent & { transactionBase64: string; messageHash: string; blockhash: string; lastValidBlockHeight: number }
 export type SolTransferObservation = { status: 'FINALIZED' | 'FAILED' | 'PENDING' | 'EXPIRED'; slot?: number }
+
+export type PluginRelease = { repository: string; tag: string; asset: string; notes: string; size: number; version: string }
+export type PluginUpdateInfo = { currentVersion: string; status: 'available' | 'current' | 'manual' | 'noRelease'; release: PluginRelease | null; checkedAt: string }

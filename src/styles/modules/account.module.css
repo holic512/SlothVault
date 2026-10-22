@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Account Workspace Styles
  * @description Gives private account pages a compact identity rail, responsive dashboard, and equal-height content cards within each row.
- * @logic Stretch cards to their grid row, keep glass and chart content readable, and collapse navigation and content grids for smaller screens.
+ * @logic Bound desktop navigation to the available viewport, keep identity and controls fixed around a scrolling menu, and replace the rail with a mobile drawer while preserving existing account surfaces.
  * @dependencies SlothVault tokens, AccountShell, AccountCard
  * @index_tags account,layout,responsive,liquid-glass
  * @author holic512
@@ -26,14 +26,18 @@
 .root :global(.account-section-rail) {
   position: sticky;
   top: 106px;
+  display: flex;
   min-width: 0;
+  max-height: calc(100dvh - 130px);
+  flex-direction: column;
 }
 
 .root :global(.account-identity) {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 10px 24px;
+  flex-shrink: 0;
+  padding: 0 10px 20px;
 }
 
 .root :global(.account-identity-copy) {
@@ -57,54 +61,12 @@
   font-size: 13px;
 }
 
-.root :global(.account-section-label) {
-  margin: 0 12px 6px;
-  color: var(--sv-text-muted);
-  font-size: 12px;
-}
-
-.root :global(.account-section-nav) {
-  display: grid;
-  gap: 16px;
-}
-
-.root :global(.account-section-nav-group) {
-  display: grid;
-  gap: 4px;
-}
-
-.root :global(.account-section-nav) a {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 44px;
-  padding: 9px 12px;
-  border-radius: 10px;
-  color: var(--sv-text-muted);
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.root :global(.account-section-nav) a:hover {
-  background: color-mix(in srgb, var(--sv-bg-soft) 60%, transparent);
-  color: var(--sv-text);
-}
-
-.root :global(.account-section-nav) a:global(.is-active) {
-  background: color-mix(in srgb, var(--sv-primary) 9%, var(--sv-bg-solid));
-  color: var(--sv-primary-strong);
-}
-
-.root :global(.account-section-nav) svg {
-  flex-shrink: 0;
-}
-
 .root :global(.account-rail-footer) {
   display: grid;
-  gap: 20px;
-  margin-top: 24px;
-  padding: 22px 10px 0;
+  flex-shrink: 0;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px 10px 0;
   border-top: 1px solid var(--sv-border);
 }
 
@@ -467,6 +429,102 @@
   background: color-mix(in srgb, var(--sv-bg-soft) 70%, transparent);
 }
 
+.menu-viewport {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+}
+
+.navigation:global(.ant-menu) {
+  width: 100%;
+  min-width: 0;
+  border-inline-end: 0;
+  background: transparent;
+}
+
+.navigation:global(.ant-menu.ant-menu-root) :global(.ant-menu-submenu-title),
+.navigation:global(.ant-menu.ant-menu-root) :global(.ant-menu-item) {
+  height: auto;
+  min-height: 44px;
+  margin-block: 2px;
+  padding-block: 10px;
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.navigation:not(:global(.ant-menu-inline-collapsed)) :global(.ant-menu-title-content) {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.navigation :global(.ant-menu-item-selected) {
+  background: color-mix(in srgb, var(--sv-primary) 9%, var(--sv-bg-solid));
+  color: var(--sv-primary-strong);
+}
+
+.navigation :global(.ant-menu-sub) {
+  background: transparent !important;
+}
+
+.root.collapsed :global(.account-workspace) {
+  grid-template-columns: 64px minmax(0, 1fr);
+}
+
+.collapsed :global(.account-identity) {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.collapsed :global(.account-identity-copy) {
+  display: none;
+}
+
+.collapsed :global(.account-rail-footer) {
+  padding-inline: 4px;
+}
+
+.navigation:global(.ant-menu-inline-collapsed) :global(.ant-menu-submenu-title) {
+  padding-inline: 21px;
+}
+
+.navigation:global(.ant-menu-inline-collapsed) :global(.ant-menu-title-content) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.mobile-bar {
+  display: none;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.mobile-drawer :global(.ant-drawer-body) {
+  display: flex;
+  gap: 16px;
+  flex-direction: column;
+}
+
+.mobile-identity {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--sv-border);
+}
+
+.mobile-identity span {
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 1100px) {
   .root :global(.account-workspace) {
     grid-template-columns: 200px minmax(0, 1fr);
@@ -497,48 +555,17 @@
   }
 
   .root :global(.account-section-rail) {
-    position: static;
-    padding-bottom: 20px;
-    border-bottom: 1px solid var(--sv-border);
-  }
-
-  .root :global(.account-identity) {
-    padding: 0 0 18px;
-  }
-
-  .root :global(.account-section-label) {
     display: none;
   }
 
-  .root :global(.account-section-nav) {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 4px;
+  .root.collapsed :global(.account-workspace) {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .root :global(.account-section-nav-group) {
-    display: contents;
-  }
-
-  .root :global(.account-section-nav) a {
-    gap: 8px;
-    padding: 8px;
-    font-size: 13px;
-  }
-
-  .root :global(.account-rail-footer) {
+  .mobile-bar {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-top: 16px;
-    padding: 0;
-    border: 0;
   }
 
-  .root :global(.account-rail-footer) > :global(.ant-btn) {
-    width: auto;
-  }
 }
 
 @media (max-width: 600px) {
