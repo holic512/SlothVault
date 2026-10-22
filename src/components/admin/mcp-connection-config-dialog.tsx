@@ -49,7 +49,7 @@ function ConfigurationBlock({ section, value }: { section: 'codex' | 'claude'; v
     <section className={styles.block} aria-labelledby={id}>
       <div className={styles['block-header']}>
         <strong id={id}>{section === 'codex' ? 'Codex' : 'Claude Code'}</strong>
-        <Button className={styles.copy} size="small" icon={<Copy size={14} />} aria-label={t(`dialog.${section}Copy`)} onClick={copy}>
+        <Button size="small" icon={<Copy size={14} />} aria-label={t(`dialog.${section}Copy`)} onClick={copy}>
           {t('actions.copy')}
         </Button>
       </div>
@@ -107,12 +107,12 @@ export function McpConnectionConfigDialog({ configuration, template = false, onC
       footer={template ? (
         <div className={styles['guide-footer']}>
           <Button onClick={close}>{t('actions.close')}</Button>
-          <Button className={styles.confirm} type="primary" onClick={onCreateKey}>{t('actions.createNew')}</Button>
+          <Button type="primary" onClick={onCreateKey}>{t('actions.createNew')}</Button>
         </div>
-      ) : <Button className={styles.confirm} block type="primary" onClick={close}>{t('actions.confirmSaved')}</Button>}
+      ) : <Button block type="primary" onClick={close}>{t('actions.confirmSaved')}</Button>}
     >
       <>
-        <Alert className={styles.notice} showIcon type={template ? 'info' : 'warning'} title={t(template ? 'dialog.guideWarning' : 'dialog.revealWarning')} />
+        <Alert showIcon type={template ? 'info' : 'warning'} title={t(template ? 'dialog.guideWarning' : 'dialog.revealWarning')} />
         <Typography.Paragraph className={styles.description}>
           {t(template ? 'dialog.guideDescription' : 'dialog.revealDescription')}
         </Typography.Paragraph>

@@ -4,9 +4,9 @@
  * @file admin-typography-provider.tsx
  * @project SlothVault
  * @module Administrator Typography Boundary
- * @description Shares compact typography between management pages and their portaled controls.
- * @logic Inherit the application palette and locale, override only typography, and bind contextual feedback to the same scoped theme.
- * @dependencies antd, admin-typography.module.css, SlothVault design tokens
+ * @description Shares management typography and overlay presentation between pages and their portaled controls.
+ * @logic Inherit the application palette and locale, scope overlay styling to management, and identify custom portals through context.
+ * @dependencies antd, admin-surface-context, admin-typography.module.css, admin-overlay.module.css
  * @index_tags admin,typography,theme,portal
  * @author holic512
  */
@@ -15,6 +15,8 @@ import type { ReactNode } from 'react'
 import { App, ConfigProvider, type ThemeConfig } from 'antd'
 
 import styles from '@/styles/modules/admin-typography.module.css'
+import overlays from '@/styles/modules/admin-overlay.module.css'
+import { AdminSurfaceContext } from '@/components/providers/admin-surface-context'
 
 // Numeric component tokens match the rem scale in tokens.css at the default 16px root.
 // The scoped CSS adapter preserves rem sizing for rendered UI and custom portals.
@@ -57,26 +59,30 @@ const theme: ThemeConfig = {
 }
 
 const popup = { classNames: { root: styles.scope } }
+const modal = { classNames: { root: `${styles.scope} ${overlays.surface} ${overlays.modal}` } }
+const drawer = { classNames: { root: `${styles.scope} ${overlays.surface} ${overlays.drawer}` } }
 const selectionPopup = { classNames: { popup: { root: styles.scope } } }
 
 export function AdminTypographyProvider({ children }: { children: ReactNode }) {
   return (
-    <ConfigProvider
-      theme={theme}
-      modal={popup}
-      drawer={popup}
-      popover={popup}
-      popconfirm={popup}
-      tooltip={popup}
-      dropdown={popup}
-      message={popup}
-      notification={popup}
-      select={selectionPopup}
-      treeSelect={selectionPopup}
-      datePicker={selectionPopup}
-      timePicker={selectionPopup}
-    >
-      <App className={styles.scope}>{children}</App>
-    </ConfigProvider>
+    <AdminSurfaceContext value={true}>
+      <ConfigProvider
+        theme={theme}
+        modal={modal}
+        drawer={drawer}
+        popover={popup}
+        popconfirm={popup}
+        tooltip={popup}
+        dropdown={popup}
+        message={popup}
+        notification={popup}
+        select={selectionPopup}
+        treeSelect={selectionPopup}
+        datePicker={selectionPopup}
+        timePicker={selectionPopup}
+      >
+        <App className={styles.scope}>{children}</App>
+      </ConfigProvider>
+    </AdminSurfaceContext>
   )
 }

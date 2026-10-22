@@ -1,30 +1,10 @@
-.dialog :global(.ant-modal-body) {
-  max-height: calc(100dvh - 190px);
-  overflow-y: auto;
-}
-
-.notice {
-  border-color: var(--sv-text-muted) !important;
-  background: var(--sv-bg-soft) !important;
-}
-
-.dialog :global(.ant-modal-close) {
-  color: var(--sv-text-muted);
-}
-
-.notice :global(.ant-alert-title),
-.notice :global(.ant-alert-icon) {
-  color: var(--sv-text);
-}
-
-.description {
-  margin: 16px 0 !important;
-  color: var(--sv-text);
+.dialog .description {
+  margin-block: var(--sv-space-5);
 }
 
 .block {
   min-width: 0;
-  margin-top: 16px;
+  margin-top: var(--sv-space-5);
 }
 
 .block-header {
@@ -38,42 +18,25 @@
   line-height: var(--sv-admin-line-label);
 }
 
-.copy {
-  flex-shrink: 0;
-  border-color: var(--sv-text-muted) !important;
-  color: var(--sv-text) !important;
-}
-
-.confirm {
-  border-color: var(--sv-text) !important;
-  background: var(--sv-text) !important;
-  color: var(--sv-bg-solid) !important;
-}
-
-.confirm:focus-visible {
-  outline: 2px solid var(--sv-text-muted);
-  outline-offset: 2px;
-}
-
 .dialog .hint:global(.ant-typography) {
-  margin: 8px 0 !important;
+  margin: var(--sv-space-2) 0;
   color: var(--sv-text-muted);
   font-size: var(--sv-admin-font-secondary);
 }
 
-.code {
+.dialog .code:global(.ant-input) {
   width: 100%;
-  padding: 12px !important;
-  overflow: auto !important;
-  border-color: var(--sv-text-muted) !important;
-  border-radius: 8px;
-  background: var(--sv-bg-solid) !important;
-  color: var(--sv-text) !important;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  padding: var(--sv-space-3);
+  overflow: auto;
+  border-color: var(--sv-control-border);
+  border-radius: var(--sv-radius-sm);
+  background: var(--sv-bg-soft);
+  color: var(--sv-text);
+  font-family: var(--sv-font-mono);
   font-size: var(--sv-admin-font-body);
   line-height: 1.7;
   white-space: pre;
-  resize: none !important;
+  resize: none;
 }
 
 .code:focus-visible {
@@ -101,10 +64,4 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
-}
-
-@media (max-width: 480px) {
-  .dialog :global(.ant-modal-body) {
-    max-height: calc(100dvh - 180px);
-  }
 }

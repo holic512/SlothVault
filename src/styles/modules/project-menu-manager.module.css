@@ -4,11 +4,6 @@
   max-width: calc(100vw - 32px);
 }
 
-.manager :global(.ant-modal-title),
-.editor :global(.ant-modal-title) {
-  font-size: 18px !important;
-}
-
 .content {
   display: grid;
   min-width: 0;

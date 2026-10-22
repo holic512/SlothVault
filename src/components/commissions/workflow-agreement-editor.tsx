@@ -4,7 +4,7 @@
  * @project SlothVault
  * @module Agreement Draft Editor
  * @description Fills auto-generated Markdown variables alongside explicit business terms.
- * @logic Preview the selected published template and save a draft without publishing or confirming it.
+ * @logic Preview the selected published template and save a draft; management uses a fixed footer while public presentation retains its header action.
  * @dependencies Ant Design, React Query, simple templates
  * @index_tags commissions,contracts,drafts,preview
  * @author holic512
@@ -17,9 +17,11 @@ import { MarkdownView } from '@/components/markdown/markdown-view'
 import { renderSimpleTemplate, type SimpleTemplate, type SimpleTemplateVersion, type WorkflowAgreement, type WorkflowDetail } from '@/lib/commission-workflow'
 import { formatFen, yuanToFen } from '@/lib/commissions'
 import { SimpleFields } from './simple-fields'
+import { useAdminSurface } from '@/components/providers/admin-surface-context'
 import styles from '@/styles/modules/commission-workflow.module.css'
 
 export function WorkflowAgreementEditor({ detail, spec, onClose, onSave, busy }: { detail: WorkflowDetail; spec: { agreement?: WorkflowAgreement; kind: string; commandId: string } | null; onClose: () => void; onSave: (input: Record<string, unknown>) => void; busy: boolean }) {
+  const admin = useAdminSurface()
   const [form] = Form.useForm(), [selected, setVersion] = useState<SimpleTemplateVersion | null>(null)
   const initialized = useRef(false)
   const templates = useQuery({ queryKey: ['simple-templates'], enabled: Boolean(spec), queryFn: () => apiFetch<SimpleTemplate[]>('/api/admin/contract-templates') })
@@ -38,7 +40,8 @@ export function WorkflowAgreementEditor({ detail, spec, onClose, onSave, busy }:
   const filled = { ...values.values, 项目名称: detail.title, 合同金额: values.totalYuan || '另行约定', 维护天数: String(values.maintenanceDays || 15), 确认方式: values.confirmationMode === 'OFFLINE' ? '双方线下确认，由管理员上传依据' : '用户在线确认' }
   let preview = '', previewError = ''
   try { if (version) preview = renderSimpleTemplate(version.body, version.fields, filled) } catch (error) { previewError = (error as Error).message }
-  return <Drawer title={spec?.agreement ? '编辑合同草稿' : '生成合同草稿'} open={Boolean(spec)} width="min(1180px, 100vw)" onClose={() => !busy && onClose()} extra={<Button type="primary" loading={busy} disabled={!version} onClick={() => form.submit()}>保存草稿</Button>} destroyOnHidden>
+  const saveAction = <Button type="primary" block={admin} loading={busy} disabled={!version} onClick={() => form.submit()}>保存草稿</Button>
+  return <Drawer title={spec?.agreement ? '编辑合同草稿' : '生成合同草稿'} open={Boolean(spec)} size="min(1180px, 100vw)" onClose={() => !busy && onClose()} extra={admin ? undefined : saveAction} footer={admin ? saveAction : undefined} destroyOnHidden>
     {templates.error ? <Alert type="error" title={templates.error.message} /> : null}
     {!version ? <Alert type="info" title="请先在合同模板中发布一个模板" /> : <div className={styles['editor-grid']}><Form form={form} layout="vertical" onFinish={(input) => {
       onSave({ action: 'agreement.save', commandId: spec!.commandId, ...(spec?.agreement ? { id: Number(spec.agreement.id) } : {}), templateVersionId: Number(version.id), kind: spec!.kind, title: input.title, totalFen: input.totalYuan ? yuanToFen(String(input.totalYuan)) : null, maintenanceDays: input.maintenanceDays, confirmationMode: input.confirmationMode, fileKeys: input.fileKeys || [], values: filled })

@@ -17,7 +17,10 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import { WalletReadyState, type WalletName } from '@solana/wallet-adapter-base'
 import { useTranslations } from 'next-intl'
 import typographyStyles from '@/styles/modules/admin-typography.module.css'
+import overlayStyles from '@/styles/modules/admin-overlay.module.css'
+import { useAdminSurface } from '@/components/providers/admin-surface-context'
 export function WalletPicker({ onSelect, onClose, error, expectedAddress }: { onSelect: (name: WalletName) => void; onClose: () => void; error: string | null; expectedAddress?: string }) {
+  const admin = useAdminSurface()
   const t = useTranslations('WalletConnection'), id = useId(), surface = useRef<HTMLDivElement>(null)
   const { wallets, connected, publicKey, disconnect } = useWallet()
   const [copied, setCopied] = useState(false)
@@ -41,7 +44,7 @@ export function WalletPicker({ onSelect, onClose, error, expectedAddress }: { on
     if (!publicKey) return
     try { await navigator.clipboard.writeText(publicKey.toBase58()); setCopied(true) } catch { setCopied(false) }
   }
-  return createPortal(<div className={`${typographyStyles.scope} solana-wallet-picker`} role="dialog" aria-modal="true" aria-labelledby={id} onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
+  return createPortal(<div className={`${typographyStyles.scope} solana-wallet-picker${admin ? ` ${overlayStyles.wallet}` : ''}`} role="dialog" aria-modal="true" aria-labelledby={id} onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
     <div className="solana-wallet-picker-surface" ref={surface}>
       <button className="solana-wallet-picker-close" aria-label={t('dialog.close')} onClick={onClose} type="button">×</button>
       <div className="solana-wallet-picker-heading"><span>Solana</span><h2 id={id}>{t('dialog.title')}</h2><p>{t('dialog.description')}</p>
