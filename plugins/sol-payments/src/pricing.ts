@@ -14,6 +14,16 @@ export function paymentLamports(points: number, rate: string, price: string) {
   return amount.toString()
 }
 export function formatSol(lamports: string) {
-  const value = BigInt(lamports)
-  return `${value / 1_000_000_000n}.${(value % 1_000_000_000n).toString().padStart(9, '0')}`
+  return formatPayment(lamports, 'SOL')
+}
+export function paymentTokenAmount(points: number, rate: string) {
+  if (!Number.isSafeInteger(points) || points < 1 || points > 1_000_000) throw new Error('INVALID_POINTS')
+  const r = decimal(rate), numerator = BigInt(points) * 1_000_000n * r.scale
+  const amount = (numerator + r.units - 1n) / r.units
+  if (amount > 18_446_744_073_709_551_615n) throw new Error('PAYMENT_AMOUNT_TOO_LARGE')
+  return amount.toString()
+}
+export function formatPayment(amount: string, asset: 'SOL' | 'USDT') {
+  const value = BigInt(amount), decimals = asset === 'USDT' ? 6 : 9, scale = 10n ** BigInt(decimals)
+  return `${value / scale}.${(value % scale).toString().padStart(decimals, '0')}`
 }

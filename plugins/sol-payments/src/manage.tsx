@@ -1,8 +1,8 @@
 /**
  * @file manage.tsx
  * @project SlothVault
- * @module SOL Payment Administration
- * @description Presents localized order filters, immutable quotes and payment verification in the shared admin layout.
+ * @module Solana Payment Administration
+ * @description Presents localized USDT and SOL orders, immutable amounts and payment verification in the shared admin layout.
  * @logic Filter and paginate orders, inspect full chain evidence, and link directly to this plugin's configuration without manual success overrides.
  * @dependencies Plugin client SDK, React, shared payment UI and plugin-owned messages
  * @index_tags plugins,payments,admin,orders,i18n
@@ -14,7 +14,7 @@ import {
   api, useQuery, useMutation, useQueryClient, useRouter, useLocale,
   PluginPage, PluginPageActions, PluginTablePanel, PluginToolbar, PluginI18nProvider,
 } from '@slothvault/plugin-sdk/client'
-import { ID, useCopy, useStatus, PaymentError, OrderDetails, type Order } from './ui'
+import { ID, useCopy, useStatus, PaymentError, OrderDetails, formatOrderAmount, type Order } from './ui'
 import { messages } from './messages'
 
 type Filters = { userId?: number; orderId?: string; signature?: string; status?: string }
@@ -67,12 +67,13 @@ function ManageContent() {
     <PluginTablePanel>
       <Table<Order>
         rowKey="id" size="small" loading={query.isPending} dataSource={query.data?.list ?? []}
-        scroll={query.data?.list.length ? { x: 820 } : undefined}
+        scroll={query.data?.list.length ? { x: 960 } : undefined}
         locale={{ emptyText: filters ? c.noResults : c.noData }}
         pagination={{ current: page, pageSize: 20, total: query.data?.total ?? 0, onChange: setPage, hideOnSinglePage: true }}
         columns={[
           { title: c.id, dataIndex: 'id', width: 200, ellipsis: true, render: (value, row) => <Button className="sol-order-id" type="link" title={value} onClick={() => setSelected(row)}>{value}</Button> },
           { title: c.user, dataIndex: 'userId', width: 90, render: value => value ?? '—' },
+          { title: c.amount, key: 'amount', width: 150, render: (_, row) => formatOrderAmount(row) },
           { title: c.received, dataIndex: 'points', width: 110, render: value => Number(value).toLocaleString(locale) },
           { title: c.status, dataIndex: 'status', width: 145, render: status },
           { title: c.created, dataIndex: 'createdAt', width: 180, render: value => new Date(value).toLocaleString(locale) },

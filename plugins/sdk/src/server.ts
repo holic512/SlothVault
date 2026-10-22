@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Plugin Server SDK
  * @description Exposes a Kysely driver over the authenticated worker-to-host transaction bridge.
- * @logic Compile portable SQL in the plugin worker; let the host own transactions, market quotes and fixed SOL transfers.
+ * @logic Compile portable SQL in the plugin worker; let the host own transactions, migration-only declared-column inspection and fixed SOL/USDT transfers without private keys.
  * @dependencies Kysely, Node worker messaging supplied by the host
  * @index_tags plugins,sdk,transactions,kysely,worker
  * @author holic512
@@ -17,8 +17,11 @@ export type PluginContext = {
   manifest: PluginManifest; config: Record<string, unknown>; provider: 'sqlite' | 'mysql' | 'postgresql'
   db: Kysely<Record<string, Record<string, unknown>>>
   table(name: string): string
+  /** Available only during migrations, for columns declared by this plugin's manifest. */
+  schema: { hasColumn(table: string, column: string): Promise<boolean> }
   marketData: { quote(): Promise<MarketQuote> }
   solana: {
+    /** Amounts are raw integer lamports or six-decimal Mainnet USDT units; the host fixes mint and token programs. */
     validateIntent(input: SolTransferIntent): Promise<void>
     prepare(input: SolTransferIntent): Promise<PreparedSolTransfer>
     validateSigned(input: { prepared: PreparedSolTransfer; signedTransaction: string }): Promise<{ signature: string }>
@@ -74,6 +77,7 @@ export function createPluginContext(input: { manifest: PluginManifest; config: R
     return executor.provideConnection(async connection => call('points.credit', { ...values, transactionId: (connection as RemoteConnection).transactionId })) as Promise<{ pointsBalance: number; replayed: boolean }>
   }
   return { ...input, db,
+    schema: { hasColumn: (table, column) => call('schema.hasColumn', { table, column }) as Promise<boolean> },
     marketData: { quote: () => call('market.quote') as Promise<MarketQuote> },
     solana: {
       validateIntent: values => call('solana.validateIntent', values) as Promise<void>,

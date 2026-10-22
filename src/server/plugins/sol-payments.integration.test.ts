@@ -22,18 +22,19 @@ import { pluginTableMap,PluginTransactions } from './database'
 import { RESTORE_COMMIT_CONFIG_KEY } from '@/server/services/admin-backup/constants'
 import { z } from 'zod'
 import { toJsonSafe } from '@/server/http/response'
-import { readTestPackage } from './test-package'
+import { editTestPackage, readTestPackage } from './test-package'
 import { exportPluginRows, pluginBackupShape, validatePluginBackup, preparePluginRestore, clearPluginDataForRestore, importPluginRecords, reconcilePluginRestore } from './backup'
 const ID='slothvault.sol-payments'
 let db:ReturnType<typeof personalSecurityDatabase>,actor:{userId:number;role:string},payer:Keypair,recipient:string,tables:Record<string,string>
+type PaymentOrder={id:string;asset:'SOL'|'USDT';amount:string;lamports:string;rate:string;quote:{price:string}|null;points:number;status:string;reason:string|null;signature:string|null;recipient:string}
 const invoke=(key:string,input?:unknown,query?:Record<string,string>,admin=false)=>invokeRegisteredPlugin(pluginRegistry.get(ID)!,'api',key,{actor:admin?{...actor,role:'ADMIN'}:actor,input,query},false,['options','list','detail','admin-list'].includes(key))
-async function create(){return await invoke('create',{points:1000,payer:payer.publicKey.toBase58(),requestKey:randomUUID()}) as {id:string;lamports:string;status:string}}
+async function create(asset:'SOL'|'USDT'='SOL'){return await invoke('create',{points:1000,payer:payer.publicKey.toBase58(),requestKey:randomUUID(),asset}) as PaymentOrder}
 async function signed(orderId:string){const result=await invoke('prepare',{orderId}) as {attemptId:string;prepared:PreparedSolTransfer};const tx=Transaction.from(Buffer.from(result.prepared.transactionBase64,'base64'));tx.sign(payer);return {orderId,attemptId:result.attemptId,signedTransaction:tx.serialize().toString('base64')}}
 async function submit(){const order=await create();const input=await signed(order.id);await invoke('submit',input);return {order,input}}
-const order=(id:string)=>invoke('detail',undefined,{orderId:id}) as Promise<{status:string;reason:string|null;signature:string|null;lamports:string;recipient:string}>
+const order=(id:string)=>invoke('detail',undefined,{orderId:id}) as Promise<PaymentOrder>
 const due=()=>mocks.client.$executeRawUnsafe(`UPDATE "${tables.attempts}" SET next_check_at = ?`,new Date(Date.now()-1000).toISOString())
 const job=()=>invokeRegisteredPlugin(pluginRegistry.get(ID)!,'jobs','reconcile',{},true,false,{id:randomUUID(),attempt:1,scheduledAt:new Date().toISOString()})
-describe('SOL payment worker and durable SQLite ledger',{timeout:30000},()=>{
+describe('Solana payment worker and durable SQLite ledger',{timeout:30000},()=>{
  beforeEach(async()=>{
   vi.clearAllMocks();db=personalSecurityDatabase();mocks.client=db.client;mocks.directory=mkdtempSync(join(tmpdir(),'sv-sol-plugin-'))
   resetPluginInitialization();await initializePlugins()
@@ -47,8 +48,121 @@ describe('SOL payment worker and durable SQLite ledger',{timeout:30000},()=>{
   await setPluginEnabled(ID,true,actor.userId);tables=pluginTableMap(pluginRegistry.get(ID)!.manifest)
  },60000)
  afterEach(async()=>{for(const id of pluginWorkers.keys())await stopPluginWorker(id);resetPluginInitialization();await db.close();rmSync(mocks.directory,{recursive:true,force:true})},60000)
- it('locks one quote per idempotent request, detects conflicts, and honors locked orders during paused sales and price outages',async()=>{
+ it('defaults to six-decimal USDT and creates rounded orders without consulting unavailable SOL quotes',async()=>{
+  expect(await invoke('options')).toMatchObject({assets:['USDT','SOL'],defaultAsset:'USDT'})
+  mocks.quote.mockRejectedValue(new Error('PRICE_UNAVAILABLE'))
+  await savePluginConfig(ID,{salesEnabled:true,recipient,pointsPerUsdt:'3',minPoints:1,maxPoints:1000000},actor.userId)
+  const created=await invoke('create',{points:1,payer:payer.publicKey.toBase58(),requestKey:randomUUID()}) as PaymentOrder
+  expect(created).toMatchObject({asset:'USDT',amount:'333334',lamports:'0',rate:'3',points:1,quote:null,status:'AWAITING_PAYMENT'})
+  expect(await order(created.id)).toMatchObject({asset:'USDT',amount:'333334',quote:null})
+  const prepared=await invoke('prepare',{orderId:created.id}) as {prepared:PreparedSolTransfer}
+  expect(prepared.prepared).toMatchObject({asset:'USDT',tokenAmount:'333334',recipient,payer:payer.publicKey.toBase58()})
+  expect(prepared.prepared).not.toHaveProperty('lamports')
+  expect(mocks.quote).not.toHaveBeenCalled()
+ })
+ it('treats default and explicit USDT as the same request but rejects changing its payment asset',async()=>{
   const input={points:1000,payer:payer.publicKey.toBase58(),requestKey:randomUUID()}
+  const created=await invoke('create',input) as PaymentOrder
+  expect(await invoke('create',{...input,asset:'USDT'})).toMatchObject({id:created.id,asset:'USDT',amount:'10000000'})
+  await expect(invoke('create',{...input,asset:'SOL'})).rejects.toThrow('IDEMPOTENCY_CONFLICT')
+  expect(mocks.quote).not.toHaveBeenCalled()
+  const nativeInput={...input,requestKey:randomUUID(),asset:'SOL'}
+  const native=await invoke('create',nativeInput) as PaymentOrder
+  await expect(invoke('create',{...nativeInput,asset:'USDT'})).rejects.toThrow('IDEMPOTENCY_CONFLICT')
+  expect(await order(native.id)).toMatchObject({asset:'SOL',amount:'100000000'})
+  expect(mocks.quote).toHaveBeenCalledTimes(1)
+ })
+ it('keeps USDT amount, recipient and credited points locked after configuration changes and paused sales',async()=>{
+  const input={points:1000,payer:payer.publicKey.toBase58(),requestKey:randomUUID(),asset:'USDT'}
+  const created=await invoke('create',input) as PaymentOrder
+  await savePluginConfig(ID,{salesEnabled:false,recipient:Keypair.generate().publicKey.toBase58(),pointsPerUsdt:'1',minPoints:2000,maxPoints:1000000},actor.userId)
+  mocks.quote.mockRejectedValue(new Error('PRICE_UNAVAILABLE'))
+  expect(await invoke('create',input)).toMatchObject({id:created.id,asset:'USDT',amount:'10000000',rate:'100',recipient,quote:null})
+  const payment=await signed(created.id)
+  expect(mocks.prepare).toHaveBeenLastCalledWith(ID,expect.objectContaining({asset:'USDT',tokenAmount:'10000000',recipient}))
+  await invoke('submit',payment)
+  mocks.observe.mockResolvedValue({status:'FINALIZED',slot:34})
+  await invoke('reconcile',{orderId:created.id})
+  expect(await order(created.id)).toMatchObject({status:'PAID',asset:'USDT',amount:'10000000',points:1000,rate:'100',recipient})
+  expect(await mocks.client.pointTransaction.findFirstOrThrow()).toMatchObject({amount:1000,referenceId:created.id})
+  expect(mocks.quote).not.toHaveBeenCalled()
+ })
+ it('persists USDT signatures before broadcast and credits finalized transfers once after restart and concurrent retries',async()=>{
+  mocks.quote.mockRejectedValue(new Error('PRICE_UNAVAILABLE'))
+  const durable:{expectedSignature:string;signed_transaction:string;signature:string;prepared_json:string}[]=[]
+  mocks.broadcast.mockImplementation(async(pluginId:string,input:unknown)=>{
+   const checked=validateSignedTransfer(pluginId,input)
+   const rows=await mocks.client.$queryRawUnsafe<{signed_transaction:string;signature:string;prepared_json:string}[]>(`SELECT signed_transaction, signature, prepared_json FROM "${tables.attempts}"`)
+   durable.push({expectedSignature:checked.signature,...rows[0]})
+   throw new Error('response lost')
+  })
+  const created=await create('USDT'),payment=await signed(created.id)
+  const submits=await Promise.allSettled([invoke('submit',payment),invoke('submit',payment)])
+  expect(submits.some(result=>result.status==='fulfilled')).toBe(true)
+  expect(mocks.broadcast).toHaveBeenCalled()
+  expect(durable.length).toBeGreaterThan(0)
+  for(const evidence of durable){
+   expect(evidence.signature).toBe(evidence.expectedSignature)
+   expect(Transaction.from(Buffer.from(evidence.signed_transaction,'base64')).verifySignatures()).toBe(true)
+   expect(JSON.parse(evidence.prepared_json)).toMatchObject({asset:'USDT',tokenAmount:'10000000'})
+  }
+  expect(await order(created.id)).toMatchObject({status:'CONFIRMING',asset:'USDT',amount:'10000000',signature:expect.any(String)})
+  await stopPluginWorker(ID);resetPluginInitialization();await initializePlugins()
+  mocks.observe.mockResolvedValue({status:'FINALIZED',slot:701})
+  await Promise.allSettled([invoke('reconcile',{orderId:created.id}),invoke('reconcile',{orderId:created.id})]);await due();await job();await due();await job()
+  expect(await order(created.id)).toMatchObject({status:'PAID',asset:'USDT',amount:'10000000',signature:expect.any(String)})
+  expect(await mocks.client.pointTransaction.count()).toBe(1)
+  expect(await mocks.client.pluginPointReceipt.count()).toBe(1)
+  expect(await mocks.client.pluginPointReceipt.findFirstOrThrow()).toMatchObject({pluginId:ID,sourceKey:`order:${created.id}`,amount:1000,userId:actor.userId})
+  expect((await mocks.client.user.findUniqueOrThrow({where:{id:actor.userId}})).pointsBalance).toBe(1000)
+  expect(await invoke('submit',payment)).toMatchObject({status:'PAID'})
+  expect(mocks.quote).not.toHaveBeenCalled()
+ })
+ it('upgrades the original SOL schema and settles preserved prepared transactions without an asset tag',async()=>{
+  const created=await create()
+  const first=await invoke('prepare',{orderId:created.id}) as {attemptId:string;prepared:PreparedSolTransfer}
+  if(first.prepared.asset==='USDT')throw new Error('Expected a legacy-compatible SOL transfer')
+  const legacyPrepared={...first.prepared};delete legacyPrepared.asset
+  const [savedOrder]=await mocks.client.$queryRawUnsafe<Record<string,unknown>[]>(`SELECT * FROM "${tables.orders}" WHERE id = ?`,created.id)
+  const [savedAttempt]=await mocks.client.$queryRawUnsafe<Record<string,unknown>[]>(`SELECT * FROM "${tables.attempts}" WHERE id = ?`,first.attemptId)
+  delete savedOrder.payment_asset;delete savedOrder.token_amount;savedAttempt.prepared_json=JSON.stringify(legacyPrepared)
+  const currentPackage=readTestPackage('sol-payments')
+  const legacyPackage=await editTestPackage(currentPackage,files=>{
+   const manifest=JSON.parse(files.get('plugin.json')!.toString())
+   manifest.version='1.1.0';manifest.migrations=['initial'];manifest.api=[];manifest.jobs=[]
+   const legacyOrders=manifest.tables.find((table:{name:string})=>table.name==='orders')
+   legacyOrders.columns=legacyOrders.columns.filter((column:{name:string})=>!['payment_asset','token_amount'].includes(column.name))
+   files.set('plugin.json',Buffer.from(JSON.stringify(manifest)))
+   files.set('src/server.ts',Buffer.from('export default () => ({ migrations: { initial: async () => {} } })'))
+  })
+  await uninstallPlugin(ID,{deleteData:true,confirmPluginId:ID,actorUserId:actor.userId})
+  await installPlugin(legacyPackage,{trusted:true,actorUserId:actor.userId})
+  const insert=async(table:string,row:Record<string,unknown>)=>mocks.client.$executeRawUnsafe(`INSERT INTO "${table}" (${Object.keys(row).map(key=>`"${key}"`).join(', ')}) VALUES (${Object.keys(row).map(()=>'?').join(', ')})`,...Object.values(row))
+  await insert(tables.orders,savedOrder);await insert(tables.attempts,savedAttempt)
+  const before=await mocks.client.$queryRawUnsafe<{name:string}[]>(`PRAGMA table_info("${tables.orders}")`)
+  expect(before.map(column=>column.name)).not.toContain('payment_asset')
+  expect(before.map(column=>column.name)).not.toContain('token_amount')
+  await installPlugin(currentPackage,{trusted:true,actorUserId:actor.userId})
+  await setPluginEnabled(ID,true,actor.userId)
+  const after=await mocks.client.$queryRawUnsafe<{name:string;notnull:bigint|number}[]>(`PRAGMA table_info("${tables.orders}")`)
+  for(const name of ['payment_asset','token_amount'])expect(Number(after.find(column=>column.name===name)?.notnull)).toBe(0)
+  expect(await mocks.client.$queryRawUnsafe(`SELECT payment_asset, token_amount FROM "${tables.orders}" WHERE id = ?`,created.id)).toEqual([{payment_asset:null,token_amount:null}])
+  await stopPluginWorker(ID);resetPluginInitialization();await initializePlugins()
+  expect(await order(created.id)).toMatchObject({asset:'SOL',amount:'100000000',lamports:'100000000',quote:{price:'100'}})
+  const replay=await invoke('prepare',{orderId:created.id}) as {attemptId:string;prepared:PreparedSolTransfer}
+  expect(replay).toEqual({attemptId:first.attemptId,prepared:legacyPrepared})
+  expect(replay.prepared).not.toHaveProperty('asset')
+  const payment=await signed(created.id);await invoke('submit',payment)
+  expect(mocks.prepare).toHaveBeenCalledTimes(1)
+  mocks.observe.mockResolvedValue({status:'FINALIZED',slot:702});await job()
+  expect(await order(created.id)).toMatchObject({status:'PAID',asset:'SOL',amount:'100000000'})
+  expect(await mocks.client.pointTransaction.count()).toBe(1)
+  await due();await job();expect(await invoke('submit',payment)).toMatchObject({status:'PAID'})
+  expect(await mocks.client.pointTransaction.count()).toBe(1)
+  expect(await mocks.client.pluginPointReceipt.count()).toBe(1)
+ })
+ it('locks one quote per idempotent request, detects conflicts, and honors locked orders during paused sales and price outages',async()=>{
+  const input={points:1000,payer:payer.publicKey.toBase58(),requestKey:randomUUID(),asset:'SOL'}
   const a=await invoke('create',input) as {id:string};expect(await invoke('create',input)).toMatchObject({id:a.id,lamports:'100000000'});expect(mocks.quote).toHaveBeenCalledTimes(1)
   await expect(invoke('create',{...input,points:1001})).rejects.toThrow('IDEMPOTENCY_CONFLICT')
   await savePluginConfig(ID,{salesEnabled:false,recipient:Keypair.generate().publicKey.toBase58(),pointsPerUsdt:'1',minPoints:1,maxPoints:1000000},actor.userId)

@@ -2,8 +2,8 @@
  * @file runtime.ts
  * @project SlothVault
  * @module Plugin Worker Supervisor
- * @description Lazily activates workers and bounds SQL, market, SOL transfer and scheduled point-credit access.
- * @logic Associate every host call with an admitted invocation, roll back abandoned transactions, and terminate unhealthy instances without importing plugin code on the main thread.
+ * @description Lazily activates workers and bounds SQL, market, SOL/USDT transfers and scheduled point-credit access.
+ * @logic Associate host calls with admitted scopes, restrict column inspection to declared migration tables, roll back abandoned transactions and terminate unhealthy workers.
  * @dependencies worker_threads, plugin database bridge, encrypted config, Prisma
  * @index_tags plugins,worker,rpc,transactions,lifecycle
  * @author holic512
@@ -20,7 +20,7 @@ import { unitOfWork } from '@/server/database/unit-of-work'
 import { acquireMaintenanceLock, withMaintenanceLock } from '@/server/services/maintenance-lock'
 import { HttpError } from '@/server/http/errors'
 import { decryptPluginConfig } from './config'
-import { CORE_TABLES, PluginTransactions, pluginTableMap, runPluginQuery, type PluginTransaction } from './database'
+import { CORE_TABLES, PluginTransactions, columnExists, pluginTableMap, runPluginQuery, type PluginTransaction } from './database'
 import { verifyInstalledPackage } from './packages'
 import { compiledAsset, ensureCompiledPlugin } from './compiler'
 import { pluginRegistry, type RegisteredPlugin } from './state'
@@ -87,11 +87,17 @@ export class PluginWorker {
           if (scope.readOnly && !/^\s*select\b/i.test(query.sql)) throw new HttpError('This lifecycle is read only', 403)
           value = scope.background && !tx ? await withMaintenanceLock(/^\s*select\b/i.test(query.sql) ? 'shared' : 'exclusive', () => { assertActive(); return runPluginQuery(query, tx, scope.ddl, assertActive) }) : await runPluginQuery(query, tx, scope.ddl, assertActive)
         } else throw new HttpError('Unknown database method', 400)
+      } else if (message.method === 'schema.hasColumn') {
+        if (!scope.ddl || scope.readOnly || scope.transactions.active || !manifest.capabilities.includes('database')) throw new HttpError('Schema inspection is only permitted during migrations outside a transaction', 403)
+        const table = manifest.tables.find(table => table.name === payload.table)
+        if (!table || typeof payload.column !== 'string' || !table.columns.some(column => column.name === payload.column) || !this.tables[table.name]) throw new HttpError('Schema inspection requires a declared table and column', 403)
+        value = await columnExists(this.tables[table.name], payload.column)
+        assertActive()
       } else if (message.method === 'market.quote') {
         if (scope.readOnly || !manifest.capabilities.includes('market.read') || scope.transactions.active) throw new HttpError('Market quote is not permitted in this scope', 403)
         value = await getMarketQuote()
       } else if (message.method.startsWith('solana.')) {
-        if (scope.readOnly || !manifest.capabilities.includes('solana.transfer') || scope.transactions.active) throw new HttpError('SOL transfers are not permitted in this scope', 403)
+        if (scope.readOnly || !manifest.capabilities.includes('solana.transfer') || scope.transactions.active) throw new HttpError('Solana transfers are not permitted in this scope', 403)
         if (message.method === 'solana.validateIntent') value = validateSolIntent(payload)
         else if (message.method === 'solana.prepare') value = await prepareSolTransfer(manifest.id, payload)
         else if (message.method === 'solana.validateSigned') value = { signature: validateSignedTransfer(manifest.id, payload).signature }

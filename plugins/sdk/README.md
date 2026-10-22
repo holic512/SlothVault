@@ -15,7 +15,7 @@ npx slothvault-plugin pack . dist
 
 Declare `market.read` for `context.marketData.quote()`. The host owns public price-source settings; quotes contain explicit SOL/USDT units, provider and timestamps and are not persisted by the SDK.
 
-Declare `solana.transfer` for `context.solana.validateIntent`, `prepare`, `validateSigned`, `broadcast` and `observe`. These accept only Mainnet native SOL with a plugin-scoped order Memo. Save the signed transaction and signature before calling `broadcast`, and use `observe` to verify finalized chain facts. Host networking must occur outside a plugin database transaction.
+Declare `solana.transfer` for `context.solana.validateIntent`, `prepare`, `validateSigned`, `broadcast` and `observe`. These accept Mainnet native SOL and, since SDK 1.3, fixed Mainnet USDT with a plugin-scoped order Memo. Save the signed transaction and signature before calling `broadcast`, and use `observe` to verify finalized chain facts. Host networking must occur outside a plugin database transaction.
 
 `points.credit.background` additionally permits `points.credit` from an actual host-scheduled declared job without a user actor. Both permissions must be declared. Foreground calls retain the user/administrator ownership restriction. Settlement must pass its Kysely transaction to `points.credit` and use a stable source key.
 
@@ -42,3 +42,20 @@ recorded source require explicit ZIP upload. Updating requires package preview a
 code trust, preserves configuration and enabled state, and uses the existing
 transactional upgrade and recovery mechanism. Publish SDK 1.2 packages with
 `engines.sdk: "^1.2.0"` and a host minimum supporting these additions.
+
+### Mainnet USDT payments (SDK 1.3)
+
+Native SOL intents retain `{ orderId, payer, recipient, lamports, network: 'mainnet' }`.
+USDT intents instead use `{ orderId, payer, recipient, asset: 'USDT', tokenAmount, network: 'mainnet' }`,
+where `tokenAmount` is a positive integer string of six-decimal raw units. The host fixes
+the official USDT mint and classic Token Program, derives both ATAs, and includes
+idempotent creation of the recipient ATA. It checks USDT balance, account ownership,
+network fees and any required rent before signing. Wallets still need SOL for fees.
+
+The returned prepared message is immutable. Observation requires finalized success,
+the exact signed message and matching token balance changes; RPC submission alone
+does not settle an order. Legacy SOL prepared payloads without `asset` stay valid.
+
+Managed migrations can call `context.schema.hasColumn(logicalTable, column)` before
+adding declared columns. The host limits inspection to the plugin's own manifest
+tables and columns during migration; it does not expose database errors or arbitrary metadata.

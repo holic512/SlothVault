@@ -43,7 +43,13 @@
 }
 
 [data-sv-plugin="slothvault.sol-payments"] .sol-points-input {
-  width: min(100%, 320px);
+  width: 100%;
+}
+
+[data-sv-plugin="slothvault.sol-payments"] .sol-purchase-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 320px));
+  gap: 16px;
 }
 
 [data-sv-plugin="slothvault.sol-payments"] .sol-order-filters {
@@ -84,6 +90,11 @@
 }
 
 @media (width <= 600px) {
+  [data-sv-plugin="slothvault.sol-payments"] .sol-purchase-fields {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
   [data-sv-plugin="slothvault.sol-payments"] .sol-order-filters {
     grid-template-columns: minmax(0, 1fr);
   }

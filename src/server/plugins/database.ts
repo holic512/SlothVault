@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Plugin Database Bridge
  * @description Owns namespaced portable tables and reuses Prisma transactions for dynamic SQL and core mutations.
- * @logic Keep transaction handles bound to one invocation, compile schema operations through Kysely, and retain descriptors independently of executable packages.
+ * @logic Keep transaction handles bound to one invocation, compile schema operations through Kysely, safely inspect declared columns for migrations, and retain independent table descriptors.
  * @dependencies Kysely SDK, Prisma Unit of Work, plugin protocol
  * @index_tags plugins,database,kysely,transactions,ownership
  * @author holic512
@@ -54,6 +54,18 @@ export async function tableExists(name: string, reader: PluginTransaction = pris
   const p = configuredDatabaseProvider()
   const query = p === 'sqlite' ? `SELECT name FROM sqlite_master WHERE type='table' AND name = ?` : p === 'mysql' ? 'SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?' : 'SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = $1'
   return (await reader.$queryRawUnsafe<unknown[]>(query, name)).length > 0
+}
+export async function columnExists(name: string, column: string, reader: PluginTransaction = prisma) {
+  const table = quoteIdentifier(name); quoteIdentifier(column)
+  const provider = configuredDatabaseProvider()
+  if (provider === 'sqlite') {
+    const columns = await reader.$queryRawUnsafe<{ name: string }[]>(`PRAGMA table_info(${table})`)
+    return columns.some(item => item.name === column)
+  }
+  const query = provider === 'mysql'
+    ? 'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND COLUMN_NAME=?'
+    : 'SELECT column_name FROM information_schema.columns WHERE table_schema=current_schema() AND table_name=$1 AND column_name=$2'
+  return (await reader.$queryRawUnsafe<unknown[]>(query, name, column)).length > 0
 }
 function schemaObjectName(table: string, kind: string, index: number) { return `${table.slice(0, 35)}_${createHash('sha256').update(table).digest('hex').slice(0, 10)}_${kind}${index}` }
 type DataTypeExpression = Parameters<ReturnType<ReturnType<typeof schemaDatabase>['schema']['createTable']>['addColumn']>[1]

@@ -1,13 +1,13 @@
 {
   "schema": 1,
   "id": "slothvault.sol-payments",
-  "name": "SOL payments",
-  "version": "1.1.0",
-  "description": "Purchase points with SOL using five-minute locked SOL/USDT quotes and finalized on-chain settlement. Pausing sales preserves pending payments; disabling pauses reconciliation until re-enabled.",
+  "name": "Solana payments",
+  "version": "1.2.0",
+  "description": "Purchase points with Mainnet USDT by default or optional SOL, using locked amounts and finalized on-chain settlement. Existing payments continue while sales are paused.",
   "author": "holic512",
   "engines": {
-    "slothvault": ">=2.7.8 <3",
-    "sdk": "^1.2.0",
+    "slothvault": ">=2.7.9 <3",
+    "sdk": "^1.3.0",
     "node": ">=24.22.1"
   },
   "server": "server/index.mjs",
@@ -110,6 +110,18 @@
           "name": "lamports",
           "type": "string",
           "length": 32
+        },
+        {
+          "name": "payment_asset",
+          "type": "string",
+          "length": 8,
+          "nullable": true
+        },
+        {
+          "name": "token_amount",
+          "type": "string",
+          "length": 32,
+          "nullable": true
         },
         {
           "name": "rate",
@@ -270,7 +282,8 @@
     }
   ],
   "migrations": [
-    "initial"
+    "initial",
+    "usdt_payments"
   ],
   "jobs": [
     {
@@ -374,8 +387,8 @@
       "asset": "client/manage.js",
       "surface": "admin",
       "kind": "page",
-      "title": "SOL payment orders",
-      "titleZh": "SOL 收款订单",
+      "title": "Solana payment orders",
+      "titleZh": "Solana 收款订单",
       "path": "",
       "menu": true,
       "access": {
@@ -400,12 +413,12 @@
   ],
   "display": {
     "name": {
-      "zh": "SOL 购买积分",
-      "en": "SOL payments"
+      "zh": "Solana 购买积分",
+      "en": "Solana payments"
     },
     "description": {
-      "zh": "使用 SOL 购买积分；暂停销售仍保留待付款订单，禁用插件会暂停到账核验。",
-      "en": "Purchase points with SOL using five-minute locked SOL/USDT quotes and finalized on-chain settlement. Pausing sales preserves pending payments; disabling pauses reconciliation until re-enabled."
+      "zh": "优先使用 Solana 主网 USDT 购买积分，也可使用 SOL；链上最终确认后自动入账，暂停销售仍处理已有订单。",
+      "en": "Purchase points with Mainnet USDT by default or optional SOL, using locked amounts and finalized on-chain settlement. Existing payments continue while sales are paused."
     },
     "config": {
       "salesEnabled": {
@@ -424,8 +437,8 @@
           "en": "Recipient wallet"
         },
         "description": {
-          "zh": "接收 SOL 的 Solana 主网地址。",
-          "en": "The Solana Mainnet address that receives SOL."
+          "zh": "接收 Solana 主网 USDT 和 SOL 的钱包地址，USDT 关联代币账户由系统自动推导。",
+          "en": "A Solana Mainnet wallet receiving USDT and SOL. Its USDT associated token account is derived automatically."
         }
       },
       "pointsPerUsdt": {

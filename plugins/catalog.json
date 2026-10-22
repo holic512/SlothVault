@@ -12,10 +12,10 @@
     },
     {
       "id": "slothvault.sol-payments",
-      "name": "SOL payments",
-      "nameZh": "SOL 购买积分",
-      "description": "Purchase points with SOL using five-minute locked SOL/USDT quotes and finalized on-chain settlement. Pausing sales preserves pending payments; disabling pauses reconciliation until re-enabled.",
-      "descriptionZh": "使用 SOL 购买积分，五分钟锁价，链上最终确认后自动入账。",
+      "name": "Solana payments",
+      "nameZh": "Solana 购买积分",
+      "description": "Purchase points with Mainnet USDT by default or optional SOL, using locked amounts and finalized on-chain settlement. Existing payments continue while sales are paused.",
+      "descriptionZh": "优先使用 Solana 主网 USDT 购买积分，也可使用 SOL；链上最终确认后自动入账，暂停销售仍处理已有订单。",
       "repository": "holic512/SlothVault",
       "tagPrefix": "v"
     }

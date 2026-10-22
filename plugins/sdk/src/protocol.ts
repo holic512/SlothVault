@@ -2,7 +2,7 @@
  * @file protocol.ts
  * @project SlothVault
  * @module Plugin Protocol v1
- * @description Defines portable packages, bilingual display metadata, navigation icons, update results and typed settlement contracts.
+ * @description Defines portable packages, bilingual display metadata, navigation icons and native SOL/Mainnet USDT settlement contracts.
  * @logic Validate metadata without importing executable code; keep browser metadata separate from server configuration.
  * @dependencies zod, semver
  * @index_tags plugins,sdk,manifest,permissions
@@ -11,7 +11,7 @@
 import { z } from 'zod'
 import semver from 'semver'
 
-export const PLUGIN_API_VERSION = '1.2.0'
+export const PLUGIN_API_VERSION = '1.3.0'
 export const GIFT_CARDS_PLUGIN_ID = 'slothvault.gift-cards'
 export const pluginIdSchema = z.string().regex(/^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$/).max(100)
 export const assetPathSchema = z.string().max(200).refine(value => /^[a-zA-Z0-9_./-]+$/.test(value) && !value.startsWith('/') && !value.split('/').some(p => !p || p === '.' || p === '..'), 'Invalid package path')
@@ -114,7 +114,9 @@ export type PluginInvocation = { actor: PluginActor; input?: unknown; query?: Re
 export type PluginListItem = { id: string; name: string; description: string; version: string; installed: boolean; enabled: boolean; generation: number; digest: string; codeState: 'PRESENT' | 'MISSING'; runtime: string; error: string | null; retainedTables: number; manifest: PluginManifest; source: string | null; updatedAt: string }
 
 export type MarketQuote = { base: 'SOL'; quote: 'USDT'; price: string; provider: 'okx' | 'bitget'; observedAt: string; fetchedAt: string }
-export type SolTransferIntent = { orderId: string; payer: string; recipient: string; lamports: string; network: 'mainnet' }
+export type SolTransferIntent = { orderId: string; payer: string; recipient: string; network: 'mainnet' } & (
+  { asset?: 'SOL'; lamports: string } | { asset: 'USDT'; tokenAmount: string }
+)
 export type PreparedSolTransfer = SolTransferIntent & { transactionBase64: string; messageHash: string; blockhash: string; lastValidBlockHeight: number }
 export type SolTransferObservation = { status: 'FINALIZED' | 'FAILED' | 'PENDING' | 'EXPIRED'; slot?: number }
 

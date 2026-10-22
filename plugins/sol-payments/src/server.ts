@@ -1,9 +1,9 @@
 /**
  * @file server.ts
  * @project SlothVault
- * @module SOL Payments Plugin
+ * @module Solana Payments Plugin
  * @description Owns locked purchase orders, durable signed payment attempts and exactly-once point settlement.
- * @logic Persist before broadcast, serialize attempts with order revisions, observe finalized chain facts outside SQL transactions, and credit through the host ledger atomically.
+ * @logic Default new orders to fixed-unit USDT, preserve legacy SOL intents, persist before broadcast and atomically settle finalized chain facts through the host ledger.
  * @dependencies Plugin SDK, node crypto, zod, precise pricing
  * @index_tags plugins,payments,solana,points,reconciliation
  * @author holic512
@@ -11,11 +11,12 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { definePlugin, type PluginInvocation, type PreparedSolTransfer, type SolTransferIntent, type PluginServer } from '@slothvault/plugin-sdk/server'
-import { decimal, paymentLamports } from './pricing'
+import { decimal, paymentLamports, paymentTokenAmount } from './pricing'
 const fail = (message: string, status = 409): never => { throw Object.assign(new Error(message), { status }) }
 type Row = Record<string, unknown>
 const date = (value: unknown) => value instanceof Date ? value.getTime() : Date.parse(String(value))
 const preparedOf = (row: Row) => JSON.parse(String(row.prepared_json)) as PreparedSolTransfer
+const assetOf = (row: Row) => row.payment_asset === 'USDT' ? 'USDT' : 'SOL'
 const orderInput = z.object({ orderId: z.string().uuid() })
 export default definePlugin(ctx => {
   const orders = ctx.table('orders'), attempts = ctx.table('attempts')
@@ -25,7 +26,7 @@ export default definePlugin(ctx => {
     let valid = true
     try { decimal(rate) } catch { valid = false }
     valid &&= !!recipient && Number.isInteger(minPoints) && Number.isInteger(maxPoints) && minPoints >= 1 && maxPoints <= 1_000_000 && minPoints <= maxPoints
-    return { salesEnabled: ctx.config.salesEnabled === true && valid, recipient, pointsPerUsdt: rate, minPoints, maxPoints }
+    return { salesEnabled: ctx.config.salesEnabled === true && valid, recipient, pointsPerUsdt: rate, minPoints, maxPoints, assets: ['USDT', 'SOL'], defaultAsset: 'USDT' }
   }
   const owned = async (id: string, actor: PluginInvocation['actor'], admin = false) => {
     if (!actor || (admin && actor.role !== 'ADMIN')) fail('UNAUTHORIZED', 403)
@@ -35,26 +36,27 @@ export default definePlugin(ctx => {
   }
   const snapshot = async (order: Row) => {
     const attempt = order.active_attempt_id ? await ctx.db.selectFrom(attempts).selectAll().where('id', '=', order.active_attempt_id).executeTakeFirst() : undefined
-    return { id: String(order.id), userId: order.user_id == null ? null : Number(order.user_id), points: Number(order.points), payer: String(order.payer), recipient: String(order.recipient), lamports: String(order.lamports), rate: String(order.rate), quote: JSON.parse(String(order.quote_json)), network: order.network,
+    return { id: String(order.id), userId: order.user_id == null ? null : Number(order.user_id), points: Number(order.points), payer: String(order.payer), recipient: String(order.recipient), asset: assetOf(order), amount: String(assetOf(order) === 'USDT' ? order.token_amount : order.lamports), lamports: String(order.lamports), rate: String(order.rate), quote: JSON.parse(String(order.quote_json)), network: order.network,
       status: order.status === 'AWAITING_PAYMENT' && date(order.expires_at) <= Date.now() ? 'EXPIRED' : order.status,
       expiresAt: order.expires_at, createdAt: order.created_at, signature: attempt?.signature ?? null, slot: attempt?.slot ?? null, reason: order.reason }
   }
   const create = async (inv: PluginInvocation) => {
     if (!inv.actor) fail('UNAUTHORIZED', 401)
-    const input = z.object({ points: z.number().int().min(1).max(1_000_000), payer: z.string().max(44), requestKey: z.string().uuid() }).strict().parse(inv.input)
+    const input = z.object({ points: z.number().int().min(1).max(1_000_000), payer: z.string().max(44), requestKey: z.string().uuid(), asset: z.enum(['USDT', 'SOL']).default('USDT') }).strict().parse(inv.input)
     const previous = () => ctx.db.selectFrom(orders).selectAll().where('user_id', '=', inv.actor!.userId).where('request_key', '=', input.requestKey).executeTakeFirst()
-    const replay = async (row: Row) => { if (Number(row.points) !== input.points || row.payer !== input.payer) fail('IDEMPOTENCY_CONFLICT'); return snapshot(row) }
+    const replay = async (row: Row) => { if (Number(row.points) !== input.points || row.payer !== input.payer || assetOf(row) !== input.asset) fail('IDEMPOTENCY_CONFLICT'); return snapshot(row) }
     const old = await previous(); if (old) return replay(old)
     const settings = config()
     if (!settings.salesEnabled) fail('SALES_PAUSED')
     if (input.points < settings.minPoints || input.points > settings.maxPoints) fail('INVALID_POINTS', 400)
     const id = randomUUID()
-    // Validate addresses before using the market service, without creating a transaction.
-    await ctx.solana.validateIntent({ orderId: id, payer: input.payer, recipient: settings.recipient, lamports: '1', network: 'mainnet' })
-    const quote = await ctx.marketData.quote()
-    const lamports = paymentLamports(input.points, settings.pointsPerUsdt, quote.price)
+    // USDT uses the configured points ratio directly; only native SOL needs market conversion.
+    await ctx.solana.validateIntent({ orderId: id, payer: input.payer, recipient: settings.recipient, network: 'mainnet', ...(input.asset === 'USDT' ? { asset: 'USDT', tokenAmount: '1' } : { lamports: '1' }) })
+    const quote = input.asset === 'SOL' ? await ctx.marketData.quote() : null
+    const lamports = quote ? paymentLamports(input.points, settings.pointsPerUsdt, quote.price) : '0'
+    const tokenAmount = input.asset === 'USDT' ? paymentTokenAmount(input.points, settings.pointsPerUsdt) : null
     const now = new Date(), identity = await ctx.users.snapshot(inv.actor!.userId)
-    const row = { id, user_id: inv.actor!.userId, attribution_json: JSON.stringify({ userId: identity }), request_key: input.requestKey, points: input.points, payer: input.payer, recipient: settings.recipient, lamports, rate: settings.pointsPerUsdt, quote_json: JSON.stringify(quote), network: 'mainnet', status: 'AWAITING_PAYMENT', active_attempt_id: null, revision: 0, expires_at: new Date(now.getTime() + 300_000), created_at: now, updated_at: now, reason: null }
+    const row = { id, user_id: inv.actor!.userId, attribution_json: JSON.stringify({ userId: identity }), request_key: input.requestKey, points: input.points, payer: input.payer, recipient: settings.recipient, lamports, payment_asset: input.asset, token_amount: tokenAmount, rate: settings.pointsPerUsdt, quote_json: JSON.stringify(quote), network: 'mainnet', status: 'AWAITING_PAYMENT', active_attempt_id: null, revision: 0, expires_at: new Date(now.getTime() + 300_000), created_at: now, updated_at: now, reason: null }
     try { await ctx.db.insertInto(orders).values(row).execute() } catch (error) { const existing = await previous(); if (existing) return replay(existing); throw error }
     return snapshot(row)
   }
@@ -67,7 +69,7 @@ export default definePlugin(ctx => {
       const observation = await ctx.solana.observe({ prepared: preparedOf(old) })
       if (observation.status !== 'EXPIRED') return { attemptId: old.id, prepared: preparedOf(old) }
     }
-    const intent: SolTransferIntent = { orderId, payer: String(order.payer), recipient: String(order.recipient), lamports: String(order.lamports), network: 'mainnet' }
+    const intent: SolTransferIntent = { orderId, payer: String(order.payer), recipient: String(order.recipient), network: 'mainnet', ...(assetOf(order) === 'USDT' ? { asset: 'USDT', tokenAmount: String(order.token_amount) } : { lamports: String(order.lamports) }) }
     const prepared = await ctx.solana.prepare(intent), id = randomUUID()
     await ctx.db.transaction().execute(async tx => {
       const locked = await tx.updateTable(orders).set({ active_attempt_id: id, revision: Number(order.revision) + 1, updated_at: new Date() }).where('id', '=', orderId).where('revision', '=', order.revision).where('status', '=', 'AWAITING_PAYMENT').where('expires_at', '>', new Date()).executeTakeFirstOrThrow()
@@ -108,7 +110,7 @@ export default definePlugin(ctx => {
           const changed = await tx.updateTable(orders).set({ status: 'PAID', reason: null, updated_at: new Date() }).where('id', '=', order.id).where('status', 'in', ['CONFIRMING', 'NEEDS_REVIEW']).executeTakeFirstOrThrow()
           if (changed.numUpdatedRows !== 1n) return
           if (!order.user_id) fail('ACCOUNT_UNAVAILABLE')
-          await ctx.points.credit({ userId: Number(order.user_id), amount: Number(order.points), sourceKey: `order:${order.id}`, referenceId: String(order.id), description: `SOL purchase / ${order.id}` }, tx)
+          await ctx.points.credit({ userId: Number(order.user_id), amount: Number(order.points), sourceKey: `order:${order.id}`, referenceId: String(order.id), description: `${assetOf(order)} purchase / ${order.id}` }, tx)
           await tx.updateTable(attempts).set({ status: 'SETTLED', updated_at: new Date() }).where('id', '=', attempt.id).execute()
         })
       } catch {
@@ -159,6 +161,10 @@ export default definePlugin(ctx => {
     try { return await handler(inv) } catch (error) { if (error instanceof z.ZodError) fail('INVALID_REQUEST', 400); throw error }
   }])),
     jobs: { reconcile: async () => { const due = await ctx.db.selectFrom(attempts).selectAll().where('status','in',['PENDING','REVIEW','CHAIN_CONFIRMED']).where('next_check_at','<=',new Date()).orderBy('next_check_at','asc').limit(3).execute(); await Promise.all(due.map(check)) } },
-    migrations: { initial: async () => {} },
+    migrations: { initial: async () => {}, usdt_payments: async () => {
+      for (const [column, type] of [['payment_asset', 'varchar(8)'], ['token_amount', 'varchar(32)']] as const) {
+        if (!await ctx.schema.hasColumn('orders', column)) await ctx.db.schema.alterTable(orders).addColumn(column, type).execute()
+      }
+    } },
   }
 })
