@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Administrator MCP Server
  * @description Constructs the per-request, stateless SlothVault administrator MCP 5.1 server with daily content tools, safe read tools, protected Resources, and reusable workflows.
- * @logic Expose native MCP initialization guidance and the versioned Tool, Prompt, and Resource registries against one verified principal, without a dedicated-client version policy.
+ * @logic Bound input elements before tool validation and expose native MCP initialization guidance and versioned registries against one verified principal.
  * @dependencies MCP TypeScript SDK, mcp/tools, mcp/prompts, mcp/resources, services/mcp-api-keys
  * @index_tags mcp,server,streamable-http,administrator,tools,prompts,resources
  * @author holic512
@@ -15,6 +15,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { McpPrincipal } from '@/server/services/mcp-api-keys'
 
 import { registerAdminMcpPrompts } from './prompts'
+import { MCP_MAX_TOOL_INPUT_ELEMENTS } from './limits'
 import { registerAdminMcpResources } from './resources'
 import { registerAdminMcpTools } from './tools'
 
@@ -25,7 +26,7 @@ export const ADMIN_MCP_INSTRUCTIONS = 'Use the connected host\'s discovered Slot
 export function createAdminMcpServer(principal: McpPrincipal) {
   const server = new McpServer(
     { name: ADMIN_MCP_SERVER_NAME, version: ADMIN_MCP_SERVER_VERSION },
-    { capabilities: { logging: {} }, instructions: ADMIN_MCP_INSTRUCTIONS },
+    { capabilities: { logging: {} }, instructions: ADMIN_MCP_INSTRUCTIONS, maxToolInputElements: MCP_MAX_TOOL_INPUT_ELEMENTS },
   )
   registerAdminMcpTools(server, principal)
   registerAdminMcpPrompts(server)

@@ -3,7 +3,7 @@
 // @module PostgreSQL persistence model
 // @description Defines the flat, domain-prefixed PostgreSQL schema for independent articles, project publishing, multi-wallet user identity and monthly username quotas, revocable MCP API keys, contracts, commissioned development lifecycles, points, gift cards, transaction evidence, independent operator attribution, and account deletion history.
 // @logic Keep authoritative per-address wallet relations and credential revisions aligned with the legacy projection; preserve the provider-neutral article, project, identity, and MCP key models while applying PostgreSQL-native types and binding optional Solana evidence only to immutable project releases and frozen contracts.
-// @dependencies Prisma ORM 7.3.0, @prisma/adapter-pg 7.3.0
+// @dependencies Prisma ORM 7.10.1, @prisma/adapter-pg 7.10.1
 // @index_tags prisma, postgresql, schema, persistence, articles, projects, mcp, api-key, installation, contracts, wallet, credentials, username-quota
 // @author holic512
 

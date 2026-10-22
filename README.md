@@ -68,7 +68,7 @@ SlothVault 将日常写作与长期维护的项目资料放在同一站点：文
 
 ### 本地运行
 
-需要 **Node.js ≥ 24.18.1**；npm 版本以 [`package.json`](./package.json) 的 `packageManager` 为准。使用 SQLite 开发无需 Docker，也无需另外安装数据库服务。
+需要 **Node.js ≥ 24.22.1**；npm 版本以 [`package.json`](./package.json) 的 `packageManager` 为准。使用 SQLite 开发无需 Docker，也无需另外安装数据库服务。
 
 ```bash
 git clone https://github.com/holic512/SlothVault.git

@@ -5,11 +5,11 @@
 # @module Production container image
 # @description Builds a compact database-independent Next.js standalone image containing all supported Prisma providers, installer migrations, and immutable Release metadata without diagnostic source maps or foreign libc binaries.
 # @logic Cache dependency/build stages, sanitize the traced standalone runtime and Prisma CLI closure for the target Alpine platform, attach CI build identity as OCI labels and runtime environment, then prepare persistent application directories.
-# @dependencies Node.js 24.18.1 LTS Alpine, Next.js standalone, Prisma 7
+# @dependencies Node.js 24.22.1 LTS Alpine, Next.js standalone, Prisma 7
 # @index_tags docker, standalone, prisma, sqlite, mysql, postgresql, release, build-identity
 # @author holic512
 
-FROM node:24.18.1-alpine AS base
+FROM node:24.22.1-alpine AS base
 
 WORKDIR /app
 

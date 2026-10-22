@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module MCP Streamable HTTP API
  * @description Provides the single external Streamable HTTP entry point for authenticated SlothVault administrator MCP clients.
- * @logic Measure privacy-safe preparation and lock wait while holding the exclusive maintenance lock through authentication and tool execution, require an installed runtime and valid Bearer key, and preserve MCP JSON-RPC responses.
+ * @logic Hold the maintenance lock through authentication and bounded request parsing/tool execution, require an installed runtime and valid Bearer key, and preserve MCP JSON-RPC responses and privacy-safe timing.
  * @dependencies Next.js Route Handlers, MCP TypeScript SDK, mcp/authentication, mcp/server, database/runtime-health, maintenance-lock
  * @index_tags mcp,streamable-http,json-rpc,authentication,administrator,route-handler
  * @author holic512
@@ -13,6 +13,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 import { authenticateMcpRequest } from '@/server/mcp/authentication'
 import { createAdminMcpServer } from '@/server/mcp/server'
+import { MCP_MAX_REQUEST_BODY_BYTES } from '@/server/mcp/limits'
 import { readRuntimeInstallationPublicStatus } from '@/server/database/runtime-health'
 import { withMaintenanceLock } from '@/server/services/maintenance-lock'
 import { createRequestProbe } from '@/server/telemetry/request'
@@ -47,6 +48,7 @@ async function handlePost(request: NextRequest, probe: ReturnType<typeof createR
         const transport = new WebStandardStreamableHTTPServerTransport({
           sessionIdGenerator: undefined,
           enableJsonResponse: true,
+          maxRequestBodySize: MCP_MAX_REQUEST_BODY_BYTES,
         })
         await server.connect(transport)
         return await transport.handleRequest(request)

@@ -161,6 +161,7 @@ import { createAdminMcpServer } from '@/server/mcp/server'
 import { HttpError } from '@/server/http/errors'
 import { POST, GET, DELETE } from '@/app/mcp/route'
 import { ADMIN_MCP_INSTRUCTIONS } from '@/server/mcp/server'
+import { MCP_MAX_REQUEST_BODY_BYTES, MCP_MAX_TOOL_INPUT_ELEMENTS } from '@/server/mcp/limits'
 
 const principal = {
   authentication: 'mcp-api-key' as const,
@@ -787,6 +788,50 @@ describe('SDK protocol simulation through the /mcp route', () => {
     mocks.touchMcpKey.mockResolvedValue({ count: 1 })
     mocks.verifyPassword.mockResolvedValue(true)
   })
+
+  it('rejects excessive tool members before invoking business handlers', async () => {
+    const { client, transport } = sdkTestClient()
+    const calls = mocks.executeWorkflowCommand.mock.calls.length
+    try {
+      await client.connect(transport)
+      const result = await client.callTool({ name: 'admin.commission.document.draft.create', arguments: {
+        values: Object.fromEntries(Array.from({ length: MCP_MAX_TOOL_INPUT_ELEMENTS + 1 }, (_, i) => [`field${i}`, 'value'])),
+      } })
+      expect(result.isError).toBe(true)
+      expect(JSON.stringify(result.content)).toContain('maximum of 10000 elements')
+      expect(mocks.executeWorkflowCommand).toHaveBeenCalledTimes(calls)
+    } finally { await client.close() }
+  })
+
+  it.each(['declared', 'streamed'])('rejects an oversized %s HTTP body before JSON parsing', async (mode) => {
+    const response = await POST(new NextRequest('https://vault.example/mcp', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${sdkPlaceholderKey}`,
+        accept: 'application/json, text/event-stream',
+        'content-type': 'application/json',
+        ...(mode === 'declared' ? { 'content-length': String(MCP_MAX_REQUEST_BODY_BYTES + 1) } : {}),
+      },
+      body: mode === 'declared' ? '{}' : ' '.repeat(MCP_MAX_REQUEST_BODY_BYTES + 1),
+    }))
+    expect(response.status).toBe(413)
+  })
+
+  it('preserves the full 10 MiB managed-file upload through the authenticated HTTP route', async () => {
+    const { client, transport } = sdkTestClient()
+    const buffer = Buffer.alloc(10 * 1024 * 1024, 65)
+    const file = { id: '44', originalName: 'large.txt', fileName: 'large.txt', filePath: 'uploads/fixture/large.txt', fileSize: String(buffer.length), businessType: 'ArticleAttachment', status: 1, createTime: timestamp }
+    mocks.uploadAdminFileBuffer.mockResolvedValue(file)
+    try {
+      await client.connect(transport)
+      const result = await client.callTool({ name: 'content.file.upload', arguments: {
+        originalName: file.originalName, businessType: file.businessType, contentBase64: buffer.toString('base64'),
+      } })
+      expect(result.isError).not.toBe(true)
+      expect(result.structuredContent).toMatchObject({ id: '44', fileSize: String(buffer.length) })
+      expect(mocks.uploadAdminFileBuffer.mock.lastCall?.[0].buffer.equals(buffer)).toBe(true)
+    } finally { await client.close() }
+  }, 10_000)
 
   it('initializes, discovers and reads through the standard protocol', async () => {
     const { client, transport, requests } = sdkTestClient()

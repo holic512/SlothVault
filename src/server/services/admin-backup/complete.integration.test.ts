@@ -269,8 +269,8 @@ describe(`complete backups with isolated ${fixture.provider} and uploads`, () =>
     await client.releaseCredential.create({ data: {
       projectVersionId: Number(s.release.projectVersionId), issuerUserId: s.admin.id,
       subjectType: 'PROJECT_VERSION', subjectId: s.release.releaseId, subjectHash: s.release.releaseHash,
-      subjectManifestVersion: s.release.manifestVersion, network: 'devnet',
-      signerAddress: '11111111111111111111111111111111', memo: canonicalProjectVersionEvidenceMemo({ installationId: randomUUID(), releaseId: s.release.releaseId, manifest: parseReleaseManifest((await client.projectVersion.findUniqueOrThrow({ where: { id: Number(s.release.projectVersionId) } })).releaseManifestJson), releaseHash: s.release.releaseHash, network: 'devnet', signer: '11111111111111111111111111111111' }),
+      subjectManifestVersion: s.release.manifestVersion, network: 'mainnet',
+      signerAddress: '11111111111111111111111111111111', memo: canonicalProjectVersionEvidenceMemo({ installationId: randomUUID(), releaseId: s.release.releaseId, manifest: parseReleaseManifest((await client.projectVersion.findUniqueOrThrow({ where: { id: Number(s.release.projectVersionId) } })).releaseManifestJson), releaseHash: s.release.releaseHash, network: 'mainnet', signer: '11111111111111111111111111111111' }),
       transactionSignature: '5'.repeat(88), status: 2,
     } })
     const before = await exportDatabaseBackup(), complete = await snapshot()

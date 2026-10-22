@@ -20,7 +20,7 @@ import {
 const projectRoot = resolve(process.cwd())
 const standaloneRoot = resolve(projectRoot, '.next', 'standalone')
 const sourceNodeModules = resolve(projectRoot, 'node_modules')
-// Prisma 7.3 eagerly resolves these command modules even for `migrate deploy`.
+// Prisma 7.10 eagerly resolves these command modules even for `migrate deploy`.
 // Keep this list pinned to the installed CLI and re-run the isolation checks on upgrade.
 const runtimeDependencyAllowlist = new Map([
   [
