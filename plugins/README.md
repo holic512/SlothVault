@@ -28,9 +28,9 @@ npm run plugins:pack
 
 | 内容 | 当前版本 | 发布方式 |
 | --- | --- | --- |
-| 卡密插件 | 1.1.0 | 应用 `vM.m.p` Release 中的 `slothvault-plugin-slothvault.gift-cards-1.1.0.zip` |
-| 开发示例 | 1.0.0 | 应用 `vM.m.p` Release 中的 `slothvault-plugin-slothvault.example-1.0.0.zip` |
-| SDK / 打包 CLI | 1.0.0 | 继续使用 `plugin-sdk-v1.0.0` 独立发布 |
+| 卡密插件 | 1.1.1 | 应用 `vM.m.p` Release 中的 `slothvault-plugin-slothvault.gift-cards-1.1.1.zip` |
+| 开发示例 | 1.0.1 | 应用 `vM.m.p` Release 中的 `slothvault-plugin-slothvault.example-1.0.1.zip` |
+| SDK / 打包 CLI | 1.0.1 | 使用 `plugin-sdk-v1.0.1` 独立发布 |
 
 新提交通过根 `package.json` 中的 `slothvaultRelease.pluginAssets: true` 声明附件契约。每个新应用 Release 必须同时包含镜像清单、全部插件 ZIP 和统一校验文件，附件未齐全时不得公开 Release 或提升 Latest。草稿可以补传缺失附件；已发布附件、标签及历史版本不会被覆盖。历史提交没有该标记，重试时沿用旧契约。
 

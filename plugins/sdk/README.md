@@ -3,7 +3,7 @@
 SDK v1 提供经过校验的 Manifest、Kysely 跨 Worker 数据库驱动、积分与服务桥接、共享 React UI 类型，以及 源码 ZIP 打包 CLI。
 
 ```sh
-npm install -D ./slothvault-plugin-sdk-1.0.0.tgz
+npm install -D ./slothvault-plugin-sdk-1.0.1.tgz
 npx slothvault-plugin pack . dist
 ```
 
