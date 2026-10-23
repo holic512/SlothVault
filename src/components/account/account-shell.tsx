@@ -4,7 +4,7 @@
  * @file account-shell.tsx
  * @project SlothVault
  * @module Personal Account Workspace
- * @description Provides a bounded identity rail, collapsible functional groups, and mobile account navigation.
+ * @description Provides a themed identity rail with hierarchical menu groups, compact footer controls, and matching mobile account navigation.
  * @logic Share the verified session, merge authorized plugin routes, remember desktop preferences, reveal destination groups and keep mobile navigation in a drawer.
  * @dependencies React, React Query, Ant Design, Next navigation, account.module.css, navigation preferences, plugin contributions
  * @index_tags account,workspace,navigation,sidebar,responsive,plugins
@@ -19,7 +19,7 @@ import Link from 'next/link'
 import { pluginPageHref, usePluginContributions } from '@/components/plugins/plugin-ui'
 import { PluginIcon } from '@/components/plugins/plugin-icon'
 import { useLocale, useTranslations } from 'next-intl'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 
 import { useNavigationPreferences } from '@/components/shell/use-navigation-preferences'
 import { fetchSessionUser } from '@/lib/session-client'
@@ -41,7 +41,6 @@ export function AccountShell({ initialUser, children }: { initialUser: SessionUs
   const t = useTranslations('Account.shell')
   const locale = useLocale()
   const pathname = usePathname()
-  const router = useRouter()
   const plugins = usePluginContributions('account')
   const rail = useRef<HTMLDivElement>(null)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -77,14 +76,29 @@ export function AccountShell({ initialUser, children }: { initialUser: SessionUs
   const { collapsed, setCollapsed, openGroups, setOpenGroups } = useNavigationPreferences('account', active?.group, `${pathname}:${active?.group ?? ''}`)
   const openGroupKey = openGroups.join('|')
   useEffect(() => {
-    const frame = requestAnimationFrame(() => rail.current?.querySelector('.ant-menu-item-selected')?.scrollIntoView({ block: 'nearest' }))
-    return () => cancelAnimationFrame(frame)
+    const viewport = rail.current
+    if (!viewport) return
+    const revealActiveItem = () => {
+      const selected = viewport.querySelector('.ant-menu-item-selected')
+      if (!viewport.clientHeight || !selected || !selected.getClientRects().length) return
+      const itemBounds = selected.getBoundingClientRect()
+      const viewportBounds = viewport.getBoundingClientRect()
+      if (itemBounds.top < viewportBounds.top) viewport.scrollTop -= viewportBounds.top - itemBounds.top
+      else if (itemBounds.bottom > viewportBounds.bottom) viewport.scrollTop += itemBounds.bottom - viewportBounds.bottom
+    }
+    // Inline submenus mount and animate after the collapsed state has changed.
+    const observer = new ResizeObserver(revealActiveItem)
+    observer.observe(viewport)
+    const menu = viewport.querySelector('.ant-menu-root')
+    if (menu) observer.observe(menu)
+    const frame = requestAnimationFrame(revealActiveItem)
+    return () => { cancelAnimationFrame(frame); observer.disconnect() }
   }, [pathname, collapsed, openGroupKey])
   const sessionQuery = useQuery({ queryKey: ['session-user'], queryFn: fetchSessionUser, initialData: initialUser })
   if (sessionQuery.data === null) return null
   const user = sessionQuery.data || initialUser
   const menuItems: MenuProps['items'] = accountGroups.map(group => ({
-    key: group.id, label: group.label, icon: group.icon,
+    key: group.id, label: group.label, icon: group.icon, popupClassName: styles['navigation-popup'],
     children: group.sections.map(section => ({
       key: section.href, icon: section.icon,
       label: <Link href={section.href} aria-current={active?.href === section.href ? 'page' : undefined}>{section.label}</Link>,
@@ -105,15 +119,16 @@ export function AccountShell({ initialUser, children }: { initialUser: SessionUs
     selectedKeys={active ? [active.href] : []}
     items={menuItems}
     getPopupContainer={node => node.ownerDocument.body}
-    onClick={({ key, domEvent }) => {
-      // Consume Enter before the drawer restores focus to its trigger.
-      if (domEvent.type === 'keydown') {
-        domEvent.preventDefault()
-        domEvent.stopPropagation()
-        router.push(key)
-      }
-      setMobileOpen(false)
+    onKeyDownCapture={event => {
+      if (event.key !== 'Enter' || !(event.target instanceof Element)) return
+      const link = event.target.closest('.ant-menu-item')?.querySelector<HTMLAnchorElement>('a[href]')
+      if (!link) return
+      // Consume the native Enter before closing the drawer restores focus to its trigger.
+      event.preventDefault()
+      event.stopPropagation()
+      link.click()
     }}
+    onClick={() => setMobileOpen(false)}
   />
 
   return <AccountUserContext.Provider value={user}>
@@ -126,22 +141,27 @@ export function AccountShell({ initialUser, children }: { initialUser: SessionUs
         <aside className="account-section-rail" aria-label={t('navigationLabel')}>
           {identity}
           <div ref={rail} className={styles['menu-viewport']}>{navigation(false)}</div>
-          <div className="account-rail-footer">
+          <div className={styles['rail-footer']}>
             {user.role === 'ADMIN' && <Tooltip title={collapsed ? t('admin') : undefined} placement="right">
-              <Button block href="/admin/mm" aria-label={t('admin')} icon={collapsed ? <LayoutDashboard size={18} /> : undefined}>{collapsed ? null : t('admin')}</Button>
+              <Button type="text" className={styles['admin-link']} href="/admin/mm" aria-label={t('admin')} icon={<LayoutDashboard size={18} />}>{collapsed ? null : t('admin')}</Button>
             </Tooltip>}
-            <Button type="text" aria-expanded={!collapsed} aria-label={collapsed ? t('sidebar.expand') : t('sidebar.collapse')} icon={collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />} onClick={() => setCollapsed(!collapsed)}>
-              {collapsed ? null : t('sidebar.collapse')}
-            </Button>
+            <Tooltip title={collapsed ? t('sidebar.expand') : t('sidebar.collapse')} placement="right">
+              <Button type="text" className={styles['collapse-toggle']} aria-expanded={!collapsed} aria-label={collapsed ? t('sidebar.expand') : t('sidebar.collapse')} icon={collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />} onClick={() => setCollapsed(!collapsed)} />
+            </Tooltip>
           </div>
         </aside>
         <section className="account-route-content">{children}</section>
       </div>
     </main>
-    <Drawer className={styles['mobile-drawer']} title={t('navigationLabel')} placement="left" size={300} open={mobileOpen} onClose={() => setMobileOpen(false)}>
-      <div className={styles['mobile-identity']}><Avatar size={36} src={user.avatar || undefined} icon={<UserRound size={18} />} /><span>{user.displayName || user.username}</span></div>
-      {navigation(true)}
-      {user.role === 'ADMIN' && <Button block href="/admin/mm">{t('admin')}</Button>}
+    <Drawer className={styles['mobile-drawer']} title={t('navigationLabel')} placement="left" size="min(320px, calc(100vw - 24px))" open={mobileOpen} onClose={() => setMobileOpen(false)}>
+      <div className={styles['mobile-identity']}>
+        <Avatar size={40} src={user.avatar || undefined} icon={<UserRound size={20} />} />
+        <div className={styles['mobile-identity-copy']}><strong>{user.displayName || user.username}</strong><Typography.Text type="secondary">@{user.username}</Typography.Text></div>
+      </div>
+      <div className={styles['menu-viewport']}>{navigation(true)}</div>
+      {user.role === 'ADMIN' && <div className={styles['rail-footer']}>
+        <Button type="text" className={styles['admin-link']} href="/admin/mm" icon={<LayoutDashboard size={18} />}>{t('admin')}</Button>
+      </div>}
     </Drawer>
   </AccountUserContext.Provider>
 }

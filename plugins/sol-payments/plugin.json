@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "slothvault.sol-payments",
   "name": "Solana payments",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Purchase points with Mainnet USDT by default or optional SOL, using locked amounts and finalized on-chain settlement. Existing payments continue while sales are paused.",
   "author": "holic512",
   "engines": {

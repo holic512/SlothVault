@@ -2,7 +2,7 @@
  * @file account.module.css
  * @project SlothVault
  * @module Account Workspace Styles
- * @description Gives private account pages a compact identity rail, responsive dashboard, and equal-height content cards within each row.
+ * @description Gives private account pages a themed identity rail with distinct menu hierarchy, a responsive dashboard, and equal-height content cards within each row.
  * @logic Bound desktop navigation to the available viewport, keep identity and controls fixed around a scrolling menu, and replace the rail with a mobile drawer while preserving existing account surfaces.
  * @dependencies SlothVault tokens, AccountShell, AccountCard
  * @index_tags account,layout,responsive,liquid-glass
@@ -18,9 +18,9 @@
 
 .root :global(.account-workspace) {
   display: grid;
-  grid-template-columns: 224px minmax(0, 1fr);
+  grid-template-columns: 240px minmax(0, 1fr);
   align-items: start;
-  gap: 40px;
+  gap: 32px;
 }
 
 .root :global(.account-section-rail) {
@@ -30,6 +30,10 @@
   min-width: 0;
   max-height: calc(100dvh - 130px);
   flex-direction: column;
+  padding: 10px;
+  border: 1px solid var(--sv-border);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--sv-bg-solid) 72%, transparent);
 }
 
 .root :global(.account-identity) {
@@ -37,7 +41,13 @@
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
-  padding: 0 10px 20px;
+  margin-bottom: 10px;
+  padding: 10px 8px 18px;
+  border-bottom: 1px solid var(--sv-border);
+}
+
+.root :global(.account-identity) :global(.ant-avatar) {
+  flex-shrink: 0;
 }
 
 .root :global(.account-identity-copy) {
@@ -61,13 +71,51 @@
   font-size: 13px;
 }
 
-.root :global(.account-rail-footer) {
+.rail-footer {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   flex-shrink: 0;
-  gap: 8px;
-  margin-top: 12px;
-  padding: 12px 10px 0;
+  gap: 4px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid var(--sv-border);
+}
+
+.rail-footer :global(.ant-btn) {
+  height: 44px;
+  border-radius: 8px;
+  color: var(--sv-text-muted);
+  box-shadow: none;
+}
+
+.rail-footer .admin-link {
+  min-width: 0;
+  justify-content: flex-start;
+  padding-inline: 12px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.rail-footer .admin-link > span:not(:global(.ant-btn-icon)) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rail-footer .collapse-toggle {
+  grid-column: 2;
+  width: 44px;
+  padding: 0;
+}
+
+.rail-footer :global(.ant-btn):hover {
+  background: var(--sv-tree-hover-bg);
+  color: var(--sv-text);
+}
+
+.rail-footer :global(.ant-btn):focus-visible {
+  outline: 2px solid var(--sv-focus-ring);
+  outline-offset: -2px;
 }
 
 .root :global(.account-route-content),
@@ -434,24 +482,47 @@
   min-height: 0;
   overflow: hidden auto;
   overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sv-border-strong) transparent;
 }
 
-.navigation:global(.ant-menu) {
+.navigation:global(.ant-menu.ant-menu-root):not(:global(.ant-menu-horizontal)) {
   width: 100%;
   min-width: 0;
-  border-inline-end: 0;
+  border: 0;
   background: transparent;
+  color: var(--sv-text-muted);
+}
+
+.navigation:global(.ant-menu-root) > :global(.ant-menu-submenu) + :global(.ant-menu-submenu) {
+  margin-top: 8px;
 }
 
 .navigation:global(.ant-menu.ant-menu-root) :global(.ant-menu-submenu-title),
 .navigation:global(.ant-menu.ant-menu-root) :global(.ant-menu-item) {
   height: auto;
   min-height: 44px;
-  margin-block: 2px;
+  width: 100%;
+  margin: 0;
   padding-block: 10px;
-  border-radius: 10px;
+  border-radius: 8px;
   font-size: 14px;
   line-height: 1.5;
+}
+
+.navigation:global(.ant-menu.ant-menu-root) > :global(.ant-menu-submenu) > :global(.ant-menu-submenu-title) {
+  padding-inline: 12px 30px !important;
+  color: var(--sv-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.navigation :global(.ant-menu-submenu-title) :global(.ant-menu-submenu-arrow) {
+  inset-inline-end: 12px;
+}
+
+.navigation :global(.ant-menu-item-icon) {
+  flex-shrink: 0;
 }
 
 .navigation:not(:global(.ant-menu-inline-collapsed)) :global(.ant-menu-title-content) {
@@ -460,9 +531,43 @@
   white-space: normal;
 }
 
-.navigation :global(.ant-menu-item-selected) {
-  background: color-mix(in srgb, var(--sv-primary) 9%, var(--sv-bg-solid));
+.navigation:global(.ant-menu.ant-menu-root):not(:global(.ant-menu-inline-collapsed)) :global(.ant-menu-sub) {
+  width: auto;
+  margin: 2px 0 0 21px;
+  padding: 2px 0 2px 10px;
+  border-inline-start: 1px solid var(--sv-border);
+}
+
+.navigation:global(.ant-menu.ant-menu-root):not(:global(.ant-menu-inline-collapsed)) :global(.ant-menu-item) {
+  padding-inline: 12px !important;
+}
+
+.navigation:global(.ant-menu-root) :global(.ant-menu-item) + :global(.ant-menu-item) {
+  margin-top: 4px;
+}
+
+.navigation:global(.ant-menu.ant-menu-root) :global(.ant-menu-submenu-open) > :global(.ant-menu-submenu-title) {
+  color: var(--sv-text);
+}
+
+.navigation:global(.ant-menu.ant-menu-root) :global(.ant-menu-item-selected),
+.navigation:global(.ant-menu.ant-menu-root.ant-menu-inline-collapsed) :global(.ant-menu-submenu-selected) > :global(.ant-menu-submenu-title) {
+  background: var(--sv-tree-selected-bg);
   color: var(--sv-primary-strong);
+  font-weight: 600;
+}
+
+.navigation:global(.ant-menu.ant-menu-root) :global(.ant-menu-submenu-title):hover,
+.navigation:global(.ant-menu.ant-menu-root) :global(.ant-menu-item):not(:global(.ant-menu-item-selected)):hover {
+  background: var(--sv-tree-hover-bg);
+  color: var(--sv-text);
+}
+
+.navigation:global(.ant-menu.ant-menu-root) :global(.ant-menu-submenu-title):focus-visible,
+.navigation:global(.ant-menu.ant-menu-root) :global(.ant-menu-item):focus-visible,
+.navigation :global(.ant-menu-item) a:focus-visible {
+  outline: 2px solid var(--sv-focus-ring);
+  outline-offset: -2px;
 }
 
 .navigation :global(.ant-menu-sub) {
@@ -470,7 +575,11 @@
 }
 
 .root.collapsed :global(.account-workspace) {
-  grid-template-columns: 64px minmax(0, 1fr);
+  grid-template-columns: 72px minmax(0, 1fr);
+}
+
+.root.collapsed :global(.account-section-rail) {
+  padding-inline: 7px;
 }
 
 .collapsed :global(.account-identity) {
@@ -482,12 +591,30 @@
   display: none;
 }
 
-.collapsed :global(.account-rail-footer) {
-  padding-inline: 4px;
+.collapsed .rail-footer {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
 }
 
-.navigation:global(.ant-menu-inline-collapsed) :global(.ant-menu-submenu-title) {
-  padding-inline: 21px;
+.collapsed .rail-footer .admin-link {
+  justify-content: center;
+  width: 44px;
+  padding: 0;
+}
+
+.collapsed .rail-footer .collapse-toggle {
+  grid-column: 1;
+}
+
+.navigation:global(.ant-menu.ant-menu-root.ant-menu-inline-collapsed) > :global(.ant-menu-submenu) > :global(.ant-menu-submenu-title) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 0 !important;
+}
+
+.navigation:global(.ant-menu-inline-collapsed) :global(.ant-menu-item-icon) {
+  margin: 0;
 }
 
 .navigation:global(.ant-menu-inline-collapsed) :global(.ant-menu-title-content) {
@@ -497,6 +624,23 @@
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+.navigation-popup :global(.ant-menu) {
+  max-width: min(280px, calc(100vw - 100px));
+}
+
+.navigation-popup :global(.ant-menu.ant-menu-vertical) > :global(.ant-menu-item) {
+  height: auto;
+  min-height: 44px;
+  padding-block: 10px;
+  line-height: 1.5;
+}
+
+.navigation-popup :global(.ant-menu.ant-menu-vertical) :global(.ant-menu-title-content) {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .mobile-bar {
@@ -509,25 +653,45 @@
 
 .mobile-drawer :global(.ant-drawer-body) {
   display: flex;
-  gap: 16px;
   flex-direction: column;
+  padding: 16px;
+  overflow: hidden;
 }
 
 .mobile-identity {
   display: flex;
   gap: 12px;
   align-items: center;
-  padding-bottom: 12px;
+  flex-shrink: 0;
+  margin-bottom: 10px;
+  padding: 4px 8px 18px;
   border-bottom: 1px solid var(--sv-border);
 }
 
-.mobile-identity span {
-  overflow-wrap: anywhere;
+.mobile-identity :global(.ant-avatar) {
+  flex-shrink: 0;
+}
+
+.mobile-identity-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.mobile-identity-copy strong,
+.mobile-identity-copy :global(.ant-typography) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-identity-copy :global(.ant-typography) {
+  font-size: 13px;
 }
 
 @media (max-width: 1100px) {
   .root :global(.account-workspace) {
-    grid-template-columns: 200px minmax(0, 1fr);
+    grid-template-columns: 224px minmax(0, 1fr);
     gap: 24px;
   }
 

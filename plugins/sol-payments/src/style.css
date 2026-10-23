@@ -52,6 +52,47 @@
   gap: 16px;
 }
 
+[data-sv-plugin="slothvault.sol-payments"] .sol-order-detail,
+[data-sv-plugin="slothvault.sol-payments"] .sol-order-checkout {
+  display: grid;
+  min-width: 0;
+  gap: 20px;
+}
+
+[data-sv-plugin="slothvault.sol-payments"] .sol-order-checkout {
+  padding-block-start: 20px;
+  border-block-start: 1px solid var(--sv-border);
+}
+
+[data-sv-plugin="slothvault.sol-payments"] .sol-payment-instructions {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+}
+
+[data-sv-plugin="slothvault.sol-payments"] .sol-payment-countdown {
+  font-variant-numeric: tabular-nums;
+}
+
+[data-sv-plugin="slothvault.sol-payments"] .sol-payment-fees {
+  max-width: 72ch;
+  margin: 0;
+  line-height: 1.6;
+}
+
+[data-sv-plugin="slothvault.sol-payments"] .sol-payment-actions,
+[data-sv-plugin="slothvault.sol-payments"] .sol-payment-secondary-actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+[data-sv-plugin="slothvault.sol-payments"] .sol-payment-actions {
+  justify-content: space-between;
+}
+
 [data-sv-plugin="slothvault.sol-payments"] .sol-order-filters {
   display: grid;
   grid-template-columns: minmax(100px, 0.6fr) repeat(2, minmax(150px, 1fr)) minmax(160px, 1fr) auto;
@@ -101,5 +142,14 @@
 
   [data-sv-plugin="slothvault.sol-payments"] .sol-wallet-summary > .ant-btn {
     width: 100%;
+  }
+
+  [data-sv-plugin="slothvault.sol-payments"] .sol-payment-actions > .ant-btn,
+  [data-sv-plugin="slothvault.sol-payments"] .sol-payment-secondary-actions {
+    width: 100%;
+  }
+
+  [data-sv-plugin="slothvault.sol-payments"] .sol-payment-secondary-actions > .ant-btn {
+    flex: 1;
   }
 }

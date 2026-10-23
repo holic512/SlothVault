@@ -87,13 +87,21 @@ function PurchaseContent() {
         <Button type="primary" htmlType="submit" loading={quote.isPending} disabled={!connected||!options.data?.salesEnabled}>{c.quote}</Button>
       </Form>
     </PluginAccountCard>:<PluginAccountCard className="account-route-card" title={c.details} loading={orderQuery.isPending}>
-      {order?<><OrderDetails order={order}/>
+      {order?<div className="sol-order-detail"><OrderDetails order={order}/>
+        <div className="sol-order-checkout">
         {order.status==='CONFIRMING'?<Alert type="info" showIcon title={c.pending}/>:order.status==='PAID'?<Alert type="success" showIcon title={c.success}/>:order.status==='NEEDS_REVIEW'?<Alert type="warning" showIcon title={c.review}/>:null}
         {order.status==='AWAITING_PAYMENT' && (!connected || wallet.address !== order.payer) ? <Alert type="warning" showIcon title={connected ? c.walletMismatch : c.walletRequired} /> : null}
-        {order.status==='AWAITING_PAYMENT'&&remaining>0?<Space orientation="vertical"><Typography.Text>{c.remaining}: {remaining} {c.seconds}</Typography.Text><Typography.Text type="secondary">{order.asset === 'USDT' ? c.usdtBalance : c.balance}</Typography.Text><Button type="primary" loading={pay.isPending} disabled={!connected||wallet.address!==order.payer} onClick={()=>pay.mutate()}>{c.pay}</Button></Space>:null}
+        {order.status==='AWAITING_PAYMENT'&&remaining>0?<div className="sol-payment-instructions">
+          <Typography.Text>{c.remaining}: <Typography.Text strong className="sol-payment-countdown">{remaining} {c.seconds}</Typography.Text></Typography.Text>
+          <Typography.Paragraph className="sol-payment-fees" type="secondary">{order.asset === 'USDT' ? c.usdtBalance : c.balance}</Typography.Paragraph>
+        </div>:null}
         {order.status==='EXPIRED'||order.status==='AWAITING_PAYMENT'&&!remaining?<Alert type="warning" title={c.expired}/>:null}
-        <Space wrap>{['CONFIRMING','NEEDS_REVIEW'].includes(order.status)?<Button loading={reconcile.isPending} onClick={()=>reconcile.mutate()}>{c.check}</Button>:<Button disabled={pay.isPending} onClick={()=>select(null)}>{c.newOrder}</Button>}<Button onClick={()=>void refresh()}>{c.refresh}</Button></Space>
-      </>:null}
+        <div className="sol-payment-actions">
+          {order.status==='AWAITING_PAYMENT'&&remaining>0?<Button type="primary" loading={pay.isPending} disabled={!connected||wallet.address!==order.payer} onClick={()=>pay.mutate()}>{c.pay}</Button>:null}
+          <div className="sol-payment-secondary-actions">{['CONFIRMING','NEEDS_REVIEW'].includes(order.status)?<Button loading={reconcile.isPending} onClick={()=>reconcile.mutate()}>{c.check}</Button>:<Button disabled={pay.isPending} onClick={()=>select(null)}>{c.newOrder}</Button>}<Button onClick={()=>void refresh()}>{c.refresh}</Button></div>
+        </div>
+        </div>
+      </div>:null}
     </PluginAccountCard>}
     <PluginAccountCard className="account-route-card" title={c.history}><Table<Order> size="small" rowKey="id" loading={history.isPending} dataSource={history.data?.list??[]} scroll={history.data?.list.length ? {x:760} : undefined} locale={{emptyText:c.noData}} pagination={{current:page,pageSize:20,total:history.data?.total??0,onChange:setPage,hideOnSinglePage:true}} columns={[
       {title:c.created,dataIndex:'createdAt',render:v=>new Date(v).toLocaleString(locale)}, {title:c.amount,key:'amount',render:(_,row)=>formatOrderAmount(row)}, {title:c.received,dataIndex:'points',render:v=>Number(v).toLocaleString(locale)}, {title:c.status,dataIndex:'status',render:status}, {title:c.details,key:'view',render:(_,row)=><Button type="link" onClick={()=>select(row.id)}>{c.inspect}</Button>},
