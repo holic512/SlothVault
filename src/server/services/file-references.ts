@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Managed File Reference Index
  * @description Validates files before content writes and maintains authoritative file-to-content associations.
- * @logic Require live stored files for new content, index committed references in its transaction, and preserve permissive historical backfills.
+ * @logic Require live stored files for new content, index committed references and disabled homepage-cover dependencies in their transaction, and preserve permissive historical backfills.
  * @dependencies Prisma file/content models, lib/managed-files, admin-files storage paths
  * @index_tags files,references,authorization,backfill,markdown,transaction
  * @author holic512
@@ -14,6 +14,7 @@ import { constants } from 'node:fs'
 import { isAbsolute, relative, sep } from 'node:path'
 import type { Prisma } from '@generated/prisma-postgresql/client'
 import { extractManagedFiles, managedUploadPath, type FileSourceType, type ManagedFileLink } from '@/lib/managed-files'
+import { readHomepageCover } from '@/lib/homepage-cover'
 import { HttpError } from '@/server/http/errors'
 import { resolveStoredUploadPath, UPLOAD_ROOT } from './admin-files'
 import { CONFIG_KEYS } from './system-config'
@@ -108,6 +109,10 @@ export async function syncFileReferences(reader: Reader, sourceType: FileSourceT
     case 'SYSTEM_CONFIG': {
       const item = await reader.systemConfig.findUnique({ where: { id: sourceId }, select: { configKey: true, configValue: true } })
       if (item && ([CONFIG_KEYS.SYSTEM_LOGO_FILE_PATH, CONFIG_KEYS.SYSTEM_FAVICON_FILE_PATH] as string[]).includes(item.configKey)) addMedia(`/${item.configValue}`)
+      if (item?.configKey === CONFIG_KEYS.SYSTEM_HOMEPAGE_COVER) {
+        const cover = readHomepageCover(item.configValue)
+        if (cover.filePath) addMedia(`/${cover.filePath}`)
+      }
       break
     }
   }

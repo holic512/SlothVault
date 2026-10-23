@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Admin Database Backup Validation
  * @description Validates cross-record backup relations, immutable release metadata, and current portable records before mutation.
- * @logic Reject broken active relations, duplicate evidence identities, and invalid business fields before restoration.
+ * @logic Reject broken active relations, invalid homepage-cover settings, duplicate evidence identities, and invalid business fields before restoration.
  * @dependencies server/http/errors, backup constants, database backup schema
  * @index_tags admin,backup,database,validation,relations,request-limits
  * @author holic512
@@ -30,6 +30,7 @@ import { contractBodyHash, contractRootHash } from '@/server/services/contract-e
 
 import { HttpError } from '@/server/http/errors'
 import { extractManagedFiles, managedUploadPath } from '@/lib/managed-files'
+import { parseHomepageCover, readHomepageCover } from '@/lib/homepage-cover'
 import { CONFIG_KEYS } from '@/server/services/system-config'
 
 import {
@@ -127,6 +128,12 @@ export function validateBackupRelations(data: BackupData) {
   const noteContents = mapById('noteContent', data.noteContents)
   const fileManagements = mapById('fileManagement', data.fileManagements)
   const systemConfigs = mapById('systemConfig', data.systemConfigs)
+  for (const config of systemConfigs.values()) {
+    if (config.configKey !== CONFIG_KEYS.SYSTEM_HOMEPAGE_COVER) continue
+    let cover
+    try { cover = parseHomepageCover(JSON.parse(config.configValue)) } catch { invalidBackup('invalid homepage cover configuration') }
+    if (!cover) invalidBackup('invalid homepage cover configuration')
+  }
   const systemHomepages = mapById('systemHomepage', data.systemHomepages)
   const releaseCredentials = mapById('releaseCredential', data.releaseCredentials)
   mapById('releaseCredentialAttempt', data.releaseCredentialAttempts)
@@ -242,6 +249,7 @@ export function validateBackupRelations(data: BackupData) {
         assertReference(systemConfigs, reference.sourceId, 'fileReference system config')
         const config = systemConfigs.get(reference.sourceId)!
         if (([CONFIG_KEYS.SYSTEM_LOGO_FILE_PATH, CONFIG_KEYS.SYSTEM_FAVICON_FILE_PATH] as string[]).includes(config.configKey)) mediaPath = managedUploadPath(`/${config.configValue}`)
+        if (config.configKey === CONFIG_KEYS.SYSTEM_HOMEPAGE_COVER) mediaPath = readHomepageCover(config.configValue).filePath || null
         break
       }
     }

@@ -1,0 +1,242 @@
+.drawer:global(.ant-drawer) :global(.ant-drawer-header),
+.drawer:global(.ant-drawer) :global(.ant-drawer-body) {
+  padding: var(--sv-space-5);
+}
+
+.drawer:global(.ant-drawer) :global(.ant-drawer-footer) {
+  padding: var(--sv-space-4) var(--sv-space-5) max(var(--sv-space-4), env(safe-area-inset-bottom));
+  border-top-color: var(--sv-border);
+  background: var(--sv-surface);
+}
+
+.content {
+  display: grid;
+  gap: var(--sv-space-5);
+  min-width: 0;
+  color: var(--sv-text);
+}
+
+.enable-row,
+.focus-heading,
+.axis-label,
+.footer,
+.footer-actions,
+.image-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-3);
+}
+
+.enable-row,
+.focus-heading,
+.axis-label,
+.footer {
+  justify-content: space-between;
+}
+
+.enable-row > div {
+  min-width: 0;
+}
+
+.enable-row :global(.ant-switch) {
+  flex-shrink: 0;
+}
+
+.label,
+.section-title {
+  margin: 0;
+  color: var(--sv-text);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.help,
+.disabled-hint {
+  margin: var(--sv-space-2) 0 0;
+  color: var(--sv-text-muted);
+  font-size: 13px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.section {
+  min-width: 0;
+  padding-top: var(--sv-space-5);
+  border-top: 1px solid var(--sv-border);
+}
+
+.empty {
+  display: flex;
+  min-height: 154px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sv-space-3);
+  margin-top: var(--sv-space-3);
+  padding: var(--sv-space-5);
+  border: 1px dashed var(--sv-control-border);
+  border-radius: var(--sv-radius);
+  color: var(--sv-text-muted);
+  text-align: center;
+}
+
+.empty p {
+  margin: 0;
+  line-height: 1.65;
+}
+
+.image-actions {
+  flex-wrap: wrap;
+  margin-top: var(--sv-space-3);
+}
+
+.file-input {
+  display: none;
+}
+
+.previews {
+  display: grid;
+  gap: var(--sv-space-4);
+  margin-top: var(--sv-space-3);
+}
+
+.desktop-figure,
+.mobile-figure {
+  min-width: 0;
+  margin: 0;
+}
+
+.mobile-figure {
+  width: min(260px, 100%);
+}
+
+.preview-label {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-2);
+  margin-bottom: var(--sv-space-2);
+  color: var(--sv-text);
+  font-size: 13px;
+}
+
+.preview-dimensions {
+  margin-left: auto;
+  color: var(--sv-text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.preview {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--sv-radius-sm);
+  background: var(--sv-bg-soft);
+}
+
+.desktop-preview {
+  aspect-ratio: 1440 / 259.2;
+}
+
+.mobile-preview {
+  aspect-ratio: 390 / 180;
+}
+
+.preview-nav {
+  position: absolute;
+  top: 6.94%;
+  left: 9.03%;
+  display: flex;
+  width: 81.94%;
+  height: 22.38%;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: 2%;
+  border: 1px solid var(--sv-control-border);
+  border-radius: 9px;
+  background: var(--sv-bg-elevated);
+  color: var(--sv-text);
+  font-size: 8px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.mobile-preview .preview-nav {
+  top: 5.556%;
+  left: 2.564%;
+  width: 94.872%;
+  height: 28.889%;
+  padding-inline: 4%;
+  border-radius: 12px;
+  font-size: 11px;
+}
+
+.nav-placeholder {
+  width: 10%;
+  height: 35%;
+  border-radius: 2px;
+  background: var(--sv-border-strong);
+}
+
+.focus-heading {
+  margin-bottom: var(--sv-space-3);
+}
+
+.focus-control + .focus-control {
+  margin-top: var(--sv-space-4);
+}
+
+.axis-label {
+  color: var(--sv-text);
+  font-size: 13px;
+}
+
+.axis-label output {
+  color: var(--sv-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-control :global(.ant-slider) {
+  margin: var(--sv-space-3) 6px var(--sv-space-2);
+}
+
+.axis-ends {
+  display: flex;
+  justify-content: space-between;
+  color: var(--sv-text-muted);
+  font-size: 12px;
+}
+
+.footer {
+  flex-wrap: wrap;
+}
+
+.save-hint {
+  color: var(--sv-text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.footer-actions {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+@media (width <= 480px) {
+  .drawer:global(.ant-drawer) :global(.ant-drawer-header),
+  .drawer:global(.ant-drawer) :global(.ant-drawer-body) {
+    padding: var(--sv-space-4);
+  }
+
+  .drawer:global(.ant-drawer) :global(.ant-drawer-footer) {
+    padding-inline: var(--sv-space-4);
+  }
+
+  .preview-dimensions {
+    font-size: 11px;
+  }
+
+  .focus-heading {
+    flex-wrap: wrap;
+  }
+}

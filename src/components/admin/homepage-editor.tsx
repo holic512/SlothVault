@@ -4,10 +4,10 @@
  * @file homepage-editor.tsx
  * @project SlothVault
  * @module Homepage Administration
- * @description Provides one React Markdown editing workflow and unified contextual toolbar for the system homepage and per-project homepages.
- * @logic Load an optional homepage record, create it on first save, debounce later updates, guard browser exits, pause saves while uploading embedded images, and supply save controls to the editor header.
- * @dependencies React Query, Ant Design, React MD Editor wrapper, next-intl, api-client
- * @index_tags admin,homepage,project-home,markdown,autosave
+ * @description Provides one Markdown editing workflow for system and project homepages, with separate system homepage cover settings.
+ * @logic Keep each homepage editor mounted while creating its record, debounce body updates, guard browser exits, pause saves during embedded-image uploads, and keep cover drafts independent from body autosave.
+ * @dependencies React Query, Ant Design, React MD Editor wrapper, HomepageCoverSettings, next-intl, api-client
+ * @index_tags admin,homepage,project-home,markdown,autosave,cover
  * @author holic512
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -20,6 +20,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 import { AdminPage } from '@/components/admin/admin-page'
+import { HomepageCoverSettings } from '@/components/admin/homepage-cover-settings'
 import { MarkdownContentEditor } from '@/components/admin/markdown-content-editor'
 import { formatAdminDate, formatAdminError } from '@/lib/admin-localization'
 import { ApiClientError, apiFetch } from '@/lib/api-client'
@@ -86,7 +87,7 @@ export function HomepageEditor({ projectId }: { projectId?: string }) {
 
   return (
     <HomepageDraft
-      key={`${projectId || 'system'}:${resourceQuery.data?.id || 'new'}`}
+      key={projectId || 'system'}
       projectId={projectId}
       projectName={projectQuery.data?.projectName}
       initialResource={resourceQuery.data || null}
@@ -229,6 +230,7 @@ function HomepageDraft({
         )}
         headerActions={(
           <Space size={6}>
+            {!projectId ? <HomepageCoverSettings /> : null}
             {dirty ? <Tag color="warning">{t('messages.unsaved')}</Tag> : null}
             {lastSavedAt ? (
               <Typography.Text type="secondary">{formatAdminDate(locale, lastSavedAt)}</Typography.Text>

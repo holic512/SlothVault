@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Managed File Authorization
  * @description Authorizes legacy and contextual upload URLs using live content references and independent project capabilities.
- * @logic Validate live project references for administrator previews, reject orphaned or hidden public references, allow any authorized shared use, validate explicit project context, and keep contract attachments on their dedicated routes.
+ * @logic Validate live references and enabled homepage covers, reject orphaned or hidden public references, allow any authorized shared use, validate explicit project context, and keep contract attachments on their dedicated routes.
  * @dependencies Prisma file/content models, content-access, auth roles, lib/managed-files
  * @index_tags files,authorization,shared-attachments,uploads,read,download
  * @author holic512
@@ -11,6 +11,7 @@
 import 'server-only'
 import type { AccessViewer } from '@/lib/content-access'
 import { isInlineImagePath, managedUploadPath } from '@/lib/managed-file-paths'
+import { readHomepageCover } from '@/lib/homepage-cover'
 import { CONFIG_KEYS } from './system-config'
 import { isAdminRole } from '@/server/auth/roles'
 import { HttpError } from '@/server/http/errors'
@@ -60,6 +61,10 @@ async function liveReference(reference: Reference, filePath: string, administrat
     }
     case 'SYSTEM_CONFIG': {
       const item = await prisma.systemConfig.findUnique({ where: { id: reference.sourceId }, select: { configKey: true, configValue: true } })
+      if (item?.configKey === CONFIG_KEYS.SYSTEM_HOMEPAGE_COVER && reference.projectId === null && reference.usage === 'READ_MEDIA') {
+        const cover = readHomepageCover(item.configValue)
+        return cover.enabled && cover.filePath === filePath ? { projectId: null, publicRead: true } : null
+      }
       return item && reference.projectId === null && ([CONFIG_KEYS.SYSTEM_LOGO_FILE_PATH, CONFIG_KEYS.SYSTEM_FAVICON_FILE_PATH] as string[]).includes(item.configKey) && managedUploadPath(`/${item.configValue}`) === filePath ? { projectId: null, publicRead: true } : null
     }
     default: return null
