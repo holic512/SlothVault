@@ -1271,7 +1271,7 @@
         },
         "filing": {
           "label": "备案信息",
-          "description": "配置公开页面和用户登录、注册页底部的备案信息。公安备案为可选项；保存后刷新页面生效，备案号留空时隐藏对应项目。"
+          "description": "配置公开页面和用户登录、注册页底部的备案信息。可通过总开关隐藏展示并保留配置；公安备案为可选项。保存后刷新展示页面生效。"
         },
         "policy": {
           "label": "存证策略",
@@ -1340,7 +1340,8 @@
         }
       },
       "configDesc": {
-        "SYSTEM_ICP_RECORD_NUMBER": "填写完整 ICP 备案号；留空时不显示 ICP 备案",
+        "SYSTEM_FILING_ENABLED": "关闭后隐藏所有备案信息，已填写的备案号和链接仍会保留；保存后刷新展示页面生效。",
+        "SYSTEM_ICP_RECORD_NUMBER": "填写完整 ICP 备案号；如需暂时隐藏备案信息，请关闭总开关，无需清空号码",
         "SYSTEM_ICP_RECORD_URL": "可选的 HTTP(S) 跳转链接；留空时备案号显示为普通文本",
         "SYSTEM_PUBLIC_SECURITY_RECORD_NUMBER": "可选；不填写不影响 ICP 备案的保存与展示",
         "SYSTEM_PUBLIC_SECURITY_RECORD_URL": "可选的 HTTP(S) 跳转链接；只有填写公安备案号时才会展示",
@@ -1386,6 +1387,7 @@
       },
       "filing": {
         "fields": {
+          "SYSTEM_FILING_ENABLED": "显示备案信息",
           "SYSTEM_ICP_RECORD_NUMBER": "ICP 备案号",
           "SYSTEM_ICP_RECORD_URL": "ICP 跳转链接（可选）",
           "SYSTEM_PUBLIC_SECURITY_RECORD_NUMBER": "公安备案号（可选）",

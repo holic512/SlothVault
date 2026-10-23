@@ -11,15 +11,43 @@ describe('public system filing', () => {
     mocks.findMany.mockReset().mockResolvedValue([])
   })
 
-  it('returns no filings for missing settings and selects only the four public filing keys', async () => {
+  it('returns no filings for missing settings and selects only filing content and visibility', async () => {
     await expect(getSystemFiling()).resolves.toEqual({ icp: null, publicSecurity: null })
     expect(mocks.findMany).toHaveBeenCalledWith({
       where: { configKey: { in: [
+        CONFIG_KEYS.SYSTEM_FILING_ENABLED,
         CONFIG_KEYS.SYSTEM_ICP_RECORD_NUMBER, CONFIG_KEYS.SYSTEM_ICP_RECORD_URL,
         CONFIG_KEYS.SYSTEM_PUBLIC_SECURITY_RECORD_NUMBER, CONFIG_KEYS.SYSTEM_PUBLIC_SECURITY_RECORD_URL,
       ] } },
       select: { configKey: true, configValue: true },
     })
+  })
+
+  it('hides both configured records when disabled and restores them on the next enabled read', async () => {
+    const records = [
+      { configKey: CONFIG_KEYS.SYSTEM_ICP_RECORD_NUMBER, configValue: 'Saved ICP filing' },
+      { configKey: CONFIG_KEYS.SYSTEM_ICP_RECORD_URL, configValue: 'https://example.com/icp' },
+      { configKey: CONFIG_KEYS.SYSTEM_PUBLIC_SECURITY_RECORD_NUMBER, configValue: 'Saved public security filing' },
+      { configKey: CONFIG_KEYS.SYSTEM_PUBLIC_SECURITY_RECORD_URL, configValue: 'https://example.com/security' },
+    ]
+    mocks.findMany.mockResolvedValueOnce([
+      ...records, { configKey: CONFIG_KEYS.SYSTEM_FILING_ENABLED, configValue: 'false' },
+    ]).mockResolvedValueOnce([
+      ...records, { configKey: CONFIG_KEYS.SYSTEM_FILING_ENABLED, configValue: 'true' },
+    ])
+    await expect(getSystemFiling()).resolves.toEqual({ icp: null, publicSecurity: null })
+    await expect(getSystemFiling()).resolves.toEqual({
+      icp: { number: 'Saved ICP filing', url: 'https://example.com/icp' },
+      publicSecurity: { number: 'Saved public security filing', url: 'https://example.com/security' },
+    })
+  })
+
+  it('does not produce records when enabled without filing numbers', async () => {
+    mocks.findMany.mockResolvedValue([
+      { configKey: CONFIG_KEYS.SYSTEM_FILING_ENABLED, configValue: 'true' },
+      { configKey: CONFIG_KEYS.SYSTEM_ICP_RECORD_URL, configValue: 'https://example.com/icp' },
+    ])
+    await expect(getSystemFiling()).resolves.toEqual({ icp: null, publicSecurity: null })
   })
 
   it('resolves ICP independently and trims stored values', async () => {

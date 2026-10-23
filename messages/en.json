@@ -1271,7 +1271,7 @@
         },
         "filing": {
           "label": "Filing Information",
-          "description": "Configure the footer on public pages and user sign-in and registration pages. Public security filing is optional. Save and refresh the page to apply changes; an empty number hides that entry."
+          "description": "Configure the footer on public pages and user sign-in and registration pages. Use the display switch to hide filings while keeping their settings. Public security filing is optional. Save and refresh public pages to apply changes."
         },
         "policy": {
           "label": "Evidence Policy",
@@ -1340,7 +1340,8 @@
         }
       },
       "configDesc": {
-        "SYSTEM_ICP_RECORD_NUMBER": "Enter the full ICP filing number; leave empty to hide the ICP entry",
+        "SYSTEM_FILING_ENABLED": "Turning this off hides all filing information while keeping saved numbers and links. Save and refresh public pages to apply changes.",
+        "SYSTEM_ICP_RECORD_NUMBER": "Enter the full ICP filing number. To temporarily hide filing information, turn off the display switch without clearing the number",
         "SYSTEM_ICP_RECORD_URL": "Optional HTTP(S) link; without a link, the number is displayed as plain text",
         "SYSTEM_PUBLIC_SECURITY_RECORD_NUMBER": "Optional; leaving this empty does not affect saving or displaying the ICP filing",
         "SYSTEM_PUBLIC_SECURITY_RECORD_URL": "Optional HTTP(S) link; displayed only when a public security filing number is provided",
@@ -1386,6 +1387,7 @@
       },
       "filing": {
         "fields": {
+          "SYSTEM_FILING_ENABLED": "Show filing information",
           "SYSTEM_ICP_RECORD_NUMBER": "ICP filing number",
           "SYSTEM_ICP_RECORD_URL": "ICP link (optional)",
           "SYSTEM_PUBLIC_SECURITY_RECORD_NUMBER": "Public security filing number (optional)",

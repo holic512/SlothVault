@@ -2,8 +2,8 @@
  * @file system-filing.ts
  * @project SlothVault
  * @module Public System Filing
- * @description Resolves independently optional ICP and public security filing records from the installed database.
- * @logic Read only filing keys on every call, omit records without numbers, filter unsafe links, and make storage failures non-blocking.
+ * @description Resolves optional ICP and public security filing records under a shared visibility switch.
+ * @logic Read filing settings on every call, default visibility on for existing installations, omit disabled or empty records, filter unsafe links, and make storage failures non-blocking.
  * @dependencies Prisma SystemConfig model, system configuration keys
  * @index_tags filing,icp,public-security,system-config,public,footer
  * @author holic512
@@ -41,6 +41,7 @@ export async function getSystemFiling(): Promise<SystemFiling> {
       where: {
         configKey: {
           in: [
+            CONFIG_KEYS.SYSTEM_FILING_ENABLED,
             CONFIG_KEYS.SYSTEM_ICP_RECORD_NUMBER,
             CONFIG_KEYS.SYSTEM_ICP_RECORD_URL,
             CONFIG_KEYS.SYSTEM_PUBLIC_SECURITY_RECORD_NUMBER,
@@ -51,6 +52,9 @@ export async function getSystemFiling(): Promise<SystemFiling> {
       select: { configKey: true, configValue: true },
     })
     const values = new Map(configs.map((config) => [config.configKey, config.configValue]))
+    if (values.get(CONFIG_KEYS.SYSTEM_FILING_ENABLED) === 'false') {
+      return { icp: null, publicSecurity: null }
+    }
     return {
       icp: filingRecord(
         values.get(CONFIG_KEYS.SYSTEM_ICP_RECORD_NUMBER) || '',

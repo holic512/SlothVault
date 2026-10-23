@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   configKeys: {
     SYSTEM_LOGO_FILE_PATH: 'SYSTEM_LOGO_FILE_PATH',
     SYSTEM_FAVICON_FILE_PATH: 'SYSTEM_FAVICON_FILE_PATH',
+    SYSTEM_FILING_ENABLED: 'SYSTEM_FILING_ENABLED',
     SYSTEM_ICP_RECORD_NUMBER: 'SYSTEM_ICP_RECORD_NUMBER',
     SYSTEM_ICP_RECORD_URL: 'SYSTEM_ICP_RECORD_URL',
     SYSTEM_PUBLIC_SECURITY_RECORD_NUMBER: 'SYSTEM_PUBLIC_SECURITY_RECORD_NUMBER',
@@ -110,13 +111,46 @@ describe('admin filing settings', () => {
     mocks.configKeys.SYSTEM_PUBLIC_SECURITY_RECORD_URL,
   ]
 
-  it('lists four optional, non-sensitive filing settings with empty defaults', async () => {
+  it('lists a default-on visibility switch before the four optional filing fields', async () => {
     const settings = await listAdminSettings()
     const filing = settings.groups.find((group) => group.key === 'filing')
-    expect(filing?.configs.map((config) => config.key)).toEqual(filingKeys)
-    for (const config of filing!.configs) {
+    expect(filing?.configs.map((config) => config.key)).toEqual([mocks.configKeys.SYSTEM_FILING_ENABLED, ...filingKeys])
+    expect(filing?.configs[0]).toMatchObject({
+      kind: 'boolean', value: 'true', defaultValue: 'true', sensitive: false, configured: false,
+    })
+    for (const config of filing!.configs.slice(1)) {
       expect(config).toMatchObject({ value: '', defaultValue: '', sensitive: false, configured: false })
     }
+  })
+
+  it('reads a saved disabled switch without replacing it with the default', async () => {
+    mocks.prisma.systemConfig.findMany.mockResolvedValue([
+      { configKey: mocks.configKeys.SYSTEM_FILING_ENABLED, configValue: 'false' },
+      { configKey: filingKeys[0], configValue: 'Saved filing' },
+    ])
+    const settings = await listAdminSettings()
+    expect(settings.configs.find((config) => config.key === mocks.configKeys.SYSTEM_FILING_ENABLED))
+      .toMatchObject({ value: 'false', configured: true })
+    expect(settings.configs.find((config) => config.key === filingKeys[0])?.value).toBe('Saved filing')
+  })
+
+  it.each(['true', 'false'])('saves only the visibility switch when toggled to %s', async (value) => {
+    await expect(updateAdminSettings([{ key: mocks.configKeys.SYSTEM_FILING_ENABLED, value }]))
+      .resolves.toMatchObject({ updated: 1 })
+    expect(mocks.transaction.systemConfig.upsert).toHaveBeenCalledOnce()
+    expect(mocks.transaction.systemConfig.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { configKey: mocks.configKeys.SYSTEM_FILING_ENABLED },
+      update: expect.objectContaining({ configValue: value }),
+    }))
+  })
+
+  it.each(['', '1', '0', 'TRUE', 'invalid'])('rejects invalid visibility %s without writing the batch', async (value) => {
+    await expect(updateAdminSettings([
+      { key: filingKeys[0], value: 'Must not be saved' },
+      { key: mocks.configKeys.SYSTEM_FILING_ENABLED, value },
+    ])).rejects.toMatchObject({ status: 400 })
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled()
+    expect(mocks.transaction.systemConfig.upsert).not.toHaveBeenCalled()
   })
 
   it('saves just an ICP number without requiring public security or any link', async () => {

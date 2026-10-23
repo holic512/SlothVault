@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Admin Settings Service
  * @description Owns branding, filing, administrator RPC and public market-source configuration, validated writes and refresh checks.
- * @logic Join stored rows with a typed registry and effective RPC defaults, validate changes, reject invalid evidence defaults, and persist changes atomically.
+ * @logic Join stored rows with a typed registry and effective RPC defaults, keep filing visibility separate from its contents, validate changes, and persist changes atomically.
  * @dependencies Prisma SystemConfig/FileManagement models, server/http/errors, system configuration and branding services
  * @index_tags admin,settings,branding,filing,logo,favicon,solana,evidence,rpc,validation,transaction
  * @author holic512
@@ -40,6 +40,14 @@ export const ADMIN_CONFIG_DEFINITIONS = [
     sensitive: false,
     description: 'Optional managed ICO favicon used in browser metadata',
     defaultValue: '',
+  },
+  {
+    key: CONFIG_KEYS.SYSTEM_FILING_ENABLED,
+    group: 'filing',
+    kind: 'boolean',
+    sensitive: false,
+    description: 'Show public filing information without removing saved filing numbers or links',
+    defaultValue: 'true',
   },
   {
     key: CONFIG_KEYS.SYSTEM_ICP_RECORD_NUMBER,

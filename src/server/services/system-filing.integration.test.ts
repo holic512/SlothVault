@@ -74,9 +74,41 @@ describe('database-backed filing lifecycle', () => {
     await expect(getSystemFiling()).resolves.toEqual({ icp: null, publicSecurity: null })
   })
 
+  it('retains and allows editing hidden filings across reconnects, then restores them when enabled', async () => {
+    const contents = [
+      { key: CONFIG_KEYS.SYSTEM_ICP_RECORD_NUMBER, value: '测试ICP备12345678号-1' },
+      { key: CONFIG_KEYS.SYSTEM_ICP_RECORD_URL, value: 'https://example.com/icp' },
+      { key: CONFIG_KEYS.SYSTEM_PUBLIC_SECURITY_RECORD_NUMBER, value: '测试公网安备12345678901234号' },
+      { key: CONFIG_KEYS.SYSTEM_PUBLIC_SECURITY_RECORD_URL, value: 'https://example.com/security' },
+    ]
+    await updateAdminSettings(contents)
+    const original = await getSystemFiling()
+    await updateAdminSettings([{ key: CONFIG_KEYS.SYSTEM_FILING_ENABLED, value: 'false' }])
+    await expect(getSystemFiling()).resolves.toEqual({ icp: null, publicSecurity: null })
+    await fixture.client.$disconnect()
+    fixture.client = connect()
+
+    await expect(getSystemFiling()).resolves.toEqual({ icp: null, publicSecurity: null })
+    const settings = await listAdminSettings()
+    expect(settings.groups.find((group) => group.key === 'filing')?.configs)
+      .toEqual(expect.arrayContaining([
+        expect.objectContaining({ key: CONFIG_KEYS.SYSTEM_FILING_ENABLED, value: 'false' }),
+        ...contents.map((content) => expect.objectContaining(content)),
+      ]))
+
+    const updatedUrl = 'https://example.com/updated-icp'
+    await updateAdminSettings([{ key: CONFIG_KEYS.SYSTEM_ICP_RECORD_URL, value: updatedUrl }])
+    await expect(getSystemFiling()).resolves.toEqual({ icp: null, publicSecurity: null })
+    await updateAdminSettings([{ key: CONFIG_KEYS.SYSTEM_FILING_ENABLED, value: 'true' }])
+    await expect(getSystemFiling()).resolves.toEqual({
+      ...original, icp: { ...original.icp, url: updatedUrl },
+    })
+  })
+
   it('leaves saved settings intact when another change in the batch is invalid', async () => {
     await updateAdminSettings([{ key: CONFIG_KEYS.SYSTEM_ICP_RECORD_NUMBER, value: 'original' }])
     await expect(updateAdminSettings([
+      { key: CONFIG_KEYS.SYSTEM_FILING_ENABLED, value: 'false' },
       { key: CONFIG_KEYS.SYSTEM_ICP_RECORD_NUMBER, value: 'must roll back' },
       { key: CONFIG_KEYS.SYSTEM_PUBLIC_SECURITY_RECORD_URL, value: 'javascript:alert(1)' },
     ])).rejects.toMatchObject({ status: 400 })

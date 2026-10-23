@@ -21,6 +21,7 @@ function configuration(overrides: Record<string, Partial<SettingsConfigItem>> = 
   const definitions = [
     { key: 'SYSTEM_LOGO_FILE_PATH', group: 'branding', value: '', kind: 'image' },
     { key: 'SYSTEM_FAVICON_FILE_PATH', group: 'branding', value: '', kind: 'icon' },
+    { key: 'SYSTEM_FILING_ENABLED', group: 'filing', value: 'true', kind: 'boolean' },
     { key: 'SYSTEM_ICP_RECORD_NUMBER', group: 'filing', value: '', kind: 'text' },
     { key: 'SYSTEM_ICP_RECORD_URL', group: 'filing', value: '', kind: 'url' },
     { key: 'SYSTEM_PUBLIC_SECURITY_RECORD_NUMBER', group: 'filing', value: '', kind: 'text' },
@@ -56,12 +57,38 @@ describe('shared settings draft', () => {
       '/admin/mm/settings/branding', '/admin/mm/settings/filing', '/admin/mm/settings/policy',
       '/admin/mm/settings/rpc', '/admin/mm/settings/market', '/admin/mm/settings/updates',
     ])
-    expect(SETTINGS_SECTIONS.map((section) => getSettingsSectionConfigs(data, section).length)).toEqual([2, 4, 3, 4, 0, 0])
+    expect(SETTINGS_SECTIONS.map((section) => getSettingsSectionConfigs(data, section).length)).toEqual([2, 5, 3, 4, 0, 0])
     expect(getSettingsSectionConfigs(data, 'rpc').every((item) => !item.sensitive)).toBe(true)
     expect(getSettingsSectionConfigs(data, 'policy').map((item) => item.key)).toEqual([
       'SOLANA_DEFAULT_NETWORK', 'SOLANA_MAINNET_ENABLED', 'SOLANA_DEVNET_ENABLED',
     ])
     expect(getSettingsSectionConfigs(null, 'branding')).toEqual([])
+  })
+
+  it('tracks and resets filing visibility without marking saved contents as changed', () => {
+    const data = configuration({
+      SYSTEM_ICP_RECORD_NUMBER: { value: 'Saved filing' },
+      SYSTEM_ICP_RECORD_URL: { value: 'https://example.com/icp' },
+    })
+    const edited = settingsDraftReducer(createSettingsDraftState(data), {
+      type: 'edit', values: { SYSTEM_FILING_ENABLED: 'false' },
+    })
+    expect(getSettingsChangedKeys(edited)).toEqual(['SYSTEM_FILING_ENABLED'])
+    expect(getSettingsDirtySections(edited)).toEqual(['filing'])
+    expect(edited.values.SYSTEM_ICP_RECORD_NUMBER).toBe('Saved filing')
+    expect(edited.values.SYSTEM_ICP_RECORD_URL).toBe('https://example.com/icp')
+    expect(settingsDraftReducer(edited, { type: 'reset' }).values).toEqual(createSettingsDraftState(data).values)
+
+    const saved = settingsDraftReducer(edited, {
+      type: 'saved', data: configuration({
+        SYSTEM_FILING_ENABLED: { value: 'false' },
+        SYSTEM_ICP_RECORD_NUMBER: { value: 'Saved filing' },
+        SYSTEM_ICP_RECORD_URL: { value: 'https://example.com/icp' },
+      }),
+    })
+    expect(saved.values.SYSTEM_FILING_ENABLED).toBe('false')
+    expect(saved.values.SYSTEM_ICP_RECORD_NUMBER).toBe('Saved filing')
+    expect(getSettingsChangedKeys(saved)).toEqual([])
   })
 
   it('loads saved RPC addresses without marking them as edits or persisting effective defaults', () => {
