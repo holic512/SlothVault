@@ -22,7 +22,6 @@ import { backupMap, recordStore } from './record-store'
 import { parseReleaseManifest } from '@/server/services/release-manifest'
 import type { Prisma } from '@generated/prisma-postgresql/client'
 import { inspectImportAccounts, prepareRestoreAccounts, type DatabaseRestoreOptions } from './accounts'
-import { importCommissionCollections } from '@/server/commissions/backup'
 
 import { HttpError } from '@/server/http/errors'
 import { invalidatePublicArticleCache } from '@/server/services/public-article-cache'
@@ -96,9 +95,6 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
     fileManagements: backupMap<number>(data.fileManagements),
     systemConfigs: backupMap<number>(data.systemConfigs),
     systemHomepages: backupMap<number>(data.systemHomepages),
-    contracts: backupMap<number>(data.contracts),
-    contractCredentials: backupMap<number>(data.contractCredentials),
-    contractCredentialAttempts: backupMap<number>(data.contractCredentialAttempts),
     releaseCredentials: backupMap<number>(data.releaseCredentials),
     releaseCredentialAttempts: backupMap<number>(data.releaseCredentialAttempts),
   }
@@ -452,113 +448,6 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
     ids.systemHomepages.set(item.id, created.id)
   }
 
-  const commissionMaps: Record<string, Map<string, number>> = { ...ids }
-  const commissionParentCounts = await importCommissionCollections(tx, data, commissionMaps, true)
-  for (const item of data.contracts) {
-    const record = await tx.contract.create({
-      data: {
-        attributionJson: item.attributionJson,
-        commissionId: item.commissionId ? requiredMappedId(commissionMaps.commissions, item.commissionId, 'contract commission') : null,
-        templateVersionId: item.templateVersionId ? requiredMappedId(commissionMaps.commissionTemplateVersions, item.templateVersionId, 'contract template') : null,
-        documentType: item.documentType, sourceRecordId: null, snapshotJson: item.snapshotJson, snapshotHash: item.snapshotHash,
-        providerSessionId: item.providerSessionId, providerIp: item.providerIp, providerUserAgent: item.providerUserAgent,
-        contractId: item.contractId,
-        installationId: item.installationId,
-        issuerUserId: item.issuerUserId ? requiredMappedId(ids.users, item.issuerUserId, 'contract issuerUserId') : null,
-        subjectUserId: requiredMappedId(ids.users, item.subjectUserId, 'contract subjectUserId'),
-        title: item.title,
-        body: item.body,
-        bodyHash: item.bodyHash,
-        contractHash: item.contractHash,
-        attachmentFileId: item.attachmentFileId
-          ? requiredMappedId(ids.fileManagements, item.attachmentFileId, 'contract attachmentFileId')
-          : null,
-        attachmentHash: item.attachmentHash,
-        partyCommitment: item.partyCommitment,
-        status: item.status,
-        issuedAt: item.issuedAt ? new Date(item.issuedAt) : null,
-        signedAt: item.signedAt ? new Date(item.signedAt) : null,
-        signedSessionId: item.signedSessionId,
-        signedIp: item.signedIp,
-        signedUserAgent: item.signedUserAgent,
-        declinedAt: item.declinedAt ? new Date(item.declinedAt) : null,
-        declineReason: item.declineReason,
-        cancelledAt: item.cancelledAt ? new Date(item.cancelledAt) : null,
-        createdAt: new Date(item.createdAt),
-        updatedAt: new Date(item.updatedAt),
-      },
-    })
-    ids.contracts.set(item.id, record.id)
-  }
-
-  let contractAdminAuditCount = 0
-  for (const item of data.contractAdminAudits) {
-    await tx.contractAdminAudit.create({
-      data: {
-        attributionJson: item.attributionJson,
-        contractId: requiredMappedId(ids.contracts, item.contractId, 'contractAdminAudit contractId'),
-        actorUserId: item.actorUserId ? requiredMappedId(ids.users, item.actorUserId, 'contractAdminAudit actorUserId') : null,
-        action: item.action,
-        createdAt: new Date(item.createdAt),
-      },
-    })
-    contractAdminAuditCount += 1
-  }
-
-  for (const item of data.contractCredentials) {
-    const record = await tx.contractCredential.create({
-      data: {
-        attributionJson: item.attributionJson,
-        contractId: requiredMappedId(ids.contracts, item.contractId, 'contractCredential contractId'),
-        issuerUserId: item.issuerUserId ? requiredMappedId(ids.users, item.issuerUserId, 'contractCredential issuerUserId') : null,
-        network: item.network,
-        signerAddress: item.signerAddress,
-        memo: item.memo,
-        transactionSignature: item.transactionSignature,
-        status: item.status,
-        slot: item.slot ? BigInt(item.slot) : null,
-        blockTime: item.blockTime ? new Date(item.blockTime) : null,
-        feeLamports: item.feeLamports ? BigInt(item.feeLamports) : null,
-        finalizedAt: item.finalizedAt ? new Date(item.finalizedAt) : null,
-        lastVerifiedAt: item.lastVerifiedAt ? new Date(item.lastVerifiedAt) : null,
-        createdAt: new Date(item.createdAt),
-        updatedAt: new Date(item.updatedAt),
-      },
-    })
-    ids.contractCredentials.set(item.id, record.id)
-  }
-
-  for (const item of data.contractCredentialAttempts) {
-    const record = await tx.contractCredentialAttempt.create({
-      data: {
-        attributionJson: item.attributionJson,
-        credentialId: requiredMappedId(ids.contractCredentials, item.credentialId, 'contractCredentialAttempt credentialId'),
-        issuerUserId: item.issuerUserId ? requiredMappedId(ids.users, item.issuerUserId, 'contractCredentialAttempt issuerUserId') : null,
-        signerAddress: item.signerAddress,
-        memo: item.memo,
-        messageHash: item.messageHash,
-        recentBlockhash: item.recentBlockhash,
-        lastValidBlockHeight: BigInt(item.lastValidBlockHeight),
-        transactionSignature: item.transactionSignature,
-        status: item.status,
-        failureCode: item.failureCode,
-        failureMessage: item.failureMessage,
-        expiresAt: new Date(item.expiresAt),
-        submittedAt: item.submittedAt ? new Date(item.submittedAt) : null,
-        finalizedAt: item.finalizedAt ? new Date(item.finalizedAt) : null,
-        createdAt: new Date(item.createdAt),
-        updatedAt: new Date(item.updatedAt),
-      },
-    })
-    ids.contractCredentialAttempts.set(item.id, record.id)
-  }
-
-  const commissionChildCounts = await importCommissionCollections(tx, data, commissionMaps, false)
-  for (const contract of data.contracts) {
-    if (!contract.sourceRecordId) continue
-    const sourceMap = contract.documentType === 'CHANGE' ? commissionMaps.commissionChanges : commissionMaps.commissionAcceptances
-    await tx.contract.update({ where: { id: requiredMappedId(ids.contracts, contract.id, 'contract') }, data: { sourceRecordId: requiredMappedId(sourceMap, contract.sourceRecordId, 'contract source record') } })
-  }
   for (const item of data.releaseCredentials) {
     const sourceVersion = data.projectVersions.find((version) => version.id === item.projectVersionId)
     const subjectId = item.subjectId || sourceVersion?.releaseId
@@ -670,7 +559,6 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
     message: 'Database import completed successfully',
     mode,
     imported: {
-      ...commissionParentCounts, ...commissionChildCounts,
       fileReferences: fileReferenceCount,
       users: ids.users.size,
       userDeletionRecords: data.userDeletionRecords.length,
@@ -690,10 +578,6 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
       fileManagements: ids.fileManagements.size,
       systemConfigs: ids.systemConfigs.size,
       systemHomepages: ids.systemHomepages.size,
-      contracts: ids.contracts.size,
-      contractAdminAudits: contractAdminAuditCount,
-      contractCredentials: ids.contractCredentials.size,
-      contractCredentialAttempts: ids.contractCredentialAttempts.size,
       releaseCredentials: ids.releaseCredentials.size,
       releaseCredentialAttempts: ids.releaseCredentialAttempts.size,
     },

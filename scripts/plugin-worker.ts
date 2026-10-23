@@ -34,7 +34,7 @@ port.on('message', async message => {
         const handler = plugin[message.key as keyof PluginServer]
         if (typeof handler === 'function') value = await (handler as () => Promise<void>)()
       } else {
-        const handlers = plugin[message.group as 'api' | 'services' | 'events' | 'jobs' | 'migrations']
+        const handlers = plugin[message.group as 'mcp' | 'api' | 'services' | 'events' | 'jobs' | 'migrations']
         const handler = handlers?.[message.key]
         if (!handler) throw Object.assign(new Error('Plugin handler is not registered'), { status: 404 })
         value = message.group === 'jobs' ? await (handler as (task: unknown) => Promise<unknown>)(message.task) : await (handler as (input: unknown, task: unknown) => Promise<unknown>)(message.input, message.task)
@@ -48,8 +48,8 @@ try {
   if (typeof loaded.default !== 'function') throw new Error('Plugin must export a default SDK factory')
   plugin = await loaded.default(context)
   if (!plugin || typeof plugin !== 'object') throw new Error('Plugin factory must return handlers')
-  for (const [group, keys] of Object.entries({ api: workerData.manifest.api.map((a: { key: string }) => a.key), services: workerData.manifest.services, events: workerData.manifest.events, jobs: workerData.manifest.jobs.map((a: { key: string }) => a.key), migrations: workerData.manifest.migrations })) {
-    const handlers = plugin[group as 'api' | 'services' | 'events' | 'jobs' | 'migrations']
+  for (const [group, keys] of Object.entries({ mcp: (workerData.manifest.mcp ?? []).map((a: { key: string }) => a.key), api: workerData.manifest.api.map((a: { key: string }) => a.key), services: workerData.manifest.services, events: workerData.manifest.events, jobs: workerData.manifest.jobs.map((a: { key: string }) => a.key), migrations: workerData.manifest.migrations })) {
+    const handlers = plugin[group as 'mcp' | 'api' | 'services' | 'events' | 'jobs' | 'migrations']
     if ((keys as string[]).some(key => typeof handlers?.[key] !== 'function')) throw new Error('Declared plugin handler is missing')
   }
   port.postMessage({ type: 'ready' })

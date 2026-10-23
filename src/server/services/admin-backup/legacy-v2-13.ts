@@ -19,15 +19,10 @@ import type { RecordStore } from './record-store'
 export const legacyAttributionFields = { ...USER_ATTRIBUTION_FIELDS, giftCardBatch: ['createdById'] } as const
 export const attributionCollections: Record<string, keyof typeof legacyAttributionFields> = {
   pointTransactions: 'pointTransaction', giftCardBatches: 'giftCardBatch', membershipGrants: 'membershipGrant', noteInfos: 'noteInfo',
-  contracts: 'contract', contractAdminAudits: 'contractAdminAudit', contractCredentials: 'contractCredential', contractCredentialAttempts: 'contractCredentialAttempt',
-  releaseCredentials: 'releaseCredential', releaseCredentialAttempts: 'releaseCredentialAttempt', commissionPayments: 'commissionPayment',
-  commissionChanges: 'commissionChange', commissionIssues: 'commissionIssue', commissionFiles: 'commissionFile', commissionEvents: 'commissionEvent',
-  commissionSubmissions: 'commissionSubmission', commissionProofAttempts: 'commissionProofAttempt',
+  releaseCredentials: 'releaseCredential', releaseCredentialAttempts: 'releaseCredentialAttempt',
 }
 const formerlyRequired: Record<string, string[]> = {
-  giftCardBatches: ['createdById'], contracts: ['issuerUserId'], contractAdminAudits: ['actorUserId'], contractCredentials: ['issuerUserId'], contractCredentialAttempts: ['issuerUserId'],
-  releaseCredentials: ['issuerUserId'], releaseCredentialAttempts: ['issuerUserId'], commissionPayments: ['createdById'], commissionChanges: ['createdById'], commissionIssues: ['createdById'],
-  commissionFiles: ['uploaderUserId'], commissionEvents: ['actorUserId'], commissionProofAttempts: ['issuerUserId'],
+  giftCardBatches: ['createdById'], releaseCredentials: ['issuerUserId'], releaseCredentialAttempts: ['issuerUserId'],
 }
 export const legacyCollectionKeys = LEGACY_BACKUP_COLLECTION_KEYS.filter(key => key !== 'userDeletionRecords' && key !== 'userWallets')
 export const legacyRowSchemas = new Map<string, z.ZodType>()

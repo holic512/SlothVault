@@ -2,7 +2,7 @@
  * @file database-schema.ts
  * @project SlothVault
  * @module Admin Database Backup Schema
- * @description Defines the portable 2.19 database-backup shape, including nullable stable project-menu icon keys.
+ * @description Defines the portable 2.20 database-backup shape, including nullable stable project-menu icon keys.
  * @logic Validate active collections strictly, retain v3 publication snapshots, note tags, member access and standalone blog content, include source documentation baselines, multi-wallet bindings and username quotas, and require the current data version and full overwrite restoration.
  * @dependencies Zod, Node path rules, backup constants
  * @index_tags admin,backup,database,schema,zod,portable
@@ -18,7 +18,6 @@ import { isAbsolute } from 'node:path'
 import { z } from 'zod'
 import { noteTagsSchema } from '@/lib/note-tags'
 import { projectMenuIconKeys } from '@/lib/project-menu-icons'
-import { commissionBackupShape } from '@/server/commissions/backup'
 
 import {
   DATABASE_BIGINT_MAX,
@@ -403,91 +402,6 @@ const releaseCredentialAttemptSchema = z.object({
   updatedAt: dateStringSchema,
 }).strict()
 
-const contractSchema = z.object({
-  attributionJson: attributionJsonSchema,
-  commissionId: nullableIdStringSchema.optional().default(null),
-  templateVersionId: nullableIdStringSchema.optional().default(null),
-  documentType: z.enum(['AGREEMENT', 'CHANGE', 'ACCEPTANCE']).optional().default('AGREEMENT'),
-  sourceRecordId: nullableIdStringSchema.optional().default(null),
-  snapshotJson: z.string().max(500000).nullable().optional().default(null),
-  snapshotHash: z.string().regex(/^[a-f0-9]{64}$/).nullable().optional().default(null),
-  providerSessionId: nullableString(255).optional().default(null),
-  providerIp: nullableString(255).optional().default(null),
-  providerUserAgent: nullableString(10000).optional().default(null),
-  id: idStringSchema,
-  contractId: z.string().uuid(),
-  installationId: z.string().uuid().nullable(),
-  issuerUserId: nullableIdStringSchema,
-  subjectUserId: idStringSchema,
-  title: nonEmptyString(255),
-  body: z.string().min(1).max(100_000),
-  bodyHash: z.string().regex(/^[a-f0-9]{64}$/),
-  contractHash: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
-  attachmentFileId: nullableIdStringSchema,
-  attachmentHash: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
-  partyCommitment: z.string().regex(/^[a-f0-9]{64}$/),
-  status: z.union([z.literal(-2), z.literal(-1), z.literal(0), z.literal(1), z.literal(2)]),
-  issuedAt: dateStringSchema.nullable(),
-  signedAt: dateStringSchema.nullable(),
-  signedSessionId: z.string().uuid().nullable(),
-  signedIp: nullableString(255),
-  signedUserAgent: nullableString(4_000),
-  declinedAt: dateStringSchema.nullable(),
-  declineReason: nullableString(500),
-  cancelledAt: dateStringSchema.nullable(),
-  createdAt: dateStringSchema,
-  updatedAt: dateStringSchema,
-}).strict()
-
-const contractCredentialSchema = z.object({
-  attributionJson: attributionJsonSchema,
-  id: idStringSchema,
-  contractId: idStringSchema,
-  issuerUserId: nullableIdStringSchema,
-  network: z.enum(['mainnet', 'devnet']),
-  signerAddress: nonEmptyString(64),
-  memo: z.string(),
-  transactionSignature: nullableString(128),
-  status: z.union([z.literal(-1), z.literal(0), z.literal(1), z.literal(2)]),
-  slot: bigintStringSchema.nullable(),
-  blockTime: dateStringSchema.nullable(),
-  feeLamports: bigintStringSchema.nullable(),
-  finalizedAt: dateStringSchema.nullable(),
-  lastVerifiedAt: dateStringSchema.nullable(),
-  createdAt: dateStringSchema,
-  updatedAt: dateStringSchema,
-}).strict()
-
-const contractCredentialAttemptSchema = z.object({
-  attributionJson: attributionJsonSchema,
-  id: idStringSchema,
-  credentialId: idStringSchema,
-  issuerUserId: nullableIdStringSchema,
-  signerAddress: nonEmptyString(64),
-  memo: z.string(),
-  messageHash: z.string().regex(/^[a-f0-9]{64}$/),
-  recentBlockhash: nonEmptyString(100),
-  lastValidBlockHeight: bigintStringSchema,
-  transactionSignature: nullableString(128),
-  status: z.union([z.literal(-1), z.literal(0), z.literal(1), z.literal(2)]),
-  failureCode: nullableString(64),
-  failureMessage: nullableString(500),
-  expiresAt: dateStringSchema,
-  submittedAt: dateStringSchema.nullable(),
-  finalizedAt: dateStringSchema.nullable(),
-  createdAt: dateStringSchema,
-  updatedAt: dateStringSchema,
-}).strict()
-
-const contractAdminAuditSchema = z.object({
-  attributionJson: attributionJsonSchema,
-  id: idStringSchema,
-  contractId: idStringSchema,
-  actorUserId: nullableIdStringSchema,
-  action: nonEmptyString(64),
-  createdAt: dateStringSchema,
-}).strict()
-
 const fileReferenceSchema = z.object({
   id: idStringSchema,
   fileId: idStringSchema,
@@ -510,7 +424,6 @@ const userDeletionRecordSchema = z.object({
 
 export const backupDataSchema = z.object({
   ...pluginBackupShape,
-  ...commissionBackupShape,
   users: z.array(userSchema).default([]),
   userWallets: z.array(z.object({ id: idStringSchema, userId: idStringSchema, address: nonEmptyString(64), createdAt: dateStringSchema }).strict()).default([]),
   userDeletionRecords: z.array(userDeletionRecordSchema).default([]),
@@ -531,10 +444,6 @@ export const backupDataSchema = z.object({
   fileManagements: z.array(fileManagementSchema),
   systemConfigs: z.array(systemConfigSchema),
   systemHomepages: z.array(systemHomepageSchema),
-  contracts: z.array(contractSchema).default([]),
-  contractAdminAudits: z.array(contractAdminAuditSchema).default([]),
-  contractCredentials: z.array(contractCredentialSchema).default([]),
-  contractCredentialAttempts: z.array(contractCredentialAttemptSchema).default([]),
   releaseCredentials: z.array(releaseCredentialSchema).default([]),
   releaseCredentialAttempts: z.array(releaseCredentialAttemptSchema).default([]),
 }).strict()

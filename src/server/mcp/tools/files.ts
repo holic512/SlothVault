@@ -17,6 +17,7 @@ import { MCP_CONTENT_BUSINESS_TYPES } from '@/lib/file-business-types'
 
 import { collectMcpToolDefinitions, type McpToolDefinition } from '@/server/mcp/registry'
 
+import { BUSINESS_TYPE_CONFIG } from '@/lib/file-business-types'
 import { HttpError } from '@/server/http/errors'
 import {
   AVATAR_FILE_MAX_BYTES,
@@ -118,8 +119,8 @@ export const fileToolDefinitions: McpToolDefinition[] = collectMcpToolDefinition
     },
     async ({ fileId }) => runMcpTool('content.file.get', async () => {
       const file = await getAdminFile(mcpId(fileId, 'fileId'))
-      if (['ContractAttachment', 'CommissionAttachment'].includes(file.businessType)) {
-        throw new HttpError('Contract attachments require the contract Resource', 403, 403)
+      if (!Object.hasOwn(BUSINESS_TYPE_CONFIG, file.businessType)) {
+        throw new HttpError('Unsupported managed file classification', 403, 403)
       }
       return {
         ...mcpFileMetadata(file),

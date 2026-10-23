@@ -11,7 +11,7 @@
 import { z } from 'zod'
 import semver from 'semver'
 
-export const PLUGIN_API_VERSION = '1.3.0'
+export const PLUGIN_API_VERSION = '1.4.0'
 export const GIFT_CARDS_PLUGIN_ID = 'slothvault.gift-cards'
 export const pluginIdSchema = z.string().regex(/^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$/).max(100)
 export const assetPathSchema = z.string().max(200).refine(value => /^[a-zA-Z0-9_./-]+$/.test(value) && !value.startsWith('/') && !value.split('/').some(p => !p || p === '.' || p === '..'), 'Invalid package path')
@@ -25,7 +25,7 @@ export const columnSchema = z.object({
   type: z.enum(['string', 'text', 'integer', 'bigint', 'boolean', 'datetime', 'json', 'binary']),
   nullable: z.boolean().default(false), primary: z.boolean().default(false), generated: z.boolean().default(false),
   length: z.number().int().min(1).max(2000).optional(),
-  references: z.object({ table: z.string().regex(/^[a-z][a-z0-9_]{0,62}$/), column: z.string().regex(/^[a-z][a-z0-9_]{0,49}$/), onDelete: z.enum(['CASCADE', 'SET NULL']), coreCollection: z.string().max(50).optional(), attributionField: z.string().max(50).optional() }).strict().optional(),
+  references: z.object({ table: z.string().regex(/^[a-z][a-z0-9_]{0,62}$/), column: z.string().regex(/^[a-z][a-z0-9_]{0,49}$/), onDelete: z.enum(['CASCADE', 'SET NULL', 'RESTRICT']), coreCollection: z.string().max(50).optional(), attributionField: z.string().max(50).optional() }).strict().optional(),
 }).strict()
 export const tableSchema = z.object({
   name: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/),
@@ -77,12 +77,14 @@ export const pluginManifestSchema = z.object({
   display: pluginDisplaySchema.optional(),
   description: z.string().max(2000).default(''), author: z.string().max(200),
   engines: z.object({ slothvault: range, sdk: range, node: range }).strict(),
-  server: assetPathSchema.refine(path => path.startsWith('server/') && path.endsWith('.mjs'), 'Backend entry must be server/*.mjs').optional(), capabilities: z.array(z.enum(['database', 'points.credit', 'points.credit.background', 'market.read', 'solana.transfer', 'users.read', 'events', 'services'])).max(20).default([]),
+  server: assetPathSchema.refine(path => path.startsWith('server/') && path.endsWith('.mjs'), 'Backend entry must be server/*.mjs').optional(), capabilities: z.array(z.enum(['database', 'points.credit', 'points.credit.background', 'market.read', 'solana.transfer', 'users.read', 'events', 'services', 'evidence.memo', 'files.private'])).max(20).default([]),
   dependencies: z.record(pluginIdSchema, range).default({}),
   configSchema: z.record(z.string(), z.unknown()).default({ type: 'object', properties: {}, additionalProperties: false }),
   configDefaults: z.record(z.string(), z.unknown()).default({}), secretFields: z.array(z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]*$/)).max(30).default([]),
+  lifecycleGuards: z.array(z.object({ table: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/), column: z.string().regex(/^[a-z][a-z0-9_]{0,49}$/), values: z.array(z.string().max(100)).min(1).max(20), message: z.string().min(1).max(255) }).strict()).max(20).default([]),
   tables: z.array(tableSchema).max(30).default([]), migrations: z.array(z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/)).max(100).default([]),
-  api: z.array(z.object({ key: z.string().regex(/^[a-z][a-z0-9.-]{0,79}$/), path: z.string().regex(/^[a-z0-9][a-z0-9/-]{0,100}$/), method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH']), access: accessSchema.default({ audience: 'admin', membershipLevelIds: [] }) }).strict()).max(100).default([]),
+  api: z.array(z.object({ key: z.string().regex(/^[a-z][a-z0-9.-]{0,79}$/), path: z.string().regex(/^[a-z0-9][a-z0-9/-]{0,100}$/), method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH']), transport: z.enum(['json', 'upload', 'download', 'archive']).optional(), rateLimit: z.object({ limit: z.number().int().min(1).max(1000), windowSeconds: z.number().int().min(1).max(86400) }).strict().optional(), access: accessSchema.default({ audience: 'admin', membershipLevelIds: [] }) }).strict()).max(100).default([]),
+  mcp: z.array(z.object({ key: z.string().regex(/^[a-z][a-z0-9.-]{0,79}$/), name: z.string().regex(/^[a-z][a-z0-9.-]{0,150}$/), title: z.string().min(1).max(100), description: z.string().max(2000), inputSchema: z.record(z.string(), z.unknown()), access: accessSchema.default({ audience: 'admin', membershipLevelIds: [] }), readOnly: z.boolean(), operation: z.enum(['read', 'draft']) }).strict()).max(30).default([]),
   services: z.array(z.string().regex(/^[a-z][a-zA-Z0-9.-]{0,79}$/)).max(50).default([]),
   events: z.array(z.string().regex(/^[a-z][a-zA-Z0-9.-]{0,99}$/)).max(50).default([]),
   jobs: z.array(z.object({ key: z.string().regex(/^[a-z][a-z0-9.-]{0,79}$/), intervalSeconds: z.number().int().min(60).max(2_592_000) }).strict()).max(20).default([]),
@@ -96,11 +98,18 @@ export const pluginManifestSchema = z.object({
   }).strict()).max(100).default([]),
 }).strict().superRefine((manifest, ctx) => {
   try { assertPortableTableGraph(manifest.tables) } catch (error) { ctx.addIssue({ code: 'custom', message: (error as Error).message }) }
+  for (const guard of manifest.lifecycleGuards) if (!manifest.tables.find(table => table.name === guard.table)?.columns.some(column => column.name === guard.column && ['string', 'text'].includes(column.type))) ctx.addIssue({ code: 'custom', message: 'Lifecycle guards must reference declared textual columns' })
+  for (const tool of manifest.mcp) {
+    if (!tool.name.startsWith(`${manifest.id}.`) || tool.readOnly !== (tool.operation === 'read')) ctx.addIssue({ code: 'custom', message: 'MCP tools require a plugin namespace and consistent read/draft policy' })
+  }
+  for (const api of manifest.api) if (api.transport && api.transport !== 'json') {
+    if (!manifest.capabilities.includes('files.private') || (api.transport === 'upload' ? api.method !== 'POST' : api.method !== 'GET')) ctx.addIssue({ code: 'custom', message: 'File transports require files.private and POST upload or GET download/archive' })
+  }
   if (new Set(manifest.api.map(a => `${a.method}:${a.path}`)).size !== manifest.api.length) ctx.addIssue({ code: 'custom', message: 'Duplicate API route' })
-  for (const values of [manifest.api.map(a => a.key), manifest.ui.map(a => a.key), manifest.tables.map(a => a.name), manifest.migrations, manifest.jobs.map(job => job.key), manifest.events, manifest.services]) if (new Set(values).size !== values.length) ctx.addIssue({ code: 'custom', message: 'Duplicate contribution key' })
+  for (const values of [manifest.api.map(a => a.key), manifest.ui.map(a => a.key), manifest.tables.map(a => a.name), manifest.migrations, manifest.mcp.map(tool => tool.key), manifest.mcp.map(tool => tool.name), manifest.jobs.map(job => job.key), manifest.events, manifest.services]) if (new Set(values).size !== values.length) ctx.addIssue({ code: 'custom', message: 'Duplicate contribution key' })
   if (new Set(manifest.ui.map(ui => ui.asset)).size !== manifest.ui.length) ctx.addIssue({ code: 'custom', message: 'Each UI contribution needs its own entry asset' })
   if (manifest.ui.some(ui => ui.kind === 'slot' && !ui.slot)) ctx.addIssue({ code: 'custom', message: 'Slot contribution requires a slot name' })
-  if (!manifest.server && (manifest.api.length || manifest.services.length || manifest.events.length || manifest.jobs.length || manifest.migrations.length)) ctx.addIssue({ code: 'custom', message: 'Backend contributions require a server entrypoint' })
+  if (!manifest.server && (manifest.api.length || manifest.mcp.length || manifest.services.length || manifest.events.length || manifest.jobs.length || manifest.migrations.length)) ctx.addIssue({ code: 'custom', message: 'Backend contributions require a server entrypoint' })
   if (manifest.capabilities.includes('points.credit.background') && !manifest.capabilities.includes('points.credit')) ctx.addIssue({ code: 'custom', message: 'Background point credits require points.credit capability' })
   if (manifest.events.length && !manifest.capabilities.includes('events')) ctx.addIssue({ code: 'custom', message: 'Event subscriptions require events capability' })
   if (manifest.tables.length && !manifest.capabilities.includes('database')) ctx.addIssue({ code: 'custom', message: 'Tables require database capability' })
@@ -122,3 +131,8 @@ export type SolTransferObservation = { status: 'FINALIZED' | 'FAILED' | 'PENDING
 
 export type PluginRelease = { repository: string; tag: string; asset: string; notes: string; size: number; version: string }
 export type PluginUpdateInfo = { currentVersion: string; status: 'available' | 'current' | 'manual' | 'noRelease'; release: PluginRelease | null; checkedAt: string }
+
+export type PluginFile = { id: string; name: string; size: string; sha256: string; createdAt: string }
+export type PreparedMemoEvidence = { transactionBase64: string; messageHash: string; blockhash: string; lastValidBlockHeight: string; feeLamports: number; balanceLamports: number; signerAddress: string; memo: string }
+export type MemoEvidenceObservation = { status: 'FINALIZED' | 'PENDING' | 'FAILED' | 'EXPIRED'; blockTime: string | null; error?: string }
+export type PluginUser = { id: number; username: string; displayName: string | null; role: string; status: number }

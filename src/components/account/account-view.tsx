@@ -14,7 +14,7 @@ import { useMemo } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
 import { Empty, Skeleton, Statistic, Typography } from 'antd'
-import { ArrowDownLeft, ArrowRight, ArrowUpRight, Coins, Crown, FileSignature, ShieldCheck, UserRound, WalletCards } from 'lucide-react'
+import { ArrowDownLeft, ArrowRight, ArrowUpRight, Coins, Crown, ShieldCheck, UserRound, WalletCards } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
@@ -100,7 +100,6 @@ export function AccountOverview() {
           <Link href="/account/security"><ShieldCheck size={16} /><span>{t('actions.security')}</span><ArrowRight size={15} /></Link>
           <Link href="/account/points"><WalletCards size={16} /><span>{t('actions.points')}</span><ArrowRight size={15} /></Link>
           <Link href="/account/membership"><Crown size={16} /><span>{t('actions.membership')}</span><ArrowRight size={15} /></Link>
-          <Link href="/account/commissions"><FileSignature size={16} /><span>{t('actions.commissions')}</span><ArrowRight size={15} /></Link>
         </AccountCard>
         <AccountCard title={t('status.title')}>
           <div className="account-status-list">

@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module MCP Declaration Registry
  * @description Defines the declaration model and the only SDK registration adapters used by MCP Tools and Resources.
- * @logic Domain modules record declarations without depending on the SDK server instance; the adapter performs one consistent request pipeline before calling the SDK.
+ * @logic Static host metadata remains the default; explicit plugin profiles restrict dynamic tools to read/draft operations within the same policy and audit pipeline.
  * @dependencies MCP TypeScript SDK, zod, MCP API-key principal
  * @index_tags mcp,registry,contract,context,policy,audit
  * @author MengJiaXu
@@ -60,6 +60,8 @@ export interface McpToolConfig {
 }
 
 export interface McpToolDefinition extends McpToolMetadata {
+  /** Omitted for static host tools; dynamic contributions must declare their restricted profile. */
+  policy?: { profile: 'plugin'; pluginId: string; operation: 'read' | 'draft' }
   name: string
   title: string
   description: string
@@ -373,6 +375,16 @@ function assertToolPolicy(definition: McpToolDefinition, context: McpRequestCont
     throw new HttpError('MCP API-key authentication is required', 401, 401)
   }
   if (definition.name === 'admin.contract.issue' || /^admin\.commission\.(?:document\.(?:issue|sign)|payment\.(?:record|review)|delivery\.publish)$/.test(definition.name)) throw new HttpError('正式签署、收退款及交付发布请在网页完成', 403, 403)
+  if (definition.policy) {
+    const policy = definition.policy
+    if (policy.profile !== 'plugin' || !definition.name.startsWith(`${policy.pluginId}.`) || !['read', 'draft'].includes(policy.operation) || definition.annotations?.readOnlyHint !== (policy.operation === 'read') || definition.risk !== (policy.operation === 'read' ? 'read' : 'write') || definition.resourcePermissions.length) {
+      throw new HttpError('Invalid plugin MCP policy', 403, 403)
+    }
+    // The declaration is an allowlist, not an exemption from the host's safety policy.
+    if ((policy.operation === 'draft' && /(?:^|[._-])payment(?:[._-]|$)/i.test(definition.name.slice(policy.pluginId.length + 1))) || /(?:^|[._-])(?:issue|sign|publish|withdraw|revoke|pay|refund|broadcast|confirm|finalize|execute|submit|approve|reject|credit|debit)(?:[._-]|$)/i.test(definition.name.slice(policy.pluginId.length + 1))) {
+      throw new HttpError('Plugin MCP only supports reads and drafts; complete formal operations on the website', 403, 403)
+    }
+  }
   const contentLifecycle = ['content.project.version.publish', 'content.article.publish', 'content.article.withdraw'].includes(definition.name)
   if (!contentLifecycle && /(?:^|\.)(?:delete|restore|publish|withdraw|revoke|batch|reset|backup)$/.test(definition.name)) {
     throw new HttpError(`Tool is blocked by MCP risk policy: ${definition.name}`, 403, 403)

@@ -2,7 +2,7 @@
 
 <!-- GENERATED FILE: run `npm run mcp:docs` after changing MCP declarations. -->
 
-Tool count: **74**
+Tool count: **65** (host tools; enabled plugins contribute additional namespaced tools at runtime)
 
 | Tool | Domain | Risk | Idempotency | Resource permission |
 | --- | --- | --- | --- | --- |
@@ -13,9 +13,6 @@ Tool count: **74**
 | `admin.user.membership.get` | `admin.user.membership` | read | idempotent | - |
 | `admin.points.transaction.list` | `admin.points.transaction` | read | idempotent | - |
 | `admin.gift_card.batch.list` | `admin.gift_card.batch` | read | idempotent | - |
-| `admin.contract.list` | `admin.contract` | read | idempotent | - |
-| `admin.contract.get` | `admin.contract` | read | idempotent | - |
-| `admin.contract.attachment.get` | `admin.contract.attachment` | read | idempotent | contract-attachment:read |
 | `admin.evidence.list` | `admin.evidence` | read | idempotent | - |
 | `admin.evidence.get` | `admin.evidence` | read | idempotent | - |
 | `admin.settings.get` | `admin.settings` | read | idempotent | - |
@@ -29,12 +26,6 @@ Tool count: **74**
 | `content.category.list` | `content.category` | read | idempotent | - |
 | `content.category.create` | `content.category` | write | non-idempotent | - |
 | `content.category.update` | `content.category` | write | non-idempotent | - |
-| `admin.commission.list` | `admin.commission` | read | idempotent | - |
-| `admin.commission.get` | `admin.commission` | read | idempotent | - |
-| `admin.commission.create` | `admin.commission` | write | idempotent | - |
-| `admin.commission.update` | `admin.commission` | write | idempotent | - |
-| `admin.commission.document.draft.create` | `admin.commission.document.draft` | write | idempotent | - |
-| `admin.contract-template.list` | `admin.contract-template` | read | idempotent | - |
 | `content.file.list` | `content.file` | read | idempotent | - |
 | `content.file.get` | `content.file` | read | idempotent | managed-file:read |
 | `content.file.upload` | `content.file` | write | non-idempotent | - |
@@ -81,12 +72,11 @@ Tool count: **74**
 | `content.project.create` | `content.project` | write | non-idempotent | - |
 | `content.project.update` | `content.project` | write | non-idempotent | - |
 
-Resource count: **2**
+Resource count: **1**
 
 | Resource | URI | MIME | Filename limit | Maximum bytes |
 | --- | --- | --- | ---: | ---: |
 | `managed-file` | `slothvault://managed-file/{id}` | `application/octet-stream` | 255 | 10485760 |
-| `contract-attachment` | `slothvault://contract-attachment/{contractId}` | `application/pdf` | 255 | 26214400 |
 
 This document is generated from the declaration registry. CI must run `npm run mcp:docs:check` and fail when the checked-in output is stale.
 

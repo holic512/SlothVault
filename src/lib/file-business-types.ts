@@ -22,8 +22,6 @@ export const BUSINESS_TYPE_CONFIG = {
   NoteImage: { dir: 'note-image', imagesOnly: true },
   NoteAttachment: { dir: 'note-attachment', imagesOnly: false },
   HomeworkFile: { dir: 'homework', imagesOnly: false },
-  ContractAttachment: { dir: 'contract-attachment', imagesOnly: false },
-  CommissionAttachment: { dir: 'commission-attachment', imagesOnly: false },
   Markdown: { dir: 'markdown', imagesOnly: false },
   TempFile: { dir: 'temp', imagesOnly: false },
   Other: { dir: 'other', imagesOnly: false },
@@ -32,7 +30,7 @@ export const BUSINESS_TYPE_CONFIG = {
 export type BusinessType = keyof typeof BUSINESS_TYPE_CONFIG
 export const VALID_BUSINESS_TYPES = Object.keys(BUSINESS_TYPE_CONFIG) as BusinessType[]
 export const MCP_CONTENT_BUSINESS_TYPES = ['ProjectAvatar', 'ArticleCover', 'ArticleImage', 'ArticleAttachment', 'NoteImage', 'NoteAttachment', 'HomeworkFile', 'Markdown', 'Other'] as const
-export const ADMIN_UPLOAD_BUSINESS_TYPES = VALID_BUSINESS_TYPES.filter((type) => type !== 'ContractAttachment' && type !== 'CommissionAttachment')
+export const ADMIN_UPLOAD_BUSINESS_TYPES = VALID_BUSINESS_TYPES
 
 export function allowedFileExtensions(type: BusinessType): ReadonlySet<string> {
   return type === 'SystemFavicon' ? new Set(['ico']) : BUSINESS_TYPE_CONFIG[type].imagesOnly ? IMAGE_EXTENSIONS : SAFE_FILE_EXTENSIONS

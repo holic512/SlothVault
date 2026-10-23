@@ -15,7 +15,6 @@ import { mkdir, mkdtemp, open, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { z } from 'zod'
-import { commissionCollectionSpecs } from '@/server/commissions/backup'
 import { readNoteTags } from '@/lib/note-tags'
 import { databaseSnapshotIsolationLevel } from '@/server/database/client'
 import { unitOfWork } from '@/server/database/unit-of-work'
@@ -30,8 +29,7 @@ import { RecordStore } from './record-store'
 
 export const collectionDelegates: Record<string, string> = {
   ...pluginBackupDelegates,
-  ...Object.fromEntries(commissionCollectionSpecs.map(spec => [spec.key, spec.delegate])),
-  users: 'user', userWallets: 'userWallet', userDeletionRecords: 'userDeletionRecord', pointTransactions: 'pointTransaction', membershipLevels: 'membershipLevel', membershipGrants: 'membershipGrant', articles: 'article', projects: 'project', projectVersions: 'projectVersion', categories: 'category', projectMenus: 'projectMenu', projectHomes: 'projectHome', noteInfos: 'noteInfo', noteContents: 'noteContent', fileManagements: 'fileManagement', fileReferences: 'fileReference', systemConfigs: 'systemConfig', systemHomepages: 'systemHomepage', contracts: 'contract', contractAdminAudits: 'contractAdminAudit', contractCredentials: 'contractCredential', contractCredentialAttempts: 'contractCredentialAttempt', releaseCredentials: 'releaseCredential', releaseCredentialAttempts: 'releaseCredentialAttempt',
+  users: 'user', userWallets: 'userWallet', userDeletionRecords: 'userDeletionRecord', pointTransactions: 'pointTransaction', membershipLevels: 'membershipLevel', membershipGrants: 'membershipGrant', articles: 'article', projects: 'project', projectVersions: 'projectVersion', categories: 'category', projectMenus: 'projectMenu', projectHomes: 'projectHome', noteInfos: 'noteInfo', noteContents: 'noteContent', fileManagements: 'fileManagement', fileReferences: 'fileReference', systemConfigs: 'systemConfig', systemHomepages: 'systemHomepage', releaseCredentials: 'releaseCredential', releaseCredentialAttempts: 'releaseCredentialAttempt',
 }
 export function backupRowSchema(key: string): z.ZodType {
   let schema: z.ZodType = backupDataSchema.shape[key as keyof typeof backupDataSchema.shape]

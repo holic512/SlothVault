@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { BackupData } from './admin-backup/database-schema'
 import { parseDatabaseImportPayload as parse } from './admin-backup/database-validation'
+import { RETIRED_CORE_COLLECTIONS } from './admin-backup/retired-core-data'
 import { DATABASE_BACKUP_VERSION } from './admin-backup/constants'
 const parseDatabaseImportPayload = (input: { data: unknown; version?: string; mode?: string }) => parse({ ...input, version: DATABASE_BACKUP_VERSION, mode: 'overwrite' })
 
@@ -10,8 +11,6 @@ const timestamp = '2026-07-19T00:00:00.000Z'
 
 function emptyBackup(): BackupData {
   return {
-    commissionInvitations: [], commissionAgreements: [], commissionSubmissions: [], commissionProofAttempts: [],
-    commissionTemplates: [], commissionTemplateVersions: [], commissionSettings: [], commissions: [], commissionMilestones: [], commissionPlans: [], commissionFiles: [], commissionChanges: [], commissionDeliveries: [], commissionDeliveryItems: [], commissionPayments: [], commissionIssues: [], commissionAcceptances: [], commissionEvents: [],
     users: [],
     userWallets: [],
     userDeletionRecords: [],
@@ -49,10 +48,6 @@ function emptyBackup(): BackupData {
     fileReferences: [],
     systemConfigs: [],
     systemHomepages: [],
-    contracts: [],
-    contractAdminAudits: [],
-    contractCredentials: [],
-    contractCredentialAttempts: [],
     releaseCredentials: [],
     releaseCredentialAttempts: [],
   }
@@ -250,7 +245,7 @@ describe('current database format', () => {
     const data = emptyBackup()
     expect(() => parse({ data, mode: 'overwrite', version: '2.12.0' })).toThrow()
     expect(() => parse({ data, mode: 'insert', version: DATABASE_BACKUP_VERSION })).toThrow()
-    Reflect.deleteProperty(data, 'commissionEvents')
+    Reflect.deleteProperty(data, 'pluginRows')
     expect(() => parse({ data, mode: 'overwrite', version: DATABASE_BACKUP_VERSION })).toThrow(/missing a collection/)
   })
   it('requires explicit access policies rather than widening missing permissions', () => {
@@ -267,5 +262,20 @@ describe('explicit pre-plugin 2.16 source envelope', () => {
     expect(parse({ version: '2.16.0', mode: 'overwrite', data }).version).toBe(DATABASE_BACKUP_VERSION)
     expect(() => parse({ version: '2.16.0', mode: 'append', data })).toThrow()
     expect(() => parse({ version: '2.16.0', mode: 'overwrite', data, unexpected: true })).toThrow()
+  })
+})
+
+// Historical collection names are compatibility guards, never active business models.
+describe('retired core backup guard', () => {
+  it('accepts empty historical padding without returning retired collections', () => {
+    const data = { ...emptyBackup(), ...Object.fromEntries(RETIRED_CORE_COLLECTIONS.map(key => [key, []])) }
+    const parsed = parseDatabaseImportPayload({ data }).data
+    for (const key of RETIRED_CORE_COLLECTIONS) expect(parsed).not.toHaveProperty(key)
+    expect(data).toHaveProperty(RETIRED_CORE_COLLECTIONS[0])
+  })
+  it.each(RETIRED_CORE_COLLECTIONS)('rejects nonempty or malformed %s instead of silently discarding it', key => {
+    for (const value of [[{ id: '1' }], null, {}]) {
+      expect(() => parseDatabaseImportPayload({ data: { ...emptyBackup(), [key]: value } })).toThrow(expect.objectContaining({ status: 400, data: { reason: 'BACKUP_RETIRED_CORE_DATA' } }))
+    }
   })
 })

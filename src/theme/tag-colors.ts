@@ -4,11 +4,10 @@
  * @module Tag Presentation Contract
  * @description Shares readable tag palettes, business-state colors, and stable content-tag classification.
  * @logic Keep status colors independent of the application accent, map business states explicitly, and hash case-sensitive tag names into a fixed category palette.
- * @dependencies app-theme, commission-workflow, file-business-types, backup contracts
+ * @dependencies app-theme, file-business-types, backup contracts
  * @index_tags tags,theme,status,classification,accessibility
  * @author holic512
  */
-import type { WorkflowStage, WorkflowSummary } from '@/lib/commission-workflow'
 import type { BusinessType } from '@/lib/file-business-types'
 import type { AppTheme } from '@/theme/app-theme'
 import type { BackupJob, BackupKind } from '@/types/backup'
@@ -46,7 +45,7 @@ export const fileTagColors = {
   SystemLogo: 'geekblue', SystemFavicon: 'geekblue', ProjectAvatar: 'purple', UserAvatar: 'purple',
   ArticleCover: 'magenta', ArticleImage: 'magenta', NoteImage: 'magenta',
   ArticleAttachment: 'cyan', NoteAttachment: 'cyan', HomeworkFile: 'cyan',
-  ContractAttachment: 'cyan', CommissionAttachment: 'cyan', Markdown: 'blue',
+  Markdown: 'blue',
   TempFile: 'default', Other: 'default',
 } as const satisfies Record<BusinessType, TagColor>
 
@@ -57,24 +56,3 @@ export const backupKindTagColors = {
 export const backupStatusTagColors = {
   queued: 'warning', running: 'processing', succeeded: 'success', failed: 'error', interrupted: 'warning',
 } as const satisfies Record<BackupJob['status'], StatusTagColor>
-
-const workflowStageTagColors = {
-  DRAFT: 'warning', REQUESTED: 'warning', ACCEPTED: 'processing', CONTRACT_PENDING: 'warning',
-  READY: 'warning', IN_PROGRESS: 'processing', MAINTENANCE: 'processing', COMPLETED: 'success', TERMINATED: 'error',
-} as const satisfies Record<WorkflowStage, StatusTagColor>
-
-export function getWorkflowTagColor(workflow: Pick<WorkflowSummary, 'stage' | 'archived' | 'paused'>): StatusTagColor {
-  if (workflow.archived) return 'default'
-  if (workflow.paused) return 'warning'
-  return workflowStageTagColors[workflow.stage] ?? 'default'
-}
-
-export const agreementTagColors: Readonly<Record<string, StatusTagColor>> = {
-  DRAFT: 'warning', PENDING: 'warning', CONFIRMED: 'success', DECLINED: 'error', SUPERSEDED: 'default',
-}
-export const issueTagColors: Readonly<Record<string, StatusTagColor>> = {
-  OPEN: 'warning', RESOLVED: 'processing', CLOSED: 'success',
-}
-export const evidenceProofTagColors: Readonly<Record<string, StatusTagColor>> = {
-  PREPARED: 'warning', SUBMITTED: 'processing', FINALIZED: 'success', FAILED: 'error', CANCELLED: 'default',
-}

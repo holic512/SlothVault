@@ -24,19 +24,8 @@ export const USER_ATTRIBUTION_FIELDS = {
   pointTransaction: ['operatorUserId'],
   membershipGrant: ['grantedByUserId', 'revokedByUserId'],
   noteInfo: ['authorId'],
-  contract: ['issuerUserId'],
-  contractAdminAudit: ['actorUserId'],
-  contractCredential: ['issuerUserId'],
-  contractCredentialAttempt: ['issuerUserId'],
   releaseCredential: ['issuerUserId'],
   releaseCredentialAttempt: ['issuerUserId'],
-  commissionPayment: ['createdById', 'confirmedById'],
-  commissionChange: ['createdById'],
-  commissionIssue: ['createdById'],
-  commissionFile: ['uploaderUserId'],
-  commissionEvent: ['actorUserId'],
-  commissionSubmission: ['actorUserId'],
-  commissionProofAttempt: ['issuerUserId'],
 } as const
 export type AttributionModel = keyof typeof USER_ATTRIBUTION_FIELDS
 

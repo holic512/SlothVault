@@ -20,10 +20,7 @@ type Delegate = {
   update(args: Row): Promise<Row>
 }
 const nestedModels: Record<string, Record<string, string>> = {
-  contract: { adminAudits: 'contractAdminAudit', credentials: 'contractCredential' },
-  commission: { events: 'commissionEvent', files: 'commissionFile', submissions: 'commissionSubmission' },
   releaseCredential: { attempts: 'releaseCredentialAttempt' },
-  contractCredential: { attempts: 'contractCredentialAttempt' },
 }
 
 export async function snapshotUser(client: Client, userId: number): Promise<UserIdentity> {

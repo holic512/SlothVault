@@ -10,13 +10,11 @@
  */
 import 'server-only'
 import { clearPluginDataForRestore } from '@/server/plugins/backup'
-import { deleteCommissionCollections } from '@/server/commissions/backup'
 
 import type { Prisma } from '@generated/prisma-postgresql/client'
 
 export async function deleteBusinessData(tx: Prisma.TransactionClient) {
   await clearPluginDataForRestore(tx)
-  const commissionChildren = await deleteCommissionCollections(tx, false)
   const fileReferences = await tx.fileReference.deleteMany({})
   const articleMemberships = await tx.articleMembership.deleteMany({})
   const projectReadMemberships = await tx.projectReadMembership.deleteMany({})
@@ -27,11 +25,6 @@ export async function deleteBusinessData(tx: Prisma.TransactionClient) {
   const articles = await tx.article.deleteMany({})
   const membershipGrants = await tx.membershipGrant.deleteMany({})
   const membershipLevels = await tx.membershipLevel.deleteMany({})
-  const contractAdminAudits = await tx.contractAdminAudit.deleteMany({})
-  const contractCredentialAttempts = await tx.contractCredentialAttempt.deleteMany({})
-  const contractCredentials = await tx.contractCredential.deleteMany({})
-  const contracts = await tx.contract.deleteMany({})
-  const commissionParents = await deleteCommissionCollections(tx, true)
   const releaseCredentialAttempts = await tx.releaseCredentialAttempt.deleteMany({})
   const releaseCredentials = await tx.releaseCredential.deleteMany({})
   const noteContents = await tx.noteContent.deleteMany({})
@@ -46,7 +39,6 @@ export async function deleteBusinessData(tx: Prisma.TransactionClient) {
   const systemHomepages = await tx.systemHomepage.deleteMany({})
 
   const deleted = {
-    ...commissionChildren, ...commissionParents,
     fileReferences: fileReferences.count,
     articleMemberships: articleMemberships.count,
     projectReadMemberships: projectReadMemberships.count,
@@ -57,10 +49,6 @@ export async function deleteBusinessData(tx: Prisma.TransactionClient) {
     articles: articles.count,
     membershipGrants: membershipGrants.count,
     membershipLevels: membershipLevels.count,
-    contractAdminAudits: contractAdminAudits.count,
-    contractCredentialAttempts: contractCredentialAttempts.count,
-    contractCredentials: contractCredentials.count,
-    contracts: contracts.count,
     releaseCredentialAttempts: releaseCredentialAttempts.count,
     releaseCredentials: releaseCredentials.count,
     noteContents: noteContents.count,

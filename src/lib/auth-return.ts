@@ -2,7 +2,7 @@
  * @file auth-return.ts
  * @project SlothVault
  * @module Authentication Return Boundary
- * @description Restricts login return targets to invitations and normalized administrator routes.
+ * @description Restricts login return targets to normalized administrator and public plugin routes.
  * @logic Reject encoded, external or traversal targets and prevent non-administrators from returning to the console.
  * @dependencies none
  * @index_tags auth,redirect,permissions
@@ -12,8 +12,9 @@ export const ADMIN_LOGIN_URL = '/login?next=/admin/mm'
 
 export function safeAuthReturn(value: string | null | undefined) {
   if (!value) return '/account'
-  if (/^\/commission-invitations\/[A-Za-z0-9_-]{43}$/.test(value)) return value
-  if (/^\/admin\/mm(?:\/[A-Za-z0-9_-]+)*$/.test(value)) return value
+  if (value.split(/[/?]/).some(segment => segment === '.' || segment === '..')) return '/account'
+  if (/^\/admin\/mm(?:\/[A-Za-z0-9_.-]+)*$/.test(value)) return value
+  if (/^\/extensions\/[a-z0-9]+(?:[.-][a-z0-9]+)+(?:\/[A-Za-z0-9_-]+)*(?:\?[A-Za-z0-9_-]+=[A-Za-z0-9_~-]+(?:&[A-Za-z0-9_-]+=[A-Za-z0-9_~-]+)*)?$/.test(value)) return value
   return '/account'
 }
 

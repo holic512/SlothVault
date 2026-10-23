@@ -36,6 +36,7 @@ const adapters: ReadonlyMap<string, BackupVersionAdapter> = new Map<string, Back
   ['2.16.0', { collectionKeys: LEGACY_BACKUP_COLLECTION_KEYS, parseRow: parseMenuLegacyRow, toCurrentPayload: storedPayload }],
   ['2.17.0', { collectionKeys: BACKUP_COLLECTION_KEYS, parseRow: parseMenuLegacyRow, toCurrentPayload: storedPayload }],
   ['2.18.0', { collectionKeys: ACTIVE_BACKUP_COLLECTION_KEYS, parseRow: parseMenuLegacyRow, toCurrentPayload: storedPayload }],
+  ['2.19.0', { collectionKeys: ACTIVE_BACKUP_COLLECTION_KEYS, parseRow: parseBackupRow, toCurrentPayload: storedPayload }],
   [DATABASE_BACKUP_VERSION, { collectionKeys: ACTIVE_BACKUP_COLLECTION_KEYS, parseRow: parseBackupRow, toCurrentPayload: storedPayload }],
 ])
 

@@ -23,7 +23,6 @@ import {
   ChevronRight,
   Crown,
   FileStack,
-  FileSignature,
   Home,
   House,
   KeyRound,
@@ -75,7 +74,7 @@ const AdminWalletTool = dynamic(
   { loading: AdminWalletToolFallback, ssr: false },
 )
 
-type AdminMenuGroup = 'overview' | 'content' | 'resources' | 'users' | 'collaboration' | 'integrations' | 'plugins' | 'system'
+type AdminMenuGroup = 'overview' | 'content' | 'resources' | 'users' | 'integrations' | 'plugins' | 'system'
 type AdminMenuRoute = {
   group: AdminMenuGroup
   key: string
@@ -107,8 +106,6 @@ export function AdminShell({ children, branding }: { children: ReactNode; brandi
       { group: 'users', key: '/admin/mm/membership-levels', icon: <Crown size={16} />, label: t('menu.membershipLevels') },
       ...(pluginContributions.data ?? []).filter(ui => ui.kind === 'page' && ui.menu).map(ui => ({ group: 'plugins' as const, key: pluginPageHref(ui), icon: <PluginIcon name={ui.icon} />, label: pluginLocale === 'zh' ? ui.titleZh ?? ui.title : ui.title })),
       { group: 'plugins', key: '/admin/mm/plugins', icon: <Blocks size={16} />, label: t('menu.plugins') },
-      { group: 'collaboration', key: '/admin/mm/commissions', icon: <FileSignature size={16} />, label: t('menu.commissions') },
-      { group: 'collaboration', key: '/admin/mm/contract-templates', icon: <FileSignature size={16} />, label: t('menu.contractTemplates') },
       { group: 'integrations', key: '/admin/mm/evidence', icon: <ArchiveRestore size={16} />, label: t('menu.solana') },
       { group: 'integrations', key: '/admin/mm/mcp', icon: <KeyRound size={16} />, label: t('menu.mcpKeys') },
       { group: 'system', key: '/admin/mm/observability', icon: <Activity size={16} />, label: t('menu.observability') },
@@ -143,7 +140,6 @@ export function AdminShell({ children, branding }: { children: ReactNode; brandi
       group('content', t('menuGroups.content'), <BookOpenText size={16} />),
       group('resources', t('menuGroups.resources'), <FileStack size={16} />),
       group('users', t('menuGroups.users'), <Users size={16} />),
-      group('collaboration', t('menuGroups.collaboration'), <FileSignature size={16} />),
       group('integrations', t('menuGroups.integrations'), <KeyRound size={16} />),
       group('plugins', t('menuGroups.plugins'), <Blocks size={16} />),
       group('system', t('menuGroups.system'), <Settings size={16} />),
@@ -158,7 +154,7 @@ export function AdminShell({ children, branding }: { children: ReactNode; brandi
     const frame = requestAnimationFrame(() => rail.current?.querySelector('.ant-menu-item-selected')?.scrollIntoView({ block: 'nearest' }))
     return () => cancelAnimationFrame(frame)
   }, [selectedKey, collapsed, openGroupKey])
-  const walletEnabled = pathname === '/admin/mm/evidence' || pathname.startsWith('/admin/mm/commissions')
+  const walletEnabled = pathname === '/admin/mm/evidence'
 
   const logout = async () => {
     await apiFetch('/api/auth/logout', { method: 'POST', body: JSON.stringify({}) })

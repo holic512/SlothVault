@@ -80,11 +80,6 @@ import { updateCrc32, validateZipArchive, validateZipFile } from './zip-validati
 import { rebuildFileReferences } from '@/server/services/file-references'
 import { publishProjectVersion } from '@/server/services/project-version-release'
 import { getPublicReleaseEvidence, getAdminReleaseEvidence } from '@/server/services/release-evidence'
-import { createCommission, getCommission } from '@/server/commissions/service'
-import { createCommissionDocument } from '@/server/commissions/documents'
-import { listContractTemplates } from '@/server/commissions/templates'
-import { completeAgreementValues, seedSignedLegacyContract } from '@/server/commissions/test-fixtures'
-import { uploadCommissionFile } from '@/server/commissions/files'
 import { GET as settingsGet, PUT as settingsPut } from '@/app/api/admin/mm/backup/settings/route'
 import { GET as historyGet, POST as snapshotPost } from '@/app/api/admin/mm/backup/snapshots/route'
 import { POST as importPost } from '@/app/api/admin/mm/backup/snapshots/import/route'
@@ -98,6 +93,10 @@ import { POST as previewPost } from '@/app/api/admin/mm/backup/restores/preview/
 import { POST as restorePost } from '@/app/api/admin/mm/backup/restores/route'
 import { cancelBackupUpload, createBackupUpload, appendBackupUpload, completeBackupUpload, getBackupUpload, reconcileBackupUploads, type BackupUploadRecord } from './uploads'
 import { POST as resetPost } from '@/app/api/admin/mm/backup/system-reset/route'
+import { pluginManifestSchema } from '@slothvault/plugin-sdk/protocol'
+import { createOwnedTable, insertPortableRow, physicalTableName, quoteIdentifier } from '@/server/plugins/database'
+import { pluginFilesRoot, savePluginUpload, inspectPluginFile } from '@/server/plugins/files'
+import { PLUGIN_FILES_ARCHIVE_ROOT } from './plugin-files'
 
 const digest = (buffer: Buffer) => createHash('sha256').update(buffer).digest('hex')
 const uploads = () => resolve(fixture.root, 'uploads')
@@ -247,6 +246,34 @@ async function seed() {
   await client.systemInstallation.create({ data: { id: 1, provider: fixture.provider, status: 'INSTALLED', schemaRevision: 10, installationId: randomUUID() } })
   return { admin, user, file, project, release, session, otherSession }
 }
+// Exercise host-owned storage without installing or executing a business plugin.
+const backupPlugin = pluginManifestSchema.parse({
+  schema: 1, id: 'test.backup', name: 'Backup fixture', version: '1.0.0', author: 'test',
+  engines: { slothvault: '>=2.0.0', sdk: '>=1.0.0', node: '>=24' },
+  server: 'server/index.mjs', capabilities: ['database', 'files.private'], migrations: ['initial'],
+  tables: [{ name: 'documents', columns: [
+    { name: 'id', type: 'string', primary: true },
+    { name: 'owner_id', type: 'integer', references: { table: 'auth_user', column: 'id', coreCollection: 'users', onDelete: 'RESTRICT' } },
+    { name: 'file_id', type: 'string' },
+    { name: 'snapshot', type: 'json' },
+  ] }],
+})
+const pluginTable = physicalTableName(backupPlugin.id, backupPlugin.tables[0])
+async function privateFile(text = 'frozen private attachment') {
+  const bytes = Buffer.from(text)
+  return savePluginUpload(backupPlugin.id, { name: 'source.txt', size: bytes.length, stream: () => new Response(bytes).body! })
+}
+async function seedPlugin(userId: number) {
+  await client.pluginInstallation.create({ data: { pluginId: backupPlugin.id, version: backupPlugin.version, digest: 'a'.repeat(64), manifestJson: JSON.stringify(backupPlugin) } })
+  await createOwnedTable(backupPlugin.id, backupPlugin.tables[0], { documents: pluginTable })
+  await client.pluginOwnedTable.create({ data: { pluginId: backupPlugin.id, name: pluginTable, descriptorJson: JSON.stringify(backupPlugin.tables[0]) } })
+  await client.pluginMigration.create({ data: { pluginId: backupPlugin.id, key: 'initial', digest: 'b'.repeat(64) } })
+  await client.pluginPointReceipt.create({ data: { pluginId: backupPlugin.id, sourceKey: 'fixture-credit', userId, amount: 10, balanceAfter: 100 } })
+  const file = await privateFile()
+  const frozen = JSON.stringify({ status: 'signed', bodyHash: digest(Buffer.from('frozen document')), file })
+  await insertPortableRow(client, pluginTable, backupPlugin.tables[0], { id: 'document', owner_id: userId, file_id: file.id, snapshot: frozen })
+  return { file, frozen }
+}
 async function snapshot() { return createCompleteSnapshot('manual', randomUUID(), async () => undefined) }
 async function staged() {
   await ensureBackupStorage()
@@ -255,17 +282,11 @@ async function staged() {
   return { id, stage, journal: await prepareRestoreJournal(id, stage) }
 }
 
-describe(`complete backups with isolated ${fixture.provider} and uploads`, () => {
-  it('restores trash, disabled files, policies, points, signed contracts and releases while preserving current administrator credentials', async () => {
+describe(`complete backups with isolated ${fixture.provider} and uploads`, { timeout: 30_000 }, () => {
+  it('restores trash, disabled files, policies, points, plugin snapshots and releases while preserving current administrator credentials', async () => {
     const s = await seed()
     await client.projectMenu.create({ data: { projectId: s.project.id, label: 'Automatic menu' } })
-    const actor = { userId: s.admin.id, isAdmin: true, sessionId: s.session.sessionId }
-    let commission = await createCommission({ userId: s.user.id, isAdmin: false }, { commandId: randomUUID(), title: 'Restore evidence', purpose: 'Backup', requirements: 'Preserve signed snapshots' })
-    const template = (await listContractTemplates())[0].versions.find((version) => version.status === 'PUBLISHED')!
-    commission = await createCommissionDocument(Number(commission.id), actor, { commandId: randomUUID(), revision: commission.revision, templateVersionId: Number(template.id), documentType: 'AGREEMENT', values: completeAgreementValues() })
-    const document = commission.documents[0]
-    await seedSignedLegacyContract(client, Number(document.id))
-    await uploadCommissionFile(Number(commission.id), actor, new Request('http://localhost/file', { method: 'POST', body: 'frozen commission file' }), { name: 'source.txt', purpose: 'DELIVERY', shared: false, commandId: randomUUID() })
+    const plugin = await seedPlugin(s.user.id)
     await client.releaseCredential.create({ data: {
       projectVersionId: Number(s.release.projectVersionId), issuerUserId: s.admin.id,
       subjectType: 'PROJECT_VERSION', subjectId: s.release.releaseId, subjectHash: s.release.releaseHash,
@@ -279,6 +300,8 @@ describe(`complete backups with isolated ${fixture.provider} and uploads`, () =>
     await client.user.update({ where: { id: s.admin.id }, data: { password: 'current-admin-hash', email: 'current-admin@example.invalid', pointsBalance: 999 } })
     await client.user.update({ where: { id: s.user.id }, data: { password: 'changed-member-hash', pointsBalance: 0 } })
     await client.user.create({ data: { username: 'later', password: 'test' } })
+    await privateFile('live-only attachment')
+    await client.$executeRawUnsafe(`DELETE FROM ${quoteIdentifier(pluginTable)}`)
     await fs.writeFile(resolve(uploads(), 'other/proof.txt'), 'live')
     const job = await queueCompleteRestore(preview.id, s.admin.id)
     await runCompleteRestore(job, preview.id, s.session.sessionId)
@@ -299,9 +322,17 @@ describe(`complete backups with isolated ${fixture.provider} and uploads`, () =>
     expect(restored.data.releaseCredentials[0]).toMatchObject({ subjectType: 'PROJECT_VERSION', transactionSignature: '5'.repeat(88) })
     expect(await getPublicReleaseEvidence('5'.repeat(88))).toMatchObject({ subjectType: 'PROJECT_VERSION', subjectHash: s.release.releaseHash })
     expect(await getAdminReleaseEvidence(Number(restored.data.releaseCredentials[0].id))).toMatchObject({ manifest: { schema: 3 } })
-    expect(restored.data.contracts[0]).toMatchObject({ status: 2, bodyHash: before.data.contracts[0].bodyHash, snapshotHash: before.data.contracts[0].snapshotHash })
-    const order = await client.commission.findUniqueOrThrow({ where: { commissionId: commission.commissionId } })
-    expect((await getCommission(order.id, actor)).documents[0].bodyHash).toBe(document.bodyHash)
+    const restoredUser = await client.user.findUniqueOrThrow({ where: { username: 'member' } })
+    expect(restored.data.pluginInstallations[0]).toMatchObject({ pluginId: backupPlugin.id, enabled: false })
+    expect(restored.data.pluginTables.map(row => row.descriptorJson)).toEqual(before.data.pluginTables.map(row => row.descriptorJson))
+    expect(restored.data.pluginMigrations[0]).toMatchObject({ pluginId: backupPlugin.id, key: 'initial', digest: 'b'.repeat(64) })
+    expect(restored.data.pluginPointReceipts[0]).toMatchObject({ userId: String(restoredUser.id), sourceKey: 'fixture-credit', amount: 10 })
+    expect(restored.data.pluginRows).toHaveLength(1)
+    expect(JSON.parse(restored.data.pluginRows[0].rowJson)).toEqual({ id: 'document', owner_id: restoredUser.id, file_id: plugin.file.id, snapshot: plugin.frozen })
+    expect(await inspectPluginFile(backupPlugin.id, plugin.file.id)).toEqual(plugin.file)
+    expect(await fs.readFile(resolve(pluginFilesRoot(), backupPlugin.id, plugin.file.id, 'bytes'), 'utf8')).toBe('frozen private attachment')
+    expect(await fs.readdir(resolve(pluginFilesRoot(), backupPlugin.id))).toEqual([plugin.file.id])
+    await expect(fs.stat(resolve(uploads(), PLUGIN_FILES_ARCHIVE_ROOT))).rejects.toMatchObject({ code: 'ENOENT' })
     expect(await fs.readFile(resolve(uploads(), 'other/proof.txt'), 'utf8')).toBe('data')
     expect(await client.user.findUniqueOrThrow({ where: { id: s.admin.id } })).toMatchObject({ password: 'current-admin-hash', email: 'current-admin@example.invalid', role: 'ADMIN', pointsBalance: 15 })
     expect(await client.user.findUniqueOrThrow({ where: { username: 'member' } })).toMatchObject({ password: 'backup-member-hash', pointsBalance: 100 })
@@ -349,9 +380,9 @@ describe(`complete backups with isolated ${fixture.provider} and uploads`, () =>
   })
   it('requires every current collection and rejects older data versions', async () => {
     const s = await seed(), complete = await snapshot()
-    const missing = await editedBundle(complete, (database) => { Reflect.deleteProperty(database.data, 'commissionEvents') })
+    const missing = await editedBundle(complete, (database) => { Reflect.deleteProperty(database.data, 'pluginRows') })
     await expect(previewCompleteRestore(await uploaded(missing, s.admin.id), s.admin.id)).rejects.toMatchObject({ status: 400 })
-    const old = await editedBundle(complete, (database) => { Reflect.set(database, 'version', '2.9.0'); Reflect.deleteProperty(database.data, 'commissionEvents') })
+    const old = await editedBundle(complete, (database) => { Reflect.set(database, 'version', '2.9.0'); Reflect.deleteProperty(database.data, 'pluginRows') })
     await expect(previewCompleteRestore(await uploaded(old, s.admin.id), s.admin.id)).rejects.toMatchObject({ status: 400, data: { reason: 'BACKUP_UNSUPPORTED_FORMAT' } })
     expect(await client.article.count()).toBe(1)
   })
@@ -375,14 +406,53 @@ describe(`complete backups with isolated ${fixture.provider} and uploads`, () =>
     await expect(previewCompleteRestore(await uploaded(damaged, s.admin.id), s.admin.id)).rejects.toMatchObject({ status: 400 })
     const corrupt = await editedBundle(complete, (_database, _manifest, entries) => { const rows = entries.get('files.ndjson')!.toString().split('\n').filter(Boolean).map(line => JSON.parse(line)); rows.find(row => row.kind === 'file').sha256 = '0'.repeat(64); entries.set('files.ndjson', Buffer.from(rows.map(row => JSON.stringify(row) + '\n').join(''))) })
     await expect(previewCompleteRestore(await uploaded(corrupt, s.admin.id), s.admin.id)).rejects.toMatchObject({ status: 400 })
-    const actor = { userId: s.admin.id, isAdmin: true }
-    const order = await createCommission({ userId: s.user.id, isAdmin: false }, { commandId: randomUUID(), title: 'Frozen', purpose: 'Backup', requirements: 'Verify bytes' })
-    await uploadCommissionFile(Number(order.id), actor, new Request('http://localhost/file', { method: 'POST', body: 'frozen' }), { name: 'source.txt', purpose: 'DELIVERY', shared: false, commandId: randomUUID() })
-    const metadata = await client.fileManagement.findFirstOrThrow({ where: { businessType: 'CommissionAttachment' } })
-    await fs.writeFile(resolve(uploads(), metadata.filePath.slice(8)), 'tamper')
+    const plugin = await seedPlugin(s.user.id)
+    // Same length: size checks alone cannot detect this frozen-file corruption.
+    await fs.writeFile(resolve(pluginFilesRoot(), backupPlugin.id, plugin.file.id, 'bytes'), 'x'.repeat(Number(plugin.file.size)))
+    await expect(snapshot()).rejects.toMatchObject({ status: 409, message: 'Plugin file integrity mismatch' })
     const job = await queueCompleteBackup(s.admin.id); await runCompleteBackup(job)
-    expect(job).toMatchObject({ status: 'failed', error: 'BACKUP_ATTACHMENT_MISMATCH' })
+    expect(job).toMatchObject({ status: 'failed', error: 'BACKUP_INVALID' })
     expect((await backupHistory()).snapshots).toHaveLength(1)
+  })
+  it.each(['file_id', 'snapshot'])('rejects invalid plugin %s references before restoring files or database', async (field) => {
+    const s = await seed(), plugin = await seedPlugin(s.user.id), complete = await snapshot()
+    const corrupt = await editedBundle(complete, database => {
+      const record = database.data.pluginRows[0], row = JSON.parse(record.rowJson)
+      if (field === 'file_id') row.file_id = randomUUID()
+      else row.snapshot = JSON.stringify({ file: { ...plugin.file, sha256: '0'.repeat(64) } })
+      record.rowJson = JSON.stringify(row)
+    })
+    await expect(previewCompleteRestore(await uploaded(corrupt, s.admin.id), s.admin.id)).rejects.toMatchObject({ status: 400, data: { reason: 'BACKUP_PLUGIN_FILE_MISMATCH' } })
+    expect(await inspectPluginFile(backupPlugin.id, plugin.file.id)).toEqual(plugin.file)
+    expect(await client.article.count()).toBe(1)
+    expect(JSON.parse((await exportDatabaseBackup()).data.pluginRows[0].rowJson).snapshot).toBe(plugin.frozen)
+    expect(await readRestoreJournal()).toBeNull()
+  })
+  it('rejects private byte tampering even when the archive inventory digests are recomputed', async () => {
+    const s = await seed(), plugin = await seedPlugin(s.user.id), complete = await snapshot()
+    const corrupt = await editedBundle(complete, (_database, _manifest, entries) => {
+      const path = `${PLUGIN_FILES_ARCHIVE_ROOT}/${backupPlugin.id}/${plugin.file.id}/bytes`
+      const bytes = Buffer.alloc(Number(plugin.file.size), 'x')
+      entries.set(`uploads/${path}`, bytes)
+      const rows = entries.get('files.ndjson')!.toString().trim().split('\n').map(line => JSON.parse(line))
+      rows.find(row => row.path === path).sha256 = digest(bytes)
+      entries.set('files.ndjson', Buffer.from(rows.map(row => JSON.stringify(row) + '\n').join('')))
+    })
+    await expect(previewCompleteRestore(await uploaded(corrupt, s.admin.id), s.admin.id)).rejects.toMatchObject({ status: 400, data: { reason: 'BACKUP_PLUGIN_FILE_MISMATCH' } })
+    expect(await inspectPluginFile(backupPlugin.id, plugin.file.id)).toEqual(plugin.file)
+    expect(await readRestoreJournal()).toBeNull()
+  })
+  it('excludes unfinished private uploads and executable packages from complete backups', async () => {
+    const s = await seed(), plugin = await seedPlugin(s.user.id)
+    const pending = resolve(pluginFilesRoot(), backupPlugin.id, `.upload-${randomUUID()}`)
+    await fs.mkdir(pending); await fs.writeFile(resolve(pending, 'bytes'), 'unfinished')
+    const packagePath = resolve(fixture.root, 'plugins/packages/fixture/server')
+    await fs.mkdir(packagePath, { recursive: true }); await fs.writeFile(resolve(packagePath, 'index.mjs'), 'throw new Error("must not run")')
+    const complete = await snapshot(), archive = await unzipper.Open.file(artifactPath(complete.id))
+    const paths = archive.files.map(entry => entry.path)
+    expect(paths).toContain(`uploads/${PLUGIN_FILES_ARCHIVE_ROOT}/${backupPlugin.id}/${plugin.file.id}/bytes`)
+    expect(paths).toContain(`uploads/${PLUGIN_FILES_ARCHIVE_ROOT}/${backupPlugin.id}/${plugin.file.id}/metadata.json`)
+    expect(paths.some(path => path.includes('.upload-') || path.includes('index.mjs'))).toBe(false)
   })
   it.each(['../escape.txt', '/absolute.txt', 'C:drive.txt', '.hidden/file.txt', 'a\\b.txt'])('rejects unsafe archive path %s without changing live files', async (name) => {
     await seed()
@@ -419,25 +489,41 @@ describe(`complete backups with isolated ${fixture.provider} and uploads`, () =>
     await expect(readCompleteBundle(path, resolve(fixture.root, 'oversized'))).rejects.toMatchObject({ status: 400 })
   })
   it('rolls back files and database when the database transaction fails after importing records', async () => {
-    const s = await seed(), complete = await snapshot(), preview = await previewCompleteRestore({ snapshotId: complete.id }, s.admin.id)
+    const s = await seed()
+    const plugin = await seedPlugin(s.user.id)
+    const complete = await snapshot(), preview = await previewCompleteRestore({ snapshotId: complete.id }, s.admin.id)
     await fs.writeFile(resolve(uploads(), 'other/proof.txt'), 'live'); await client.user.update({ where: { id: s.user.id }, data: { pointsBalance: 9 } })
     const original = importer.importDatabaseRecords
     vi.spyOn(importer, 'importDatabaseRecords').mockImplementationOnce(async (...args) => { await original(...args); throw new Error('injected transaction failure') })
+    const liveFile = await privateFile('live-only attachment')
     const job = await queueCompleteRestore(preview.id, s.admin.id); await runCompleteRestore(job, preview.id, s.session.sessionId)
     expect(job.status).toBe('failed')
     expect((await client.user.findUniqueOrThrow({ where: { id: s.user.id } })).pointsBalance).toBe(9)
     expect(await readSessionToken(s.otherSession.token)).not.toBeNull()
     expect(await fs.readFile(resolve(uploads(), 'other/proof.txt'), 'utf8')).toBe('live')
+    expect(await inspectPluginFile(backupPlugin.id, plugin.file.id)).toEqual(plugin.file)
+    expect(await inspectPluginFile(backupPlugin.id, liveFile.id)).toEqual(liveFile)
+    expect((await exportDatabaseBackup()).data.pluginRows.map(row => JSON.parse(row.rowJson))).toEqual([
+      { id: 'document', owner_id: s.user.id, file_id: plugin.file.id, snapshot: plugin.frozen },
+    ])
     expect(await readRestoreJournal()).toBeNull()
   })
   it('rolls back a failed file switch before touching the database', async () => {
-    const s = await seed(), complete = await snapshot(), preview = await previewCompleteRestore({ snapshotId: complete.id }, s.admin.id)
+    const s = await seed()
+    const plugin = await seedPlugin(s.user.id)
+    const complete = await snapshot(), preview = await previewCompleteRestore({ snapshotId: complete.id }, s.admin.id)
     await fs.writeFile(resolve(uploads(), 'other/proof.txt'), 'live')
     fixture.failure = 'switch'
+    const liveFile = await privateFile('live-only attachment')
     const job = await queueCompleteRestore(preview.id, s.admin.id); await runCompleteRestore(job, preview.id, s.session.sessionId)
     expect(job.status).toBe('failed')
     expect(await fs.readFile(resolve(uploads(), 'other/proof.txt'), 'utf8')).toBe('live')
     expect(await client.article.count()).toBe(1)
+    expect(await inspectPluginFile(backupPlugin.id, plugin.file.id)).toEqual(plugin.file)
+    expect(await inspectPluginFile(backupPlugin.id, liveFile.id)).toEqual(liveFile)
+    expect((await exportDatabaseBackup()).data.pluginRows.map(row => JSON.parse(row.rowJson))).toEqual([
+      { id: 'document', owner_id: s.user.id, file_id: plugin.file.id, snapshot: plugin.frozen },
+    ])
     expect(await readRestoreJournal()).toBeNull()
   })
   it('stops before restoring when protection cannot be created due to missing attachments', async () => {
@@ -464,7 +550,7 @@ describe(`complete backups with isolated ${fixture.provider} and uploads`, () =>
   })
 })
 
-describe('durable recovery, scheduling and retention', () => {
+describe('durable recovery, scheduling and retention', { timeout: 30_000 }, () => {
   it.each(['before-switch', 'after-old-move', 'after-new-move', 'during-rollback'])('undoes an uncommitted process interruption at %s', async (phase) => {
     await seed()
     const { journal } = await staged()
@@ -605,7 +691,7 @@ describe('durable recovery, scheduling and retention', () => {
   })
 })
 
-describe('persistent imported backup nodes', () => {
+describe('persistent imported backup nodes', { timeout: 30_000 }, () => {
   it('returns duplicate task requests and rejects cancellation while validation is still running', async () => {
     const s = await seed(), original = await snapshot(), source = await uploaded(await fs.readFile(artifactPath(original.id)), s.admin.id)
     const { job } = await queueCompleteImport(source.importId, s.admin.id)
@@ -840,9 +926,9 @@ describe('persistent imported backup nodes', () => {
     expect(job.status).toBe('succeeded')
     const imported = await getBackupSnapshot(source.importId)
     await previewCompleteRestore({ snapshotId: imported.id }, s.admin.id)
-    await atomicJson(recordPath('snapshots', original.id), { ...original, manifest: { ...original.manifest, databaseVersion: '2.20.0' } })
+    await atomicJson(recordPath('snapshots', original.id), { ...original, manifest: { ...original.manifest, databaseVersion: '2.21.0' } })
     const historical = (await backupHistory()).snapshots.find(item => item.id === original.id)!
-    expect(historical).toMatchObject({ restorable: false, compatibility: { status: 'unsupported', sourceVersion: '2.20.0', targetVersion: DATABASE_BACKUP_VERSION, reason: 'data-version' } })
+    expect(historical).toMatchObject({ restorable: false, compatibility: { status: 'unsupported', sourceVersion: '2.21.0', targetVersion: DATABASE_BACKUP_VERSION, reason: 'data-version' } })
     await expect(previewCompleteRestore({ snapshotId: original.id }, s.admin.id)).rejects.toMatchObject({ status: 400, data: { reason: 'BACKUP_UNSUPPORTED_FORMAT' } })
     const download = await downloadGet(request('download', { token: s.session.token }), context(original.id))
     expect(download.status).toBe(200); await download.body!.cancel()
@@ -851,7 +937,7 @@ describe('persistent imported backup nodes', () => {
   })
 })
 
-describe('administrator backup API boundaries', () => {
+describe('administrator backup API boundaries', { timeout: 30_000 }, () => {
   it('requires an administrator session on every new endpoint and rejects non-administrators', async () => {
     const s = await seed(), id = randomUUID(), ctx = { params: Promise.resolve({}) }, idCtx = context(id)
     const calls = [
@@ -894,7 +980,7 @@ describe('administrator backup API boundaries', () => {
   })
 })
 
-describe('resumable backup HTTP protocol', () => {
+describe('resumable backup HTTP protocol', { timeout: 30_000 }, () => {
   it('serves correct ranges, ETags, HEAD metadata and releases references after cancellation', async () => {
     const s = await seed(), complete = await snapshot(), ctx = context(complete.id)
     const file = await fs.readFile(artifactPath(complete.id)), etag = `"${complete.sha256}"`

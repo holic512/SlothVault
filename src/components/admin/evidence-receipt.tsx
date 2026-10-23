@@ -24,7 +24,7 @@ type Receipt = Awaited<ReturnType<typeof getAdminEvidenceReceipt>>
 export function AdminEvidenceReceipt({ initial }: { initial: Receipt }) {
   const t = useTranslations('AdminEvidenceReceipt'), live = useTranslations('Evidence.live'), locale = useLocale()
   const [receipt, setReceipt] = useState(initial)
-  const signature = receipt.kind === 'commission' ? receipt.evidence.signature : receipt.evidence.transactionSignature!
+  const signature = receipt.evidence.transactionSignature!
   const network = receipt.evidence.network
   const verify = useMutation({
     mutationFn: () => apiFetch<Receipt>(`/api/admin/evidence/receipts/${receipt.kind}/${signature}?live=1`, { cache: 'no-store' }),
@@ -32,35 +32,15 @@ export function AdminEvidenceReceipt({ initial }: { initial: Receipt }) {
   })
   const date = (value: string | Date | null) => value ? new Date(value).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US') : t('unavailable')
   const code = (value: string | number | null) => value === null ? t('unavailable') : <Typography.Text code copyable style={{ overflowWrap: 'anywhere', wordBreak: 'break-all' }}>{String(value)}</Typography.Text>
-  const fields = (() => {
-    if (receipt.kind === 'release') {
-      const e = receipt.evidence
-      return [
-        { key: 'contentHash', label: t('contentHash'), children: code(e.contentHash) },
-        { key: 'hash', label: t('hash'), children: code(e.subjectHash) },
-        { key: 'subject', label: t('subject'), children: code(e.subjectId) },
-        { key: 'signer', label: t('signer'), children: code(e.signerAddress) },
-        { key: 'status', label: t('status'), children: e.status === 2 ? t('finalized') : t('pending') },
-        { key: 'memo', label: 'Memo', children: code(e.memo) },
-      ]
-    }
-    if (receipt.kind === 'contract') {
-      const e = receipt.evidence
-      return [
-        { key: 'id', label: t('id'), children: code(e.id) },
-        { key: 'hash', label: t('hash'), children: code(e.contractHash) },
-        { key: 'status', label: t('status'), children: e.status === 2 ? t('finalized') : t('pending') },
-      ]
-    }
-    const e = receipt.evidence
-    return [
-      { key: 'id', label: t('id'), children: code(e.eventId) },
-      { key: 'hash', label: t('hash'), children: code(e.snapshotHash) },
-      { key: 'previous', label: t('previousHash'), children: code(e.previousHash) },
-      { key: 'signer', label: t('signer'), children: code(e.signer) },
-      { key: 'submitted', label: t('submittedAt'), children: date(e.submittedAt) },
-    ]
-  })()
+  const e = receipt.evidence
+  const fields = [
+    { key: 'contentHash', label: t('contentHash'), children: code(e.contentHash) },
+    { key: 'hash', label: t('hash'), children: code(e.subjectHash) },
+    { key: 'subject', label: t('subject'), children: code(e.subjectId) },
+    { key: 'signer', label: t('signer'), children: code(e.signerAddress) },
+    { key: 'status', label: t('status'), children: e.status === 2 ? t('finalized') : t('pending') },
+    { key: 'memo', label: 'Memo', children: code(e.memo) },
+  ]
   const verification = receipt.verification
   return <AdminPage>
     <Space orientation="vertical" size="large" style={{ width: '100%', maxWidth: 960 }}>

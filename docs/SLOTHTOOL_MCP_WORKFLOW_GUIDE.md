@@ -1,6 +1,6 @@
 # Codex / Claude Code 原生 MCP 管理流程
 
-本版本支持 SlothVault MCP `5.1.0`：74 个工具、4 个 Prompt、2 个受保护 Resource 模板。Codex / Claude Code 应按需读取实时目录；本文中的工具名是本版本示例。
+本版本支持 SlothVault MCP `5.1.0`：65 个宿主工具（另有启用插件动态贡献的工具）、4 个 Prompt、1 个受保护 Resource 模板。Codex / Claude Code 应按需读取实时目录；本文中的工具名是本版本示例。
 
 ## 连接与授权
 
@@ -60,7 +60,7 @@ slothtool slothvault skill update
 
 ## 委托项目工作流
 
-先核对普通用户账户，调用 `admin.commission.create` 建立草稿；也可以不指定用户，之后在网页邀请认领。`admin.commission.get` 提供最新 revision、冻结时间轴和可用操作，`admin.commission.update` 仅编辑草稿名称与需求。使用 `admin.contract-template.list` 读取 Markdown 模板，用 `admin.commission.document.draft.create` 保存合同或补充协议草稿。每次写请求保留 commandId，冲突时重新读取 revision。正式提交、合同确认、支付比例调整、交付与维护在委托网页完成。旧阶段更新和独立合同发起工具均已删除。
+先确认已安装并启用 `slothvault.commissions`，通过实时目录发现其命名空间工具。`slothvault.commissions.create-draft` 创建需求草稿，`list` / `detail` 查询委托，`templates` 查询场景模板，`update-draft` 仅更新需求草稿。写请求携带 commandId 与 revision；冲突时重新读取详情。合同编辑、正式提交、确认、支付比例调整、交付、维护与主网存证均在插件网页完成。宿主旧 `admin.commission.*`、`admin.contract-template.*` 及独立合同工具已经移除，不提供兼容入口。
 
 
 ## 当前项目文档的自动更新

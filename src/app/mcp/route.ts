@@ -44,7 +44,7 @@ async function handlePost(request: NextRequest, probe: ReturnType<typeof createR
         const principal = await authenticateMcpRequest(request)
         if (!principal) return mcpError(401, -32001, 'Unauthorized')
 
-        const server = createAdminMcpServer(principal)
+        const server = await createAdminMcpServer(principal)
         const transport = new WebStandardStreamableHTTPServerTransport({
           sessionIdGenerator: undefined,
           enableJsonResponse: true,

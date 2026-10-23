@@ -47,37 +47,37 @@ describe('MCP declaration registry contract', () => {
     const catalog = JSON.parse(fs.readFileSync(path.join(mcpDirectory, 'resource-catalog.json'), 'utf8'))
     expect(server).toContain("ADMIN_MCP_SERVER_NAME = 'slothvault-admin-mcp'")
     expect(catalog.map((item: { uriTemplate: string }) => item.uriTemplate)).toEqual([
-      'slothvault://managed-file/{id}', 'slothvault://contract-attachment/{contractId}',
+      'slothvault://managed-file/{id}',
     ])
     expect(catalog.map((item: { maxBytes: number }) => item.maxBytes)).toEqual([
-      10 * 1024 * 1024, 25 * 1024 * 1024,
+      10 * 1024 * 1024,
     ])
   })
 
-  it('keeps the complete 71-tool registry unique and adapter-only', () => {
+  it('keeps the complete 65-tool registry unique and adapter-only', () => {
     const names = readToolNames()
-    expect(names).toHaveLength(74)
+    expect(names).toHaveLength(65)
     expect(new Set(names).size).toBe(names.length)
     const sdkToolRegistration = ['server', 'registerTool'].join('.')
     expect(readToolSource()).not.toContain(`${sdkToolRegistration}(`)
     expect(fs.readFileSync(path.join(mcpDirectory, 'registry.ts'), 'utf8')).toContain(`${sdkToolRegistration}(`)
   })
 
-  it('keeps the two protected Resource templates isolated and bounded', () => {
+  it('keeps the protected managed-file Resource template isolated and bounded', () => {
     const source = fs.readFileSync(path.join(mcpDirectory, 'resources.ts'), 'utf8')
     const catalog = JSON.parse(fs.readFileSync(path.join(mcpDirectory, 'resource-catalog.json'), 'utf8'))
-    expect(catalog.map((item: { name: string }) => item.name)).toEqual(['managed-file', 'contract-attachment'])
-    expect(new Set(catalog.map((item: { uriTemplate: string }) => item.uriTemplate)).size).toBe(2)
+    expect(catalog.map((item: { name: string }) => item.name)).toEqual(['managed-file'])
+    expect(new Set(catalog.map((item: { uriTemplate: string }) => item.uriTemplate)).size).toBe(1)
     expect(catalog.every((item: { maxNameLength: number }) => item.maxNameLength === 255)).toBe(true)
     expect(catalog.every((item: { maxBytes: number }) => item.maxBytes > 0)).toBe(true)
-    expect(source).toContain("['ContractAttachment', 'CommissionAttachment'].includes(file.businessType)")
+    expect(source).toContain("!Object.hasOwn(BUSINESS_TYPE_CONFIG, file.businessType)")
   })
 
   it('declares metadata, schemas, and handlers for every Tool', () => {
     const source = readToolSource()
-    expect([...source.matchAll(/defineTool\(/g)]).toHaveLength(74)
-    expect([...source.matchAll(/inputSchema:/g)]).toHaveLength(74)
-    expect([...source.matchAll(/outputSchema:/g)]).toHaveLength(74)
+    expect([...source.matchAll(/defineTool\(/g)]).toHaveLength(65)
+    expect([...source.matchAll(/inputSchema:/g)]).toHaveLength(65)
+    expect([...source.matchAll(/outputSchema:/g)]).toHaveLength(65)
     expect(source).toContain('READ_ONLY_ANNOTATIONS')
     expect(source).toContain('CREATE_ANNOTATIONS')
     expect(source).toContain('UPDATE_ANNOTATIONS')
@@ -125,8 +125,8 @@ describe('MCP declaration registry contract', () => {
 
   it('keeps the generated registry document current', () => {
     const document = fs.readFileSync(path.join(mcpDirectory, '..', '..', '..', 'docs', 'MCP_REGISTRY.md'), 'utf8')
-    expect(document).toContain('Tool count: **74**')
-    expect(document).toContain('Resource count: **2**')
+    expect(document).toContain('Tool count: **65**')
+    expect(document).toContain('Resource count: **1**')
     for (const { name, risk, idempotency } of readToolMetadata()) {
       const domain = name.split('.').slice(0, -1).join('.')
       expect(document).toContain(`| \`${name}\` | \`${domain}\` | ${risk} | ${idempotency} |`)

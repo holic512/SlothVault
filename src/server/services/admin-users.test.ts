@@ -23,12 +23,8 @@ import { withUserAttribution } from '@/server/database/user-attribution'
 import { hashPassword } from '@/server/auth/password'
 import { mutateAccountWallet } from './account-security'
 import { createManagedUser, deleteManagedUser, disableManagedUser, listDeletedUsers, previewManagedUserDeletion, resetManagedUserPassword, updateManagedUser } from './admin-users'
-import { contractBodyHash, contractRootHash } from './contract-evidence-protocol'
-import { getUserContract } from './contracts'
 import { issueSession, readSessionToken } from '@/server/auth/session'
 import { createWalletLoginChallenge, verifyWalletLogin } from './wallet-auth'
-import { createWorkflow, executeWorkflowCommand, getWorkflow } from '@/server/commissions/workflow'
-import { uploadCommissionFile, downloadCommissionFile } from '@/server/commissions/workflow-files'
 import { exportDatabaseBackup } from './admin-backup/database-export'
 import { DATABASE_BACKUP_VERSION } from './admin-backup/constants'
 import { importDatabaseBackup } from './admin-backup/database-import'
@@ -56,7 +52,6 @@ async function readLegacyBatch(id?: number) {
   const rows = await legacyCardRows(fixture.client, 'giftCardBatches', id ? id - 1 : 0)
   return (id ? rows.find(row => row.id === id) : rows[0]) as { id: number; createdById: number | null; attributionJson: string }
 }
-const actor = { userId: 1, isAdmin: true }, otherAdmin = { userId: 2, isAdmin: true }
 async function sessionAndKey(userId: number) {
   const session = await issueSession({ userId })
   await fixture.client.mcpApiKey.create({ data: { userId, publicId: randomUUID(), name: 'test', secretHash: 'test-only' } })
@@ -165,39 +160,6 @@ describe('account roles, real deletion and independent history', () => {
     await disableManagedUser({ actorUserId: 1, userId: 3 })
     await expect(mutateAccountWallet(signed.context, signed.input)).rejects.toMatchObject({ status: 401 })
     expect((await fixture.client.user.findUniqueOrThrow({ where: { id: 3 } })).walletAddress).toBeNull()
-  })
-  it('blocks customer records even after promotion and never partially clears an account', async () => {
-    await fixture.client.contract.create({ data: { contractId: randomUUID(), issuerUserId: 2, subjectUserId: 3, title: 'Draft', body: 'Retained', bodyHash: 'a'.repeat(64), partyCommitment: 'b'.repeat(64) } })
-    await updateManagedUser({ actorUserId: 1, userId: 3, values: { role: 'ADMIN' } })
-    const preview = await previewManagedUserDeletion({ actorUserId: 1, userId: 3 })
-    expect(preview.blockers).toContainEqual({ reason: 'CUSTOMER_CONTRACTS', count: 1 })
-    await expect(deleteManagedUser({ actorUserId: 1, userId: 3 })).rejects.toMatchObject({ status: 409 })
-    expect(await fixture.client.user.count({ where: { id: 3 } })).toBe(1)
-    expect(await fixture.client.userDeletionRecord.count()).toBe(0)
-    expect(await fixture.client.contract.count()).toBe(1)
-  })
-  it('retains site-owned contracts and unpublished attachments after deleting their operator', async () => {
-    const installationId = (await fixture.client.systemInstallation.findUniqueOrThrow({ where: { id: 1 } })).installationId
-    const contractId = randomUUID(), body = 'Frozen\n', bodyHash = contractBodyHash(body), issuedAt = new Date(), signedAt = new Date()
-    const hashInput = { installationId, contractId, title: 'Contract', bodyHash, attachmentHash: null, partyCommitment: 'b'.repeat(64), issuedAt, signedAt }
-    const contractHash = contractRootHash(hashInput)
-    const contract = await fixture.client.contract.create({ data: { ...hashInput, issuerUserId: 2, subjectUserId: 3, body, contractHash, status: 2, adminAudits: { create: { actorUserId: 2, action: 'ISSUED' } } } })
-    let workflow = await createWorkflow(otherAdmin, { commandId: randomUUID(), title: 'Site work', requirements: '', draft: true })
-    workflow = await uploadCommissionFile(Number(workflow.id), otherAdmin, new Request('http://localhost/upload', { method: 'POST', body: 'private draft' }), { name: 'source.txt', purpose: 'DELIVERY', shared: false, commandId: randomUUID() })
-    const key = workflow.files[0].key
-    expect((await getWorkflow(Number(workflow.id), actor)).files.map(file => file.key)).toContain(key)
-    await deleteManagedUser({ actorUserId: 1, userId: 2 })
-    const after = await fixture.client.contract.findUniqueOrThrow({ where: { id: contract.id } })
-    expect(after).toMatchObject({ issuerUserId: null, body: contract.body, bodyHash: contract.bodyHash, partyCommitment: contract.partyCommitment })
-    expect(JSON.parse(after.attributionJson).issuerUserId.username).toBe('temporary')
-    expect(contractRootHash({ ...hashInput, bodyHash: after.bodyHash, partyCommitment: after.partyCommitment })).toBe(after.contractHash)
-    expect(await getUserContract(3, contract.id)).toMatchObject({ providerAccount: 'temporary', issuer: { id: null, username: 'temporary' } })
-    expect(await fixture.client.contractAdminAudit.findFirstOrThrow()).toMatchObject({ actorUserId: null })
-    const file = await fixture.client.commissionFile.findFirstOrThrow()
-    expect(file.uploaderUserId).toBeNull()
-    expect(await (await downloadCommissionFile(Number(workflow.id), file.id, actor)).text()).toBe('private draft')
-    workflow = await executeWorkflowCommand(Number(workflow.id), actor, { action: 'submission.create', kind: 'COMMENT', commandId: randomUUID(), revision: workflow.revision, note: 'Continued', fileKeys: [key] })
-    expect(workflow.events.at(-1)?.snapshot.actor.name).toBe('owner')
   })
   it('preserves deleted operators through renames, demotion and later deletion of the deleting administrator', async () => {
     const batch = await createLegacyBatch({ name: 'Site', points: 1, quantity: 1, createdById: 2 })

@@ -14,7 +14,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 
 import { useQuery } from '@tanstack/react-query'
 import { Avatar, Button, Drawer, Menu, Tooltip, Typography, type MenuProps } from 'antd'
-import { Blocks, ChevronLeft, ChevronRight, Coins, Crown, FileSignature, LayoutDashboard, Menu as MenuIcon, ShieldCheck, UserRound } from 'lucide-react'
+import { Blocks, ChevronLeft, ChevronRight, Coins, Crown, LayoutDashboard, Menu as MenuIcon, ShieldCheck, UserRound } from 'lucide-react'
 import Link from 'next/link'
 import { pluginPageHref, usePluginContributions } from '@/components/plugins/plugin-ui'
 import { PluginIcon } from '@/components/plugins/plugin-icon'
@@ -52,10 +52,6 @@ export function AccountShell({ initialUser, children }: { initialUser: SessionUs
         { href: '/account/profile', label: t('profile'), icon: <UserRound size={18} /> },
         { href: '/account/security', label: t('security'), icon: <ShieldCheck size={18} /> },
       ],
-    },
-    {
-      id: 'collaboration', label: t('groups.collaboration'), icon: <FileSignature size={18} />,
-      sections: [{ href: '/account/commissions', label: t('commissions'), icon: <FileSignature size={18} /> }],
     },
     {
       id: 'benefits', label: t('groups.benefits'), icon: <Coins size={18} />,

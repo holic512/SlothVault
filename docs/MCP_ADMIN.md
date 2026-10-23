@@ -74,7 +74,7 @@ Authorization: Bearer svmcp_<public-id>.<secret>
 
 ## MCP 5.0 Tool
 
-MCP server identity 为 `slothvault-admin-mcp@5.0.0`。当前注册表共 71 个 Tool、4 个 Prompt、2 个 Resource 模板；按实时 schema 发现并使用点号分层的业务名称。
+MCP server identity 为 `slothvault-admin-mcp@5.1.0`。当前注册表共 65 个宿主 Tool、4 个 Prompt、1 个 Resource 模板；启用的插件可动态贡献额外工具；按实时 schema 发现并使用点号分层的业务名称。
 
 完整 Tool/Resource 清单、领域、风险、幂等性、URI、文件名和大小上限由注册表生成：[MCP Registry 清单](./MCP_REGISTRY.md)。修改 `src/server/mcp/tools/` 或 `src/server/mcp/resource-catalog.json` 后运行 `npm run mcp:docs`；CI 使用 `npm run mcp:docs:check` 阻止文档过期。
 
@@ -136,12 +136,11 @@ MCP server identity 为 `slothvault-admin-mcp@5.0.0`。当前注册表共 71 个
 
 ```text
 slothvault://managed-file/{id}
-slothvault://contract-attachment/{contractId}
 ```
 
-每次 `resources/read` 都会重新验证当前 MCP Key。托管文件 Resource 只读取状态有效且非合同附件的文件；合同附件 Resource 通过合同授权 Service 返回原始文件名、`application/pdf` 和 blob，不暴露合同附件公共 URL。已删除、失效、缺失或业务类型不匹配的文件会返回受控错误。
+每次 `resources/read` 都会重新验证当前 MCP Key。托管文件 Resource 只读取状态有效且授权可读的文件。委托插件私有附件通过插件网页的权限检查与流式下载提供，宿主不再提供独立合同附件 Resource。已删除、失效、缺失或业务类型不匹配的文件会返回受控错误。
 
-托管 Resource 上限 10 MiB，合同 PDF 上限 25 MiB，文件名上限 255。宿主可保存二进制 blob 时使用宿主能力；无法保存或处理容量不足时通过网站现有授权下载。服务端不提供带 Key 的公共下载 URL。
+托管 Resource 上限 10 MiB，文件名上限 255。宿主可保存二进制 blob 时使用宿主能力；无法保存或处理容量不足时通过网站现有授权下载。服务端不提供带 Key 的公共下载 URL。
 
 Resource 内容遵循标准 MCP `ReadResourceResult`：二进制数据位于 `blob`，原始文件名位于 `_meta["slothvault/file-name"]`，不使用非标准的顶层 `name` 字段。
 
@@ -169,23 +168,23 @@ MCP 支持项目版本发布、可见性调整及文章发布/撤回，复用网
 Tool、Prompt 与 Resource 注册分别位于 `src/server/mcp/tools/`、`src/server/mcp/prompts.ts` 和 `src/server/mcp/resources.ts`，均复用 `/mcp` 的 MCP Key 鉴权边界。
 
 
-## 委托项目与合同草稿（自 MCP 4.0.0 起）
+## 委托插件与需求草稿
 
-委托工作区以冻结时间轴连接需求、合同、支付比例、交付与维护，与公开文档项目独立。
+委托、合同、交付和维护由 `slothvault.commissions` 插件统一承载，与公开文档项目独立。先安装并启用插件，再刷新 MCP 实时目录。
 
-1. 使用 `admin.user.list` 核对启用的普通用户，再调用 `admin.commission.create` 建立草稿；未指定用户时保留为待邀请状态。
-2. 用 `admin.commission.get` 读取最新 `revision` 和可用操作，`admin.commission.update` 仅能编辑草稿阶段的名称和需求。
-3. 用 `admin.contract-template.list` 读取 Markdown 发布版本和字段定义，再调用 `admin.commission.document.draft.create` 保存合同或补充协议草稿。
-4. 在委托网页完成正式提交、接单、合同在线／线下确认、支付比例调整、交付与维护。正式交付立即开启维护期。
-5. 链上存证由管理员在网页连接钱包，确认网络与手续费后签名。MCP 不代签，也不直接广播钱包交易。
+1. 使用 `admin.user.list` 核对启用客户，调用 `slothvault.commissions.create-draft` 建立需求草稿；也可在网页邀请认领。
+2. 用 `slothvault.commissions.list` / `detail` 读取委托与最新 `revision`，用 `update-draft` 更新需求草稿。
+3. `slothvault.commissions.templates` 查询场景模板；合同正文编辑、版本发布和补充协议在插件网页完成。
+4. 正式需求、合同发布、客户确认和正式交付，均须管理员在网页完成主网存证后生效；MCP 不代签、不广播，也不推进正式业务阶段。
+5. 写请求携带 `commandId` 与最新 `revision`，冲突时重新读取。插件停用后其工具不再提供。
 
-旧的通用阶段更新工具已删除。正式记录只能追加补充；写入须带 `commandId` 与最新 `revision`，冲突时先重新读取。历史合同查询及受保护附件 Resource 继续可用。
+宿主旧 `admin.commission.*`、`admin.contract.*`、`admin.contract-template.*` 工具及合同附件 Resource 已移除，不保留兼容入口。
 
 ## MCP 5.0：文章列表与正文分离
 
 `content.article.list` 只返回原有文章元数据，不再返回 `content`。对应数据库查询也不读取正文；需要正文的调用方应先定位文章，再调用 `content.article.get`。后台管理列表 `GET /api/admin/mm/article` 同步采用该契约；编辑器已经通过详情接口读取正文。创建、更新、发布、撤回和详情返回继续包含完整正文。
 
-这是业务输出契约的不兼容变更，依赖旧列表正文的客户端需要迁移并刷新工具发现。服务器身份版本为 5.0.0；MCP 日期协议、鉴权、维护锁、71 个 Tool、4 个 Prompt 和 2 个 Resource 模板保持不变。发布后正文冻结仅适用于项目版本；独立文章仍可原地编辑，可能立即影响公开内容。公开文章列表的默认摘要生成逻辑保持不变。
+这是业务输出契约的不兼容变更，依赖旧列表正文的客户端需要迁移并刷新工具发现。该变更引入时服务器身份版本为 5.0.0；当前工具与 Resource 数量以上方实时注册表说明为准。MCP 日期协议、鉴权和维护锁不受文章列表拆分影响。发布后正文冻结仅适用于项目版本；独立文章仍可原地编辑，可能立即影响公开内容。公开文章列表的默认摘要生成逻辑保持不变。
 
 ## 单篇笔记的标签工具
 

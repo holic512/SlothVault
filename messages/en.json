@@ -484,11 +484,7 @@
     "install": "Install",
     "maintenance": "System maintenance",
     "evidenceReceipt": "Evidence {signature}",
-    "contractEvidenceReceipt": "Contract evidence {signature}",
-    "siteName": "SlothVault",
-    "accountCommissions": "My commissions",
-    "adminCommissions": "Commission management",
-    "adminContractTemplates": "Contract templates"
+    "siteName": "SlothVault"
   },
   "AdminMM": {
     "title": "Admin Dashboard",
@@ -507,8 +503,6 @@
       "backup": "Backup Management",
       "mcpKeys": "MCP Keys",
       "settings": "System Settings",
-      "commissions": "Commissions",
-      "contractTemplates": "Contract templates",
       "analytics": "Audience analytics",
       "observability": "Application observability",
       "plugins": "Plugins"
@@ -518,7 +512,6 @@
       "content": "Site content",
       "resources": "Files and trash",
       "users": "Users and benefits",
-      "collaboration": "Commissions and contracts",
       "integrations": "Evidence and integrations",
       "system": "Settings and maintenance",
       "plugins": "Plugins"
@@ -1231,9 +1224,7 @@
         "Other": "Other",
         "ArticleImage": "Article body image",
         "NoteImage": "Project note body image",
-        "Markdown": "Markdown content file",
-        "ContractAttachment": "Contract attachment",
-        "CommissionAttachment": "Commission file"
+        "Markdown": "Markdown content file"
       },
       "actions": {
         "search": "Search",
@@ -1832,7 +1823,7 @@
       "fileTypeNotAllowed": "This file format is not supported by the selected category. Use an image category for body images and the matching download attachment category for ZIP, PDF and other files.",
       "currentAdmin": "You cannot remove your own administrator access.",
       "lastAdmin": "At least one active administrator must remain.",
-      "userDeleteBlocked": "The account has protected contracts, commissions or claimed invitations.",
+      "userDeleteBlocked": "The account has protected business relationships and cannot be deleted.",
       "userDeleteStale": "Account relationships changed. Refresh the deletion preview and retry."
     },
     "evidenceManager": {
@@ -2181,10 +2172,7 @@
         "wallet": "After deletion, the wallet can create or bind another account without inheriting old benefits.",
         "blockers": {
           "CURRENT_ADMIN": "You cannot delete the current administrator.",
-          "LAST_ADMIN": "You cannot delete the last active administrator.",
-          "CUSTOMER_CONTRACTS": "This account is a party to {count} contracts and cannot be deleted.",
-          "CUSTOMER_COMMISSIONS": "This account is the customer on {count} commissions and cannot be deleted.",
-          "CLAIMED_INVITATIONS": "This account has {count} claimed invitations and cannot be deleted."
+          "LAST_ADMIN": "You cannot delete the last active administrator."
         },
         "records": {
           "sessions": "Sessions",
@@ -2626,7 +2614,7 @@
     "login": {
       "kicker": "Account",
       "title": "Sign in to SlothVault",
-      "description": "Use your account to manage your profile, review contracts, and manage your points.",
+      "description": "Use your account to manage your profile, points, and membership.",
       "sessionReadFailed": "Could not read your sign-in status",
       "success": "Signed in successfully",
       "failed": "Sign-in failed",
@@ -2682,8 +2670,7 @@
       "points": "Points",
       "membership": "Membership",
       "admin": "Admin console",
-      "logout": "Sign out",
-      "commissions": "My commissions"
+      "logout": "Sign out"
     },
     "shell": {
       "kicker": "Account workspace",
@@ -2698,7 +2685,6 @@
       "navigationLabel": "Account navigation",
       "groups": {
         "account": "Personal account",
-        "collaboration": "Project collaboration",
         "benefits": "Points and benefits",
         "plugins": "Plugins"
       },
@@ -2706,7 +2692,6 @@
       "appearance": "Card style",
       "loadFailed": "Account data could not be loaded. Please try again.",
       "retry": "Retry",
-      "commissions": "My commissions",
       "sidebar": {
         "expand": "Expand sidebar",
         "collapse": "Collapse sidebar",
@@ -2747,8 +2732,7 @@
         "profile": "Edit your profile",
         "security": "Manage security and sign-in",
         "points": "View point balance and history",
-        "membership": "Manage membership benefits",
-        "commissions": "My commissions"
+        "membership": "Manage membership benefits"
       },
       "identity": {
         "title": "Profile and sign-in security",
@@ -2863,8 +2847,6 @@
       "failed": "Live verification failed",
       "releaseVerified": "The on-chain transaction, this site's evidence protocol, version hash, and signing wallet all match.",
       "releaseUnverified": "Live on-chain verification could not be completed. This does not downgrade a receipt's confirmed local status.",
-      "contractVerified": "The on-chain transaction, contract tamper-evidence protocol, contract digest, and administrator signing wallet all match.",
-      "contractUnverified": "Live on-chain verification could not be completed. This does not disclose the contract body or signer identity.",
       "chain": "On-chain transaction match",
       "integrity": "Publication content integrity",
       "matched": "Passed",

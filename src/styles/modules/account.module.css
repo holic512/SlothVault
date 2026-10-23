@@ -459,10 +459,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.root :global(.account-contract-list) {
-  margin-top: 20px;
-}
-
 /* Tables should not hide the glass; cells keep a subtle, readable header tint. */
 .root :global(.account-card) :global(.ant-table),
 .root :global(.account-card) :global(.ant-table-cell) {

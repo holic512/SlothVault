@@ -329,7 +329,6 @@ function createPreparedUpload(
 }
 
 async function prepareUploads(files: File[], businessType: BusinessType) {
-  if (businessType === 'CommissionAttachment') throw new HttpError('委托资料请通过所属项目上传', 400, 400)
   const maxFileSize =
     businessType === 'SystemLogo' ||
     businessType === 'SystemFavicon' ||
@@ -407,14 +406,14 @@ export function fileDto(file: FileRecordLike) {
     businessType: file.businessType,
     status: file.status,
     createTime: file.createTime,
-    url: ['ContractAttachment', 'CommissionAttachment'].includes(file.businessType) ? null : `/${file.filePath}`,
+    url: Object.hasOwn(BUSINESS_TYPE_CONFIG, file.businessType) ? `/${file.filePath}` : null,
   }
 }
 
 export function uploadedFileDto(file: FileRecordLike) {
   return {
     id: file.id.toString(),
-    url: ['ContractAttachment', 'CommissionAttachment'].includes(file.businessType) ? null : `/${file.filePath}`,
+    url: Object.hasOwn(BUSINESS_TYPE_CONFIG, file.businessType) ? `/${file.filePath}` : null,
     originalName: file.originalName,
     fileName: file.fileName,
     filePath: file.filePath,
@@ -498,18 +497,6 @@ export async function readManagedFile(id: number) {
       throw new HttpError('Managed file content is missing', 409, 409)
     }
     throw error
-  }
-}
-
-async function assertFileIsNotContractAttachment(id: number) {
-  const protectedFile = await prisma.fileManagement.findUnique({ where: { id }, select: { businessType: true } })
-  if (protectedFile?.businessType === 'CommissionAttachment') throw new HttpError('委托资料不能通过公共文件管理修改或删除', 409, 409)
-  const contract = await prisma.contract.findUnique({
-    where: { attachmentFileId: id },
-    select: { contractId: true },
-  })
-  if (contract) {
-    throw new HttpError('Contract attachments cannot be changed or deleted', 409, 409)
   }
 }
 
@@ -637,8 +624,6 @@ export async function uploadUserAvatar(request: Request) {
 }
 
 export async function updateFileBusinessType(id: number, businessType: BusinessType) {
-  if (businessType === 'CommissionAttachment') throw new HttpError('委托资料不能通过公共文件转换', 400, 400)
-  await assertFileIsNotContractAttachment(id)
   try {
     return await prisma.fileManagement.update({
       where: { id },
@@ -651,7 +636,6 @@ export async function updateFileBusinessType(id: number, businessType: BusinessT
 }
 
 export async function softDeleteFile(id: number) {
-  await assertFileIsNotContractAttachment(id)
   try {
     return await prisma.fileManagement.update({
       where: { id },
@@ -675,7 +659,6 @@ async function restoreStagedFile(stagedPath: string, originalPath: string) {
 }
 
 export async function hardDeleteFile(id: number) {
-  await assertFileIsNotContractAttachment(id)
   const file = await prisma.fileManagement.findUnique({ where: { id } })
   if (!file) throw new HttpError('Not Found', 404, 404)
 
@@ -721,12 +704,6 @@ export async function hardDeleteFile(id: number) {
 }
 
 export async function batchSoftDelete(ids: number[]) {
-  if (await prisma.fileManagement.findFirst({ where: { id: { in: ids }, businessType: 'CommissionAttachment' }, select: { id: true } })) throw new HttpError('委托资料不能批量删除', 409, 409)
-  const linked = await prisma.contract.findFirst({
-    where: { attachmentFileId: { in: ids } },
-    select: { contractId: true },
-  })
-  if (linked) throw new HttpError('Contract attachments cannot be changed or deleted', 409, 409)
   return prisma.fileManagement.updateMany({
     where: { id: { in: ids } },
     data: { status: 0 },
@@ -756,7 +733,7 @@ export async function inspectPublicUpload(pathSegments: string[]) {
   }
 
   const safeSegments = pathSegments.map(decodePublicSegment)
-  if ([BUSINESS_TYPE_CONFIG.ContractAttachment.dir, BUSINESS_TYPE_CONFIG.CommissionAttachment.dir].some((directory) => directory === safeSegments[0])) {
+  if (!Object.values(BUSINESS_TYPE_CONFIG).some(({ dir }) => dir === safeSegments[0])) {
     throw new HttpError('Access denied', 403, 403)
   }
   const candidate = resolveWithinUploads(...safeSegments)

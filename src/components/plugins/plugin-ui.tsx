@@ -77,7 +77,7 @@ export function PluginContribution({ contribution, path }: { contribution: Plugi
   if (!loaded || loaded.key !== keyOf(contribution)) return <span aria-busy="true" />
   const { View } = loaded
   const view = <View pluginId={contribution.pluginId} componentKey={contribution.key} path={path} />
-  return <PluginBoundary key={keyOf(contribution)}><div data-sv-plugin={contribution.pluginId} className={contribution.kind === 'page' ? `plugin-page-host plugin-page-host--${contribution.surface}` : 'plugin-slot-host'}>{contribution.wallet && contribution.surface !== 'admin' ? <WalletRuntime>{view}</WalletRuntime> : view}</div></PluginBoundary>
+  return <PluginBoundary key={keyOf(contribution)}><div data-sv-plugin={contribution.pluginId} className={contribution.kind === 'page' ? `plugin-page-host plugin-page-host--${contribution.surface}` : 'plugin-slot-host'}>{contribution.wallet ? <WalletRuntime>{view}</WalletRuntime> : view}</div></PluginBoundary>
 }
 export function PluginSlot({ name, surface }: { name: string; surface: 'admin' | 'account' | 'public' }) {
   const query = usePluginContributions(surface)

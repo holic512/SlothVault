@@ -171,7 +171,7 @@ sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy
 - 委托记录保留独立的提交与存证流程，不与项目版本凭证混用。
 - 存证不代表 NFT、版权归属或可转移资产，也不免除正常链上手续费。
 
-完整的哈希规则、校验边界与可见性约束见 [Manifest v3 规范](./docs/RELEASE_MANIFEST_V3.md)；委托流程见[委托工作区说明](./docs/COMMISSION_WORKFLOW.md)。
+完整的哈希规则、校验边界与可见性约束见 [Manifest v3 规范](./docs/RELEASE_MANIFEST_V3.md)；委托流程见[委托工作区说明](./plugins/commissions/README.md)。
 
 ## 管理员 MCP 与项目文档维护
 
@@ -270,7 +270,7 @@ docs/                        安装、权限、备份、存证与发布指南
 | 管理会员、阅读与下载权限 | [会员与项目访问](./docs/MEMBERSHIP_PROJECT_ACCESS.md) |
 | 安装插件、管理插件数据与备份 | [插件运维指南](./docs/plugins/operations.md) |
 | 配置 Solana 主网 USDT / SOL 购分 | [Solana 支付插件](./plugins/sol-payments/README.md) |
-| 管理委托、合同与交付 | [委托工作区](./docs/COMMISSION_WORKFLOW.md) |
+| 管理委托、合同与交付 | [委托工作区](./plugins/commissions/README.md) |
 | 备份、恢复或处理恢复中断 | [完整备份与恢复](./docs/BACKUP_AND_RESTORE.md) |
 | 理解发布快照与存证哈希 | [Manifest v3](./docs/RELEASE_MANIFEST_V3.md) |
 | 连接管理员 MCP、查看工具清单 | [接入说明](./docs/MCP_ADMIN.md) · [Registry](./docs/MCP_REGISTRY.md) |

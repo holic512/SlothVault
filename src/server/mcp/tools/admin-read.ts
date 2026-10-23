@@ -2,10 +2,10 @@
  * @file admin-read.ts
  * @project SlothVault
  * @module MCP Administrator Read Tools
- * @description Registers safe administrator read tools for accounts, membership, points, contracts, evidence, settings, dashboard, and release status.
+ * @description Registers safe administrator read tools for accounts, membership, points, evidence, settings, dashboard, and release status.
  * @logic Delegate all reads to existing services, keep sensitive values masked by their source DTOs, and never expose mutation handlers through this registry.
  * @dependencies MCP TypeScript SDK, zod, administrator services, MCP tool contracts
- * @index_tags mcp,tools,admin,read-only,dashboard,users,contracts,evidence
+ * @index_tags mcp,tools,admin,read-only,dashboard,users,evidence
  * @author MengJiaXu
  */
 import 'server-only'
@@ -14,9 +14,7 @@ import { z } from 'zod'
 
 import { collectMcpToolDefinitions, type McpToolDefinition } from '@/server/mcp/registry'
 
-import { HttpError } from '@/server/http/errors'
 import { getAdminDashboard } from '@/server/services/admin-dashboard'
-import { getAdminContract, listAdminContracts } from '@/server/services/contracts'
 import { listAdminSettings } from '@/server/services/admin-settings'
 import {
   getManagedUser,
@@ -111,28 +109,6 @@ const giftCardBatchSchema = z.object({
   expiresAt: isoDateSchema.nullable(),
   createdBy: z.string(),
   createdAt: isoDateSchema,
-})
-export const contractSchema = z.object({
-  id: decimalIdSchema,
-  contractId: z.string(),
-  title: z.string(),
-  body: z.string(),
-  bodyHash: z.string(),
-  contractHash: z.string().nullable(),
-  attachment: z.object({ id: decimalIdSchema, originalName: z.string(), fileSize: z.string() }).nullable(),
-  status: z.number().int(),
-  issuedAt: isoDateSchema.nullable(),
-  signedAt: isoDateSchema.nullable(),
-  declinedAt: isoDateSchema.nullable(),
-  declineReason: z.string().nullable(),
-  cancelledAt: isoDateSchema.nullable(),
-  issuer: z.object({ id: decimalIdSchema, username: z.string(), displayName: z.string().nullable() }),
-  subject: z.object({ id: decimalIdSchema, username: z.string(), displayName: z.string().nullable() }),
-  createdAt: isoDateSchema,
-  updatedAt: isoDateSchema,
-  credentials: z.array(jsonObjectSchema),
-  signedAudit: jsonObjectSchema.nullable().optional(),
-  adminAudit: z.array(jsonObjectSchema).optional(),
 })
 const evidenceSchema = z.object({
   id: decimalIdSchema,
@@ -280,57 +256,6 @@ export const adminReadToolDefinitions: McpToolDefinition[] = collectMcpToolDefin
       page,
       pageSize,
     })),
-  )
-
-  server.defineTool(
-    'admin.contract.list',
-    {
-      title: '列出合同',
-      description: '分页读取管理员合同及其审计摘要，不创建、签发或取消合同。该工具只读。',
-      inputSchema: z.strictObject({
-        page: pageSchema,
-        pageSize: pageSizeSchema,
-        keyword: z.string().trim().max(120).default(''),
-        status: z.number().int().min(-32_768).max(32_767).optional(),
-      }),
-      outputSchema: paginatedListSchema(contractSchema),
-      annotations: READ_ONLY_ANNOTATIONS,
-    },
-    async ({ page, pageSize, keyword, status }) => runMcpTool('admin.contract.list', async () =>
-      listAdminContracts({ page, pageSize, keyword: keyword.trim(), status })),
-  )
-
-  server.defineTool(
-    'admin.contract.get',
-    {
-      title: '读取合同',
-      description: '按合同 ID 读取冻结字段和管理员审计摘要，不改变合同状态。该工具只读。',
-      inputSchema: z.strictObject({ contractId: decimalIdSchema }),
-      outputSchema: contractSchema,
-      annotations: READ_ONLY_ANNOTATIONS,
-    },
-    async ({ contractId }) => runMcpTool('admin.contract.get', async () =>
-      getAdminContract(mcpId(contractId, 'contractId'))),
-  )
-
-  server.defineTool(
-    'admin.contract.attachment.get',
-    {
-      title: '读取合同附件资源',
-      description: '返回合同附件的受保护 Resource URI，不把 PDF 内容嵌入普通 JSON。该工具只读。',
-      inputSchema: z.strictObject({ contractId: decimalIdSchema }),
-      outputSchema: z.object({ resourceUri: z.string(), contractId: decimalIdSchema }),
-      annotations: READ_ONLY_ANNOTATIONS,
-    },
-    async ({ contractId }) => runMcpTool('admin.contract.attachment.get', async () => {
-      const parsedContractId = mcpId(contractId, 'contractId')
-      const contract = await getAdminContract(parsedContractId)
-      if (!contract.attachment) throw new HttpError('Contract attachment not found', 404, 404)
-      return {
-        contractId,
-        resourceUri: `slothvault://contract-attachment/${parsedContractId}`,
-      }
-    }),
   )
 
   server.defineTool(

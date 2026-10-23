@@ -14,7 +14,6 @@ import { initializePlugins } from '@/server/plugins/manager'
 import { RESTORE_COMMIT_CONFIG_KEY } from '@/server/services/admin-backup/constants'
 import { telemetryRuntime } from '@/server/telemetry/runtime'
 
-import { initializeCommissionRuntime } from '@/server/commissions/scheduler'
 import { getMasterKey } from '@/server/config/master-key'
 import { initializeBackupRuntime } from '@/server/services/admin-backup/scheduler'
 import {
@@ -67,7 +66,6 @@ export async function initializeNodeRuntime() {
   await initializeBackupRuntime()
   await reconcilePluginRestore()
   if (configuration && configuration.status !== 'CONFIGURING') {
-    initializeCommissionRuntime()
     try { await initializePlugins() } catch { console.error('[plugins] Initialization failed; plugin administration requires attention') }
   }
 }

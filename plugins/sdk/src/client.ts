@@ -2,13 +2,13 @@
  * @file client.ts
  * @project SlothVault
  * @module Plugin Client SDK
- * @description Declares host UI, account cards, plugin dictionaries and wallet APIs shared with separately built React plugins.
+ * @description Declares host UI, account cards, safe Markdown, workflow controls, plugin dictionaries and wallet APIs shared with separately built React plugins.
  * @logic Resolve this external module from the host, never bundle a second React or design-system context.
  * @dependencies React, Ant Design, React Query, next-intl, host plugin bridge
  * @index_tags plugins,sdk,ui,theme
  * @author holic512
  */
-export { Alert, App, Button, Card, Checkbox, Descriptions, Drawer, Empty, Form, Input, InputNumber, Modal, Popconfirm, Progress, Select, Space, Spin, Statistic, Switch, Table, Tag, Typography } from 'antd'
+export { Alert, App, Button, Card, Checkbox, Collapse, Descriptions, Drawer, Empty, Form, Input, InputNumber, Modal, Popconfirm, Progress, Select, Space, Spin, Statistic, Steps, Switch, Table, Timeline, Tooltip, Upload, Tag, Typography } from 'antd'
 export { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 export { useLocale, useTranslations } from 'next-intl'
 export type PluginComponentProps = { pluginId: string; componentKey: string; path?: string[] }
@@ -38,3 +38,6 @@ export const usePluginWallet: PluginUiHost['usePluginWallet'] = () => { throw ne
 export function PluginI18nProvider(props: { messages: Record<'zh' | 'en', import('next-intl').AbstractIntlMessages>; children: import('react').ReactNode }) { return props.children }
 export function PluginAccountCard(props: { children: import('react').ReactNode; title?: import('react').ReactNode; extra?: import('react').ReactNode; className?: string; loading?: boolean }) { return props.children }
 export const PluginToolbar = PluginPage
+
+/** Sanitized GFM reader: raw HTML and remote images are not rendered. */
+export function PluginMarkdown(props: { content: string; className?: string }): import('react').ReactNode { void props; throw new Error('Plugin client must be loaded by SlothVault') }

@@ -9,9 +9,9 @@
  * @author holic512
  */
 import { Kysely, MysqlAdapter, MysqlIntrospector, MysqlQueryCompiler, PostgresAdapter, PostgresIntrospector, PostgresQueryCompiler, SqliteAdapter, SqliteIntrospector, SqliteQueryCompiler, type CompiledQuery, type DatabaseConnection, type Dialect, type Driver, type QueryResult } from 'kysely'
-import type { PluginInvocation, PluginManifest, MarketQuote, SolTransferIntent, PreparedSolTransfer, SolTransferObservation } from './protocol'
+import type { PluginInvocation, PluginManifest, MarketQuote, SolTransferIntent, PreparedSolTransfer, SolTransferObservation, PreparedMemoEvidence, MemoEvidenceObservation, PluginFile, PluginUser } from './protocol'
 export { sql } from 'kysely'
-export type { PluginManifest, PluginInvocation, MarketQuote, SolTransferIntent, PreparedSolTransfer, SolTransferObservation } from './protocol'
+export type { PluginManifest, PluginInvocation, MarketQuote, SolTransferIntent, PreparedSolTransfer, SolTransferObservation, PreparedMemoEvidence, MemoEvidenceObservation, PluginFile, PluginUser } from './protocol'
 export type HostCall = (method: string, payload?: unknown) => Promise<unknown>
 export type PluginContext = {
   manifest: PluginManifest; config: Record<string, unknown>; provider: 'sqlite' | 'mysql' | 'postgresql'
@@ -28,13 +28,21 @@ export type PluginContext = {
     broadcast(input: { prepared: PreparedSolTransfer; signedTransaction: string }): Promise<{ signature: string }>
     observe(input: { prepared: PreparedSolTransfer; signature?: string }): Promise<SolTransferObservation>
   }
+  evidence: {
+    prepare(input: { memo: string; signerAddress: string }): Promise<PreparedMemoEvidence>
+    validateSigned(input: { prepared: PreparedMemoEvidence; signedTransactionBase64: string }): Promise<{ signature: string }>
+    broadcast(input: { prepared: PreparedMemoEvidence; signedTransactionBase64: string }): Promise<{ signature: string }>
+    observe(input: { prepared: PreparedMemoEvidence; signature: string }): Promise<MemoEvidenceObservation>
+  }
+  files: { inspect(id: string): Promise<PluginFile>; ensure(ids: string[]): Promise<PluginFile[]> }
   points: { credit(input: { userId: number; amount: number; sourceKey: string; description: string; referenceId?: string; type?: string }, transaction?: Kysely<Record<string, Record<string, unknown>>>): Promise<{ pointsBalance: number; replayed: boolean }> }
-  users: { snapshot(userId: number): Promise<{ username: string; displayName: string | null; role: string; userId: string; installationId: string | null }> }
+  users: { find(input: { query?: string; userId?: number }): Promise<PluginUser[]>; snapshot(userId: number): Promise<{ username: string; displayName: string | null; role: string; userId: string; installationId: string | null }> }
   emit(event: string, payload: unknown, transaction?: Kysely<Record<string, Record<string, unknown>>>): Promise<void>
   service(pluginId: string, service: string, input: unknown): Promise<unknown>
 }
 export type PluginTaskContext = { id: string; attempt: number; scheduledAt: string }
 export type PluginServer = {
+  mcp?: Record<string, (input: PluginInvocation) => Promise<unknown>>
   api?: Record<string, (input: PluginInvocation) => Promise<unknown>>
   services?: Record<string, (input: PluginInvocation) => Promise<unknown>>
   events?: Record<string, (payload: unknown, task: PluginTaskContext) => Promise<void>>
@@ -79,11 +87,18 @@ export function createPluginContext(input: { manifest: PluginManifest; config: R
   return { ...input, db,
     schema: { hasColumn: (table, column) => call('schema.hasColumn', { table, column }) as Promise<boolean> },
     marketData: { quote: () => call('market.quote') as Promise<MarketQuote> },
+    evidence: {
+      prepare: values => call('evidence.prepare', values) as Promise<PreparedMemoEvidence>,
+      validateSigned: values => call('evidence.validateSigned', values) as Promise<{ signature: string }>,
+      broadcast: values => call('evidence.broadcast', values) as Promise<{ signature: string }>,
+      observe: values => call('evidence.observe', values) as Promise<MemoEvidenceObservation>,
+    },
+    files: { inspect: id => call('files.inspect', { id }) as Promise<PluginFile>, ensure: ids => call('files.ensure', { ids }) as Promise<PluginFile[]> },
     solana: {
       validateIntent: values => call('solana.validateIntent', values) as Promise<void>,
       prepare: values => call('solana.prepare', values) as Promise<PreparedSolTransfer>,
       validateSigned: values => call('solana.validateSigned', values) as Promise<{ signature: string }>,
       broadcast: values => call('solana.broadcast', values) as Promise<{ signature: string }>,
       observe: values => call('solana.observe', values) as Promise<SolTransferObservation>,
-    }, table: name => { const table = input.tables[name]; if (!table) throw new Error(`Undeclared plugin table: ${name}`); return table }, points: { credit }, users: { snapshot: userId => call('users.snapshot', { userId }) as ReturnType<PluginContext['users']['snapshot']> }, emit: async (event, payload, transaction) => { await (transaction ?? db).getExecutor().provideConnection(async connection => { await call('events.emit', { event, payload, transactionId: (connection as RemoteConnection).transactionId }) }) }, service: (pluginId, service, values) => call('services.call', { pluginId, service, input: values }) }
+    }, table: name => { const table = input.tables[name]; if (!table) throw new Error(`Undeclared plugin table: ${name}`); return table }, points: { credit }, users: { find: values => call('users.find', values) as Promise<PluginUser[]>, snapshot: userId => call('users.snapshot', { userId }) as ReturnType<PluginContext['users']['snapshot']> }, emit: async (event, payload, transaction) => { await (transaction ?? db).getExecutor().provideConnection(async connection => { await call('events.emit', { event, payload, transactionId: (connection as RemoteConnection).transactionId }) }) }, service: (pluginId, service, values) => call('services.call', { pluginId, service, input: values }) }
 }

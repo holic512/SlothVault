@@ -83,7 +83,7 @@ export async function createOwnedTable(pluginId: string, table: PluginTable, nam
         const ref = column.references
         const target = ref.coreCollection ? CORE_TABLES[ref.coreCollection] : names[ref.table]
         if (!target || (ref.coreCollection && ref.table !== target)) throw new HttpError('Invalid plugin foreign key declaration', 400)
-        if (provider !== 'mysql') col = col.references(`${target}.${ref.column}`).onDelete(ref.onDelete.toLowerCase() as 'cascade' | 'set null')
+        if (provider !== 'mysql') col = col.references(`${target}.${ref.column}`).onDelete(ref.onDelete.toLowerCase() as 'cascade' | 'set null' | 'restrict')
       }
       return col
     })
@@ -98,7 +98,7 @@ export async function createOwnedTable(pluginId: string, table: PluginTable, nam
   // so the engine can reuse them instead of retaining redundant copies.
   if (provider === 'mysql') for (const [index, column] of table.columns.filter(c => c.references).entries()) {
     const ref = column.references!, target = ref.coreCollection ? CORE_TABLES[ref.coreCollection] : names[ref.table]
-    await db.schema.alterTable(actualName).addForeignKeyConstraint(schemaObjectName(actualName, 'f', index), [column.name], target, [ref.column], constraint => constraint.onDelete(ref.onDelete.toLowerCase() as 'cascade' | 'set null')).execute()
+    await db.schema.alterTable(actualName).addForeignKeyConstraint(schemaObjectName(actualName, 'f', index), [column.name], target, [ref.column], constraint => constraint.onDelete(ref.onDelete.toLowerCase() as 'cascade' | 'set null' | 'restrict')).execute()
   }
 }
 export async function verifyOwnedTable(name: string, descriptor: PluginTable, names: Record<string, string>) {

@@ -3,14 +3,14 @@
  * @project SlothVault
  * @module Database Bootstrap
  * @description Applies the committed provider migration set for installation and safe runtime upgrades.
- * @logic Map the validated provider to a fixed schema path, pass credentials only through a child environment, run migrate deploy, then advance the installation marker only after every committed migration succeeds.
+ * @logic Reject non-empty retired business tables before any migration process, map the validated provider to a fixed schema path, pass credentials only through a child environment, run migrate deploy, then advance the installation marker only after every committed migration succeeds.
  * @dependencies node:child_process, Prisma CLI, database/connection-url, database/client, schema-version
  * @index_tags prisma,migrate-deploy,installer,upgrade,subprocess,tls
  * @author holic512
  */
 import 'server-only'
 import { backfillUserAttribution } from '@/server/services/user-deletion'
-import { upgradeCommissionLifecycle } from '@/server/commissions/upgrade'
+import { assertRetiredHostTablesEmpty } from './legacy-business-preflight'
 import { upgradeFileClassifications } from './file-classification-upgrade'
 import { rebuildFileReferences } from '@/server/services/file-references'
 
@@ -97,6 +97,14 @@ export function waitForMigrationProcessExit(
 }
 
 export async function deployInitialDatabaseSchema(connection: DatabaseConnectionInput) {
+  // Shared by installation and upgrade: fail before ANY migration or backfill can write.
+  const preflightClient = createDatabaseClient(connection)
+  try {
+    await assertRetiredHostTablesEmpty(preflightClient, connection.provider)
+  } finally {
+    await disconnectDatabaseClient(preflightClient)
+  }
+
   const caPem = connection.provider === 'sqlite' ? undefined : connection.config.caPem
   const caPath = caPem
     ? resolve(
@@ -153,8 +161,6 @@ export async function deployInitialDatabaseSchema(connection: DatabaseConnection
       console.error('[database-install] Prisma migrate deploy failed', safeDetail)
       throw new DatabaseMigrationError('Unable to initialize database tables')
     }
-    const upgradeClient = createDatabaseClient(connection)
-    try { await upgradeCommissionLifecycle(upgradeClient) } finally { await disconnectDatabaseClient(upgradeClient) }
   } finally {
     if (caPath) rmSync(caPath, { force: true })
   }

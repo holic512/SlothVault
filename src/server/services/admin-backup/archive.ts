@@ -9,9 +9,11 @@
  * @author holic512
  */
 import 'server-only'
+import { PLUGIN_FILES_ARCHIVE_ROOT, privateBackupEntries, privateFilePath, indexPrivateManifest, checkPrivateFiles } from './plugin-files'
+import { RETIRED_CORE_COLLECTIONS, rejectRetiredCoreData } from './retired-core-data'
 import { createHash } from 'node:crypto'
 import { createReadStream, createWriteStream, constants as fsConstants } from 'node:fs'
-import { chmod, copyFile, lstat, mkdir, open, opendir, rename, rm, statfs } from 'node:fs/promises'
+import { chmod, copyFile, lstat, mkdir, open, opendir, readFile, rename, rm, statfs } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
@@ -96,15 +98,7 @@ function checkManagedFiles(store: RecordStore) {
     const actual = store.get<{kind:string;size:number;sha256:string}>('$files', file.filePath.slice(8))
     if (!actual || actual.kind !== 'file' || BigInt(actual.size) !== BigInt(file.fileSize)) throw new HttpError('A managed backup attachment is missing or has a different size', 409, 409, { reason: 'BACKUP_ATTACHMENT_MISMATCH' })
   }
-  for (const row of store.iterate<{fileId:string;sha256:string}>('commissionFiles')) {
-    const file = store.get<{filePath:string}>('fileManagements',row.fileId)
-    if (!file || store.get<{sha256:string}>('$files',file.filePath.slice(8))?.sha256 !== row.sha256) throw new HttpError('A frozen backup attachment has a different hash',409,409,{reason:'BACKUP_ATTACHMENT_MISMATCH'})
-  }
-  for (const row of store.iterate<{attachmentFileId:string|null;attachmentHash:string|null}>('contracts')) {
-    if (!row.attachmentFileId || !row.attachmentHash) continue
-    const file = store.get<{filePath:string}>('fileManagements',row.attachmentFileId)
-    if (!file || store.get<{sha256:string}>('$files',file.filePath.slice(8))?.sha256 !== row.attachmentHash) throw new HttpError('A frozen backup attachment has a different hash',409,409,{reason:'BACKUP_ATTACHMENT_MISMATCH'})
-  }
+  checkPrivateFiles(store)
 }
 export async function readCompleteBundle(path: string, directory: string, extract = true, progress?: (value: Partial<BackupProgress>) => Promise<void>) {
   const info = await lstat(path)
@@ -125,7 +119,11 @@ export async function readCompleteBundle(path: string, directory: string, extrac
   const parsed = manifestSchema.safeParse(raw)
   if (!parsed.success) invalid()
   const manifest = parsed.data
-  const keys = new Set(adapter.collectionKeys)
+  const keys = new Set<string>(adapter.collectionKeys)
+  for (const key of RETIRED_CORE_COLLECTIONS) if (Object.hasOwn(manifest.counts, key) || Object.hasOwn(manifest.database, key)) {
+    if (manifest.counts[key] !== 0 || manifest.database[key]?.size !== 0) rejectRetiredCoreData()
+    keys.add(key)
+  }
   if (Object.keys(manifest.counts).length !== keys.size || Object.keys(manifest.database).length !== keys.size || [...keys].some(key => !Object.hasOwn(manifest.counts,key) || !Object.hasOwn(manifest.database,key)) || entries.length !== keys.size + 2 + manifest.entryCount) invalid()
   await mkdir(directory,{recursive:true,mode:0o700})
   await requireFreeSpace(directory, extract ? manifest.totalFileBytes : 0)
@@ -161,12 +159,22 @@ export async function readCompleteBundle(path: string, directory: string, extrac
       const target = assertContained(uploads,resolve(uploads,...item.segments.slice(1)))
       if (item.kind === 'directory') { for await (const chunk of checkedEntry(item)) if (chunk.length) invalid(); if (extract) await mkdir(target,{recursive:true,mode:0o700}); continue }
       const hash = createHash('sha256')
+      const privateEntry = privateFilePath(item.relativePath.slice(8))
+      const metadataChunks: Buffer[] = []
+      if (privateEntry?.kind === 'file' && privateEntry.metadata && item.declaredSize > 4096) invalid()
+      async function* content() {
+        for await (const chunk of checkedEntry(item, hash)) {
+          if (privateEntry?.kind === 'file' && privateEntry.metadata) metadataChunks.push(chunk)
+          yield chunk
+        }
+      }
       if (extract) {
         await requireFreeSpace(directory,item.declaredSize); await mkdir(dirname(target),{recursive:true,mode:0o700})
-        await pipeline(Readable.from(checkedEntry(item,hash)),createWriteStream(target,{flags:'wx',mode:0o600}))
+        await pipeline(Readable.from(content()),createWriteStream(target,{flags:'wx',mode:0o600}))
         processedBytes += item.declaredSize
-      } else for await (const chunk of checkedEntry(item,hash)) { processedBytes += chunk.length; await progress?.({processedBytes,processedFiles,processedRecords}) }
+      } else for await (const chunk of content()) { processedBytes += chunk.length; await progress?.({processedBytes,processedFiles,processedRecords}) }
       if (hash.digest('hex') !== row.sha256) invalid()
+      if (privateEntry?.kind === 'file' && privateEntry.metadata) indexPrivateManifest(store, item.relativePath.slice(8), Buffer.concat(metadataChunks))
       processedFiles++; await progress?.({processedBytes,processedFiles,processedRecords,totalFiles:manifest.fileCount})
     }
     if (extract) await mkdir(uploads,{recursive:true,mode:0o700})
@@ -211,7 +219,14 @@ export async function createCompleteSnapshot(kind: BackupGenerationKind, id: str
       let fileCount = 0, entryCount = 0, totalFileBytes = 0, indexBytes = 0
       const paths = store.set()
       try {
-        for await (const entry of walkBackupFiles()) {
+        async function* allFiles() {
+          for await (const entry of walkBackupFiles()) {
+            if (entry.relativePath.split('/')[0].toLowerCase() === PLUGIN_FILES_ARCHIVE_ROOT) throw new HttpError('Upload path conflicts with private plugin backup namespace', 409)
+            yield entry
+          }
+          yield* privateBackupEntries()
+        }
+        for await (const entry of allFiles()) {
           const key = entry.relativePath.toLocaleLowerCase('en-US'); if (paths.has(key)) throw new HttpError('Duplicate upload path',409,409); paths.add(key)
           const destination = assertContained(uploads,resolve(uploads,entry.relativePath))
           let size = 0, sha256: string | null = null
@@ -223,6 +238,7 @@ export async function createCompleteSnapshot(kind: BackupGenerationKind, id: str
             fileCount++; totalFileBytes += size
           }
           const row = {path:entry.relativePath,kind:entry.kind,size,sha256}, line = Buffer.from(JSON.stringify(row)+'\n')
+          if (privateFilePath(row.path)?.kind === 'file' && row.path.endsWith('/metadata.json')) indexPrivateManifest(store, row.path, await readFile(destination))
           store.put('$files',{id:row.path,...row}); await handle.writeFile(line); hash.update(line); indexBytes += line.length; entryCount++
           await progress?.({processedFiles:fileCount,processedBytes:totalFileBytes})
         }

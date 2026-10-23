@@ -10,6 +10,10 @@
  */
 import 'server-only'
 import { randomUUID } from 'node:crypto'
+import { z } from 'zod'
+import { assertActiveAdministrator } from '@/server/auth/administrator'
+import { preparePluginEvidence, validatePluginEvidence, broadcastPluginEvidence, observePluginEvidence } from './evidence'
+import { inspectPluginFile } from './files'
 import { Worker } from 'node:worker_threads'
 import { resolve } from 'node:path'
 import { tableSchema, type PluginInvocation } from '@slothvault/plugin-sdk/protocol'
@@ -105,6 +109,34 @@ export class PluginWorker {
         else if (message.method === 'solana.observe') value = await observeSolTransfer(manifest.id, payload)
         else throw new HttpError('Unknown SOL transfer method', 400)
         assertActive()
+      } else if (message.method.startsWith('evidence.')) {
+        if (!manifest.capabilities.includes('evidence.memo') || scope.transactions.active) throw new HttpError('Evidence capability is not permitted in this scope', 403)
+        const observation = message.method === 'evidence.observe'
+        if (!observation) {
+          if (scope.readOnly || !(scope.actor?.role === 'ADMIN' || (scope.scheduledJob && message.method === 'evidence.broadcast'))) throw new HttpError('Evidence signing is administrator-only', 403)
+          if (scope.actor) await assertActiveAdministrator(prisma, scope.actor.userId)
+        }
+        if (message.method === 'evidence.prepare') value = await preparePluginEvidence(manifest.id, payload)
+        else if (message.method === 'evidence.validateSigned') value = { signature: validatePluginEvidence(manifest.id, payload).signature }
+        else if (message.method === 'evidence.broadcast') value = await broadcastPluginEvidence(manifest.id, payload)
+        else if (observation) value = await observePluginEvidence(manifest.id, payload)
+        else throw new HttpError('Unknown evidence operation', 400)
+        assertActive()
+      } else if (message.method.startsWith('files.')) {
+        if (!manifest.capabilities.includes('files.private')) throw new HttpError('Private files capability was not declared', 403)
+        if (message.method === 'files.inspect') value = await inspectPluginFile(manifest.id, z.string().uuid().parse(payload.id))
+        else if (message.method === 'files.ensure') {
+          const ids = z.array(z.string().uuid()).max(100).parse(payload.ids)
+          const files = []
+          for (const id of ids) { assertActive(); files.push(await inspectPluginFile(manifest.id, id)) }
+          value = files
+        } else throw new HttpError('Unknown private file operation', 400)
+        assertActive()
+      } else if (message.method === 'users.find') {
+        if (!manifest.capabilities.includes('users.read') || !scope.actor) throw new HttpError('User lookup is not permitted', 403)
+        const search = z.object({ query: z.string().max(100).optional(), userId: z.number().int().positive().optional() }).strict().parse(payload)
+        if (scope.actor.role !== 'ADMIN' && search.userId !== scope.actor.userId) throw new HttpError('Only administrators can search accounts', 403)
+        value = await (tx ?? prisma).user.findMany({ where: { ...(search.userId ? { id: search.userId } : {}), ...(search.query ? { OR: [{ username: { contains: search.query } }, { displayName: { contains: search.query } }] } : {}) }, select: { id: true, username: true, displayName: true, role: true, status: true }, take: 25, orderBy: { id: 'asc' } })
       } else if (message.method === 'users.snapshot') {
         if (!manifest.capabilities.includes('users.read')) throw new HttpError('Users capability was not declared', 403)
         value = await snapshotUser(tx ?? prisma, Number(payload.userId))

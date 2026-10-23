@@ -18,6 +18,15 @@
       "descriptionZh": "优先使用 Solana 主网 USDT 购买积分，也可使用 SOL；链上最终确认后自动入账，暂停销售仍处理已有订单。",
       "repository": "holic512/SlothVault",
       "tagPrefix": "v"
+    },
+    {
+      "id": "slothvault.commissions",
+      "name": "Commissions and contracts",
+      "nameZh": "委托与合同",
+      "description": "Stage-based commissions, versioned contract templates, private files and administrator-signed Mainnet evidence.",
+      "descriptionZh": "阶段化委托、版本化合同模板、私有附件与管理员主网存证；交付存证完成后开始维护。",
+      "repository": "holic512/SlothVault",
+      "tagPrefix": "v"
     }
   ]
 }

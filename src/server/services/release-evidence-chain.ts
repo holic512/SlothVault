@@ -22,8 +22,10 @@ import { evidenceLog } from '@/lib/evidence-diagnostics'
 
 export const RPC_PROBE_TIMEOUT_MS = 8_000
 
-function rpcConnection(url: string) {
+type EvidenceRpcOptions = { mainnetOnly?: boolean; timeoutMs?: number }
+function rpcConnection(url: string, options: EvidenceRpcOptions = {}) {
   return new Connection(url, {
+    ...(options.timeoutMs ? { disableRetryOnRateLimit: true, fetch: (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => fetch(input, { ...init, signal: AbortSignal.timeout(options.timeoutMs!) }) } : {}),
     commitment: 'confirmed',
     confirmTransactionInitialTimeout: 45_000,
   })
@@ -40,13 +42,19 @@ export function isEvidenceRpcConnectionFailure(error: unknown) {
 export async function withEvidenceRpc<T>(
   network: SolanaNetwork,
   operation: (connection: Connection) => Promise<T>,
+  options: EvidenceRpcOptions = {},
 ) {
   const profile = await getSolanaNetworkProfile(network)
+  const run = async (url: string) => {
+    const connection = rpcConnection(url, options)
+    if (options.mainnetOnly && (network !== 'mainnet' || await connection.getGenesisHash() !== '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp')) throw new HttpError('Evidence RPC must be Solana Mainnet', 409)
+    return operation(connection)
+  }
   try {
-    return await operation(rpcConnection(profile.primaryUrl))
+    return await run(profile.primaryUrl)
   } catch (error) {
     if (!profile.fallbackUrl || !isEvidenceRpcConnectionFailure(error)) throw error
-    return operation(rpcConnection(profile.fallbackUrl))
+    return run(profile.fallbackUrl)
   }
 }
 
@@ -62,6 +70,7 @@ export function evidenceRpcError(error: unknown, operation: string): never {
 export async function finalizedEvidenceTransaction(
   network: SolanaNetwork,
   signature: string,
+  options: EvidenceRpcOptions = {},
 ) {
   return withEvidenceRpc(network, async (connection) => {
     const transaction = await connection.getTransaction(signature, {
@@ -85,7 +94,7 @@ export async function finalizedEvidenceTransaction(
       feeLamports: BigInt(transaction.meta?.fee ?? 0),
       failed: transaction.meta?.err != null,
     }
-  })
+  }, options)
 }
 
 export async function testEvidenceEndpoint(url: string, signal?: AbortSignal): Promise<RpcProbeResult & {

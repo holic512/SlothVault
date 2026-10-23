@@ -2,9 +2,9 @@
  * @file resources.ts
  * @project SlothVault
  * @module MCP Resource Registry
- * @description Registers protected managed-file and contract-attachment Resource templates for the stateless administrator MCP server.
- * @logic Revalidate the authenticated principal and resource ownership on every read, keep contract attachments off public URLs, and return binary content only through MCP Resource blobs.
- * @dependencies MCP TypeScript SDK, HTTP errors, managed-file and contract services, services/mcp-api-keys
+ * @description Registers protected managed-file Resource templates for the stateless administrator MCP server.
+ * @logic Revalidate the authenticated principal and resource ownership on every read, and return binary content only through MCP Resource blobs.
+ * @dependencies MCP TypeScript SDK, HTTP errors, managed-file services, services/mcp-api-keys
  * @index_tags mcp,resources,registry,extension,administrator
  * @author holic512
  */
@@ -14,6 +14,7 @@ import { Buffer } from 'node:buffer'
 
 import { ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js'
 
+import { BUSINESS_TYPE_CONFIG } from '@/lib/file-business-types'
 import { HttpError } from '@/server/http/errors'
 import {
   collectMcpResourceDefinitions,
@@ -23,7 +24,6 @@ import {
 } from '@/server/mcp/registry'
 import { parseJsonDecimalId } from '@/server/services/admin-catalog'
 import { managedFileContentType, readManagedFile } from '@/server/services/admin-files'
-import { readAuthorizedContractAttachment } from '@/server/services/contracts'
 import type { McpPrincipal } from '@/server/services/mcp-api-keys'
 
 import resourceCatalog from './resource-catalog.json'
@@ -42,7 +42,6 @@ function resourceCatalogEntry(name: string) {
 }
 
 const managedFileResource = resourceCatalogEntry('managed-file')
-const contractAttachmentResource = resourceCatalogEntry('contract-attachment')
 
 /** Contains the protected administrator Resource declaration list. */
 export const adminMcpResourceDefinitions: McpResourceDefinition[] = collectMcpResourceDefinitions((server) => {
@@ -51,7 +50,7 @@ export const adminMcpResourceDefinitions: McpResourceDefinition[] = collectMcpRe
     new ResourceTemplate(managedFileResource.uriTemplate, { list: undefined }),
     {
       title: 'SlothVault 托管文件',
-      description: '读取一个有效的非合同托管文件。',
+      description: '读取一个有效的托管文件。',
     },
     {
       uriTemplate: managedFileResource.uriTemplate,
@@ -62,8 +61,8 @@ export const adminMcpResourceDefinitions: McpResourceDefinition[] = collectMcpRe
     },
     async (uri, { id }) => {
       const { file, buffer } = await readManagedFile(resourceId(id, 'fileId'))
-      if (['ContractAttachment', 'CommissionAttachment'].includes(file.businessType)) {
-        throw new HttpError('Contract attachments require the protected contract resource', 403, 403)
+      if (!Object.hasOwn(BUSINESS_TYPE_CONFIG, file.businessType)) {
+        throw new HttpError('Unsupported managed file classification', 403, 403)
       }
       return {
         contents: [{
@@ -76,37 +75,6 @@ export const adminMcpResourceDefinitions: McpResourceDefinition[] = collectMcpRe
     },
   )
 
-  server.defineResource(
-    contractAttachmentResource.name,
-    new ResourceTemplate(contractAttachmentResource.uriTemplate, { list: undefined }),
-    {
-      title: 'SlothVault 合同附件',
-      description: '通过当前管理员身份读取一个私有合同 PDF 附件。',
-      mimeType: 'application/pdf',
-    },
-    {
-      uriTemplate: contractAttachmentResource.uriTemplate,
-      resourceGroup: contractAttachmentResource.resourceGroup as McpResourceDefinition['resourceGroup'],
-      mimeType: contractAttachmentResource.mimeType,
-      maxNameLength: contractAttachmentResource.maxNameLength,
-      maxBytes: contractAttachmentResource.maxBytes,
-    },
-    async (uri, { contractId }, context) => {
-      const attachment = await readAuthorizedContractAttachment({
-        id: resourceId(contractId, 'contractId'),
-        userId: context.principal.userId,
-        isAdmin: true,
-      })
-      return {
-        contents: [{
-          uri: uri.href,
-          mimeType: 'application/pdf',
-          blob: Buffer.from(attachment.buffer).toString('base64'),
-          _meta: { [MCP_RESOURCE_FILE_NAME_META_KEY]: attachment.originalName },
-        }],
-      }
-    },
-  )
 })
 
 /** Registers all protected Resources through the shared declaration adapter. */

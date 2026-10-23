@@ -30,9 +30,6 @@ const mocks = vi.hoisted(() => ({
   getManagedUser: vi.fn(), listGiftCardBatches: vi.fn(),
   listUserPointTransactions: vi.fn(), listUsers: vi.fn(),
   getManagedUserMembership: vi.fn(), listMembershipLevels: vi.fn(),
-  createWorkflow: vi.fn(), getWorkflow: vi.fn(), listWorkflows: vi.fn(), executeWorkflowCommand: vi.fn(), listSimpleTemplates: vi.fn(),
-  getAdminContract: vi.fn(), listAdminContracts: vi.fn(),
-  readAuthorizedContractAttachment: vi.fn(),
   getAdminReleaseEvidence: vi.fn(), listReleaseEvidence: vi.fn(),
   getSystemUpdateInfo: vi.fn(),
 }))
@@ -139,14 +136,9 @@ vi.mock('@/server/services/membership', () => ({
   listMembershipLevels: mocks.listMembershipLevels,
 }))
 
-vi.mock('@/server/commissions/workflow', () => ({ createWorkflow: mocks.createWorkflow, getWorkflow: mocks.getWorkflow, listWorkflows: mocks.listWorkflows, executeWorkflowCommand: mocks.executeWorkflowCommand }))
-vi.mock('@/server/commissions/simple-templates', () => ({ listSimpleTemplates: mocks.listSimpleTemplates }))
 
-vi.mock('@/server/services/contracts', () => ({
-  getAdminContract: mocks.getAdminContract,
-  listAdminContracts: mocks.listAdminContracts,
-  readAuthorizedContractAttachment: mocks.readAuthorizedContractAttachment,
-}))
+
+vi.mock('@/server/plugins/mcp', () => ({ registerPluginMcpTools: vi.fn() }))
 
 vi.mock('@/server/services/release-evidence', () => ({
   getAdminReleaseEvidence: mocks.getAdminReleaseEvidence,
@@ -203,7 +195,7 @@ function mcpRequest(message: Record<string, unknown>) {
 }
 
 async function handle(message: Record<string, unknown>) {
-  const server = createAdminMcpServer(principal)
+  const server = await createAdminMcpServer(principal)
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,
@@ -218,6 +210,7 @@ async function handle(message: Record<string, unknown>) {
 }
 
 type McpJsonResponse = {
+  error?: { code: number; message: string }
   result: {
     serverInfo: { name: string; version: string }
     tools: Array<{ name: string; inputSchema?: unknown; outputSchema?: unknown }>
@@ -355,9 +348,7 @@ describe('administrator MCP server', () => {
       'admin.dashboard.get', 'admin.user.list', 'admin.user.get',
       'admin.membership.level.list', 'admin.user.membership.get',
       'admin.points.transaction.list', 'admin.gift_card.batch.list',
-      'admin.contract.list', 'admin.contract.get', 'admin.contract.attachment.get',
       'admin.evidence.list', 'admin.evidence.get', 'admin.settings.get', 'admin.system.update.get',
-      'admin.commission.list', 'admin.commission.get', 'admin.commission.create', 'admin.commission.update', 'admin.commission.document.draft.create', 'admin.contract-template.list',
     ])
     expect(names).not.toContain('admin_project_list')
     expect(names.some((name: string) =>
@@ -367,21 +358,9 @@ describe('administrator MCP server', () => {
     expect(listed.result.tools.every((tool: { outputSchema?: unknown }) => tool.outputSchema)).toBe(true)
   })
 
-  it('creates only a template draft with the authenticated administrator and refuses raw issuance', async () => {
-    const record = { id: '9', publicId: 'SV-test', title: 'Development', subject: 'customer', stage: 'ACCEPTED', progress: 0, revision: 2, paused: false, paymentPercent: 0, updatedAt: timestamp, bindingStatus: 'CLAIMED', nextAction: '准备合同', archived: false, requirements: '需求', totalFen: null, confirmationMode: 'ONLINE', maintenanceDays: 15, maintenanceStartedAt: null, maintenanceEndsAt: null, maintenanceClosedAt: null, maintenanceCloseReason: '', allowedActions: ['agreement.save'], events: [], agreements: [], files: [], issues: [] }
-    mocks.executeWorkflowCommand.mockResolvedValue(record)
-    const args = { commissionId: '9', templateVersionId: '1', title: '合同草稿', kind: 'AGREEMENT', revision: 1, commandId: '0c4e9e9e-4ac6-4dc6-9600-696c8898d777', values: { 委托方: '测试客户' }, totalFen: '10000' }
-    const called = await resultOf({ jsonrpc: '2.0', id: 71, method: 'tools/call', params: { name: 'admin.commission.document.draft.create', arguments: args } })
-    expect(called.result.isError).not.toBe(true)
-    expect(mocks.executeWorkflowCommand).toHaveBeenCalledWith(9, { userId: 7, isAdmin: true }, { action: 'agreement.save', templateVersionId: 1, title: args.title, kind: 'AGREEMENT', revision: 1, commandId: args.commandId, values: args.values, totalFen: '10000', maintenanceDays: 15, confirmationMode: 'ONLINE', fileKeys: [] })
-    const invalid = await resultOf({ jsonrpc: '2.0', id: 72, method: 'tools/call', params: { name: 'admin.commission.document.draft.create', arguments: { ...args, issuerUserId: '99' } } })
-    expect(invalid.result.isError).toBe(true)
-    expect(mocks.executeWorkflowCommand).toHaveBeenCalledTimes(1)
-    const retired = await resultOf({ jsonrpc: '2.0', id: 73, method: 'tools/call', params: { name: 'admin.contract.issue', arguments: {} } })
-    expect(retired.result.isError).toBe(true)
-    const removed = await resultOf({ jsonrpc: '2.0', id: 74, method: 'tools/call', params: { name: 'admin.commission.progress.update', arguments: {} } })
-    expect(removed.result.isError).toBe(true)
-    expect(mocks.executeWorkflowCommand).toHaveBeenCalledTimes(1)
+  it.each(['admin.contract.list', 'admin.contract.issue', 'admin.commission.list', 'admin.commission.document.draft.create'])('does not expose retired host tool %s', async name => {
+    const called = await resultOf({ jsonrpc: '2.0', id: 71, method: 'tools/call', params: { name, arguments: {} } })
+    expect(called.result?.isError ?? Boolean(called.error)).toBe(true)
   })
 
   it('delegates administrator publication and returns the refreshed version', async () => {
@@ -417,11 +396,10 @@ describe('administrator MCP server', () => {
     expect(mocks.withdrawAdminArticle).toHaveBeenCalledWith(12)
   })
 
-  it('publishes protected managed-file and contract-attachment resource templates', async () => {
+  it('publishes protected managed-file resource templates', async () => {
     const listed = await resultOf({ jsonrpc: '2.0', id: 21, method: 'resources/templates/list', params: {} })
     expect(listed.result.resourceTemplates).toEqual([
       expect.objectContaining({ name: 'managed-file', uriTemplate: 'slothvault://managed-file/{id}' }),
-      expect.objectContaining({ name: 'contract-attachment', uriTemplate: 'slothvault://contract-attachment/{contractId}' }),
     ])
 
     mocks.readManagedFile.mockResolvedValue({
@@ -791,15 +769,15 @@ describe('SDK protocol simulation through the /mcp route', () => {
 
   it('rejects excessive tool members before invoking business handlers', async () => {
     const { client, transport } = sdkTestClient()
-    const calls = mocks.executeWorkflowCommand.mock.calls.length
+    const calls = mocks.updateAdminProjectMetadataFromMcp.mock.calls.length
     try {
       await client.connect(transport)
-      const result = await client.callTool({ name: 'admin.commission.document.draft.create', arguments: {
+      const result = await client.callTool({ name: 'content.project.update', arguments: {
         values: Object.fromEntries(Array.from({ length: MCP_MAX_TOOL_INPUT_ELEMENTS + 1 }, (_, i) => [`field${i}`, 'value'])),
       } })
       expect(result.isError).toBe(true)
       expect(JSON.stringify(result.content)).toContain('maximum of 10000 elements')
-      expect(mocks.executeWorkflowCommand).toHaveBeenCalledTimes(calls)
+      expect(mocks.updateAdminProjectMetadataFromMcp).toHaveBeenCalledTimes(calls)
     } finally { await client.close() }
   })
 
@@ -840,9 +818,9 @@ describe('SDK protocol simulation through the /mcp route', () => {
       await client.connect(transport)
       expect(client.getServerVersion()).toEqual({ name: 'slothvault-admin-mcp', version: '5.1.0' })
       expect(client.getInstructions()).toBe(ADMIN_MCP_INSTRUCTIONS)
-      expect((await client.listTools()).tools).toHaveLength(74)
+      expect((await client.listTools()).tools).toHaveLength(65)
       expect((await client.listPrompts()).prompts).toHaveLength(4)
-      expect((await client.listResourceTemplates()).resourceTemplates).toHaveLength(2)
+      expect((await client.listResourceTemplates()).resourceTemplates).toHaveLength(1)
       expect((await client.listResources()).resources).toEqual([])
       const read = await client.callTool({ name: 'content.project.list', arguments: {} })
       expect(read.isError).not.toBe(true)
@@ -855,10 +833,6 @@ describe('SDK protocol simulation through the /mcp route', () => {
       mocks.managedFileContentType.mockReturnValue('text/markdown')
       const file = await client.readResource({ uri: 'slothvault://managed-file/44' })
       expect(file.contents[0]).toMatchObject({ blob: Buffer.from('# Guide').toString('base64'), _meta: { 'slothvault/file-name': 'guide.md' } })
-      mocks.readAuthorizedContractAttachment.mockResolvedValue({ originalName: 'contract.pdf', buffer: Buffer.from('%PDF-example') })
-      const attachment = await client.readResource({ uri: 'slothvault://contract-attachment/12' })
-      expect(attachment.contents[0]).toMatchObject({ mimeType: 'application/pdf', blob: Buffer.from('%PDF-example').toString('base64') })
-      expect(mocks.readAuthorizedContractAttachment).toHaveBeenCalledWith({ id: 12, userId: 7, isAdmin: true })
     } finally { await client.close() }
   })
 
@@ -927,15 +901,12 @@ describe('SDK protocol simulation through the /mcp route', () => {
     const { client, transport } = sdkTestClient()
     try {
       await client.connect(transport)
-      for (const businessType of ['ContractAttachment', 'CommissionAttachment']) {
+      for (const businessType of ['UnsupportedPrivateFile']) {
         mocks.readManagedFile.mockResolvedValue({ file: { originalName: 'private.pdf', businessType, status: 1 }, buffer: Buffer.from('example') })
         await expect(client.readResource({ uri: 'slothvault://managed-file/44' })).rejects.toThrow()
       }
       mocks.readManagedFile.mockResolvedValue({ file: { originalName: 'large.zip', businessType: 'Other', status: 1 }, buffer: Buffer.alloc(10 * 1024 * 1024 + 1) })
       await expect(client.readResource({ uri: 'slothvault://managed-file/44' })).rejects.toThrow()
-      mocks.readAuthorizedContractAttachment.mockResolvedValue({ originalName: 'large.pdf', buffer: Buffer.alloc(25 * 1024 * 1024 + 1) })
-      await expect(client.readResource({ uri: 'slothvault://contract-attachment/12' })).rejects.toThrow()
-      mocks.readAuthorizedContractAttachment.mockRejectedValue(new HttpError('Not found', 404, 404))
       await expect(client.readResource({ uri: 'slothvault://contract-attachment/12' })).rejects.toThrow()
     } finally { await client.close() }
   })

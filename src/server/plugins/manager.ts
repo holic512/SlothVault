@@ -18,7 +18,7 @@ import { prisma } from '@/server/prisma'
 import { HttpError } from '@/server/http/errors'
 import { decryptPluginConfig, encryptPluginConfig, maskedPluginConfig, MASKED_PLUGIN_SECRET, validatePluginConfig } from './config'
 import { assertCompatible, packageExists, pluginRoot, stagePluginPackage, verifyInstalledPackage } from './packages'
-import { createOwnedTable, dropOwnedTables, orderedPluginTables, physicalTableName, pluginTableMap, tableExists, verifyOwnedTable } from './database'
+import { createOwnedTable, dropOwnedTables, orderedPluginTables, physicalTableName, pluginTableMap, tableExists, verifyOwnedTable, schemaDatabase } from './database'
 import { pluginRegistry, type RegisteredPlugin } from './state'
 import { pluginWorkers, startPluginWorker, stopPluginWorker } from './runtime'
 import { ownedTables, readSnapshot, restorePluginSnapshot, snapshotPlugin } from './snapshots'
@@ -173,12 +173,22 @@ export async function pluginDetails(id: string) {
   try { if (!readStoredManifest(row.manifestJson)) throw new Error('Invalid metadata'); config = maskedPluginConfig(item.manifest, decryptPluginConfig(row.configCiphertext)) } catch { configError = 'PLUGIN_CONFIG_KEY_MISMATCH' }
   return { ...item, config, configError, tables: await ownedTables(id), operations: await prisma.pluginOperation.findMany({ where: { pluginId: id }, orderBy: { id: 'desc' }, take: 20, select: { id: true, action: true, phase: true, status: true, error: true, createdAt: true } }), tasks: await prisma.pluginTask.findMany({ where: { pluginId: id }, orderBy: { id: 'desc' }, take: 20, select: { id: true, kind: true, handler: true, status: true, attempts: true, runAt: true, error: true } }) }
 }
+/** Persistent declarations protect pending external operations even when plugin code is absent. */
+async function assertLifecycleQuiescent(item: RegisteredPlugin) {
+  const db = schemaDatabase()
+  for (const guard of item.manifest.lifecycleGuards) {
+    const descriptor = item.manifest.tables.find(table => table.name === guard.table)!
+    const found = await db.selectFrom(physicalTableName(item.manifest.id, descriptor)).select(guard.column).where(guard.column, 'in', guard.values).limit(1).executeTakeFirst()
+    if (found) throw new HttpError(guard.message, 409)
+  }
+}
 export async function setPluginEnabled(id: string, enabled: boolean, actorUserId: number) {
   await initializePlugins()
   await requireRecoveredInstallation(id)
   const item = pluginRegistry.get(id)
   if (!item?.installed) throw new HttpError('Plugin is not installed', 404)
   if (enabled) { assertCompatible(item.manifest); assertDependencies(item.manifest, true); await verifyInstalledPackage(item.digest, item.manifest) } else assertDependents(id)
+  if (!enabled) await assertLifecycleQuiescent(item)
   item.enabled = false
   await prisma.pluginInstallation.update({ where: { pluginId: id }, data: { enabled: false, generation: { increment: 1 }, updatedAt: new Date() } })
   item.generation++
@@ -211,6 +221,7 @@ export async function uninstallPlugin(id: string, input: { deleteData: boolean; 
   await initializePlugins(); const item = pluginRegistry.get(id); if (!item) throw new HttpError('Plugin not found', 404)
   assertDependents(id)
   if (input.deleteData && input.confirmPluginId !== id) throw new HttpError('Type the plugin ID to confirm data deletion', 400)
+  await assertLifecycleQuiescent(item)
   const snapshot = await snapshotPlugin(id)
   const operation = await prisma.pluginOperation.create({ data: { pluginId: id, action: 'UNINSTALL', phase: 'SNAPSHOT', actorUserId: input.actorUserId, payloadJson: JSON.stringify({ snapshot }) } })
   item.enabled = false

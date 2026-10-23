@@ -484,11 +484,7 @@
     "install": "安装",
     "maintenance": "系统维护",
     "evidenceReceipt": "存证 {signature}",
-    "contractEvidenceReceipt": "合同凭证 {signature}",
-    "siteName": "SlothVault",
-    "accountCommissions": "我的委托项目",
-    "adminCommissions": "委托项目管理",
-    "adminContractTemplates": "合同模板管理"
+    "siteName": "SlothVault"
   },
   "AdminMM": {
     "title": "管理后台",
@@ -507,8 +503,6 @@
       "backup": "备份管理",
       "mcpKeys": "MCP Key",
       "settings": "系统设置",
-      "commissions": "委托项目",
-      "contractTemplates": "合同模板",
       "analytics": "运营仪表盘",
       "observability": "运维仪表盘",
       "plugins": "插件管理"
@@ -518,7 +512,6 @@
       "content": "站点内容",
       "resources": "文件与回收",
       "users": "用户与权益",
-      "collaboration": "委托与合同",
       "integrations": "存证与接入",
       "system": "配置与维护",
       "plugins": "插件"
@@ -1231,9 +1224,7 @@
         "Other": "其他",
         "ArticleImage": "文章正文图片",
         "NoteImage": "项目笔记正文图片",
-        "Markdown": "Markdown 内容文件",
-        "ContractAttachment": "合同附件",
-        "CommissionAttachment": "委托资料"
+        "Markdown": "Markdown 内容文件"
       },
       "actions": {
         "search": "查询",
@@ -1832,7 +1823,7 @@
       "fileTypeNotAllowed": "所选分类不支持该文件格式。正文图片使用图片分类，ZIP、PDF 等使用对应的下载附件分类。",
       "currentAdmin": "不能移除当前管理员的访问权限。",
       "lastAdmin": "必须保留至少一个启用管理员。",
-      "userDeleteBlocked": "该账号有关联合同、委托或认领记录，不能删除。",
+      "userDeleteBlocked": "该账号存在受保护的业务关联，不能删除。",
       "userDeleteStale": "账号关联已变化，请刷新删除预览后重试。"
     },
     "evidenceManager": {
@@ -2181,10 +2172,7 @@
         "wallet": "删除后原钱包可登录新账号或绑定其他账号，新账号不继承旧权益。",
         "blockers": {
           "CURRENT_ADMIN": "不能删除当前登录管理员。",
-          "LAST_ADMIN": "不能删除最后一个启用管理员。",
-          "CUSTOMER_CONTRACTS": "该账号作为当事人关联合同 {count} 份，不能删除。",
-          "CUSTOMER_COMMISSIONS": "该账号关联客户委托 {count} 项，不能删除。",
-          "CLAIMED_INVITATIONS": "该账号有已认领邀请 {count} 条，不能删除。"
+          "LAST_ADMIN": "不能删除最后一个启用管理员。"
         },
         "records": {
           "sessions": "登录会话",
@@ -2626,7 +2614,7 @@
     "login": {
       "kicker": "账户",
       "title": "登录 SlothVault",
-      "description": "使用普通账户维护个人资料、处理合同和管理积分。",
+      "description": "使用普通账户维护个人资料、管理积分和会员权益。",
       "sessionReadFailed": "无法读取登录状态",
       "success": "登录成功",
       "failed": "登录失败",
@@ -2682,8 +2670,7 @@
       "points": "积分中心",
       "membership": "会员中心",
       "admin": "管理后台",
-      "logout": "退出登录",
-      "commissions": "委托项目"
+      "logout": "退出登录"
     },
     "shell": {
       "kicker": "账户工作区",
@@ -2698,7 +2685,6 @@
       "navigationLabel": "账户功能导航",
       "groups": {
         "account": "个人账户",
-        "collaboration": "项目协作",
         "benefits": "积分与权益",
         "plugins": "插件"
       },
@@ -2706,7 +2692,6 @@
       "appearance": "卡片风格",
       "loadFailed": "暂时无法加载账户数据，请重试。",
       "retry": "重试",
-      "commissions": "委托项目",
       "sidebar": {
         "expand": "展开侧边栏",
         "collapse": "收起侧边栏",
@@ -2747,8 +2732,7 @@
         "profile": "编辑个人资料",
         "security": "管理安全与登录",
         "points": "查看积分余额与记录",
-        "membership": "开通与管理会员权益",
-        "commissions": "委托项目"
+        "membership": "开通与管理会员权益"
       },
       "identity": {
         "title": "资料与登录安全",
@@ -2863,8 +2847,6 @@
       "failed": "实时核验失败",
       "releaseVerified": "链上交易与本站存证协议、版本哈希和签名钱包完全一致。",
       "releaseUnverified": "当前未能完成实时链上核验；已确认凭证的本地状态不会因此被降级。",
-      "contractVerified": "链上交易与本站合同防篡改协议、合同摘要和管理员签名钱包完全一致。",
-      "contractUnverified": "当前未能完成实时链上核验；这不会公开合同正文或签约身份。",
       "chain": "链上交易匹配",
       "integrity": "站内内容完整性",
       "matched": "通过",

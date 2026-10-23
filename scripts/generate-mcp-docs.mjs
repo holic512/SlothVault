@@ -6,7 +6,7 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const toolDirectory = path.join(projectRoot, 'src', 'server', 'mcp', 'tools')
 const outputPath = path.join(projectRoot, 'docs', 'MCP_REGISTRY.md')
 
-const EXPECTED_TOOL_COUNT = 74
+const EXPECTED_TOOL_COUNT = 65
 const TOOL_ANNOTATION_METADATA = {
   READ_ONLY_ANNOTATIONS: { risk: 'read', idempotency: 'idempotent' },
   CREATE_ANNOTATIONS: { risk: 'write', idempotency: 'non-idempotent' },
@@ -56,7 +56,6 @@ function readResources() {
 /** Returns the declared Resource permission inferred by the runtime registry. */
 function resourcePermissionFor(name) {
   if (name === 'content.file.get') return 'managed-file:read'
-  if (name === 'admin.contract.attachment.get') return 'contract-attachment:read'
   return '-'
 }
 
@@ -69,7 +68,7 @@ function render() {
     '',
     '<!-- GENERATED FILE: run `npm run mcp:docs` after changing MCP declarations. -->',
     '',
-    `Tool count: **${tools.length}**`,
+    `Tool count: **${tools.length}** (host tools; enabled plugins contribute additional namespaced tools at runtime)`,
     '',
     '| Tool | Domain | Risk | Idempotency | Resource permission |',
     '| --- | --- | --- | --- | --- |',

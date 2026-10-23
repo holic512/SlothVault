@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { VALID_BUSINESS_TYPES } from '@/lib/file-business-types'
 import { access, realpath, stat } from 'node:fs/promises'
 import { constants } from 'node:fs'
 import { isAbsolute, relative, sep } from 'node:path'
@@ -29,7 +30,7 @@ export async function assertManagedContentFiles(reader: Reader, content?: string
   ])]
   if (!paths.length) return
   const files = await reader.fileManagement.findMany({
-    where: { filePath: { in: paths }, status: 1, businessType: { notIn: ['ContractAttachment', 'CommissionAttachment'] } },
+    where: { filePath: { in: paths }, status: 1, businessType: { in: VALID_BUSINESS_TYPES } },
     select: { filePath: true },
   })
   const livePaths = new Set(files.map((file) => file.filePath))

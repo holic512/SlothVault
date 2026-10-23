@@ -1,0 +1,400 @@
+[data-sv-plugin="slothvault.commissions"] .commissions {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+  color: var(--sv-text);
+  font-family: var(--sv-font-body);
+  font-size: var(--sv-admin-font-body);
+  line-height: var(--sv-admin-line-body);
+  accent-color: var(--sv-primary);
+  caret-color: var(--sv-primary);
+}
+
+[data-sv-plugin="slothvault.commissions"] .commissions > * {
+  flex-shrink: 0;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commissions :focus-visible {
+  outline: 2px solid var(--sv-primary);
+  outline-offset: 3px;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commissions ::selection {
+  color: var(--sv-primary-contrast);
+  background: var(--sv-primary);
+}
+
+[data-sv-plugin="slothvault.commissions"] .commissions a {
+  text-underline-offset: 3px;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commissions h1 {
+  margin: 0 0 8px;
+  font-size: var(--sv-admin-font-page-title);
+  line-height: var(--sv-admin-line-title);
+  font-weight: var(--sv-admin-weight-strong);
+  text-wrap: balance;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commissions h2 {
+  margin: 0 0 12px;
+  font-size: var(--sv-admin-font-dialog-title);
+  line-height: 1.4;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commissions h3 {
+  margin: 20px 0 10px;
+  font-size: var(--sv-admin-font-body);
+  font-weight: var(--sv-admin-weight-strong);
+}
+
+[data-sv-plugin="slothvault.commissions"] .commissions p {
+  max-width: 75ch;
+  margin-block: 8px 16px;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-heading,
+[data-sv-plugin="slothvault.commissions"] .commission-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-heading p {
+  margin-bottom: 0;
+  color: var(--sv-text-muted);
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-section-heading h3 {
+  margin-top: 0;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-filters {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(160px, 280px);
+  align-items: center;
+  gap: 16px;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-stage-nav {
+  overflow-x: auto;
+  padding-block: 8px 12px;
+  scrollbar-color: var(--sv-border) var(--sv-bg-solid);
+  scrollbar-width: thin;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-stage-nav > .ant-steps {
+  min-width: 850px;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-current {
+  padding: 24px;
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-admin-radius);
+  background: var(--sv-bg-solid);
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-current > .ant-alert,
+[data-sv-plugin="slothvault.commissions"] .commission-evidence > .ant-alert,
+[data-sv-plugin="slothvault.commissions"] .commission-review > .ant-alert {
+  margin-bottom: 16px;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 270px);
+  align-items: start;
+  gap: 28px;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-summary,
+[data-sv-plugin="slothvault.commissions"] .commission-help {
+  border-inline-start: 1px solid var(--sv-border);
+  padding-inline-start: 24px;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-muted {
+  color: var(--sv-text-muted);
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-prewrap {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-break,
+[data-sv-plugin="slothvault.commissions"] .commission-proof dd,
+[data-sv-plugin="slothvault.commissions"] .commission-file-list code {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-proof {
+  margin-top: 20px;
+  color: var(--sv-text-muted);
+}
+
+[data-sv-plugin="slothvault.commissions"] .commissions summary {
+  cursor: pointer;
+  padding-block: 8px;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commissions summary:hover {
+  color: var(--sv-primary);
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-record,
+[data-sv-plugin="slothvault.commissions"] .commission-evidence + .commission-evidence {
+  padding-block: 20px;
+  border-block-start: 1px solid var(--sv-border);
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-evidence .ant-descriptions-item-content,
+[data-sv-plugin="slothvault.commissions"] .commission-public .ant-descriptions-item-content {
+  min-width: 0;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-editor {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-editor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 32px;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-editor-grid > *,
+[data-sv-plugin="slothvault.commissions"] .commission-detail-grid > * {
+  min-width: 0;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-template-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-template {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 24px;
+  border: 1px solid var(--sv-border);
+  border-radius: 12px;
+  background: var(--sv-bg-solid);
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-template.is-selected {
+  outline: 2px solid var(--sv-primary);
+  outline-offset: -2px;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-template > .ant-space {
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-template dt,
+[data-sv-plugin="slothvault.commissions"] .commission-proof dt {
+  margin-top: 8px;
+  font-weight: 600;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-template dd,
+[data-sv-plugin="slothvault.commissions"] .commission-proof dd {
+  margin-inline-start: 0;
+  margin-bottom: 12px;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-template-preview {
+  padding-top: 24px;
+  border-top: 1px solid var(--sv-border);
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-markdown {
+  max-width: 75ch;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-markdown h2,
+[data-sv-plugin="slothvault.commissions"] .commission-markdown h3 {
+  margin-block-start: 28px;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-markdown table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-markdown td,
+[data-sv-plugin="slothvault.commissions"] .commission-markdown th {
+  padding: 8px 12px;
+  border: 1px solid var(--sv-border);
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-markdown pre {
+  padding: 16px;
+  overflow: auto;
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-admin-radius);
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 24px;
+  padding: 16px 0 max(16px, env(safe-area-inset-bottom));
+  background: var(--sv-bg-solid);
+  border-top: 1px solid var(--sv-border);
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-form {
+  max-width: 800px;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-full {
+  width: 100%;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-status-filter {
+  width: 240px;
+  max-width: 100%;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 160px;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-main-action {
+  margin-top: 20px;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-action-form {
+  padding-top: 20px;
+  margin-top: 20px;
+  border-top: 1px solid var(--sv-border);
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-file-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-file-list li {
+  padding-block: 16px;
+  border-top: 1px solid var(--sv-border);
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-file-list li > div {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-public {
+  max-width: 900px;
+  margin: 32px auto;
+  padding-inline: 16px;
+}
+
+@media (width <= 900px) {
+  [data-sv-plugin="slothvault.commissions"] .commission-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  [data-sv-plugin="slothvault.commissions"] .commission-summary {
+    border-inline-start: 0;
+    border-top: 1px solid var(--sv-border);
+    padding: 24px 0 0;
+  }
+}
+
+@media (width <= 640px) {
+  [data-sv-plugin="slothvault.commissions"] .commission-template-grid,
+  [data-sv-plugin="slothvault.commissions"] .commission-editor-grid,
+  [data-sv-plugin="slothvault.commissions"] .commission-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  [data-sv-plugin="slothvault.commissions"] .commission-current,
+  [data-sv-plugin="slothvault.commissions"] .commission-template {
+    padding: 16px;
+  }
+
+  [data-sv-plugin="slothvault.commissions"] .commission-help {
+    border-inline-start: 0;
+    border-top: 1px solid var(--sv-border);
+    padding: 20px 0 0;
+  }
+
+  [data-sv-plugin="slothvault.commissions"] .commission-stage-nav > .ant-steps {
+    min-width: 0;
+  }
+
+  [data-sv-plugin="slothvault.commissions"] .commission-footer {
+    position: static;
+  }
+
+  [data-sv-plugin="slothvault.commissions"] .commission-footer > .ant-space,
+  [data-sv-plugin="slothvault.commissions"] .commission-footer .ant-btn,
+  [data-sv-plugin="slothvault.commissions"] .commission-heading > .ant-btn {
+    width: 100%;
+  }
+
+  [data-sv-plugin="slothvault.commissions"] .commission-footer > .ant-space {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  [data-sv-plugin="slothvault.commissions"] .commission-footer > span {
+    flex-basis: 100%;
+  }
+}
+
+[data-sv-plugin="slothvault.commissions"] .commission-mobile-stages {
+  display: none;
+}
+
+@media (width <= 640px) {
+  [data-sv-plugin="slothvault.commissions"] .commission-stage-nav {
+    display: none;
+  }
+
+  [data-sv-plugin="slothvault.commissions"] .commission-mobile-stages {
+    display: block;
+    padding-block: 12px;
+    border-block: 1px solid var(--sv-border);
+  }
+
+  [data-sv-plugin="slothvault.commissions"] .commission-mobile-stages summary {
+    cursor: pointer;
+  }
+
+  [data-sv-plugin="slothvault.commissions"] .commission-mobile-stages li {
+    margin-block: 8px;
+  }
+
+  [data-sv-plugin="slothvault.commissions"] .commission-mobile-stages [aria-current="step"] {
+    font-weight: 600;
+  }
+}

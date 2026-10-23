@@ -1,0 +1,52 @@
+-- Retire ONLY the empty host contract/commission tables; preserve the original migration chain.
+-- Host migration preflight rejects existing rows before Prisma starts. These SQL guards
+-- also protect direct CLI deployment and concurrent writers. Never disable foreign keys.
+BEGIN;
+LOCK TABLE "contract_admin_audit", "contract_credential_attempt", "commission_settings", "commission_milestone", "commission_payment", "commission_change", "commission_issue", "commission_delivery_item", "commission_acceptance", "commission_event", "commission_invitation", "commission_agreement", "commission_proof_attempt", "contract_credential", "commission_payment_plan", "commission_file", "commission_delivery", "commission_submission", "contract", "commission_contract_template_version", "commission", "commission_contract_template" IN ACCESS EXCLUSIVE MODE;
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM "contract_admin_audit") THEN RAISE EXCEPTION 'Refusing to remove non-empty legacy table: contract_admin_audit'; END IF;
+  IF EXISTS (SELECT 1 FROM "contract_credential_attempt") THEN RAISE EXCEPTION 'Refusing to remove non-empty legacy table: contract_credential_attempt'; END IF;
+  IF EXISTS (SELECT 1 FROM "commission_settings") THEN RAISE EXCEPTION 'Refusing to remove non-empty legacy table: commission_settings'; END IF;
+  IF EXISTS (SELECT 1 FROM "commission_milestone") THEN RAISE EXCEPTION 'Refusing to remove non-empty legacy table: commission_milestone'; END IF;
+  IF EXISTS (SELECT 1 FROM "commission_payment") THEN RAISE EXCEPTION 'Refusing to remove non-empty legacy table: commission_payment'; END IF;
+  IF EXISTS (SELECT 1 FROM "commission_change") THEN RAISE EXCEPTION 'Refusing to remove non-empty legacy table: commission_change'; END IF;
+  IF EXISTS (SELECT 1 FROM "commission_issue") THEN RAISE EXCEPTION 'Refusing to remove non-empty legacy table: commission_issue'; END IF;
+  IF EXISTS (SELECT 1 FROM "commission_delivery_item") THEN RAISE EXCEPTION 'Refusing to remove non-empty legacy table: commission_delivery_item'; END IF;
+  IF EXISTS (SELECT 1 FROM "commission_acceptance") THEN RAISE EXCEPTION 'Refusing to remove non-empty legacy table: commission_acceptance'; END IF;
+  IF EXISTS (SELECT 1 FROM "commission_event") THEN RAISE EXCEPTION 'Refusing to remove non-empty legacy table: commission_event'; END IF;
+  IF EXISTS (SELECT 1 FROM "commission_invitation") THEN RAISE EXCEPTION 'Refusing to remove non-empty legacy table: commission_invitation'; END IF;
+  IF EXISTS (SELECT 1 FROM "commission_agreement") THEN RAISE EXCEPTION 'Refusing to remove non-empty legacy table: commission_agreement'; END IF;
+  IF EXISTS (SELECT 1 FROM "commission_proof_attempt") THEN RAISE EXCEPTION 'Refusing to remove non-empty legacy table: commission_proof_attempt'; END IF;
+  IF EXISTS (SELECT 1 FROM "contract_credential") THEN RAISE EXCEPTION 'Refusing to remove non-empty legacy table: contract_credential'; END IF;
+  IF EXISTS (SELECT 1 FROM "commission_payment_plan") THEN RAISE EXCEPTION 'Refusing to remove non-empty legacy table: commission_payment_plan'; END IF;
+  IF EXISTS (SELECT 1 FROM "commission_file") THEN RAISE EXCEPTION 'Refusing to remove non-empty legacy table: commission_file'; END IF;
+  IF EXISTS (SELECT 1 FROM "commission_delivery") THEN RAISE EXCEPTION 'Refusing to remove non-empty legacy table: commission_delivery'; END IF;
+  IF EXISTS (SELECT 1 FROM "commission_submission") THEN RAISE EXCEPTION 'Refusing to remove non-empty legacy table: commission_submission'; END IF;
+  IF EXISTS (SELECT 1 FROM "contract") THEN RAISE EXCEPTION 'Refusing to remove non-empty legacy table: contract'; END IF;
+  IF EXISTS (SELECT 1 FROM "commission_contract_template_version") THEN RAISE EXCEPTION 'Refusing to remove non-empty legacy table: commission_contract_template_version'; END IF;
+  IF EXISTS (SELECT 1 FROM "commission") THEN RAISE EXCEPTION 'Refusing to remove non-empty legacy table: commission'; END IF;
+  IF EXISTS (SELECT 1 FROM "commission_contract_template") THEN RAISE EXCEPTION 'Refusing to remove non-empty legacy table: commission_contract_template'; END IF;
+END $$;
+DROP TABLE "contract_admin_audit";
+DROP TABLE "contract_credential_attempt";
+DROP TABLE "commission_settings";
+DROP TABLE "commission_milestone";
+DROP TABLE "commission_payment";
+DROP TABLE "commission_change";
+DROP TABLE "commission_issue";
+DROP TABLE "commission_delivery_item";
+DROP TABLE "commission_acceptance";
+DROP TABLE "commission_event";
+DROP TABLE "commission_invitation";
+DROP TABLE "commission_agreement";
+DROP TABLE "commission_proof_attempt";
+DROP TABLE "contract_credential";
+DROP TABLE "commission_payment_plan";
+DROP TABLE "commission_file";
+DROP TABLE "commission_delivery";
+DROP TABLE "commission_submission";
+DROP TABLE "contract";
+DROP TABLE "commission_contract_template_version";
+DROP TABLE "commission";
+DROP TABLE "commission_contract_template";
+COMMIT;

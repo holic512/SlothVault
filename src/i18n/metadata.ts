@@ -14,9 +14,6 @@ import { getTranslations } from 'next-intl/server'
 
 export type PageTitleKey =
   | 'account'
-  | 'accountCommissions'
-  | 'adminCommissions'
-  | 'adminContractTemplates'
   | 'accountMembership'
   | 'accountPoints'
   | 'accountProfile'
@@ -39,7 +36,6 @@ export type PageTitleKey =
   | 'adminSettings'
   | 'adminUsers'
   | 'evidenceReceipt'
-  | 'contractEvidenceReceipt'
   | 'article'
   | 'articles'
   | 'home'

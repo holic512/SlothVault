@@ -1,0 +1,53 @@
+-- Retire ONLY the empty host contract/commission tables; preserve the original migration chain.
+-- Host migration preflight rejects existing rows before Prisma starts. These SQL guards
+-- also protect direct CLI deployment and concurrent writers. Never disable foreign keys.
+-- Explicit write locks remain held across DDL implicit commits until UNLOCK TABLES.
+LOCK TABLES `contract_admin_audit` WRITE, `contract_credential_attempt` WRITE, `commission_settings` WRITE, `commission_milestone` WRITE, `commission_payment` WRITE, `commission_change` WRITE, `commission_issue` WRITE, `commission_delivery_item` WRITE, `commission_acceptance` WRITE, `commission_event` WRITE, `commission_invitation` WRITE, `commission_agreement` WRITE, `commission_proof_attempt` WRITE, `contract_credential` WRITE, `commission_payment_plan` WRITE, `commission_file` WRITE, `commission_delivery` WRITE, `commission_submission` WRITE, `contract` WRITE, `commission_contract_template_version` WRITE, `commission` WRITE, `commission_contract_template` WRITE;
+CREATE TEMPORARY TABLE `_empty_host_business_guard` (`id` INTEGER PRIMARY KEY);
+INSERT INTO `_empty_host_business_guard` VALUES (1);
+INSERT INTO `_empty_host_business_guard` SELECT 1 FROM `contract_admin_audit` LIMIT 1;
+INSERT INTO `_empty_host_business_guard` SELECT 1 FROM `contract_credential_attempt` LIMIT 1;
+INSERT INTO `_empty_host_business_guard` SELECT 1 FROM `commission_settings` LIMIT 1;
+INSERT INTO `_empty_host_business_guard` SELECT 1 FROM `commission_milestone` LIMIT 1;
+INSERT INTO `_empty_host_business_guard` SELECT 1 FROM `commission_payment` LIMIT 1;
+INSERT INTO `_empty_host_business_guard` SELECT 1 FROM `commission_change` LIMIT 1;
+INSERT INTO `_empty_host_business_guard` SELECT 1 FROM `commission_issue` LIMIT 1;
+INSERT INTO `_empty_host_business_guard` SELECT 1 FROM `commission_delivery_item` LIMIT 1;
+INSERT INTO `_empty_host_business_guard` SELECT 1 FROM `commission_acceptance` LIMIT 1;
+INSERT INTO `_empty_host_business_guard` SELECT 1 FROM `commission_event` LIMIT 1;
+INSERT INTO `_empty_host_business_guard` SELECT 1 FROM `commission_invitation` LIMIT 1;
+INSERT INTO `_empty_host_business_guard` SELECT 1 FROM `commission_agreement` LIMIT 1;
+INSERT INTO `_empty_host_business_guard` SELECT 1 FROM `commission_proof_attempt` LIMIT 1;
+INSERT INTO `_empty_host_business_guard` SELECT 1 FROM `contract_credential` LIMIT 1;
+INSERT INTO `_empty_host_business_guard` SELECT 1 FROM `commission_payment_plan` LIMIT 1;
+INSERT INTO `_empty_host_business_guard` SELECT 1 FROM `commission_file` LIMIT 1;
+INSERT INTO `_empty_host_business_guard` SELECT 1 FROM `commission_delivery` LIMIT 1;
+INSERT INTO `_empty_host_business_guard` SELECT 1 FROM `commission_submission` LIMIT 1;
+INSERT INTO `_empty_host_business_guard` SELECT 1 FROM `contract` LIMIT 1;
+INSERT INTO `_empty_host_business_guard` SELECT 1 FROM `commission_contract_template_version` LIMIT 1;
+INSERT INTO `_empty_host_business_guard` SELECT 1 FROM `commission` LIMIT 1;
+INSERT INTO `_empty_host_business_guard` SELECT 1 FROM `commission_contract_template` LIMIT 1;
+DROP TABLE `contract_admin_audit`;
+DROP TABLE `contract_credential_attempt`;
+DROP TABLE `commission_settings`;
+DROP TABLE `commission_milestone`;
+DROP TABLE `commission_payment`;
+DROP TABLE `commission_change`;
+DROP TABLE `commission_issue`;
+DROP TABLE `commission_delivery_item`;
+DROP TABLE `commission_acceptance`;
+DROP TABLE `commission_event`;
+DROP TABLE `commission_invitation`;
+DROP TABLE `commission_agreement`;
+DROP TABLE `commission_proof_attempt`;
+DROP TABLE `contract_credential`;
+DROP TABLE `commission_payment_plan`;
+DROP TABLE `commission_file`;
+DROP TABLE `commission_delivery`;
+DROP TABLE `commission_submission`;
+DROP TABLE `contract`;
+DROP TABLE `commission_contract_template_version`;
+DROP TABLE `commission`;
+DROP TABLE `commission_contract_template`;
+DROP TEMPORARY TABLE `_empty_host_business_guard`;
+UNLOCK TABLES;

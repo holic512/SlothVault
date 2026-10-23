@@ -59,3 +59,13 @@ does not settle an order. Legacy SOL prepared payloads without `asset` stay vali
 Managed migrations can call `context.schema.hasColumn(logicalTable, column)` before
 adding declared columns. The host limits inspection to the plugin's own manifest
 tables and columns during migration; it does not expose database errors or arbitrary metadata.
+
+
+### SDK 1.4: private files, Mainnet evidence and safe contributions
+
+- Declare `files.private` and an API `transport` of `upload` (POST), `download` or `archive` (GET). Upload raw bytes with `Content-Type: application/octet-stream`, percent-encoded `X-File-Name` and decimal `X-File-Size`. The host invokes the endpoint with `input.phase = authorize` before consuming the stream and `complete` with `input.upload` afterwards. Both phases must enforce record ownership. Downloads return `{ fileId, name? }`; archives return `{ name, entries: [{ path, fileId? , text? }] }` with exactly one content source per entry.
+- `ctx.files.inspect(id)` / `ensure(ids)` validate immutable bytes inside the caller's private namespace. Plugins persist references and control sharing; the host transfers files without buffering them in the worker. Private files are retained on data-preserving uninstall and included in complete backups.
+- Declare `evidence.memo` for `ctx.evidence.prepare`, `validateSigned`, `broadcast`, and `observe`. The JSON Memo's `protocol` must equal the plugin ID. Only active administrators prepare/sign/broadcast; declared jobs may rebroadcast existing signed bytes. The host requires Mainnet genesis and exact signed messages. Persist signed bytes and their signature **before** broadcast; only `FINALIZED` may release a business gate. The API does not hold keys or ask customers to sign.
+- `ctx.users.find({ query?, userId? })` returns a limited account projection. Searches require an administrator; ordinary users can query only themselves. A declared core-user reference with `onDelete: RESTRICT` prevents deletion even while the plugin is inactive.
+- `lifecycleGuards: [{ table, column, values, message }]` prevents disabling/uninstalling while matching rows exist. Guards use declared plugin-owned textual columns and are checked without executing plugin code.
+- `mcp` contributions declare `key`, namespaced `name`, `title`, `description`, bounded `inputSchema`, `access`, `readOnly`, and `operation: read | draft`. Implement handlers in `PluginServer.mcp`; expose only queries and draft changes. Formal submissions, signatures and payments must remain web-only. The host binds the authenticated actor and rechecks activation at invocation.

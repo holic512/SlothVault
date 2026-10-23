@@ -1,0 +1,841 @@
+{
+  "schema": 1,
+  "id": "slothvault.commissions",
+  "name": "Commissions",
+  "version": "1.0.0",
+  "description": "Single mainnet-evidenced commission lifecycle, immutable contracts, private attachments and maintenance.",
+  "author": "holic512",
+  "engines": {
+    "slothvault": ">=2.7.13 <3",
+    "sdk": "^1.4.0",
+    "node": ">=24.22.1"
+  },
+  "server": "server/index.mjs",
+  "capabilities": [
+    "database",
+    "users.read",
+    "evidence.memo",
+    "files.private"
+  ],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "providerName": {
+        "type": "string",
+        "maxLength": 200
+      }
+    },
+    "additionalProperties": false
+  },
+  "configDefaults": {
+    "providerName": ""
+  },
+  "tables": [
+    {
+      "name": "commissions",
+      "columns": [
+        {
+          "name": "id",
+          "type": "string",
+          "length": 160,
+          "primary": true
+        },
+        {
+          "name": "revision",
+          "type": "integer"
+        },
+        {
+          "name": "customer_id",
+          "type": "integer",
+          "nullable": true,
+          "references": {
+            "table": "auth_user",
+            "column": "id",
+            "onDelete": "RESTRICT",
+            "coreCollection": "users"
+          }
+        },
+        {
+          "name": "created_by",
+          "type": "integer",
+          "nullable": false,
+          "references": {
+            "table": "auth_user",
+            "column": "id",
+            "onDelete": "RESTRICT",
+            "coreCollection": "users"
+          }
+        },
+        {
+          "name": "stage",
+          "type": "string",
+          "length": 160
+        },
+        {
+          "name": "data_json",
+          "type": "text"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "customer_id"
+          ],
+          "unique": false
+        },
+        {
+          "columns": [
+            "stage"
+          ],
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "templates",
+      "columns": [
+        {
+          "name": "id",
+          "type": "string",
+          "length": 160,
+          "primary": true
+        },
+        {
+          "name": "family",
+          "type": "string",
+          "length": 160
+        },
+        {
+          "name": "version",
+          "type": "integer"
+        },
+        {
+          "name": "data_json",
+          "type": "text"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "family",
+            "version"
+          ],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "evidence",
+      "columns": [
+        {
+          "name": "id",
+          "type": "string",
+          "length": 160,
+          "primary": true
+        },
+        {
+          "name": "commission_id",
+          "type": "string",
+          "length": 160,
+          "nullable": false,
+          "references": {
+            "table": "commissions",
+            "column": "id",
+            "onDelete": "RESTRICT"
+          }
+        },
+        {
+          "name": "kind",
+          "type": "string",
+          "length": 160
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "length": 160
+        },
+        {
+          "name": "data_json",
+          "type": "text"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "commission_id"
+          ],
+          "unique": false
+        },
+        {
+          "columns": [
+            "status"
+          ],
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "attempts",
+      "columns": [
+        {
+          "name": "id",
+          "type": "string",
+          "length": 160,
+          "primary": true
+        },
+        {
+          "name": "commission_id",
+          "type": "string",
+          "length": 160,
+          "nullable": false,
+          "references": {
+            "table": "commissions",
+            "column": "id",
+            "onDelete": "RESTRICT"
+          }
+        },
+        {
+          "name": "evidence_id",
+          "type": "string",
+          "length": 160,
+          "nullable": false,
+          "references": {
+            "table": "evidence",
+            "column": "id",
+            "onDelete": "RESTRICT"
+          }
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "length": 160
+        },
+        {
+          "name": "signature",
+          "type": "string",
+          "length": 160,
+          "nullable": true
+        },
+        {
+          "name": "prepared_json",
+          "type": "text"
+        },
+        {
+          "name": "signed_transaction",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "error",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "type": "string",
+          "length": 160
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "status"
+          ],
+          "unique": false
+        },
+        {
+          "columns": [
+            "evidence_id"
+          ],
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "attachments",
+      "columns": [
+        {
+          "name": "id",
+          "type": "string",
+          "length": 160,
+          "primary": true
+        },
+        {
+          "name": "commission_id",
+          "type": "string",
+          "length": 160,
+          "nullable": false,
+          "references": {
+            "table": "commissions",
+            "column": "id",
+            "onDelete": "RESTRICT"
+          }
+        },
+        {
+          "name": "file_id",
+          "type": "string",
+          "length": 160
+        },
+        {
+          "name": "data_json",
+          "type": "text"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "commission_id",
+            "file_id"
+          ],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "events",
+      "columns": [
+        {
+          "name": "id",
+          "type": "string",
+          "length": 160,
+          "primary": true
+        },
+        {
+          "name": "commission_id",
+          "type": "string",
+          "length": 160,
+          "nullable": false,
+          "references": {
+            "table": "commissions",
+            "column": "id",
+            "onDelete": "RESTRICT"
+          }
+        },
+        {
+          "name": "sequence",
+          "type": "integer"
+        },
+        {
+          "name": "data_json",
+          "type": "text"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "commission_id",
+            "sequence"
+          ],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "commands",
+      "columns": [
+        {
+          "name": "id",
+          "type": "string",
+          "length": 160,
+          "primary": true
+        },
+        {
+          "name": "actor_id",
+          "type": "integer"
+        },
+        {
+          "name": "fingerprint",
+          "type": "string",
+          "length": 160
+        },
+        {
+          "name": "result_json",
+          "type": "text"
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "invitations",
+      "columns": [
+        {
+          "name": "id",
+          "type": "string",
+          "length": 160,
+          "primary": true
+        },
+        {
+          "name": "commission_id",
+          "type": "string",
+          "length": 160,
+          "nullable": false,
+          "references": {
+            "table": "commissions",
+            "column": "id",
+            "onDelete": "RESTRICT"
+          }
+        },
+        {
+          "name": "token_hash",
+          "type": "string",
+          "length": 160
+        },
+        {
+          "name": "expires_at",
+          "type": "string",
+          "length": 160
+        },
+        {
+          "name": "claimed_by",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "revoked",
+          "type": "integer"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "token_hash"
+          ],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "settings",
+      "columns": [
+        {
+          "name": "id",
+          "type": "string",
+          "length": 160,
+          "primary": true
+        },
+        {
+          "name": "revision",
+          "type": "integer"
+        },
+        {
+          "name": "accepting_new",
+          "type": "integer"
+        }
+      ],
+      "indexes": []
+    }
+  ],
+  "migrations": [
+    "initial"
+  ],
+  "api": [
+    {
+      "key": "list",
+      "path": "list",
+      "method": "GET",
+      "access": {
+        "audience": "user"
+      }
+    },
+    {
+      "key": "detail",
+      "path": "detail",
+      "method": "GET",
+      "access": {
+        "audience": "user"
+      }
+    },
+    {
+      "key": "create",
+      "path": "create",
+      "method": "POST",
+      "access": {
+        "audience": "user"
+      }
+    },
+    {
+      "key": "command",
+      "path": "command",
+      "method": "POST",
+      "access": {
+        "audience": "user"
+      }
+    },
+    {
+      "key": "templates",
+      "path": "templates",
+      "method": "GET",
+      "access": {
+        "audience": "user"
+      }
+    },
+    {
+      "key": "template-save",
+      "path": "template-save",
+      "method": "POST",
+      "access": {
+        "audience": "admin"
+      }
+    },
+    {
+      "key": "evidence",
+      "path": "evidence",
+      "method": "GET",
+      "access": {
+        "audience": "admin"
+      }
+    },
+    {
+      "key": "prepare",
+      "path": "prepare",
+      "method": "POST",
+      "access": {
+        "audience": "admin"
+      }
+    },
+    {
+      "key": "submit",
+      "path": "submit",
+      "method": "POST",
+      "access": {
+        "audience": "admin"
+      }
+    },
+    {
+      "key": "reconcile",
+      "path": "reconcile",
+      "method": "POST",
+      "access": {
+        "audience": "admin"
+      }
+    },
+    {
+      "key": "users",
+      "path": "users",
+      "method": "GET",
+      "access": {
+        "audience": "admin"
+      }
+    },
+    {
+      "key": "settings",
+      "path": "settings",
+      "method": "GET",
+      "access": {
+        "audience": "admin"
+      }
+    },
+    {
+      "key": "settings-save",
+      "path": "settings",
+      "method": "POST",
+      "access": {
+        "audience": "admin"
+      }
+    },
+    {
+      "key": "invitation",
+      "path": "invitation",
+      "method": "GET",
+      "access": {
+        "audience": "public"
+      }
+    },
+    {
+      "key": "claim",
+      "path": "claim",
+      "method": "POST",
+      "access": {
+        "audience": "user"
+      }
+    },
+    {
+      "key": "receipt",
+      "path": "receipt",
+      "method": "GET",
+      "access": {
+        "audience": "public"
+      }
+    },
+    {
+      "key": "upload",
+      "path": "upload",
+      "method": "POST",
+      "access": {
+        "audience": "user"
+      },
+      "transport": "upload"
+    },
+    {
+      "key": "download",
+      "path": "download",
+      "method": "GET",
+      "access": {
+        "audience": "user"
+      },
+      "transport": "download"
+    },
+    {
+      "key": "archive",
+      "path": "archive",
+      "method": "GET",
+      "access": {
+        "audience": "user"
+      },
+      "transport": "archive"
+    }
+  ],
+  "ui": [
+    {
+      "key": "admin",
+      "asset": "client/admin.js",
+      "css": "client/admin.css",
+      "surface": "admin",
+      "wallet": true,
+      "kind": "page",
+      "title": "Commissions",
+      "titleZh": "委托管理",
+      "path": "admin",
+      "menu": true,
+      "access": {
+        "audience": "admin"
+      },
+      "order": 50
+    },
+    {
+      "key": "templates",
+      "asset": "client/templates.js",
+      "css": "client/templates.css",
+      "surface": "admin",
+      "wallet": true,
+      "kind": "page",
+      "title": "Contract templates",
+      "titleZh": "合同模板",
+      "path": "templates",
+      "menu": true,
+      "access": {
+        "audience": "admin"
+      },
+      "order": 50
+    },
+    {
+      "key": "evidence",
+      "asset": "client/evidence.js",
+      "css": "client/evidence.css",
+      "surface": "admin",
+      "wallet": true,
+      "kind": "page",
+      "title": "Evidence tasks",
+      "titleZh": "存证待办",
+      "path": "evidence",
+      "menu": true,
+      "access": {
+        "audience": "admin"
+      },
+      "order": 50
+    },
+    {
+      "key": "account",
+      "asset": "client/account.js",
+      "css": "client/account.css",
+      "surface": "account",
+      "wallet": false,
+      "kind": "page",
+      "title": "My commissions",
+      "titleZh": "我的委托",
+      "path": "account",
+      "menu": true,
+      "access": {
+        "audience": "user"
+      },
+      "order": 50
+    },
+    {
+      "key": "invitation",
+      "asset": "client/invitation.js",
+      "css": "client/invitation.css",
+      "surface": "public",
+      "wallet": false,
+      "kind": "page",
+      "title": "Commission invitation",
+      "titleZh": "委托邀请",
+      "path": "invitation",
+      "menu": false,
+      "access": {
+        "audience": "public"
+      },
+      "order": 50
+    },
+    {
+      "key": "receipt",
+      "asset": "client/receipt.js",
+      "css": "client/receipt.css",
+      "surface": "public",
+      "wallet": false,
+      "kind": "page",
+      "title": "Evidence receipt",
+      "titleZh": "公开核验",
+      "path": "receipt",
+      "menu": false,
+      "access": {
+        "audience": "public"
+      },
+      "order": 50
+    }
+  ],
+  "jobs": [
+    {
+      "key": "reconcile",
+      "intervalSeconds": 60
+    },
+    {
+      "key": "maintenance",
+      "intervalSeconds": 300
+    }
+  ],
+  "mcp": [
+    {
+      "key": "list",
+      "name": "slothvault.commissions.list",
+      "title": "list",
+      "description": "List commissions visible to the current user.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "access": {
+        "audience": "user"
+      },
+      "operation": "read",
+      "readOnly": true
+    },
+    {
+      "key": "detail",
+      "name": "slothvault.commissions.detail",
+      "title": "detail",
+      "description": "Read one commission; private access checks apply.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "commissionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "commissionId"
+        ],
+        "additionalProperties": false
+      },
+      "access": {
+        "audience": "user"
+      },
+      "operation": "read",
+      "readOnly": true
+    },
+    {
+      "key": "templates",
+      "name": "slothvault.commissions.templates",
+      "title": "templates",
+      "description": "Read the latest published contract templates.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "access": {
+        "audience": "user"
+      },
+      "operation": "read",
+      "readOnly": true
+    },
+    {
+      "key": "create-draft",
+      "name": "slothvault.commissions.create-draft",
+      "title": "create-draft",
+      "description": "Create only a commission draft. Does not submit, publish, confirm, sign or broadcast.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "commandId": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "const": 0
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "customerId": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "commandId",
+          "revision",
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "access": {
+        "audience": "user"
+      },
+      "operation": "draft",
+      "readOnly": false
+    },
+    {
+      "key": "update-draft",
+      "name": "slothvault.commissions.update-draft",
+      "title": "update-draft",
+      "description": "Update only a draft. Formal actions must be performed through the website.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "commandId": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "commissionId": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "commandId",
+          "revision",
+          "commissionId",
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "access": {
+        "audience": "user"
+      },
+      "operation": "draft",
+      "readOnly": false
+    }
+  ],
+  "lifecycleGuards": [
+    {
+      "table": "attempts",
+      "column": "status",
+      "values": [
+        "SUBMITTED"
+      ],
+      "message": "Pending mainnet evidence must be reconciled before disabling or uninstalling commissions."
+    }
+  ]
+}

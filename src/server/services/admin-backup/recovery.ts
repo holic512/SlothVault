@@ -2,13 +2,14 @@
  * @file recovery.ts
  * @project SlothVault
  * @module Coordinated Restore Recovery
- * @description Journals upload root moves and reconciles them against an atomic database commit receipt.
- * @logic Persist complete move intent before mutation, infer each move from its stage and rollback locations, and fail closed if recovery is ambiguous.
+ * @description Journals upload and private plugin root moves and reconciles them against an atomic database commit receipt.
+ * @logic Stage private files on their own filesystem and persist complete move intent before mutation, infer each move from its stage and rollback locations, and fail closed if recovery is ambiguous.
  * @dependencies Node filesystem, Prisma transaction client, private backup control store, upload root
  * @index_tags backup,restore,journal,rollback,crash-recovery
  * @author holic512
  */
 import 'server-only'
+import { preparePrivateRestore, switchPrivateRestore, reconcilePrivateRestore, cleanupPrivateRestore } from './plugin-files-recovery'
 import { mkdir, open, readdir, rename, rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { z } from 'zod'
@@ -28,6 +29,7 @@ const journalSchema = z.object({
   stage: z.string().regex(/^\.complete-restore-[a-f0-9-]{36}$/),
   rollback: z.string().regex(/^\.complete-rollback-[a-f0-9-]{36}$/),
   oldNames: z.array(name), newNames: z.array(name),
+  privateFiles: z.object({ oldPresent: z.boolean() }).strict().optional(),
   resolution: z.enum(['pending', 'committed', 'rolledBack']),
 }).strict().refine((journal) => journal.stage === `.complete-restore-${journal.jobId}` && journal.rollback === `.complete-rollback-${journal.jobId}` &&
   new Set(journal.oldNames).size === journal.oldNames.length && new Set(journal.newNames).size === journal.newNames.length)
@@ -62,6 +64,8 @@ export async function prepareRestoreJournal(jobId: string, stagedUploads: string
   }
   await syncDirectory(stagedUploads)
   // Caller extracts beneath UPLOAD_ROOT so this rename cannot cross a filesystem.
+  journal.privateFiles = await preparePrivateRestore(jobId, stagedUploads)
+  journal.newNames = (await readdir(stagedUploads)).sort()
   try {
     await durableMove(stagedUploads, stage)
     await mkdir(rollback, { mode: 0o700 })
@@ -70,6 +74,7 @@ export async function prepareRestoreJournal(jobId: string, stagedUploads: string
   } catch (error) {
     // A published journal owns its material, even if its acknowledgement failed.
     if (!await readRestoreJournal()) {
+      await cleanupPrivateRestore(jobId).catch(() => undefined)
       await rm(stage, { recursive: true, force: true }).catch(() => undefined)
       await rm(rollback, { recursive: true, force: true }).catch(() => undefined)
     }
@@ -78,6 +83,7 @@ export async function prepareRestoreJournal(jobId: string, stagedUploads: string
   return journal
 }
 export async function switchRestoreFiles(journal: RestoreJournal) {
+  if (journal.privateFiles) await switchPrivateRestore(journal.jobId, journal.privateFiles)
   const stage = resolveWithin(UPLOAD_ROOT, journal.stage), rollback = resolveWithin(UPLOAD_ROOT, journal.rollback)
   for (const entry of journal.oldNames) await durableMove(resolveWithin(UPLOAD_ROOT, entry), resolveWithin(rollback, entry))
   for (const entry of journal.newNames) await durableMove(resolveWithin(stage, entry), resolveWithin(UPLOAD_ROOT, entry))
@@ -109,8 +115,10 @@ export async function reconcileRestoreJournal(journal: RestoreJournal, committed
       } else if (!await lstatOrNull(live)) throw new Error('Original restore file is missing')
     }
   }
+  if (journal.privateFiles && journal.resolution === 'pending') await reconcilePrivateRestore(journal.jobId, journal.privateFiles, committed)
   // Persist the recovery decision before deleting evidence; cleanup can then be retried safely.
   await atomicJson(restoreJournalPath(), { ...journal, resolution: committed ? 'committed' : 'rolledBack' })
+  if (journal.privateFiles) await cleanupPrivateRestore(journal.jobId)
   await rm(stage, { recursive: true, force: true })
   await rm(rollback, { recursive: true, force: true })
   await syncDirectory(UPLOAD_ROOT)

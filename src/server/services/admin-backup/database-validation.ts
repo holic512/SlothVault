@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { stripEmptyRetiredCollections } from './retired-core-data'
 import { discardRetiredCardPayload } from './retired-gift-cards'
 import { validatePluginBackup } from '@/server/plugins/backup'
 import { readDocumentationState } from '@/lib/project-documentation'
@@ -20,13 +21,9 @@ import { z } from 'zod'
 import { PublicKey } from '@solana/web3.js'
 import { attributionCollections, legacyAttributionFields, convertLegacyPayload } from './legacy-v2-13'
 import { readAttribution } from '@/lib/user-attribution'
-import { backupMap, backupSet, recordStore, recordWhere, recordIndex } from './record-store'
+import { backupMap, backupSet, recordStore, recordIndex } from './record-store'
 import { canonicalProjectVersionEvidenceMemo } from '@/server/services/project-version-evidence-protocol'
 import { canonicalReleaseManifest, parseReleaseManifest, releaseManifestHash } from '@/server/services/release-manifest'
-import { validateCommissionBackup } from '@/server/commissions/backup'
-import { assertDocumentSnapshot } from '@/server/commissions/documents'
-import { assertDocumentAttachments } from '@/server/commissions/storage'
-import { contractBodyHash, contractRootHash } from '@/server/services/contract-evidence-protocol'
 
 import { HttpError } from '@/server/http/errors'
 import { extractManagedFiles, managedUploadPath } from '@/lib/managed-files'
@@ -90,14 +87,12 @@ function assertReference<T>(
 export function validateBackupRelations(data: BackupData) {
   if (data.giftCards.length || data.giftCardBatches.length) invalidBackup('Historical gift cards are retired; new cards must use generic plugin rows')
   validatePluginBackup(data)
-  try { validateCommissionBackup(data) } catch (error) { invalidBackup(error instanceof Error ? error.message : 'Invalid commission backup') }
 
   for (const [key, model] of Object.entries(attributionCollections)) {
     for (const row of data[key as keyof BackupData] as Array<Record<string, unknown>>) {
       const snapshots = readAttribution(row.attributionJson as string)
-      const mandatory = !['pointTransaction', 'membershipGrant', 'noteInfo', 'commissionSubmission'].includes(model)
+      const mandatory = !['pointTransaction', 'membershipGrant', 'noteInfo'].includes(model)
       for (const field of legacyAttributionFields[model]) {
-        if (field === 'confirmedById') continue
         if (mandatory && row[field] === null && !snapshots[field]) invalidBackup(`Missing historical attribution: ${key}.${field}`)
       }
     }
@@ -137,10 +132,6 @@ export function validateBackupRelations(data: BackupData) {
   const systemHomepages = mapById('systemHomepage', data.systemHomepages)
   const releaseCredentials = mapById('releaseCredential', data.releaseCredentials)
   mapById('releaseCredentialAttempt', data.releaseCredentialAttempts)
-  const contracts = mapById('contract', data.contracts)
-  mapById('contractAdminAudit', data.contractAdminAudits)
-  const contractCredentials = mapById('contractCredential', data.contractCredentials)
-  mapById('contractCredentialAttempt', data.contractCredentialAttempts)
 
   for (const version of projectVersions.values()) {
     const state = readDocumentationState(version.documentationStateJson)
@@ -347,55 +338,6 @@ export function validateBackupRelations(data: BackupData) {
       if (memo.releaseId !== current.releaseId || memo.releaseHash !== current.releaseHash || memo.network !== credential.network || memo.signer !== item.signerAddress || canonicalReleaseManifest(memo.manifest) !== canonicalReleaseManifest(current.manifest)) throw new Error('Attempt snapshot mismatch')
     } catch { invalidBackup(`releaseCredentialAttempt ${item.id} differs from its publication snapshot`) }
   }
-  for (const item of data.contracts) {
-    if (item.commissionId) {
-      if (!data.commissions.some((c) => c.id === item.commissionId && c.subjectUserId === item.subjectUserId) || !data.commissionTemplateVersions.some((v) => v.id === item.templateVersionId)) invalidBackup('Contract commission or template reference mismatch')
-      assertDocumentSnapshot({ commissionId: Number(item.commissionId), snapshotJson: item.snapshotJson, snapshotHash: item.snapshotHash, body: item.body })
-      if (item.bodyHash !== contractBodyHash(item.body)) invalidBackup('Contract frozen body hash mismatch')
-      if (item.status === 2 && item.installationId && item.issuedAt && item.signedAt && contractRootHash({ installationId: item.installationId, contractId: item.contractId, title: item.title, bodyHash: item.bodyHash, attachmentHash: item.attachmentHash, partyCommitment: item.partyCommitment, issuedAt: new Date(item.issuedAt), signedAt: new Date(item.signedAt), snapshotHash: item.snapshotHash }) !== item.contractHash) invalidBackup('Contract signed root hash mismatch')
-      const snapshot = JSON.parse(item.snapshotJson!), template = data.commissionTemplateVersions.find((v) => v.id === item.templateVersionId)!
-      assertDocumentAttachments(snapshot.attachments || [], recordWhere(data.commissionFiles, 'commissionId', item.commissionId!).map((f) => ({ ...f, file: { ...fileManagements.get(f.fileId)!, fileSize: BigInt(fileManagements.get(f.fileId)!.fileSize) } })))
-      if (snapshot.version !== template.version || JSON.stringify(snapshot.documents) !== template.documentsJson || JSON.stringify(snapshot.fields) !== template.fieldsJson) invalidBackup('Contract template snapshot does not match its published version')
-      if (item.documentType !== 'AGREEMENT') {
-        const source = item.documentType === 'CHANGE' ? data.commissionChanges.find((c) => c.id === item.sourceRecordId) : data.commissionAcceptances.find((c) => c.id === item.sourceRecordId)
-        if (!source || source.commissionId !== item.commissionId) invalidBackup('Contract source record crosses commission boundaries')
-      }
-    }
-    if (item.issuerUserId) assertReference(users, item.issuerUserId, 'contract issuerUserId')
-    assertReference(users, item.subjectUserId, 'contract subjectUserId')
-    if (item.attachmentFileId) assertReference(fileManagements, item.attachmentFileId, 'contract attachmentFileId')
-    if (Boolean(item.attachmentFileId) !== Boolean(item.attachmentHash)) {
-      invalidBackup(`contract ${item.id} has partial attachment metadata`)
-    }
-    if (item.status === 0 && (item.installationId || item.issuedAt || item.signedAt || item.contractHash)) {
-      invalidBackup(`draft contract ${item.id} has frozen metadata`)
-    }
-    if (item.status === 1 && (!item.installationId || !item.issuedAt || item.signedAt || item.contractHash)) {
-      invalidBackup(`pending contract ${item.id} has invalid signature metadata`)
-    }
-    if (item.status === 2 && (!item.installationId || !item.issuedAt || !item.signedAt || !item.contractHash)) {
-      invalidBackup(`signed contract ${item.id} is missing immutable hash metadata`)
-    }
-    if (item.status === -1 && (!item.issuedAt || !item.declinedAt || item.contractHash)) {
-      invalidBackup(`declined contract ${item.id} has invalid response metadata`)
-    }
-    if (item.status === -2 && !item.cancelledAt) {
-      invalidBackup(`cancelled contract ${item.id} is missing cancellation metadata`)
-    }
-  }
-  for (const item of data.contractCredentials) {
-    assertReference(contracts, item.contractId, 'contractCredential contractId')
-    if (item.issuerUserId) assertReference(users, item.issuerUserId, 'contractCredential issuerUserId')
-  }
-  for (const item of data.contractAdminAudits) {
-    assertReference(contracts, item.contractId, 'contractAdminAudit contractId')
-    if (item.actorUserId) assertReference(users, item.actorUserId, 'contractAdminAudit actorUserId')
-  }
-  for (const item of data.contractCredentialAttempts) {
-    assertReference(contractCredentials, item.credentialId, 'contractCredentialAttempt credentialId')
-    if (item.issuerUserId) assertReference(users, item.issuerUserId, 'contractCredentialAttempt issuerUserId')
-  }
-
   const homeProjects = backupSet(data.projectHomes)
   for (const home of projectHomes.values()) {
     if (homeProjects.has(home.projectId)) {
@@ -441,22 +383,6 @@ export function validateBackupRelations(data: BackupData) {
     data.users.filter((item): item is typeof item & { email: string } => item.email !== null),
     (item) => item.email,
   )
-  assertUniqueField('contractId', data.contracts, (item) => item.contractId)
-  assertUniqueField(
-    'contract attachmentFileId',
-    data.contracts.filter((item): item is typeof item & { attachmentFileId: string } => item.attachmentFileId !== null),
-    (item) => item.attachmentFileId,
-  )
-  assertUniqueField(
-    'contractCredential contract/network',
-    data.contractCredentials,
-    (item) => `${item.contractId}:${item.network}`,
-  )
-  assertUniqueField(
-    'contractCredential transactionSignature',
-    data.contractCredentials.filter((item): item is typeof item & { transactionSignature: string } => item.transactionSignature !== null),
-    (item) => item.transactionSignature,
-  )
   assertUniqueField(
     'walletAddress',
     data.users.filter(
@@ -499,6 +425,7 @@ export function validateBackupRelations(data: BackupData) {
 }
 
 export function parseDatabaseImportPayload(input: unknown): DatabaseImportPayload {
+  if (input && typeof input === 'object' && 'data' in input && input.data && typeof input.data === 'object' && !Array.isArray(input.data)) input = { ...input, data: stripEmptyRetiredCollections(input.data as Record<string, unknown>) }
   const sourceVersion = (input as { version?: string } | null)?.version
   if (input && typeof input === 'object' && 'version' in input && input.version === '2.13.0') input = { version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data: convertLegacyPayload(input) }
   if (input && typeof input === 'object' && 'version' in input && input.version === '2.14.0') input = { version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data: convertWalletPayload(input) }
@@ -508,7 +435,7 @@ export function parseDatabaseImportPayload(input: unknown): DatabaseImportPayloa
     if ( Object.keys(legacy.data).some(key => key.startsWith('plugin'))) invalidBackup('plugin collections cannot use a legacy version')
     input = { version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data: { ...addLegacyMenuIcons(legacy.data), pluginInstallations: [], pluginTables: [], pluginMigrations: [], pluginPointReceipts: [], pluginRows: [] } }
   }
-  if (sourceVersion === '2.17.0' || sourceVersion === '2.18.0') {
+  if (sourceVersion === '2.17.0' || sourceVersion === '2.18.0' || sourceVersion === '2.19.0') {
     const legacy = z.object({ version: z.literal(sourceVersion), mode: z.literal('overwrite'), data: z.record(z.string(), z.unknown()) }).strict().parse(input)
     input = { version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data: addLegacyMenuIcons(legacy.data) }
   }

@@ -53,7 +53,7 @@ export async function generateMetadata(): Promise<Metadata> {
       default: 'SlothVault',
       template: '%s · SlothVault',
     },
-    description: 'A public publishing system for independent articles, versioned projects, accounts, points, contracts, and optional Solana release evidence.',
+    description: 'A public publishing system for independent articles, versioned projects, accounts, points, optional plugins, and Solana release evidence.',
     icons: { icon: branding.faviconUrl },
   }
 }

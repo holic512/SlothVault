@@ -197,3 +197,41 @@ export async function reconcilePluginRestore() {
     await rm(journalPath(), { force: true }); setBackupRecoveryError(null)
   } catch { setBackupRecoveryError('PLUGIN_RESTORE_REQUIRES_MAINTENANCE'); throw new HttpError('Plugin restore requires maintenance recovery', 503) }
 }
+
+/** Validate portable file DTOs and explicit fileId/fileIds references, including JSON columns, without plugin code. */
+export function validatePluginFileReferences(
+  rows: Iterable<{ pluginId: string; rowJson: string }>,
+  lookup: (pluginId: string, id: string) => { id: string; name: string; size: string; sha256: string; createdAt: string } | undefined,
+) {
+  const missing = (): never => { throw new HttpError('Plugin backup file reference or SHA256 does not match its private file', 400, 400, { reason: 'BACKUP_PLUGIN_FILE_MISMATCH' }) }
+  for (const row of rows) {
+    const requireFile = (id: string) => lookup(row.pluginId, id) ?? missing()
+    const visit = (value: unknown, depth = 0): void => {
+      if (depth > 100) throw new HttpError('Plugin backup JSON is too deeply nested', 400)
+      if (Array.isArray(value)) { for (const child of value) visit(child, depth + 1); return }
+      if (!value || typeof value !== 'object') return
+      const record = value as Record<string, unknown>
+      if (typeof record.id === 'string' && typeof record.sha256 === 'string' && typeof record.size === 'string' && typeof record.name === 'string') {
+        const actual = requireFile(record.id)
+        if (actual.sha256 !== record.sha256 || actual.size !== record.size || actual.name !== record.name || (record.createdAt !== undefined && actual.createdAt !== record.createdAt)) missing()
+      }
+      for (const [key, child] of Object.entries(record)) {
+        if (child === null) continue
+        if (/(?:^|_)(?:file_id)$/.test(key) || /(?:^fileId$|FileId$)/.test(key)) {
+          if (typeof child !== 'string') missing()
+          const actual = requireFile(child as string)
+          if (typeof record.sha256 === 'string' && actual.sha256 !== record.sha256) missing()
+        } else if (key === 'fileIds' || key.endsWith('FileIds') || key === 'file_ids') {
+          if (!Array.isArray(child) || child.some(id => typeof id !== 'string')) missing()
+          for (const id of child as string[]) requireFile(id)
+        }
+        if (typeof child === 'string' && /^[\[{]/.test(child.trim())) {
+          let parsed: unknown
+          try { parsed = JSON.parse(child) } catch { continue }
+          visit(parsed, depth + 1)
+        } else visit(child, depth + 1)
+      }
+    }
+    visit(JSON.parse(row.rowJson))
+  }
+}

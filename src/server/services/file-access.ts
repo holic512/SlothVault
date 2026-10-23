@@ -3,12 +3,13 @@
  * @project SlothVault
  * @module Managed File Authorization
  * @description Authorizes legacy and contextual upload URLs using live content references and independent project capabilities.
- * @logic Validate live references and enabled homepage covers, reject orphaned or hidden public references, allow any authorized shared use, validate explicit project context, and keep contract attachments on their dedicated routes.
+ * @logic Validate live references and enabled homepage covers, reject orphaned or hidden public references, allow any authorized shared use, validate explicit project context, and reject unsupported file classifications.
  * @dependencies Prisma file/content models, content-access, auth roles, lib/managed-files
  * @index_tags files,authorization,shared-attachments,uploads,read,download
  * @author holic512
  */
 import 'server-only'
+import { BUSINESS_TYPE_CONFIG } from '@/lib/file-business-types'
 import type { AccessViewer } from '@/lib/content-access'
 import { isInlineImagePath, managedUploadPath } from '@/lib/managed-file-paths'
 import { readHomepageCover } from '@/lib/homepage-cover'
@@ -78,7 +79,7 @@ export async function authorizeManagedFile(
 ) {
   const files = await prisma.fileManagement.findMany({ where: { filePath, status: 1 }, include: { references: true } })
   if (!files.length) throw new HttpError('File not found', 404, 404)
-  if (files.some((file) => file.businessType === 'ContractAttachment')) throw new HttpError('Access denied', 403, 403)
+  if (files.some((file) => !Object.hasOwn(BUSINESS_TYPE_CONFIG, file.businessType))) throw new HttpError('Access denied', 403, 403)
   const inlineImage = isInlineImagePath(filePath)
   if (viewer && isAdminRole(viewer.role) && options.projectId === undefined) return
   const policies = new Map<number, Awaited<ReturnType<typeof resolveProjectAccess>>>()

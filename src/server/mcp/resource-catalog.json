@@ -6,13 +6,5 @@
     "mimeType": "application/octet-stream",
     "maxNameLength": 255,
     "maxBytes": 10485760
-  },
-  {
-    "name": "contract-attachment",
-    "uriTemplate": "slothvault://contract-attachment/{contractId}",
-    "resourceGroup": "contract-attachment",
-    "mimeType": "application/pdf",
-    "maxNameLength": 255,
-    "maxBytes": 26214400
   }
 ]

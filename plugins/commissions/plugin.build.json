@@ -1,0 +1,20 @@
+{
+  "format": "source-v1",
+  "server": "src/server.ts",
+  "client": {
+    "admin": "src/admin.tsx",
+    "templates": "src/templates-page.tsx",
+    "evidence": "src/evidence-page.tsx",
+    "account": "src/account-page.tsx",
+    "invitation": "src/invitation-page.tsx",
+    "receipt": "src/receipt-page.tsx"
+  },
+  "css": {
+    "admin": "src/style.css",
+    "templates": "src/style.css",
+    "evidence": "src/style.css",
+    "account": "src/style.css",
+    "invitation": "src/style.css",
+    "receipt": "src/style.css"
+  }
+}

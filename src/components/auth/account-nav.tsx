@@ -12,7 +12,7 @@
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Avatar, Button, Dropdown } from 'antd'
-import { ChevronDown, CircleUserRound, Coins, Crown, FileSignature, LayoutDashboard, LogIn, LogOut, ShieldCheck, UserRound } from 'lucide-react'
+import { ChevronDown, CircleUserRound, Coins, Crown, LayoutDashboard, LogIn, LogOut, ShieldCheck, UserRound } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
@@ -91,11 +91,6 @@ export function AccountNav({ compact = false }: { compact?: boolean }) {
             key: 'membership',
             icon: <Crown size={15} />,
             label: <Link href="/account/membership">{t('membership')}</Link>,
-          },
-          {
-            key: 'commissions',
-            icon: <FileSignature size={15} />,
-            label: <Link href="/account/commissions">{t('commissions')}</Link>,
           },
           ...(user.role === 'ADMIN'
             ? [{
