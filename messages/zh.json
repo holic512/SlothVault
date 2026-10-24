@@ -8,7 +8,7 @@
     "upload": "上传图片",
     "replace": "替换图片",
     "remove": "移除图片",
-    "imageHint": "支持单张 JPG、PNG 或 WebP，最大 10MB。建议使用压缩后的宽幅静态图片。",
+    "imageHint": "支持单张 JPG、PNG 或 WebP，最大 10MB。建议尺寸：1920 × 720 px（8:3），请预留裁切空间并避开顶部导航区域；此尺寸为建议值，桌面和手机预览会自适应裁切。",
     "invalidImage": "请选择不超过 10MB 的 JPG、PNG 或 WebP 静态图片。",
     "uploadFailed": "图片上传失败，请重试。",
     "preview": "裁切预览",
