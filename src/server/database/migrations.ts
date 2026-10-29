@@ -3,14 +3,14 @@
  * @project SlothVault
  * @module Database Bootstrap
  * @description Applies the committed provider migration set for installation and safe runtime upgrades.
- * @logic Reject non-empty retired business tables before any migration process, map the validated provider to a fixed schema path, pass credentials only through a child environment, run migrate deploy, then advance the installation marker only after every committed migration succeeds.
+ * @logic Clear explicitly retired host business data transactionally before migration, map the validated provider to a fixed schema path, pass credentials only through a child environment, run migrate deploy, then advance the installation marker only after every committed migration succeeds.
  * @dependencies node:child_process, Prisma CLI, database/connection-url, database/client, schema-version
  * @index_tags prisma,migrate-deploy,installer,upgrade,subprocess,tls
  * @author holic512
  */
 import 'server-only'
 import { backfillUserAttribution } from '@/server/services/user-deletion'
-import { assertRetiredHostTablesEmpty } from './legacy-business-preflight'
+import { clearRetiredHostTables } from './legacy-business-preflight'
 import { upgradeFileClassifications } from './file-classification-upgrade'
 import { rebuildFileReferences } from '@/server/services/file-references'
 
@@ -97,10 +97,10 @@ export function waitForMigrationProcessExit(
 }
 
 export async function deployInitialDatabaseSchema(connection: DatabaseConnectionInput) {
-  // Shared by installation and upgrade: fail before ANY migration or backfill can write.
+  // Shared by installation and upgrade; preserve published migration checksums.
   const preflightClient = createDatabaseClient(connection)
   try {
-    await assertRetiredHostTablesEmpty(preflightClient, connection.provider)
+    await clearRetiredHostTables(preflightClient, connection.provider)
   } finally {
     await disconnectDatabaseClient(preflightClient)
   }

@@ -1,13 +1,21 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import Database from 'better-sqlite3'
 import { describe, expect, it, vi } from 'vitest'
-import { assertRetiredHostTablesEmpty, RETIRED_HOST_TABLES } from './legacy-business-preflight'
+import { clearRetiredHostTables, RETIRED_HOST_TABLES } from './legacy-business-preflight'
 
 const root = 'prisma/providers/sqlite/migrations'
 const cleanup = '20261023000000_remove_empty_host_commissions'
 const sql = readFileSync(`${root}/${cleanup}/migration.sql`, 'utf8')
-function reader(db: Database.Database) {
-  return { $queryRawUnsafe: vi.fn(async (query: string) => db.prepare(query).all()) } as unknown as Parameters<typeof assertRetiredHostTablesEmpty>[0]
+function clientFor(db: Database.Database) {
+  const tx = { $executeRawUnsafe: vi.fn(async (query: string) => db.prepare(query).run().changes) }
+  return {
+    $queryRawUnsafe: vi.fn(async (query: string) => db.prepare(query).all()),
+    $transaction: vi.fn(async (operation: (transaction: typeof tx) => Promise<void>) => {
+      db.exec('BEGIN IMMEDIATE')
+      try { await operation(tx); db.exec('COMMIT') }
+      catch (error) { db.exec('ROLLBACK'); throw error }
+    }),
+  } as unknown as Parameters<typeof clearRetiredHostTables>[0]
 }
 function previousSchema() {
   const db = new Database(':memory:')
@@ -22,43 +30,69 @@ describe('retired host business preflight', () => {
   it('accepts fresh databases, empty legacy tables and already upgraded schemas', async () => {
     const fresh = new Database(':memory:'), existing = previousSchema()
     try {
-      await expect(assertRetiredHostTablesEmpty(reader(fresh), 'sqlite')).resolves.toBeUndefined()
-      await expect(assertRetiredHostTablesEmpty(reader(existing), 'sqlite')).resolves.toBeUndefined()
+      const freshClient = clientFor(fresh)
+      await expect(clearRetiredHostTables(freshClient, 'sqlite')).resolves.toBeUndefined()
+      expect(freshClient.$transaction).not.toHaveBeenCalled()
+      await expect(clearRetiredHostTables(clientFor(existing), 'sqlite')).resolves.toBeUndefined()
       const before = existing.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all() as { name: string }[]
       existing.exec(sql)
       const after = existing.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all()
       expect(after).toEqual(before.filter(row => !(RETIRED_HOST_TABLES as readonly string[]).includes(row.name)))
       expect(existing.pragma('foreign_key_check')).toEqual([])
-      await expect(assertRetiredHostTablesEmpty(reader(existing), 'sqlite')).resolves.toBeUndefined()
+      await expect(clearRetiredHostTables(clientFor(existing), 'sqlite')).resolves.toBeUndefined()
     } finally { fresh.close(); existing.close() }
   })
 
-  it.each(RETIRED_HOST_TABLES)('rejects rows in %s before migration and never drops earlier empty tables', async occupied => {
+  it.each(RETIRED_HOST_TABLES)('clears rows in %s so the unchanged guarded migration succeeds', async occupied => {
     const db = new Database(':memory:')
     try {
       for (const table of RETIRED_HOST_TABLES) db.exec(`CREATE TABLE "${table}" (id INTEGER PRIMARY KEY)`)
       db.exec(`INSERT INTO "${occupied}" VALUES (1)`)
-      const client = reader(db)
-      await expect(assertRetiredHostTablesEmpty(client, 'sqlite')).rejects.toThrow(occupied)
-      expect(client.$queryRawUnsafe).not.toHaveBeenCalledWith(expect.stringMatching(/DROP|DELETE|UPDATE|INSERT/))
-      // Defense in depth: bypassing the host preflight still cannot drop any table.
+      // Direct SQL deployment still requires empty tables; runtime cleanup runs first.
       expect(() => db.exec(sql)).toThrow(/CHECK constraint failed/)
       expect(db.prepare(`SELECT id FROM "${occupied}"`).get()).toEqual({ id: 1 })
       expect(db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all()).toHaveLength(RETIRED_HOST_TABLES.length)
       db.exec('ROLLBACK')
+      await clearRetiredHostTables(clientFor(db), 'sqlite')
+      expect(db.prepare(`SELECT id FROM "${occupied}"`).all()).toEqual([])
+      db.exec(sql)
+      expect(db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all()).toEqual([])
     } finally { db.close() }
   })
 
   it.each(['mysql', 'postgresql'] as const)('queries %s catalog and quotes only fixed table names', async provider => {
-    const query = vi.fn().mockResolvedValueOnce([{ name: 'contract' }, { name: 'unrelated' }]).mockResolvedValueOnce([{ value: 1 }])
-    await expect(assertRetiredHostTablesEmpty({ $queryRawUnsafe: query }, provider)).rejects.toThrow('contract')
-    expect(query).toHaveBeenCalledTimes(2)
-    expect(query.mock.calls[1][0]).toBe(provider === 'mysql' ? 'SELECT 1 FROM `contract` LIMIT 1' : 'SELECT 1 FROM "contract" LIMIT 1')
+    const query = vi.fn().mockResolvedValue([{ name: 'contract' }, { name: 'unrelated' }])
+    const execute = vi.fn().mockResolvedValue(1)
+    const transaction = vi.fn(async (operation: (tx: { $executeRawUnsafe: typeof execute }) => Promise<void>) => operation({ $executeRawUnsafe: execute }))
+    await clearRetiredHostTables({ $queryRawUnsafe: query, $transaction: transaction } as unknown as Parameters<typeof clearRetiredHostTables>[0], provider)
+    expect(query).toHaveBeenCalledTimes(1)
+    expect(execute).toHaveBeenCalledExactlyOnceWith(provider === 'mysql' ? 'DELETE FROM `contract`' : 'DELETE FROM "contract"')
   })
 
   it('fails closed on catalog or permission errors', async () => {
     const query = vi.fn().mockRejectedValue(new Error('catalog unavailable'))
-    await expect(assertRetiredHostTablesEmpty({ $queryRawUnsafe: query }, 'sqlite')).rejects.toThrow('catalog unavailable')
+    const transaction = vi.fn()
+    await expect(clearRetiredHostTables({ $queryRawUnsafe: query, $transaction: transaction }, 'sqlite')).rejects.toThrow('catalog unavailable')
+    expect(transaction).not.toHaveBeenCalled()
+  })
+
+  it('rolls back earlier deletions when a non-retired table still references a retired row', async () => {
+    const db = new Database(':memory:')
+    try {
+      db.pragma('foreign_keys=ON')
+      db.exec(`
+        CREATE TABLE contract_admin_audit (id INTEGER PRIMARY KEY);
+        CREATE TABLE contract (id INTEGER PRIMARY KEY);
+        CREATE TABLE unrelated (id INTEGER PRIMARY KEY, contract_id INTEGER REFERENCES contract(id) ON DELETE RESTRICT);
+        INSERT INTO contract_admin_audit VALUES (1);
+        INSERT INTO contract VALUES (1);
+        INSERT INTO unrelated VALUES (1, 1);
+      `)
+      await expect(clearRetiredHostTables(clientFor(db), 'sqlite')).rejects.toThrow(/FOREIGN KEY/)
+      for (const table of ['contract_admin_audit', 'contract', 'unrelated']) {
+        expect(db.prepare(`SELECT id FROM "${table}"`).all()).toEqual([{ id: 1 }])
+      }
+    } finally { db.close() }
   })
 
   it.each(['sqlite', 'mysql', 'postgresql'])('%s cleanup drops precisely the retired tables without disabling constraints', provider => {

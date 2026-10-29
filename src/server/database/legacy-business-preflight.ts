@@ -2,8 +2,8 @@
  * @file legacy-business-preflight.ts
  * @project SlothVault
  * @module Database Retirement Safety
- * @description Refuses host schema deployment while any retired contract/commission table contains data.
- * @logic Read provider metadata and query only the fixed retired-table allowlist before any migration subprocess; missing tables are safe, query failures abort deployment, and SQL guards recheck under write locks.
+ * @description Clears explicitly retired host contract/commission data before schema deployment.
+ * @logic Discover existing allowlisted tables, delete child rows before parents in one transaction, and leave the original guarded migrations to drop the empty tables; failures roll back cleanup and abort deployment.
  * @dependencies Database provider types, Prisma raw-query interface
  * @index_tags database,migration,preflight,data-safety,retirement
  * @author holic512
@@ -38,23 +38,23 @@ export const RETIRED_HOST_TABLES = [
   'commission_contract_template'
 ] as const
 
-type Reader = Pick<AppPrismaClient, '$queryRawUnsafe'>
+type Client = Pick<AppPrismaClient, '$queryRawUnsafe' | '$transaction'>
 
-export async function assertRetiredHostTablesEmpty(client: Reader, provider: DatabaseProvider) {
+export async function clearRetiredHostTables(client: Client, provider: DatabaseProvider) {
   const catalogQuery = provider === 'sqlite'
     ? "SELECT name FROM sqlite_master WHERE type = 'table'"
     : provider === 'mysql'
       ? 'SELECT TABLE_NAME AS name FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()'
       : 'SELECT tablename AS name FROM pg_catalog.pg_tables WHERE schemaname = current_schema()'
   const existing = new Set((await client.$queryRawUnsafe<Array<{ name: string }>>(catalogQuery)).map(row => row.name))
-  const occupied: string[] = []
-  for (const table of RETIRED_HOST_TABLES) {
-    if (!existing.has(table)) continue
-    const identifier = provider === 'mysql' ? `\`${table}\`` : `"${table}"`
-    const rows = await client.$queryRawUnsafe<unknown[]>(`SELECT 1 FROM ${identifier} LIMIT 1`)
-    if (rows.length) occupied.push(table)
-  }
-  if (occupied.length) {
-    throw new Error(`Database upgrade refused: non-empty retired host tables (${occupied.join(', ')}). No migrations were started. Export and resolve these records explicitly before retrying; automatic deletion is not supported.`)
-  }
+  const tables = RETIRED_HOST_TABLES.filter(table => existing.has(table))
+  if (!tables.length) return
+  // This allowlist is ordered by foreign-key dependencies. Keep constraints enabled:
+  // an unexpected external reference must roll back all deletions, never cascade.
+  await client.$transaction(async tx => {
+    for (const table of tables) {
+      const identifier = provider === 'mysql' ? `\`${table}\`` : `"${table}"`
+      await tx.$executeRawUnsafe(`DELETE FROM ${identifier}`)
+    }
+  }, { timeout: 120_000 })
 }
