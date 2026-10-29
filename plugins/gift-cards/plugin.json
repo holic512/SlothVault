@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "slothvault.gift-cards",
   "name": "Gift cards",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Manage plaintext gift cards and redeem points on a dedicated account page.",
   "author": "holic512",
   "engines": {

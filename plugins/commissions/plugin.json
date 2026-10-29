@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "slothvault.commissions",
   "name": "Commissions",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Single mainnet-evidenced commission lifecycle, immutable contracts, private attachments and maintenance.",
   "author": "holic512",
   "engines": {
