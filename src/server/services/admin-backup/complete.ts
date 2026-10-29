@@ -20,28 +20,87 @@ import { getDatabaseClient } from '@/server/database/client'
 import { HttpError } from '@/server/http/errors'
 import { UPLOAD_ROOT } from '@/server/services/admin-files'
 import { withMaintenanceLock } from '@/server/services/maintenance-lock'
-import type { BackupHistoryResponse, BackupJob, BackupPhase, BackupSnapshot, BackupSource, RestorePreview, BackupProgress } from '@/types/backup'
+import type {
+  BackupHistoryResponse,
+  BackupJob,
+  BackupPhase,
+  BackupSnapshot,
+  BackupSource,
+  RestorePreview,
+  BackupProgress
+} from '@/types/backup'
 import { inspectImportAccounts } from './accounts'
 import { createCompleteSnapshot, readCompleteBundle, sha256File } from './archive'
 import { backupCompatibility, requireBackupCompatibility } from './compatibility'
-import { BACKUP_UPLOAD_TTL_MS, DATABASE_TRANSACTION_MAX_WAIT_MS, DATABASE_TRANSACTION_TIMEOUT_MS, RESTORE_COMMIT_CONFIG_KEY, RETIRED_CARD_SOURCE_VERSIONS } from './constants'
+import {
+  BACKUP_UPLOAD_TTL_MS,
+  DATABASE_TRANSACTION_MAX_WAIT_MS,
+  DATABASE_TRANSACTION_TIMEOUT_MS,
+  RESTORE_COMMIT_CONFIG_KEY,
+  RETIRED_CARD_SOURCE_VERSIONS
+} from './constants'
 import { importDatabaseRecords, invalidateBackupCaches } from './database-import'
 import { ensureUploadRoot } from './files-common'
-import { markImportedSnapshotDeleted, publishBackupUpload, readBackupUploadRecord, withBackupUpload, type BackupUploadRecord } from './uploads'
-import { prepareRestoreJournal, readRestoreJournal, reconcileRestoreJournal, switchRestoreFiles, type RestoreJournal } from './recovery'
+import {
+  markImportedSnapshotDeleted,
+  publishBackupUpload,
+  readBackupUploadRecord,
+  withBackupUpload,
+  type BackupUploadRecord
+} from './uploads'
+import {
+  prepareRestoreJournal,
+  readRestoreJournal,
+  reconcileRestoreJournal,
+  switchRestoreFiles,
+  type RestoreJournal
+} from './recovery'
 import { setBackupRecoveryError } from './recovery-state'
-import { activeBackupJob, artifactPath, atomicJson, backupErrorCode, currentBackupJob, ensureBackupStorage, getBackupSnapshot, pinBackupSource, pinnedSnapshots, readJson, readRecords, readSettings, recordPath, releaseBackupJob, reserveBackupJob, reserveSnapshotDeletion, sourcePath, sourceSchema, updateBackupJob, workPath } from './store'
+import {
+  activeBackupJob,
+  artifactPath,
+  atomicJson,
+  backupErrorCode,
+  currentBackupJob,
+  ensureBackupStorage,
+  getBackupSnapshot,
+  pinBackupSource,
+  pinnedSnapshots,
+  readJson,
+  readRecords,
+  readSettings,
+  recordPath,
+  releaseBackupJob,
+  reserveBackupJob,
+  reserveSnapshotDeletion,
+  sourcePath,
+  sourceSchema,
+  updateBackupJob,
+  workPath
+} from './store'
 
 type PreviewRecord = RestorePreview & { actorUserId: number; sha256: string }
+
+/**
+ * 校验备份来源的归属、有效期及已记录摘要，返回当前可读取的归档路径。
+ * @param verifyHash 为 false 时仅核对已有元数据，供入队预检使用；执行前仍须完整校验。
+ */
 async function validateSource(source: BackupSource, actorUserId: number, verifyHash = true) {
   sourceSchema.parse(source)
   let path = sourcePath(source)
-  let expected: string, hashVerified = false
+  let expected: string
+  let hashVerified = false
   if (source.importId !== undefined) {
     const uploaded = await readJson<BackupUploadRecord>(recordPath('imports', source.importId))
     const active = activeBackupJob()
-    const inUse = uploaded && ((active?.source?.importId === source.importId && new Date(active.createdAt).getTime() < new Date(uploaded.expiresAt).getTime()) || (await readRecords<PreviewRecord>('previews')).some(preview => preview.source.importId === source.importId && new Date(preview.expiresAt).getTime() > Date.now()))
-    if (!uploaded || uploaded.state !== 'uploaded' || uploaded.actorUserId !== actorUserId || (new Date(uploaded.expiresAt).getTime() <= Date.now() && !inUse)) throw new HttpError('Backup upload has expired or is unavailable', 404, 404)
+    const inUse = uploaded &&
+      ((active?.source?.importId === source.importId &&
+        new Date(active.createdAt).getTime() < new Date(uploaded.expiresAt).getTime()) ||
+        (await readRecords<PreviewRecord>('previews')).some(preview => preview.source.importId === source.importId && new Date(preview.expiresAt).getTime() > Date.now()))
+    if (!uploaded || uploaded.state !== 'uploaded' || uploaded.actorUserId !== actorUserId ||
+      (new Date(uploaded.expiresAt).getTime() <= Date.now() && !inUse)) {
+      throw new HttpError('Backup upload has expired or is unavailable', 404, 404)
+    }
     if (uploaded.snapshotId) {
       const snapshot = await getBackupSnapshot(uploaded.snapshotId)
       requireBackupCompatibility(snapshot.manifest)
@@ -49,8 +108,17 @@ async function validateSource(source: BackupSource, actorUserId: number, verifyH
       expected = snapshot.sha256
     } else {
       const info = await lstat(path)
-      if (!info.isFile() || info.isSymbolicLink() || info.size !== uploaded.size) throw new HttpError('Complete backup integrity verification failed', 409, 409)
-      if (!uploaded.sha256) { if (!verifyHash) throw new HttpError('Backup source has not been validated',409,409); uploaded.sha256 = await sha256File(path); hashVerified = true; await atomicJson(recordPath('imports', source.importId), uploaded) }
+      if (!info.isFile() || info.isSymbolicLink() || info.size !== uploaded.size) {
+        throw new HttpError('Complete backup integrity verification failed', 409, 409)
+      }
+      if (!uploaded.sha256) {
+        if (!verifyHash) {
+          throw new HttpError('Backup source has not been validated', 409, 409)
+        }
+        uploaded.sha256 = await sha256File(path)
+        hashVerified = true
+        await atomicJson(recordPath('imports', source.importId), uploaded)
+      }
       expected = uploaded.sha256
     }
   } else {
@@ -58,66 +126,143 @@ async function validateSource(source: BackupSource, actorUserId: number, verifyH
     requireBackupCompatibility(snapshot.manifest)
     expected = snapshot.sha256
   }
-  if (verifyHash && !hashVerified && await sha256File(path) !== expected) throw new HttpError('Complete backup integrity verification failed', 409, 409)
+  if (verifyHash && !hashVerified && await sha256File(path) !== expected) {
+    throw new HttpError('Complete backup integrity verification failed', 409, 409)
+  }
   return { path, sha256: expected }
 }
 
-export async function previewCompleteRestore(source: BackupSource, actorUserId: number, progress?: (value: Partial<BackupProgress>) => Promise<void>, job?: BackupJob): Promise<RestorePreview> {
+/**
+ * 校验来源并生成绑定当前管理员的恢复预览，不修改现有业务数据。
+ * @param actorUserId 发起预览的管理员，后续确认恢复时必须与此身份一致。
+ * @param job 已占用备份任务槽位的预览任务；省略时要求系统没有活动备份任务。
+ * @returns 有效期为 10 分钟的预览，执行恢复时还会重新校验来源摘要。
+ */
+export async function previewCompleteRestore(
+  source: BackupSource,
+  actorUserId: number,
+  progress?: (value: Partial<BackupProgress>) => Promise<void>,
+  job?: BackupJob
+): Promise<RestorePreview> {
   sourceSchema.parse(source)
   if (!job || activeBackupJob()?.id !== job.id) await assertBackupIdle()
   const release = pinBackupSource(source)
-  const id = randomUUID(), directory = workPath(id)
+  const id = randomUUID()
+  const directory = workPath(id)
   let bundle: Awaited<ReturnType<typeof readCompleteBundle>> | undefined
   try {
     const artifact = await validateSource(source, actorUserId)
     await ensureBackupStorage()
     bundle = await readCompleteBundle(artifact.path, directory, false, progress)
-    const policy = await withMaintenanceLock('shared', () => unitOfWork.execute((tx) => inspectImportAccounts(tx, bundle!.payload, { actorUserId, replaceUsers: true }), { mode: 'read', maxWait: DATABASE_TRANSACTION_MAX_WAIT_MS, timeout: DATABASE_TRANSACTION_TIMEOUT_MS }))
+    const policy = await withMaintenanceLock(
+      'shared',
+      () => unitOfWork.execute(
+        (tx) => inspectImportAccounts(tx, bundle!.payload, { actorUserId, replaceUsers: true }),
+        {
+          mode: 'read',
+          maxWait: DATABASE_TRANSACTION_MAX_WAIT_MS,
+          timeout: DATABASE_TRANSACTION_TIMEOUT_MS,
+        }
+      )
+    )
     const warnings: string[] = RETIRED_CARD_SOURCE_VERSIONS.has(bundle.manifest.databaseVersion) ? ['LEGACY_GIFT_CARDS_RETIRED'] : []
-    const preview: PreviewRecord = { id, source, manifest: bundle.manifest, warnings, preservedAdministrator: policy.admin.username, createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(), actorUserId, sha256: artifact.sha256 }
+    const preview: PreviewRecord = {
+      id,
+      source,
+      manifest: bundle.manifest,
+      warnings,
+      preservedAdministrator: policy.admin.username,
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      actorUserId,
+      sha256: artifact.sha256,
+    }
     await atomicJson(recordPath('previews', id), preview)
     const { actorUserId: _actor, sha256: _sha, ...dto } = preview
-    void _actor; void _sha
+    void _actor
+    void _sha
     return dto
-  } finally { bundle?.store.close(); release(); await rm(directory, { recursive: true, force: true }).catch(() => undefined) }
+  } finally {
+    bundle?.store.close()
+    release()
+    await rm(directory, { recursive: true, force: true }).catch(() => undefined)
+  }
 }
+
 async function readPreview(id: string, actorUserId: number, verifyHash = true) {
   const preview = await readJson<PreviewRecord>(recordPath('previews', id))
-  if (!preview || preview.id !== id || preview.actorUserId !== actorUserId || new Date(preview.expiresAt).getTime() <= Date.now()) throw new HttpError('Restore preview has expired', 409, 409)
+  if (!preview || preview.id !== id || preview.actorUserId !== actorUserId ||
+    new Date(preview.expiresAt).getTime() <= Date.now()) {
+    throw new HttpError('Restore preview has expired', 409, 409)
+  }
   const artifact = await validateSource(preview.source, actorUserId, verifyHash)
   if (preview.sha256 !== artifact.sha256) throw new HttpError('Backup changed after preview', 409, 409)
   return { preview, artifact }
 }
+
 export async function queueCompleteBackup(actorUserId: number | null, kind: 'manual' | 'scheduled' = 'manual', retryOf?: string) {
   await assertBackupIdle()
   if (retryOf) {
     const previous = await getBackupJob(retryOf)
-    if (!['manual', 'scheduled'].includes(previous.kind) || !['failed', 'interrupted'].includes(previous.status)) throw new HttpError('This task cannot be retried', 409, 409)
+    if (!['manual', 'scheduled'].includes(previous.kind) ||
+      !['failed', 'interrupted'].includes(previous.status)) {
+      throw new HttpError('This task cannot be retried', 409, 409)
+    }
     kind = previous.kind as 'manual' | 'scheduled'
   }
   const job = await reserveBackupJob(kind, actorUserId)
   if (retryOf) {
-    try { await updateBackupJob(job, { retryOf }) } catch (error) { await finishJob(job, error); throw error }
+    try {
+      await updateBackupJob(job, { retryOf })
+    } catch (error) {
+      await finishJob(job, error)
+      throw error
+    }
   }
   return job
 }
+
 export async function queueCompleteRestore(previewId: string, actorUserId: number) {
   await assertBackupIdle()
   const { preview } = await readPreview(previewId, actorUserId, false)
   const job = await reserveBackupJob('restore', actorUserId)
-  try { await updateBackupJob(job, { source: preview.source, previewId }); return job }
-  catch (error) { await finishJob(job, error); throw error }
+  try {
+    await updateBackupJob(job, { source: preview.source, previewId })
+    return job
+  } catch (error) {
+    await finishJob(job, error)
+    throw error
+  }
 }
+
 async function finishJob(job: BackupJob, error?: unknown) {
   try {
-    await updateBackupJob(job, { status: error ? 'failed' : 'succeeded', phase: error ? job.phase : 'complete', error: error ? backupErrorCode(error) : null, finishedAt: new Date().toISOString(), durationMs: Date.now() - new Date(job.startedAt ?? job.createdAt).getTime() })
+    await updateBackupJob(
+      job,
+      {
+        status: error ? 'failed' : 'succeeded',
+        phase: error ? job.phase : 'complete',
+        error: error ? backupErrorCode(error) : null,
+        finishedAt: new Date().toISOString(),
+        durationMs: Date.now() - new Date(job.startedAt ?? job.createdAt).getTime(),
+      }
+    )
   } catch {
     job.warnings.push('JOB_STATE_WRITE_FAILED')
     console.error('[backup] Task outcome could not be persisted')
-  } finally { releaseBackupJob(job.id) }
+  } finally {
+    releaseBackupJob(job.id)
+  }
 }
-export async function failQueuedBackup(job: BackupJob, error: unknown) { await finishJob(job, error) }
 
+export async function failQueuedBackup(job: BackupJob, error: unknown) {
+  await finishJob(job, error)
+}
+
+/**
+ * 为上传归档创建导入任务；同一上传已有未失败任务时直接复用，避免重复发布。
+ * @returns queued 表示本次是否新建任务；导入仅生成快照，不执行数据恢复。
+ */
 export async function queueCompleteImport(importId: string, actorUserId: number) {
   const existing = await readBackupUploadRecord(importId, actorUserId)
   if (existing.importJobId) {
@@ -129,7 +274,9 @@ export async function queueCompleteImport(importId: string, actorUserId: number)
       const previous = await getBackupJob(upload.importJobId)
       if (['queued', 'running', 'succeeded'].includes(previous.status)) return { job: previous, queued: false }
     }
-    if (upload.state !== 'uploaded' || upload.offset !== upload.size) throw new HttpError('Backup upload is incomplete', 409, 409, { reason: 'BACKUP_UPLOAD_INCOMPLETE' })
+    if (upload.state !== 'uploaded' || upload.offset !== upload.size) {
+      throw new HttpError('Backup upload is incomplete', 409, 409, { reason: 'BACKUP_UPLOAD_INCOMPLETE' })
+    }
     await assertBackupIdle()
     const job = await reserveBackupJob('import', actorUserId)
     try {
@@ -138,7 +285,10 @@ export async function queueCompleteImport(importId: string, actorUserId: number)
       upload.expiresAt = new Date(Date.now() + BACKUP_UPLOAD_TTL_MS).toISOString()
       await atomicJson(recordPath('imports', upload.id), upload)
       return { job, queued: true }
-    } catch (error) { await finishJob(job, error); throw error }
+    } catch (error) {
+      await finishJob(job, error)
+      throw error
+    }
   })
 }
 
@@ -155,15 +305,27 @@ export async function runCompleteImport(job: BackupJob) {
         const artifact = await validateSource(job.source!, job.actorUserId!)
         bundle = await readCompleteBundle(artifact.path, directory, false, progressFor(job))
         upload.sha256 = artifact.sha256
-        upload.publication = { id: upload.id, kind: 'imported', createdAt: bundle.manifest.createdAt, importedAt: new Date().toISOString(), fileName: upload.fileName, size: upload.size, sha256: artifact.sha256, manifest: bundle.manifest }
+        upload.publication = {
+          id: upload.id,
+          kind: 'imported',
+          createdAt: bundle.manifest.createdAt,
+          importedAt: new Date().toISOString(),
+          fileName: upload.fileName,
+          size: upload.size,
+          sha256: artifact.sha256,
+          manifest: bundle.manifest,
+        }
         await atomicJson(recordPath('imports', upload.id), upload)
       }
       return publishBackupUpload(upload)
     })
     job.warnings.push(...snapshot.warnings ?? [])
-    try { await updateBackupJob(job, { snapshotId: snapshot.id }) } catch { job.warnings.push('JOB_STATE_WRITE_FAILED') }
-  } catch (error) { failure = error }
-  finally {
+    try {
+      await updateBackupJob(job, { snapshotId: snapshot.id })
+    } catch {
+      job.warnings.push('JOB_STATE_WRITE_FAILED')
+    }
+  } catch (error) { failure = error } finally {
     bundle?.store.close()
     release()
     try { await rm(directory, { recursive: true, force: true }) } catch { job.warnings.push('WORK_CLEANUP_FAILED') }
@@ -171,36 +333,57 @@ export async function runCompleteImport(job: BackupJob) {
   await finishJob(job, failure)
 }
 
+/** 合并每次进度增量，但最多每 500 毫秒写一次任务记录，避免按文件频繁同步磁盘。 */
 function progressFor(job: BackupJob) {
   let lastWrite = 0
   return async (patch: Partial<BackupProgress>) => {
-    job.progress = { processedFiles:0,processedRecords:0,processedBytes:0,...job.progress,...patch }
-    if (Date.now()-lastWrite < 500) return
-    lastWrite=Date.now(); await updateBackupJob(job,{progress:job.progress})
+    job.progress = { processedFiles: 0, processedRecords: 0, processedBytes: 0, ...job.progress, ...patch }
+    if (Date.now() - lastWrite < 500) return
+    lastWrite = Date.now()
+    await updateBackupJob(job, { progress: job.progress })
   }
 }
+
 export async function queueCompletePreview(source: BackupSource, actorUserId: number) {
-  sourceSchema.parse(source); await assertBackupIdle()
-  const job = await reserveBackupJob('preview',actorUserId)
-  try { await updateBackupJob(job,{source}); return job } catch(error) { await finishJob(job,error); throw error }
+  sourceSchema.parse(source)
+  await assertBackupIdle()
+  const job = await reserveBackupJob('preview', actorUserId)
+  try {
+    await updateBackupJob(job, { source })
+    return job
+  } catch (error) {
+    await finishJob(job, error)
+    throw error
+  }
 }
+
 export async function runCompletePreview(job: BackupJob) {
   let failure: unknown
   try {
-    await updateBackupJob(job,{status:'running',phase:'validating',startedAt:new Date().toISOString()})
-    const preview = await previewCompleteRestore(job.source!,job.actorUserId!,progressFor(job),job)
-    await updateBackupJob(job,{preview,previewId:preview.id})
-  } catch(error) { failure=error }
-  await finishJob(job,failure)
+    await updateBackupJob(job, { status: 'running', phase: 'validating', startedAt: new Date().toISOString() })
+    const preview = await previewCompleteRestore(job.source!, job.actorUserId!, progressFor(job), job)
+    await updateBackupJob(job, { preview, previewId: preview.id })
+  } catch (error) { failure = error }
+  await finishJob(job, failure)
 }
 
 export async function runCompleteBackup(job: BackupJob) {
   let failure: unknown
   try {
     await updateBackupJob(job, { status: 'running', startedAt: new Date().toISOString() })
-    const snapshot = await createCompleteSnapshot(job.kind as 'manual' | 'scheduled', job.id, (phase) => updateBackupJob(job, { phase }), false, progressFor(job))
+    const snapshot = await createCompleteSnapshot(
+      job.kind as 'manual' | 'scheduled',
+      job.id,
+      (phase) => updateBackupJob(job, { phase }),
+      false,
+      progressFor(job)
+    )
     job.warnings.push(...snapshot.warnings ?? [])
-    try { await updateBackupJob(job, { snapshotId: snapshot.id }) } catch { job.warnings.push('JOB_STATE_WRITE_FAILED') }
+    try {
+      await updateBackupJob(job, { snapshotId: snapshot.id })
+    } catch {
+      job.warnings.push('JOB_STATE_WRITE_FAILED')
+    }
     if (job.kind === 'scheduled') {
       try { await applyBackupRetention() } catch { job.warnings.push('RETENTION_CLEANUP_FAILED') }
     }
@@ -208,6 +391,13 @@ export async function runCompleteBackup(job: BackupJob) {
   await finishJob(job, failure)
 }
 
+/**
+ * 在独占维护锁内创建保护快照，再协调附件切换、数据库提交和插件表恢复。
+ * 提交确认丢失时以数据库中的提交回执判定结果，不能仅因异常就回滚已提交的数据。
+ * @param job 已预留槽位且记录了来源与管理员身份的恢复任务。
+ * @param previewId 当前管理员确认的有效预览标识。
+ * @param sessionId 恢复账户数据时需要保留的当前会话标识。
+ */
 export async function runCompleteRestore(job: BackupJob, previewId: string, sessionId: string) {
   let failure: unknown
   let bundle: Awaited<ReturnType<typeof readCompleteBundle>> | undefined
@@ -221,85 +411,172 @@ export async function runCompleteRestore(job: BackupJob, previewId: string, sess
     job.warnings.push(...preview.warnings)
     await withMaintenanceLock('exclusive', async () => {
       try {
-      await preparePluginRestore(bundle!.payload.data, job.id)
-      const options = { actorUserId: job.actorUserId!, preserveSessionId: sessionId, replaceUsers: true }
-      await unitOfWork.execute((tx) => inspectImportAccounts(tx, bundle!.payload, options), { mode: 'read', maxWait: DATABASE_TRANSACTION_MAX_WAIT_MS, timeout: DATABASE_TRANSACTION_TIMEOUT_MS })
-      await updateBackupJob(job, { phase: 'protecting' })
-      const protection = await createCompleteSnapshot('protect', randomUUID(), async () => { /* The surrounding restore owns the state lock. */ }, true)
-      job.warnings.push(...protection.warnings ?? [])
-      await updateBackupJob(job, { protectionId: protection.id, phase: 'restoring' })
-      const journal = await prepareRestoreJournal(job.id, bundle!.uploads)
-      let committed = false
-      try {
-        await switchRestoreFiles(journal)
-        await unitOfWork.execute(async (tx) => {
-          await importDatabaseRecords(tx, bundle!.payload, options)
-          await tx.systemConfig.upsert({ where: { configKey: RESTORE_COMMIT_CONFIG_KEY }, create: { configKey: RESTORE_COMMIT_CONFIG_KEY, configValue: job.id, description: 'Coordinated restore commit receipt' }, update: { configValue: job.id } })
-        }, { maxWait: DATABASE_TRANSACTION_MAX_WAIT_MS, timeout: DATABASE_TRANSACTION_TIMEOUT_MS })
-        committed = true
-      } catch (error) {
-        try { committed = (await getDatabaseClient().systemConfig.findUnique({ where: { configKey: RESTORE_COMMIT_CONFIG_KEY } }))?.configValue === job.id }
-        catch { setBackupRecoveryError('Backup recovery requires maintenance'); throw new HttpError('Backup recovery requires maintenance', 503, 503) }
-        if (!committed) {
-          try { await reconcileRestoreJournal(journal, false) }
-          catch { setBackupRecoveryError('Backup recovery requires maintenance'); throw new HttpError('Backup recovery requires maintenance', 503, 503) }
-          throw error
+        await preparePluginRestore(bundle!.payload.data, job.id)
+        const options = { actorUserId: job.actorUserId!, preserveSessionId: sessionId, replaceUsers: true }
+        await unitOfWork.execute(
+          (tx) => inspectImportAccounts(tx, bundle!.payload, options),
+          {
+            mode: 'read',
+            maxWait: DATABASE_TRANSACTION_MAX_WAIT_MS,
+            timeout: DATABASE_TRANSACTION_TIMEOUT_MS,
+          }
+        )
+        await updateBackupJob(job, { phase: 'protecting' })
+        const protection = await createCompleteSnapshot(
+          'protect',
+          randomUUID(),
+          async () => { /* The surrounding restore owns the state lock. */ },
+          true
+        )
+        job.warnings.push(...protection.warnings ?? [])
+        await updateBackupJob(job, { protectionId: protection.id, phase: 'restoring' })
+        const journal = await prepareRestoreJournal(job.id, bundle!.uploads)
+        let committed = false
+        try {
+          await switchRestoreFiles(journal)
+          await unitOfWork.execute(async (tx) => {
+            await importDatabaseRecords(tx, bundle!.payload, options)
+            await tx.systemConfig.upsert({
+              where: { configKey: RESTORE_COMMIT_CONFIG_KEY },
+              create: {
+                configKey: RESTORE_COMMIT_CONFIG_KEY,
+                configValue: job.id,
+                description: 'Coordinated restore commit receipt',
+              },
+              update: { configValue: job.id },
+            })
+          }, { maxWait: DATABASE_TRANSACTION_MAX_WAIT_MS, timeout: DATABASE_TRANSACTION_TIMEOUT_MS })
+          committed = true
+        } catch (error) {
+          try {
+            committed = (await getDatabaseClient().systemConfig.findUnique({ where: { configKey: RESTORE_COMMIT_CONFIG_KEY } }))?.configValue === job.id
+          } catch {
+            setBackupRecoveryError('Backup recovery requires maintenance')
+            throw new HttpError('Backup recovery requires maintenance', 503, 503)
+          }
+          if (!committed) {
+            try {
+              await reconcileRestoreJournal(journal, false)
+            } catch {
+              setBackupRecoveryError('Backup recovery requires maintenance')
+              throw new HttpError('Backup recovery requires maintenance', 503, 503)
+            }
+            throw error
+          }
+          job.warnings.push('COMMIT_ACK_UNCERTAIN')
         }
-        job.warnings.push('COMMIT_ACK_UNCERTAIN')
+        if (committed) {
+          await rotateTelemetryEpoch(job.id)
+          job.warnings.push(...await invalidateBackupCaches())
+          try {
+            await updateBackupJob(job, { phase: 'cleaning' })
+          } catch {
+            job.warnings.push('JOB_STATE_WRITE_FAILED')
+          }
+          try { await reconcileRestoreJournal(journal, true) } catch { job.warnings.push('RESTORE_CLEANUP_FAILED') }
+        }
+      } finally {
+        await reconcilePluginRestore()
+        await reloadPluginRegistry()
       }
-      if (committed) {
-        await rotateTelemetryEpoch(job.id)
-        job.warnings.push(...await invalidateBackupCaches())
-        try { await updateBackupJob(job, { phase: 'cleaning' }) } catch { job.warnings.push('JOB_STATE_WRITE_FAILED') }
-        try { await reconcileRestoreJournal(journal, true) } catch { job.warnings.push('RESTORE_CLEANUP_FAILED') }
-      }
-      } finally { await reconcilePluginRestore(); await reloadPluginRegistry() }
     })
-  } catch (error) { failure = error }
-  finally { bundle?.store.close(); release(); try { await rm(input, { recursive: true, force: true }) } catch { job.warnings.push('WORK_CLEANUP_FAILED') } }
+  } catch (error) { failure = error } finally {
+    bundle?.store.close()
+    release()
+    try {
+      await rm(input, { recursive: true, force: true })
+    } catch {
+      job.warnings.push('WORK_CLEANUP_FAILED')
+    }
+  }
   await finishJob(job, failure)
 }
 
+/**
+ * 删除未被使用的快照；导入快照先记录删除意图，防止重启恢复时再次发布。
+ * @param automatic 仅供保留策略内部调用，跳过活动任务总开关，但仍检查快照是否被占用。
+ */
 export async function deleteBackupSnapshot(id: string, automatic = false) {
-  if (!automatic && activeBackupJob()) throw new HttpError('A backup operation is already running', 409, 409, { reason: 'BACKUP_BUSY' })
+  if (!automatic && activeBackupJob()) {
+    throw new HttpError('A backup operation is already running', 409, 409, { reason: 'BACKUP_BUSY' })
+  }
   const release = reserveSnapshotDeletion(id)
   try {
-    if ((await pinnedSnapshots()).has(id) || activeBackupJob()?.snapshotId === id) throw new HttpError('Backup is currently in use', 409, 409)
+    if ((await pinnedSnapshots()).has(id) || activeBackupJob()?.snapshotId === id) {
+      throw new HttpError('Backup is currently in use', 409, 409)
+    }
     const snapshot = await readJson<BackupSnapshot>(recordPath('snapshots', id))
     if (!snapshot || snapshot.id !== id) throw new HttpError('Backup not found', 404, 404)
     if (snapshot.kind === 'imported') await markImportedSnapshotDeleted(id)
     await rm(artifactPath(id), { force: true })
     await rm(recordPath('snapshots', id))
-  } finally { release() }
+  } finally {
+    release()
+  }
 }
+
+/** 仅清理超出保留数量且未被占用的兼容定时快照，不删除手动、保护或导入快照。 */
 export async function applyBackupRetention() {
-  const settings = await readSettings(), pinned = await pinnedSnapshots()
-  const snapshots = (await readRecords<BackupSnapshot>('snapshots')).filter((snapshot) => snapshot.kind === 'scheduled' && backupCompatibility(snapshot.manifest).status !== 'unsupported').sort((left, right) => right.createdAt.localeCompare(left.createdAt))
-  for (const snapshot of snapshots.slice(settings.retentionCount)) if (!pinned.has(snapshot.id)) await deleteBackupSnapshot(snapshot.id, true)
+  const settings = await readSettings()
+  const pinned = await pinnedSnapshots()
+  const snapshots = (await readRecords<BackupSnapshot>('snapshots'))
+    .filter((snapshot) => snapshot.kind === 'scheduled' && backupCompatibility(snapshot.manifest).status !== 'unsupported')
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+  for (const snapshot of snapshots.slice(settings.retentionCount)) {
+    if (!pinned.has(snapshot.id)) {
+      await deleteBackupSnapshot(snapshot.id, true)
+    }
+  }
 }
+
 export async function backupHistory(): Promise<BackupHistoryResponse> {
   const snapshots = (await readRecords<BackupSnapshot>('snapshots')).sort((a, b) => (b.importedAt ?? b.createdAt).localeCompare(a.importedAt ?? a.createdAt)).map(snapshot => {
     const compatibility = backupCompatibility(snapshot.manifest)
     const restorable = compatibility.status !== 'unsupported'
     if (!restorable) {
-      const legacy = snapshot.manifest as unknown as { files?: unknown[]; counts?: Record<string,number>; fileCount?: number; formatVersion?: number; databaseVersion?: string }
-      return { ...snapshot, manifest: { formatVersion: legacy.formatVersion ?? 0, databaseVersion: legacy.databaseVersion ?? '', fileCount: legacy.fileCount ?? legacy.files?.length ?? 0, counts: legacy.counts ?? {} }, restorable, compatibility }
+      const legacy = snapshot.manifest as unknown as {
+        files?: unknown[]
+        counts?: Record<string, number>
+        fileCount?: number
+        formatVersion?: number
+        databaseVersion?: string
+      }
+      return {
+        ...snapshot,
+        manifest: {
+          formatVersion: legacy.formatVersion ?? 0,
+          databaseVersion: legacy.databaseVersion ?? '',
+          fileCount: legacy.fileCount ?? legacy.files?.length ?? 0,
+          counts: legacy.counts ?? {},
+        },
+        restorable,
+        compatibility,
+      }
     }
     return { ...snapshot, restorable, compatibility }
   })
-  const jobs = (await readRecords<BackupJob>('jobs')).map((job) => currentBackupJob(job.id) ?? job).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 100)
+  const jobs = (await readRecords<BackupJob>('jobs'))
+    .map((job) => currentBackupJob(job.id) ?? job)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, 100)
   return { snapshots, jobs, activeJob: activeBackupJob() }
 }
+
 export async function getBackupJob(id: string) {
   const job = currentBackupJob(id) ?? await readJson<BackupJob>(recordPath('jobs', id))
   if (!job || job.id !== id) throw new HttpError('Backup job not found', 404, 404)
   return job
 }
+
 export async function assertNoPendingRestore() {
   if (await readRestoreJournal()) throw new HttpError('Backup recovery requires maintenance', 409, 409)
 }
+
 export async function assertBackupIdle() {
-  if (activeBackupJob()) throw new HttpError('A backup operation is already running', 409, 409, { reason: 'BACKUP_BUSY' })
+  if (activeBackupJob()) {
+    throw new HttpError('A backup operation is already running', 409, 409, { reason: 'BACKUP_BUSY' })
+  }
   await assertNoPendingRestore()
 }
+
 export type { RestoreJournal, BackupPhase }

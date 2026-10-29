@@ -27,19 +27,43 @@ export const pluginFileMetadataSchema = z.object({
   size: z.string().regex(/^(0|[1-9]\d*)$/).refine(value => BigInt(value) <= BigInt(PLUGIN_FILE_MAX_BYTES)),
   sha256: z.string().regex(/^[a-f0-9]{64}$/), createdAt: z.string().datetime({ offset: true }),
 }).strict()
+
 export type PluginFileMetadata = z.infer<typeof pluginFileMetadataSchema>
+
 export type PluginArchiveInput = { name: string; entries: { path: string; fileId?: string; text?: string }[] }
 const uuid = z.string().uuid()
-export function pluginFilesRoot() { return resolve(appDataPath(), 'plugin-files') }
-function invalid(message = 'Invalid private plugin file'): never { throw new HttpError(message, 400) }
-function checkedPlugin(pluginId: string) { if (!pluginIdSchema.safeParse(pluginId).success) invalid(); return pluginId }
-function checkedId(id: string) { if (!uuid.safeParse(id).success) invalid(); return id }
-function checkedName(name: string) { if (!pluginFileMetadataSchema.shape.name.safeParse(name).success) invalid('Invalid filename'); return name }
+
+export function pluginFilesRoot() {
+  return resolve(appDataPath(), 'plugin-files')
+}
+
+function invalid(message = 'Invalid private plugin file'): never {
+  throw new HttpError(message, 400)
+}
+
+function checkedPlugin(pluginId: string) {
+  if (!pluginIdSchema.safeParse(pluginId).success) invalid()
+  return pluginId
+}
+
+function checkedId(id: string) {
+  if (!uuid.safeParse(id).success) invalid()
+  return id
+}
+
+function checkedName(name: string) {
+  if (!pluginFileMetadataSchema.shape.name.safeParse(name).success) {
+    invalid('Invalid filename')
+  }
+  return name
+}
+
 async function directory(path: string, create = false) {
   if (create) await mkdir(path, { recursive: true, mode: 0o700 })
   const info = await lstat(path)
   if (!info.isDirectory() || info.isSymbolicLink()) throw new HttpError('Unsafe private file directory', 409)
 }
+
 async function ownerRoot(pluginId: string, create = false) {
   checkedPlugin(pluginId)
   // Deployment controls appDataPath; all descendants are checked, including the storage root.
@@ -49,51 +73,127 @@ async function ownerRoot(pluginId: string, create = false) {
   await directory(root, create)
   return root
 }
+
 async function regularFile(path: string) {
   const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
-  try { const info = await handle.stat(); if (!info.isFile() || info.nlink !== 1) throw new HttpError('Unsafe private file', 409); return handle }
-  catch (error) { await handle.close(); throw error }
+  try {
+    const info = await handle.stat()
+    if (!info.isFile() || info.nlink !== 1) {
+      throw new HttpError('Unsafe private file', 409)
+    }
+    return handle
+  } catch (error) {
+    await handle.close()
+    throw error
+  }
 }
-async function syncDirectory(path: string) { const handle = await open(path, 'r'); try { await handle.sync() } finally { await handle.close() } }
+
+async function syncDirectory(path: string) {
+  const handle = await open(path, 'r')
+  try {
+    await handle.sync()
+  } finally {
+    await handle.close()
+  }
+}
+
 function notFound(error: unknown): never {
   if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw new HttpError('Plugin file not found', 404)
   throw error
 }
-/** Host holds its maintenance lock across authorization, publication, DB completion and compensation. */
-export async function savePluginUpload(pluginId: string, file: { name: string; size: number; stream: () => ReadableStream<Uint8Array> }): Promise<PluginFileMetadata> {
+/**
+ * 将上传内容与校验元数据写入私有暂存目录，再原子发布为不可变文件。
+ * 调用方须持有维护锁，覆盖授权、文件发布、业务记录完成及必要的补偿清理。
+ * @param pluginId 文件归属的插件；业务访问授权需由调用方先行检查。
+ * @param file size 为声明的字节数，必须与流内容一致，且不得超过 100 MiB。
+ */
+export async function savePluginUpload(
+  pluginId: string,
+  file: { name: string; size: number; stream: () => ReadableStream<Uint8Array> }
+): Promise<PluginFileMetadata> {
   checkedName(file.name)
-  if (!Number.isSafeInteger(file.size) || file.size < 0 || file.size > PLUGIN_FILE_MAX_BYTES) throw new HttpError('Plugin upload exceeds 100 MiB', 413)
-  const root = await ownerRoot(pluginId, true), id = randomUUID(), stage = resolve(root, `.upload-${id}`), destination = resolve(root, id)
+  if (!Number.isSafeInteger(file.size) || file.size < 0 || file.size > PLUGIN_FILE_MAX_BYTES) {
+    throw new HttpError('Plugin upload exceeds 100 MiB', 413)
+  }
+  const root = await ownerRoot(pluginId, true)
+  const id = randomUUID()
+  const stage = resolve(root, `.upload-${id}`)
+  const destination = resolve(root, id)
   await mkdir(stage, { mode: 0o700 })
   let published = false
   try {
-    const handle = await open(resolve(stage, 'bytes'), 'wx', 0o600), hash = createHash('sha256')
+    const handle = await open(resolve(stage, 'bytes'), 'wx', 0o600)
+    const hash = createHash('sha256')
     let size = 0
     try {
-      const limiter = new Transform({ transform(chunk: Buffer, _encoding, callback) {
-        size += chunk.length
-        if (size > PLUGIN_FILE_MAX_BYTES || size > file.size) { callback(new HttpError('Plugin upload exceeds declared size or 100 MiB', 413)); return }
-        hash.update(chunk); callback(null, chunk)
-      } })
-      await pipeline(Readable.fromWeb(file.stream() as import('node:stream/web').ReadableStream<Uint8Array>), limiter, new Writable({ write(chunk: Buffer, _encoding, callback) { handle.writeFile(chunk).then(() => callback(), callback) } }))
+      const limiter = new Transform({
+        transform(chunk: Buffer, _encoding, callback) {
+          size += chunk.length
+          if (size > PLUGIN_FILE_MAX_BYTES || size > file.size) {
+            callback(new HttpError('Plugin upload exceeds declared size or 100 MiB', 413))
+            return
+          }
+          hash.update(chunk)
+          callback(null, chunk)
+        },
+      })
+      await pipeline(
+        Readable.fromWeb(file.stream() as import('node:stream/web').ReadableStream<Uint8Array>),
+        limiter,
+        new Writable({
+          write(chunk: Buffer, _encoding, callback) {
+            handle.writeFile(chunk).then(() => callback(), callback)
+          },
+        })
+      )
       if (size !== file.size) throw new HttpError('Plugin upload size mismatch', 400)
       await handle.sync()
-    } finally { await handle.close() }
-    const metadata = pluginFileMetadataSchema.parse({ id, name: file.name, size: String(size), sha256: hash.digest('hex'), createdAt: new Date().toISOString() })
+    } finally {
+      await handle.close()
+    }
+    const metadata = pluginFileMetadataSchema.parse({
+      id,
+      name: file.name,
+      size: String(size),
+      sha256: hash.digest('hex'),
+      createdAt: new Date().toISOString(),
+    })
     const meta = await open(resolve(stage, 'metadata.json'), 'wx', 0o600)
-    try { await meta.writeFile(JSON.stringify(metadata)); await meta.sync() } finally { await meta.close() }
-    await syncDirectory(stage); await rename(stage, destination); published = true; await syncDirectory(root)
+    try {
+      await meta.writeFile(JSON.stringify(metadata))
+      await meta.sync()
+    } finally {
+      await meta.close()
+    }
+    await syncDirectory(stage)
+    await rename(stage, destination)
+    published = true
+    await syncDirectory(root)
     return metadata
-  } catch (error) { await rm(published ? destination : stage, { recursive: true, force: true }); throw error }
+  } catch (error) {
+    await rm(published ? destination : stage, { recursive: true, force: true })
+    throw error
+  }
 }
-/** Intended only for compensating a just-created upload whose completion handler failed. */
+/**
+ * 仅用于补偿刚创建、且确认业务记录未提交的上传；文件已不存在时视为清理完成。
+ * 提交结果不确定时不得调用，以免删除已被业务记录引用的文件。
+ */
 export async function deletePluginUpload(pluginId: string, id: string): Promise<void> {
   checkedId(id)
   try {
-    const root = await ownerRoot(pluginId), path = resolve(root, id)
-    await directory(path); await rm(path, { recursive: true }); await syncDirectory(root)
+    const root = await ownerRoot(pluginId)
+    const path = resolve(root, id)
+    await directory(path)
+    await rm(path, { recursive: true })
+    await syncDirectory(root)
   } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
 }
+
+/**
+ * 校验归属、文件类型、大小和 SHA256，成功时将打开的只读句柄交给调用者。
+ * @returns handle 必须由调用者关闭，或交给设置 autoClose 的读取流接管。
+ */
 async function verifiedFile(pluginId: string, id: string): Promise<{ metadata: PluginFileMetadata; handle: FileHandle }> {
   checkedId(id)
   try {
@@ -105,55 +205,107 @@ async function verifiedFile(pluginId: string, id: string): Promise<{ metadata: P
       if ((await meta.stat()).size > 4096) invalid()
       metadata = pluginFileMetadataSchema.parse(JSON.parse(await meta.readFile('utf8')))
       if (metadata.id !== id) invalid()
-    } finally { await meta.close() }
+    } finally {
+      await meta.close()
+    }
     const handle = await regularFile(resolve(path, 'bytes'))
     try {
-      if ((await handle.stat()).size !== Number(metadata.size)) throw new HttpError('Plugin file integrity mismatch', 409)
+      if ((await handle.stat()).size !== Number(metadata.size)) {
+        throw new HttpError('Plugin file integrity mismatch', 409)
+      }
       const hash = createHash('sha256')
       const buffer = Buffer.alloc(65536)
       let position = 0
-      while (true) { const { bytesRead } = await handle.read(buffer, 0, buffer.length, position); if (!bytesRead) break; hash.update(buffer.subarray(0, bytesRead)); position += bytesRead }
+      while (true) {
+        const { bytesRead } = await handle.read(buffer, 0, buffer.length, position)
+        if (!bytesRead) {
+          break
+        }
+        hash.update(buffer.subarray(0, bytesRead))
+        position += bytesRead
+      }
       if (hash.digest('hex') !== metadata.sha256) throw new HttpError('Plugin file integrity mismatch', 409)
       return { metadata, handle }
-    } catch (error) { await handle.close(); throw error }
+    } catch (error) {
+      await handle.close()
+      throw error
+    }
   } catch (error) { notFound(error) }
 }
+
 export async function inspectPluginFile(pluginId: string, id: string): Promise<PluginFileMetadata> {
   const { metadata, handle } = await verifiedFile(pluginId, id)
-  await handle.close(); return metadata
+  await handle.close()
+  return metadata
 }
+
 export async function ensurePluginFiles(pluginId: string, ids: string[]): Promise<PluginFileMetadata[]> {
   if (!Array.isArray(ids) || ids.length > 1000) invalid('Too many plugin files')
   const results: PluginFileMetadata[] = []
   for (const id of ids) results.push(await inspectPluginFile(pluginId, id))
   return results
 }
+
 function headers(name: string, contentType: string) {
   checkedName(name)
-  return { 'Content-Type': contentType, 'Content-Disposition': `attachment; filename="download"; filename*=UTF-8''${encodeURIComponent(name).replace(/['()*]/g, value => '%' + value.charCodeAt(0).toString(16))}`, 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' }
+  return {
+    'Content-Type': contentType,
+    'Content-Disposition': `attachment; filename="download"; filename*=UTF-8''${encodeURIComponent(name).replace(/['()*]/g, value => '%' + value.charCodeAt(0).toString(16))}`,
+    'Cache-Control': 'private, no-store',
+    'X-Content-Type-Options': 'nosniff',
+  }
 }
+
+/**
+ * 完整校验后返回文件下载流，文件句柄由流在结束或取消时关闭。
+ * @param name 可选的下载名称，仅影响响应头，不改变私有文件身份；访问权限须由调用方检查。
+ */
 export async function streamPluginFile(pluginId: string, id: string, name?: string): Promise<Response> {
   if (name !== undefined) checkedName(name)
   const { metadata, handle } = await verifiedFile(pluginId, id)
   try {
     const stream = handle.createReadStream({ start: 0, autoClose: true })
-    return new Response(Readable.toWeb(stream) as ReadableStream<Uint8Array>, { headers: { ...headers(name ?? metadata.name, 'application/octet-stream'), 'Content-Length': metadata.size } })
-  } catch (error) { await handle.close(); throw error }
+    return new Response(
+      Readable.toWeb(stream) as ReadableStream<Uint8Array>,
+      {
+        headers: { ...headers(name ?? metadata.name, 'application/octet-stream'), 'Content-Length': metadata.size },
+      }
+    )
+  } catch (error) {
+    await handle.close()
+    throw error
+  }
 }
+
 function archivePath(path: string) {
-  if (typeof path !== 'string' || Buffer.byteLength(path) > 1024 || /[\\\x00-\x1f\x7f:]/.test(path) || path.split('/').some(part => !part || part === '.' || part === '..' || part.endsWith('.') || part.endsWith(' '))) invalid('Unsafe plugin archive path')
+  if (typeof path !== 'string' || Buffer.byteLength(path) > 1024 || /[\\\x00-\x1f\x7f:]/.test(path) ||
+    path.split('/').some(part => !part || part === '.' || part === '..' || part.endsWith('.') || part.endsWith(' '))) {
+    invalid('Unsafe plugin archive path')
+  }
   return path
 }
+
+/**
+ * 先校验所有文件引用，再逐项打开文件生成 ZIP 流，避免一次占用过多文件句柄。
+ * @param input 最多 1000 个条目；每项只能提供 fileId 或 text，文本合计不超过 8 MiB。
+ */
 export async function pluginArchive(pluginId: string, input: PluginArchiveInput): Promise<Response> {
-  checkedPlugin(pluginId); checkedName(input.name)
+  checkedPlugin(pluginId)
+  checkedName(input.name)
   if (!Array.isArray(input.entries) || input.entries.length > 1000) invalid('Too many archive entries')
-  const paths = new Set<string>(), files = new Set<string>()
+  const paths = new Set<string>()
+  const files = new Set<string>()
   let textBytes = 0
   for (const entry of input.entries) {
     const path = archivePath(entry.path).normalize('NFC').toLowerCase()
-    if (paths.has(path) || [...paths].some(other => other.startsWith(path + '/') || path.startsWith(other + '/'))) invalid('Duplicate or conflicting archive path')
+    if (paths.has(path) ||
+      [...paths].some(other => other.startsWith(path + '/') || path.startsWith(other + '/'))) {
+      invalid('Duplicate or conflicting archive path')
+    }
     paths.add(path)
-    if ((entry.fileId !== undefined) === (entry.text !== undefined)) invalid('Archive entry requires exactly one fileId or text')
+    if ((entry.fileId !== undefined) === (entry.text !== undefined)) {
+      invalid('Archive entry requires exactly one fileId or text')
+    }
     if (entry.fileId !== undefined) files.add(checkedId(entry.fileId))
     if (entry.text !== undefined) {
       if (typeof entry.text !== 'string') invalid()
@@ -173,34 +325,65 @@ export async function pluginArchive(pluginId: string, input: PluginArchiveInput)
         if (archive.destroyed) return
         if (entry.fileId !== undefined) {
           const { handle } = await verifiedFile(pluginId, entry.fileId)
-          if (archive.destroyed) { await handle.close(); return }
+          if (archive.destroyed) {
+            await handle.close()
+            return
+          }
           const stream = handle.createReadStream({ start: 0, autoClose: true })
           active.add(stream)
           stream.once('close', () => active.delete(stream))
           stream.once('error', error => archive.destroy(error))
           // Wait until this entry has drained before opening the next file.
           const appended = new Promise<void>((resolve, reject) => {
-            const done = () => { cleanup(); resolve() }, fail = (error: Error) => { cleanup(); reject(error) }, closed = () => { cleanup(); reject(new Error('Archive cancelled')) }
-            const cleanup = () => { archive.off('entry', done); archive.off('error', fail); archive.off('close', closed) }
-            archive.once('entry', done); archive.once('error', fail); archive.once('close', closed)
+            const done = () => {
+              cleanup()
+              resolve()
+            }
+            const fail = (error: Error) => {
+              cleanup()
+              reject(error)
+            }
+            const closed = () => {
+              cleanup()
+              reject(new Error('Archive cancelled'))
+            }
+            const cleanup = () => {
+              archive.off('entry', done)
+              archive.off('error', fail)
+              archive.off('close', closed)
+            }
+            archive.once('entry', done)
+            archive.once('error', fail)
+            archive.once('close', closed)
           })
-          archive.append(stream, { name: entry.path }); await appended
-        } else archive.append(entry.text!, { name: entry.path })
+          archive.append(stream, { name: entry.path })
+          await appended
+        } else {
+          archive.append(entry.text!, { name: entry.path })
+        }
       }
       await archive.finalize()
     } catch (error) { archive.destroy(error as Error) }
   })()
   return new Response(Readable.toWeb(archive) as ReadableStream<Uint8Array>, { headers: headers(input.name, 'application/zip') })
 }
-/** Backup-only enumeration: never expose these paths through plugin RPC or responses. */
+/** 仅供备份枚举使用，返回的私有目录路径不得通过插件 RPC 或 HTTP 响应暴露。 */
 export async function* listPluginFiles(): AsyncGenerator<{ pluginId: string; metadata: PluginFileMetadata; directory: string }> {
-  try { await directory(pluginFilesRoot()) } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return; throw error }
+  try {
+    await directory(pluginFilesRoot())
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return
+    }
+    throw error
+  }
   for (const pluginId of await readdir(pluginFilesRoot())) {
     checkedPlugin(pluginId)
     const root = await ownerRoot(pluginId)
     for (const id of await readdir(root)) {
       if (/^\.upload-[a-f0-9-]{36}$/.test(id)) continue
-      const metadata = await inspectPluginFile(pluginId, id), path = resolve(root, id)
+      const metadata = await inspectPluginFile(pluginId, id)
+      const path = resolve(root, id)
       if ((await readdir(path)).sort().join(',') !== 'bytes,metadata.json') invalid('Unexpected plugin file contents')
       yield { pluginId, metadata, directory: path }
     }

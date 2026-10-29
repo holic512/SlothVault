@@ -1,5 +1,9 @@
 # Skill changes
 
+## 1.2.5
+
+- Expand compound statements and control flow in the project documentation checker for readability, preserving validation rules, findings, and CLI behavior.
+
 ## 1.2.4
 
 - Add a selected-project documentation workflow: inspect the checkout, match a source baseline, clone prior documents for a new version, and stop at a validated draft.

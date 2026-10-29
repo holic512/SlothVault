@@ -9,7 +9,13 @@
  * @author holic512
  */
 import 'server-only'
-import { PLUGIN_FILES_ARCHIVE_ROOT, privateBackupEntries, privateFilePath, indexPrivateManifest, checkPrivateFiles } from './plugin-files'
+import {
+  PLUGIN_FILES_ARCHIVE_ROOT,
+  privateBackupEntries,
+  privateFilePath,
+  indexPrivateManifest,
+  checkPrivateFiles
+} from './plugin-files'
 import { RETIRED_CORE_COLLECTIONS, rejectRetiredCoreData } from './retired-core-data'
 import { createHash } from 'node:crypto'
 import { createReadStream, createWriteStream, constants as fsConstants } from 'node:fs'
@@ -24,8 +30,20 @@ import packageJson from '../../../../package.json'
 import { HttpError } from '@/server/http/errors'
 import { withMaintenanceLock } from '@/server/services/maintenance-lock'
 import { UPLOAD_ROOT } from '@/server/services/admin-files'
-import type { BackupEntryDigest, BackupGenerationKind, BackupManifest, BackupPhase, BackupProgress, BackupSnapshot } from '@/types/backup'
-import { ACTIVE_BACKUP_COLLECTION_KEYS, BACKUP_MANIFEST_MAX_BYTES, DATABASE_BACKUP_VERSION, ZIP_PATH_MAX_BYTES } from './constants'
+import type {
+  BackupEntryDigest,
+  BackupGenerationKind,
+  BackupManifest,
+  BackupPhase,
+  BackupProgress,
+  BackupSnapshot
+} from '@/types/backup'
+import {
+  ACTIVE_BACKUP_COLLECTION_KEYS,
+  BACKUP_MANIFEST_MAX_BYTES,
+  DATABASE_BACKUP_VERSION,
+  ZIP_PATH_MAX_BYTES
+} from './constants'
 import { exportDatabaseSnapshot } from './database-export'
 import { requireBackupCompatibility } from './compatibility'
 import { verifyBackupPublications } from './publication-validation'
@@ -35,80 +53,182 @@ import { RecordStore } from './record-store'
 import { updateCrc32, validateZipFile, type ValidatedZipEntry } from './zip-validation'
 import { artifactPath, atomicJson, ensureBackupStorage, recordPath, workPath } from './store'
 
-const digest = z.object({ size: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER), sha256: z.string().regex(/^[a-f0-9]{64}$/) }).strict()
+const digest = z.object({
+  size: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/),
+}).strict()
 const integer = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
 const manifestSchema = z.object({
   formatVersion: z.literal(2), id: z.string().uuid(), createdAt: z.string().datetime(), appVersion: z.string().min(1).max(80), databaseVersion: z.string().min(1).max(80),
   counts: z.record(z.string(), integer), database: z.record(z.string(), digest), filesIndex: digest, fileCount: integer, entryCount: integer, totalFileBytes: integer,
 }).strict()
-const fileSchema = z.object({ path: z.string().min(1).max(ZIP_PATH_MAX_BYTES), kind: z.enum(['file','directory']), size: integer, sha256: z.string().regex(/^[a-f0-9]{64}$/).nullable() }).strict()
-function invalid(): never { throw new HttpError('Complete backup integrity verification failed', 400, 400, { reason: 'BACKUP_INVALID' }) }
-export function unsupportedBackup(): never { throw new HttpError('Unsupported backup format', 400, 400, { reason: 'BACKUP_UNSUPPORTED_FORMAT' }) }
-export async function sha256File(path: string) { const hash = createHash('sha256'); for await (const chunk of createReadStream(path)) hash.update(chunk); return hash.digest('hex') }
+const fileSchema = z.object({
+  path: z.string().min(1).max(ZIP_PATH_MAX_BYTES),
+  kind: z.enum(['file', 'directory']),
+  size: integer,
+  sha256: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
+}).strict()
+
+function invalid(): never {
+  throw new HttpError('Complete backup integrity verification failed', 400, 400, { reason: 'BACKUP_INVALID' })
+}
+
+export function unsupportedBackup(): never {
+  throw new HttpError('Unsupported backup format', 400, 400, { reason: 'BACKUP_UNSUPPORTED_FORMAT' })
+}
+
+export async function sha256File(path: string) {
+  const hash = createHash('sha256')
+  for await (const chunk of createReadStream(path)) hash.update(chunk)
+  return hash.digest('hex')
+}
+
+/**
+ * 检查目标文件系统的可用空间，并在预计写入量之外预留 256 MiB。
+ * @param path 已存在、可查询文件系统信息的路径。
+ * @param bytes 本阶段预计额外写入的字节数，不含预留空间。
+ */
 export async function requireFreeSpace(path: string, bytes: number | bigint) {
   const info = await statfs(path, { bigint: true })
-  if (info.bavail * info.bsize < BigInt(bytes) + 256n * 1024n * 1024n) throw new HttpError('Insufficient backup storage space', 507, 507, { reason: 'STORAGE_FULL' })
+  if (info.bavail * info.bsize < BigInt(bytes) + 256n * 1024n * 1024n) {
+    throw new HttpError('Insufficient backup storage space', 507, 507, { reason: 'STORAGE_FULL' })
+  }
 }
+
+/**
+ * 枚举可备份的普通文件和目录；忽略隐藏项，拒绝符号链接与特殊文件。
+ * @param root 相对归档路径的基准目录；根目录不存在时视为空集合。
+ * @param current 递归遍历的当前目录，首次调用通常保留默认值。
+ * @param postOrder 为 true 时先产出子项再产出目录，供按层级清理使用。
+ */
 export async function* walkBackupFiles(root = UPLOAD_ROOT, current = root, postOrder = false): AsyncGenerator<StorageTreeEntry> {
   try {
     const stats = await lstat(current)
     if (!stats.isDirectory() || stats.isSymbolicLink()) throw new HttpError('Unsafe upload directory', 409, 409)
-  } catch (error) { if (current === root && nodeErrorHasCode(error, 'ENOENT')) return; throw error }
+  } catch (error) {
+    if (current === root && nodeErrorHasCode(error, 'ENOENT')) return
+    throw error
+  }
   const entries = await opendir(current)
   for await (const entry of entries) {
     if (entry.name.startsWith('.')) continue
-    const path = assertContained(root, resolve(current, entry.name)), stats = await lstat(path), relativePath = toArchivePath(root, path)
-    if (/[\\\0\uFFFD]/.test(entry.name) || /^[A-Za-z]:/.test(relativePath) || Buffer.byteLength('uploads/' + relativePath + (stats.isDirectory() ? '/' : '')) > ZIP_PATH_MAX_BYTES) throw new HttpError('Uploads contain an unsupported path', 409, 409)
-    if (stats.isSymbolicLink() || (!stats.isFile() && !stats.isDirectory())) throw new HttpError('Uploads contain a symlink or special entry', 409, 409)
+    const path = assertContained(root, resolve(current, entry.name))
+    const stats = await lstat(path)
+    const relativePath = toArchivePath(root, path)
+    if (/[\\\0\uFFFD]/.test(entry.name) || /^[A-Za-z]:/.test(relativePath) ||
+      Buffer.byteLength('uploads/' + relativePath + (stats.isDirectory() ? '/' : '')) > ZIP_PATH_MAX_BYTES) {
+      throw new HttpError('Uploads contain an unsupported path', 409, 409)
+    }
+    if (stats.isSymbolicLink() || (!stats.isFile() && !stats.isDirectory())) {
+      throw new HttpError('Uploads contain a symlink or special entry', 409, 409)
+    }
     const item: StorageTreeEntry = { absolutePath: path, relativePath, kind: stats.isDirectory() ? 'directory' : 'file' }
     if (!stats.isDirectory() || !postOrder) yield item
-    if (stats.isDirectory()) { yield* walkBackupFiles(root, path, postOrder); if (postOrder) yield item }
+    if (stats.isDirectory()) {
+      yield* walkBackupFiles(root, path, postOrder)
+      if (postOrder) yield item
+    }
   }
 }
+
+/**
+ * 边读取边校验 ZIP 条目的大小和 CRC；调用者必须消费完流才能完成校验。
+ * @param hash 累积原始解压字节的 SHA256 实例，由调用者在读取结束后取出摘要。
+ */
 async function* checkedEntry(item: ValidatedZipEntry, hash = createHash('sha256')): AsyncGenerator<Buffer> {
-  let size = 0, crc = 0xffffffff
+  let size = 0
+  let crc = 0xffffffff
   try {
     for await (const chunk of item.entry.stream()) {
-      const bytes = Buffer.from(chunk); size += bytes.length
+      const bytes = Buffer.from(chunk)
+      size += bytes.length
       if (size > item.declaredSize) invalid()
-      crc = updateCrc32(crc, bytes); hash.update(bytes); yield bytes
+      crc = updateCrc32(crc, bytes)
+      hash.update(bytes)
+      yield bytes
     }
-  } catch (error) { if (error instanceof HttpError || ['ENOSPC','EDQUOT','EACCES','EIO'].includes((error as NodeJS.ErrnoException).code ?? '')) throw error; invalid() }
+  } catch (error) {
+    if (error instanceof HttpError ||
+      ['ENOSPC', 'EDQUOT', 'EACCES', 'EIO'].includes((error as NodeJS.ErrnoException).code ?? '')) {
+      throw error
+    }
+    invalid()
+  }
   if (size !== item.declaredSize || ((crc ^ 0xffffffff) >>> 0) !== (item.entry.crc32 >>> 0)) invalid()
 }
+
+/**
+ * 解析可能跨数据块的 NDJSON 行；空行和缺少末尾换行的残留数据均视为损坏。
+ * @param maxLineBytes 单行 UTF-8 数据的字节上限，而非字符数。
+ */
 async function* ndjson(source: AsyncIterable<Buffer>, maxLineBytes = 8 * 1024 * 1024): AsyncGenerator<unknown> {
   let pending = Buffer.alloc(0)
   for await (const chunk of source) {
-    let start = 0, end: number
+    let start = 0
+    let end: number
     while ((end = chunk.indexOf(10, start)) !== -1) {
       if (pending.length + end - start > maxLineBytes) invalid()
-      const line = pending.length ? Buffer.concat([pending, chunk.subarray(start,end)]) : chunk.subarray(start,end)
+      const line = pending.length ? Buffer.concat([pending, chunk.subarray(start, end)]) : chunk.subarray(start, end)
       if (!line.length) invalid()
       try { yield JSON.parse(line.toString('utf8')) } catch { invalid() }
-      pending = Buffer.alloc(0); start = end + 1
+      pending = Buffer.alloc(0)
+      start = end + 1
     }
     if (pending.length + chunk.length - start > maxLineBytes) invalid()
     if (start < chunk.length) pending = Buffer.concat([pending, chunk.subarray(start)])
   }
   if (pending.length) invalid()
 }
-function checkDigest(hash: ReturnType<typeof createHash>, item: ValidatedZipEntry, expected: BackupEntryDigest) { if (item.declaredSize !== expected.size || hash.digest('hex') !== expected.sha256) invalid() }
+
+function checkDigest(hash: ReturnType<typeof createHash>, item: ValidatedZipEntry, expected: BackupEntryDigest) {
+  if (item.declaredSize !== expected.size || hash.digest('hex') !== expected.sha256) {
+    invalid()
+  }
+}
+
 function checkManagedFiles(store: RecordStore) {
-  for (const file of store.iterate<{ id:string; filePath:string; fileSize:string }>('fileManagements')) {
-    const actual = store.get<{kind:string;size:number;sha256:string}>('$files', file.filePath.slice(8))
-    if (!actual || actual.kind !== 'file' || BigInt(actual.size) !== BigInt(file.fileSize)) throw new HttpError('A managed backup attachment is missing or has a different size', 409, 409, { reason: 'BACKUP_ATTACHMENT_MISMATCH' })
+  for (const file of store.iterate<{ id: string; filePath: string; fileSize: string }>('fileManagements')) {
+    const actual = store.get<{ kind: string; size: number; sha256: string }>('$files', file.filePath.slice(8))
+    if (!actual || actual.kind !== 'file' || BigInt(actual.size) !== BigInt(file.fileSize)) {
+      throw new HttpError(
+        'A managed backup attachment is missing or has a different size',
+        409,
+        409,
+        { reason: 'BACKUP_ATTACHMENT_MISMATCH' }
+      )
+    }
   }
   checkPrivateFiles(store)
 }
-export async function readCompleteBundle(path: string, directory: string, extract = true, progress?: (value: Partial<BackupProgress>) => Promise<void>) {
+
+/**
+ * 完整读取归档，校验清单、摘要和业务引用，并将记录写入临时磁盘索引。
+ * @param path 待校验的原始 ZIP 文件路径。
+ * @param directory 临时索引及解压目录，由调用者负责最终清理。
+ * @param extract 为 false 时仍读取并校验附件内容，但不将附件解压落盘。
+ * @param progress 可选的异步进度回调；回调失败会中止本次读取。
+ * @returns 包含打开的 store 的校验结果，使用结束后必须调用 store.close()。
+ */
+export async function readCompleteBundle(
+  path: string,
+  directory: string,
+  extract = true,
+  progress?: (value: Partial<BackupProgress>) => Promise<void>
+) {
   const info = await lstat(path)
   if (!info.isFile() || info.isSymbolicLink()) invalid()
-  const source = await open(path, 'r'), signature = Buffer.alloc(4)
+  const source = await open(path, 'r')
+  const signature = Buffer.alloc(4)
   try {
     const read = await source.read(signature, 0, signature.length, 0)
-    if (read.bytesRead !== signature.length || ![0x04034b50, 0x06054b50].includes(signature.readUInt32LE(0))) unsupportedBackup()
-  } finally { await source.close() }
-  const entries = await validateZipFile(path), byPath = new Map(entries.map(entry => [entry.relativePath, entry]))
+    if (read.bytesRead !== signature.length || ![0x04034b50, 0x06054b50].includes(signature.readUInt32LE(0))) {
+      unsupportedBackup()
+    }
+  } finally {
+    await source.close()
+  }
+  const entries = await validateZipFile(path)
+  const byPath = new Map(entries.map(entry => [entry.relativePath, entry]))
   const header = byPath.get('manifest.json')
   if (!header || header.kind !== 'file' || header.declaredSize > BACKUP_MANIFEST_MAX_BYTES) unsupportedBackup()
   const pieces: Buffer[] = []
@@ -120,44 +240,85 @@ export async function readCompleteBundle(path: string, directory: string, extrac
   if (!parsed.success) invalid()
   const manifest = parsed.data
   const keys = new Set<string>(adapter.collectionKeys)
-  for (const key of RETIRED_CORE_COLLECTIONS) if (Object.hasOwn(manifest.counts, key) || Object.hasOwn(manifest.database, key)) {
-    if (manifest.counts[key] !== 0 || manifest.database[key]?.size !== 0) rejectRetiredCoreData()
-    keys.add(key)
+  for (const key of RETIRED_CORE_COLLECTIONS) {
+    if (Object.hasOwn(manifest.counts, key) || Object.hasOwn(manifest.database, key)) {
+      if (manifest.counts[key] !== 0 || manifest.database[key]?.size !== 0) rejectRetiredCoreData()
+      keys.add(key)
+    }
   }
-  if (Object.keys(manifest.counts).length !== keys.size || Object.keys(manifest.database).length !== keys.size || [...keys].some(key => !Object.hasOwn(manifest.counts,key) || !Object.hasOwn(manifest.database,key)) || entries.length !== keys.size + 2 + manifest.entryCount) invalid()
-  await mkdir(directory,{recursive:true,mode:0o700})
+  if (Object.keys(manifest.counts).length !== keys.size ||
+    Object.keys(manifest.database).length !== keys.size ||
+    [...keys].some(key => !Object.hasOwn(manifest.counts, key) || !Object.hasOwn(manifest.database, key)) ||
+    entries.length !== keys.size + 2 + manifest.entryCount) {
+    invalid()
+  }
+  await mkdir(directory, { recursive: true, mode: 0o700 })
   await requireFreeSpace(directory, extract ? manifest.totalFileBytes : 0)
-  const store = new RecordStore(resolve(directory,'index.sqlite')), uploads = resolve(directory,'uploads')
+  const store = new RecordStore(resolve(directory, 'index.sqlite'))
+  const uploads = resolve(directory, 'uploads')
   try {
-    let processedRecords = 0, processedBytes = 0, processedFiles = 0
+    let processedRecords = 0
+    let processedBytes = 0
+    let processedFiles = 0
     for (const key of keys) {
       const item = byPath.get(`database/${key}.ndjson`)
       if (!item || item.kind !== 'file') invalid()
-      const hash = createHash('sha256'); let count = 0
-      for await (const value of ndjson(checkedEntry(item,hash))) {
-        try { store.put(key,adapter.parseRow(key,value)) } catch { invalid() }
-        count++; processedRecords++
-        if (count % 100 === 0) await progress?.({processedRecords})
+      const hash = createHash('sha256')
+      let count = 0
+      for await (const value of ndjson(checkedEntry(item, hash))) {
+        try { store.put(key, adapter.parseRow(key, value)) } catch { invalid() }
+        count++
+        processedRecords++
+        if (count % 100 === 0) await progress?.({ processedRecords })
       }
       if (count !== manifest.counts[key]) invalid()
-      checkDigest(hash,item,manifest.database[key]); processedBytes += item.declaredSize
+      checkDigest(hash, item, manifest.database[key])
+      processedBytes += item.declaredSize
     }
-    const index = byPath.get('files.ndjson'); if (!index || index.kind !== 'file') invalid()
-    const indexHash = createHash('sha256'); let count = 0, bytes = 0, files = 0
-    for await (const value of ndjson(checkedEntry(index,indexHash), 4096)) {
-      const parsedFile = fileSchema.safeParse(value); if (!parsedFile.success) invalid()
-      const row = parsedFile.data, entry = byPath.get('uploads/' + row.path)
-      if (!entry || entry.kind !== row.kind || entry.declaredSize !== row.size || (row.kind === 'directory' ? row.size !== 0 || row.sha256 !== null : row.sha256 === null)) invalid()
-      try { store.put('$files',{id:row.path,...row}) } catch { invalid() }
-      count++; bytes += row.size; if (!Number.isSafeInteger(bytes)) invalid(); if (row.kind === 'file') files++
+    const index = byPath.get('files.ndjson')
+    if (!index || index.kind !== 'file') invalid()
+    const indexHash = createHash('sha256')
+    let count = 0
+    let bytes = 0
+    let files = 0
+    for await (const value of ndjson(checkedEntry(index, indexHash), 4096)) {
+      const parsedFile = fileSchema.safeParse(value)
+      if (!parsedFile.success) invalid()
+      const row = parsedFile.data
+      const entry = byPath.get('uploads/' + row.path)
+      if (!entry || entry.kind !== row.kind || entry.declaredSize !== row.size ||
+        (row.kind === 'directory' ? row.size !== 0 || row.sha256 !== null : row.sha256 === null)) {
+        invalid()
+      }
+      try { store.put('$files', { id: row.path, ...row }) } catch { invalid() }
+      count++
+      bytes += row.size
+      if (!Number.isSafeInteger(bytes)) invalid()
+      if (row.kind === 'file') files++
     }
-    checkDigest(indexHash,index,manifest.filesIndex)
+    checkDigest(indexHash, index, manifest.filesIndex)
     if (count !== manifest.entryCount || files !== manifest.fileCount || bytes !== manifest.totalFileBytes) invalid()
     for (const item of entries) {
-      if (!item.relativePath.startsWith('uploads/')) { if (!['manifest.json','files.ndjson',...Array.from(keys,key=>`database/${key}.ndjson`)].includes(item.relativePath)) invalid(); continue }
-      const row = store.get<{size:number;sha256:string|null}>('$files',item.relativePath.slice(8)); if (!row) invalid()
-      const target = assertContained(uploads,resolve(uploads,...item.segments.slice(1)))
-      if (item.kind === 'directory') { for await (const chunk of checkedEntry(item)) if (chunk.length) invalid(); if (extract) await mkdir(target,{recursive:true,mode:0o700}); continue }
+      if (!item.relativePath.startsWith('uploads/')) {
+        if (!['manifest.json', 'files.ndjson', ...Array.from(keys, key => `database/${key}.ndjson`)].includes(item.relativePath)) {
+          invalid()
+        }
+        continue
+      }
+      const row = store.get<{ size: number; sha256: string | null }>('$files', item.relativePath.slice(8))
+      if (!row) invalid()
+      const target = assertContained(uploads, resolve(uploads, ...item.segments.slice(1)))
+      if (item.kind === 'directory') {
+        for await (const chunk of checkedEntry(item)) {
+          if (chunk.length) {
+            invalid()
+          }
+        }
+        if (extract) {
+          await mkdir(target, { recursive: true, mode: 0o700 })
+        }
+        continue
+      }
       const hash = createHash('sha256')
       const privateEntry = privateFilePath(item.relativePath.slice(8))
       const metadataChunks: Buffer[] = []
@@ -169,100 +330,223 @@ export async function readCompleteBundle(path: string, directory: string, extrac
         }
       }
       if (extract) {
-        await requireFreeSpace(directory,item.declaredSize); await mkdir(dirname(target),{recursive:true,mode:0o700})
-        await pipeline(Readable.from(content()),createWriteStream(target,{flags:'wx',mode:0o600}))
+        await requireFreeSpace(directory, item.declaredSize)
+        await mkdir(dirname(target), { recursive: true, mode: 0o700 })
+        await pipeline(Readable.from(content()), createWriteStream(target, { flags: 'wx', mode: 0o600 }))
         processedBytes += item.declaredSize
-      } else for await (const chunk of content()) { processedBytes += chunk.length; await progress?.({processedBytes,processedFiles,processedRecords}) }
+      } else {
+        for await (const chunk of content()) {
+          processedBytes += chunk.length
+          await progress?.({ processedBytes, processedFiles, processedRecords })
+        }
+      }
       if (hash.digest('hex') !== row.sha256) invalid()
-      if (privateEntry?.kind === 'file' && privateEntry.metadata) indexPrivateManifest(store, item.relativePath.slice(8), Buffer.concat(metadataChunks))
-      processedFiles++; await progress?.({processedBytes,processedFiles,processedRecords,totalFiles:manifest.fileCount})
+      if (privateEntry?.kind === 'file' && privateEntry.metadata) {
+        indexPrivateManifest(store, item.relativePath.slice(8), Buffer.concat(metadataChunks))
+      }
+      processedFiles++
+      await progress?.({ processedBytes, processedFiles, processedRecords, totalFiles: manifest.fileCount })
     }
-    if (extract) await mkdir(uploads,{recursive:true,mode:0o700})
+    if (extract) await mkdir(uploads, { recursive: true, mode: 0o700 })
     const payload = adapter.toCurrentPayload(store)
-    validateBackupRelations(payload.data); verifyBackupPublications(payload.data); checkManagedFiles(store)
-    return {manifest,payload,uploads,store}
-  } catch(error) { store.close(); throw error }
+    validateBackupRelations(payload.data)
+    verifyBackupPublications(payload.data)
+    checkManagedFiles(store)
+    return { manifest, payload, uploads, store }
+  } catch (error) {
+    store.close()
+    throw error
+  }
 }
-/** Let Archiver's retained directory metadata become collectible before opening the verification reader. */
+/** 单独结束压缩阶段，使 Archiver 保留的目录元数据可在校验读取前被回收。 */
 async function writeSnapshotZip(directory: string, uploads: string, partial: string) {
-  const archive = archiver('zip',{forceZip64:true,zlib:{level:1}}), hash = createHash('sha256')
-  archive.on('warning',error=>archive.destroy(error))
-  const hashing = new Transform({transform(chunk:Buffer,_encoding,callback){hash.update(chunk);callback(null,chunk)}})
-  const writing = pipeline(archive,hashing,createWriteStream(partial,{flags:'wx',mode:0o600}))
+  const archive = archiver('zip', { forceZip64: true, zlib: { level: 1 } })
+  const hash = createHash('sha256')
+  archive.on('warning', error => archive.destroy(error))
+  const hashing = new Transform({
+    transform(chunk: Buffer, _encoding, callback) {
+      hash.update(chunk)
+      callback(null, chunk)
+    },
+  })
+  const writing = pipeline(archive, hashing, createWriteStream(partial, { flags: 'wx', mode: 0o600 }))
   void writing.catch(error => archive.destroy(error))
-  const append = async (path:string,name:string,directoryEntry=false) => {
-    const appended = once(archive,'entry')
-    if (directoryEntry) archive.append('',{name:name+'/'}); else archive.file(path,{name})
+  const append = async (path: string, name: string, directoryEntry = false) => {
+    const appended = once(archive, 'entry')
+    if (directoryEntry) {
+      archive.append('', { name: name + '/' })
+    } else {
+      archive.file(path, { name })
+    }
     await appended
   }
   try {
-    await append(resolve(directory,'manifest.json'),'manifest.json')
-    for (const key of ACTIVE_BACKUP_COLLECTION_KEYS) await append(resolve(directory,'database',`${key}.ndjson`),`database/${key}.ndjson`)
-    await append(resolve(directory,'files.ndjson'),'files.ndjson')
-    for await (const entry of walkBackupFiles(uploads)) await append(entry.absolutePath,'uploads/'+entry.relativePath,entry.kind==='directory')
-    await Promise.all([writing,archive.finalize()])
-  } catch(error) { archive.destroy(error as Error); await writing.catch(()=>undefined); throw error }
+    await append(resolve(directory, 'manifest.json'), 'manifest.json')
+    for (const key of ACTIVE_BACKUP_COLLECTION_KEYS) await append(resolve(directory, 'database', `${key}.ndjson`), `database/${key}.ndjson`)
+    await append(resolve(directory, 'files.ndjson'), 'files.ndjson')
+    for await (const entry of walkBackupFiles(uploads)) await append(entry.absolutePath, 'uploads/' + entry.relativePath, entry.kind === 'directory')
+    await Promise.all([writing, archive.finalize()])
+  } catch (error) {
+    archive.destroy(error as Error)
+    await writing.catch(() => undefined)
+    throw error
+  }
   return hash.digest('hex')
 }
 
-export async function createCompleteSnapshot(kind: BackupGenerationKind, id: string, phase: (value: BackupPhase) => Promise<void>, lockHeld = false, progress?: (value: Partial<BackupProgress>) => Promise<void>): Promise<BackupSnapshot> {
+/**
+ * 复制数据与附件后生成快照，完整校验通过才发布归档及快照记录。
+ * @param kind 快照来源类别，保护快照也走同一套归档校验流程。
+ * @param id 本次快照的唯一标识，同时用作临时目录和最终归档的存储键。
+ * @param phase 持久化阶段变更的异步回调，失败时中止当前任务。
+ * @param lockHeld 仅当调用者已持有维护锁时设为 true，避免恢复流程重复获取锁。
+ * @param progress 可选的异步进度回调；失败会中止当前阶段。
+ */
+export async function createCompleteSnapshot(
+  kind: BackupGenerationKind,
+  id: string,
+  phase: (value: BackupPhase) => Promise<void>,
+  lockHeld = false,
+  progress?: (value: Partial<BackupProgress>) => Promise<void>
+): Promise<BackupSnapshot> {
   await ensureBackupStorage()
-  const directory = workPath(id), uploads = resolve(directory,'uploads'), partial = `${artifactPath(id)}.partial`
-  await mkdir(uploads,{recursive:true,mode:0o700})
-  const store = new RecordStore(resolve(directory,'index.sqlite'))
+  const directory = workPath(id)
+  const uploads = resolve(directory, 'uploads')
+  const partial = `${artifactPath(id)}.partial`
+  await mkdir(uploads, { recursive: true, mode: 0o700 })
+  const store = new RecordStore(resolve(directory, 'index.sqlite'))
   let published: BackupSnapshot | undefined
   try {
     await phase('copying')
     const copySnapshot = async () => {
-      const database = await exportDatabaseSnapshot(directory,store,progress)
-      const handle = await open(resolve(directory,'files.ndjson'),'wx',0o600), hash = createHash('sha256')
-      let fileCount = 0, entryCount = 0, totalFileBytes = 0, indexBytes = 0
+      const database = await exportDatabaseSnapshot(directory, store, progress)
+      const handle = await open(resolve(directory, 'files.ndjson'), 'wx', 0o600)
+      const hash = createHash('sha256')
+      let fileCount = 0
+      let entryCount = 0
+      let totalFileBytes = 0
+      let indexBytes = 0
       const paths = store.set()
       try {
         async function* allFiles() {
           for await (const entry of walkBackupFiles()) {
-            if (entry.relativePath.split('/')[0].toLowerCase() === PLUGIN_FILES_ARCHIVE_ROOT) throw new HttpError('Upload path conflicts with private plugin backup namespace', 409)
+            if (entry.relativePath.split('/')[0].toLowerCase() === PLUGIN_FILES_ARCHIVE_ROOT) {
+              throw new HttpError('Upload path conflicts with private plugin backup namespace', 409)
+            }
             yield entry
           }
           yield* privateBackupEntries()
         }
         for await (const entry of allFiles()) {
-          const key = entry.relativePath.toLocaleLowerCase('en-US'); if (paths.has(key)) throw new HttpError('Duplicate upload path',409,409); paths.add(key)
-          const destination = assertContained(uploads,resolve(uploads,entry.relativePath))
-          let size = 0, sha256: string | null = null
-          if (entry.kind === 'directory') await mkdir(destination,{recursive:true,mode:0o700})
-          else {
-            size = (await lstat(entry.absolutePath)).size; await requireFreeSpace(directory,size); await mkdir(dirname(destination),{recursive:true,mode:0o700})
-            await copyFile(entry.absolutePath,destination,fsConstants.COPYFILE_EXCL); await chmod(destination,0o600); sha256 = await sha256File(destination)
-            if ((await lstat(destination)).size !== size) throw new HttpError('Attachment changed during snapshot',409,409)
-            fileCount++; totalFileBytes += size
+          const key = entry.relativePath.toLocaleLowerCase('en-US')
+          if (paths.has(key)) {
+            throw new HttpError('Duplicate upload path', 409, 409)
           }
-          const row = {path:entry.relativePath,kind:entry.kind,size,sha256}, line = Buffer.from(JSON.stringify(row)+'\n')
-          if (privateFilePath(row.path)?.kind === 'file' && row.path.endsWith('/metadata.json')) indexPrivateManifest(store, row.path, await readFile(destination))
-          store.put('$files',{id:row.path,...row}); await handle.writeFile(line); hash.update(line); indexBytes += line.length; entryCount++
-          await progress?.({processedFiles:fileCount,processedBytes:totalFileBytes})
+          paths.add(key)
+          const destination = assertContained(uploads, resolve(uploads, entry.relativePath))
+          let size = 0
+          let sha256: string | null = null
+          if (entry.kind === 'directory') {
+            await mkdir(destination, { recursive: true, mode: 0o700 })
+          } else {
+            size = (await lstat(entry.absolutePath)).size
+            await requireFreeSpace(directory, size)
+            await mkdir(dirname(destination), { recursive: true, mode: 0o700 })
+            await copyFile(entry.absolutePath, destination, fsConstants.COPYFILE_EXCL)
+            await chmod(destination, 0o600)
+            sha256 = await sha256File(destination)
+            if ((await lstat(destination)).size !== size) {
+              throw new HttpError('Attachment changed during snapshot', 409, 409)
+            }
+            fileCount++
+            totalFileBytes += size
+          }
+          const row = { path: entry.relativePath, kind: entry.kind, size, sha256 }
+          const line = Buffer.from(JSON.stringify(row) + '\n')
+          if (privateFilePath(row.path)?.kind === 'file' && row.path.endsWith('/metadata.json')) {
+            indexPrivateManifest(store, row.path, await readFile(destination))
+          }
+          store.put('$files', { id: row.path, ...row })
+          await handle.writeFile(line)
+          hash.update(line)
+          indexBytes += line.length
+          entryCount++
+          await progress?.({ processedFiles: fileCount, processedBytes: totalFileBytes })
         }
         await handle.sync()
-      } finally { await handle.close() }
+      } finally {
+        await handle.close()
+      }
       checkManagedFiles(store)
-      return { database, fileCount, entryCount, totalFileBytes, filesIndex:{size:indexBytes,sha256:hash.digest('hex')} }
+      return {
+        database,
+        fileCount,
+        entryCount,
+        totalFileBytes,
+        filesIndex: { size: indexBytes, sha256: hash.digest('hex') },
+      }
     }
-    const snapshot = lockHeld ? await copySnapshot() : await withMaintenanceLock('shared',copySnapshot)
-    const manifest: BackupManifest = {formatVersion:2,id,createdAt:snapshot.database.exportedAt,appVersion:process.env.SLOTHVAULT_APP_VERSION||packageJson.version,databaseVersion:DATABASE_BACKUP_VERSION,counts:snapshot.database.counts,database:snapshot.database.database,filesIndex:snapshot.filesIndex,fileCount:snapshot.fileCount,entryCount:snapshot.entryCount,totalFileBytes:snapshot.totalFileBytes}
-    await atomicJson(resolve(directory,'manifest.json'),manifest)
-    await phase('compressing'); await requireFreeSpace(directory,snapshot.totalFileBytes+Object.values(manifest.database).reduce((sum,row)=>sum+row.size,0))
-    const archiveSha256 = await writeSnapshotZip(directory,uploads,partial)
+    const snapshot = lockHeld ? await copySnapshot() : await withMaintenanceLock('shared', copySnapshot)
+    const manifest: BackupManifest = {
+      formatVersion: 2,
+      id,
+      createdAt: snapshot.database.exportedAt,
+      appVersion: process.env.SLOTHVAULT_APP_VERSION || packageJson.version,
+      databaseVersion: DATABASE_BACKUP_VERSION,
+      counts: snapshot.database.counts,
+      database: snapshot.database.database,
+      filesIndex: snapshot.filesIndex,
+      fileCount: snapshot.fileCount,
+      entryCount: snapshot.entryCount,
+      totalFileBytes: snapshot.totalFileBytes,
+    }
+    await atomicJson(resolve(directory, 'manifest.json'), manifest)
+    await phase('compressing')
+    await requireFreeSpace(
+      directory,
+      snapshot.totalFileBytes + Object.values(manifest.database).reduce((sum, row) => sum + row.size, 0)
+    )
+    const archiveSha256 = await writeSnapshotZip(directory, uploads, partial)
     await phase('validating')
-    const verified = await readCompleteBundle(partial,resolve(directory,'verify'),false,progress); verified.store.close()
-    const handle = await open(partial,'r'); try { await handle.sync() } finally { await handle.close() }
-    const result: BackupSnapshot = {id,kind,createdAt:manifest.createdAt,size:(await lstat(partial)).size,sha256:archiveSha256,manifest}
-    await rename(partial,artifactPath(id))
-    const parent = await open(dirname(artifactPath(id)),'r'); try { await parent.sync() } finally { await parent.close() }
-    await atomicJson(recordPath('snapshots',id),result); published = result
+    const verified = await readCompleteBundle(partial, resolve(directory, 'verify'), false, progress)
+    verified.store.close()
+    const handle = await open(partial, 'r')
+    try { await handle.sync() } finally { await handle.close() }
+    const result: BackupSnapshot = {
+      id,
+      kind,
+      createdAt: manifest.createdAt,
+      size: (await lstat(partial)).size,
+      sha256: archiveSha256,
+      manifest,
+    }
+    await rename(partial, artifactPath(id))
+    const parent = await open(dirname(artifactPath(id)), 'r')
+    try {
+      await parent.sync()
+    } finally {
+      await parent.close()
+    }
+    await atomicJson(recordPath('snapshots', id), result)
+    published = result
     return result
   } finally {
     store.close()
-    for (const path of [directory,partial]) try { await rm(path,{recursive:true,force:true}) } catch { if (published) (published.warnings??=[]).push('WORK_CLEANUP_FAILED') }
-    if (published?.warnings?.length) try { await atomicJson(recordPath('snapshots',id),published) } catch { published.warnings.push('JOB_STATE_WRITE_FAILED') }
+    for (const path of [directory, partial]) {
+      try {
+        await rm(path, { recursive: true, force: true })
+      } catch {
+        if (published) {
+          (published.warnings ??= []).push('WORK_CLEANUP_FAILED')
+        }
+      }
+    }
+    if (published?.warnings?.length) {
+      try {
+        await atomicJson(recordPath('snapshots', id), published)
+      } catch {
+        published.warnings.push('JOB_STATE_WRITE_FAILED')
+      }
+    }
   }
 }

@@ -2,7 +2,7 @@
 name: slothvault-mcp
 description: Create or incrementally update project documentation from the selected repository in SlothVault, and manage drafts, articles, files and publication through native MCP in Codex or Claude Code. Use for SlothVault administration, not source development or unrelated MCP servers.
 metadata:
-  version: "1.2.4"
+  version: "1.2.5"
 ---
 
 <!--

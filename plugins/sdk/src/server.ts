@@ -8,11 +8,41 @@
  * @index_tags plugins,sdk,transactions,kysely,worker
  * @author holic512
  */
-import { Kysely, MysqlAdapter, MysqlIntrospector, MysqlQueryCompiler, PostgresAdapter, PostgresIntrospector, PostgresQueryCompiler, SqliteAdapter, SqliteIntrospector, SqliteQueryCompiler, type CompiledQuery, type DatabaseConnection, type Dialect, type Driver, type QueryResult } from 'kysely'
-import type { PluginInvocation, PluginManifest, MarketQuote, SolTransferIntent, PreparedSolTransfer, SolTransferObservation, PreparedMemoEvidence, MemoEvidenceObservation, PluginFile, PluginUser } from './protocol'
+import {
+  Kysely,
+  MysqlAdapter,
+  MysqlIntrospector,
+  MysqlQueryCompiler,
+  PostgresAdapter,
+  PostgresIntrospector,
+  PostgresQueryCompiler,
+  SqliteAdapter,
+  SqliteIntrospector,
+  SqliteQueryCompiler,
+  type CompiledQuery,
+  type DatabaseConnection,
+  type Dialect,
+  type Driver,
+  type QueryResult
+} from 'kysely'
+import type {
+  PluginInvocation,
+  PluginManifest,
+  MarketQuote,
+  SolTransferIntent,
+  PreparedSolTransfer,
+  SolTransferObservation,
+  PreparedMemoEvidence,
+  MemoEvidenceObservation,
+  PluginFile,
+  PluginUser
+} from './protocol'
+
 export { sql } from 'kysely'
 export type { PluginManifest, PluginInvocation, MarketQuote, SolTransferIntent, PreparedSolTransfer, SolTransferObservation, PreparedMemoEvidence, MemoEvidenceObservation, PluginFile, PluginUser } from './protocol'
+
 export type HostCall = (method: string, payload?: unknown) => Promise<unknown>
+
 export type PluginContext = {
   manifest: PluginManifest; config: Record<string, unknown>; provider: 'sqlite' | 'mysql' | 'postgresql'
   db: Kysely<Record<string, Record<string, unknown>>>
@@ -35,12 +65,41 @@ export type PluginContext = {
     observe(input: { prepared: PreparedMemoEvidence; signature: string }): Promise<MemoEvidenceObservation>
   }
   files: { inspect(id: string): Promise<PluginFile>; ensure(ids: string[]): Promise<PluginFile[]> }
-  points: { credit(input: { userId: number; amount: number; sourceKey: string; description: string; referenceId?: string; type?: string }, transaction?: Kysely<Record<string, Record<string, unknown>>>): Promise<{ pointsBalance: number; replayed: boolean }> }
-  users: { find(input: { query?: string; userId?: number }): Promise<PluginUser[]>; snapshot(userId: number): Promise<{ username: string; displayName: string | null; role: string; userId: string; installationId: string | null }> }
+  points: {
+    /**
+     * 将积分入账交由宿主处理；插件业务写入与积分变动需要原子提交时，必须显式传入同一事务。
+     * @param transaction 当前上下文创建的活动事务；省略时不会自动加入调用方持有的事务。
+     * @returns 宿主返回的当前余额及是否命中已有入账回执。
+     */
+    credit(input: {
+      userId: number
+      amount: number
+      sourceKey: string
+      description: string
+      referenceId?: string
+      type?: string
+    }, transaction?: Kysely<Record<string, Record<string, unknown>>>): Promise<{ pointsBalance: number; replayed: boolean }>
+  }
+  users: {
+    find(input: { query?: string; userId?: number }): Promise<PluginUser[]>
+    snapshot(userId: number): Promise<{
+      username: string
+      displayName: string | null
+      role: string
+      userId: string
+      installationId: string | null
+    }>
+  }
+  /**
+   * 通过宿主发布事件；需与业务写入保持事务一致时，不要省略事务参数。
+   * @param transaction 当前上下文创建的活动事务，其连接标识会随事件传给宿主。
+   */
   emit(event: string, payload: unknown, transaction?: Kysely<Record<string, Record<string, unknown>>>): Promise<void>
   service(pluginId: string, service: string, input: unknown): Promise<unknown>
 }
+
 export type PluginTaskContext = { id: string; attempt: number; scheduledAt: string }
+
 export type PluginServer = {
   mcp?: Record<string, (input: PluginInvocation) => Promise<unknown>>
   api?: Record<string, (input: PluginInvocation) => Promise<unknown>>
@@ -50,41 +109,94 @@ export type PluginServer = {
   migrations?: Record<string, () => Promise<void>>
   onInstall?(): Promise<void>; onEnable?(): Promise<void>; onDisable?(): Promise<void>; onUninstall?(): Promise<void>; onUpgrade?(): Promise<void>; dispose?(): Promise<void>
 }
-export function definePlugin(factory: (context: PluginContext) => PluginServer | Promise<PluginServer>) { return factory }
+
+export function definePlugin(factory: (context: PluginContext) => PluginServer | Promise<PluginServer>) {
+  return factory
+}
 
 class RemoteConnection implements DatabaseConnection {
   transactionId?: string
-  constructor(readonly call: HostCall) {}
+
+  constructor(readonly call: HostCall) { }
+
   async executeQuery<R>(query: CompiledQuery): Promise<QueryResult<R>> {
-    return await this.call('db.query', { sql: query.sql, parameters: query.parameters, kind: query.query.kind, ast: query.query, transactionId: this.transactionId }) as QueryResult<R>
+    return await this.call(
+      'db.query',
+      {
+        sql: query.sql,
+        parameters: query.parameters,
+        kind: query.query.kind,
+        ast: query.query,
+        transactionId: this.transactionId,
+      }
+    ) as QueryResult<R>
   }
-  async *streamQuery<R>(query: CompiledQuery): AsyncIterableIterator<QueryResult<R>> { void query; throw new Error('Streaming is not part of plugin SQL API v1') }
+
+  async *streamQuery<R>(query: CompiledQuery): AsyncIterableIterator<QueryResult<R>> {
+    void query
+    throw new Error('Streaming is not part of plugin SQL API v1')
+  }
 }
+
 class RemoteDriver implements Driver {
-  constructor(readonly call: HostCall) {}
-  async init() {}
-  async acquireConnection() { return new RemoteConnection(this.call) }
-  async releaseConnection() {}
-  async beginTransaction(connection: RemoteConnection) { connection.transactionId = await this.call('db.begin') as string }
-  async commitTransaction(connection: RemoteConnection) { await this.call('db.commit', { transactionId: connection.transactionId }); connection.transactionId = undefined }
-  async rollbackTransaction(connection: RemoteConnection) { await this.call('db.rollback', { transactionId: connection.transactionId }); connection.transactionId = undefined }
-  async destroy() {}
+  constructor(readonly call: HostCall) { }
+
+  async init() { }
+
+  async acquireConnection() {
+    return new RemoteConnection(this.call)
+  }
+
+  async releaseConnection() { }
+
+  async beginTransaction(connection: RemoteConnection) {
+    connection.transactionId = await this.call('db.begin') as string
+  }
+
+  async commitTransaction(connection: RemoteConnection) {
+    await this.call('db.commit', { transactionId: connection.transactionId })
+    connection.transactionId = undefined
+  }
+
+  async rollbackTransaction(connection: RemoteConnection) {
+    await this.call('db.rollback', { transactionId: connection.transactionId })
+    connection.transactionId = undefined
+  }
+
+  async destroy() { }
 }
-export function createPluginContext(input: { manifest: PluginManifest; config: Record<string, unknown>; provider: PluginContext['provider']; tables: Record<string, string> }, call: HostCall): PluginContext {
+
+/**
+ * 按宿主数据库方言在插件侧编译查询，实际执行及事务生命周期仍由宿主负责。
+ * @param input 宿主提供的插件上下文；tables 是声明表名到隔离后物理表名的映射。
+ * @param call 宿主注入的 RPC 桥；SDK 操作经由此桥交给宿主校验和执行，不代表插件处于沙箱中。
+ */
+export function createPluginContext(input: {
+  manifest: PluginManifest
+  config: Record<string, unknown>
+  provider: PluginContext['provider']
+  tables: Record<string, string>
+}, call: HostCall): PluginContext {
   const dialects = {
     postgresql: { adapter: PostgresAdapter, compiler: PostgresQueryCompiler, introspector: PostgresIntrospector },
     mysql: { adapter: MysqlAdapter, compiler: MysqlQueryCompiler, introspector: MysqlIntrospector },
     sqlite: { adapter: SqliteAdapter, compiler: SqliteQueryCompiler, introspector: SqliteIntrospector },
   }
   const d = dialects[input.provider]
-  const dialect: Dialect = { createAdapter: () => new d.adapter(), createQueryCompiler: () => new d.compiler(), createDriver: () => new RemoteDriver(call), createIntrospector: db => new d.introspector(db) }
+  const dialect: Dialect = {
+    createAdapter: () => new d.adapter(),
+    createQueryCompiler: () => new d.compiler(),
+    createDriver: () => new RemoteDriver(call),
+    createIntrospector: db => new d.introspector(db),
+  }
   const db = new Kysely<Record<string, Record<string, unknown>>>({ dialect })
   // Kysely's connection provider preserves the current transaction connection.
   const credit = async (values: Parameters<PluginContext['points']['credit']>[0], transaction?: Kysely<Record<string, Record<string, unknown>>>) => {
     const executor = (transaction ?? db).getExecutor()
     return executor.provideConnection(async connection => call('points.credit', { ...values, transactionId: (connection as RemoteConnection).transactionId })) as Promise<{ pointsBalance: number; replayed: boolean }>
   }
-  return { ...input, db,
+  return {
+    ...input, db,
     schema: { hasColumn: (table, column) => call('schema.hasColumn', { table, column }) as Promise<boolean> },
     marketData: { quote: () => call('market.quote') as Promise<MarketQuote> },
     evidence: {
@@ -93,12 +205,29 @@ export function createPluginContext(input: { manifest: PluginManifest; config: R
       broadcast: values => call('evidence.broadcast', values) as Promise<{ signature: string }>,
       observe: values => call('evidence.observe', values) as Promise<MemoEvidenceObservation>,
     },
-    files: { inspect: id => call('files.inspect', { id }) as Promise<PluginFile>, ensure: ids => call('files.ensure', { ids }) as Promise<PluginFile[]> },
+    files: {
+      inspect: id => call('files.inspect', { id }) as Promise<PluginFile>,
+      ensure: ids => call('files.ensure', { ids }) as Promise<PluginFile[]>,
+    },
     solana: {
       validateIntent: values => call('solana.validateIntent', values) as Promise<void>,
       prepare: values => call('solana.prepare', values) as Promise<PreparedSolTransfer>,
       validateSigned: values => call('solana.validateSigned', values) as Promise<{ signature: string }>,
       broadcast: values => call('solana.broadcast', values) as Promise<{ signature: string }>,
       observe: values => call('solana.observe', values) as Promise<SolTransferObservation>,
-    }, table: name => { const table = input.tables[name]; if (!table) throw new Error(`Undeclared plugin table: ${name}`); return table }, points: { credit }, users: { find: values => call('users.find', values) as Promise<PluginUser[]>, snapshot: userId => call('users.snapshot', { userId }) as ReturnType<PluginContext['users']['snapshot']> }, emit: async (event, payload, transaction) => { await (transaction ?? db).getExecutor().provideConnection(async connection => { await call('events.emit', { event, payload, transactionId: (connection as RemoteConnection).transactionId }) }) }, service: (pluginId, service, values) => call('services.call', { pluginId, service, input: values }) }
+    }, table: name => {
+      const table = input.tables[name]
+      if (!table) {
+        throw new Error(`Undeclared plugin table: ${name}`)
+      }
+      return table
+    }, points: { credit }, users: {
+      find: values => call('users.find', values) as Promise<PluginUser[]>,
+      snapshot: userId => call('users.snapshot', { userId }) as ReturnType<PluginContext['users']['snapshot']>,
+    }, emit: async (event, payload, transaction) => {
+      await (transaction ?? db).getExecutor().provideConnection(async connection => {
+        await call('events.emit', { event, payload, transactionId: (connection as RemoteConnection).transactionId })
+      })
+    }, service: (pluginId, service, values) => call('services.call', { pluginId, service, input: values }),
+  }
 }

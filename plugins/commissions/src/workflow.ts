@@ -10,7 +10,16 @@
  */
 import type { CommandAction, Commission, FrozenAction } from './domain'
 export function fail(message: string, status = 409): never { throw Object.assign(new Error(message), { status, statusCode: status }) }
+/**
+ * 失败、过期或仅完成准备的存证仍占用冻结状态，只有最终确认或显式撤回才解除占用。
+ * @param evidence 调用方须保证同一委托至多存在一条未结束的冻结记录；此处只取首条。
+ */
 export function activeEvidence(evidence: FrozenAction[]): FrozenAction | null { return evidence.find(item => !['FINALIZED', 'WITHDRAWN'].includes(item.status)) ?? null }
+/**
+ * 汇总角色、阶段及冻结状态允许的动作，不以付款比例推断业务进度。
+ * @param pending 调用方需传入当前委托的未结束存证；已提交链上的记录不能通过普通命令撤回。
+ * @returns 候选动作；不替代委托访问权限检查及具体命令对输入和业务前置条件的校验。
+ */
 export function allowedActions(commission: Commission, admin: boolean, actorId: number, pending: FrozenAction | null): CommandAction[] {
   const actions: CommandAction[] = []
   if (['CLOSED', 'TERMINATED'].includes(commission.stage)) return actions
