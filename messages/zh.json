@@ -77,7 +77,7 @@
   },
   "ArticlesPage": {
     "title": "文章",
-    "description": "独立于项目版本的长期写作，按首次发布时间归档。",
+    "description": "记录想法，分享实践。按时间慢慢读。",
     "count": "共 {count} 篇",
     "read": "阅读全文",
     "emptyTitle": "文章尚未发布",
@@ -85,7 +85,14 @@
     "pagination": "文章分页",
     "previous": "上一页",
     "next": "下一页",
-    "requiredLevel": "需 {level} 会员"
+    "requiredLevel": "需 {level} 会员",
+    "timeline": "时间归档",
+    "scrollHint": "继续向下浏览，加载更早的文章",
+    "loading": "正在加载文章…",
+    "loadMore": "加载更早的文章",
+    "retry": "重新加载",
+    "loadError": "文章加载失败，请重试。",
+    "end": "已浏览全部文章"
   },
   "ArticleDetail": {
     "back": "返回文章",

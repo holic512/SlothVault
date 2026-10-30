@@ -77,7 +77,7 @@
   },
   "ArticlesPage": {
     "title": "Articles",
-    "description": "Long-form writing published independently from versioned projects.",
+    "description": "Ideas and practical notes, collected over time.",
     "count": "{count} articles",
     "read": "Read article",
     "emptyTitle": "No articles published",
@@ -85,7 +85,14 @@
     "pagination": "Article pagination",
     "previous": "Previous",
     "next": "Next",
-    "requiredLevel": "{level} membership required"
+    "requiredLevel": "{level} membership required",
+    "timeline": "Archive",
+    "scrollHint": "Scroll for older articles",
+    "loading": "Loading articles…",
+    "loadMore": "Load older articles",
+    "retry": "Try again",
+    "loadError": "Articles could not be loaded. Try again.",
+    "end": "You’ve reached the end"
   },
   "ArticleDetail": {
     "back": "Back to articles",

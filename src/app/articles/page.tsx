@@ -2,8 +2,8 @@
  * @file page.tsx
  * @project SlothVault
  * @module Public Article Archive Page
- * @description Serves the paginated independent blog archive in the shared public portal.
- * @logic Normalize the page query, read cached public articles and branding concurrently, and delegate the editorial layout to the archive view.
+ * @description Serves the continuous independent blog archive in the shared public portal.
+ * @logic Read the first batch of cached articles and branding concurrently; the timeline appends older batches without navigation.
  * @dependencies public article cache, system branding, PublicArticleListView
  * @index_tags article,blog,archive,page,public
  * @author holic512
@@ -19,17 +19,9 @@ export async function generateMetadata() {
   return createPageMetadata('articles')
 }
 
-export default async function ArticlesPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ page?: string | string[] }>
-}) {
-  const query = await searchParams
-  const rawPage = Array.isArray(query.page) ? query.page[0] : query.page
-  const parsedPage = Number(rawPage)
-  const page = Number.isSafeInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1
+export default async function ArticlesPage() {
   const [result, branding] = await Promise.all([
-    getCachedPublicArticleList(page),
+    getCachedPublicArticleList(1),
     getSystemBranding(),
   ])
 
