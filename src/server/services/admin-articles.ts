@@ -47,6 +47,7 @@ const ARTICLE_COVER_MAX_CHARACTERS = 500
 const ARTICLE_COVER_PATTERN = /^\/uploads\/article-cover\/[0-9a-f-]+\.(?:gif|jpe?g|png|webp)$/i
 
 type ArticleMetadataLike = {
+  publicId?: string
   id: number
   title: string
   summary: string | null
@@ -65,6 +66,7 @@ type ArticleMetadataLike = {
 export function adminArticleListDto(article: ArticleMetadataLike) {
   return {
     id: article.id.toString(),
+    publicId: article.publicId,
     title: article.title,
     summary: article.summary,
     cover: article.cover,
@@ -175,6 +177,7 @@ export async function listAdminArticles(input: {
       orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
       select: {
         id: true,
+        publicId: true,
         title: true,
         summary: true,
         cover: true,

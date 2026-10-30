@@ -23,7 +23,7 @@ import {
 
 describe('public project reading', () => {
   it('returns raw parent and child menu icon choices without resolving automatic defaults', async () => {
-    mocks.prisma.project.findFirst.mockResolvedValue({ id: 4, updatedAt: new Date() })
+    mocks.prisma.project.findFirst.mockResolvedValue({ id: 4, publicId: '10000000-0000-4000-8000-000000000004', updatedAt: new Date() })
     mocks.prisma.projectMenu.findMany.mockResolvedValue([{ id: 1, label: 'Parent', icon: null, url: null, isExternal: false, weight: 0,
       children: [{ id: 2, label: 'Child', icon: 'none', url: '/guide', isExternal: false, weight: 0 }] }])
     expect(await getProjectMenu(4)).toMatchObject([{ icon: null, children: [{ icon: 'none' }] }])
@@ -35,7 +35,7 @@ describe('public project reading', () => {
 
   it('keeps a published project public even when a legacy row still requests auth', async () => {
     mocks.prisma.project.findFirst.mockResolvedValue({
-      id: 4,
+      id: 4, publicId: '10000000-0000-4000-8000-000000000004',
       projectName: 'Open archive',
       avatar: null,
       status: 1,
@@ -44,7 +44,7 @@ describe('public project reading', () => {
     })
 
     await expect(getPublicProject(4)).resolves.toMatchObject({
-      id: '4',
+      id: '10000000-0000-4000-8000-000000000004',
       projectName: 'Open archive',
       requireAuth: false,
     })
@@ -52,7 +52,7 @@ describe('public project reading', () => {
 
   it('treats a missing homepage as an optional public entry point', async () => {
     mocks.prisma.project.findFirst.mockResolvedValue({
-      id: 4,
+      id: 4, publicId: '10000000-0000-4000-8000-000000000004',
       projectName: 'Open archive',
       avatar: null,
       status: 1,
@@ -83,14 +83,14 @@ describe('public project reading', () => {
       }],
     })
     mocks.prisma.project.findFirst.mockResolvedValue({
-      id: 4,
+      id: 4, publicId: '10000000-0000-4000-8000-000000000004',
       projectName: 'Open archive',
       avatar: null,
       status: 1,
       updatedAt,
     })
     mocks.prisma.noteInfo.findFirst.mockResolvedValue({
-      id: 12,
+      id: 12, publicId: '10000000-0000-4000-8000-000000000012',
       noteTitle: 'A public essay',
     })
     mocks.prisma.noteContent.findMany.mockResolvedValue([{
@@ -109,8 +109,7 @@ describe('public project reading', () => {
     const result = await getProjectNote(4, 8, 12)
 
     expect(result).toEqual({
-      id: '18',
-      noteId: '12',
+      noteId: '10000000-0000-4000-8000-000000000012',
       noteTitle: 'A public essay',
       tags: [],
       content: '# Essay',

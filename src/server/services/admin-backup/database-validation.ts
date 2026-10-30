@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { addPublicIdentifiers, parsePublicIdLegacyRow, publicIdentityCollections } from './legacy-v2-20'
 import { stripEmptyRetiredCollections } from './retired-core-data'
 import { discardRetiredCardPayload } from './retired-gift-cards'
 import { validatePluginBackup } from '@/server/plugins/backup'
@@ -66,11 +67,12 @@ function mapById<T extends { id: string }>(label: string, items: T[]) {
 function assertUniqueField<T>(
   label: string,
   items: T[],
-  valueOf: (item: T) => string,
+  valueOf: (item: T) => string | null,
 ) {
   const values = backupSet(items)
   for (const item of items) {
     const value = valueOf(item)
+    if (value === null) continue
     if (values.has(value)) invalidBackup(`duplicate ${label} ${value}`)
     values.add(value)
   }
@@ -85,6 +87,11 @@ function assertReference<T>(
 }
 
 export function validateBackupRelations(data: BackupData) {
+  for (const key of publicIdentityCollections) {
+    const identities: Array<{ publicId: string; legacyUrlId: string | null }> = data[key]
+    assertUniqueField(`${key} publicId`, identities, item => item.publicId)
+    assertUniqueField(`${key} legacyUrlId`, identities, item => item.legacyUrlId)
+  }
   if (data.giftCards.length || data.giftCardBatches.length) invalidBackup('Historical gift cards are retired; new cards must use generic plugin rows')
   validatePluginBackup(data)
 
@@ -433,11 +440,15 @@ export function parseDatabaseImportPayload(input: unknown): DatabaseImportPayloa
   if (input && typeof input === 'object' && 'version' in input && input.version === '2.16.0') {
     const legacy = z.object({ version: z.literal('2.16.0'), mode: z.literal('overwrite'), data: z.record(z.string(), z.unknown()) }).strict().parse(input)
     if ( Object.keys(legacy.data).some(key => key.startsWith('plugin'))) invalidBackup('plugin collections cannot use a legacy version')
-    input = { version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data: { ...addLegacyMenuIcons(legacy.data), pluginInstallations: [], pluginTables: [], pluginMigrations: [], pluginPointReceipts: [], pluginRows: [] } }
+    const data = addLegacyMenuIcons(legacy.data)
+    for (const [key, rows] of Object.entries(data)) if (Array.isArray(rows)) for (const row of rows) parsePublicIdLegacyRow(key, row)
+    input = { version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data: { ...addPublicIdentifiers(data), pluginInstallations: [], pluginTables: [], pluginMigrations: [], pluginPointReceipts: [], pluginRows: [] } }
   }
-  if (sourceVersion === '2.17.0' || sourceVersion === '2.18.0' || sourceVersion === '2.19.0') {
+  if (sourceVersion === '2.17.0' || sourceVersion === '2.18.0' || sourceVersion === '2.19.0' || sourceVersion === '2.20.0') {
     const legacy = z.object({ version: z.literal(sourceVersion), mode: z.literal('overwrite'), data: z.record(z.string(), z.unknown()) }).strict().parse(input)
-    input = { version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data: addLegacyMenuIcons(legacy.data) }
+    const data = sourceVersion === '2.17.0' || sourceVersion === '2.18.0' ? addLegacyMenuIcons(legacy.data) : legacy.data
+    for (const [key, rows] of Object.entries(data)) if (Array.isArray(rows)) for (const row of rows) parsePublicIdLegacyRow(key, row)
+    input = { version: DATABASE_BACKUP_VERSION, mode: 'overwrite', data: addPublicIdentifiers(data) }
   }
   if (sourceVersion && RETIRED_CARD_SOURCE_VERSIONS.has(sourceVersion) && input && typeof input === 'object' && 'data' in input) input = { ...input, data: discardRetiredCardPayload(input.data as Record<string, unknown>) }
   const source = input as { data?: Record<string, unknown> }

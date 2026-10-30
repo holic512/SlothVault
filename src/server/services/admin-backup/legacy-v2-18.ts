@@ -11,11 +11,11 @@
 import 'server-only'
 import { z } from 'zod'
 import { legacyProjectMenuSchema } from './database-schema'
-import { parseBackupRow } from './database-export'
+import { parsePublicIdLegacyRow } from './legacy-v2-20'
 import type { RecordStore } from './record-store'
 
 export function parseMenuLegacyRow(key: string, value: unknown): { id: string } {
-  return key === 'projectMenus' ? legacyProjectMenuSchema.parse(value) : parseBackupRow(key, value)
+  return key === 'projectMenus' ? legacyProjectMenuSchema.parse(value) : parsePublicIdLegacyRow(key, value)
 }
 
 export function addLegacyMenuIcons(data: Record<string, unknown>) {

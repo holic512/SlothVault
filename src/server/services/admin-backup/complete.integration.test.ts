@@ -294,6 +294,10 @@ describe(`complete backups with isolated ${fixture.provider} and uploads`, { tim
       signerAddress: '11111111111111111111111111111111', memo: canonicalProjectVersionEvidenceMemo({ installationId: randomUUID(), releaseId: s.release.releaseId, manifest: parseReleaseManifest((await client.projectVersion.findUniqueOrThrow({ where: { id: Number(s.release.projectVersionId) } })).releaseManifestJson), releaseHash: s.release.releaseHash, network: 'mainnet', signer: '11111111111111111111111111111111' }),
       transactionSignature: '5'.repeat(88), status: 2,
     } })
+    const contentModels: Array<{ findMany(input: { select: { id: true } }): Promise<Array<{ id: number }>>; update(input: { where: { id: number }; data: { legacyUrlId: number } }): Promise<unknown> }> = [client.project, client.projectVersion, client.noteInfo, client.article]
+    for (const model of contentModels) {
+      for (const row of await model.findMany({ select: { id: true } })) await model.update({ where: { id: row.id }, data: { legacyUrlId: row.id } })
+    }
     const before = await exportDatabaseBackup(), complete = await snapshot()
     const preview = await previewCompleteRestore({ snapshotId: complete.id }, s.admin.id)
     expect(preview.manifest.counts.noteContents).toBe(2)
@@ -308,6 +312,10 @@ describe(`complete backups with isolated ${fixture.provider} and uploads`, { tim
     expect(job).toMatchObject({ status: 'succeeded', phase: 'complete' })
     expect(job.protectionId).toBeDefined()
     const restored = await exportDatabaseBackup()
+    for (const key of ['projects', 'projectVersions', 'noteInfos', 'articles'] as const) {
+      expect(restored.data[key].map(({ publicId, legacyUrlId }) => ({ publicId, legacyUrlId }))).toEqual(before.data[key].map(({ publicId, legacyUrlId }) => ({ publicId, legacyUrlId })))
+      expect(restored.data[key][0].id).not.toBe(before.data[key][0].id)
+    }
     expect(restored.data.noteContents.map((item) => [item.content, item.isDeleted, item.deletedAt])).toEqual(before.data.noteContents.map((item) => [item.content, item.isDeleted, item.deletedAt]))
     expect(restored.data.articles[0]).toMatchObject({ isDeleted: true, deletedAt: deletedAt.toISOString() })
     expect(restored.data.projectMenus).toHaveLength(3)
@@ -318,6 +326,7 @@ describe(`complete backups with isolated ${fixture.provider} and uploads`, { tim
     expect(restored.data.fileReferences).toHaveLength(before.data.fileReferences.length)
     expect(restored.data.projects[0]).toMatchObject({ readAccessMode: 'MEMBERSHIPS', downloadAccessMode: 'DISABLED' })
     expect(restored.data.projectVersions.find((version) => version.releaseId === s.release.releaseId)?.releaseHash).toBe(s.release.releaseHash)
+    expect(restored.data.projectVersions.map(({ releaseManifestJson }) => releaseManifestJson)).toEqual(before.data.projectVersions.map(({ releaseManifestJson }) => releaseManifestJson))
     expect(restored.data.releaseCredentials).toHaveLength(1)
     expect(restored.data.releaseCredentials[0]).toMatchObject({ subjectType: 'PROJECT_VERSION', transactionSignature: '5'.repeat(88) })
     expect(await getPublicReleaseEvidence('5'.repeat(88))).toMatchObject({ subjectType: 'PROJECT_VERSION', subjectHash: s.release.releaseHash })
@@ -740,6 +749,7 @@ describe('persistent imported backup nodes', { timeout: 30_000 }, () => {
     const s = await seed(), original = await snapshot()
     const bytes = await editedBundle(original, data => {
       Reflect.set(data, 'version', '2.18.0')
+      for (const key of ['articles', 'projects', 'projectVersions', 'noteInfos'] as const) for (const row of data.data[key]) { Reflect.deleteProperty(row, 'publicId'); Reflect.deleteProperty(row, 'legacyUrlId') }
       for (const menu of data.data.projectMenus) Reflect.deleteProperty(menu, 'icon')
     })
     const source = await uploaded(bytes, s.admin.id), { job } = await queueCompleteImport(source.importId, s.admin.id)
@@ -926,9 +936,9 @@ describe('persistent imported backup nodes', { timeout: 30_000 }, () => {
     expect(job.status).toBe('succeeded')
     const imported = await getBackupSnapshot(source.importId)
     await previewCompleteRestore({ snapshotId: imported.id }, s.admin.id)
-    await atomicJson(recordPath('snapshots', original.id), { ...original, manifest: { ...original.manifest, databaseVersion: '2.21.0' } })
+    await atomicJson(recordPath('snapshots', original.id), { ...original, manifest: { ...original.manifest, databaseVersion: '2.22.0' } })
     const historical = (await backupHistory()).snapshots.find(item => item.id === original.id)!
-    expect(historical).toMatchObject({ restorable: false, compatibility: { status: 'unsupported', sourceVersion: '2.21.0', targetVersion: DATABASE_BACKUP_VERSION, reason: 'data-version' } })
+    expect(historical).toMatchObject({ restorable: false, compatibility: { status: 'unsupported', sourceVersion: '2.22.0', targetVersion: DATABASE_BACKUP_VERSION, reason: 'data-version' } })
     await expect(previewCompleteRestore({ snapshotId: original.id }, s.admin.id)).rejects.toMatchObject({ status: 400, data: { reason: 'BACKUP_UNSUPPORTED_FORMAT' } })
     const download = await downloadGet(request('download', { token: s.session.token }), context(original.id))
     expect(download.status).toBe(200); await download.body!.cancel()

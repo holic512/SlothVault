@@ -109,8 +109,8 @@ function ProjectNavigation({
   const credentialVersion = docsActive && selectedVersion?.publishedAt ? selectedVersion.id : null
   const resolveUrl = (url: string | null) => {
     if (!url) return `/project/${projectId}/home`
-    if (managedUploadPath(url)) return contextualFileUrl(url, projectId, true)!
-    return url.startsWith('/') ? `/project/${projectId}${url}` : url
+    if (managedUploadPath(url)) return contextualFileUrl(url, project.id, true)!
+    return url.startsWith('/project/') || url.startsWith('/preview/') || url.startsWith('/articles/') ? url : url.startsWith('/') ? `/project/${projectId}${url}` : url
   }
 
   return (
@@ -142,13 +142,13 @@ function ProjectNavigation({
             {menus.map((menu) =>
               menu.children.length ? (
                 <Dropdown
-                  key={menu.id}
+                  key={menu.key}
                   menu={{
                     items: menu.children.map((child) => ({
-                      key: child.id,
+                      key: child.key,
                       icon: <ProjectMenuIcon {...child} />,
                       label: child.isExternal ? (
-                        <a href={contextualFileUrl(child.url ?? undefined, projectId, true) || '#'} target="_blank" rel="noreferrer">{child.label}</a>
+                        <a href={contextualFileUrl(child.url ?? undefined, project.id, true) || '#'} target="_blank" rel="noreferrer">{child.label}</a>
                       ) : (
                         <Link href={resolveUrl(child.url)}>{child.label}</Link>
                       ),
@@ -158,9 +158,9 @@ function ProjectNavigation({
                   <Button type="text" icon={<ProjectMenuIcon {...menu} />}>{menu.label}<ChevronDown size={13} /></Button>
                 </Dropdown>
               ) : menu.isExternal ? (
-                <a key={menu.id} href={contextualFileUrl(menu.url ?? undefined, projectId, true) || '#'} target="_blank" rel="noreferrer"><ProjectMenuIcon {...menu} />{menu.label}</a>
+                <a key={menu.key} href={contextualFileUrl(menu.url ?? undefined, project.id, true) || '#'} target="_blank" rel="noreferrer"><ProjectMenuIcon {...menu} />{menu.label}</a>
               ) : (
-                <Link key={menu.id} href={resolveUrl(menu.url)}><ProjectMenuIcon {...menu} />{menu.label}</Link>
+                <Link key={menu.key} href={resolveUrl(menu.url)}><ProjectMenuIcon {...menu} />{menu.label}</Link>
               ),
             )}
           </>
@@ -233,23 +233,23 @@ function ProjectNavigation({
             menu.children.length
               ? menu.children.map((child) =>
                   child.isExternal ? (
-                    <a key={child.id} href={contextualFileUrl(child.url ?? undefined, projectId, true) || '#'} target="_blank" rel="noreferrer" onClick={() => setMobileOpen(false)}>
+                    <a key={child.key} href={contextualFileUrl(child.url ?? undefined, project.id, true) || '#'} target="_blank" rel="noreferrer" onClick={() => setMobileOpen(false)}>
                       <ProjectMenuIcon {...child} />{child.label}
                     </a>
                   ) : (
-                    <Link key={child.id} href={resolveUrl(child.url)} onClick={() => setMobileOpen(false)}>
+                    <Link key={child.key} href={resolveUrl(child.url)} onClick={() => setMobileOpen(false)}>
                       <ProjectMenuIcon {...child} />{child.label}
                     </Link>
                   ),
                 )
               : menu.isExternal
                 ? [
-                    <a key={menu.id} href={contextualFileUrl(menu.url ?? undefined, projectId, true) || '#'} target="_blank" rel="noreferrer" onClick={() => setMobileOpen(false)}>
+                    <a key={menu.key} href={contextualFileUrl(menu.url ?? undefined, project.id, true) || '#'} target="_blank" rel="noreferrer" onClick={() => setMobileOpen(false)}>
                       <ProjectMenuIcon {...menu} />{menu.label}
                     </a>,
                   ]
                 : [
-                    <Link key={menu.id} href={resolveUrl(menu.url)} onClick={() => setMobileOpen(false)}>
+                    <Link key={menu.key} href={resolveUrl(menu.url)} onClick={() => setMobileOpen(false)}>
                       <ProjectMenuIcon {...menu} />{menu.label}
                     </Link>,
                   ],

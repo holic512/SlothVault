@@ -41,7 +41,7 @@ describe('portable backup version compatibility', () => {
     expect(() => adapter.parseRow('giftCardBatches', { ...row, createdById: null })).toThrow()
     expect(() => adapter.parseRow('giftCardBatches', { ...row, attributionJson: '{}' })).toThrow()
   })
-  it.each(['2.12.0', '2.21.0', 'unknown', ''])('requires an explicit conversion rule for data version %s', (databaseVersion) => {
+  it.each(['2.12.0', '2.22.0', 'unknown', ''])('requires an explicit conversion rule for data version %s', (databaseVersion) => {
     const source = { formatVersion: 2, databaseVersion }
     expect(backupCompatibility(source)).toMatchObject({ status: 'unsupported', reason: 'data-version', sourceVersion: databaseVersion })
     expect(() => requireBackupCompatibility(source)).toThrow('Unsupported backup')

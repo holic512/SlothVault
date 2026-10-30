@@ -10,5 +10,5 @@
  */
 import 'server-only'
 
-export const CURRENT_SCHEMA_REVISION = 22
+export const CURRENT_SCHEMA_REVISION = 23
 export const INSTALLATION_ROW_ID = 1

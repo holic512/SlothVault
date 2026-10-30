@@ -21,6 +21,7 @@ import { createPageMetadata } from '@/i18n/metadata'
 import { getPageViewer } from '@/server/auth/viewer'
 import { resolveProjectAccess } from '@/server/services/content-access'
 import { ProjectAccessNotice } from '@/components/project/project-access-notice'
+import { resolvePublicProjectIds } from '@/server/services/public-content-ids'
 import { getPublicReleaseEvidence } from '@/server/services/release-evidence'
 import { getSystemBranding } from '@/server/services/system-branding'
 import evidenceStyles from '@/styles/modules/evidence.module.css'
@@ -40,7 +41,7 @@ export default async function EvidenceReceiptPage({ params }: { params: Promise<
   const { transactionSignature } = await params
   const evidence = await getPublicReleaseEvidence(transactionSignature)
   if (!evidence) notFound()
-  const access = evidence.subjectVisible && evidence.projectId ? await resolveProjectAccess(Number(evidence.projectId), await getPageViewer()) : null
+  const access = evidence.subjectVisible && evidence.projectId ? await resolveProjectAccess((await resolvePublicProjectIds({ id: evidence.projectId })).projectId, await getPageViewer()) : null
 
   return <div className={`${evidenceStyles.root} public-page`}>
     <PublicNavbar branding={await getSystemBranding()} />

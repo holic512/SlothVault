@@ -2,7 +2,7 @@
  * @file database-schema.ts
  * @project SlothVault
  * @module Admin Database Backup Schema
- * @description Defines the portable 2.20 database-backup shape, including nullable stable project-menu icon keys.
+ * @description Defines the portable 2.21 database-backup shape with permanent public content identities and legacy link aliases.
  * @logic Validate active collections strictly, retain v3 publication snapshots, note tags, member access and standalone blog content, include source documentation baselines, multi-wallet bindings and username quotas, and require the current data version and full overwrite restoration.
  * @dependencies Zod, Node path rules, backup constants
  * @index_tags admin,backup,database,schema,zod,portable
@@ -18,6 +18,7 @@ import { isAbsolute } from 'node:path'
 import { z } from 'zod'
 import { noteTagsSchema } from '@/lib/note-tags'
 import { projectMenuIconKeys } from '@/lib/project-menu-icons'
+import { publicContentIdPattern } from '@/lib/public-content-id'
 
 import {
   DATABASE_BIGINT_MAX,
@@ -88,6 +89,10 @@ const bigintStringSchema = z.string().refine(
   'Expected a non-negative 64-bit integer string',
 )
 const nullableIdStringSchema = idStringSchema.nullable()
+const publicIdentityFields = {
+  publicId: z.string().regex(publicContentIdPattern),
+  legacyUrlId: z.string().regex(/^[1-9]\d*$/).refine(value => Number(value) <= INT_MAX).nullable(),
+}
 const intSchema = z.number().int().min(INT_MIN).max(INT_MAX)
 const smallIntSchema = z.number().int().min(SMALL_INT_MIN).max(SMALL_INT_MAX)
 
@@ -204,6 +209,7 @@ const articleCoverSchema = z.string()
   .nullable()
 
 const articleSchema = z.object({
+  ...publicIdentityFields,
   id: idStringSchema,
   title: nonEmptyString(255),
   summary: nullableString(500),
@@ -220,6 +226,7 @@ const articleSchema = z.object({
 }).strict()
 
 const projectSchema = z.object({
+  ...publicIdentityFields,
   id: idStringSchema,
   projectName: limitedString(128),
   avatar: nullableString(500),
@@ -237,6 +244,7 @@ const projectSchema = z.object({
 }).strict()
 
 const projectVersionSchema = z.object({
+  ...publicIdentityFields,
   id: idStringSchema,
   projectId: idStringSchema,
   version: limitedString(64),
@@ -300,6 +308,7 @@ const projectHomeSchema = z.object({
 }).strict()
 
 const noteInfoSchema = z.object({
+  ...publicIdentityFields,
   attributionJson: attributionJsonSchema,
   id: idStringSchema,
   categoryId: idStringSchema,

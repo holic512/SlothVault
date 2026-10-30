@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { advanceReading, privacyDeclined, publicTelemetryTarget, readerDepth, visitorDay } from './telemetry-reading'
 describe('privacy-safe public reading policy',()=>{
   it('only accepts canonical public routes without credentials or queries',()=>{
-    expect(publicTelemetryTarget('/project/2/v/3/docs/4')).toMatchObject({type:'note',id:4,projectId:2,versionId:3})
+    expect(publicTelemetryTarget('/project/10000000-0000-4000-8000-000000000002/v/10000000-0000-4000-8000-000000000003/docs/10000000-0000-4000-8000-000000000004')).toMatchObject({type:'note',id:'10000000-0000-4000-8000-000000000004',projectId:'10000000-0000-4000-8000-000000000002',versionId:'10000000-0000-4000-8000-000000000003'})
     for(const path of ['/admin/mm','/account','/login','/install','/maintenance','/commission-invitations/secret','/articles/1?token=secret','/articles/999999999999','/unknown'])expect(publicTelemetryTarget(path)).toBeNull()
   })
   it('short visible bodies reach full depth, offscreen readers do not',()=>{

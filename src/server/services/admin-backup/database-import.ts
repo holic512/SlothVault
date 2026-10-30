@@ -2,7 +2,7 @@
  * @file database-import.ts
  * @project SlothVault
  * @module Admin Database Backup Import
- * @description Imports a validated portable database backup through a full overwrite restore while preserving immutable release identities.
+ * @description Imports a validated portable database backup through a full overwrite restore while preserving immutable release identities and permanent public URLs.
  * @logic Preflight conflicts, preserve all administrator wallet credentials and quotas, restore wallet bindings in deterministic order and note tags, map old identifiers to new records, preserve release metadata, rebuild each published manifest after ID remapping, reject identity/hash drift, and expose a transaction-scoped import for coordinated file recovery. Stage owned plugin tables, remap entity and membership references, and reconcile switches under the core restore receipt.
  * @dependencies database unit-of-work, server/http/errors, project-version release service, backup schema, backup validation, business-data deletion, plugin staging restore
  * @index_tags admin,backup,database,import,restore,id-mapping
@@ -228,6 +228,8 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
     const allowedIds = item.allowedMembershipLevelIds
     const record = await tx.article.create({
       data: {
+        publicId: item.publicId,
+        legacyUrlId: item.legacyUrlId === null ? null : Number(item.legacyUrlId),
         title: item.title,
         summary: item.summary,
         cover: item.cover,
@@ -254,6 +256,8 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
   for (const item of data.projects) {
     const created = await tx.project.create({
       data: {
+        publicId: item.publicId,
+        legacyUrlId: item.legacyUrlId === null ? null : Number(item.legacyUrlId),
         projectName: item.projectName,
         avatar: item.avatar,
         weight: item.weight,
@@ -275,6 +279,8 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
   for (const item of data.projectVersions) {
     const created = await tx.projectVersion.create({
       data: {
+        publicId: item.publicId,
+        legacyUrlId: item.legacyUrlId === null ? null : Number(item.legacyUrlId),
         projectId: requiredMappedId(ids.projects, item.projectId, 'projectId'),
         version: item.version,
         description: item.description,
@@ -354,6 +360,8 @@ export async function importDatabaseRecords(tx: Prisma.TransactionClient, payloa
   for (const item of data.noteInfos) {
     const created = await tx.noteInfo.create({
       data: {
+        publicId: item.publicId,
+        legacyUrlId: item.legacyUrlId === null ? null : Number(item.legacyUrlId),
         attributionJson: item.attributionJson,
         categoryId: requiredMappedId(ids.categories, item.categoryId, 'categoryId'),
         authorId: item.authorId

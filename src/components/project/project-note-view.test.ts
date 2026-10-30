@@ -47,8 +47,8 @@ describe('project note tags', () => {
 it('renders draft bodies with preview directory links and without release claims', async () => {
   const html = renderToStaticMarkup(await ProjectNoteView({
     projectId: '1', versionId: '2', noteId: '3',
-    sidebar: [{ id: '5', categoryName: 'Guide', weight: 0, notes: [{ id: '3', noteTitle: 'Intro', weight: 0 }, { id: '6', noteTitle: 'Next', weight: 0 }] }],
-    note: { id: '4', noteId: '3', noteTitle: 'Intro', content: '# Saved', versionNote: null, updatedAt: '2026-10-10T00:00:00Z' },
+    sidebar: [{ key: '5', categoryName: 'Guide', weight: 0, notes: [{ id: '3', noteTitle: 'Intro', weight: 0 }, { id: '6', noteTitle: 'Next', weight: 0 }] }],
+    note: { noteId: '3', noteTitle: 'Intro', content: '# Saved', versionNote: null, updatedAt: '2026-10-10T00:00:00Z' },
     noteTitle: 'Intro', tags: ['API'], access: evaluateProjectAccess(policy, true, [], true), previewBase: '/preview/project/1/v/2',
   }))
   expect(html).toContain('Protected body')
@@ -62,7 +62,7 @@ it.each([undefined, '/preview/project/1/v/2'])('keeps revision notes out of the 
   const versionNote = '2026-10-14: Internal revision history'
   const html = renderToStaticMarkup(await ProjectNoteView({
     projectId: '1', versionId: '2', noteId: '3', sidebar: [],
-    note: { id: '4', noteId: '3', noteTitle: 'Guide', content: '# Guide', versionNote, updatedAt: '2026-10-10T00:00:00Z' },
+    note: { noteId: '3', noteTitle: 'Guide', content: '# Guide', versionNote, updatedAt: '2026-10-10T00:00:00Z' },
     noteTitle: 'Guide', tags: ['API'], access: evaluateProjectAccess(policy, true, []), previewBase,
   }))
   expect(html).not.toContain(versionNote)

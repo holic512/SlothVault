@@ -30,7 +30,7 @@ export default async function PreviewLayout({ params, children }: Props & { chil
   const version = await getPreviewVersion(Number(id), Number(versionId))
   const t = await getTranslations('ProjectPreview')
   const base = `/preview/project/${id}/v/${versionId}`
-  const project = { id, projectName: version.project.projectName, avatar: version.project.avatar, status: version.project.status, updatedAt: version.project.updatedAt.toISOString() }
+  const project = { id: version.project.publicId, projectName: version.project.projectName, avatar: version.project.avatar, status: version.project.status, updatedAt: version.project.updatedAt.toISOString() }
   return <ProjectShell projectId={id} project={project} versions={[]} menus={[]} previewBase={base} previewVersion={{ id: versionId, version: version.version, publishedAt: version.publishedAt?.toISOString() ?? null }} footer={<SystemFilingFooter />}>
     <aside className="project-preview-notice" aria-label={t('title')}>
       <div><strong>{t('title')}</strong><span>{version.version} · {t(version.publishedAt ? 'published' : 'draft')}{version.status !== 1 || version.project.status !== 1 ? ` · ${t('hidden')}` : ''}</span><small>{t('savedOnly')}</small></div>

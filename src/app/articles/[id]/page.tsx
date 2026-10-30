@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Public Independent Article Page
  * @description Serves one published standalone blog article with dynamic metadata and a real 404 for hidden content.
- * @logic Validate the decimal route ID, resolve the cached public record, translate domain misses into Next.js not-found behavior, and render the public reader.
+ * @logic Resolve the UUID route identity, load cached metadata, translate domain misses into Next.js not-found behavior, and authorize the article reader independently.
  * @dependencies Next metadata/navigation, public article cache, PublicArticleReaderView
  * @index_tags article,blog,detail,page,public
  * @author holic512
@@ -17,22 +17,15 @@ import { createPageMetadata } from '@/i18n/metadata'
 import { HttpError } from '@/server/http/errors'
 import { readSessionToken, SESSION_COOKIE } from '@/server/auth/session'
 import { getCachedPublicArticle } from '@/server/services/public-article-cache'
+import { resolvePublicArticleId } from '@/server/services/public-content-ids'
 import { resolvePublicArticleReader } from '@/server/services/public-articles'
 import { getSystemBranding } from '@/server/services/system-branding'
 
 export const dynamic = 'force-dynamic'
 
-function articleId(value: string) {
-  if (!/^\d+$/.test(value)) return null
-  const id = Number(value)
-  return Number.isSafeInteger(id) && id > 0 ? id : null
-}
-
 async function resolveArticle(value: string) {
-  const id = articleId(value)
-  if (!id) return null
   try {
-    return await getCachedPublicArticle(id)
+    return await getCachedPublicArticle(await resolvePublicArticleId(value))
   } catch (error) {
     if (error instanceof HttpError && error.status === 404) return null
     throw error

@@ -80,13 +80,13 @@ describe('project permissions, file references and portable backup', () => {
     const category = await client.category.create({ data: { projectVersionId: version.id, categoryName: 'Guide', status: 1, weight: 0 } })
     const note = await client.noteInfo.create({ data: { categoryId: category.id, noteTitle: 'Secret', tagsJson: JSON.stringify(['API', '教程']), status: 1, weight: 0 } })
     const files = []
-    for (const name of ['source.zip', 'diagram.png', 'unused.png']) files.push(await client.fileManagement.create({ data: { originalName: name, fileName: name, filePath: `uploads/test/${name}`, fileSize: 4n, businessType: 'General', status: 1 } }))
+    for (const name of ['source.zip', 'diagram.png', 'unused.png']) files.push(await client.fileManagement.create({ data: { originalName: name, fileName: name, filePath: `uploads/test/${name}`, fileSize: 4n, businessType: 'Other', status: 1 } }))
     const content = '# Exact protected body\r\n![diagram](/uploads/test/diagram.png)\n[source](/uploads/test/source.zip)\n'
     const body = await client.noteContent.create({ data: { noteInfoId: note.id, content, status: 1, isPrimary: true, evidenceId: randomUUID() } })
     const release = await publishProjectVersion(version.id)
     const signature = '3'.repeat(88)
-    await client.releaseCredential.create({ data: { projectVersionId: version.id, issuerUserId: admin.id, subjectType: 'PROJECT_VERSION', subjectId: release.releaseId, subjectHash: release.releaseHash, subjectManifestVersion: 3, network: 'devnet', signerAddress: '1'.repeat(32), memo: canonicalProjectVersionEvidenceMemo({ installationId: randomUUID(), releaseId: release.releaseId, manifest: parseReleaseManifest((await client.projectVersion.findUniqueOrThrow({ where: { id: version.id } })).releaseManifestJson), releaseHash: release.releaseHash, network: 'devnet', signer: '1'.repeat(32) }), transactionSignature: signature, status: 2, finalizedAt: new Date() } })
-    return { admin, types, users, projectId, version, category, note, body, files, release, signature }
+    await client.releaseCredential.create({ data: { projectVersionId: version.id, issuerUserId: admin.id, subjectType: 'PROJECT_VERSION', subjectId: release.releaseId, subjectHash: release.releaseHash, subjectManifestVersion: 3, network: 'mainnet', signerAddress: '1'.repeat(32), memo: canonicalProjectVersionEvidenceMemo({ installationId: randomUUID(), releaseId: release.releaseId, manifest: parseReleaseManifest((await client.projectVersion.findUniqueOrThrow({ where: { id: version.id } })).releaseManifestJson), releaseHash: release.releaseHash, network: 'mainnet', signer: '1'.repeat(32) }), transactionSignature: signature, status: 2, finalizedAt: new Date() } })
+    return { admin, types, users, projectId, publicProjectId: project.publicId!, version, category, note, body, files, release, signature }
   }
   it('implements A/B reading, C downloading and no implicit access for high rank D', async () => {
     const s = await seed()
@@ -120,6 +120,8 @@ describe('project permissions, file references and portable backup', () => {
   it('authorizes shared files only through actual visible references and checks explicit project context', async () => {
     const s = await seed()
     const other = await createAdminProject({ projectName: 'Public' })
+    const publicVersion = await client.projectVersion.create({ data: { projectId: Number(other.id), version: 'public', status: 1, weight: 0, publishedAt: new Date(), releaseId: randomUUID(), releaseHash: 'a'.repeat(64), manifestVersion: 3 } })
+    expect(publicVersion.publishedAt).not.toBeNull()
     const home = await client.projectHome.create({ data: { projectId: Number(other.id), content: '[source](/uploads/test/source.zip)', status: 1 } })
     await client.$transaction(tx => rebuildFileReferences(tx))
     await expect(authorizeManagedFile(s.files[0].filePath, null)).resolves.toBeUndefined()
@@ -215,7 +217,7 @@ describe('project permissions, file references and portable backup', () => {
   })
   it('enforces both manifest routes, note GET/HEAD and compatibility access responses before 304 or body reads', async () => {
     const s = await seed()
-    const params = { params: Promise.resolve({ id: String(s.projectId), versionId: String(s.version.id), noteId: String(s.note.id) }) }
+    const params = { params: Promise.resolve({ id: s.publicProjectId, versionId: s.version.publicId, noteId: s.note.publicId }) }
     const evidenceParams = { params: Promise.resolve({ transactionSignature: s.signature }) }
     const noteRequest = new NextRequest('http://localhost/api/project/1/v/1/note/1')
     const manifestRequest = new NextRequest('http://localhost/api/project/1/v/1/manifest', { headers: { 'If-None-Match': `"${s.release.releaseHash}"` } })
@@ -278,7 +280,7 @@ describe('project permissions, file references and portable backup', () => {
   })
   it('keeps active references when backup insertion creates duplicate file paths', async () => {
     const s = await seed()
-    await client.fileManagement.create({ data: { originalName: 'duplicate.zip', fileName: 'source.zip', filePath: s.files[0].filePath, fileSize: 4n, businessType: 'General', status: 0 } })
+    await client.fileManagement.create({ data: { originalName: 'duplicate.zip', fileName: 'source.zip', filePath: s.files[0].filePath, fileSize: 4n, businessType: 'Other', status: 0 } })
     await client.$transaction(tx => rebuildFileReferences(tx))
     await expect(authorizeManagedFile(s.files[0].filePath, s.users[2], { projectId: s.projectId })).resolves.toBeUndefined()
   })

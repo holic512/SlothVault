@@ -9,10 +9,12 @@
  * @author holic512
  */
 import 'server-only'
+import { presentContentLinks } from './public-content-links'
 
 import { isAdminRole } from '@/server/auth/roles'
 import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
+import { resolvePublicArticleId } from './public-content-ids'
 import { getActiveMemberships } from '@/server/services/membership'
 
 export const PUBLIC_ARTICLE_PAGE_SIZE = 12
@@ -77,7 +79,7 @@ export async function listPublicArticles(page = 1) {
       take: PUBLIC_ARTICLE_PAGE_SIZE,
       orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
       select: {
-        id: true,
+        publicId: true,
         title: true,
         summary: true,
         cover: true,
@@ -92,7 +94,7 @@ export async function listPublicArticles(page = 1) {
 
   return {
     list: list.map((article): PublicArticleMetadata => ({
-      id: article.id.toString(),
+      id: article.publicId,
       title: article.title,
       summary: publicSummary(article.summary, article.content),
       cover: article.cover,
@@ -114,7 +116,7 @@ export async function getPublicArticleMetadata(id: number): Promise<PublicArticl
   const article = await prisma.article.findFirst({
     where: publicArticleWhere(id),
     select: {
-      id: true,
+      publicId: true,
       title: true,
       summary: true,
       cover: true,
@@ -127,7 +129,7 @@ export async function getPublicArticleMetadata(id: number): Promise<PublicArticl
   if (!article) throw new HttpError('Article not found', 404, 404)
 
   return {
-    id: article.id.toString(),
+    id: article.publicId,
     title: article.title,
     summary: article.summary?.trim() || '',
     cover: article.cover,
@@ -143,7 +145,8 @@ export async function resolvePublicArticleReader(
   viewer: { userId?: number; role?: string } | null,
 ): Promise<PublicArticleReader> {
   // Metadata caches never supply the authoritative access decision.
-  article = await getPublicArticleMetadata(Number(article.id))
+  const internalId = await resolvePublicArticleId(article.id)
+  article = await getPublicArticleMetadata(internalId)
   const allowedIds = article.allowedMembershipLevels.map((item) => item.id)
   const viewerAuthenticated = Boolean(viewer?.userId)
   const memberships = viewer?.userId ? await getActiveMemberships(viewer.userId) : []
@@ -154,9 +157,9 @@ export async function resolvePublicArticleReader(
   if (!allowed) return { ...article, content: null, locked: true, viewerAuthenticated }
 
   const content = await prisma.article.findFirst({
-    where: publicArticleWhere(Number(article.id)),
+    where: publicArticleWhere(internalId),
     select: { content: true },
   })
   if (!content) throw new HttpError('Article not found', 404, 404)
-  return { ...article, content: content.content, locked: false, viewerAuthenticated }
+  return { ...article, content: await presentContentLinks(content.content), locked: false, viewerAuthenticated }
 }

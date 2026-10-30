@@ -28,7 +28,7 @@ export type ProjectVersion = {
 }
 
 export type ProjectMenu = {
-  id: string
+  key: string
   label: string
   icon?: string | null
   url: string | null

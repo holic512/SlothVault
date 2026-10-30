@@ -9,14 +9,13 @@
  * @author holic512
  */
 import { defineRoute } from '@/server/http/handler'
-import { parseBigIntId } from '@/server/http/request'
+import { resolvePublicProjectIds } from '@/server/services/public-content-ids'
 import { apiOk } from '@/server/http/response'
 import { resolveProjectAccess } from '@/server/services/content-access'
 import { getRequestViewer } from '@/server/auth/viewer'
 
 export const POST = defineRoute<{ id: string }>(async (request, context) => {
-  const { id } = await context.params
-  const projectId = parseBigIntId(id, 'project id')
+  const { projectId } = await resolvePublicProjectIds(await context.params)
   const access = await resolveProjectAccess(projectId, await getRequestViewer(request))
   const response = apiOk({
     ...access,

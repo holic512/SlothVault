@@ -9,7 +9,7 @@
  * @author holic512
  */
 import { defineRoute } from '@/server/http/handler'
-import { parseBigIntId } from '@/server/http/request'
+import { resolvePublicProjectIds } from '@/server/services/public-content-ids'
 import { apiOk } from '@/server/http/response'
 import { getProjectNote } from '@/server/services/public-projects'
 import { getRequestViewer } from '@/server/auth/viewer'
@@ -18,12 +18,12 @@ export const dynamic = 'force-dynamic'
 
 export const GET = defineRoute<{ id: string; versionId: string; noteId: string }>(
   async (request, context) => {
-    const { id, versionId, noteId } = await context.params
+    const { projectId, versionId, noteId } = await resolvePublicProjectIds(await context.params)
     const response = apiOk(
       await getProjectNote(
-        parseBigIntId(id, 'project id'),
-        parseBigIntId(versionId, 'version id'),
-        parseBigIntId(noteId, 'note id'),
+        projectId,
+        versionId!,
+        noteId!,
         await getRequestViewer(request),
       ),
     )

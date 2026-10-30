@@ -51,7 +51,7 @@ export async function PublicArticleReaderView({
           <article>
             <header className={`article-reader-hero ${article.cover ? 'has-cover' : ''}`}>
               <div className="article-reader-heading">
-                <span className="articles-kicker">Article / {article.id.padStart(3, '0')}</span>
+                <span className="articles-kicker">Article</span>
                 <h1>{article.title}</h1>
                 {article.summary ? <p>{article.summary}</p> : null}
                 <div className="article-reader-dates">

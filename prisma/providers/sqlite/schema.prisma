@@ -114,6 +114,8 @@ model PointTransaction {
 }
 
 model Article {
+  publicId String @default(uuid(4)) @unique(map: "uq_blog_article_public_id") @map("public_id")
+  legacyUrlId Int? @unique(map: "uq_blog_article_legacy_url_id") @map("legacy_url_id")
   id                        Int              @id @default(autoincrement())
   title                     String
   summary                   String?
@@ -176,6 +178,8 @@ model MembershipGrant {
 }
 
 model Project {
+  publicId String @default(uuid(4)) @unique(map: "uq_collections_project_public_id") @map("public_id")
+  legacyUrlId Int? @unique(map: "uq_collections_project_legacy_url_id") @map("legacy_url_id")
   id          Int   @id @default(autoincrement())
   projectName String   @map("project_name")
   avatar      String?
@@ -237,6 +241,8 @@ model ProjectHome {
 }
 
 model ProjectVersion {
+  publicId String @default(uuid(4)) @unique(map: "uq_collections_project_version_public_id") @map("public_id")
+  legacyUrlId Int? @unique(map: "uq_collections_project_version_legacy_url_id") @map("legacy_url_id")
   id               Int     @id @default(autoincrement())
   projectId        Int     @map("project_id")
   version          String
@@ -280,6 +286,8 @@ model Category {
 }
 
 model NoteInfo {
+  publicId String @default(uuid(4)) @unique(map: "uq_docs_note_info_public_id") @map("public_id")
+  legacyUrlId Int? @unique(map: "uq_docs_note_info_legacy_url_id") @map("legacy_url_id")
   author User? @relation("NoteAuthor", fields: [authorId], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
   attributionJson String @default("{}") @map("attribution_json")

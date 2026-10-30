@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { presentContentLinks } from './public-content-links'
 
 import type { AppPrismaClient } from '@/server/database/client'
 import { prisma } from '@/server/prisma'
@@ -33,7 +34,7 @@ export async function getHomepageContent() {
       select: { content: true },
     })
 
-    return homepage?.content.trim() || null
+    return homepage?.content.trim() ? await presentContentLinks(homepage.content) : null
   } catch (error) {
     console.error('[homepage] Database unavailable; homepage content is unavailable', error)
     return null

@@ -45,7 +45,7 @@ export function getCachedPublicProjectList() {
       const projects = await listPublicProjects()
       return projects.map((project) => ({ ...project, updatedAt: iso(project.updatedAt) }))
     },
-    ['public-project-list'],
+    ['opaque-v1-public-project-list'],
     { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS, tags: [PUBLIC_PROJECTS_CACHE_TAG] },
   )()
 }
@@ -70,7 +70,7 @@ export function getCachedProjectShell(projectId: number) {
         menus,
       }
     },
-    ['public-project-shell', String(projectId)],
+    ['opaque-v1-public-project-shell', String(projectId)],
     {
       revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS,
       tags: [PUBLIC_PROJECTS_CACHE_TAG, publicProjectCacheTag(projectId)],
@@ -84,7 +84,7 @@ export function getCachedProjectHome(projectId: number) {
       const home = await findPublicProjectHome(projectId)
       return home ? { ...home, updatedAt: iso(home.updatedAt) } : null
     },
-    ['public-project-home', String(projectId)],
+    ['opaque-v1-public-project-home', String(projectId)],
     {
       revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS,
       tags: [PUBLIC_PROJECTS_CACHE_TAG, publicProjectCacheTag(projectId)],
@@ -104,7 +104,7 @@ export function getCachedProjectVersions(projectId: number) {
         publishedAt: iso(version.publishedAt!),
       }))
     },
-    ['public-project-versions', String(projectId)],
+    ['opaque-v1-public-project-versions', String(projectId)],
     {
       revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS,
       tags: [PUBLIC_PROJECTS_CACHE_TAG, publicProjectCacheTag(projectId)],
@@ -115,7 +115,7 @@ export function getCachedProjectVersions(projectId: number) {
 export function getCachedProjectSidebar(projectId: number, versionId: number) {
   return unstable_cache(
     () => getProjectSidebar(projectId, versionId),
-    ['public-project-sidebar', String(projectId), String(versionId)],
+    ['opaque-v1-public-project-sidebar', String(projectId), String(versionId)],
     {
       revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS,
       tags: [PUBLIC_PROJECTS_CACHE_TAG, publicProjectCacheTag(projectId)],

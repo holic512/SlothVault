@@ -1,3 +1,4 @@
+import { resolveProjectPageParams } from '@/server/services/public-content-ids'
 /**
  * @file layout.tsx
  * @project SlothVault
@@ -21,7 +22,8 @@ export async function generateMetadata({
   params: Promise<{ id: string }>
 }): Promise<Metadata> {
   const { id } = await params
-  const { project } = await getCachedProjectShell(Number(id))
+  const resolved = await resolveProjectPageParams({ id })
+  const { project } = await getCachedProjectShell(resolved.projectId)
   return createPageMetadata('projectHome', { projectName: project.projectName })
 }
 
@@ -33,7 +35,8 @@ export default async function ProjectLayout({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const projectId = Number(id)
+  const resolved = await resolveProjectPageParams({ id })
+  const projectId = resolved.projectId
   const { project, versions, menus } = await getCachedProjectShell(projectId)
   return (
     <ProjectShell projectId={id} project={project} versions={versions} menus={menus} footer={<SystemFilingFooter />}>

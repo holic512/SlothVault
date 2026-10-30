@@ -67,7 +67,11 @@ describe('project documentation transactions', () => {
     const result = await getDocumentationOutline(versionId, 1, 2)
     expect(result.total).toBe(40); expect(result.list).toHaveLength(2); expect(result.documentationState.documents).toHaveLength(2)
     expect(result.list[0]).toMatchObject({ key: 'note-1', primaryContentId: String(notes[0].contentId), contentRevision: 0 })
-    expect(result.list[0].url).toBe(`/preview/project/${projectId}/v/${versionId}/docs/${notes[0].id}`)
+    const project = await fixture.client.project.findUniqueOrThrow({ where: { id: projectId } })
+    const version = await fixture.client.projectVersion.findUniqueOrThrow({ where: { id: versionId } })
+    const note = await fixture.client.noteInfo.findUniqueOrThrow({ where: { id: notes[0].id } })
+    expect(result.list[0].url).toBe(`/project/${project.publicId}/v/${version.publicId}/docs/${note.publicId}`)
+    expect(result.list[0].previewUrl).toBe(`/preview/project/${projectId}/v/${versionId}/docs/${notes[0].id}`)
     expect(JSON.stringify(result)).not.toContain('Useful instructions.')
   })
   it('reads selected bodies in requested order, rejects unknown IDs and enforces UTF-8 budgets', async () => {
@@ -144,7 +148,9 @@ describe('project documentation transactions', () => {
     expect(outline.documentationState.documents[0].noteId).not.toBe(String(notes[0].id))
     const copied = await fixture.client.noteContent.findMany({ where: { noteInfoId: Number(outline.documentationState.documents[0].noteId) } })
     expect(copied).toHaveLength(2); expect(copied.filter(item => item.isPrimary)).toHaveLength(1)
-    expect(copied.find(item => item.isPrimary)?.content).toContain(`/v/${cloned.id}/docs/${outline.documentationState.documents[1].noteId}`)
+    const targetVersion = await fixture.client.projectVersion.findUniqueOrThrow({ where: { id: Number(cloned.id) } })
+    const targetNote = await fixture.client.noteInfo.findUniqueOrThrow({ where: { id: Number(outline.documentationState.documents[1].noteId) } })
+    expect(copied.find(item => item.isPrimary)?.content).toContain(`/v/${targetVersion.publicId}/docs/${targetNote.publicId}`)
     expect(outline.list[0].tags).toEqual(['API'])
     expect((await fixture.client.noteContent.findUniqueOrThrow({ where: { id: notes[0].contentId } })).content).toBe(body)
   })
@@ -160,6 +166,8 @@ describe('project documentation transactions', () => {
     const parsed = parseDatabaseImportPayload({ version: backup.version, data: backup.data, mode: 'overwrite' })
     expect(readDocumentationState(parsed.data.projectVersions[0].documentationStateJson).documents).toHaveLength(40)
     const old = { ...structuredClone(backup), version: '2.15.0' }
+    for (const rows of [old.data.projects, old.data.projectVersions, old.data.noteInfos, old.data.articles]) for (const row of rows) { delete (row as { publicId?: string }).publicId; delete (row as { legacyUrlId?: string | null }).legacyUrlId }
+    for (const row of old.data.projectMenus) delete (row as { icon?: string | null }).icon
     for (const row of old.data.projectVersions) delete (row as { documentationStateJson?: string | null }).documentationStateJson
     expect(parseDatabaseImportPayload({ version: old.version, data: old.data, mode: 'overwrite' }).data.projectVersions[0].documentationStateJson).toBeNull()
     await importDatabaseBackup(parsed)

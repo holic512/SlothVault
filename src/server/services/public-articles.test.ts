@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@/server/prisma', () => ({ prisma: mocks.prisma }))
+vi.mock('@/server/services/public-content-ids', () => ({ resolvePublicArticleId: async () => 8 }))
 vi.mock('@/server/services/membership', () => ({
   getActiveMemberships: mocks.getActiveMemberships,
 }))
@@ -37,7 +38,7 @@ describe('public independent articles', () => {
   it('lists only published visible articles in stable publication order', async () => {
     mocks.prisma.article.count.mockResolvedValue(1)
     mocks.prisma.article.findMany.mockResolvedValue([{
-      id: 8,
+      id: 8, publicId: '10000000-0000-4000-8000-000000000008',
       title: 'Independent',
       summary: null,
       cover: null,
@@ -50,7 +51,7 @@ describe('public independent articles', () => {
 
     await expect(listPublicArticles(2)).resolves.toEqual({
       list: [{
-        id: '8',
+        id: '10000000-0000-4000-8000-000000000008',
         title: 'Independent',
         summary: 'Body',
         cover: null,
@@ -82,7 +83,7 @@ describe('public independent articles', () => {
 
   it('keeps protected bodies out of an anonymous reader response', async () => {
     const article = {
-      id: '8',
+      id: '10000000-0000-4000-8000-000000000008',
       title: 'Members only',
       summary: 'Summary',
       cover: null,
@@ -92,7 +93,7 @@ describe('public independent articles', () => {
       allowedMembershipLevels: [{ id: '2', name: 'VIP', rank: 2, status: 1 }],
     }
 
-    mocks.prisma.article.findFirst.mockResolvedValue({ ...article, id: 8, allowedMemberships: [{ membershipLevel: { id: 2, name: 'VIP', rank: 2, status: 1 } }] })
+    mocks.prisma.article.findFirst.mockResolvedValue({ ...article, id: 8, publicId: article.id, allowedMemberships: [{ membershipLevel: { id: 2, name: 'VIP', rank: 2, status: 1 } }] })
     await expect(resolvePublicArticleReader(article, null)).resolves.toEqual({
       ...article,
       content: null,
@@ -106,7 +107,7 @@ describe('public independent articles', () => {
   it('loads a protected body only after an eligible member passes the server check', async () => {
     mocks.getActiveMemberships.mockResolvedValue([{ id: '2', name: 'VIP', rank: 2, expiresAt: null, source: 'POINT_PURCHASE' }])
     const article = {
-      id: '8',
+      id: '10000000-0000-4000-8000-000000000008',
       title: 'Members only',
       summary: 'Summary',
       cover: null,
@@ -116,7 +117,7 @@ describe('public independent articles', () => {
       allowedMembershipLevels: [{ id: '2', name: 'VIP', rank: 2, status: 1 }],
     }
 
-    mocks.prisma.article.findFirst.mockResolvedValueOnce({ ...article, id: 8, allowedMemberships: [{ membershipLevel: { id: 2, name: 'VIP', rank: 2, status: 1 } }] }).mockResolvedValueOnce({ content: '# Private body' })
+    mocks.prisma.article.findFirst.mockResolvedValueOnce({ ...article, id: 8, publicId: article.id, allowedMemberships: [{ membershipLevel: { id: 2, name: 'VIP', rank: 2, status: 1 } }] }).mockResolvedValueOnce({ content: '# Private body' })
     await expect(resolvePublicArticleReader(article, { userId: 7, role: 'USER' })).resolves.toMatchObject({
       content: '# Private body',
       locked: false,

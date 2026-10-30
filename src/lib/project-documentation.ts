@@ -9,6 +9,7 @@
  * @author holic512
  */
 import { z } from 'zod'
+import { contentLinkEdits, replaceContentLinks } from './markdown-links'
 import { noteTagsSchema } from './note-tags'
 import { DOCUMENT_CONTENT_MAX_CHARACTERS } from './document-content'
 
@@ -192,7 +193,7 @@ export function changelogContainsVersion(content: string, version: string): bool
 }
 
 /**
- * 将同一项目源版本的站内相对文档链接指向目标预览版本，保留代码示例和未映射链接。
+ * 将同一项目源版本的站内文档链接指向克隆版本，保留代码示例和未映射链接。
  * @param sourceId 被克隆的源版本 id，只有匹配该版本的链接才会改写。
  * @param targetId 目标版本 id，改写后使用 preview/project 路径。
  * @param noteIds 文档旧 id 到新 id 的映射，不包含的文档链接保持原样。
@@ -202,26 +203,30 @@ export function remapDocumentationLinks(
   projectId: number,
   sourceId: number,
   targetId: number,
-  noteIds: Map<number, number>
+  noteIds: Map<number, number>,
+  publicRoutes?: ReadonlyMap<string, string>,
 ): string {
-  const link = new RegExp(`(\\]\\(\\/(?:preview\\/)?project\\/${projectId}\\/v\\/${sourceId}\\/docs\\/)([0-9]+)(?=[?#)\\s])`, 'g')
-  const rewrite = (value: string) => value.replace(link, (match, lead: string, noteId: string) => noteIds.has(Number(noteId))
-    ? `${lead.replace(`/v/${sourceId}/docs/`, `/v/${targetId}/docs/`).replace(/(?<!preview)\/project\//, '/preview/project/')}${noteIds.get(Number(noteId))}` : match)
-  let fence: { character: string; length: number } | null = null
-  return content
-    .split('\n')
-    .map(line => {
-      if (fence) {
-        if (new RegExp(`^ {0,3}${fence.character}{${fence.length},}\\s*$`).test(line)) fence = null
-        return line
-      }
-      const marker = /^ {0,3}(`{3,}|~{3,})/.exec(line)
-      if (marker) {
-        fence = { character: marker[1][0], length: marker[1].length }
-        return line
-      }
-      if (/^(?: {4}|\t)/.test(line)) return line
-      return line.split(/(`+[^`]*`+)/g).map(part => part.startsWith('`') ? part : rewrite(part)).join('')
-    })
-    .join('\n')
+  const edits = contentLinkEdits(content)
+  const replacements = new Map<string, string>()
+  const legacy = new RegExp(`^/(?:preview/)?project/${projectId}/v/${sourceId}/docs/([0-9]+)$`)
+  for (const { url } of edits) {
+    let local = url
+    if (/^https?:\/\//.test(url)) {
+      if (!process.env.NEXT_PUBLIC_SITE_ORIGIN) continue
+      try {
+        const parsed = new URL(url)
+        if (parsed.origin !== new URL(process.env.NEXT_PUBLIC_SITE_ORIGIN).origin) continue
+        local = parsed.pathname + parsed.search + parsed.hash
+      } catch { continue }
+    }
+    const suffixAt = local.search(/[?#]/), path = suffixAt < 0 ? local : local.slice(0, suffixAt), suffix = suffixAt < 0 ? '' : local.slice(suffixAt)
+    if (publicRoutes) {
+      const target = publicRoutes.get(path)
+      if (target) replacements.set(url, target + suffix)
+    } else {
+      const match = legacy.exec(path), id = match ? noteIds.get(Number(match[1])) : undefined
+      if (id !== undefined) replacements.set(url, `/preview/project/${projectId}/v/${targetId}/docs/${id}${suffix}`)
+    }
+  }
+  return replaceContentLinks(content, edits, replacements)
 }

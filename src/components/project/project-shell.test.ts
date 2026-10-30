@@ -49,7 +49,7 @@ function renderShell(previewBase?: string, published = false) {
       id: '8', version: '1.0', description: null, weight: 0, releaseId: 'release',
       releaseHash: 'hash', manifestVersion: 3, publishedAt: '2026-10-10T00:00:00Z',
     }],
-    menus: previewBase ? [] : [{ id: '9', label: 'Community', url: 'https://example.com', isExternal: true, weight: 0, children: [] }],
+    menus: previewBase ? [] : [{ key: '9', label: 'Community', url: 'https://example.com', isExternal: true, weight: 0, children: [] }],
     children: null,
   }
   return renderToStaticMarkup(createElement(ProjectShell, props))

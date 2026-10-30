@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { presentContentLinks } from './public-content-links'
 import { notFound, redirect } from 'next/navigation'
 import { getPageViewer } from '@/server/auth/viewer'
 import { isAdminRole } from '@/server/auth/roles'
@@ -47,7 +48,7 @@ export async function getPreviewSidebar(projectId: number, versionId: number) {
     } },
   })
   return categories.map(category => ({
-    id: String(category.id), categoryName: category.categoryName, weight: category.weight,
+    key: `category-${category.id}`, categoryName: category.categoryName, weight: category.weight,
     notes: category.noteInfos.filter(note => note.contents.length === 1).map(note => ({
       id: String(note.id), noteTitle: note.noteTitle, weight: note.weight,
     })),
@@ -64,16 +65,16 @@ export async function getPreviewNote(projectId: number, versionId: number, noteI
   if (!note || note.contents.length !== 1) notFound()
   const content = note.contents[0]
   return {
-    id: String(content.id), noteId: String(note.id), noteTitle: note.noteTitle, tags: readNoteTags(note.tagsJson),
-    content: content.content, versionNote: content.versionNote, updatedAt: content.updatedAt.toISOString(),
+    noteId: String(note.id), noteTitle: note.noteTitle, tags: readNoteTags(note.tagsJson),
+    content: await presentContentLinks(content.content, { preview: true, projectId, versionId }), versionNote: content.versionNote, updatedAt: content.updatedAt.toISOString(),
 
   }
 }
 
 export async function getPreviewHome(projectId: number, versionId: number) {
-  await getPreviewVersion(projectId, versionId)
+  const version = await getPreviewVersion(projectId, versionId)
   const home = await prisma.projectHome.findFirst({ where: { projectId, status: 1, isDeleted: false } })
-  return home ? { id: String(home.id), projectId: String(projectId), content: home.content, updatedAt: home.updatedAt.toISOString() } : null
+  return home ? { projectId: version.project.publicId, content: await presentContentLinks(home.content, { preview: true, projectId, versionId }), updatedAt: home.updatedAt.toISOString() } : null
 }
 
 export function previewAccess(project: Parameters<typeof projectPolicyDto>[0]) {

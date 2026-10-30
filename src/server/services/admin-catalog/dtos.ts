@@ -12,6 +12,7 @@ import 'server-only'
 import { projectPolicyDto, type ProjectPolicyRecord } from '@/server/services/content-access'
 
 type ProjectLike = ProjectPolicyRecord & {
+  publicId?: string
   id: number
   projectName: string
   avatar: string | null
@@ -60,6 +61,7 @@ type CategoryLike = {
 export function projectDto(project: ProjectLike) {
   return {
     id: project.id.toString(),
+    publicId: project.publicId,
     projectName: project.projectName,
     avatar: project.avatar,
     weight: project.weight,
@@ -75,6 +77,7 @@ export function projectDto(project: ProjectLike) {
 export function projectSummaryDto(project: ProjectLike) {
   return {
     id: project.id.toString(),
+    publicId: project.publicId,
     projectName: project.projectName,
     weight: project.weight,
     status: project.status,

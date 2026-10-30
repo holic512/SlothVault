@@ -1,3 +1,4 @@
+import { resolveProjectPageParams } from '@/server/services/public-content-ids'
 /**
  * @file page.tsx
  * @project SlothVault
@@ -29,9 +30,10 @@ export async function generateMetadata({
   params: Promise<{ id: string; versionId: string; noteId: string }>
 }): Promise<Metadata> {
   const { id, versionId, noteId } = await params
+  const resolved = await resolveProjectPageParams({ id, versionId, noteId })
   const [projectShell, note] = await Promise.all([
-    getCachedProjectShell(Number(id)),
-    getProjectNoteMetadata(Number(id), Number(versionId), Number(noteId)),
+    getCachedProjectShell(resolved.projectId),
+    getProjectNoteMetadata(resolved.projectId, resolved.versionId!, resolved.noteId!),
   ])
   return createPageMetadata('projectNote', {
     noteTitle: note.noteTitle,
@@ -45,15 +47,16 @@ export default async function ProjectNotePage({
   params: Promise<{ id: string; versionId: string; noteId: string }>
 }) {
   const { id, versionId, noteId } = await params
-  const projectId = Number(id)
-  const numericVersionId = Number(versionId)
+  const resolved = await resolveProjectPageParams({ id, versionId, noteId })
+  const projectId = resolved.projectId
+  const numericVersionId = resolved.versionId!
   const viewer = await getPageViewer()
   const access = await resolveProjectAccess(projectId, viewer)
   const [sidebar, metadata] = await Promise.all([
     getCachedProjectSidebar(projectId, numericVersionId),
-    getProjectNoteMetadata(projectId, numericVersionId, Number(noteId)),
+    getProjectNoteMetadata(projectId, numericVersionId, resolved.noteId!),
   ])
-  const note = access.canRead ? await getCachedProjectNote(projectId, numericVersionId, Number(noteId), viewer) : null
+  const note = access.canRead ? await getCachedProjectNote(projectId, numericVersionId, resolved.noteId!, viewer) : null
   return (
     <ProjectNoteView
       projectId={id}

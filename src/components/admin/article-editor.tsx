@@ -27,6 +27,7 @@ import { formatAdminDate, formatAdminError } from '@/lib/admin-localization'
 import { apiFetch } from '@/lib/api-client'
 
 type ArticleDto = {
+  publicId: string
   id: string
   title: string
   summary: string | null
@@ -291,7 +292,7 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
             <div className="article-editor-publication">
               <span>{t('firstPublished')}</span>
               <strong>{formatAdminDate(locale, article.publishedAt)}</strong>
-              <a href={`/articles/${article.id}`} target="_blank" rel="noreferrer">{t('viewPublic')}</a>
+              <a href={`/articles/${article.publicId}`} target="_blank" rel="noreferrer">{t('viewPublic')}</a>
             </div>
           ) : null}
         </aside>

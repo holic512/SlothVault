@@ -1,3 +1,4 @@
+import { resolveProjectPageParams } from '@/server/services/public-content-ids'
 import type { Metadata } from 'next'
 
 import { redirect } from 'next/navigation'
@@ -11,7 +12,8 @@ export async function generateMetadata({
   params: Promise<{ id: string; versionId: string }>
 }): Promise<Metadata> {
   const { id } = await params
-  const { project } = await getCachedProjectShell(Number(id))
+  const resolved = await resolveProjectPageParams({ id })
+  const { project } = await getCachedProjectShell(resolved.projectId)
   return createPageMetadata('projectDocs', { projectName: project.projectName })
 }
 
@@ -21,7 +23,8 @@ export default async function VersionDocsPage({
   params: Promise<{ id: string; versionId: string }>
 }) {
   const { id, versionId } = await params
-  const sidebar = await getCachedProjectSidebar(Number(id), Number(versionId))
+  const resolved = await resolveProjectPageParams({ id, versionId })
+  const sidebar = await getCachedProjectSidebar(resolved.projectId, resolved.versionId!)
   const firstNote = sidebar.flatMap((category) => category.notes)[0]
   if (firstNote) redirect(`/project/${id}/v/${versionId}/docs/${firstNote.id}`)
 

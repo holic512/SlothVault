@@ -27,5 +27,5 @@ export default async function PreviewNotePage({ params }: Props) {
     getPreviewSidebar(Number(id), Number(versionId)),
     getPreviewNote(Number(id), Number(versionId), Number(noteId)),
   ])
-  return <ProjectNoteView projectId={id} versionId={versionId} noteId={noteId} sidebar={sidebar} note={note} noteTitle={note.noteTitle} tags={note.tags} access={previewAccess(version.project)} previewBase={`/preview/project/${id}/v/${versionId}`} />
+  return <ProjectNoteView projectId={id} versionId={versionId} noteId={noteId} sidebar={sidebar} note={note} noteTitle={note.noteTitle} tags={note.tags} access={previewAccess(version.project)} fileProjectId={version.project.publicId} previewBase={`/preview/project/${id}/v/${versionId}`} />
 }

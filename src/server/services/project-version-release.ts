@@ -596,6 +596,7 @@ export async function cloneProjectVersion(
     const source = await tx.projectVersion.findUnique({
       where: { id: projectVersionId },
       include: {
+        project: { select: { publicId: true, legacyUrlId: true } },
         categories: {
           where: { isDeleted: false },
           include: {
@@ -644,6 +645,7 @@ export async function cloneProjectVersion(
     }
 
     const categoryIds = new Map<number, number>(), noteIds = new Map<number, number>()
+    const publicRoutes = new Map<string, string>()
     const pendingContents: Array<{ noteInfoId: number; contents: typeof source.categories[number]['noteInfos'][number]['contents'] }> = []
     for (const category of source.categories) {
       const clonedCategory = await tx.category.create({
@@ -668,12 +670,19 @@ export async function cloneProjectVersion(
           },
         })
         noteIds.set(note.id, clonedNote.id)
+        const destination = `/project/${source.project.publicId}/v/${created.publicId}/docs/${clonedNote.publicId}`
+        publicRoutes.set(`/project/${source.project.publicId}/v/${source.publicId}/docs/${note.publicId}`, destination)
+        publicRoutes.set(`/preview/project/${source.projectId}/v/${source.id}/docs/${note.id}`, destination)
+        if (source.project.legacyUrlId !== null && source.legacyUrlId !== null && note.legacyUrlId !== null) {
+          publicRoutes.set(`/project/${source.project.legacyUrlId}/v/${source.legacyUrlId}/docs/${note.legacyUrlId}`, destination)
+          publicRoutes.set(`/preview/project/${source.project.legacyUrlId}/v/${source.legacyUrlId}/docs/${note.legacyUrlId}`, destination)
+        }
         pendingContents.push({ noteInfoId: clonedNote.id, contents: note.contents })
       }
     }
     for (const item of pendingContents) {
       for (const content of item.contents) {
-        const body = remapDocumentationLinks(content.content, source.projectId, source.id, created.id, noteIds)
+        const body = remapDocumentationLinks(content.content, source.projectId, source.id, created.id, noteIds, publicRoutes)
         await indexFileWrite(tx, 'NOTE_CONTENT', tx.noteContent.create({ data: { noteInfoId: item.noteInfoId, content: body, versionNote: content.versionNote, isPrimary: content.isPrimary, status: content.status } }))
       }
     }

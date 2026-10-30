@@ -25,7 +25,7 @@ import { projectMenuIconKeys } from '@/lib/project-menu-icons'
 import { buildProjectMenuRows, type CustomProjectMenu, type ProjectMenuRow } from '@/lib/project-navigation'
 import styles from '@/styles/modules/project-menu-manager.module.css'
 
-export type MenuProject = { id: string; projectName: string }
+export type MenuProject = { publicId?: string; id: string; projectName: string }
 
 type MenuDto = CustomProjectMenu
 type MenuForm = {
@@ -164,7 +164,7 @@ export function ProjectMenuManager({ project, onClose }: { project: MenuProject 
       </div>
       <div className={styles['table-scroll']} role="region" aria-label={t('table.navigation')} tabIndex={0}>
         <Table rowKey="rowKey" loading={query.isLoading}
-          dataSource={project ? buildProjectMenuRows(project.id, query.data || [], navigationT) : []}
+          dataSource={project ? buildProjectMenuRows(project.publicId || project.id, query.data || [], navigationT) : []}
           columns={columns} pagination={false} tableLayout="fixed"
           expandable={{
             expandedRowKeys: roots.map((root) => `custom:${root.id}`).filter((key) => !collapsedRows.includes(key)),

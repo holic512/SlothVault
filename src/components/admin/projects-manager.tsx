@@ -42,6 +42,7 @@ import { ProjectAccessFields } from './project-access-fields'
 import { ProjectMenuManager } from '@/components/admin/project-menu-manager'
 
 type ProjectDto = {
+  publicId: string
   id: string
   projectName: string
   readAccess: AccessRule<ReadAccessMode>

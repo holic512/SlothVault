@@ -9,6 +9,8 @@
  * @author holic512
  */
 import 'server-only'
+import { publishedProjectWhere } from './public-content-ids'
+import { presentContentLinks, presentContentUrls } from './public-content-links'
 import { readNoteTags } from '@/lib/note-tags'
 
 import { HttpError } from '@/server/http/errors'
@@ -57,7 +59,7 @@ export async function listPublicProjects() {
   return list.map((project) => {
     const latestVersion = project.versions[0]
     return {
-      id: project.id.toString(),
+      id: project.publicId,
       projectName: project.projectName,
       avatar: project.avatar,
       latestVersion: latestVersion?.version || null,
@@ -72,9 +74,9 @@ export async function listPublicProjects() {
 
 export async function getPublicProject(projectId: number) {
   const project = await prisma.project.findFirst({
-    where: { id: projectId, isDeleted: false, status: 1 },
+    where: { id: projectId, ...publishedProjectWhere },
     select: {
-      id: true,
+      publicId: true,
       projectName: true,
       avatar: true,
       status: true,
@@ -85,7 +87,7 @@ export async function getPublicProject(projectId: number) {
     },
   })
   if (!project) throw new HttpError('Project not found', 404, 404)
-  return { id: project.id.toString(), projectName: project.projectName, avatar: project.avatar, status: project.status, updatedAt: project.updatedAt, requireAuth: false, ...projectPolicyDto(project) }
+  return { id: project.publicId, projectName: project.projectName, avatar: project.avatar, status: project.status, updatedAt: project.updatedAt, requireAuth: false, ...projectPolicyDto(project) }
 }
 
 async function requirePublishedProject(projectId: number) {
@@ -99,19 +101,18 @@ export async function getProjectHome(projectId: number) {
 }
 
 export async function findPublicProjectHome(projectId: number) {
-  await requirePublishedProject(projectId)
+  const project = await requirePublishedProject(projectId)
   const home = await prisma.projectHome.findUnique({ where: { projectId } })
   if (!home || home.isDeleted || home.status !== 1) return null
   return {
-    id: home.id.toString(),
-    projectId: home.projectId.toString(),
-    content: home.content,
+    projectId: project.id,
+    content: await presentContentLinks(home.content),
     updatedAt: home.updatedAt,
   }
 }
 
 export async function getProjectMenu(projectId: number) {
-  await requirePublishedProject(projectId)
+  const project = await requirePublishedProject(projectId)
   const list = await prisma.projectMenu.findMany({
     where: { projectId, parentId: null, isDeleted: false, status: 1 },
     include: {
@@ -123,18 +124,22 @@ export async function getProjectMenu(projectId: number) {
     orderBy: { weight: 'desc' },
   })
 
-  return list.map((menu) => ({
-    id: menu.id.toString(),
+  const urls = list.flatMap(menu => [menu.url, ...menu.children.map(child => child.url)]).filter((url): url is string => url !== null)
+  const localUrls = urls.map(url => /^\/(?:v\/|home(?:[?#]|$)|docs(?:[?#]|$))/.test(url) ? `/project/${project.id}${url}` : url)
+  const converted = await presentContentUrls(localUrls)
+  const links = new Map(urls.map((url, index) => [url, converted.get(localUrls[index])!]))
+  return list.map((menu, index) => ({
+    key: `menu-${index}`,
     label: menu.label,
     icon: menu.icon,
-    url: menu.url,
+    url: menu.url === null ? null : links.get(menu.url)!,
     isExternal: menu.isExternal,
     weight: menu.weight,
-    children: menu.children.map((child) => ({
-      id: child.id.toString(),
+    children: menu.children.map((child, childIndex) => ({
+      key: `menu-${index}-${childIndex}`,
       label: child.label,
       icon: child.icon,
-      url: child.url,
+      url: child.url === null ? null : links.get(child.url)!,
       isExternal: child.isExternal,
       weight: child.weight,
       children: [],
@@ -156,7 +161,7 @@ export async function getProjectVersions(projectId: number) {
     },
     orderBy: publishedVersionOrder,
     select: {
-      id: true,
+      publicId: true,
       version: true,
       description: true,
       weight: true,
@@ -166,7 +171,7 @@ export async function getProjectVersions(projectId: number) {
       publishedAt: true,
     },
   })
-  return versions.map((version) => ({ ...version, id: version.id.toString() }))
+  return versions.map(({ publicId, ...version }) => ({ ...version, id: publicId }))
 }
 
 async function requireVersion(projectId: number, versionId: number) {
@@ -204,16 +209,16 @@ export async function getProjectSidebar(
       noteInfos: {
         where: { isDeleted: false, status: 1 },
         orderBy: { weight: 'desc' },
-        select: { id: true, noteTitle: true, weight: true },
+        select: { publicId: true, noteTitle: true, weight: true },
       },
     },
   })
-  return categories.map((category) => ({
-    id: category.id.toString(),
+  return categories.map((category, index) => ({
+    key: `category-${index}`,
     categoryName: category.categoryName,
     weight: category.weight,
     notes: category.noteInfos.map((note) => ({
-      id: note.id.toString(),
+      id: note.publicId,
       noteTitle: note.noteTitle,
       weight: note.weight,
     })),
@@ -235,7 +240,7 @@ export async function getProjectNote(
       category: { projectVersionId: versionId, isDeleted: false, status: 1 },
       contents: { some: { isPrimary: true, isDeleted: false, status: 1 } },
     },
-    select: { id: true, noteTitle: true, tagsJson: true },
+    select: { publicId: true, noteTitle: true, tagsJson: true },
   })
   if (!note) throw new HttpError('Note not found', 404, 404)
   requireProjectCapability(await resolveProjectAccess(projectId, viewer), 'read')
@@ -248,14 +253,12 @@ export async function getProjectNote(
   if (!content) throw new HttpError('Note content not found', 404, 404)
 
   return {
-    id: content.id.toString(),
-    noteId: note.id.toString(),
+    noteId: note.publicId,
     noteTitle: note.noteTitle,
     tags: readNoteTags(note.tagsJson),
-    content: content.content,
+    content: await presentContentLinks(content.content),
     versionNote: content.versionNote,
     updatedAt: content.updatedAt,
-
   }
 }
 
@@ -263,8 +266,8 @@ export async function getProjectNoteMetadata(projectId: number, versionId: numbe
   await requireVersion(projectId, versionId)
   const note = await prisma.noteInfo.findFirst({
     where: { id: noteId, isDeleted: false, status: 1, category: { projectVersionId: versionId, isDeleted: false, status: 1 }, contents: { some: { isPrimary: true, isDeleted: false, status: 1 } } },
-    select: { id: true, noteTitle: true, tagsJson: true },
+    select: { publicId: true, noteTitle: true, tagsJson: true },
   })
   if (!note) throw new HttpError('Note not found', 404, 404)
-  return { id: String(note.id), noteTitle: note.noteTitle, tags: readNoteTags(note.tagsJson) }
+  return { id: note.publicId, noteTitle: note.noteTitle, tags: readNoteTags(note.tagsJson) }
 }

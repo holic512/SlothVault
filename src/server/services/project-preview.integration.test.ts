@@ -51,7 +51,7 @@ afterEach(async () => { await fixture.client.$disconnect(); rmSync(fixture.root,
 describe('administrator version preview', () => {
   it('reads a draft and updated saved data while public navigation still excludes it', async () => {
     expect(await listPublicProjects()).toEqual([])
-    expect(await getProjectVersions(projectId)).toEqual([])
+    await expect(getProjectVersions(projectId)).rejects.toMatchObject({ status: 404 })
     await expect(getProjectNoteMetadata(projectId, versionId, noteId)).rejects.toMatchObject({ status: 404 })
     expect(await getPreviewSidebar(projectId, versionId)).toMatchObject([{ notes: [{ id: String(noteId) }] }])
     expect(await getPreviewNote(projectId, versionId, noteId)).toMatchObject({ content: '# Saved', tags: ['API'] })

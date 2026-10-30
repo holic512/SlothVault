@@ -3,7 +3,7 @@
  * @project SlothVault
  * @module Project Documentation Service
  * @description Owns bounded document reads and atomic, revision-protected draft synchronization.
- * @logic Resolve version-local stable keys, preserve unchanged records, write through content helpers, and confirm baselines only after complete preflight.
+ * @logic Return permanent UUID reading links and separate draft preview URLs, resolve version-local stable keys, and synchronize revision-protected bodies atomically.
  * @dependencies Prisma unit-of-work, project-version-release, admin-notes, project-documentation contracts
  * @index_tags documentation,mcp,batch,revision,baseline,transaction
  * @author holic512
@@ -34,7 +34,7 @@ export async function getDocumentationOutline(projectVersionId: number, page: nu
   if (!Number.isInteger(page) || page < 1 || page > 10000 || !Number.isInteger(pageSize) || pageSize < 1 || pageSize > 50) fail('DOCUMENTATION_PAGE_INVALID', 400)
   return unitOfWork.execute(async tx => {
     const version = await tx.projectVersion.findFirst({ where: { id: projectVersionId, isDeleted: false, project: { isDeleted: false } },
-      select: { id: true, projectId: true, version: true, publishedAt: true, documentRevision: true, documentationStateJson: true } })
+      select: { id: true, publicId: true, projectId: true, project: { select: { publicId: true } }, version: true, publishedAt: true, documentRevision: true, documentationStateJson: true } })
     if (!version) fail('VERSION_NOT_FOUND', 404)
     const state = stateFrom(version.documentationStateJson)
     const where = { ...activeParent, category: { ...activeParent.category, projectVersionId } }
@@ -42,7 +42,7 @@ export async function getDocumentationOutline(projectVersionId: number, page: nu
       tx.noteInfo.count({ where }),
       tx.noteInfo.findMany({ where, skip: (page - 1) * pageSize, take: pageSize,
         orderBy: [{ category: { weight: 'desc' } }, { weight: 'desc' }, { id: 'asc' }],
-        select: { id: true, noteTitle: true, categoryId: true, status: true, weight: true, tagsJson: true, contentRevision: true,
+        select: { id: true, publicId: true, noteTitle: true, categoryId: true, status: true, weight: true, tagsJson: true, contentRevision: true,
           contents: { where: { isDeleted: false, isPrimary: true }, take: 2, select: { id: true, status: true } } } }),
     ])
     const categories = await tx.category.findMany({ where: { projectVersionId, isDeleted: false },
@@ -57,7 +57,8 @@ export async function getDocumentationOutline(projectVersionId: number, page: nu
         key: state.documents.find(doc => doc.noteId === String(note.id))?.key ?? null,
         primaryContentId: note.contents.length === 1 ? String(note.contents[0].id) : null,
         primaryContentStatus: note.contents.length === 1 ? note.contents[0].status : null,
-        url: `${version.publishedAt ? '' : '/preview'}/project/${version.projectId}/v/${version.id}/docs/${note.id}`,
+        url: `/project/${version.project.publicId}/v/${version.publicId}/docs/${note.publicId}`,
+        previewUrl: version.publishedAt ? null : `/preview/project/${version.projectId}/v/${version.id}/docs/${note.id}`,
       })), page, pageSize, total }
   }, { mode: 'read', isolationLevel: databaseSnapshotIsolationLevel() })
 }

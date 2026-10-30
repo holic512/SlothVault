@@ -8,6 +8,9 @@
  * @index_tags uploads,permissions,path-containment,get,head,security-headers,maintenance-lock
  * @author holic512
  */
+import { parsePublicContentId, publishedProjectWhere } from '@/server/services/public-content-ids'
+import { prisma } from '@/server/prisma'
+import { isAdminRole } from '@/server/auth/roles'
 import { createRequestProbe } from '@/server/telemetry/request'
 import { HttpError } from '@/server/http/errors'
 import type { NextRequest } from 'next/server'
@@ -52,9 +55,15 @@ async function serveUpload(request: NextRequest, context: UploadRouteContext, he
   try {
     const { path } = await context.params
     const projectRaw = request.nextUrl.searchParams.get('projectId')
-    const projectId = projectRaw === null ? undefined : Number(projectRaw)
-    if (projectId !== undefined && (!/^\d+$/.test(projectRaw!) || !Number.isSafeInteger(projectId) || projectId < 1)) {
-      throw new HttpError('Invalid project id', 400, 400)
+    const viewer = await getRequestViewer(request)
+    let projectId: number | undefined
+    if (projectRaw !== null) {
+      const project = await prisma.project.findFirst({
+        where: { publicId: parsePublicContentId(projectRaw), ...(viewer && isAdminRole(viewer.role) ? { isDeleted: false } : publishedProjectWhere) },
+        select: { id: true },
+      })
+      if (!project) throw new HttpError('Project not found', 404, 404)
+      projectId = project.id
     }
     let segments: string[]
     try { segments = path.map((segment) => decodeURIComponent(segment)) } catch {
@@ -65,7 +74,7 @@ async function serveUpload(request: NextRequest, context: UploadRouteContext, he
     }
     const filePath = `uploads/${segments.join('/')}`
     const download = request.nextUrl.searchParams.get('download') === '1' || !isInlineImagePath(filePath)
-    await authorizeManagedFile(filePath, await getRequestViewer(request), {
+    await authorizeManagedFile(filePath, viewer, {
       projectId, download,
     })
     const file = await inspectPublicUpload(path)

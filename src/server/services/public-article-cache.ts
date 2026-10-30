@@ -43,7 +43,7 @@ export function getCachedPublicArticleList(page: number) {
         })),
       }
     },
-    ['public-article-list', String(page)],
+    ['opaque-v1-public-article-list', String(page)],
     { revalidate: PUBLIC_ARTICLE_REVALIDATE_SECONDS, tags: [PUBLIC_ARTICLES_CACHE_TAG] },
   )()
 }
@@ -58,7 +58,7 @@ export function getCachedPublicArticle(articleId: number) {
         updatedAt: iso(article.updatedAt),
       }
     },
-    ['public-article', String(articleId)],
+    ['opaque-v1-public-article', String(articleId)],
     {
       revalidate: PUBLIC_ARTICLE_REVALIDATE_SECONDS,
       tags: [PUBLIC_ARTICLES_CACHE_TAG, publicArticleCacheTag(articleId)],

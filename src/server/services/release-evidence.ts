@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { resolvePublicProjectIds } from './public-content-ids'
 import { evidenceNetworks, evidenceVisible, type EvidenceAudience } from '@/lib/evidence-visibility'
 import { assertActiveAdministrator } from '@/server/auth/administrator'
 import { attributedOperator } from '@/lib/user-attribution'
@@ -981,13 +982,19 @@ async function readReleaseEvidence(signature: string, audience: EvidenceAudience
   }
 }
 
-export const getPublicReleaseEvidence = (signature: string) => readReleaseEvidence(signature, 'public')
+export async function getPublicReleaseEvidence(signature: string) {
+  const evidence = await readReleaseEvidence(signature, 'public')
+  if (!evidence) return null
+  const version = evidence.projectVersionId ? await prisma.projectVersion.findUnique({ where: { id: Number(evidence.projectVersionId) }, select: { publicId: true, project: { select: { publicId: true } } } }) : null
+  return { ...evidence, id: evidence.subjectId, projectVersionId: version?.publicId ?? null, projectId: version?.project.publicId ?? null, noteContentId: null }
+}
 export const getAdminReleaseEvidenceReceipt = (signature: string) => readReleaseEvidence(signature, 'admin')
 
 export async function getPublicReleaseEvidenceManifest(signature: string, viewer: AccessViewer = null) {
   const evidence = await getPublicReleaseEvidence(signature)
   if (!evidence || !evidence.subjectVisible || !evidence.projectVersionId || !evidence.projectId) throw new HttpError('Public version evidence manifest not found', 404, 404)
-  const release = await getProjectVersionManifest(Number(evidence.projectVersionId), { publicProjectId: Number(evidence.projectId), viewer })
+  const resolved = await resolvePublicProjectIds({ id: evidence.projectId, versionId: evidence.projectVersionId })
+  const release = await getProjectVersionManifest(resolved.versionId!, { publicProjectId: resolved.projectId, viewer })
   if (release.releaseHash !== evidence.subjectHash) throw new HttpError('Evidence no longer matches the publication', 409, 409)
   return { ...release, manifest: evidence.manifest, hash: release.releaseHash, subjectId: release.releaseId }
 }
@@ -998,7 +1005,7 @@ async function readProjectVersionEvidenceSummary(projectVersionId: number, optio
     where: { id: projectVersionId, isDeleted: false, publishedAt: { not: null }, manifestVersion: RELEASE_MANIFEST_VERSION,
       ...(options.publicProjectId !== undefined ? { projectId: options.publicProjectId, status: 1, project: { isDeleted: false, status: 1 } } : {}),
     },
-    select: { id: true, version: true, projectId: true, releaseId: true, releaseHash: true, releaseManifestJson: true, publishedAt: true },
+    select: { id: true, publicId: true, version: true, projectId: true, releaseId: true, releaseHash: true, releaseManifestJson: true, publishedAt: true },
   })
   if (!version || !version.releaseId || !version.releaseHash || !version.publishedAt) throw new HttpError('Published version not found', 404, 404)
   let manifest: ReleaseManifest
@@ -1013,7 +1020,7 @@ async function readProjectVersionEvidenceSummary(projectVersionId: number, optio
     resolveProjectAccess(version.projectId, options.viewer ?? null),
   ])
   if (credentials.some(item => item.subjectHash !== version.releaseHash)) throw new HttpError('Evidence digest differs from publication', 409, 409)
-  return { projectVersionId: String(version.id), releaseId: version.releaseId, releaseHash: version.releaseHash, manifest, publishedAt: version.publishedAt,
+  return { projectVersionId: audience === 'public' ? version.publicId : String(version.id), releaseId: version.releaseId, releaseHash: version.releaseHash, manifest, publishedAt: version.publishedAt,
     canDownload: access.canDownload, downloadReason: access.downloadReason,
     networks: evidenceNetworks(audience).map(network => {
       const credential = credentials.find(item => item.network === network)
@@ -1050,7 +1057,7 @@ async function verifyReleaseEvidence(signature: string, audience: EvidenceAudien
     }
   }
   return {
-    verified: chainVerified && integrityVerified === true, chainVerified, integrityVerified, evidence,
+    verified: chainVerified && integrityVerified === true, chainVerified, integrityVerified, evidence: audience === 'public' ? await getPublicReleaseEvidence(signature) : evidence,
     ...(chain && !chain.failed ? { chain: { slot: chain.slot.toString(), blockTime: chain.blockTime, feeLamports: chain.feeLamports.toString() } } : {}),
   }
 }

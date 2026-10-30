@@ -1,11 +1,21 @@
 import { canonicalReleaseManifest, releaseManifestHash } from './release-manifest'
 import { describe, expect, it } from 'vitest'
+import { randomUUID } from 'node:crypto'
 
 import type { BackupData } from './admin-backup/database-schema'
 import { parseDatabaseImportPayload as parse } from './admin-backup/database-validation'
 import { RETIRED_CORE_COLLECTIONS } from './admin-backup/retired-core-data'
 import { DATABASE_BACKUP_VERSION } from './admin-backup/constants'
 const parseDatabaseImportPayload = (input: { data: unknown; version?: string; mode?: string }) => parse({ ...input, version: DATABASE_BACKUP_VERSION, mode: 'overwrite' })
+
+const publicIdentity = () => ({ publicId: randomUUID(), legacyUrlId: null })
+
+function removePublicIdentities(data: Record<string, unknown>) {
+  for (const key of ['articles', 'projects', 'projectVersions', 'noteInfos']) {
+    for (const row of data[key] as Array<Record<string, unknown>>) { delete row.publicId; delete row.legacyUrlId }
+  }
+  return data
+}
 
 const timestamp = '2026-07-19T00:00:00.000Z'
 
@@ -23,7 +33,7 @@ function emptyBackup(): BackupData {
     articles: [],
     projects: [
       {
-        id: '1',
+        ...publicIdentity(), id: '1',
         projectName: 'project',
         avatar: null,
         weight: 0,
@@ -69,7 +79,7 @@ describe('project menu icon backup contracts', () => {
   })
 
   it.each(['2.13.0', '2.14.0', '2.15.0', '2.16.0', '2.17.0', '2.18.0'])('converts %s JSON menus and rejects a new field disguised as legacy data', version => {
-    const data: Record<string, unknown> = { ...emptyBackup(), projectMenus: [menu] }
+    const data: Record<string, unknown> = removePublicIdentities({ ...emptyBackup(), projectMenus: [menu] })
     if (version <= '2.16.0') for (const key of Object.keys(data)) if (key.startsWith('plugin')) delete data[key]
     if (version <= '2.14.0') delete data.userWallets
     if (version === '2.13.0') delete data.userDeletionRecords
@@ -109,7 +119,7 @@ describe('database backup system branding validation', () => {
 describe('database backup independent article validation', () => {
   it('accepts visible and withdrawn 2.6 articles while rejecting an incomplete publication state', () => {
     const data = emptyBackup()
-    data.articles.push({
+    data.articles.push({ ...publicIdentity(),
       id: '40',
       title: 'Independent article',
       summary: null,
@@ -131,7 +141,7 @@ describe('database backup independent article validation', () => {
 
   it('rejects article covers outside the managed article-cover directory', () => {
     const data = emptyBackup()
-    data.articles.push({
+    data.articles.push({ ...publicIdentity(),
       id: '41',
       title: 'Unsafe cover',
       summary: null,
@@ -168,7 +178,7 @@ describe('database backup membership validation', () => {
       pointsCost: 10, grantedByUserId: null, grantedAt: timestamp,
       expiresAt: '2026-08-20T00:00:00.000Z', revokedAt: null, revokedByUserId: null,
     })
-    data.articles.push({
+    data.articles.push({ ...publicIdentity(),
       id: '13', title: 'Member article', summary: null, cover: null, content: '# Body',
       status: 1, requiredMembershipLevelId: '11', allowedMembershipLevelIds: [], publishedAt: timestamp,
       createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
@@ -193,7 +203,7 @@ describe('database backup release validation', () => {
       status: 1, pointsBalance: 0, walletAddress: null, lastLoginAt: null,
       createdAt: timestamp, updatedAt: timestamp,
     })
-    data.projectVersions.push({
+    data.projectVersions.push({ ...publicIdentity(),
       id: '2', projectId: '1', version: 'published', description: null, weight: 1, status: 1,
       releaseId: 'b98bce11-168d-4d74-bfc0-975e083c3fe3', ...snapshot('published'), documentationStateJson: null, manifestVersion: 3, publishedAt: timestamp,
       createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
@@ -202,7 +212,7 @@ describe('database backup release validation', () => {
       id: '3', projectVersionId: '2', categoryName: 'Guides', weight: 0, status: 1,
       createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
     })
-    data.noteInfos.push({ attributionJson: '{}',
+    data.noteInfos.push({ ...publicIdentity(), attributionJson: '{}',
       id: '4', categoryId: '3', authorId: '7', noteTitle: 'Start', tags: [], weight: 0, status: 1,
       createdAt: timestamp, updatedAt: timestamp, isDeleted: false,
     })
@@ -223,7 +233,7 @@ describe('database backup release validation', () => {
 describe('content manifest v3 backup contract', () => {
   it('allows repeated body hashes and keeps release IDs unique', () => {
     const data = emptyBackup()
-    data.projectVersions = [1, 2].map(id => ({
+    data.projectVersions = [1, 2].map(id => ({ ...publicIdentity(),
       id: String(id), projectId: '1', version: `v${id}`, description: null, weight: 0,
       status: 1, releaseId: `550e8400-e29b-41d4-a716-44665544000${id}`,
       ...snapshot(`v${id}`), documentationStateJson: null, manifestVersion: 3, publishedAt: timestamp,
@@ -258,7 +268,7 @@ describe('current database format', () => {
 
 describe('explicit pre-plugin 2.16 source envelope', () => {
   it('converts only an explicit overwrite request and rejects ignored outer fields', () => {
-    const data = Object.fromEntries(Object.entries(emptyBackup()).filter(([key]) => !key.startsWith('plugin')))
+    const data = Object.fromEntries(Object.entries(removePublicIdentities(emptyBackup())).filter(([key]) => !key.startsWith('plugin')))
     expect(parse({ version: '2.16.0', mode: 'overwrite', data }).version).toBe(DATABASE_BACKUP_VERSION)
     expect(() => parse({ version: '2.16.0', mode: 'append', data })).toThrow()
     expect(() => parse({ version: '2.16.0', mode: 'overwrite', data, unexpected: true })).toThrow()

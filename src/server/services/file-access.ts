@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { publishedProjectWhere } from './public-content-ids'
 import { BUSINESS_TYPE_CONFIG } from '@/lib/file-business-types'
 import type { AccessViewer } from '@/lib/content-access'
 import { isInlineImagePath, managedUploadPath } from '@/lib/managed-file-paths'
@@ -19,7 +20,7 @@ import { HttpError } from '@/server/http/errors'
 import { prisma } from '@/server/prisma'
 import { resolveArticleAccess, resolveProjectAccess } from './content-access'
 
-const visibleProject = { isDeleted: false, status: 1 } as const
+const visibleProject = publishedProjectWhere
 const visibleVersion = { isDeleted: false, status: 1, publishedAt: { not: null }, releaseId: { not: null }, releaseHash: { not: null }, manifestVersion: 3, project: visibleProject } as const
 type Reference = { sourceType: string; sourceId: number; projectId: number | null; usage: string }
 

@@ -9,11 +9,12 @@
  * @author holic512
  */
 import 'server-only'
+import { prePublicIdDataSchema, addPublicIdentifiers } from './legacy-v2-20'
 import { z } from 'zod'
 import { backupDataSchema, legacyProjectMenuSchema } from './database-schema'
 import { addLegacyMenuIcons, parseMenuLegacyRow } from './legacy-v2-18'
 import type { RecordStore } from './record-store'
-const oldVersionSchema = backupDataSchema.shape.projectVersions.element.omit({ documentationStateJson: true })
+const oldVersionSchema = prePublicIdDataSchema.shape.projectVersions.element.omit({ documentationStateJson: true })
 export function parseDocumentationLegacyRow(key: string, value: unknown): { id: string } {
   return key === 'projectVersions' ? oldVersionSchema.parse(value) : parseMenuLegacyRow(key, value)
 }
@@ -23,8 +24,8 @@ export function convertDocumentationStore(store: RecordStore) {
   }
 }
 
-const oldDataSchema = backupDataSchema.extend({ projectVersions: z.array(oldVersionSchema), projectMenus: z.array(legacyProjectMenuSchema) })
+const oldDataSchema = prePublicIdDataSchema.extend({ projectVersions: z.array(oldVersionSchema), projectMenus: z.array(legacyProjectMenuSchema) })
 const oldPayloadSchema = z.strictObject({ version: z.literal('2.15.0'), mode: z.literal('overwrite'), data: oldDataSchema })
 export function convertDocumentationPayload(input: unknown) {
-  return backupDataSchema.parse(addLegacyMenuIcons(oldPayloadSchema.parse(input).data))
+  return backupDataSchema.parse(addPublicIdentifiers(addLegacyMenuIcons(oldPayloadSchema.parse(input).data)))
 }

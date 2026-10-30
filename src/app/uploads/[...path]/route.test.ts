@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { HttpError } from '@/server/http/errors'
-const mocks = vi.hoisted(() => ({ authorize: vi.fn(), inspect: vi.fn(), read: vi.fn(), viewer: vi.fn() }))
+const mocks = vi.hoisted(() => ({ authorize: vi.fn(), inspect: vi.fn(), read: vi.fn(), viewer: vi.fn(), project: vi.fn() }))
+vi.mock('@/server/prisma',()=>({prisma:{project:{findFirst:mocks.project}}}))
 vi.mock('@/server/auth/viewer', () => ({ getRequestViewer: mocks.viewer }))
 vi.mock('@/server/services/file-access', () => ({ authorizeManagedFile: mocks.authorize }))
 vi.mock('@/server/services/admin-files', () => ({ inspectPublicUpload: mocks.inspect, readPublicUpload: mocks.read }))
@@ -12,6 +13,7 @@ describe('protected upload GET and HEAD', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     mocks.viewer.mockResolvedValue(null)
+    mocks.project.mockResolvedValue({ id: 2 })
     mocks.inspect.mockResolvedValue({ absolutePath: '/tmp/guide.pdf', fileName: 'guide.pdf', contentType: 'application/pdf', attachment: false, stats: { size: 4, mtime: new Date('2026-10-08') } })
     mocks.read.mockResolvedValue(Buffer.from('file'))
   })
@@ -24,7 +26,7 @@ describe('protected upload GET and HEAD', () => {
     expect(mocks.read).not.toHaveBeenCalled()
   })
   it('uses attachment disposition for downloads and no shared cache', async () => {
-    const response = await GET(new NextRequest('http://localhost/uploads/docs/guide.pdf?projectId=2'), context())
+    const response = await GET(new NextRequest('http://localhost/uploads/docs/guide.pdf?projectId=10000000-0000-4000-8000-000000000002'), context())
     expect(response.status).toBe(200)
     expect(response.headers.get('Content-Disposition')).toContain('attachment;')
     expect(mocks.authorize).toHaveBeenCalledWith('uploads/docs/guide.pdf', null, { projectId: 2, download: true })
@@ -43,9 +45,9 @@ describe('protected upload GET and HEAD', () => {
     expect(mocks.authorize).not.toHaveBeenCalled()
   })
   it('rejects a forged or invalid project identifier', async () => {
-    expect((await GET(new NextRequest('http://localhost/uploads/docs/guide.pdf?projectId=-1'), context())).status).toBe(400)
+    expect((await GET(new NextRequest('http://localhost/uploads/docs/guide.pdf?projectId=-1'), context())).status).toBe(404)
     mocks.authorize.mockRejectedValue(new HttpError('Access denied', 403, 403))
-    expect((await GET(new NextRequest('http://localhost/uploads/docs/guide.pdf?projectId=99'), context())).status).toBe(403)
+    expect((await GET(new NextRequest('http://localhost/uploads/docs/guide.pdf?projectId=10000000-0000-4000-8000-000000000099'), context())).status).toBe(403)
     expect(mocks.inspect).not.toHaveBeenCalled()
   })
 })

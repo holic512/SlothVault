@@ -2,7 +2,7 @@ import type { ProjectAccess } from '@/lib/content-access'
 import { ProjectAccessNotice } from './project-access-notice'
 import { MarkdownView } from '@/components/markdown/markdown-view'
 
-type HomeData = { id: string; projectId: string; content: string; updatedAt: string }
+type HomeData = { projectId: string; content: string; updatedAt: string }
 
 export function ProjectHomeView({ home, access }: { home: HomeData; access: ProjectAccess }) {
   return (

@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { resolvePublicArticleId, resolvePublicProjectIds } from '@/server/services/public-content-ids'
 import { createHmac } from 'node:crypto'
 import { z } from 'zod'
 import type { NextRequest } from 'next/server'
@@ -41,20 +42,22 @@ export async function ingestTelemetry(request:NextRequest) {
   if(target.type!=='page') {
     const viewer=await getRequestViewer(request)
     if(target.type==='article') {
-      const [metadata,allowed]=await Promise.all([getPublicArticleMetadata(target.id!),resolveArticleAccess(target.id!,viewer)])
-      event.key=`article:${metadata.id}`
+      const articleId = await resolvePublicArticleId(target.id!)
+      const [metadata,allowed]=await Promise.all([getPublicArticleMetadata(articleId),resolveArticleAccess(articleId,viewer)])
+      event.key=`article:${articleId}`
       event.content={key:event.key,kind:'article',title:metadata.title,href:target.page}
       if(allowed){event.visibleMs=input.visibleMs;event.depth=input.depth}
     } else {
-      const projectId=target.type==='project'?target.id!:target.projectId!
+      const resolved = await resolvePublicProjectIds({ id: target.type==='project' ? target.id! : target.projectId!, ...(target.type==='note' ? { versionId: target.versionId, noteId: target.id } : {}) })
+      const { projectId } = resolved
       const [project,access,versions]=await Promise.all([getPublicProject(projectId),resolveProjectAccess(projectId,viewer),getProjectVersions(projectId)])
       if(!versions.length) throw new HttpError('No published version',404,404)
       event.key=`project:${projectId}`
       event.content={key:event.key,kind:'project',title:project.projectName,href:target.page}
       if(target.type==='note') {
-        const note=await getProjectNoteMetadata(projectId,target.versionId!,target.id!),version=versions.find(item=>Number(item.id)===target.versionId)
+        const note=await getProjectNoteMetadata(projectId,resolved.versionId!,resolved.noteId!),version=versions.find(item=>item.id===target.versionId)
         if(!version) throw new HttpError('Version is not published',404,404)
-        event.key=`note:${projectId}:${target.versionId}:${target.id}`
+        event.key=`note:${projectId}:${resolved.versionId}:${resolved.noteId}`
         event.content={key:event.key,kind:'note',title:note.noteTitle,href:target.page,projectKey:`project:${projectId}`,projectTitle:project.projectName,version:version.version}
       } else if(!await prisma.projectHome.findFirst({where:{projectId,status:1,isDeleted:false},select:{id:true}})) throw new HttpError('Homepage not found',404,404)
       if(access.canRead){event.visibleMs=input.visibleMs;event.depth=input.depth}

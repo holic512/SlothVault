@@ -9,6 +9,7 @@
  * @author holic512
  */
 import 'server-only'
+import { prePublicIdDataSchema, addPublicIdentifiers } from './legacy-v2-20'
 import { z } from 'zod'
 import { USER_ATTRIBUTION_FIELDS, type UserIdentity } from '@/lib/user-attribution'
 import { backupDataSchema, legacyProjectMenuSchema, type BackupData } from './database-schema'
@@ -28,7 +29,7 @@ export const legacyCollectionKeys = LEGACY_BACKUP_COLLECTION_KEYS.filter(key => 
 export const legacyRowSchemas = new Map<string, z.ZodType>()
 const sourceCollections: Record<string, z.ZodType> = {}
 for (const key of legacyCollectionKeys) {
-  const container = backupDataSchema.shape[key]
+  const container = prePublicIdDataSchema.shape[key]
   let array: z.ZodType = container
   while (!(array instanceof z.ZodArray) && 'unwrap' in array) array = (array as z.ZodDefault<z.ZodType>).unwrap()
   if (!(array instanceof z.ZodArray) || !(array.element instanceof z.ZodObject)) throw new Error('Invalid registered backup collection')
@@ -78,5 +79,5 @@ export function convertLegacyStore(store: RecordStore) {
 export function convertLegacyPayload(input: unknown): BackupData {
   const source = legacyPayloadSchema.parse(input)
   const users = new Map((source.data.users as Row[]).map(row => [row.id, row]))
-  return backupDataSchema.parse(legacyWalletData(Object.fromEntries(Object.entries(source.data).map(([key, rows]) => [key, (rows as Row[]).map(row => convertRow(key, row, id => users.get(id)))]))))
+  return backupDataSchema.parse(addPublicIdentifiers(legacyWalletData(Object.fromEntries(Object.entries(source.data).map(([key, rows]) => [key, (rows as Row[]).map(row => convertRow(key, row, id => users.get(id)))])))))
 }

@@ -20,14 +20,13 @@ import { ProjectAccessNotice } from './project-access-notice'
 import { ProjectDocumentContent } from '@/components/project/project-document-content'
 
 export type SidebarCategory = {
-  id: string
+  key: string
   categoryName: string
   weight: number
   notes: Array<{ id: string; noteTitle: string; weight: number }>
 }
 
 type NoteData = {
-  id: string
   noteId: string
   noteTitle: string
   content: string
@@ -46,6 +45,7 @@ export async function ProjectNoteView({
   tags,
   access,
   previewBase,
+  fileProjectId,
 }: {
   projectId: string
   versionId: string
@@ -56,6 +56,7 @@ export async function ProjectNoteView({
   tags: string[]
   access: ProjectAccess
   previewBase?: string
+  fileProjectId?: string
 }) {
   const [locale, t] = await Promise.all([getLocale(), getTranslations('ProjectDocument')])
 
@@ -63,7 +64,7 @@ export async function ProjectNoteView({
     <main className="docs-reader">
       <aside className="docs-sidebar">
         {sidebar.map((category) => (
-          <section key={category.id} className="docs-category">
+          <section key={category.key} className="docs-category">
             <TypographyText>{category.categoryName}</TypographyText>
             <nav>
               {category.notes.map((note) => (
@@ -94,7 +95,7 @@ export async function ProjectNoteView({
           </div> : null}
           <ProjectAccessNotice access={access} capability={note ? 'download' : 'read'} />
         </header>
-        {note ? <ProjectDocumentContent key={note.id} content={note.content} outlineLabel={t('outline')} projectId={projectId} canDownload={access.canDownload} downloadMessage={t('permissions.downloadUnavailable')} /> : null}
+        {note ? <ProjectDocumentContent key={note.noteId} content={note.content} outlineLabel={t('outline')} projectId={fileProjectId || projectId} canDownload={access.canDownload} downloadMessage={t('permissions.downloadUnavailable')} /> : null}
       </article>
     </main>
   )

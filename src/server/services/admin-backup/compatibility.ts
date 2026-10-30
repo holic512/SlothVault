@@ -3,12 +3,13 @@
  * @project SlothVault
  * @module Backup Data Compatibility
  * @description Resolves portable backup data versions independently of application releases and database schema revisions.
- * @logic Validate registered source contracts, convert legacy attribution, wallets, documentation and menu icons in a temporary store, and retire cards only from pre-2.18 snapshots.
+ * @logic Validate registered source contracts, convert legacy attribution, wallets, documentation, menu icons and public identities in a temporary store, and retire cards only from pre-2.18 snapshots.
  * @dependencies backup data contracts, portable database export, private record store
  * @index_tags backup,version,compatibility,conversion,restore
  * @author holic512
  */
 import 'server-only'
+import { convertPublicIdentifierStore, parsePublicIdLegacyRow } from './legacy-v2-20'
 import { discardRetiredCardStore } from './retired-gift-cards'
 import { parseDocumentationLegacyRow, convertDocumentationStore } from './legacy-v2-15'
 import { walletLegacyCollectionKeys, walletLegacyRowSchemas, convertWalletStore } from './legacy-v2-14'
@@ -36,7 +37,8 @@ const adapters: ReadonlyMap<string, BackupVersionAdapter> = new Map<string, Back
   ['2.16.0', { collectionKeys: LEGACY_BACKUP_COLLECTION_KEYS, parseRow: parseMenuLegacyRow, toCurrentPayload: storedPayload }],
   ['2.17.0', { collectionKeys: BACKUP_COLLECTION_KEYS, parseRow: parseMenuLegacyRow, toCurrentPayload: storedPayload }],
   ['2.18.0', { collectionKeys: ACTIVE_BACKUP_COLLECTION_KEYS, parseRow: parseMenuLegacyRow, toCurrentPayload: storedPayload }],
-  ['2.19.0', { collectionKeys: ACTIVE_BACKUP_COLLECTION_KEYS, parseRow: parseBackupRow, toCurrentPayload: storedPayload }],
+  ['2.19.0', { collectionKeys: ACTIVE_BACKUP_COLLECTION_KEYS, parseRow: parsePublicIdLegacyRow, toCurrentPayload: storedPayload }],
+  ['2.20.0', { collectionKeys: ACTIVE_BACKUP_COLLECTION_KEYS, parseRow: parsePublicIdLegacyRow, toCurrentPayload: storedPayload }],
   [DATABASE_BACKUP_VERSION, { collectionKeys: ACTIVE_BACKUP_COLLECTION_KEYS, parseRow: parseBackupRow, toCurrentPayload: storedPayload }],
 ])
 
@@ -54,7 +56,8 @@ export function requireBackupCompatibility(manifest: { formatVersion?: unknown; 
   const adapter = adapters.get(compatibility.sourceVersion)!
   if (compatibility.sourceVersion === DATABASE_BACKUP_VERSION) return adapter
   return { ...adapter, toCurrentPayload: store => {
-    convertMenuIconStore(store)
+    if (!['2.19.0', '2.20.0'].includes(compatibility.sourceVersion)) convertMenuIconStore(store)
+    convertPublicIdentifierStore(store)
     const payload = adapter.toCurrentPayload(store)
     if (RETIRED_CARD_SOURCE_VERSIONS.has(compatibility.sourceVersion)) discardRetiredCardStore(store)
     return payload

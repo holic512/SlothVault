@@ -1,3 +1,4 @@
+import { resolveProjectPageParams } from '@/server/services/public-content-ids'
 /**
  * @file page.tsx
  * @project SlothVault
@@ -17,8 +18,9 @@ import { getCachedProjectHome } from '@/server/services/public-project-cache'
 
 export default async function ProjectHomePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const home = await getCachedProjectHome(Number(id))
+  const resolved = await resolveProjectPageParams({ id })
+  const home = await getCachedProjectHome(resolved.projectId)
   if (!home) redirect(`/project/${id}/docs`)
-  const access = await resolveProjectAccess(Number(id), await getPageViewer())
+  const access = await resolveProjectAccess(resolved.projectId, await getPageViewer())
   return <ProjectHomeView home={home} access={access} />
 }

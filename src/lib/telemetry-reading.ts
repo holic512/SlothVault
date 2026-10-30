@@ -3,20 +3,21 @@
  * @project SlothVault
  * @module Public Reading Measurement Policy
  * @description Defines an explicit public-page whitelist and bounded visible-reading measurements.
- * @logic Ignore credentials and private routes, identify content only from canonical numeric routes, and advance cumulative reading monotonically while visible.
+ * @logic Ignore credentials and private routes, identify content only from canonical opaque routes, and advance cumulative reading monotonically while visible.
  * @dependencies none
  * @index_tags telemetry,reading,privacy,visibility
  * @author holic512
  */
-export type PublicTelemetryTarget = { page: string; type: 'page'|'article'|'project'|'note'; id?: number; projectId?: number; versionId?: number }
+import { PUBLIC_CONTENT_ID_PATTERN } from './public-content-id'
+export type PublicTelemetryTarget = { page: string; type: 'page'|'article'|'project'|'note'; id?: string; projectId?: string; versionId?: string }
 export function publicTelemetryTarget(pathname: string): PublicTelemetryTarget | null {
   if (['/','/articles','/project/projectList'].includes(pathname)) return { page: pathname, type:'page' }
-  const article = /^\/articles\/([1-9]\d{0,9})$/.exec(pathname)
-  if(article&&Number(article[1])<=2147483647) return {page:pathname,type:'article',id:Number(article[1])}
-  const project = /^\/project\/([1-9]\d{0,9})\/home$/.exec(pathname)
-  if(project&&Number(project[1])<=2147483647) return {page:pathname,type:'project',id:Number(project[1])}
-  const note = /^\/project\/([1-9]\d{0,9})\/v\/([1-9]\d{0,9})\/docs\/([1-9]\d{0,9})$/.exec(pathname)
-  if(note&&note.slice(1).every(value=>Number(value)<=2147483647)) return {page:pathname,type:'note',projectId:Number(note[1]),versionId:Number(note[2]),id:Number(note[3])}
+  const article = new RegExp(`^/articles/(${PUBLIC_CONTENT_ID_PATTERN})$`).exec(pathname)
+  if (article) return {page:pathname,type:'article',id:article[1]}
+  const project = new RegExp(`^/project/(${PUBLIC_CONTENT_ID_PATTERN})/home$`).exec(pathname)
+  if (project) return {page:pathname,type:'project',id:project[1]}
+  const note = new RegExp(`^/project/(${PUBLIC_CONTENT_ID_PATTERN})/v/(${PUBLIC_CONTENT_ID_PATTERN})/docs/(${PUBLIC_CONTENT_ID_PATTERN})$`).exec(pathname)
+  if (note) return {page:pathname,type:'note',projectId:note[1],versionId:note[2],id:note[3]}
   return null
 }
 export function readerDepth(top: number, height: number, viewportHeight: number) {
