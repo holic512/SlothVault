@@ -1,5 +1,7 @@
 import { execFile } from 'node:child_process'
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
+import { readdir, readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { promisify } from 'node:util'
 import mariadb from 'mariadb'
 import { describe, expect, it } from 'vitest'
@@ -34,7 +36,13 @@ describe.skipIf(!databaseUrl)('native MySQL migration deployment', () => {
       client = await mariadb.createConnection({ ...connection, database })
       const history = await client.query('SELECT migration_name, checksum FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY migration_name')
       expect(history.some((row: { migration_name: string }) => row.migration_name === repair)).toBe(true)
-      expect(history.at(-1).migration_name).toBe('20261023000000_remove_empty_host_commissions')
+      const migrationsRoot = join(process.cwd(), 'prisma/providers/mysql/migrations')
+      const migrations = (await readdir(migrationsRoot, { withFileTypes: true })).filter(entry => entry.isDirectory()).map(entry => entry.name).sort()
+      const expectedHistory = await Promise.all(migrations.map(async migration => ({
+        migration_name: migration,
+        checksum: createHash('sha256').update(await readFile(join(migrationsRoot, migration, 'migration.sql'))).digest('hex'),
+      })))
+      expect([...history]).toEqual(expectedHistory)
       // Emulate an already deployed installation with later migration receipts:
       // only this test DB loses the new repair's receipt, never production data.
       await client.query('CREATE INDEX fixture_existing_version_fk ON release_credential (project_version_id)')
