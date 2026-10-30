@@ -905,6 +905,7 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
             <RevisionEditor
               key={`${selectedNoteId}:${selectedContent.id}`}
               item={selectedContent}
+              projectId={currentProjectId}
               readOnly={readOnly}
               onDirtyChange={setDirty}
               onSaved={(updated) => queryClient.setQueryData<{ list: NoteContent[] }>(
@@ -953,7 +954,8 @@ export function NoteContentEditor({ noteId }: { noteId?: string }) {
   )
 }
 
-function RevisionEditor({ item, readOnly, onDirtyChange, onSaved }: {
+function RevisionEditor({ item, readOnly, onDirtyChange, onSaved, projectId }: {
+  projectId?: string
   item: NoteContent
   readOnly: boolean
   onDirtyChange: (dirty: boolean) => void
@@ -1041,6 +1043,7 @@ function RevisionEditor({ item, readOnly, onDirtyChange, onSaved }: {
 
   return <>
     <MarkdownContentEditor
+      projectId={projectId}
       fillContainer
       header={(
         <div className="note-writing-header">

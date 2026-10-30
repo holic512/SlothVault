@@ -136,7 +136,7 @@ export const pageToolDefinitions: McpToolDefinition[] = collectMcpToolDefinition
       description: '为没有主页记录的项目创建公开主页；不会恢复已删除记录。',
       inputSchema: z.strictObject({
         projectId: decimalIdSchema,
-        content: z.string().max(DOCUMENT_CONTENT_MAX_CHARACTERS),
+        content: z.string().max(DOCUMENT_CONTENT_MAX_CHARACTERS).describe('Markdown 与安全 HTML 正文；高级扩展先查询 content.markdown.capabilities，再用 content.markdown.validate 静态校验。'),
         status: statusSchema.default(1),
       }),
       outputSchema: projectHomeOutputSchema,
@@ -153,7 +153,7 @@ export const pageToolDefinitions: McpToolDefinition[] = collectMcpToolDefinition
       description: '更新项目主页正文或状态，修改可能立即影响公开站点。',
       inputSchema: z.strictObject({
         projectHomeId: decimalIdSchema,
-        content: z.string().max(DOCUMENT_CONTENT_MAX_CHARACTERS).optional(),
+        content: z.string().max(DOCUMENT_CONTENT_MAX_CHARACTERS).describe('Markdown 与安全 HTML 正文；高级扩展先查询 content.markdown.capabilities，再用 content.markdown.validate 静态校验。').optional(),
         status: statusSchema.optional(),
       }).refine(
         ({ content, status }) => content !== undefined || status !== undefined,
@@ -263,7 +263,7 @@ export const pageToolDefinitions: McpToolDefinition[] = collectMcpToolDefinition
       title: '创建系统首页',
       description: '创建新的系统首页记录，可能立即影响公开首页。',
       inputSchema: z.strictObject({
-        content: z.string().max(DOCUMENT_CONTENT_MAX_CHARACTERS),
+        content: z.string().max(DOCUMENT_CONTENT_MAX_CHARACTERS).describe('Markdown 与安全 HTML 正文；高级扩展先查询 content.markdown.capabilities，再用 content.markdown.validate 静态校验。'),
         status: statusSchema.default(1),
       }),
       outputSchema: homepageOutputSchema,
@@ -280,7 +280,7 @@ export const pageToolDefinitions: McpToolDefinition[] = collectMcpToolDefinition
       description: '更新系统首页正文或状态，不删除或恢复首页。',
       inputSchema: z.strictObject({
         homepageId: decimalIdSchema,
-        content: z.string().max(DOCUMENT_CONTENT_MAX_CHARACTERS).optional(),
+        content: z.string().max(DOCUMENT_CONTENT_MAX_CHARACTERS).describe('Markdown 与安全 HTML 正文；高级扩展先查询 content.markdown.capabilities，再用 content.markdown.validate 静态校验。').optional(),
         status: statusSchema.optional(),
       }).refine(
         ({ content, status }) => content !== undefined || status !== undefined,

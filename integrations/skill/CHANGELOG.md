@@ -1,5 +1,11 @@
 # Skill changes
 
+## 1.2.6
+
+- Discover and validate Markdown charts, counters, motion and layout extensions through MCP 5.2; ship generated presets, schemas and limits.
+- Keep original managed image URLs and let the reader request protected thumbnails; fall back to supported Markdown on older servers.
+- Exclude directive markers and configuration fences from prose quality checks.
+
 ## 1.2.5
 
 - Expand compound statements and control flow in the project documentation checker for readability, preserving validation rules, findings, and CLI behavior.

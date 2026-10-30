@@ -143,6 +143,9 @@ def check_article(content: str, title: str | None = None) -> dict:
             if not match[2].strip():
                 issue("CODE_LANGUAGE_MISSING", line_number, "代码围栏未标语言；日志、伪代码等按用途标注，刻意省略可保留。")
             continue
+        if re.match(r"^ {0,3}:{3,}(?:[a-z][a-z0-9-]*(?:\{.*\})?)?\s*$", raw):
+            flush()
+            continue
         # Avoid interpreting quoted examples, reference definitions, HTML, or table cells as prose.
         table_start = index + 1 < len(lines) and "|" in raw and bool(TABLE_SEPARATOR.match(lines[index + 1]))
         if table_start or (in_table and "|" in raw):

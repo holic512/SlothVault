@@ -50,7 +50,7 @@ export const noteContentOutputSchema = noteContentVersionOutputSchema.extend({
 
 const updateContentSchema = z.strictObject({
   noteContentId: decimalIdSchema,
-  content: z.string().max(DOCUMENT_CONTENT_MAX_CHARACTERS).optional(),
+  content: z.string().max(DOCUMENT_CONTENT_MAX_CHARACTERS).describe('Markdown 与安全 HTML 正文；高级扩展先查询 content.markdown.capabilities，再用 content.markdown.validate 静态校验。').optional(),
   versionNote: z.string().trim().max(255).nullable().optional(),
   status: statusSchema.optional(),
 }).refine(
@@ -93,7 +93,7 @@ export const noteContentToolDefinitions: McpToolDefinition[] = collectMcpToolDef
       description: '在未发布版本中创建正文历史项；正文引用的图片和附件必须先上传成功，使用实际返回的 filePath；首个未删除正文会自动成为主版本。',
       inputSchema: z.strictObject({
         noteId: decimalIdSchema,
-        content: z.string().max(DOCUMENT_CONTENT_MAX_CHARACTERS).default(''),
+        content: z.string().max(DOCUMENT_CONTENT_MAX_CHARACTERS).describe('Markdown 与安全 HTML 正文；高级扩展先查询 content.markdown.capabilities，再用 content.markdown.validate 静态校验。').default(''),
         versionNote: z.string().trim().max(255).nullable().default(null),
         status: statusSchema.default(1),
       }),

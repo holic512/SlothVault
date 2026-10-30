@@ -74,7 +74,7 @@ Authorization: Bearer svmcp_<public-id>.<secret>
 
 ## MCP 5.0 Tool
 
-MCP server identity 为 `slothvault-admin-mcp@5.1.0`。当前注册表共 65 个宿主 Tool、4 个 Prompt、1 个 Resource 模板；启用的插件可动态贡献额外工具；按实时 schema 发现并使用点号分层的业务名称。
+MCP server identity 为 `slothvault-admin-mcp@5.2.0`。当前注册表共 67 个宿主 Tool、4 个 Prompt、1 个 Resource 模板；启用的插件可动态贡献额外工具；按实时 schema 发现并使用点号分层的业务名称。
 
 完整 Tool/Resource 清单、领域、风险、幂等性、URI、文件名和大小上限由注册表生成：[MCP Registry 清单](./MCP_REGISTRY.md)。修改 `src/server/mcp/tools/` 或 `src/server/mcp/resource-catalog.json` 后运行 `npm run mcp:docs`；CI 使用 `npm run mcp:docs:check` 阻止文档过期。
 
@@ -200,3 +200,7 @@ Tool、Prompt 与 Resource 注册分别位于 `src/server/mcp/tools/`、`src/ser
 全部写操作在所属草稿版本的事务锁内执行，保留其他标签，返回完整结果列表。重复添加、移除和同名改名的结果不改变标签；已发布版本始终拒绝写入。名称去首尾空白、不能为空、大小写敏感，每篇最多 10 个标签、每个最多 30 个字符。标签不参与正文或项目发布哈希。
 
 现有 `content.note.create/update` 的 `tags` 数组接口继续用于初始化或明确的整组替换。新增工具后刷新 MCP 工具发现；Skill 使用相同名称和参数契约。
+
+## Markdown 扩展能力
+
+通过 `content.markdown.capabilities` 按需读取本站语法、JSON Schema、预设和限制，再调用 `content.markdown.validate` 校验正文；现有正文写入字段仍是 Markdown 字符串。支持 ECharts 数据图表、数字递增、显现动效和布局容器，禁止正文脚本。静态校验不等于视觉验收。图片使用上传返回的原图 URL，阅读端按需请求权限保护的缩略图，点击加载原图。Skill 的示例与限制由共享契约生成。

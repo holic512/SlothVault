@@ -2,14 +2,18 @@
  * @file markdown-view.tsx
  * @project SlothVault
  * @module Mixed Document Viewer
- * @description Renders Markdown, safe HTML and Mermaid through one responsive document surface.
- * @logic Apply reading or landing typography, parse GFM and raw HTML, filter inline CSS, create stable heading links, sanitize the final tree, harden external resources, render Mermaid diagrams, and route managed links through contextual reading/download checks.
+ * @description Renders Markdown, safe HTML and registered extensions through one responsive document surface.
+ * @logic Apply reading or landing typography, parse GFM and raw HTML, filter inline CSS, create stable heading links, sanitize the final tree, harden external resources, render registered interactive blocks with protected image previews, and route managed links through contextual reading/download checks.
  * @dependencies react-markdown, remark-gfm, rehype-raw, rehype-slug, rehype-autolink-headings, rehype-sanitize, MermaidDiagram
  * @index_tags markdown,html,viewer,sanitize,security,typography
  * @author holic512
  */
-import { Children, isValidElement } from 'react'
-import { MermaidDiagram } from './mermaid-diagram'
+import { Children, cloneElement, isValidElement } from 'react'
+import { MarkdownFencedBlock, ContainerBlock } from './extension-blocks'
+import { DocumentImages, DocumentImage, ImagePreviewAction } from './document-images'
+import remarkDirective from 'remark-directive'
+import { remarkMarkdownContainers, rehypeMarkdownMarkers } from '@/lib/markdown/processor'
+import { markdownFencedExtensions } from '@/lib/markdown/contract'
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown'
 import rehypeAutolinkHeadings from 'rehype-autolink-headings'
 import rehypeRaw from 'rehype-raw'
@@ -59,6 +63,7 @@ sanitizeAttributes['*'] = [
   ...allowDocumentClasses(defaultSchema.attributes?.['*']),
   'style',
   'ariaLabel',
+  'dataMarkdownBlock', 'dataMarkdownAttributes', 'dataMarkdownDepth', 'dataMarkdownParent', 'dataMarkdownError', 'dataMarkdownSource',
 ]
 sanitizeAttributes.img = [
   ...allowDocumentClasses(defaultSchema.attributes?.img),
@@ -111,11 +116,12 @@ export function MarkdownView({
   }
 
   return (
-    <article className={articleClassName} data-presentation={presentation}>
+    <DocumentImages><article className={articleClassName} data-presentation={presentation}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkDirective, remarkMarkdownContainers]}
         rehypePlugins={[
           rehypeRaw,
+          rehypeMarkdownMarkers,
           rehypeSafeDocumentStyles,
           [rehypeSanitize, sanitizeSchema],
           rehypeSlug,
@@ -123,11 +129,18 @@ export function MarkdownView({
         ]}
         urlTransform={defaultUrlTransform}
         components={{
+          div: ({ node, children, ...props }) => {
+            const data = node?.properties || {}
+            if (typeof data.dataMarkdownBlock === 'string') return <ContainerBlock name={data.dataMarkdownBlock} attributes={String(data.dataMarkdownAttributes || '{}')} error={data.dataMarkdownError ? String(data.dataMarkdownError) : undefined} source={String(data.dataMarkdownSource || '')}>{children}</ContainerBlock>
+            return <div {...props}>{children}</div>
+          },
           pre: ({ node, children, ...props }) => {
             void node
             const child = Children.toArray(children)[0]
-            if (isValidElement<{ className?: string; children?: unknown }>(child) && /(?:^|\s)language-mermaid(?:\s|$)/i.test(child.props.className || '') && typeof child.props.children === 'string') {
-              return <MermaidDiagram source={child.props.children.replace(/\n$/, '')} />
+            if (isValidElement<{ className?: string; children?: unknown }>(child) && typeof child.props.children === 'string') {
+              const language = /(?:^|\s)language-(\S+)/i.exec(child.props.className || '')?.[1].toLowerCase()
+              const kind = markdownFencedExtensions.find(id => id === language)
+              if (kind) return <MarkdownFencedBlock kind={kind} source={child.props.children.replace(/\n$/, '')} />
             }
             return <pre {...props}>{children}</pre>
           },
@@ -135,8 +148,9 @@ export function MarkdownView({
             void node
             const external = Boolean(href && /^(https?:)?\/\//.test(href))
             const managed = Boolean(managedUploadPath(href))
-            return (
-              <a
+            const imageChildren = Children.toArray(children)
+            const linkedImages = imageChildren.filter(child => isValidElement<{ src?: string }>(child) && typeof child.props.src === 'string')
+            const anchor = <a
                 {...props}
                 href={managed && !canDownload ? undefined : contextualFileUrl(href, projectId, true)}
                 aria-disabled={managed && !canDownload ? true : undefined}
@@ -144,28 +158,19 @@ export function MarkdownView({
                 target={external ? '_blank' : undefined}
                 rel={external ? 'noreferrer noopener' : undefined}
               >
-                {children}
+                {imageChildren.map((child, index) => isValidElement<{ src?: string; alt?: string; linked?: boolean }>(child) && typeof child.props.src === 'string'
+                  ? cloneElement(child, { key: index, linked: true }) : child)}
               </a>
-            )
+            return linkedImages.length ? <span className="sloth-linked-image" data-image-preview="true">{anchor}<ImagePreviewAction /></span> : anchor
           },
           img: ({ node, alt, ...props }) => {
             void node
-            return (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                {...props}
-                src={contextualFileUrl(typeof props.src === 'string' ? props.src : undefined, projectId)}
-                alt={alt || ''}
-                decoding="async"
-                loading="lazy"
-                referrerPolicy="no-referrer"
-              />
-            )
+            return <DocumentImage {...props} src={typeof props.src === 'string' ? props.src : undefined} alt={alt || ''} projectId={projectId} />
           },
         }}
       >
         {content}
       </ReactMarkdown>
-    </article>
+    </article></DocumentImages>
   )
 }

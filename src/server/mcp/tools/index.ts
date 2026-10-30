@@ -13,6 +13,7 @@ import 'server-only'
 import type { McpPrincipal } from '@/server/services/mcp-api-keys'
 import { registerMcpToolDefinitions, type McpToolDefinition } from '@/server/mcp/registry'
 
+import { markdownToolDefinitions } from './markdown'
 import { categoryToolDefinitions } from './categories'
 import { fileToolDefinitions } from './files'
 import { articleToolDefinitions } from './articles'
@@ -27,6 +28,7 @@ import { projectDocumentationToolDefinitions } from './project-documentation'
 
 /** Contains the complete administrator Tool declaration list. */
 export const adminMcpToolDefinitions: McpToolDefinition[] = [
+  ...markdownToolDefinitions,
   ...projectToolDefinitions,
   ...projectVersionToolDefinitions,
   ...projectDocumentationToolDefinitions,

@@ -66,7 +66,7 @@ const articleValuesSchema = {
   title: z.string().trim().min(1).max(255),
   summary: z.string().trim().max(500).nullable().optional(),
   cover: z.string().max(500).nullable().optional(),
-  content: z.string().max(DOCUMENT_CONTENT_MAX_CHARACTERS),
+  content: z.string().max(DOCUMENT_CONTENT_MAX_CHARACTERS).describe('Markdown 与安全 HTML 正文；高级扩展先查询 content.markdown.capabilities，再用 content.markdown.validate 静态校验。'),
 }
 
 const updateArticleSchema = z.strictObject({

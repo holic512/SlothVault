@@ -4,8 +4,8 @@
  * @file markdown-content-editor.tsx
  * @project SlothVault
  * @module Mixed Document Editing Surface
- * @description Provides a fast Markdown workflow with safe HTML layout snippets, exact public-preview rendering, separate image and attachment uploads, Mermaid insertion, translated controls, visible content constraints, optional host toolbar content, and an optional container-fill layout.
- * @logic Keep the editor controlled, insert mixed-content structures, validate uploads and await success before inserting links, match the host reading or landing presentation in preview, and allocate remaining editing space for full-height hosts.
+ * @description Provides a fast Markdown workflow with shared extension presets, exact public-preview rendering, separate image and attachment uploads, chart and animation insertion, translated controls, visible content constraints, optional host toolbar content, and an optional container-fill layout.
+ * @logic Keep the editor controlled, configure and insert validated extension presets in one undoable operation, validate uploads and await success before inserting links, match the host reading or landing presentation in preview, and allocate remaining editing space for full-height hosts.
  * @dependencies @uiw/react-md-editor, next/dynamic, next-intl, app-theme-context, lucide-react, MarkdownView
  * @index_tags markdown,html,editor,preview,upload,validation,accessibility
  * @author holic512
@@ -17,18 +17,16 @@ import type { ICommand } from '@uiw/react-md-editor'
 import { commands, TextAreaTextApi } from '@uiw/react-md-editor'
 import {
   Braces,
+  Blocks,
   CircleHelp,
-  Columns3,
   ImageUp,
   Paperclip,
-  Workflow,
-  ListCollapse,
-  MessageSquareText,
   ShieldCheck,
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { useLocale, useTranslations } from 'next-intl'
 
+import { MarkdownInsertDialog } from './markdown-insert-dialog'
 import { MarkdownView, type MarkdownPresentation } from '@/components/markdown/markdown-view'
 import { useResolvedAppTheme } from '@/components/providers/app-theme-context'
 import { formatAdminError } from '@/lib/admin-localization'
@@ -65,6 +63,7 @@ export function MarkdownContentEditor({
   header,
   headerActions,
   presentation = 'reading',
+  projectId, canDownload = true, downloadMessage,
 }: {
   value: string
   onChange: (value: string) => void
@@ -76,6 +75,9 @@ export function MarkdownContentEditor({
   header?: ReactNode
   headerActions?: ReactNode
   presentation?: MarkdownPresentation
+  projectId?: string
+  canDownload?: boolean
+  downloadMessage?: string
 }) {
   const t = useTranslations('DocumentEditor')
   const errorT = useTranslations('AdminMM.errors')
@@ -86,6 +88,8 @@ export function MarkdownContentEditor({
   const uploadingRef = useRef(false)
   const textApiRef = useRef<TextAreaTextApi | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [insertion, setInsertion] = useState<{ selection: string; start: number; end: number } | null>(null)
+  const extensionT = useTranslations('MarkdownExtensions')
   const [guideOpen, setGuideOpen] = useState(false)
   const [notice, setNotice] = useState<{ tone: 'error' | 'warning'; text: string } | null>(null)
   const editorId = useId().replace(/:/g, '')
@@ -193,14 +197,6 @@ export function MarkdownContentEditor({
     execute: (_state, api) => { textApiRef.current = api; attachmentInputRef.current?.click() },
   }), [t, uploading])
 
-  const mermaidCommand = useMemo<ICommand>(() => ({
-    name: 'mermaid',
-    keyCommand: 'mermaid',
-    icon: <Workflow size={13} />,
-    buttonProps: { 'aria-label': t('insertMermaid'), title: t('insertMermaid'), disabled: uploading },
-    execute: (_state, api) => insertBlock(api, `\`\`\`mermaid\nflowchart LR\n  A[${t('snippets.mermaidStart')}] --> B[${t('snippets.mermaidEnd')}]\n\`\`\``),
-  }), [t, uploading])
-
   const commandLabels = useMemo(() => ({
     bold: t('toolbar.bold'), italic: t('toolbar.italic'), strikethrough: t('toolbar.strikethrough'),
     heading: t('toolbar.heading'), heading1: t('toolbar.heading1'), heading2: t('toolbar.heading2'),
@@ -211,54 +207,11 @@ export function MarkdownContentEditor({
     edit: t('toolbar.edit'), live: t('toolbar.live'), preview: t('toolbar.preview'), fullscreen: t('toolbar.fullscreen'),
   }), [t])
 
-  const htmlCommand = useMemo<ICommand>(() => {
-    const callout: ICommand = {
-      name: 'html-callout',
-      keyCommand: 'html-callout',
-      icon: <MessageSquareText size={13} />,
-      buttonProps: { 'aria-label': t('snippets.callout'), title: t('snippets.callout') },
-      execute: (state, api) => {
-        const body = state.selectedText.trim() || t('snippets.calloutBody')
-        insertBlock(
-          api,
-          `<section class="sloth-callout sloth-callout-note">\n\n**${t('snippets.calloutLabel')}**\n\n${body}\n\n</section>`,
-        )
-      },
-    }
-    const disclosure: ICommand = {
-      name: 'html-disclosure',
-      keyCommand: 'html-disclosure',
-      icon: <ListCollapse size={13} />,
-      buttonProps: { 'aria-label': t('snippets.disclosure'), title: t('snippets.disclosure') },
-      execute: (state, api) => {
-        const body = state.selectedText.trim() || t('snippets.disclosureBody')
-        insertBlock(
-          api,
-          `<details class="sloth-disclosure">\n<summary>${t('snippets.disclosureSummary')}</summary>\n\n${body}\n\n</details>`,
-        )
-      },
-    }
-    const columns: ICommand = {
-      name: 'html-columns',
-      keyCommand: 'html-columns',
-      icon: <Columns3 size={13} />,
-      buttonProps: { 'aria-label': t('snippets.columns'), title: t('snippets.columns') },
-      execute: (state, api) => {
-        const firstBody = state.selectedText.trim() || t('snippets.columnBodyOne')
-        insertBlock(
-          api,
-          `<div class="sloth-content-grid">\n\n<section class="sloth-content-card">\n\n### ${t('snippets.columnTitleOne')}\n\n${firstBody}\n\n</section>\n\n<section class="sloth-content-card">\n\n### ${t('snippets.columnTitleTwo')}\n\n${t('snippets.columnBodyTwo')}\n\n</section>\n\n</div>`,
-        )
-      },
-    }
-
-    return commands.group([callout, disclosure, columns], {
-      name: 'html-snippets',
-      groupName: 'html-snippets',
-      icon: <Braces size={13} />,
-      buttonProps: { 'aria-label': t('htmlSnippets'), title: t('htmlSnippets'), disabled: uploading },
-    })
-  }, [t, uploading])
+  const insertCommand = useMemo<ICommand>(() => ({
+    name: 'insert-content', keyCommand: 'insert-content', icon: <Blocks size={13} />,
+    buttonProps: { 'aria-label': extensionT('insertTitle'), title: extensionT('insertTitle'), disabled: uploading || readOnly },
+    execute: (state, api) => { textApiRef.current = api; setInsertion({ selection: state.selectedText, start: api.textArea.selectionStart, end: api.textArea.selectionEnd }) },
+  }), [extensionT, uploading, readOnly])
 
   const editorCommands = useMemo<ICommand[]>(
     () => [
@@ -273,12 +226,11 @@ export function MarkdownContentEditor({
       ].map((command) => localizeEditorCommand(command, commandLabels, uploading)),
       uploadCommand,
       ...(onUploadAttachment ? [attachmentCommand] : []),
-      mermaidCommand,
       localizeEditorCommand(commands.table, commandLabels, uploading),
-      htmlCommand,
+      insertCommand,
       localizeEditorCommand(commands.hr, commandLabels, uploading),
     ],
-    [attachmentCommand, commandLabels, htmlCommand, mermaidCommand, onUploadAttachment, t, uploadCommand, uploading],
+    [attachmentCommand, commandLabels, insertCommand, onUploadAttachment, t, uploadCommand, uploading],
   )
 
   const rememberTextApi = (target: HTMLTextAreaElement) => {
@@ -387,6 +339,17 @@ export function MarkdownContentEditor({
         </div>
       ) : null}
 
+      {insertion && <MarkdownInsertDialog selection={insertion.selection} disabled={uploading || readOnly} presentation={presentation} projectId={projectId} canDownload={canDownload} downloadMessage={downloadMessage} onClose={() => setInsertion(null)} onInsert={source => {
+        const api = textApiRef.current
+        if (!api || readOnly || uploadingRef.current) return extensionT('unavailable')
+        const nextLength = api.textArea.value.length - (insertion.end - insertion.start) + source.trim().length + 4
+        if (nextLength > DOCUMENT_CONTENT_MAX_CHARACTERS) return t('messages.contentLimitReached')
+        requestAnimationFrame(() => {
+          api.textArea.focus()
+          api.textArea.setSelectionRange(insertion.start, insertion.end)
+          insertBlock(api, source)
+        })
+      }} />}
       <MDEditor
         value={value}
         onChange={(nextValue) => handleValueChange(nextValue || '')}
@@ -397,7 +360,7 @@ export function MarkdownContentEditor({
         extraCommands={(readOnly ? [commands.codePreview, commands.fullscreen] : [commands.codeEdit, commands.codeLive, commands.codePreview, commands.fullscreen]).map((command) => localizeEditorCommand(command, commandLabels))}
         components={{
           preview: (source) => (
-            <MarkdownView content={source} className="markdown-editor-preview-content" presentation={presentation} />
+            <MarkdownView content={source} className="markdown-editor-preview-content" presentation={presentation} projectId={projectId} canDownload={canDownload} downloadMessage={downloadMessage} />
           ),
         }}
         textareaProps={{

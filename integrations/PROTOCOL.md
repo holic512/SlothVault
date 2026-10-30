@@ -17,7 +17,7 @@
 
 `POST /mcp` 使用 Streamable HTTP 和 `Authorization: Bearer <SlothVault MCP Key>`。Session 不作为 MCP 凭据。每次请求重验 Key 和管理员账户；缺失、无效、过期、停用 Key 或非管理员返回 401，未安装/维护返回 503，现有维护锁保留。
 
-SDK 初始化协商日期协议，当前 serverInfo 为 `slothvault-admin-mcp@5.1.0`。产品仅支持 Codex、Claude Code 原生 MCP 客户端；服务端按管理员 MCP Key 鉴权，不以 clientInfo.name、客户端版本或 User-Agent 判断准入。instructions 提供业务指导。65 个宿主 Tool（启用插件可动态贡献额外工具）、4 个 Prompt、1 个 Resource 模板按实时目录发现。当前无独立 SSE 会话流，GET/DELETE 返回 405；宿主可通过 POST 完成发现、调用与 Resource 读取。
+SDK 初始化协商日期协议，当前 serverInfo 为 `slothvault-admin-mcp@5.2.0`。产品仅支持 Codex、Claude Code 原生 MCP 客户端；服务端按管理员 MCP Key 鉴权，不以 clientInfo.name、客户端版本或 User-Agent 判断准入。instructions 提供业务指导。67 个宿主 Tool（启用插件可动态贡献额外工具）、4 个 Prompt、1 个 Resource 模板按实时目录发现。当前无独立 SSE 会话流，GET/DELETE 返回 405；宿主可通过 POST 完成发现、调用与 Resource 读取。
 
 退役客户端、兼容路由与本地数据的迁移说明统一见 [集成架构](./ARCHITECTURE.md#退役和本地遗留数据)。
 
@@ -52,3 +52,7 @@ Deployment 1.1.2 将参数解析纳入桥事件边界：未知命令、未知参
 Bridge major 1 remains unchanged. Actions add `nginx-discover`, `nginx-status` and `nginx-update`; selectors add `--nginx-config`, `--nginx-site` and `--nginx-server-name`. `preview.data.nginxStatus` and `snapshot.data.nginx` optionally contain instances (mode, container, running, mainConfig, version, syntax, mounts, error), sites (siteConfig, hostConfig, serverNames, upstreams, loaded, writable, HTTPS and transfer routes). `preview.data.changes` contains only policy, directive and new value, not raw configuration. Existing consumers may ignore these fields. Status reports unavailable or unknown when the context cannot be verified.
 
 Deployment 1.1.3 adds optional `instances[].parseError` with `path` and `line` when the script parser rejects a loaded source. `error: CONFIG_PARSE_FAILED` distinguishes this from native command/configuration failures; `syntax: passed` records a successful native `nginx -t` even when parsing fails. Error metadata does not contain configuration values. Bridge major 1 is unchanged.
+
+### Markdown extensions
+
+MCP 5.2 adds read-only `content.markdown.capabilities` and `content.markdown.validate`. Existing body writes retain string inputs. Capability discovery includes schemas, presets, quotas, thumbnail behavior and fallbacks. Static validation neither renders nor authorizes publication.

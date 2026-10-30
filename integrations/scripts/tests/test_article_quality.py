@@ -18,6 +18,10 @@ def codes(text, title=None):
 
 
 class ArticleQualityTest(unittest.TestCase):
+    def test_markdown_extension_markers_and_json_are_not_prose(self):
+        text = '# 图表\n\n::::tabs\n\n:::tab{title="数据"}\n\n```echarts\n{"version":1,"option":{"series":[{"type":"line","data":[1,2]}]}}\n```\n\n:::\n\n::::'
+        self.assertEqual(codes(text), [])
+
     def test_short_chinese_article_needs_no_headings_or_code(self):
         result = checker.check_article('列表用于定位文章，详情接口用于读取正文。')
         self.assertEqual(result['issues'], [])

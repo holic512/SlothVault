@@ -3,8 +3,8 @@
  * @project SlothVault
  * @module Upload Runtime
  * @description Serves contained managed uploads after checking current reading or download permissions for GET and HEAD.
- * @logic Validate paths, authorize real live references before reading bytes, use private responses, attach download formats without MIME sniffing, and enqueue privacy-safe request/wait/handler timings.
- * @dependencies Next Route Handlers, file-access, admin file storage service, maintenance-lock
+ * @logic Authorize live references before source or derivative reads, optionally generate cached Markdown thumbnails, keep downloads original and responses private, and enqueue privacy-safe timings.
+ * @dependencies Next Route Handlers, file-access, admin file storage service, markdown-thumbnail, maintenance-lock
  * @index_tags uploads,permissions,path-containment,get,head,security-headers,maintenance-lock
  * @author holic512
  */
@@ -22,6 +22,7 @@ import {
   readPublicUpload,
 } from '@/server/services/admin-files'
 import { withMaintenanceLock } from '@/server/services/maintenance-lock'
+import { readMarkdownThumbnail } from '@/server/services/markdown-thumbnail'
 
 type UploadRouteContext = {
   params: Promise<{ path: string[] }>
@@ -79,6 +80,17 @@ async function serveUpload(request: NextRequest, context: UploadRouteContext, he
     })
     const file = await inspectPublicUpload(path)
     const headers = responseHeaders(file, download)
+    if (!download && request.nextUrl.searchParams.get('variant') === 'markdown-thumbnail') {
+      try {
+        const thumbnail = await readMarkdownThumbnail(file, headOnly)
+        headers.set('Content-Type', 'image/webp')
+        headers.set('Content-Length', thumbnail.size.toString())
+        headers.delete('Content-Disposition')
+        return new Response(headOnly ? null : new Uint8Array(thumbnail.buffer!), { status: 200, headers })
+      } catch {
+        // A derivative failure must not prevent an authorized reader from seeing the original.
+      }
+    }
     if (headOnly) return new Response(null, { status: 200, headers })
 
     const buffer = await readPublicUpload(file.absolutePath)

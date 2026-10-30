@@ -8,9 +8,7 @@
  * @index_tags files,markdown,html,references,permissions,immutable-content
  * @author holic512
  */
-import { unified } from 'unified'
-import remarkParse from 'remark-parse'
-import remarkGfm from 'remark-gfm'
+import { createMarkdownParser, remarkMarkdownContainers, rehypeMarkdownMarkers } from './markdown/processor'
 import remarkRehype from 'remark-rehype'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize from 'rehype-sanitize'
@@ -22,8 +20,8 @@ export const FILE_SOURCE_TYPES = ['NOTE_CONTENT', 'PROJECT_HOME', 'PROJECT_MENU'
 export type FileSourceType = typeof FILE_SOURCE_TYPES[number]
 export type ManagedFileLink = { filePath: string; usage: FileUsage }
 
-const processor = unified().use(remarkParse).use(remarkGfm)
-  .use(remarkRehype, { allowDangerousHtml: true }).use(rehypeRaw).use(rehypeSanitize)
+const processor = createMarkdownParser().use(remarkMarkdownContainers)
+  .use(remarkRehype, { allowDangerousHtml: true }).use(rehypeRaw).use(rehypeMarkdownMarkers).use(rehypeSanitize)
 type HtmlNode = { tagName?: string; properties?: Record<string, unknown>; children?: HtmlNode[] }
 
 export function extractManagedFiles(content: string): ManagedFileLink[] {

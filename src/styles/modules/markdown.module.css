@@ -456,3 +456,129 @@
   margin-inline: auto;
   max-width: 100%;
 }
+
+.root :global(.sloth-image-trigger) {
+  display: inline-block;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+.root :global(.sloth-document-image) {
+  display: inline-block;
+  max-width: 100%;
+}
+
+.root :global(.sloth-document-image img),
+.root :global(.sloth-linked-image img) {
+  max-height: 420px;
+  object-fit: contain;
+  vertical-align: middle;
+  width: auto;
+}
+
+.root :global(img[data-image-sized]) {
+  max-height: none;
+}
+
+.root :global(.sloth-image-open) {
+  display: block;
+  padding: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--sv-link);
+  cursor: pointer;
+}
+
+.root :global(.sloth-image-trigger):focus-visible,
+.root :global(.sloth-tabs button):focus-visible {
+  outline: 2px solid var(--sv-primary);
+  outline-offset: 3px;
+}
+
+.root :global(.sloth-extension-error) {
+  margin-block: var(--sv-reading-paragraph-gap);
+  padding: var(--sv-reading-inset);
+  border: 1px solid var(--sv-border);
+  color: var(--sv-text-muted);
+}
+
+.root :global(.sloth-counter) {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-block: var(--sv-reading-section-gap);
+}
+
+.root :global(.sloth-counter output) {
+  font-size: 2.5rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+.root :global(.sloth-tabs [role="tablist"]) {
+  display: flex;
+  overflow: auto;
+  border-bottom: 1px solid var(--sv-border);
+}
+
+.root :global(.sloth-tabs [role="tab"]) {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--sv-text-muted);
+  cursor: pointer;
+}
+
+.root :global(.sloth-tabs [aria-selected="true"]) {
+  border-bottom-color: var(--sv-text);
+  color: var(--sv-text);
+}
+
+.root :global(.sloth-tabs [role="tabpanel"]) {
+  padding-block: var(--sv-reading-paragraph-gap);
+}
+
+.root :global(.sloth-tabs [hidden]) {
+  display: none;
+}
+
+.root :global(.sloth-timeline > ul),
+.root :global(.sloth-steps > ol) {
+  padding-inline-start: 1.75rem;
+}
+
+.root :global(.sloth-timeline > ul > li),
+.root :global(.sloth-steps > ol > li) {
+  padding: 0.5rem 0 1rem 0.5rem;
+}
+
+.root :global(.sloth-timeline > ul > li)::marker,
+.root :global(.sloth-steps > ol > li)::marker {
+  color: var(--sv-primary);
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .root[data-presentation] :global(.sloth-content-grid) {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media print {
+  .root :global(.sloth-motion),
+  .root :global(.sloth-motion > *) {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .root :global(.sloth-tabs [hidden]) {
+    display: block;
+  }
+}

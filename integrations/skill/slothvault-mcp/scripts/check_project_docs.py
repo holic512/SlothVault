@@ -57,6 +57,8 @@ def prose_lines(content: str):
             continue
         if raw.startswith(('    ', '\t')) or raw.lstrip().startswith('>'):
             continue
+        if re.match(r'^ {0,3}:{3,}(?:[a-z][a-z0-9-]*(?:\{.*\})?)?\s*$', raw):
+            continue
         raw = re.sub(r'`+[^`]*`+', '', raw)
         if comment:
             if '-->' not in raw:

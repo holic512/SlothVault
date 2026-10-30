@@ -1,6 +1,6 @@
 # Codex / Claude Code 原生 MCP 管理流程
 
-本版本支持 SlothVault MCP `5.1.0`：65 个宿主工具（另有启用插件动态贡献的工具）、4 个 Prompt、1 个受保护 Resource 模板。Codex / Claude Code 应按需读取实时目录；本文中的工具名是本版本示例。
+本版本支持 SlothVault MCP `5.2.0`：67 个宿主工具（另有启用插件动态贡献的工具）、4 个 Prompt、1 个受保护 Resource 模板。Codex / Claude Code 应按需读取实时目录；本文中的工具名是本版本示例。
 
 ## 连接与授权
 
@@ -70,3 +70,7 @@ slothtool slothvault skill update
 `outline` 按页返回轻量文档树、主正文 ID、稳定文档键及机器基线；`get_many` 只读取指定正文；`apply_draft` 每批最多 20 项、正文 512 KiB，在事务内检查修订号。所有计划文档和集中更新日志完成后，`finalize` 才确认源码基线；未完成同步不能发布。批写只返回本批文档映射，断点恢复从索引回读，不重新创建。
 
 项目检查脚本与整套文档校验脚本均只读、不联网、不执行教程命令。基线与执行日志保留在管理元数据或本地审计材料中，不放进普通教程。详见 [项目文档工作流](../integrations/skill/slothvault-mcp/references/project-documentation.md)。
+
+## Markdown 扩展能力
+
+通过 `content.markdown.capabilities` 按需读取本站语法、JSON Schema、预设和限制，再调用 `content.markdown.validate` 校验正文；现有正文写入字段仍是 Markdown 字符串。支持 ECharts 数据图表、数字递增、显现动效和布局容器，禁止正文脚本。静态校验不等于视觉验收。图片使用上传返回的原图 URL，阅读端按需请求权限保护的缩略图，点击加载原图。Skill 的示例与限制由共享契约生成。

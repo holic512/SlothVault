@@ -6,7 +6,7 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const toolDirectory = path.join(projectRoot, 'src', 'server', 'mcp', 'tools')
 const outputPath = path.join(projectRoot, 'docs', 'MCP_REGISTRY.md')
 
-const EXPECTED_TOOL_COUNT = 65
+const EXPECTED_TOOL_COUNT = 67
 const TOOL_ANNOTATION_METADATA = {
   READ_ONLY_ANNOTATIONS: { risk: 'read', idempotency: 'idempotent' },
   CREATE_ANNOTATIONS: { risk: 'write', idempotency: 'non-idempotent' },
@@ -86,6 +86,13 @@ function render() {
       `| \`${resource.name}\` | \`${resource.uriTemplate}\` | \`${resource.mimeType}\` | ${resource.maxNameLength} | ${resource.maxBytes} |`),
     '',
     'This document is generated from the declaration registry. CI must run `npm run mcp:docs:check` and fail when the checked-in output is stale.',
+    '',
+    '## Markdown 扩展',
+    '',
+    '`content.markdown.capabilities` 返回共享扩展契约、JSON Schema、预设及限制；可传 extensionId 按需查询。',
+    '`content.markdown.validate` 对 content 返回 valid、issues（level/code/line/column/extensionId/message），只做静态检查。',
+    '正文仍保存 Markdown 字符串和原图 URL；本站阅读端按需生成有权限保护的缩略图，点击加载原图。',
+    'Skill 扩展参考资料从同一能力定义生成；配置限制与网页渲染一致，不执行正文脚本。',
     '',
     '## 项目文档同步',
     '',

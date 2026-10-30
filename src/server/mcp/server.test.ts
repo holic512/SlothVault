@@ -312,7 +312,7 @@ describe('administrator MCP server', () => {
       listReductionPercent: Number(((1 - after / before) * 100).toFixed(2)), oldLocateAndReadCalls: 1, newLocateAndReadCalls: 2 }) + '\n')
   })
 
-  it('publishes the 5.1 identity and the complete safe daily-management tool registry', async () => {
+  it('publishes the 5.2 identity and the complete safe daily-management tool registry', async () => {
     const initialize = await resultOf({
       jsonrpc: '2.0', id: 1, method: 'initialize',
       params: {
@@ -321,12 +321,13 @@ describe('administrator MCP server', () => {
       },
     })
     expect(initialize).toMatchObject({
-      result: { serverInfo: { name: 'slothvault-admin-mcp', version: '5.1.0' } },
+      result: { serverInfo: { name: 'slothvault-admin-mcp', version: '5.2.0' } },
     })
 
     const listed = await resultOf({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} })
     const names = listed.result.tools.map((tool: { name: string }) => tool.name)
     expect(names).toEqual([
+      'content.markdown.capabilities', 'content.markdown.validate',
       'content.project.list', 'content.project.get', 'content.project.create', 'content.project.update',
       'content.project.version.list', 'content.project.version.get', 'content.project.version.create_draft',
       'content.project.version.clone', 'content.project.version.check_draft',
@@ -358,7 +359,16 @@ describe('administrator MCP server', () => {
     expect(listed.result.tools.every((tool: { outputSchema?: unknown }) => tool.outputSchema)).toBe(true)
   })
 
-  it.each(['admin.contract.list', 'admin.contract.issue', 'admin.commission.list', 'admin.commission.document.draft.create'])('does not expose retired host tool %s', async name => {
+  it('discovers and validates Markdown through the real MCP adapter', async () => {
+    const capabilities = await resultOf({ jsonrpc: '2.0', id: 90, method: 'tools/call', params: { name: 'content.markdown.capabilities', arguments: { extensionId: 'echarts' } } })
+    expect(capabilities.result.isError).not.toBe(true)
+    expect(capabilities.result.structuredContent).toMatchObject({ version: '1.0.0', extensions: [{ id: 'echarts' }] })
+    const checked = await resultOf({ jsonrpc: '2.0', id: 91, method: 'tools/call', params: { name: 'content.markdown.validate', arguments: { content: '```echarts\n{"version":1,"option":{"tooltip":{"formatter":"unsafe"}}}\n```' } } })
+    expect(checked.result.isError).not.toBe(true)
+    expect(checked.result.structuredContent).toMatchObject({ valid: false, issues: [{ line: 1, extensionId: 'echarts' }] })
+  })
+
+  it.each(['admin.contract.list' , 'admin.contract.issue', 'admin.commission.list', 'admin.commission.document.draft.create'])('does not expose retired host tool %s', async name => {
     const called = await resultOf({ jsonrpc: '2.0', id: 71, method: 'tools/call', params: { name, arguments: {} } })
     expect(called.result?.isError ?? Boolean(called.error)).toBe(true)
   })
@@ -816,9 +826,9 @@ describe('SDK protocol simulation through the /mcp route', () => {
     mocks.listAdminProjects.mockResolvedValue({ list: [project({ latestVersion: "v1", latestVersionId: "11", categoryCount: 2 })], page: 1, pageSize: 20, total: 1 })
     try {
       await client.connect(transport)
-      expect(client.getServerVersion()).toEqual({ name: 'slothvault-admin-mcp', version: '5.1.0' })
+      expect(client.getServerVersion()).toEqual({ name: 'slothvault-admin-mcp', version: '5.2.0' })
       expect(client.getInstructions()).toBe(ADMIN_MCP_INSTRUCTIONS)
-      expect((await client.listTools()).tools).toHaveLength(65)
+      expect((await client.listTools()).tools).toHaveLength(67)
       expect((await client.listPrompts()).prompts).toHaveLength(4)
       expect((await client.listResourceTemplates()).resourceTemplates).toHaveLength(1)
       expect((await client.listResources()).resources).toEqual([])

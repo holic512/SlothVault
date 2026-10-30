@@ -9,15 +9,14 @@
  * @author holic512
  */
 import { unified } from 'unified'
-import remarkParse from 'remark-parse'
-import remarkGfm from 'remark-gfm'
+import { createMarkdownParser, remarkMarkdownContainers, rehypeMarkdownMarkers } from './markdown/processor'
 import remarkRehype from 'remark-rehype'
 import rehypeRaw from 'rehype-raw'
 
 type PositionNode = { type: string; url?: string; tagName?: string; properties?: Record<string, unknown>; position?: { start: { offset?: number }; end: { offset?: number } }; children?: PositionNode[] }
 type Edit = { start: number; end: number; url: string; format: 'markdown' | 'angle' | 'html' }
-const parser = unified().use(remarkParse).use(remarkGfm)
-const htmlParser = unified().use(remarkRehype, { allowDangerousHtml: true }).use(rehypeRaw)
+const parser = createMarkdownParser()
+const htmlParser = unified().use(remarkMarkdownContainers).use(remarkRehype, { allowDangerousHtml: true }).use(rehypeRaw).use(rehypeMarkdownMarkers)
 
 export function contentLinkEdits(content: string) {
   const edits: Edit[] = []

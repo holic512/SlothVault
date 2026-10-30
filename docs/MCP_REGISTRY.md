@@ -2,7 +2,7 @@
 
 <!-- GENERATED FILE: run `npm run mcp:docs` after changing MCP declarations. -->
 
-Tool count: **65** (host tools; enabled plugins contribute additional namespaced tools at runtime)
+Tool count: **67** (host tools; enabled plugins contribute additional namespaced tools at runtime)
 
 | Tool | Domain | Risk | Idempotency | Resource permission |
 | --- | --- | --- | --- | --- |
@@ -29,6 +29,8 @@ Tool count: **65** (host tools; enabled plugins contribute additional namespaced
 | `content.file.list` | `content.file` | read | idempotent | - |
 | `content.file.get` | `content.file` | read | idempotent | managed-file:read |
 | `content.file.upload` | `content.file` | write | non-idempotent | - |
+| `content.markdown.capabilities` | `content.markdown` | read | idempotent | - |
+| `content.markdown.validate` | `content.markdown` | read | idempotent | - |
 | `content.note.content.list_versions` | `content.note.content` | read | idempotent | - |
 | `content.note.content.get` | `content.note.content` | read | idempotent | - |
 | `content.note.content.create_draft` | `content.note.content` | write | non-idempotent | - |
@@ -79,6 +81,13 @@ Resource count: **1**
 | `managed-file` | `slothvault://managed-file/{id}` | `application/octet-stream` | 255 | 10485760 |
 
 This document is generated from the declaration registry. CI must run `npm run mcp:docs:check` and fail when the checked-in output is stale.
+
+## Markdown 扩展
+
+`content.markdown.capabilities` 返回共享扩展契约、JSON Schema、预设及限制；可传 extensionId 按需查询。
+`content.markdown.validate` 对 content 返回 valid、issues（level/code/line/column/extensionId/message），只做静态检查。
+正文仍保存 Markdown 字符串和原图 URL；本站阅读端按需生成有权限保护的缩略图，点击加载原图。
+Skill 扩展参考资料从同一能力定义生成；配置限制与网页渲染一致，不执行正文脚本。
 
 ## 项目文档同步
 

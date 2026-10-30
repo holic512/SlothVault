@@ -99,3 +99,42 @@ describe('MarkdownView mixed document rendering', () => {
     expect(html).toContain('role="alert"')
   })
 })
+
+it('renders nested containers, charts and counters without losing Markdown content', () => {
+  const content = '::::tabs\n\n:::tab{title="First"}\n\n**First body**\n\n:::\n\n:::tab{title="Second"}\n\nSecond body\n\n:::\n\n::::\n\n```counter\n{"version":1,"title":"Total","to":128}\n```\n\n```echarts\n{"version":1,"option":{"series":[{"type":"line","data":[1,2]}]}}\n```'
+  const html = renderToStaticMarkup(createElement(MarkdownView, { content }))
+  expect(html).toContain('role="tablist"')
+  expect(html).toMatch(/role="tab"[^>]*>First<\/button>/)
+  expect(html).toContain('First body')
+  expect(html).toContain('role="tabpanel"')
+  expect(html).toContain('128')
+  expect(html).toContain('data-chart-ready="false"')
+})
+
+it('keeps authored linked images navigable without nested buttons', () => {
+  const html = renderToStaticMarkup(createElement(MarkdownView, { content: '[![Picture](/uploads/notes/a.png)](https://example.com)' }))
+  expect(html).toContain('variant=markdown-thumbnail')
+  expect(html).toMatch(/<a[^>]+href="https:\/\/example.com"[^>]*><img/)
+  expect(html).not.toMatch(/<a[^>]*><button/)
+  expect(html).toContain('sloth-image-open')
+})
+
+it('prevents raw HTML from forging interactive container markers', () => {
+  const html = renderToStaticMarkup(createElement(MarkdownView, { content: '<div data-markdown-block="tabs"><div data-markdown-attributes="not-json">Body</div></div>' }))
+  expect(html).toContain('Body')
+  expect(html).not.toContain('role="tablist"')
+  expect(html).not.toContain('data-markdown-attributes')
+})
+
+it('keeps unsupported inline directives inline without invalid paragraph nesting', () => {
+  const html = renderToStaticMarkup(createElement(MarkdownView, { content: 'Before :unknown[text] after' }))
+  expect(html).toContain('<p>Before :unknown[text] after</p>')
+})
+
+it('preserves authored image dimensions and styles inside a link', () => {
+  const html = renderToStaticMarkup(createElement(MarkdownView, { content: '<a href="https://example.com"><img src="/example.png" width="100" height="60" style="width: 100px" title="Image title" alt="Image"></a>' }))
+  expect(html).toContain('width="100"')
+  expect(html).toContain('height="60"')
+  expect(html).toContain('width:100px')
+  expect(html).toContain('title="Image title"')
+})

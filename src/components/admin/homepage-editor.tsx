@@ -204,6 +204,7 @@ function HomepageDraft({
     <div className="managed-markdown-page">
       <MarkdownContentEditor
         presentation="landing"
+        projectId={projectId || undefined}
         value={draft}
         onChange={(value) => {
           draftRef.current = value

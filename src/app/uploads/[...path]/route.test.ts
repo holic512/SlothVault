@@ -1,11 +1,12 @@
 import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { HttpError } from '@/server/http/errors'
-const mocks = vi.hoisted(() => ({ authorize: vi.fn(), inspect: vi.fn(), read: vi.fn(), viewer: vi.fn(), project: vi.fn() }))
+const mocks = vi.hoisted(() => ({ authorize: vi.fn(), inspect: vi.fn(), read: vi.fn(), viewer: vi.fn(), project: vi.fn(), thumbnail: vi.fn() }))
 vi.mock('@/server/prisma',()=>({prisma:{project:{findFirst:mocks.project}}}))
 vi.mock('@/server/auth/viewer', () => ({ getRequestViewer: mocks.viewer }))
 vi.mock('@/server/services/file-access', () => ({ authorizeManagedFile: mocks.authorize }))
 vi.mock('@/server/services/admin-files', () => ({ inspectPublicUpload: mocks.inspect, readPublicUpload: mocks.read }))
+vi.mock('@/server/services/markdown-thumbnail', () => ({ readMarkdownThumbnail: mocks.thumbnail }))
 vi.mock('@/server/services/maintenance-lock', () => ({ withMaintenanceLock: (_mode: string, fn: () => unknown) => fn() }))
 import { GET, HEAD } from './route'
 const context = (path = ['docs', 'guide.pdf']) => ({ params: Promise.resolve({ path }) })
@@ -49,5 +50,44 @@ describe('protected upload GET and HEAD', () => {
     mocks.authorize.mockRejectedValue(new HttpError('Access denied', 403, 403))
     expect((await GET(new NextRequest('http://localhost/uploads/docs/guide.pdf?projectId=10000000-0000-4000-8000-000000000099'), context())).status).toBe(403)
     expect(mocks.inspect).not.toHaveBeenCalled()
+  })
+  it('serves a thumbnail only after source authorization with the same context', async () => {
+    mocks.thumbnail.mockResolvedValue({ buffer: Buffer.from('webp'), size: 4 })
+    const response = await GET(new NextRequest('http://localhost/uploads/article-image/photo.png?variant=markdown-thumbnail&projectId=10000000-0000-4000-8000-000000000002'), context(['article-image', 'photo.png']))
+    expect(mocks.authorize).toHaveBeenCalledWith('uploads/article-image/photo.png', null, { projectId: 2, download: false })
+    expect(mocks.thumbnail).toHaveBeenCalledOnce()
+    expect(response.headers.get('Content-Type')).toBe('image/webp')
+    expect(response.headers.get('Cache-Control')).toBe('private, no-store')
+    expect(response.headers.get('Content-Length')).toBe('4')
+    expect(await response.text()).toBe('webp')
+    expect(mocks.read).not.toHaveBeenCalled()
+    // A cached thumbnail is never an authority to bypass a subsequently revoked source.
+    mocks.authorize.mockRejectedValue(new HttpError('Access denied', 403, 403))
+    const denied = await GET(new NextRequest('http://localhost/uploads/article-image/photo.png?variant=markdown-thumbnail'), context(['article-image', 'photo.png']))
+    expect(denied.status).toBe(403)
+    expect(mocks.thumbnail).toHaveBeenCalledOnce()
+  })
+  it('returns matching thumbnail HEAD metadata without a response body', async () => {
+    mocks.thumbnail.mockResolvedValue({ size: 9 })
+    const response = await HEAD(new NextRequest('http://localhost/uploads/article-image/photo.png?variant=markdown-thumbnail', { method: 'HEAD' }), context(['article-image', 'photo.png']))
+    expect(response.body).toBeNull()
+    expect(response.headers.get('Content-Type')).toBe('image/webp')
+    expect(response.headers.get('Content-Length')).toBe('9')
+    expect(mocks.thumbnail).toHaveBeenCalledWith(expect.any(Object), true)
+    expect(mocks.read).not.toHaveBeenCalled()
+  })
+  it('ignores the derivative variant on explicit downloads', async () => {
+    const response = await GET(new NextRequest('http://localhost/uploads/article-image/photo.png?variant=markdown-thumbnail&download=1'), context(['article-image', 'photo.png']))
+    expect(mocks.thumbnail).not.toHaveBeenCalled()
+    expect(response.headers.get('Content-Disposition')).toContain('attachment;')
+    expect(await response.text()).toBe('file')
+  })
+  it('falls back to the original when conversion or capacity fails', async () => {
+    mocks.thumbnail.mockRejectedValue(new Error('Invalid image'))
+    const response = await GET(new NextRequest('http://localhost/uploads/article-image/photo.png?variant=markdown-thumbnail'), context(['article-image', 'photo.png']))
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('file')
+    expect(response.headers.get('Content-Type')).toBe('application/pdf')
+    expect(mocks.read).toHaveBeenCalledOnce()
   })
 })

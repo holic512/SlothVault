@@ -702,6 +702,15 @@ h3.ant-typography {
   .document-editor-intro-actions {
     width: 100%;
     justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .document-editor-intro-actions > .ant-space {
+    flex-wrap: wrap;
+  }
+
+  .document-editor-intro-actions .ant-typography {
+    white-space: nowrap;
   }
 
   .document-editor-guide {
@@ -729,4 +738,98 @@ h3.ant-typography {
 
 .solana-wallet-picker-heading code {
   overflow-wrap: anywhere;
+}
+
+.markdown-insert-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-block: 16px;
+}
+
+.markdown-insert-controls label,
+.markdown-insert-grid > label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.markdown-insert-controls select {
+  min-height: 40px;
+  padding-inline: 10px;
+  border: 1px solid var(--sv-border);
+  border-radius: 6px;
+  background: var(--sv-bg-solid);
+  color: var(--sv-text);
+}
+
+.markdown-insert-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+}
+
+.markdown-insert-grid textarea {
+  width: 100%;
+  min-height: 380px;
+  padding: 12px;
+  resize: vertical;
+  border: 1px solid var(--sv-border);
+  border-radius: 6px;
+  background: var(--sv-code-bg);
+  color: var(--sv-code-text);
+  font-family: var(--sv-font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  tab-size: 2;
+}
+
+.markdown-insert-grid textarea:focus-visible,
+.markdown-insert-controls select:focus-visible {
+  outline: 2px solid var(--sv-primary);
+  outline-offset: 2px;
+}
+
+.markdown-insert-grid > section {
+  min-width: 0;
+  max-height: 520px;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid var(--sv-border);
+}
+
+.markdown-insert-help {
+  margin-block: 16px 0;
+  color: var(--sv-text-muted);
+}
+
+@media (max-width: 640px) {
+  .markdown-insert-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .markdown-insert-grid textarea {
+    min-height: 240px;
+  }
+}
+
+.sloth-preview-size {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--sv-border-strong);
+  border-radius: 6px;
+  background: var(--sv-bg-solid);
+  color: var(--sv-text);
+  cursor: pointer;
+}
+
+.sloth-preview-error {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  padding: 16px;
+  border-radius: 6px;
+  background: var(--sv-bg-solid);
+  color: var(--sv-text);
+  transform: translate(-50%, -50%);
 }

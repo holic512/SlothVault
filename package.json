@@ -1,6 +1,6 @@
 {
   "name": "slothvault",
-  "version": "2.8.0",
+  "version": "2.8.1",
   "private": true,
   "type": "module",
   "engines": {
@@ -14,8 +14,8 @@
     "lint": "eslint .",
     "lint:styles": "stylelint \"src/**/*.css\"",
     "typecheck": "tsc --noEmit",
-    "mcp:docs": "node scripts/generate-mcp-docs.mjs",
-    "mcp:docs:check": "node scripts/generate-mcp-docs.mjs --check",
+    "mcp:docs": "node scripts/generate-mcp-docs.mjs && node scripts/generate-markdown-docs.mjs",
+    "mcp:docs:check": "node scripts/generate-mcp-docs.mjs --check && node scripts/generate-markdown-docs.mjs --check",
     "test": "vitest run",
     "test:visual": "playwright test",
     "test:visual:update": "playwright test --update-snapshots",
@@ -84,7 +84,8 @@
     "rollup": "4.64.7",
     "typescript": "5.9.3",
     "@rollup/plugin-commonjs": "29.0.3",
-    "@rollup/plugin-node-resolve": "16.0.3"
+    "@rollup/plugin-node-resolve": "16.0.3",
+    "remark-directive": "4.0.0"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",
