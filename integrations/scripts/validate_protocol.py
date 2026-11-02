@@ -4,7 +4,7 @@
 @project SlothVault
 @module Integration protocol validation
 @description Checks the machine-readable cross-workspace contract against module metadata and examples.
-@logic Check the two independent modules, native MCP server identity, and unchanged deployment bridge examples.
+@logic Check the two independent modules, native MCP server identity, and standalone deployment entrypoints.
 @dependencies Python standard library, integrations/protocol/contract.json
 @index_tags integrations,protocol,contract,validation
 @author holic512
@@ -28,14 +28,15 @@ def main() -> None:
         module = json.loads((ROOT / name / "module.json").read_text(encoding="utf-8"))
         assert module["schema"] == 1 and module["module"] == name
         assert re.fullmatch(r"\d+\.\d+\.\d+", module["version"])
-        assert module["bridgeApiMajor"] == expected["protocolMajor"]
+        if name == "skill":
+            assert module["bridgeApiMajor"] == expected["protocolMajor"]
+        else:
+            assert "bridgeApiMajor" not in module
+            assert all((ROOT / name / entry).is_file() for entry in expected["commands"])
         assert module.get("minPython") == expected.get("minPython")
         assert (ROOT / name / expected["entry"]).is_file()
     server = (ROOT.parent / "src" / "server" / "mcp" / "server.ts").read_text(encoding="utf-8")
     assert f"ADMIN_MCP_SERVER_NAME = '{contract['serverName']}'" in server
-    events = [json.loads(line) for line in (PROTOCOL / "examples" / "bridge-events.jsonl").read_text(encoding="utf-8").splitlines()]
-    assert all(item["type"] in {"progress", "snapshot", "update", "preview", "prompt", "log", "error", "done"} for item in events)
-    assert events[-1]["type"] == "done" and isinstance(events[-1]["code"], int)
     print("SlothVault integration protocol: valid")
 
 

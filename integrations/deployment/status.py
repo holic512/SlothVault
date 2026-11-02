@@ -1,10 +1,11 @@
+#!/usr/bin/env python3
 """
-@file integrations/deployment/slothvault_deploy/instance.py
+@file integrations/deployment/status.py
 @project SlothVault
 @module Deployment instance inspection
-@description Builds a safe, structured snapshot of one managed deployment for CLI and TUI consumers.
-@logic Read only managed Compose metadata, inspect its Docker containers and actual Nginx sites, and report partial failures without exposing environment variables or credentials.
-@dependencies Python standard library, compose metadata, Docker CLI, Nginx discovery
+@description Builds a safe, structured snapshot of one managed deployment for the standalone status command.
+@logic Read only managed Compose metadata, inspect its Docker containers, and report partial failures without exposing environment variables or credentials.
+@dependencies Python standard library, compose metadata, Docker CLI
 @index_tags deployment,instance,status,docker,read-only
 @author holic512
 """
@@ -17,9 +18,9 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from .compose import COMPOSE_FILE_NAME, MANAGED_COMPOSE_MARKERS
-from .release import application_identity, parse_release_tag
-from .system import normalize_path, command_activity
+from slothvault_deploy.compose import COMPOSE_FILE_NAME, MANAGED_COMPOSE_MARKERS
+from slothvault_deploy.release import application_identity, parse_release_tag
+from slothvault_deploy.system import InstallerError, run_command
 
 
 def _match(source: str, pattern: str) -> str | None:
@@ -28,19 +29,17 @@ def _match(source: str, pattern: str) -> str | None:
 
 
 def _run(command: tuple[str, ...]) -> subprocess.CompletedProcess[str]:
-    with command_activity("inspect"):
-        return subprocess.run(command, text=True, capture_output=True, check=False, timeout=12)
+    return subprocess.run(command, text=True, capture_output=True, check=False, timeout=12)
 
 
 def inspect_instance(root_value: str) -> dict[str, Any]:
-    root = normalize_path(root_value, "部署根目录")
+    root = Path(root_value)
     compose_path = root / COMPOSE_FILE_NAME
     result: dict[str, Any] = {
         "root": str(root), "composePath": str(compose_path), "state": "absent",
         "provider": None, "image": None, "runtimeImage": None, "appVersionSource": None, "appVersion": None, "appCommit": None,
         "port": None, "loopback": None,
         "dataDir": None, "databaseDir": None, "containers": [],
-        "nginx": {"state": "unknown", "serverName": None, "https": False, "certificate": "unknown"},
         "errors": [],
     }
     try:
@@ -112,6 +111,32 @@ def inspect_instance(root_value: str) -> dict[str, Any]:
     except (OSError, ValueError, json.JSONDecodeError, subprocess.TimeoutExpired):
         result["errors"].append({"scope": "docker", "code": "INSPECT_UNAVAILABLE"})
 
-    from .nginx_management import nginx_snapshot
-    result["nginx"] = nginx_snapshot(root)
     return result
+
+
+def status(arguments):
+    snapshot = inspect_instance(arguments.root)
+    if snapshot["state"] != "managed":
+        raise InstallerError(f"部署状态：{snapshot['state']}；请检查 {snapshot['composePath']}")
+    print(f"部署目录：{snapshot['root']}")
+    print(f"数据库：{snapshot['provider'] or '-'}")
+    print(f"实际应用版本：{snapshot['appVersion'] or '未核实'} ({snapshot['appVersionSource'] or '-'})")
+    print(f"实际镜像：{snapshot['runtimeImage'] or '-'}")
+    print(f"应用数据：{snapshot['dataDir'] or '-'}")
+    if snapshot['databaseDir']:
+        print(f"数据库数据：{snapshot['databaseDir']}")
+    for container in snapshot['containers']:
+        print(f"{container['service']}: {container['state']} / {container['health'] or '未配置健康检查'}")
+    if snapshot['errors']:
+        raise InstallerError("；".join(item['code'] for item in snapshot['errors']))
+    run_command(("docker", "compose", "-f", snapshot['composePath'], "ps", "--all"))
+
+
+def main(argv=None) -> int:
+    from slothvault_deploy.cli import argument_parser, execute
+    return execute(argument_parser("查看 SlothVault 实例状态。"), status, argv)
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main())

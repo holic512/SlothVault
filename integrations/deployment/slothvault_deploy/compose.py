@@ -3,7 +3,7 @@
 @project SlothVault
 @module Deployment Compose management
 @description Renders, validates and safely operates one private SQLite, MySQL or PostgreSQL Docker Compose deployment, including safely pinning its managed application image to a requested Release.
-@logic Collect provider-specific values, render a self-contained Compose file without a YAML dependency, only mutate files carrying a SlothVault management marker, validate a targeted application-image rewrite through Docker Compose, and inspect the explicitly managed slothvault service without guessing Docker networks.
+@logic Collect database settings, render private Compose files, accept current and legacy management markers, and inspect or pin only the managed application image.
 @dependencies Python standard library, Docker Engine, Docker Compose v2
 @index_tags deployment,installer,docker,compose,sqlite,mysql,postgresql,persistence
 @author holic512
@@ -24,7 +24,6 @@ from typing import Optional, Sequence
 
 from .system import (
     InstallerError,
-    command_activity,
     create_private_directory,
     ensure_fresh_directory,
     path_is_within,
@@ -46,10 +45,6 @@ MANAGED_COMPOSE_MARKER = "# Managed by SlothVault deploy installer"
 LEGACY_MANAGED_COMPOSE_MARKER = "# Managed by SlothVault install.py"
 MANAGED_COMPOSE_MARKERS = (MANAGED_COMPOSE_MARKER, LEGACY_MANAGED_COMPOSE_MARKER)
 VALID_ENCRYPTION_KEY = re.compile(r"^[A-Za-z0-9_-]{43}$")
-PUBLISHED_PORT_PATTERN = re.compile(
-    r'^(?P<indent>\s*)-\s+"(?:(?P<host>127\.0\.0\.1):)?(?P<port>\d{1,5}):3000"\s*$',
-    re.MULTILINE,
-)
 MANAGED_APPLICATION_IMAGE_PATTERN = re.compile(
     r"(?ms)^  slothvault:\s*\n(?:(?!^  [A-Za-z0-9_-]+:).)*?^(?P<indent>    )image:\s*(?P<image>[^\r\n#]+?)\s*(?:#.*)?$"
 )
@@ -415,18 +410,17 @@ def compose_command(compose_path: Path, *arguments: str) -> tuple[str, ...]:
 
 
 def inspect_managed_application(compose_path: Path, *, timeout: float = 12) -> dict[str, object]:
-    """Return the running managed slothvault container inspect record for Docker Nginx checks."""
+    """Return the running managed slothvault container inspect record for version checks."""
 
     require_managed_compose(compose_path)
     try:
-        with command_activity("verify"):
-            result = subprocess.run(
-                compose_command(compose_path, "ps", "-q", "slothvault"),
-                text=True,
-                capture_output=True,
-                check=False,
-                timeout=timeout,
-            )
+        result = subprocess.run(
+            compose_command(compose_path, "ps", "-q", "slothvault"),
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=timeout,
+        )
     except subprocess.TimeoutExpired as error:
         raise InstallerError("读取实际应用容器超时，请检查 Docker 服务。") from error
     except FileNotFoundError as error:
@@ -441,29 +435,28 @@ def inspect_managed_application(compose_path: Path, *, timeout: float = 12) -> d
             )
         )
     try:
-        with command_activity("verify"):
-            inspected = subprocess.run(
-                ("docker", "inspect", "--type", "container", container_ids[0]),
-                text=True,
-                capture_output=True,
-                check=False,
-                timeout=timeout,
-            )
+        inspected = subprocess.run(
+            ("docker", "inspect", "--type", "container", container_ids[0]),
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=timeout,
+        )
     except subprocess.TimeoutExpired as error:
         raise InstallerError("检查实际应用容器超时，请检查 Docker 服务。") from error
     except FileNotFoundError as error:
         raise InstallerError("未找到 Docker 命令；无法检查 SlothVault 应用容器。") from error
     if inspected.returncode != 0:
-        raise InstallerError("无法检查 SlothVault 应用容器网络，请检查 Docker 服务。")
+        raise InstallerError("无法检查 SlothVault 应用容器状态，请检查 Docker 服务。")
     try:
         payload = json.loads(inspected.stdout)
     except json.JSONDecodeError as error:
-        raise InstallerError("无法解析 SlothVault 应用容器检查结果；拒绝生成 Docker Nginx 上游。") from error
+        raise InstallerError("无法解析 SlothVault 应用容器检查结果。") from error
     if not isinstance(payload, list) or len(payload) != 1 or not isinstance(payload[0], dict):
-        raise InstallerError("SlothVault 应用容器检查结果格式无效；拒绝生成 Docker Nginx 上游。")
+        raise InstallerError("SlothVault 应用容器检查结果格式无效。")
     state = payload[0].get("State")
     if not isinstance(state, dict) or state.get("Running") is not True:
-        raise InstallerError("SlothVault 应用容器未运行；请先启动部署后再配置 Docker Nginx。")
+        raise InstallerError("SlothVault 应用容器未运行；请先启动部署。")
     return payload[0]
 
 
@@ -496,53 +489,7 @@ def pin_managed_application_image(compose_path: Path, image: str) -> None:
     updated_source = "{0}{1}{2}".format(source[: match.start("indent")], replacement, source[match.end() :])
     write_text_atomically(compose_path, updated_source, original_mode)
     try:
-        run_command(compose_command(compose_path, "config"))
+        run_command(compose_command(compose_path, "config", "--quiet"))
     except InstallerError:
         write_text_atomically(compose_path, source, original_mode)
         raise
-
-
-def read_published_application_port(compose_path: Path) -> tuple[str, int, bool]:
-    try:
-        source = compose_path.read_text(encoding="utf-8")
-    except OSError as error:
-        raise InstallerError("无法读取 Compose 文件：{0}".format(compose_path)) from error
-    match = PUBLISHED_PORT_PATTERN.search(source)
-    if match is None:
-        raise InstallerError("无法从 Compose 文件识别 SlothVault 的端口映射；请使用当前安装脚本重新部署。")
-    return source, validate_port(match.group("port")), bool(match.group("host"))
-
-
-def bind_existing_application_to_loopback(compose_path: Path, source: str) -> bool:
-    match = PUBLISHED_PORT_PATTERN.search(source)
-    if match is None:
-        raise InstallerError("无法更新 Compose 文件中的 SlothVault 端口映射")
-    if match.group("host"):
-        return False
-    port = validate_port(match.group("port"))
-    replacement = '{0}- "127.0.0.1:{1}:3000"'.format(match.group("indent"), port)
-    updated_source = "{0}{1}{2}".format(source[: match.start()], replacement, source[match.end() :])
-    original_mode = compose_path.stat().st_mode & 0o777
-    write_text_atomically(compose_path, updated_source, original_mode)
-    try:
-        run_command(compose_command(compose_path, "config"))
-    except InstallerError:
-        write_text_atomically(compose_path, source, original_mode)
-        raise
-    return True
-
-
-def restore_compose(compose_path: Path, source: str) -> None:
-    write_text_atomically(compose_path, source, compose_path.stat().st_mode & 0o777)
-
-
-def operate_existing(action: str, root: Path) -> None:
-    compose_path = root / COMPOSE_FILE_NAME
-    require_managed_compose(compose_path)
-    commands = {
-        "start": (("up", "-d"), ("ps",)),
-        "stop": (("stop",),),
-        "status": (("ps",),),
-    }
-    for command in commands[action]:
-        run_command(compose_command(compose_path, *command))

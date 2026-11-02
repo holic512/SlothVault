@@ -1,25 +1,21 @@
-"""Standard-library regression tests for the SlothTool-bundled deployment package."""
-
+"""Standard-library regression tests for standalone deployment operations."""
 from __future__ import annotations
-
 import sys
 import tempfile
 import unittest
 import json
-import os
 import subprocess
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
-
 DEPLOY_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(DEPLOY_ROOT))
-
-from slothvault_deploy import certbot, cli, compose, instance, nginx, release  # noqa: E402
-from slothvault_deploy.system import InstallerError  # noqa: E402
-
+from slothvault_deploy import compose, release
+from slothvault_deploy.system import InstallerError
+import update
+import status as instance
 
 class InstanceSnapshotTests(unittest.TestCase):
     def test_absent_and_unmanaged_directories_do_not_invoke_docker(self) -> None:
@@ -239,12 +235,12 @@ class ReleaseUpdateTests(unittest.TestCase):
                     self.assertEqual((root / "compose.yml").read_text(), original)
                     staged = Path(command[command.index("-f") + 1])
                     self.assertIn('image: "holic512/slothvault:v2.0.0-build.77"', staged.read_text())
-            with patch.object(release, "check_deployment_update", return_value=initial) as check, patch.object(
-                release, "prompt_yes_no", return_value=True
-            ) as confirm, patch.object(compose, "run_command"), patch.object(release, "run_command", side_effect=execute), patch.object(
-                release, "verify_application", return_value={"currentVersion": target_release.tag, "verified": True}
+            with patch.object(update, "check_deployment_update", return_value=initial) as check, patch.object(
+                update, "prompt_yes_no", return_value=True
+            ) as confirm, patch.object(compose, "run_command"), patch.object(update, "run_command", side_effect=execute), patch.object(
+                update, "verify_application", return_value={"currentVersion": target_release.tag, "verified": True, "health": "healthy"}
             ) as verify:
-                result = release.update_managed_application(root)
+                result = update.update_managed_application(root)
             check.assert_called_once_with(root)
             confirm.assert_called_once()
             verify.assert_called_once_with(root / "compose.yml", target_release.tag, "holic512/slothvault:v2.0.0-build.77")
@@ -271,10 +267,10 @@ class ReleaseUpdateTests(unittest.TestCase):
                 error=None,
                 application_update_available=False,
             )
-            with patch.object(release, "check_deployment_update", return_value=current), patch.object(
-                release, "run_command"
+            with patch.object(update, "check_deployment_update", return_value=current), patch.object(
+                update, "run_command"
             ) as run_command:
-                release.update_managed_application(root)
+                update.update_managed_application(root)
 
             run_command.assert_not_called()
         finally:
@@ -294,11 +290,11 @@ class ReleaseUpdateTests(unittest.TestCase):
                 error=None,
                 application_update_available=False,
             )
-            with patch.object(release, "check_deployment_update", return_value=unknown), patch.object(
-                release, "run_command"
+            with patch.object(update, "check_deployment_update", return_value=unknown), patch.object(
+                update, "run_command"
             ) as run_command:
                 with self.assertRaises(InstallerError):
-                    release.update_managed_application(root)
+                    update.update_managed_application(root)
 
             run_command.assert_not_called()
             self.assertIn('image: "holic512/slothvault:latest"', (root / "compose.yml").read_text(encoding="utf-8"))
@@ -306,405 +302,11 @@ class ReleaseUpdateTests(unittest.TestCase):
             package.cleanup()
 
 
-class NginxRenderingTests(unittest.TestCase):
-    def setUp(self) -> None:
-        self.proxy = nginx.NginxProxyConfig(
-            executable="nginx",
-            config_path=Path("/etc/nginx/conf.d/slothvault.conf"),
-            enabled_path=None,
-            server_names=("vault.example.com", "www.vault.example.com"),
-            upstream_port=3000,
-        )
-
-    def test_https_config_keeps_acme_path_and_proxy_headers(self) -> None:
-        source = nginx.render_https_proxy_config(
-            self.proxy, Path("/data/slothvault/acme-challenge")
-        )
-
-        self.assertIn("listen 80;", source)
-        self.assertIn("listen 443 ssl;", source)
-        self.assertIn("location ^~ /.well-known/acme-challenge/", source)
-        self.assertIn("return 301 https://$host$request_uri;", source)
-        self.assertIn("/etc/letsencrypt/live/vault.example.com/fullchain.pem", source)
-        self.assertIn("proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;", source)
-        self.assertIn("proxy_pass http://127.0.0.1:3000;", source)
-
-    def test_unmanaged_nginx_file_is_never_accepted_for_overwrite(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "slothvault.conf"
-            path.write_text("server {}\n", encoding="utf-8")
-            proxy = nginx.NginxProxyConfig(
-                executable="nginx",
-                config_path=path,
-                enabled_path=None,
-                server_names=("vault.example.com",),
-                upstream_port=3000,
-            )
-            with self.assertRaises(InstallerError):
-                nginx.snapshot_nginx_site(proxy)
-
-
-class SystemNginxManagerTests(unittest.TestCase):
-    def test_system_site_path_contract_supports_standard_paths_and_rejects_missing_directories(self) -> None:
-        def standard_directories(path):
-            return str(path) in {"/etc/nginx/sites-available", "/etc/nginx/sites-enabled"}
-
-        with patch.object(nginx.Path, "is_dir", new=standard_directories):
-            config_path, enabled_path = nginx.nginx_site_paths()
-        self.assertEqual(config_path, Path("/etc/nginx/sites-available/slothvault.conf"))
-        self.assertEqual(enabled_path, Path("/etc/nginx/sites-enabled/slothvault.conf"))
-
-        with patch.object(nginx.Path, "is_dir", return_value=False):
-            with self.assertRaisesRegex(InstallerError, "未找到受支持"):
-                nginx.nginx_site_paths()
-
-    def test_standard_sites_available_manager_enables_only_its_site(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            available = root / "sites-available"
-            enabled = root / "sites-enabled"
-            available.mkdir()
-            enabled.mkdir()
-            manager = nginx.SystemNginxManager("/usr/sbin/nginx", available / "slothvault.conf", enabled / "slothvault.conf")
-            proxy = manager.proxy_config(3000, ("vault.example.com",))
-            with patch.object(manager, "validate_site"), patch.object(manager, "reload"):
-                nginx.apply_nginx_site(proxy, nginx.render_http_proxy_config(proxy))
-
-            self.assertTrue(proxy.config_path.is_file())
-            self.assertTrue(proxy.enabled_path.is_symlink())
-            self.assertEqual(proxy.enabled_path.resolve(), proxy.config_path.resolve())
-
-    def test_standard_conf_d_manager_does_not_create_enable_link(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            config_path = Path(directory) / "conf.d" / "slothvault.conf"
-            config_path.parent.mkdir()
-            manager = nginx.SystemNginxManager("/usr/sbin/nginx", config_path, None)
-            proxy = manager.proxy_config(3000, ("vault.example.com",))
-            with patch.object(manager, "validate_site"), patch.object(manager, "reload"):
-                nginx.apply_nginx_site(proxy, nginx.render_http_proxy_config(proxy))
-
-            self.assertTrue(config_path.is_file())
-            self.assertIsNone(proxy.enabled_path)
-
-    def test_baota_or_panel_nginx_is_rejected_before_writing_standard_paths(self) -> None:
-        with self.assertRaisesRegex(InstallerError, "不支持宝塔"):
-            nginx.ensure_supported_system_nginx("/www/server/nginx/sbin/nginx")
-
-
-class DockerNginxManagerTests(unittest.TestCase):
-    def docker_inspect(self, mounts=None, image="nginx:alpine", running=True, networks=None):
-        return {
-            "State": {"Running": running},
-            "Config": {"Image": image},
-            "Mounts": mounts or [],
-            "NetworkSettings": {"Networks": networks or {"slothvault_default": {}}},
-        }
-
-    def discover(self, inspect):
-        return patch.object(nginx.shutil, "which", return_value="/usr/bin/docker"), patch.object(
-            nginx, "_docker_container_inspect", return_value=inspect
-        ), patch.object(nginx.DockerNginxManager, "validate_syntax")
-
-    def test_missing_docker_container_is_reported(self) -> None:
-        with patch.object(nginx.shutil, "which", return_value="/usr/bin/docker"), patch.object(
-            nginx, "_docker_container_inspect", side_effect=InstallerError("Docker Nginx 容器不存在")
-        ):
-            with self.assertRaisesRegex(InstallerError, "不存在"):
-                nginx.DockerNginxManager.discover("nginx")
-
-    def test_stopped_container_is_rejected_without_using_image_name_as_admission(self) -> None:
-        stopped = self.docker_inspect(running=False)
-        with patch.object(nginx.shutil, "which", return_value="/usr/bin/docker"), patch.object(
-            nginx, "_docker_container_inspect", return_value=stopped
-        ):
-            with self.assertRaisesRegex(InstallerError, "未运行"):
-                nginx.DockerNginxManager.discover("nginx")
-
-    def test_docker_mode_requires_a_confirmed_configuration_bind_mount(self) -> None:
-        inspect = self.docker_inspect(mounts=[{"Type": "volume", "Source": "nginx", "Destination": "/etc/nginx/conf.d"}])
-        with patch.object(nginx.shutil, "which", return_value="/usr/bin/docker"), patch.object(
-            nginx, "_docker_container_inspect", return_value=inspect
-        ):
-            with self.assertRaisesRegex(InstallerError, "bind mount"):
-                nginx.DockerNginxManager.discover("nginx")
-
-    def test_docker_config_path_is_derived_from_conf_d_or_nginx_root_bind_mount(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            direct = root / "direct"
-            direct.mkdir()
-            direct_inspect = self.docker_inspect(
-                mounts=[{"Type": "bind", "Source": str(direct), "Destination": "/etc/nginx/conf.d"}]
-            )
-            with patch.object(nginx.shutil, "which", return_value="/usr/bin/docker"), patch.object(
-                nginx, "_docker_container_inspect", return_value=direct_inspect
-            ), patch.object(nginx.DockerNginxManager, "validate_syntax"):
-                direct_manager = nginx.DockerNginxManager.discover("nginx")
-            self.assertEqual(direct_manager.config_path, direct.resolve() / "slothvault.conf")
-
-            full = root / "full"
-            (full / "conf.d").mkdir(parents=True)
-            full_inspect = self.docker_inspect(
-                mounts=[{"Type": "bind", "Source": str(full), "Destination": "/etc/nginx"}]
-            )
-            with patch.object(nginx.shutil, "which", return_value="/usr/bin/docker"), patch.object(
-                nginx, "_docker_container_inspect", return_value=full_inspect
-            ), patch.object(nginx.DockerNginxManager, "validate_syntax"):
-                full_manager = nginx.DockerNginxManager.discover("nginx")
-            self.assertEqual(full_manager.config_path, full.resolve() / "conf.d" / "slothvault.conf")
-
-    def test_docker_config_target_refuses_symlink_escape(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            config_directory = root / "conf"
-            outside = root / "outside.conf"
-            config_directory.mkdir()
-            (config_directory / "slothvault.conf").symlink_to(outside)
-            inspect = self.docker_inspect(
-                mounts=[{"Type": "bind", "Source": str(config_directory), "Destination": "/etc/nginx/conf.d"}]
-            )
-            with patch.object(nginx.shutil, "which", return_value="/usr/bin/docker"), patch.object(
-                nginx, "_docker_container_inspect", return_value=inspect
-            ):
-                with self.assertRaisesRegex(InstallerError, "普通文件"):
-                    nginx.DockerNginxManager.discover("nginx")
-
-    def test_docker_config_target_must_be_writable_before_any_file_is_created(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            config_directory = Path(directory) / "conf"
-            config_directory.mkdir()
-            config_directory.chmod(0o555)
-            inspect = self.docker_inspect(
-                mounts=[{"Type": "bind", "Source": str(config_directory), "Destination": "/etc/nginx/conf.d"}]
-            )
-            try:
-                with patch.object(nginx.shutil, "which", return_value="/usr/bin/docker"), patch.object(
-                    nginx, "_docker_container_inspect", return_value=inspect
-                ):
-                    with self.assertRaisesRegex(InstallerError, "不可写"):
-                        nginx.DockerNginxManager.discover("nginx")
-            finally:
-                config_directory.chmod(0o755)
-
-    def docker_manager(self, config_path: Path) -> nginx.DockerNginxManager:
-        return nginx.DockerNginxManager(
-            "/usr/bin/docker",
-            "nginx",
-            self.docker_inspect(),
-            config_path,
-            nginx.DockerMount(config_path.parent, Path("/etc/nginx/conf.d")),
-        )
-
-    def test_docker_apply_uses_only_container_nginx_commands_and_slothvault_upstream(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            config_path = Path(directory) / "slothvault.conf"
-            manager = self.docker_manager(config_path)
-            proxy = manager.proxy_config(("vault.example.com",))
-            calls = []
-
-            def command_output(command, context="Nginx 配置检查"):
-                calls.append(tuple(command))
-                if command[-1] == "-T":
-                    return "http {0}".format(nginx.MANAGED_NGINX_MARKER)
-                return "ok"
-
-            with patch.object(nginx, "nginx_command_output", side_effect=command_output), patch.object(
-                nginx.shutil, "which", return_value="/usr/bin/systemctl"
-            ) as systemctl:
-                nginx.apply_nginx_site(proxy, nginx.render_http_proxy_config(proxy))
-
-            source = config_path.read_text(encoding="utf-8")
-            self.assertIn("proxy_pass http://slothvault:3000;", source)
-            self.assertNotIn("127.0.0.1", source)
-            self.assertEqual(
-                calls,
-                [
-                    ("/usr/bin/docker", "exec", "nginx", "nginx", "-t"),
-                    ("/usr/bin/docker", "exec", "nginx", "nginx", "-T"),
-                    ("/usr/bin/docker", "exec", "nginx", "nginx", "-s", "reload"),
-                ],
-            )
-            systemctl.assert_not_called()
-
-    def test_docker_validation_and_reload_failure_restore_prior_configuration(self) -> None:
-        for failure in ("-T", "reload"):
-            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as directory:
-                config_path = Path(directory) / "slothvault.conf"
-                original = "{0}\n# previous\n".format(nginx.MANAGED_NGINX_MARKER)
-                config_path.write_text(original, encoding="utf-8")
-                manager = self.docker_manager(config_path)
-                proxy = manager.proxy_config(("vault.example.com",))
-                calls = []
-
-                def command_output(command, context="Nginx 配置检查"):
-                    calls.append(tuple(command))
-                    if failure == "-T" and command[-1] == "-T":
-                        raise InstallerError("Docker Nginx 最终配置检查失败")
-                    if failure == "reload" and command[-2:] == ("-s", "reload") and calls.count(tuple(command)) == 1:
-                        raise InstallerError("Docker Nginx 重载失败")
-                    if command[-1] == "-T":
-                        return nginx.MANAGED_NGINX_MARKER
-                    return "ok"
-
-                with patch.object(nginx, "nginx_command_output", side_effect=command_output):
-                    with self.assertRaises(InstallerError):
-                        nginx.apply_nginx_site(proxy, nginx.render_http_proxy_config(proxy))
-
-                self.assertEqual(config_path.read_text(encoding="utf-8"), original)
-                self.assertGreaterEqual(calls.count(("/usr/bin/docker", "exec", "nginx", "nginx", "-t")), 2)
-                self.assertGreaterEqual(calls.count(("/usr/bin/docker", "exec", "nginx", "nginx", "-s", "reload")), 1)
-
-    def test_docker_upstream_requires_shared_network_and_slothvault_alias(self) -> None:
-        manager = nginx.DockerNginxManager(
-            "/usr/bin/docker",
-            "nginx",
-            self.docker_inspect(networks={"slothvault_default": {}}),
-            Path("/tmp/slothvault.conf"),
-            nginx.DockerMount(Path("/tmp"), Path("/etc/nginx/conf.d")),
-        )
-        manager.ensure_shared_slothvault_network(
-            {"NetworkSettings": {"Networks": {"slothvault_default": {"Aliases": ["slothvault"]}}}}
-        )
-        with self.assertRaisesRegex(InstallerError, "没有共享"):
-            manager.ensure_shared_slothvault_network(
-                {"NetworkSettings": {"Networks": {"other_default": {"Aliases": ["slothvault"]}}}}
-            )
-        with self.assertRaisesRegex(InstallerError, "slothvault 别名"):
-            manager.ensure_shared_slothvault_network(
-                {"NetworkSettings": {"Networks": {"slothvault_default": {"Aliases": ["different"]}}}}
-            )
-
-    def test_docker_https_requires_acme_and_certificate_bind_mounts(self) -> None:
-        manager = self.docker_manager(Path("/tmp/slothvault.conf"))
-        with tempfile.TemporaryDirectory() as directory:
-            acme = Path(directory) / "acme-challenge"
-            acme.mkdir()
-            with self.assertRaisesRegex(InstallerError, "ACME Webroot"):
-                manager.https_container_paths(acme)
-
-    def test_docker_https_renders_container_acme_and_certificate_paths(self) -> None:
-        manager = self.docker_manager(Path("/tmp/slothvault.conf"))
-        proxy = manager.proxy_config(
-            ("vault.example.com",), certificate_root=Path("/container/letsencrypt")
-        )
-        source = nginx.render_https_proxy_config(proxy, Path("/container/acme"))
-        self.assertIn("root /container/acme;", source)
-        self.assertIn("/container/letsencrypt/live/vault.example.com/fullchain.pem", source)
-        self.assertNotIn("/etc/letsencrypt/live/vault.example.com/fullchain.pem", source)
-
-
-class CliNginxModeTests(unittest.TestCase):
-    def test_nginx_container_selects_docker_without_auto_scanning(self) -> None:
-        arguments = cli.parse_arguments(("--action", "nginx", "--nginx-container", "edge-nginx"))
-        self.assertEqual(cli.resolved_nginx_mode(arguments), "docker")
-
-    def test_system_mode_and_container_are_rejected_as_ambiguous(self) -> None:
-        arguments = cli.parse_arguments(
-            ("--action", "nginx", "--nginx-mode", "system", "--nginx-container", "edge-nginx")
-        )
-        with self.assertRaisesRegex(InstallerError, "不能与"):
-            cli.resolved_nginx_mode(arguments)
-
-
-class DockerCertbotHookTests(unittest.TestCase):
-    def test_docker_renewal_hook_reloads_only_the_selected_container(self) -> None:
-        manager = nginx.DockerNginxManager(
-            "/usr/bin/docker",
-            "edge-nginx",
-            {"Mounts": []},
-            Path("/tmp/slothvault.conf"),
-            nginx.DockerMount(Path("/tmp"), Path("/etc/nginx/conf.d")),
-        )
-        source = certbot.renewal_hook_source(manager)
-        self.assertIn("/usr/bin/docker exec edge-nginx nginx -s reload", source)
-        self.assertNotIn("systemctl", source)
-
-
-class CertbotTests(unittest.TestCase):
-    def test_certificate_domains_reject_wildcards_and_ip_addresses(self) -> None:
-        self.assertEqual(
-            certbot.validate_certificate_domains(("vault.example.com", "www.vault.example.com")),
-            ("vault.example.com", "www.vault.example.com"),
-        )
-        with self.assertRaises(InstallerError):
-            certbot.validate_certificate_domains(("*.example.com",))
-        with self.assertRaises(InstallerError):
-            certbot.validate_certificate_domains(("192.0.2.1",))
-
-    def test_debian_certbot_install_uses_apt_without_other_installers(self) -> None:
-        with patch.object(certbot, "certbot_executable", side_effect=[None, "/usr/bin/certbot"]), patch.object(
-            certbot, "read_os_release", return_value={"ID": "ubuntu", "ID_LIKE": "debian"}
-        ), patch.object(certbot, "require_root"), patch.object(
-            certbot.shutil, "which", return_value="/usr/bin/apt-get"
-        ), patch.object(certbot, "run_command") as run_command:
-            executable = certbot.ensure_certbot()
-
-        self.assertEqual(executable, "/usr/bin/certbot")
-        self.assertEqual(
-            [call[0][0] for call in run_command.call_args_list],
-            [("/usr/bin/apt-get", "update"), ("/usr/bin/apt-get", "install", "-y", "certbot")],
-        )
-
-    def test_unsupported_distribution_refuses_automatic_certbot_install(self) -> None:
-        with patch.object(certbot, "certbot_executable", return_value=None), patch.object(
-            certbot, "read_os_release", return_value={"ID": "arch"}
-        ), patch.object(certbot, "require_root"):
-            with self.assertRaisesRegex(InstallerError, "仅自动安装"):
-                certbot.ensure_certbot()
-
-    def test_fedora_certbot_install_uses_dnf(self) -> None:
-        with patch.object(certbot, "certbot_executable", side_effect=[None, "/usr/bin/certbot"]), patch.object(
-            certbot, "read_os_release", return_value={"ID": "fedora", "ID_LIKE": "fedora"}
-        ), patch.object(certbot, "require_root"), patch.object(
-            certbot.shutil, "which", return_value="/usr/bin/dnf"
-        ), patch.object(certbot, "run_command") as run_command:
-            executable = certbot.ensure_certbot()
-
-        self.assertEqual(executable, "/usr/bin/certbot")
-        self.assertEqual([call[0][0] for call in run_command.call_args_list], [("/usr/bin/dnf", "install", "-y", "certbot")])
-
-    def test_active_certbot_timer_is_reused(self) -> None:
-        systemd_runtime = unittest.mock.Mock()
-        systemd_runtime.exists.return_value = True
-        with patch.object(certbot.shutil, "which", return_value="/usr/bin/systemctl"), patch.object(
-            certbot, "Path", return_value=systemd_runtime
-        ), patch.object(certbot, "command_succeeds", side_effect=[True, True]):
-            self.assertEqual(certbot.existing_certbot_timer(), "certbot.timer")
-
-    def test_cron_fallback_is_generated_when_systemd_is_unavailable(self) -> None:
-        with patch.object(certbot, "require_root"), patch.object(
-            certbot, "existing_certbot_timer", return_value=None
-        ), patch.object(certbot.shutil, "which", return_value=None), patch.object(
-            certbot, "write_managed_host_file"
-        ) as write_file:
-            result = certbot.configure_automatic_renewal("/usr/bin/certbot")
-
-        self.assertIn("/etc/cron.d/slothvault-certbot-renew", result)
-        self.assertEqual(
-            [call[0][0] for call in write_file.call_args_list],
-            [certbot.CRON_WRAPPER_PATH, certbot.CRON_RENEWAL_PATH],
-        )
-
-    def test_dry_run_renewal_runs_deploy_hooks(self) -> None:
-        with patch.object(certbot, "run_command") as run_command:
-            certbot.renew_certificate("/usr/bin/certbot", dry_run=True)
-
-        self.assertEqual(
-            run_command.call_args[0][0],
-            ("/usr/bin/certbot", "renew", "--quiet", "--dry-run", "--run-deploy-hooks"),
-        )
-
-    def test_renewal_sources_include_systemd_timer_and_cron_random_delay(self) -> None:
-        self.assertIn("RandomizedDelaySec=3600", certbot.managed_systemd_timer_source())
-        self.assertIn("renew --quiet", certbot.managed_systemd_service_source("/usr/bin/certbot"))
-        self.assertIn("/dev/urandom", certbot.managed_cron_wrapper_source("/usr/bin/certbot"))
-        self.assertIn("slothvault-certbot-renew", certbot.managed_cron_source())
-
-
-class ObservableUpdateTests(unittest.TestCase):
+class ApplicationVerificationTests(unittest.TestCase):
     def application(self, tag="v2.5.20", image="holic512/slothvault:v2.5.20", health=None, running=True):
         return {"Config": {"Image": image, "Env": ["SLOTHVAULT_RELEASE_TAG=" + tag]},
                 "State": {"Running": running, "Health": {"Status": health}}}
+
 
     def test_verification_requires_running_identity_image_and_health(self):
         with patch.object(release, "inspect_managed_application", return_value=self.application()):
@@ -720,63 +322,11 @@ class ObservableUpdateTests(unittest.TestCase):
         with patch.object(release, "inspect_managed_application", side_effect=InstallerError("unavailable")), self.assertRaises(InstallerError):
             release.verify_application(Path("/tmp/compose.yml"), "v2.5.20", "holic512/slothvault:v2.5.20", timeout=0)
 
-    def test_health_deadline_is_bounded_and_heartbeat_is_not_business_progress(self):
-        from slothvault_deploy import system
-        events = []
-        system.set_event_callback(lambda kind, data: events.append((kind, data)))
-        try:
-            with patch.object(release, "inspect_managed_application", return_value=self.application(health="starting")), patch.object(release.time, "monotonic", side_effect=[0, 0, 0, 120, 120]), patch.object(release.time, "sleep") as sleep, self.assertRaises(InstallerError):
-                release.verify_application(Path("/tmp/compose.yml"), "v2.5.20", "holic512/slothvault:v2.5.20")
-            sleep.assert_called_once_with(2)
-            self.assertTrue(events[0][1]["heartbeat"])
-        finally:
-            system.set_event_callback(None)
 
-    def test_command_parser_only_emits_safe_measured_fields(self):
-        from slothvault_deploy.progress import parse_progress
-        data = parse_progress(json.dumps({"id": "abc123", "text": "Downloading", "current": 10, "total": 20, "details": "password=hidden", "percent": 99}))
-        self.assertEqual((data["current"], data["total"], data["subject"]), (10, 20, "abc123"))
-        self.assertNotIn("percent", data)
-        self.assertNotIn("hidden", json.dumps(data))
-        self.assertEqual(parse_progress("abc123 Extracting 1MB/2MB")["total"], 2000000)
-        self.assertNotIn("total", parse_progress('{"text":"Downloading","current":10}'))
-        self.assertNotIn("total", parse_progress('{"text":"Downloading","id":"password-secret","current":10,"total":20}'))
-        self.assertNotIn("current", parse_progress('{"text":"Downloading","current":NaN,"total":Infinity}'))
-        self.assertIsNone(parse_progress("password=hidden"))
-        self.assertEqual(parse_progress("abc123 Already exists")["status"], "completed")
-
-    def test_pipe_draining_streams_progress_and_never_forwards_raw_errors(self):
-        from slothvault_deploy.progress import run_observed_command
-        events = []
-        source = "import sys; print('abc123 Downloading 1MB/2MB', flush=True); sys.stderr.write('password=hidden\\n' * 500); sys.stderr.write('no space left on device password=hidden\\n'); sys.exit(7)"
-        with self.assertRaises(subprocess.CalledProcessError) as caught:
-            run_observed_command([sys.executable, "-c", source], events.append)
-        self.assertEqual(caught.exception.returncode, 7)
-        self.assertIn("磁盘空间不足", caught.exception.stderr)
-        self.assertNotIn("hidden", json.dumps(events))
-        self.assertEqual(events[0]["current"], 1000000)
-
-    def test_quiet_process_reports_heartbeats(self):
-        from slothvault_deploy.progress import run_observed_command
-        from slothvault_deploy import system
-        events, captured = [], []
-        system.set_event_callback(lambda kind, data: captured.append(data))
-        try:
-            with system.command_activity("inspect"):
-                run_observed_command([sys.executable, "-c", "import time; time.sleep(5.2)"], events.append)
-        finally:
-            system.set_event_callback(None)
-        self.assertTrue(any(item.get("heartbeat") for item in captured))
-        self.assertTrue(any(item.get("heartbeat") for item in events))
-        self.assertTrue(all("current" not in item for item in events))
-
-    def test_compose_capability_json_plain_and_old_fallback(self):
-        from slothvault_deploy import progress
-        for output, expected in [("--progress auto tty plain json quiet", "json"), ("--progress auto plain", "plain"), ("old help", None)]:
-            progress.compose_progress_mode.cache_clear()
-            with patch.object(progress.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, output, "")):
-                self.assertEqual(progress.compose_progress_mode("docker"), expected)
-        progress.compose_progress_mode.cache_clear()
+    def test_health_verification_keeps_its_bounded_deadline(self):
+        with patch.object(release, "inspect_managed_application", return_value=self.application(health="starting")), patch.object(release.time, "monotonic", side_effect=[0, 0, 0, 120, 120]), patch.object(release.time, "sleep") as sleep, self.assertRaises(InstallerError):
+            release.verify_application(Path("/tmp/compose.yml"), "v2.5.20", "holic512/slothvault:v2.5.20")
+        sleep.assert_called_once_with(2)
 
     def test_staged_pull_failure_preserves_config_and_post_recreation_does_not_rollback(self):
         helper = ReleaseUpdateTests()
@@ -790,73 +340,33 @@ class ObservableUpdateTests(unittest.TestCase):
                 def execute(command, **kwargs):
                     if fail_at in command:
                         raise InstallerError("controlled failure")
-                with patch.object(release, "check_deployment_update", return_value=check), patch.object(release, "prompt_yes_no", return_value=True), patch.object(compose, "run_command"), patch.object(release, "run_command", side_effect=execute), self.assertRaises(InstallerError):
-                    release.update_managed_application(root)
+                with patch.object(update, "check_deployment_update", return_value=check), patch.object(update, "prompt_yes_no", return_value=True), patch.object(compose, "run_command"), patch.object(update, "run_command", side_effect=execute), self.assertRaises(InstallerError):
+                    update.update_managed_application(root)
                 if fail_at == "pull":
                     self.assertEqual((root / "compose.yml").read_text(), original)
                 else:
                     self.assertIn("holic512/slothvault:v2.5.20", (root / "compose.yml").read_text())
                 self.assertEqual(list(root.glob(".slothvault-update-*")), [])
-            with patch.object(release, "check_deployment_update", return_value=check), patch.object(release, "prompt_yes_no", return_value=False) as confirm, patch.object(release, "run_command") as execute:
-                self.assertEqual(release.update_managed_application(root)["outcome"], "cancelled")
+            with patch.object(update, "check_deployment_update", return_value=check), patch.object(update, "prompt_yes_no", return_value=False) as confirm, patch.object(update, "run_command") as execute:
+                self.assertEqual(update.update_managed_application(root)["outcome"], "cancelled")
                 confirm.assert_called_once()
                 execute.assert_not_called()
         finally:
             package.cleanup()
 
-    def test_bridge_failure_and_cancel_always_end_with_snapshot_and_done(self):
-        from slothvault_deploy import bridge
-        for failure, code, outcome in [(InstallerError("token=hidden"), 1, "failed"), (KeyboardInterrupt(), 130, "cancelled"), (RuntimeError("password=hidden"), 1, "failed")]:
-            output = StringIO()
-            with patch.object(sys, "__stdout__", output), patch.object(bridge, "check_docker"), patch.object(bridge, "update_managed_application", side_effect=failure), patch.object(bridge, "inspect_instance", return_value={"appVersion": "v2.3.1"}):
-                self.assertEqual(bridge.main(["--bridge", "--action", "update", "--root", "/tmp/vault"]), code)
-            events = [json.loads(line) for line in output.getvalue().splitlines()]
-            self.assertEqual(events[-2]["type"], "snapshot")
-            self.assertEqual((events[-1]["type"], events[-1]["code"], events[-1]["outcome"]), ("done", code, outcome))
-            self.assertNotIn("hidden", output.getvalue())
-
-    def test_bridge_snapshot_failure_does_not_claim_verified_runtime(self):
-        from slothvault_deploy import bridge
-        output = StringIO()
-        with patch.object(sys, "__stdout__", output), patch.object(bridge, "check_docker"), patch.object(bridge, "update_managed_application", return_value={"outcome": "updated", "verified": True}), patch.object(bridge, "inspect_instance", side_effect=OSError()):
-            self.assertEqual(bridge.main(["--bridge", "--action", "update", "--root", "/tmp/vault"]), 0)
-        events = [json.loads(line) for line in output.getvalue().splitlines()]
-        self.assertEqual(events[-2]["data"]["state"], "unreadable")
-
-    def test_bridge_argument_and_information_exits_match_the_real_process(self):
-        entry = Path(__file__).resolve().parents[1] / "install.py"
-        cases = [
-            (["--action", "future-action"], 2),
-            (["--action", "nginx-status", "--future-option", "value"], 2),
-            (["--action", "nginx-status", "--nginx-site"], 2),
-            (["--root"], 2),
-            (["--help"], 0),
-            (["--version"], 0),
-        ]
-        for arguments, expected in cases:
-            with self.subTest(arguments=arguments):
-                result = subprocess.run([sys.executable, str(entry), "--bridge", *arguments],
-                                        capture_output=True, text=True,
-                                        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
-                events = [json.loads(line) for line in result.stdout.splitlines()]
-                done = [event for event in events if event["type"] == "done"]
-                self.assertEqual(len(done), 1)
-                self.assertEqual((result.returncode, done[0]["code"]), (expected, expected))
-                self.assertEqual(events[-1], done[0])
-                self.assertEqual(result.stderr, "")
-                if expected:
-                    self.assertEqual(done[0]["outcome"], "failed")
-                    self.assertTrue(any(event.get("code") == "DEPLOYMENT_ARGUMENT_ERROR" for event in events))
-
-    def test_typed_prompt_keeps_answer_cancel_and_secret_contract(self):
-        from slothvault_deploy import bridge
-        output = StringIO()
-        with patch.object(sys, "__stdout__", output), patch.object(sys, "__stdin__", StringIO('{"type":"answer","value":"y"}\n')):
-            self.assertEqual(bridge._ask("confirm", kind="confirm", default=False), "y")
-        self.assertEqual(json.loads(output.getvalue())["kind"], "confirm")
-        with patch.object(sys, "__stdout__", StringIO()), patch.object(sys, "__stdin__", StringIO('{"type":"cancel"}\n')), self.assertRaises(KeyboardInterrupt):
-            bridge._ask("confirm")
 
 
-if __name__ == "__main__":
-    unittest.main()
+class ComposeValidationTests(unittest.TestCase):
+    def test_image_pinning_validates_quietly_and_restores_on_validation_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)/"compose.yml"
+            original = '# Managed by SlothVault install.py\nservices:\n  slothvault:\n    image: "holic512/slothvault:v2.0.0"\n    ports:\n      - "127.0.0.1:3000:3000"\n'
+            path.write_text(original)
+            with patch.object(compose,"run_command") as command:
+                compose.pin_managed_application_image(path,"holic512/slothvault:v2.0.1")
+                command.assert_called_once_with(compose.compose_command(path,"config","--quiet"))
+            self.assertIn('127.0.0.1:3000:3000',path.read_text())
+            before=path.read_text()
+            with patch.object(compose,"run_command",side_effect=InstallerError("invalid")), self.assertRaises(InstallerError):
+                compose.pin_managed_application_image(path,"holic512/slothvault:v2.0.2")
+            self.assertEqual(path.read_text(),before)

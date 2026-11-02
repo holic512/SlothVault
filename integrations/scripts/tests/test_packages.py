@@ -32,8 +32,13 @@ class IndependentPackagesTest(unittest.TestCase):
                     self.assertEqual(first.read_bytes(), second.read_bytes())
                     manifest = json.loads(manifest_path.read_text())
                     self.assertEqual(manifest["schema"], 1)
-                    self.assertEqual(manifest["protocolMajor"], 1)
-                    self.assertEqual(manifest["bridgeApiMajor"], 1)
+                    if module == "skill":
+                        self.assertEqual(manifest["protocolMajor"], 1)
+                        self.assertEqual(manifest["bridgeApiMajor"], 1)
+                    else:
+                        self.assertNotIn("bridgeApiMajor", manifest)
+                        self.assertNotIn("protocolMajor", manifest)
+                        self.assertTrue(builder.DEPLOYMENT_ENTRIES.issubset(manifest["files"]))
                     builder.verify_package(first, manifest)
                     with tarfile.open(first) as archive:
                         self.assertTrue(all(item.name.startswith("package/") and item.isfile() for item in archive))
@@ -41,6 +46,35 @@ class IndependentPackagesTest(unittest.TestCase):
                     self.assertNotIn("README.md", manifest["files"])
                     self.assertNotIn("CHANGELOG.md", manifest["files"])
                     self.assertIn("pending", notes.read_text())
+
+    def test_deployment_archive_runs_from_an_unrelated_working_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            archive, manifest_path, _ = builder.package_module("deployment", directory / "out", "pending", [])
+            builder.verify_package(archive, json.loads(manifest_path.read_text()))
+            with tarfile.open(archive) as package:
+                package.extractall(directory / "extracted")
+            root = directory / "extracted/package"
+            for entry in sorted(builder.DEPLOYMENT_ENTRIES - {"USAGE.md"}):
+                for flag in ("--help", "--version"):
+                    result = subprocess.run([sys.executable, str(root / entry), flag], cwd=directory, text=True, capture_output=True, timeout=10)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+            menu = subprocess.run([sys.executable, str(root / "menu.py")], input="0\n", cwd=directory, text=True, capture_output=True, timeout=10)
+            self.assertEqual(menu.returncode, 0, menu.stderr)
+            self.assertIn("SlothVault 部署管理", menu.stdout)
+            self.assertFalse(any(name in json.loads(manifest_path.read_text())["files"] for name in ("slothvault_deploy/bridge.py", "slothvault_deploy/nginx.py", "slothvault_deploy/certbot.py")))
+
+    def test_deployment_packaging_requires_every_operation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "source"
+            shutil.copytree(builder.ROOT / "deployment", root / "deployment")
+            for entry in sorted(builder.DEPLOYMENT_ENTRIES):
+                file = root / "deployment" / entry
+                content = file.read_bytes()
+                file.unlink()
+                with self.assertRaisesRegex(ValueError, "incomplete"):
+                    builder.package_module("deployment", Path(tmp) / "out", "pending", [], root=root)
+                file.write_bytes(content)
 
     def test_corrupt_archives_fail_verification(self):
         with tempfile.TemporaryDirectory() as tmp:

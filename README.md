@@ -105,12 +105,10 @@ APP_DATA_PATH=./data UPLOAD_STORAGE_PATH=./data/uploads npm run dev
 通过 SlothTool 安装并运行独立部署包：
 
 ```bash
-npm install -g @holic512/slothtool
-slothtool install slothvault
-sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy
+sudo python3 integrations/deployment/menu.py
 ```
 
-也可以在源码目录直接执行 `sudo python3 integrations/deployment/install.py`，不依赖 SlothTool。程序交互选择数据库，默认生成 `/data/slothvault/compose.yml` 并启动应用；首次 schema 初始化完成后，再访问站点的 `/install` 创建管理员。
+也可下载独立 Deployment Release，核验并解压后执行 `python3 menu.py`；直接安装使用 `python3 install.py`。部署工具不依赖 SlothTool，完整说明见 [部署操作指南](integrations/deployment/USAGE.md)。程序交互选择数据库，默认生成 `/data/slothvault/compose.yml` 并启动应用；首次 schema 初始化完成后，再访问站点的 `/install` 创建管理员。
 
 | 持久化内容 | 默认位置 |
 | --- | --- |

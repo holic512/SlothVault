@@ -23,6 +23,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MODULES = {"skill", "deployment"}
+DEPLOYMENT_ENTRIES = {"menu.py", "install.py", "check_update.py", "update.py", "start.py", "stop.py", "restart.py", "status.py", "USAGE.md"}
 
 
 def _sha256(data: bytes) -> str:
@@ -87,7 +88,7 @@ def package_module(module: str, outdir: Path, commit: str, checks: list[str], *,
         versions = re.findall(r'^  version: ["\']?(\d+\.\d+\.\d+)["\']?\s*$', frontmatter[1], re.MULTILINE) if frontmatter else []
         if versions != [version]:
             raise ValueError("Skill metadata version does not match module.json")
-    if module == "deployment" and "install.py" not in files:
+    if module == "deployment" and not DEPLOYMENT_ENTRIES.issubset(files):
         raise ValueError("Deployment package is incomplete")
     outdir.mkdir(parents=True, exist_ok=True)
     asset = f"slothvault-{module}-{version}.tgz"
@@ -101,12 +102,12 @@ def package_module(module: str, outdir: Path, commit: str, checks: list[str], *,
                     info.mtime = 0
                     info.uid = info.gid = 0
                     info.uname = info.gname = ""
-                    info.mode = 0o755 if relative == "install.py" else 0o644
+                    info.mode = 0o755 if module == "deployment" and relative in DEPLOYMENT_ENTRIES and relative.endswith(".py") else 0o644
                     tar.addfile(info, io.BytesIO(data))
     manifest = {
         "schema": 1, "module": module, "version": version, "asset": asset,
-        "sha256": _sha256(archive_path.read_bytes()), "bridgeApiMajor": metadata["bridgeApiMajor"],
-        "protocolMajor": metadata["bridgeApiMajor"],
+        "sha256": _sha256(archive_path.read_bytes()),
+        **({"bridgeApiMajor": metadata["bridgeApiMajor"], "protocolMajor": metadata["bridgeApiMajor"]} if module == "skill" else {}),
         **({"minPython": metadata["minPython"]} if "minPython" in metadata else {}),
         "files": files,
     }
@@ -115,6 +116,7 @@ def package_module(module: str, outdir: Path, commit: str, checks: list[str], *,
     verify_package(archive_path, manifest)
     checks_text = "\n".join(f"- {item}: passed" for item in checks)
     python_line = f'- Minimum Python: `{manifest["minPython"]}+`\n' if "minPython" in manifest else ""
+    protocol_line = f"- Module protocol major: `{manifest['protocolMajor']}`\n" if module == "skill" else ""
     notes = (
         f"# SlothVault {module} {version}\n\n"
         f"## Changes\n\n{changed}\n\n"
@@ -124,7 +126,7 @@ def package_module(module: str, outdir: Path, commit: str, checks: list[str], *,
         f"- Archive: `{asset}`\n"
         f"- Manifest: `slothvault-{module}-manifest.json`\n"
         f"- SHA-256: `{manifest['sha256']}`\n"
-        f"- Module protocol major: `{manifest['protocolMajor']}`\n"
+        f"{protocol_line}"
         f"{python_line}"
         f"\n## Checks\n\n{checks_text}\n"
     )

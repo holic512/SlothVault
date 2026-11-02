@@ -2,10 +2,25 @@
   "schema": 1,
   "serverName": "slothvault-admin-mcp",
   "modules": {
-    "skill": {"protocolMajor": 1, "entry": "slothvault-mcp/SKILL.md"},
-    "deployment": {"protocolMajor": 1, "minPython": "3.10", "entry": "install.py"}
+    "skill": {
+      "protocolMajor": 1,
+      "entry": "slothvault-mcp/SKILL.md"
+    },
+    "deployment": {
+      "minPython": "3.10",
+      "entry": "menu.py",
+      "commands": [
+        "install.py",
+        "check_update.py",
+        "update.py",
+        "start.py",
+        "stop.py",
+        "restart.py",
+        "status.py"
+      ]
+    }
   },
   "storage": {
-    "components": "~/.pipker/slothtool/runtimes/slothvault/components/<module>/releases/<version>"
+    "components": "~/.pipker/slothtool/runtimes/slothvault/components/skill/current"
   }
 }

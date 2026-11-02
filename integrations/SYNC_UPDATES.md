@@ -1,30 +1,14 @@
 # Vault → SlothTool 同步更新说明
 
-先读 [ARCHITECTURE.md](./ARCHITECTURE.md)、[PROTOCOL.md](./PROTOCOL.md) 和机器契约。SlothTool 管理独立 Skill/Deployment；Deployment 1.1.1 的可选 Nginx 桥字段由 SlothTool 管理界面 3.2.0 消费，原应用更新桥字段保持兼容。
+SlothTool 2.12.0 / SlothVault 插件 3.3.0 只管理 Skill；部署工具完全在 Vault 独立运行。协议见 [PROTOCOL.md](PROTOCOL.md)，职责见 [ARCHITECTURE.md](ARCHITECTURE.md)。
 
-| Vault 变更 | Vault 版本与文件 | 消费方影响 |
+| Vault 变更 | Vault 文件与发布 | 消费方影响 |
 | --- | --- | --- |
-| Skill | frontmatter、module.json、CHANGELOG | skill install/update 同步独立包和受管链接 |
-| Deployment 脚本/桥 | 元数据、CHANGELOG，必要时桥主版本 | 部署适配器和事件处理 |
-| MCP 工具/资源/权限 | 应用版本、schema、注册表和测试 | 原生宿主重新发现 |
-| 清单或归档路径 | 契约、JSON Schema、打包器 | 两包下载、校验和回退 |
+| Skill | frontmatter、module.json、CHANGELOG，skill-v 标签 | SlothTool Skill install/update 同步内容和链接 |
+| Deployment | module.json、CHANGELOG、独立脚本、USAGE.md，deployment-v 标签 | 管理员下载完整包，使用 menu.py 或对应操作脚本 |
+| MCP 工具／资源／权限 | 应用版本、schema、注册表与测试 | 原生宿主重新发现 |
+| 清单与归档 | 契约、Schema、打包器及测试 | Skill 保持原契约；Deployment 不再声明桥协议 |
 
-## 2026-10-11 待发布基线
+部署菜单和七个操作均支持独立运行。原 SlothTool 部署入口只显示迁移提示；Nginx、HTTPS 和证书管理已移除，旧机器配置不会自动清除。Skill 与原生 MCP 接入保持独立，原生凭据不进入 SlothTool。
 
-| 模块 | 版本 | 桥主版本 | 状态 |
-| --- | --- | --- | --- |
-| Skill | 1.2.0 | 1 | 拟发布 skill-v1.2.0，本轮仅代码和本地验证 |
-| Deployment | 1.1.1 | 1 | Nginx 双模式发现、站点更新和状态；应用更新保持兼容；待独立发布 |
-| SlothTool 管理界面 | 3.1.0 | 接收桥 1 | 固定任务状态、包管理子页与运行版本刷新；待发布 |
-
-根 `slothtool install slothvault` / update 管理界面。`slothtool slothvault skill status --check --json`、skill install、skill update 直接获取独立 Skill，不需要独立 MCP 客户端。产品仅支持 Codex / Claude Code 原生 MCP；配置由网站一次性生成，连接与工具发现由对应宿主确认，SlothTool 不参与该过程，部署也不依赖该连接。
-
-## 发布与交接
-
-1. 校验两模块版本、CHANGELOG 和协议，检查远端 Tag，避免重发。
-2. 跑独立包回归、Deployment 目标测试和归档摘要自检；应用另按版本算法准备。
-3. 有发布授权后，以包含最终代码和版本的提交发布对应 Release。Action 只验证、打包和发布，不回写历史。
-4. 新 Skill 发布后，SlothTool skill install/update 可直接同步 1.2.0。目录仍为 slothvault-mcp，自定义内容保留并报告冲突。
-5. 标准 SDK 测试、真实 Codex/Claude Code 连通和二进制保存分别记录，不能互相替代。
-
-退役组件、历史 Release 和本地数据的迁移与保留遵循 [架构文档](./ARCHITECTURE.md#退役和本地遗留数据)。
+发布前暂存新增内容并按现有 version:prepare 准备版本，核对 CHANGELOG、标签与 SHA-256 清单。运行部署功能、独立打包及发布工具目标测试；归档解压后从其他目录验证全部入口。Action 只验证和发布，不回写 Git 历史。源码完成及本地检查不能声称服务器或已发布包已经更新。

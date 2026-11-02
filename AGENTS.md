@@ -42,3 +42,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## 独立部署工具
+
+- Deployment 仅通过 integrations/deployment/menu.py 和七个独立操作脚本运行；不依赖 SlothTool，不提供 JSON 行桥或 Nginx／HTTPS／证书功能。
+- 启动／停止作用于整个受管 Compose 实例，restart.py 只重启 slothvault 应用。保留现有管理标记、端口和数据路径。
+- 随包 USAGE.md 属于发布内容；README、CHANGELOG 和测试不打包。部署元数据不声明桥协议，Skill 既有发布清单兼容字段保留。
+- 部署验证使用 Python unittest 和独立归档测试，无需本地构建 Docker 镜像。

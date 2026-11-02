@@ -10,7 +10,11 @@
 """
 
 import json
+import sys
 from pathlib import Path
+
+if sys.version_info < (3, 10):
+    raise SystemExit("SlothVault deployment requires Python 3.10 or newer.")
 
 RELEASE_REPOSITORY = "holic512/SlothVault"
 __version__ = json.loads((Path(__file__).resolve().parents[1] / "module.json").read_text(encoding="utf-8"))["version"]

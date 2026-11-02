@@ -2,8 +2,8 @@
 @file integrations/deployment/slothvault_deploy/system.py
 @project SlothVault
 @module Deployment system utilities
-@description Provides safe host command execution, prompts, path validation and atomic file writes for the SlothTool-bundled deployment package.
-@logic Validate user-controlled values before they reach host commands or configuration files, perform recoverable atomic writes, and observe bridge commands with safe progress and separate confirmation prompts.
+@description Provides safe host command execution, prompts, path validation and atomic file writes for independent deployment scripts.
+@logic Validate user-controlled values before they reach host commands or configuration files, perform recoverable atomic writes, and show subprocess output directly in the terminal.
 @dependencies Python standard library
 @index_tags deployment,installer,system,security,filesystem,subprocess
 @author holic512
@@ -18,92 +18,11 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import threading
-from contextlib import contextmanager
 from pathlib import Path
 from typing import Callable, Optional, Sequence
 
 
 VALID_IMAGE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/@:-]*$")
-_progress_callback: Optional[Callable[[str], None]] = None
-_event_callback: Optional[Callable[[str, dict[str, object]], None]] = None
-_confirmation_callback: Optional[Callable[[str, bool], str]] = None
-
-
-def set_progress_callback(callback: Optional[Callable[[str], None]]) -> None:
-    """Route safe command phase names to an interactive frontend."""
-    global _progress_callback
-    _progress_callback = callback
-
-
-def set_event_callback(callback: Optional[Callable[[str, dict[str, object]], None]]) -> None:
-    global _event_callback
-    _event_callback = callback
-
-
-def publish_event(kind: str, data: dict[str, object]) -> None:
-    if _event_callback is not None:
-        _event_callback(kind, data)
-
-
-def set_confirmation_callback(callback: Optional[Callable[[str, bool], str]]) -> None:
-    global _confirmation_callback
-    _confirmation_callback = callback
-
-
-def bridge_active() -> bool:
-    return _event_callback is not None
-
-
-def safe_message(value: str) -> str:
-    value = re.sub(r"svmcp_[A-Za-z0-9_-]{24}\.[A-Za-z0-9_-]{43}", "[redacted]", value)
-    value = re.sub(r"(?i)(bearer\s+)\S+", r"\1[redacted]", value)
-    value = re.sub(r"(?i)((?:password|token|secret|api[_-]?key|encryption_key)\s*[:=]\s*)[^\s,;]+", r"\1[redacted]", value)
-    value = re.sub(r"(https?://)[^/\s:@]+:[^/\s@]+@", r"\1[redacted]@", value)
-    return re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", value)[:600]
-
-
-def report_progress(phase: str, **data: object) -> None:
-    if _event_callback is not None:
-        publish_event("progress", {"phase": phase, **data})
-    elif _progress_callback is not None:
-        _progress_callback(phase)
-
-
-
-@contextmanager
-def command_activity(phase: str):
-    """Keep captured, read-only commands observable without publishing their output."""
-    callback = _event_callback
-    stopping = threading.Event()
-    def heartbeat() -> None:
-        while not stopping.wait(5):
-            try:
-                callback("progress", {"phase": phase, "heartbeat": True, "status": "running"})
-            except Exception:
-                pass
-    worker = threading.Thread(target=heartbeat, daemon=True) if callback else None
-    if worker:
-        worker.start()
-    try:
-        yield
-    finally:
-        stopping.set()
-        if worker:
-            worker.join()
-
-
-def _command_phase(command: Sequence[str]) -> str:
-    executable = os.path.basename(command[0])
-    if executable == "docker" and len(command) > 1 and command[1] == "compose":
-        operation = next((part for part in command[2:] if part in ("pull", "up", "ps", "stop", "config")), "check")
-        return "docker compose " + operation
-    if executable in ("certbot", "nginx", "systemctl", "apt-get", "dnf"):
-        operation = next((part for part in command[1:] if not part.startswith("-")), "check")
-        return executable + " " + operation
-    return executable
-
-
 class InstallerError(RuntimeError):
     """Represents a safe-to-display deployment setup error."""
 
@@ -187,7 +106,7 @@ def prompt_yes_no(message: str, default: bool = False) -> bool:
     while True:
         try:
             label = "{0} {1}：".format(message, suffix)
-            value = (_confirmation_callback(label, default) if _confirmation_callback else input(label)).strip().lower()
+            value = input(label).strip().lower()
         except EOFError as error:
             raise InstallerError("尚未确认，输入已结束") from error
         if not value:
@@ -202,13 +121,6 @@ def prompt_yes_no(message: str, default: bool = False) -> bool:
 def prompt_confirm(message: str) -> None:
     if not prompt_yes_no(message):
         raise InstallerError("已取消操作，未写入任何文件")
-
-
-def require_root(action: str) -> None:
-    if os.geteuid() != 0:
-        raise InstallerError(
-            '{0}需要写入系统配置；请使用 sudo env HOME="$HOME" "$(command -v slothtool)" slothvault deploy 重新运行'.format(action)
-        )
 
 
 def ensure_fresh_directory(path: Path, label: str) -> None:
@@ -248,64 +160,18 @@ def write_text_atomically(path: Path, source: str, mode: int) -> None:
         raise
 
 
-def read_text_file(path: Path, label: str) -> str:
-    try:
-        return path.read_text(encoding="utf-8")
-    except OSError as error:
-        raise InstallerError("无法读取{0}：{1}".format(label, path)) from error
-
-
-def run_command(command: Sequence[str], quiet: bool = False, *, phase: str | None = None, stage_index: int | None = None, stage_count: int | None = None) -> None:
-    phase = phase or _command_phase(command)
-    stage = {"stageIndex": stage_index, "stageCount": stage_count} if stage_count else {}
-    if bridge_active() or _progress_callback is not None:
-        report_progress(phase, status="running", **stage)
-    elif not quiet:
+def run_command(command: Sequence[str], quiet: bool = False) -> None:
+    if not quiet:
         print_info("执行命令：{0}".format(" ".join(command)))
     try:
-        if bridge_active() or _progress_callback is not None:
-            from .progress import run_observed_command
-            run_observed_command(command, lambda data: report_progress(phase, **stage, **data))
-            report_progress(phase, status="completed", **stage)
-        else:
-            subprocess.run(list(command), check=True, stdout=subprocess.DEVNULL if quiet else None, stderr=subprocess.DEVNULL if quiet else None)
+        subprocess.run(list(command), check=True, stdout=subprocess.DEVNULL if quiet else None, stderr=subprocess.DEVNULL if quiet else None)
     except FileNotFoundError as error:
         raise InstallerError("未找到命令：{0}".format(command[0])) from error
     except subprocess.CalledProcessError as error:
-        if bridge_active() or _progress_callback is not None:
-            report_progress(phase, status="failed", **stage)
-            raise InstallerError("{0}失败（退出码 {1}）。{2}".format(phase, error.returncode, error.stderr or "请检查 Docker 服务和部署状态。")) from error
-        raise InstallerError(
-            "命令执行失败（退出码 {0}）：{1}".format(error.returncode, " ".join(command))
-        ) from error
-
-
-def command_succeeds(command: Sequence[str]) -> bool:
-    try:
-        return subprocess.run(
-            list(command),
-            check=False,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        ).returncode == 0
-    except OSError:
-        return False
+        raise InstallerError("命令执行失败（退出码 {0}）：{1}".format(error.returncode, " ".join(command))) from error
 
 
 def check_docker() -> None:
     if shutil.which("docker") is None:
         raise InstallerError("运行脚本前必须先安装 Docker Engine 和 Docker Compose v2")
     run_command(("docker", "compose", "version"))
-
-
-def read_os_release() -> dict[str, str]:
-    path = Path("/etc/os-release")
-    if not path.is_file():
-        return {}
-    values: dict[str, str] = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        values[key] = value.strip().strip('"').strip("'")
-    return values

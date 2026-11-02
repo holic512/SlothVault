@@ -1,5 +1,12 @@
 # Deployment changes
 
+## 1.1.4
+
+- Split installation, update checks, updates, start, stop, application-only restart and status into independently runnable Python scripts, with a Chinese numeric menu and shared root/help/version handling.
+- Remove the SlothTool deployment bridge, Nginx discovery/configuration, HTTPS and certificate management. Existing proxy files, certificates and renewal tasks remain untouched.
+- Preserve managed Compose markers, databases, data paths, port bindings, staged image pulls and local version/health verification; validate Compose quietly without printing credentials.
+- Ship standalone usage instructions and validate every operation after archive extraction. Deployment manifests no longer declare bridge protocol fields; Skill manifests retain their existing contract.
+
 ## 1.1.3
 
 - Parse empty WebSocket map keys, empty directive arguments and individually quoted structural characters without losing source spans.
