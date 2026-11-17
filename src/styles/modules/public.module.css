@@ -79,7 +79,7 @@
 }
 
 .root :global(.projects-main) {
-  padding-top: 124px;
+  padding-top: 128px;
   padding-bottom: 80px;
 }
 
@@ -123,6 +123,15 @@
   line-height: 1.6;
 }
 
+.root :global(.projects-main) :global(.public-list-heading) h1 {
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.root :global(.projects-main) :global(.public-list-count) {
+  font-variant-numeric: tabular-nums;
+}
+
 .root :global(.project-grid) {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -130,58 +139,60 @@
 }
 
 .root :global(.project-card-link) {
+  display: flex;
   min-width: 0;
   color: inherit;
   text-decoration: none;
 }
 
 .root :global(.project-card-link):focus-visible {
-  outline: 2px solid var(--sv-project-version);
+  outline: 2px solid var(--sv-focus-ring);
   outline-offset: 4px;
-  border-radius: var(--sv-radius);
+  border-radius: 12px;
 }
 
 .root :global(.project-library-card) {
+  width: 100%;
   height: 100%;
   overflow: hidden;
-  border: 1px solid var(--sv-border) !important;
-  transition: border-color 120ms ease;
-  border-radius: var(--sv-radius) !important;
-  box-shadow: var(--sv-surface-shadow);
+  border: 1px solid color-mix(in srgb, var(--sv-text) 10%, transparent) !important;
+  border-radius: 12px !important;
   background: var(--sv-bg-solid) !important;
+  box-shadow: none !important;
+  transition: border-color var(--sv-motion-fast) var(--sv-ease-standard);
 }
 
-.root :global(.project-library-card):hover {
-  box-shadow: var(--sv-shadow-tight);
+.root :global(.project-card-link):is(:hover, :focus-visible) :global(.project-library-card) {
   border-color: var(--sv-border-strong) !important;
 }
 
 .root :global(.project-library-card) :global(.ant-card-body) {
   display: flex;
-  min-height: 260px;
+  height: 100%;
+  min-height: 320px;
   flex-direction: column;
-  padding: 22px;
+  padding: 24px;
 }
 
 .root :global(.project-card-topline) {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .root :global(.project-card-avatar) {
   display: grid;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   overflow: hidden;
   place-items: center;
-  border: 1px solid color-mix(in srgb, var(--sv-project-avatar) 20%, var(--sv-border));
-  background: color-mix(in srgb, var(--sv-project-avatar) 8%, var(--sv-bg-solid));
-  font-size: 20px;
-  font-weight: 600;
+  border: 1px solid var(--sv-border);
   border-radius: 8px;
-  color: var(--sv-project-avatar);
+  background: var(--sv-bg-soft);
+  color: var(--sv-text-muted);
+  font-size: 20px;
+  font-weight: 500;
 }
 
 .root :global(.project-card-avatar) img {
@@ -192,80 +203,100 @@
 
 .root :global(.project-card-arrow) {
   display: grid;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   place-items: center;
-  border: 1px solid var(--sv-border);
-  color: var(--sv-text-muted);
-  transition: color 120ms ease, background-color 120ms ease;
-  border-radius: 6px;
+  color: var(--sv-text-subtle);
+  transition: color var(--sv-motion-fast) var(--sv-ease-standard);
 }
 
-.root :global(.project-library-card):hover :global(.project-card-arrow) {
-  border-color: color-mix(in srgb, var(--sv-project-version) 30%, var(--sv-border));
-  background: color-mix(in srgb, var(--sv-project-version) 10%, var(--sv-bg-solid));
-  color: var(--sv-project-version);
+.root :global(.project-card-link):is(:hover, :focus-visible) :global(.project-card-arrow) {
+  color: var(--sv-text);
 }
 
-.root :global(.project-library-card) h3:global(.ant-typography) {
+.root :global(.project-card-title) {
   margin: 0 0 8px;
+  color: var(--sv-text);
   font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-weight: 500;
   line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
-.root :global(.project-library-card) :global(.ant-typography) {
-  margin-bottom: 14px;
+.root :global(.project-card-description) {
+  display: -webkit-box;
+  min-height: 44px;
+  overflow: hidden;
+  margin: 0 0 20px;
+  color: var(--sv-text-muted);
+  font-size: 14px;
+  line-height: 22px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
-.root :global(.project-card-tags) {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
+.root :global(.project-card-details) {
   margin-top: auto;
-  margin-bottom: 18px;
 }
 
-.root :global(.project-card-tags) :global(.ant-tag) {
+.root :global(.project-card-edition) {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: var(--sv-project-version);
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.root :global(.project-card-edition) svg {
+  flex-shrink: 0;
+}
+
+.root :global(.project-card-edition)[data-state='unversioned'] {
+  color: var(--sv-text-subtle);
+}
+
+.root :global(.project-card-access) {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 0 0 20px;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.root :global(.project-card-access) dt {
+  color: var(--sv-text-subtle);
+}
+
+.root :global(.project-card-access) dd {
   margin: 0;
+  color: var(--sv-text-muted);
+  overflow-wrap: anywhere;
 }
 
 .root :global(.project-card-meta) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px 16px;
   flex-wrap: wrap;
-  padding-top: 14px;
+  padding-top: 16px;
   border-top: 1px solid var(--sv-border);
-  color: var(--sv-text-muted);
+  color: var(--sv-text-subtle);
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 20px;
 }
 
 .root :global(.project-card-meta) span {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-}
-
-.root :global(.project-card-categories) {
-  padding: 3px 7px;
-  border-radius: 5px;
-  background: color-mix(in srgb, var(--sv-project-category) 8%, var(--sv-bg-solid));
-  color: var(--sv-project-category);
-}
-
-.root :global(.project-card-categories)[data-empty='true'] {
-  background: var(--sv-bg-soft);
-  color: var(--sv-text-muted);
-}
-
-.root :global(.project-card-updated) svg {
-  color: var(--sv-project-updated);
+  gap: 8px;
 }
 
 .root :global(.articles-main) {
@@ -470,30 +501,6 @@
   text-decoration: none;
 }
 
-.root :global(.project-card-edition) {
-  display: inline-flex;
-  align-items: center;
-  align-self: flex-start;
-  gap: 5px;
-  margin-top: auto;
-  margin-bottom: 14px;
-  padding: 4px 8px;
-  border: 1px solid color-mix(in srgb, var(--sv-project-version) 20%, var(--sv-bg-solid));
-  border-radius: 5px;
-  background: color-mix(in srgb, var(--sv-project-version) 8%, var(--sv-bg-solid));
-  color: var(--sv-project-version);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-
-.root :global(.project-card-edition)[data-state='unversioned'] {
-  border-color: var(--sv-border);
-  background: var(--sv-bg-soft);
-  color: var(--sv-text-muted);
-}
-
 .root :global(.account-loading) {
   display: grid;
   min-height: 70vh;
@@ -524,6 +531,10 @@
   .root :global(.articles-main),
   .root :global(.projects-main) {
     padding-top: 94px;
+  }
+
+  .root :global(.projects-main) {
+    padding-top: 96px;
   }
 
   .root :global(.public-list-heading) {
@@ -575,7 +586,8 @@
   }
 
   .root :global(.project-library-card) :global(.ant-card-body) {
-    min-height: 250px;
+    min-height: 304px;
+    padding: 20px;
   }
 }
 

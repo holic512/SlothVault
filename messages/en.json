@@ -65,15 +65,16 @@
   },
   "ProjectsPage": {
     "title": "Projects",
-    "description": "Browse project documentation and release notes.",
-    "count": "{count} projects",
-    "fallbackDescription": "Project documentation and release notes.",
+    "description": "Browse project documentation and release notes",
+    "count": "{count, plural, one {# project} other {# projects}}",
+    "fallbackDescription": "Project documentation and release notes",
     "version": "Version {version}",
     "unversioned": "No version yet",
     "loading": "Loading...",
     "error": "Failed to load, please try again later",
     "empty": "No public projects yet",
-    "categories": "categories"
+    "categories": "{count, plural, one {# category} other {# categories}}",
+    "updatedAt": "Updated {date}"
   },
   "ArticlesPage": {
     "title": "Articles",

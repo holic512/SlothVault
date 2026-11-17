@@ -4,15 +4,15 @@
  * @file project-list-view.tsx
  * @project SlothVault
  * @module Public Project Library
- * @description Renders the responsive public project archive and an optional server-rendered filing footer.
- * @logic Present project metadata and access rules with localized navigation, then render the supplied footer after the archive.
+ * @description Renders the responsive public project archive with a consistent metadata hierarchy and an optional filing footer.
+ * @logic Present named project links, release summaries, aligned access rules, and localized metadata before the supplied footer.
  * @dependencies Ant Design, next-intl, PublicNavbar, public.module.css
  * @index_tags projects,public,library,filing,footer,responsive
  * @author holic512
  */
 import type { ReactNode } from 'react'
 
-import { Card, Empty, Typography } from 'antd'
+import { Card, Empty } from 'antd'
 import { ArrowUpRight, CalendarClock, FolderTree, GitBranch } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import Link from 'next/link'
@@ -64,32 +64,46 @@ export function ProjectListView({
         {projects.length ? (
           <div className="project-grid">
             {projects.map((project) => (
-              <Link key={project.id} href={`/project/${project.id}/home`} className="project-card-link">
+              <Link
+                key={project.id}
+                href={`/project/${project.id}/home`}
+                className="project-card-link"
+                aria-labelledby={`project-title-${project.id}`}
+              >
                 <Card className="project-library-card" variant="borderless">
                   <div className="project-card-topline">
-                    <span className="project-card-avatar">
+                    <span className="project-card-avatar" aria-hidden="true">
                       {project.avatar ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={project.avatar} alt="" />
                       ) : project.projectName.charAt(0)}
                     </span>
-                    <span className="project-card-arrow"><ArrowUpRight size={17} /></span>
+                    <span className="project-card-arrow" aria-hidden="true"><ArrowUpRight size={16} strokeWidth={1.5} /></span>
                   </div>
-                  <Typography.Title level={3}>{project.projectName}</Typography.Title>
-                  <Typography.Paragraph type="secondary" ellipsis={{ rows: 2 }}>
+                  <h2 id={`project-title-${project.id}`} className="project-card-title">{project.projectName}</h2>
+                  <p className="project-card-description">
                     {project.latestVersionDesc || t('fallbackDescription')}
-                  </Typography.Paragraph>
-                  <div className="project-card-edition" data-state={project.latestVersion ? 'versioned' : 'unversioned'}>
-                    <GitBranch size={13} aria-hidden="true" />
-                    {project.latestVersion ? t('version', { version: project.latestVersion }) : t('unversioned')}
+                  </p>
+                  <div className="project-card-details">
+                    <div className="project-card-edition" data-state={project.latestVersion ? 'versioned' : 'unversioned'}>
+                      <GitBranch size={16} strokeWidth={1.5} aria-hidden="true" />
+                      <span>{project.latestVersion ? t('version', { version: project.latestVersion }) : t('unversioned')}</span>
+                    </div>
+                    <dl className="project-card-access">
+                      <dt>{permissionT('read')}</dt>
+                      <dd>{describe(project.readAccess)}</dd>
+                      <dt>{permissionT('download')}</dt>
+                      <dd>{describe(project.downloadAccess)}</dd>
+                    </dl>
                   </div>
-                  <Typography.Paragraph type="secondary">
-                    {permissionT('read')}：{describe(project.readAccess)}<br />
-                    {permissionT('download')}：{describe(project.downloadAccess)}
-                  </Typography.Paragraph>
                   <div className="project-card-meta">
-                    <span className="project-card-categories" data-empty={project.categoryCount === 0}><FolderTree size={14} aria-hidden="true" />{project.categoryCount} {t('categories')}</span>
-                    <span className="project-card-updated"><CalendarClock size={14} aria-hidden="true" />{new Date(project.updatedAt).toLocaleDateString(dateLocale)}</span>
+                    <span><FolderTree size={16} strokeWidth={1.5} aria-hidden="true" />{t('categories', { count: project.categoryCount })}</span>
+                    <span>
+                      <CalendarClock size={16} strokeWidth={1.5} aria-hidden="true" />
+                      <time dateTime={project.updatedAt} aria-label={t('updatedAt', { date: new Date(project.updatedAt).toLocaleDateString(dateLocale) })}>
+                        {new Date(project.updatedAt).toLocaleDateString(dateLocale)}
+                      </time>
+                    </span>
                   </div>
                 </Card>
               </Link>

@@ -65,15 +65,16 @@
   },
   "ProjectsPage": {
     "title": "项目",
-    "description": "浏览项目文档与版本更新。",
+    "description": "浏览项目文档与版本更新",
     "count": "共 {count} 个项目",
-    "fallbackDescription": "项目文档与版本更新。",
+    "fallbackDescription": "项目文档与版本更新",
     "version": "版本 {version}",
     "unversioned": "暂无版本",
     "loading": "加载中...",
     "error": "加载失败，请稍后重试",
     "empty": "暂无公开项目",
-    "categories": "个分类"
+    "categories": "{count} 个分类",
+    "updatedAt": "更新于 {date}"
   },
   "ArticlesPage": {
     "title": "文章",
