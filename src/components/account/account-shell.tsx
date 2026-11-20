@@ -4,8 +4,8 @@
  * @file account-shell.tsx
  * @project SlothVault
  * @module Personal Account Workspace
- * @description Provides a themed identity rail with hierarchical menu groups, compact footer controls, and matching mobile account navigation.
- * @logic Share the verified session, merge authorized plugin routes, remember desktop preferences, reveal destination groups and keep mobile navigation in a drawer.
+ * @description Provides account navigation, page headings and a responsive workspace for personal settings and plugin pages.
+ * @logic Share the verified session, merge authorized plugin routes, remember desktop preferences and expose mobile navigation in a drawer.
  * @dependencies React, React Query, Ant Design, Next navigation, account.module.css, navigation preferences, plugin contributions
  * @index_tags account,workspace,navigation,sidebar,responsive,plugins
  * @author holic512
@@ -129,10 +129,6 @@ export function AccountShell({ initialUser, children }: { initialUser: SessionUs
 
   return <AccountUserContext.Provider value={user}>
     <main className={`${styles.root} account-main content-container${collapsed ? ` ${styles.collapsed}` : ''}`}>
-      <div className={styles['mobile-bar']}>
-        <Typography.Text strong>{active?.label ?? t('navigationLabel')}</Typography.Text>
-        <Button aria-label={t('sidebar.openMobile')} aria-haspopup="dialog" aria-expanded={mobileOpen} icon={<MenuIcon size={18} />} onClick={() => setMobileOpen(true)} />
-      </div>
       <div className="account-workspace">
         <aside className="account-section-rail" aria-label={t('navigationLabel')}>
           {identity}
@@ -146,7 +142,13 @@ export function AccountShell({ initialUser, children }: { initialUser: SessionUs
             </Tooltip>
           </div>
         </aside>
-        <section className="account-route-content">{children}</section>
+        <section className="account-route-content">
+          <div className={styles['page-header']}>
+            {!pathname.startsWith('/account/extensions/') && <h1>{active?.label ?? t('navigationLabel')}</h1>}
+            <Button className={styles['mobile-menu-button']} aria-label={t('sidebar.openMobile')} aria-haspopup="dialog" aria-expanded={mobileOpen} icon={<MenuIcon size={18} />} onClick={() => setMobileOpen(true)} />
+          </div>
+          {children}
+        </section>
       </div>
     </main>
     <Drawer className={styles['mobile-drawer']} title={t('navigationLabel')} placement="left" size="min(320px, calc(100vw - 24px))" open={mobileOpen} onClose={() => setMobileOpen(false)}>

@@ -83,7 +83,7 @@ describe('liquid glass material contracts', () => {
       background: 'var(--sv-liquid-glass-tint)',
       'backdrop-filter': 'var(--sv-liquid-glass-filter)',
     })
-    // Navigation and account wrappers must not replace the shared tint with a solid scrim.
+    // Navigation and account styles must not override the shared glass tint.
     for (const css of [navCss, accountCss]) {
       expect(css).not.toMatch(/--sv-liquid-glass-(?:tint|fallback)\s*:/)
     }
@@ -112,10 +112,12 @@ describe('liquid glass material contracts', () => {
     })
     expect(declarations(sharedCss, '.theme-controls-popup.ant-popover .ant-popover-container'))
       .toMatchObject({ background: 'transparent', 'box-shadow': 'none' })
-    for (const selector of ['.root :global(.account-card)', '.root :global(.account-card-content)', '.root :global(.account-card-body)']) {
+    expect(declarations(accountCss, '.root :global(.account-card)').background).toBe('var(--sv-bg-solid)')
+    for (const selector of ['.root :global(.account-card-content)', '.root :global(.account-card-body)']) {
       expect(declarations(accountCss, selector)).not.toHaveProperty('background')
       expect(declarations(accountCss, selector)).not.toHaveProperty('backdrop-filter')
     }
+    expect(declarations(accountCss, '.root :global(.account-card)')).not.toHaveProperty('backdrop-filter')
   })
 
   it('disables both refraction and decorative highlights when glass is off', () => {

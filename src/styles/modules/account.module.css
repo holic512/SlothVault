@@ -2,17 +2,17 @@
  * @file account.module.css
  * @project SlothVault
  * @module Account Workspace Styles
- * @description Gives private account pages a themed identity rail with distinct menu hierarchy, a responsive dashboard, and equal-height content cards within each row.
- * @logic Bound desktop navigation to the available viewport, keep identity and controls fixed around a scrolling menu, and replace the rail with a mobile drawer while preserving existing account surfaces.
+ * @description Styles the account workspace with a quiet navigation rail, clear page headings and theme-aware content panels.
+ * @logic Keep account navigation, forms, metrics and tables consistent across themes and responsive layouts.
  * @dependencies SlothVault tokens, AccountShell, AccountCard
- * @index_tags account,layout,responsive,liquid-glass
+ * @index_tags account,layout,responsive,theme
  * @author holic512
  */
 
 .root {
   --sv-font-display: var(--sv-font-body);
 
-  padding-top: 116px;
+  padding-top: 112px;
   padding-bottom: 64px;
 }
 
@@ -20,7 +20,7 @@
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
   align-items: start;
-  gap: 32px;
+  gap: 40px;
 }
 
 .root :global(.account-section-rail) {
@@ -30,10 +30,8 @@
   min-width: 0;
   max-height: calc(100dvh - 130px);
   flex-direction: column;
-  padding: 10px;
-  border: 1px solid var(--sv-border);
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--sv-bg-solid) 72%, transparent);
+  padding: 0 16px 0 0;
+  border-right: 1px solid var(--sv-border-strong);
 }
 
 .root :global(.account-identity) {
@@ -41,8 +39,8 @@
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
-  margin-bottom: 10px;
-  padding: 10px 8px 18px;
+  margin-bottom: 16px;
+  padding: 4px 8px 20px;
   border-bottom: 1px solid var(--sv-border);
 }
 
@@ -123,12 +121,40 @@
   min-width: 0;
 }
 
+.page-header {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.page-header:not(:has(h1)) {
+  display: none;
+}
+
+.page-header h1 {
+  margin: 0;
+  color: var(--sv-text);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.mobile-menu-button:global(.ant-btn) {
+  display: none;
+  flex-shrink: 0;
+}
+
 .root :global(.account-card) {
   display: flex;
   flex-direction: column;
   align-self: stretch;
   min-width: 0;
-  border: 1px solid transparent;
+  border: 1px solid var(--sv-border);
+  border-radius: 12px;
+  background: var(--sv-bg-solid);
 }
 
 .root :global(.account-card-content) {
@@ -138,16 +164,12 @@
   min-width: 0;
 }
 
-.root :global(.account-card[data-glass-enabled="false"]) {
-  border-color: var(--sv-border);
-}
-
 .root :global(.account-card-heading) {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 22px 24px 0;
+  padding: 20px 24px 0;
 }
 
 .root :global(.account-card-heading) h2,
@@ -155,7 +177,7 @@
   margin: 0;
   color: var(--sv-text);
   font-size: 16px;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.5;
 }
 
@@ -177,7 +199,7 @@
 .root :global(.account-form-grid) {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
+  gap: 16px;
 }
 
 .root :global(.account-form-footer) {
@@ -222,8 +244,21 @@
 .root :global(.account-dashboard-stats) {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px;
+  overflow: hidden;
+  border: 1px solid var(--sv-border);
+  border-radius: 12px;
+  background: var(--sv-bg-solid);
   align-items: stretch;
+}
+
+.root :global(.account-dashboard-stat) {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.root :global(.account-dashboard-stat) + :global(.account-dashboard-stat) {
+  border-left: 1px solid var(--sv-border);
 }
 
 .root :global(.account-dashboard-charts),
@@ -269,8 +304,13 @@
 
 .root :global(.account-dashboard-chart-empty) {
   display: flex;
+  height: 120px;
   align-items: center;
   justify-content: center;
+}
+
+.root :global(.account-dashboard-chart-empty) :global(.ant-empty-image) {
+  display: none;
 }
 
 .root :global(.account-overview-balance) :global(.ant-statistic-content) {
@@ -459,7 +499,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Tables should not hide the glass; cells keep a subtle, readable header tint. */
+/* Keep table rows readable within the shared account panels. */
 .root :global(.account-card) :global(.ant-table),
 .root :global(.account-card) :global(.ant-table-cell) {
   background: transparent;
@@ -497,10 +537,10 @@
 .navigation:global(.ant-menu.ant-menu-root) :global(.ant-menu-submenu-title),
 .navigation:global(.ant-menu.ant-menu-root) :global(.ant-menu-item) {
   height: auto;
-  min-height: 44px;
+  min-height: 36px;
   width: 100%;
   margin: 0;
-  padding-block: 10px;
+  padding-block: 8px;
   border-radius: 8px;
   font-size: 14px;
   line-height: 1.5;
@@ -639,14 +679,6 @@
   white-space: normal;
 }
 
-.mobile-bar {
-  display: none;
-  gap: 16px;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-
 .mobile-drawer :global(.ant-drawer-body) {
   display: flex;
   flex-direction: column;
@@ -722,8 +754,13 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .mobile-bar {
+  .page-header:not(:has(h1)) {
     display: flex;
+  }
+
+  .mobile-menu-button:global(.ant-btn) {
+    display: inline-flex;
+    margin-left: auto;
   }
 
 }
@@ -731,11 +768,16 @@
 @media (max-width: 600px) {
   .root :global(.account-dashboard-stats) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
+    gap: 0;
   }
 
   .root :global(.account-dashboard-stat):first-of-type {
     grid-column: 1 / -1;
+    border-bottom: 1px solid var(--sv-border);
+  }
+
+  .root :global(.account-dashboard-stat):nth-of-type(2) {
+    border-left: 0;
   }
 
   .root :global(.account-dashboard-stat) :global(.ant-statistic-content) {

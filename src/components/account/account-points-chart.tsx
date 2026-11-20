@@ -41,7 +41,10 @@ export default function AccountPointsChart({
 
     const chart = init(container, undefined, { renderer: 'svg' })
     const numbers = new Intl.NumberFormat(locale)
-    const dates = new Intl.DateTimeFormat(locale, { month: 'numeric', day: 'numeric' })
+    const range = (summary.balances.at(-1)?.[0] ?? 0) - (summary.balances[0]?.[0] ?? 0)
+    const dates = new Intl.DateTimeFormat(locale, range < 7 * 24 * 60 * 60 * 1000
+      ? { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }
+      : { month: 'numeric', day: 'numeric' })
     const draw = () => {
       const style = getComputedStyle(container)
       const primary = style.getPropertyValue('--sv-primary').trim()
