@@ -5,7 +5,7 @@
  * @project SlothVault
  * @module Mixed Document Editing Surface
  * @description Provides a fast Markdown workflow with shared extension presets, exact public-preview rendering, separate image and attachment uploads, chart and animation insertion, translated controls, visible content constraints, optional host toolbar content, and an optional container-fill layout.
- * @logic Keep the editor controlled, configure and insert validated extension presets in one undoable operation, validate uploads and await success before inserting links, match the host reading or landing presentation in preview, and allocate remaining editing space for full-height hosts.
+ * @logic Keep the editor controlled, insert validated presets and uploads, match the public presentation, and support host-selected preview modes and full-height layouts.
  * @dependencies @uiw/react-md-editor, next/dynamic, next-intl, app-theme-context, lucide-react, MarkdownView
  * @index_tags markdown,html,editor,preview,upload,validation,accessibility
  * @author holic512
@@ -60,6 +60,7 @@ export function MarkdownContentEditor({
   onUploadingChange,
   readOnly = false,
   fillContainer = false,
+  defaultPreview = 'live',
   header,
   headerActions,
   presentation = 'reading',
@@ -72,6 +73,7 @@ export function MarkdownContentEditor({
   onUploadingChange?: (uploading: boolean) => void
   readOnly?: boolean
   fillContainer?: boolean
+  defaultPreview?: 'edit' | 'live'
   header?: ReactNode
   headerActions?: ReactNode
   presentation?: MarkdownPresentation
@@ -354,7 +356,7 @@ export function MarkdownContentEditor({
         value={value}
         onChange={(nextValue) => handleValueChange(nextValue || '')}
         height={fillContainer ? '100%' : 680}
-        preview="live"
+        preview={defaultPreview}
         visibleDragbar={false}
         commands={readOnly ? [] : editorCommands}
         extraCommands={(readOnly ? [commands.codePreview, commands.fullscreen] : [commands.codeEdit, commands.codeLive, commands.codePreview, commands.fullscreen]).map((command) => localizeEditorCommand(command, commandLabels))}

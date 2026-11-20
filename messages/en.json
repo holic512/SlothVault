@@ -132,7 +132,7 @@
     "showGuide": "Writing guide",
     "hideGuide": "Hide guide",
     "textareaLabel": "Document editor supporting Markdown and safe HTML",
-    "ready": "Your content is previewed on the right using the public-page renderer",
+    "ready": "Use the toolbar to switch between editing, split view, and preview",
     "uploadImage": "Upload an image, or paste and drop one here",
     "uploading": "Uploading files before inserting them into the document…",
     "htmlSnippets": "Insert HTML structure",

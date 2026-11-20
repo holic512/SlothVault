@@ -7,12 +7,12 @@ import { PluginSlot } from '@/components/plugins/plugin-ui'
  * @project SlothVault
  * @module Independent Article Editor
  * @description Provides a focused administrator workspace for article metadata, optional cover, Markdown body, and publication lifecycle.
- * @logic Hydrate existing drafts, persist edits before lifecycle transitions, upload separate cover/body images and downloads before saving, and allow published articles to update in place. Expose a declared plugin action slot without granting DOM or lifecycle overrides.
+ * @logic Hydrate and save drafts before lifecycle transitions, upload cover and body files, adapt the default editing mode to narrow screens, and expose a declared plugin action slot.
  * @dependencies Ant Design, React Query, Next navigation, MarkdownContentEditor, article and file APIs, PluginSlot
  * @index_tags admin,article,editor,markdown,cover,publish
  * @author holic512
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Alert, Button, Input, Select, Skeleton, Space, Tag, Typography } from 'antd'
@@ -51,6 +51,18 @@ type MembershipLevel = {
   status: number
 }
 
+const mobileEditorQuery = '(max-width: 640px)'
+
+function subscribeMobileEditor(onChange: () => void) {
+  const query = window.matchMedia(mobileEditorQuery)
+  query.addEventListener('change', onChange)
+  return () => query.removeEventListener('change', onChange)
+}
+
+function isMobileEditor() {
+  return window.matchMedia(mobileEditorQuery).matches
+}
+
 export function ArticleEditor({ articleId }: { articleId?: string }) {
   const t = useTranslations('AdminMM.articles.editor')
   const errorT = useTranslations('AdminMM.errors')
@@ -68,6 +80,7 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const mobileEditor = useSyncExternalStore(subscribeMobileEditor, isMobileEditor, () => false)
   const uploadingRef = useRef(false)
   const handleUploadingChange = (active: boolean) => { uploadingRef.current = active; setUploading(active) }
 
@@ -250,8 +263,8 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
           </div>
           <div className="article-editor-field">
             <label htmlFor="article-summary">{t('summary')}</label>
-            <Input.TextArea id="article-summary" value={summary} maxLength={500} showCount autoSize={{ minRows: 4, maxRows: 8 }} onChange={(event) => mark(setSummary, event.target.value)} />
-            <Typography.Text type="secondary">{t('summaryHint')}</Typography.Text>
+            <Input.TextArea id="article-summary" aria-describedby="article-summary-hint" value={summary} maxLength={500} showCount autoSize={{ minRows: 4, maxRows: 8 }} onChange={(event) => mark(setSummary, event.target.value)} />
+            <Typography.Text id="article-summary-hint" type="secondary">{t('summaryHint')}</Typography.Text>
           </div>
           <div className="article-editor-field">
             <label htmlFor="article-membership-level">{t('access')}</label>
@@ -300,6 +313,7 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
         <main className="article-editor-body">
           <MarkdownContentEditor
             value={content}
+            defaultPreview={mobileEditor ? 'edit' : 'live'}
             onChange={(value) => mark(setContent, value)}
             onUpload={async (files) => {
               const uploaded = await uploadFiles(files, 'ArticleImage')

@@ -132,7 +132,7 @@
     "showGuide": "写作指南",
     "hideGuide": "收起指南",
     "textareaLabel": "文档内容编辑区，支持 Markdown 与安全 HTML",
-    "ready": "编辑内容会在右侧按公开页面效果实时预览",
+    "ready": "可通过工具栏切换编辑、分屏与预览",
     "uploadImage": "上传图片，也可直接粘贴或拖入",
     "uploading": "正在上传文件，完成后插入正文…",
     "htmlSnippets": "插入 HTML 结构",

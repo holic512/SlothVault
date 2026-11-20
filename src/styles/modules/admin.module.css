@@ -2454,8 +2454,10 @@
 
 .root :global(.article-editor-workspace) {
   display: flex;
+  width: 100%;
+  min-width: 0;
   min-height: 0;
-  height: calc(100vh - 80px);
+  flex: 1;
   flex-direction: column;
   gap: 8px;
 }
@@ -2486,7 +2488,7 @@
 
 .root :global(.article-editor-meta) {
   min-height: 0;
-  padding: 14px;
+  padding: 16px;
   overflow-y: auto;
   border-right: 1px solid var(--sv-admin-border);
   background: color-mix(in srgb, var(--sv-bg-soft) 52%, var(--sv-bg-solid));
@@ -2494,8 +2496,8 @@
 
 .root :global(.article-editor-field) {
   display: grid;
-  gap: 7px;
-  margin-bottom: 18px;
+  gap: 8px;
+  margin-bottom: 24px;
 }
 
 .root :global(.article-editor-field) > label {
@@ -2507,6 +2509,10 @@
 .root :global(.article-editor-field) > :global(.ant-typography) {
   font-size: var(--sv-admin-font-secondary);
   line-height: var(--sv-admin-line-body);
+}
+
+.root :global(.article-editor-field) > :global(.ant-input-textarea-show-count) {
+  margin-bottom: 20px;
 }
 
 .root :global(.article-editor-cover) {
@@ -2525,6 +2531,10 @@
   object-fit: cover;
 }
 
+.root :global(.article-editor-cover)[data-empty] {
+  max-height: 96px;
+}
+
 .root :global(.article-editor-cover .article-cover-fallback) {
   position: absolute;
   inset: 0;
@@ -2540,7 +2550,7 @@
   grid-row: 1 / -1;
   color: var(--sv-text-muted);
   font-family: var(--sv-font-display);
-  font-size: 72px;
+  font-size: 48px;
   line-height: 1;
 }
 
@@ -2581,12 +2591,38 @@
   border-radius: 0 !important;
 }
 
-.root :global(.article-editor-body .markdown-editor-header) > div:first-child {
-  display: grid;
-  gap: 1px;
+/* The editor's inline minimum height otherwise leaves the lower writing pane inactive. */
+.root :global(.article-editor-body .w-md-editor-text) {
+  min-height: 100% !important;
 }
 
-.root :global(.article-editor-body .markdown-editor-header) > div:first-child span {
+.root :global(.article-editor-body .w-md-editor > .w-md-editor-toolbar) {
+  gap: 4px 8px;
+  padding: 8px;
+}
+
+.root :global(.article-editor-body .w-md-editor > .w-md-editor-toolbar > ul > li > button) {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--sv-motion-fast), color var(--sv-motion-fast);
+}
+
+.root :global(.article-editor-body .document-editor-intro) {
+  background: var(--sv-bg-solid);
+}
+
+.root :global(.article-editor-body .document-editor-intro) > div:first-child {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+
+.root :global(.article-editor-body .document-editor-intro) > div:first-child span {
   color: var(--sv-text-muted);
   font-size: var(--sv-admin-font-secondary);
   font-weight: var(--sv-admin-weight-regular);
@@ -2931,8 +2967,7 @@
   }
 
   .root :global(.article-editor-workspace) {
-    height: auto;
-    min-height: calc(100vh - 80px);
+    overflow-y: auto;
   }
 
   .root :global(.article-editor-toolbar) {
@@ -2948,6 +2983,7 @@
 
   .root :global(.article-editor-layout) {
     display: block;
+    flex: none;
     overflow: visible;
   }
 
@@ -2959,6 +2995,11 @@
 
   .root :global(.article-editor-body) {
     height: 680px;
+  }
+
+  .root :global(.article-editor-body .w-md-editor > .w-md-editor-toolbar > ul > li > button) {
+    width: 32px;
+    height: 32px;
   }
 }
 

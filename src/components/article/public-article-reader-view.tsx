@@ -46,17 +46,16 @@ export async function PublicArticleReaderView({
       <main className="article-reader-main">
         <div className="content-container article-reader-shell">
           <Link href="/articles" className="article-reader-back">
-            <ArrowLeft size={15} />{t('back')}
+            <ArrowLeft size={16} aria-hidden="true" />{t('back')}
           </Link>
           <article>
             <header className={`article-reader-hero ${article.cover ? 'has-cover' : ''}`}>
               <div className="article-reader-heading">
-                <span className="articles-kicker">Article</span>
                 <h1>{article.title}</h1>
                 {article.summary ? <p>{article.summary}</p> : null}
                 <div className="article-reader-dates">
-                  <span>{t('published', { date: new Date(article.publishedAt).toLocaleDateString(dateLocale) })}</span>
-                  <span><Clock3 size={13} />{t('updated', { date: new Date(article.updatedAt).toLocaleDateString(dateLocale) })}</span>
+                  <time dateTime={article.publishedAt}>{t('published', { date: new Date(article.publishedAt).toLocaleDateString(dateLocale) })}</time>
+                  <time dateTime={article.updatedAt}><Clock3 size={14} aria-hidden="true" />{t('updated', { date: new Date(article.updatedAt).toLocaleDateString(dateLocale) })}</time>
                 </div>
               </div>
               {article.cover ? <ArticleCover cover={article.cover} title={article.title} className="article-reader-cover" eager /> : null}
