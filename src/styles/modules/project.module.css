@@ -13,6 +13,15 @@
   min-height: 100vh;
 }
 
+:global(html[data-style='saas']:not(.dark)) .root:has(> :global(.docs-reader)) {
+  background: var(--sv-bg-solid);
+}
+
+:global(html[data-style='saas']:not(.dark)) .root:has(> :global(.docs-reader)) :global(.project-nav:not(.is-liquid-glass)) {
+  background: var(--sv-bg-solid);
+  box-shadow: none;
+}
+
 .root :global(.project-brand-lockup) {
   display: inline-flex;
   min-width: 0;
@@ -158,6 +167,10 @@
   border-right: 1px solid var(--sv-border);
 }
 
+:global(html[data-style='saas']:not(.dark)) .root :global(.docs-sidebar) {
+  border-right: 2px solid var(--sv-border-strong);
+}
+
 .root :global(.docs-category) {
   margin-bottom: 20px;
 }
@@ -293,6 +306,11 @@
     overflow-x: auto;
     border-right: 0;
     border-bottom: 1px solid var(--sv-border);
+  }
+
+  :global(html[data-style='saas']:not(.dark)) .root :global(.docs-sidebar) {
+    border-right: 0;
+    border-bottom: 2px solid var(--sv-border-strong);
   }
 
   .root :global(.docs-category) {
